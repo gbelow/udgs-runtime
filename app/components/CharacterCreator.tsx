@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { deleteCharacter, upsertBaseCharacter } from '../actions';
+import { deleteCharacter, saveCharacter, upsertBaseCharacter } from '../actions';
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { useCharacterStore } from '../stores/useCharacterStore';
@@ -24,12 +24,18 @@ export function CharacterCreator() {
     updateBaseCharacterList()
   }  
 
-  const handleSaveCharacterClick = () => {
+  const handleSaveBaseCharacterClick = () => {
     if(!character) return
     upsertBaseCharacter(character)
     updateBaseCharacterList()
-
   }
+
+  const handleSaveCharacterClick = () => {
+    if(!character) return
+    saveCharacter(character)
+  }
+
+
 
   
   // size, race, abilities, armor penalties, injuries, movements, AP, STA, STA regen
@@ -43,7 +49,7 @@ export function CharacterCreator() {
             <label htmlFor="name" className='font-bold'>Name: </label>
             <TextItem keyName={'name'} mode='normal'/>
             {/* <input id='del' className='border rounded bg-red-700 w-12 p-1' type='button' value={'delete'} onClick={()=> setShowConfirm(true)} /> */}
-            <input id='log' className='border rounded w-12 p-1' type='button' value={'save'} onClick={handleSaveCharacterClick } />
+            <input id='log' className='border rounded w-12 p-1' type='button' value={'save'} onClick={handleSaveBaseCharacterClick } />
           </div>
         <div className='flex flex-row gap-2 justify-center'>
           <div>AP: {6}</div>
@@ -121,6 +127,7 @@ export function CharacterCreator() {
           <SkillItem key={'will'} skillName='will' title='will' />
           <SkillItem key={'charm'} skillName='charm' title='charm' />
           <SkillItem key={'stress'} skillName='stress' title='stress' />
+          <SkillItem key={'acting'} skillName='acting' title='acting' />
           <SkillItem key={'devotion'} skillName='devotion' title='devotion' />
         </div>
         <div className='flex flex-row gap-2 justify-center'>
@@ -136,7 +143,7 @@ export function CharacterCreator() {
         <TextItem aria-label='notes' keyName='notes' mode='large'/>
         {/* <textarea aria-label='notes' className='border rounded p-1 min-h-32' onChange={val => setNotes(val.target.value)} value={notes} /> */}
         
-        {/* <button type='button' className='border rounded p-2' onClick={handleSaveCharacterClick}>Save</button> */}
+        <button type='button' className='border rounded p-2' onClick={handleSaveCharacterClick}>Save</button>
       </div>
       <div className='flex flex-col text-center md:col-span-5  items-center mx-2 gap-2'>
         {

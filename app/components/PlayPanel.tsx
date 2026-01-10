@@ -198,6 +198,7 @@ export function PlayPanel(){
               <ZimpleSkill skillName={'will'} rollSkill={rollSkill}/>
               <ZimpleSkill skillName={'charm'} rollSkill={rollSkill}/>
               <ZimpleSkill skillName={'stress'} rollSkill={rollSkill}/>
+              <ZimpleSkill skillName={'acting'} rollSkill={rollSkill}/>
               <ZimpleSkill skillName={'devotion'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>

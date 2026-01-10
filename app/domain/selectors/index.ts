@@ -6,7 +6,8 @@ import {
   getBalance, getClimb, getSwim, getStrength, getPrestidigitation, getHealth, getKnowledge,
   getExplore, getWill, getCharm, getStress, getDevotion,
   getCombustion, getEletromag, getRadiation, getEntropy, getBiomancy, getTelepathy, getAnimancy,
-  getStealth
+  getStealth,
+  getActing
 } from "./skills";
 
 export const skillSelectors: Record<keyof Skills, (c: Character) => number> = {
@@ -29,6 +30,7 @@ export const skillSelectors: Record<keyof Skills, (c: Character) => number> = {
   will: getWill,
   charm: getCharm,
   stress: getStress,
+  acting: getActing,
   devotion: getDevotion,
   combustion: getCombustion,
   eletromag: getEletromag,

@@ -77,6 +77,7 @@ export async function deleteBaseCharacter(
 export async function saveCharacter(character: Character) {
   try {
     const list: string[] = (await redis.get('charList')) ?? [];
+    
     await redis.set('charList', [...list, character.name]);
     await redis.set(character.name, character);
   } catch (err) {

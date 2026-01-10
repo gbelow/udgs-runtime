@@ -2,6 +2,7 @@ import { Character } from '../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions } from './afflictions'
 import { getAGI, getMelee, getRanged, getDetection, getSpellcast, getSTR } from './characteristics'
+import { characteristicSelectors } from '.'
 
 export function getStrike(c: Character) {
   return getMelee(c) + skill(c, 'strike') - getAfflictionPenalty(c, 'strike')
@@ -149,6 +150,10 @@ export function getCharm(c: Character) {
 
 export function getStress(c: Character) {
   return skill(c, 'stress')
+}
+
+export function getActing(c: Character) {
+  return skill(c, 'stress') + characteristicSelectors.SPI(c)
 }
 
 export function getDevotion(c: Character) {
