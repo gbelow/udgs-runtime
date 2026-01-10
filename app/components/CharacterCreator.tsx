@@ -80,7 +80,7 @@ export function CharacterCreator() {
         <div className='flex flex-row gap-2 justify-center'>
           <StatDial stat={'size'} title={'size'} />
           <StatDial stat={'RES'} title={'RES'} />
-          <StatDial stat={'TGH'} title={'SPI'} />
+          <StatDial stat={'TGH'} title={'TGH'} />
           <StatDial stat={'INS'} title={'INS'} />
           {/* <StatDial stat={gearPen} natStat={gearPen} setStat={setGearPen} title={'Gear pen'} /> */}
           <div className='flex flex-col'>

@@ -153,7 +153,7 @@ export function getStress(c: Character) {
 }
 
 export function getActing(c: Character) {
-  return skill(c, 'stress') + characteristicSelectors.SPI(c)
+  return skill(c, 'acting') + characteristicSelectors.SPI(c)
 }
 
 export function getDevotion(c: Character) {
