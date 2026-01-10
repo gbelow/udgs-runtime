@@ -1,11 +1,12 @@
 // stores/useCharacterStore.ts
 import { create } from 'zustand'
 import { Character } from '../domain/types'
+import { makeCharacter } from '../domain/factories'
 
 type CharacterStore = {
   character:  Character | null
 
-  loadCharacter: (character: Character) => void
+  loadCharacter: (rawCharacter: unknown) => void
 
   updateCharacter: (
     updater: (c: Character) => Character
@@ -17,11 +18,12 @@ type CharacterStore = {
 export const useCharacterStore = create<CharacterStore>((set) => ({ 
   character: null,
 
-  loadCharacter: (character) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const {afflictions, injuries, hasActionSurge, fightName, resources, id, ...char } = character
+  loadCharacter: (rawCharacter) => {
+    const character = makeCharacter(rawCharacter)
+     
+    // const {afflictions, injuries, hasActionSurge, fightName, resources, id, ...char } = character
     set(() => ({
-        character: char
+        character: {...character}
       }
     ))
   },

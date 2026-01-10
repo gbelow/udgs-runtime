@@ -1,198 +1,253 @@
-export type Attributes = {
-  STR: number
-  AGI: number
-  STA: number
-}
+import { z } from 'zod'
+import { AFFLICTIONS } from './tables'
 
-export type Talents = {
-  CON: number
-  INT: number
-  SPI: number
-  DEX: number
-}
+const num = z.number()
+const str = z.string()
 
-export type Skills = {
-  "strike": number,
-  "defend": number,
-  "reflex": number,
-  "accuracy": number,
-  "grapple": number,
-  "SD":number,
+export const ArmorSchema = z.object({
+  name: z.string().default('Skin'),
+  RES: z.number().default(0),
+  TGH: z.number().default(0),
+  INS: z.number().default(0),
+  prot: z.number().default(0),
+  cover: z.number().default(0),
+  penalty: z.number().default(0),
+  type: z.enum(['light', 'medium', 'heavy']).default('light'),
+}).strip()
 
-  "stealth": number,
-  "prestidigitation": number,
-  "balance": number,
-  "strength": number,
-  "health": number,
-  "swim": number,
-  "climb": number,
+export type Armor = z.infer<typeof ArmorSchema>
 
-  "knowledge": number,
-  "explore": number,
-  "cunning": number,
-  "will": number,
-  "charm": number,
-  "stress": number,
-  "devotion": number,
+export const SkillsSchema = z.object({
+  strike: num.default(0),
+  defend: num.default(0),
+  reflex: num.default(0),
+  accuracy: num.default(0),
+  grapple: num.default(0),
+  SD: num.default(0),
 
-  "combustion": number,
-  "eletromag": number,
-  "radiation": number,
-  "entropy": number,
-  "biomancy": number,
-  "telepathy": number,
-  "animancy": number
-}
+  stealth: num.default(0),
+  prestidigitation: num.default(0),
+  balance: num.default(0),
+  strength: num.default(0),
+  health: num.default(0),
+  swim: num.default(0),
+  climb: num.default(0),
 
-export type Armor = {
-  name: string
-  RES: number
-  TGH: number
-  INS: number
-  prot: number
-  cover: number
-  penalty: number
-  type: 'light' | 'medium' | 'heavy'
-}
+  knowledge: num.default(0),
+  explore: num.default(0),
+  cunning: num.default(0),
+  will: num.default(0),
+  charm: num.default(0),
+  stress: num.default(0),
+  devotion: num.default(0),
 
-export type Movement = {
-  basic: number
-  careful: number
-  crawl: number
-  run: number
-  jump: number
-  swim: number
-  'fast swim': number
-  stand: number
-}
+  combustion: num.default(0),
+  eletromag: num.default(0),
+  radiation: num.default(0),
+  entropy: num.default(0),
+  biomancy: num.default(0),
+  telepathy: num.default(0),
+  animancy: num.default(0),
+}).strip()
 
-export type Proficiencies = {
-  melee: number
-  ranged: number
-  detection: number
-  spellcast: number
-  conviction1: number
-  conviction2: number
-  devotion: number
-}
+export type Skills = z.infer<typeof SkillsSchema>
 
-export type NaturalResistances = {
-  RES: number
-  INS: number
-  TGH: number
-}
+export const MovementSchema = z.object({
+  basic: num.default(1),
+  careful: num.default(0.5),
+  crawl: num.default(0.33),
+  run: num.default(0),
+  jump: num.default(0),
+  swim: num.default(0.33),
+  'fast swim': num.default(0.5),
+  stand: num.default(0),
+}).strip()
 
-export type WeaponAttack = {
-  type: string
-  handed: string
-  impact: number
-  heavyMod: number
-  penMod: number
-  range: string
-  RES: number
-  TGH: number
-  AP: number
-  deflection: number
-  props: string
-}
+export type Movement = z.infer<typeof MovementSchema>
 
-export type Weapon = {
-  name: string
-  penalty: number
-  scale: number
-  attacks: WeaponAttack[]
-}
+export const WeaponAttackSchema = z.object({
+  type: str.default('melee'),
+  handed: str.default('small'),
 
-export type Injuries = {
-  light: number[],
-  serious: number[],
-  deadly: number[],
-}
+  impact: num.default(0),
+  heavyMod: num.default(0),
+  penMod: num.default(0),
 
-export type Resources = {
-  AP: number,
-  STA: number,
-  hunger: number,
-  thirst: number,
-  exhaustion: number
-}
+  range: str.default('short'),
 
-export type AfflictionItem = {
-  mobility?: number,
-  vision?:number,
-  mental?: number,
-  health?:number,
-  injury?:number,
-  controlable: boolean
-}
+  RES: num.default(0),
+  TGH: num.default(0),
 
-export type Characteristics = Attributes & Talents & Proficiencies & NaturalResistances & { size: number }
+  AP: num.default(0),
+  deflection: num.default(0),
 
-export type Afflictions = {
-  prone: AfflictionItem,
-  grappled: AfflictionItem,
-  immobile: AfflictionItem,
-  limp: AfflictionItem,
-  dazzled: AfflictionItem,
-  blind: AfflictionItem,
-  fear: AfflictionItem,
-  rage: AfflictionItem,
-  confused: AfflictionItem,
-  distracted: AfflictionItem,
-  dominated: AfflictionItem,
-  seduced: AfflictionItem,
-  malnourished: AfflictionItem,
-  thirsty: AfflictionItem,
-  dehydrated: AfflictionItem,
-  tired: AfflictionItem,
-  exhausted: AfflictionItem,
-  weakened: AfflictionItem,
-  sick: AfflictionItem,
-}
+  props: str.default(''),
+}).strip()
 
-export type CharacterAfflictions = (keyof Afflictions)[]
+export type WeaponAttack = z.infer<typeof WeaponAttackSchema>
 
-export type Item = {
-  size: number,
-  name: string,
-  description: string,
-}
+export const WeaponSchema = z.object({
+  name: str.default(''),
+  penalty: num.default(0),
+  scale: num.default(3),
+  attacks: z.array(WeaponAttackSchema).default([]),
+}).strip()
 
-export type Container = {
-  name: string,
-  capacity: number,
-  penalty: number,
-  items:Item[]
-}
+export type Weapon = z.infer<typeof WeaponSchema>
 
-export type Character = {
-  path: string
-  name: string
+export const ItemSchema = z.object({
+  size: num.default(0),
+  name: str.default(''),
+  description: str.default(''),
+}).strip()
+
+export type Item = z.infer<typeof ItemSchema>
+
+export const ContainerSchema = z.object({
+  name: str.default(''),
+  capacity: num.default(0),
+  penalty: num.default(0),
+  items: z.array(ItemSchema).default([]),
+}).strip()
+
+export type Container = z.infer<typeof ContainerSchema>
+
+export const InjuriesSchema = z.object({
+  light: z.array(num).default([0, 0, 0, 0, 0, 0]),
+  serious: z.array(num).default([0, 0, 0]),
+  deadly: z.array(num).default([0, 0]),
+}).strip()
+
+export type Injuries = z.infer<typeof InjuriesSchema>
+
+export const ResourcesSchema = z.object({
+  AP: num.default(0),
+  STA: num.default(0),
+  hunger: num.default(0),
+  thirst: num.default(0),
+  exhaustion: num.default(0),
+}).strip()
+
+export type Resources = z.infer<typeof ResourcesSchema>
+
+export const AfflictionItemSchema = z.object({
+  mobility: num.optional(),
+  vision: num.optional(),
+  mental: num.optional(),
+  health: num.optional(),
+  injury: num.optional(),
+  controlable: z.boolean().default(false),
+}).strip()
+
+export type AfflictionItem = z.infer<typeof AfflictionItemSchema>
+
+export const CharacterAfflictionsSchema =
+  z.array(z.string()).default([])
+
+export type CharacterAfflictions =
+  z.infer<typeof CharacterAfflictionsSchema>
+
+
+
+export const CharacteristicsSchema = z.object({
+  size: z.number().default(3),
+
+  STR: z.number().default(10),
+  AGI: z.number().default(10),
+  STA: z.number().default(10),
+
+  CON: z.number().default(0),
+  INT: z.number().default(0),
+  SPI: z.number().default(0),
+  DEX: z.number().default(0),
+
+  melee: z.number().default(0),
+  ranged: z.number().default(0),
+  detection: z.number().default(0),
+  spellcast: z.number().default(0),
+  conviction1: z.number().default(0),
+  conviction2: z.number().default(0),
+  devotion: z.number().default(0),
+
+  RES: z.number().default(5),
+  INS: z.number().default(5),
+  TGH: z.number().default(5),
+}).strip()
+
+export type Characteristics = z.infer<typeof CharacteristicsSchema>
+
+export type AfflictionKey = keyof typeof AFFLICTIONS
+
+const AfflictionKeySchema =
+  z.enum(Object.keys(AFFLICTIONS) as [AfflictionKey, ...AfflictionKey[]])
+
+
+export const CampaignValuesSchema = z.object({
+  injuries: InjuriesSchema,
+  afflictions: z.array(AfflictionKeySchema).default([]),
+  resources: ResourcesSchema,
+  hasActionSurge: z.boolean().default(false),
+})
+
+export type CampaignValues = z.infer<typeof CampaignValuesSchema>
+
+
+export const CharacterSchema = z.object({
+  id: z.string().default(() => crypto.randomUUID()),
+  path: z.string(),
+  name: z.string().default(''),
+
+  characteristics: CharacteristicsSchema.partial().default({}).transform(v => CharacteristicsSchema.parse(v)),
+  skills: SkillsSchema.partial().default({}).transform(v => SkillsSchema.parse(v)),
+  movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),
   
-  characteristics: Characteristics
-  skills: Skills
-  movement: Movement
+  hasGauntlets: z.number().default(0),
+  hasHelm: z.number().default(0),
   
-  hasGauntlets: number
-  hasHelm: number
-  containers: Record<string, Container>
-  
-  armor: Armor
-  weapons: Record<string, Weapon>
-  
-  notes: string
-  
-  // runtime-capable (empty for base)
-  
-  id?:  string | null | undefined
-  injuries?: Injuries | undefined
-  afflictions?: CharacterAfflictions | undefined
-  resources?: Resources | undefined
-  fightName?: string | undefined
-  hasActionSurge?: boolean | undefined
-}
+  armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
+  weapons: z.record(z.string(), WeaponSchema).default({}),
+  containers: z.record(z.string(), ContainerSchema).default({}),
 
-export type CampaignCharacter = Required<Character>
+  notes: z.string().default(''),
+
+  // runtime-capable (optional)
+  fightName: z.string().optional(),
+  injuries: InjuriesSchema.optional(),
+  afflictions: z.array(AfflictionKeySchema).optional(),
+  resources: ResourcesSchema.optional(),
+  hasActionSurge: z.boolean().optional(),
+}).strip()
+
+export type Character = z.infer<typeof CharacterSchema>
+
+export const CampaignCharacterSchema = z.object({
+  ...CharacterSchema.shape,
+  ...CampaignValuesSchema.shape,
+})
+
+export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>
+
+// export type Afflictions = {
+//   prone: AfflictionItem,
+//   grappled: AfflictionItem,
+//   immobile: AfflictionItem,
+//   limp: AfflictionItem,
+//   dazzled: AfflictionItem,
+//   blind: AfflictionItem,
+//   fear: AfflictionItem,
+//   rage: AfflictionItem,
+//   confused: AfflictionItem,
+//   distracted: AfflictionItem,
+//   dominated: AfflictionItem,
+//   seduced: AfflictionItem,
+//   malnourished: AfflictionItem,
+//   thirsty: AfflictionItem,
+//   dehydrated: AfflictionItem,
+//   tired: AfflictionItem,
+//   exhausted: AfflictionItem,
+//   weakened: AfflictionItem,
+//   sick: AfflictionItem,
+// }
 
 
 export type CharacterUpdater = (c: Character) => Character

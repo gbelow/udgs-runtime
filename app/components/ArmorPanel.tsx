@@ -1,12 +1,12 @@
 'use client'
 import { useGetActiveCharacter } from '../hooks/useGetActiveCharacter'
 import baseArmor from '../baseArmor.json'
-import { makeNewCharacter } from '../domain/factories'
+import { makeCharacter } from '../domain/factories'
 
 export function ArmorPanel(){
   const character = useGetActiveCharacter()
   const armor = character ? character.armor : baseArmor
-  const characteristics = character ? character.characteristics : makeNewCharacter('').characteristics
+  const characteristics = character ? character.characteristics : makeCharacter('').characteristics
   return(
     <>
     <div>Armor: {armor.name}</div>

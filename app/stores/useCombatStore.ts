@@ -1,7 +1,8 @@
 // stores/useCharacterStore.ts
 import { create } from 'zustand'
 import { CampaignCharacter, Character } from '../domain/types'
-import { addCharacterResources } from '../domain/utils'
+import { makeCampaignCharacter, makeCharacter } from '../domain/factories'
+import { addCharacterToCombat } from '../domain/utils'
 
 export type CombatStore = {
   characters: Record<string, CampaignCharacter>
@@ -9,7 +10,7 @@ export type CombatStore = {
   round: number
   inTurnCharacter: string
   
-  addCharacter: (character: Character | CampaignCharacter) => void
+  loadCharacter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
   getActiveCharacter: (id: string | void) => CampaignCharacter | null
 
@@ -32,13 +33,14 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     set( updater)
   },
 
-  addCharacter: (character) =>
+  loadCharacter: (rawCharacter) =>
     set((s) => {
-      const char = addCharacterResources(character, s.characters)
+      const campaignCharacter = makeCampaignCharacter( rawCharacter, makeCharacter(rawCharacter))
       return({
         characters: {
           ...s.characters,
-          [String(char.id)]: char
+          [String(campaignCharacter.id)]: addCharacterToCombat(campaignCharacter, s.characters)
+
         }
       })
     }),

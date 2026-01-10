@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
-import {afflictions as afflictionDefinitions} from '../domain/tables'
+import { AFFLICTIONS as afflictionDefinitions} from '../domain/tables'
 import { makeFullRoll } from './utils';
 import { CombatStore, useCombatStore } from '../stores/useCombatStore';
-import { Afflictions, CharacterAfflictions, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
+import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
 import { useActiveCharacterUpdater } from '../hooks/useActiveCharacterUpdater';
 import { startTurn } from '../domain/commands/startTurn';
 import { useGetActiveCharacter } from '../hooks/useGetActiveCharacter';
@@ -302,15 +302,18 @@ function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}
 function AfflictionsPannel(){
   const character = useGetActiveCharacter()
   const afflictions = character ? getAfflictions(character) : []
-  const afflictionsList = Object.keys(afflictionDefinitions) as CharacterAfflictions
+  const afflictionsList = Object.keys(afflictionDefinitions) as AfflictionKey[]
   const characterUpdater = useActiveCharacterUpdater()
-  const setAffliction = (item: keyof Afflictions) => 
-    characterUpdater((c) => ({...c, afflictions: symmetricDifference( getAfflictions(c) ?? [], item) as CharacterAfflictions}))
+  const setAffliction = (item: AfflictionKey) => 
+    characterUpdater((c) => ({
+      ...c,
+      afflictions: symmetricDifference(getAfflictions(c) ?? [], item as AfflictionKey) as AfflictionKey[]
+    }))
 
   return(
     <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>
       {
-        afflictionsList.map((item:keyof Afflictions) => 
+        afflictionsList.map((item: AfflictionKey) => 
           <input type='button' key={item} className={'border p-1 ' + (afflictions?.includes(item) ? 'bg-red-500' : null)} 
             aria-label={item} value={item} onClick={ () => setAffliction(item)} />
         )
@@ -319,6 +322,6 @@ function AfflictionsPannel(){
   )
 }
 
-function symmetricDifference(arr: string[], item: string) {
+function symmetricDifference(arr: AfflictionKey[], item: AfflictionKey) {
   return arr.includes(item) ? arr.filter(el => el != item) : [...arr, item]
 }

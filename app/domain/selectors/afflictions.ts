@@ -1,5 +1,5 @@
 import { Character } from '../types'
-import { SkillPenaltyTable, afflictions as afflictionDefinitions } from '../tables'
+import { SkillPenaltyTable, AFFLICTIONS as afflictionDefinitions } from '../tables'
 import { isCampaignCharacter } from '../utils'
 
 export function getAfflictions(character: Character){

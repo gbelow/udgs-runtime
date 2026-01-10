@@ -1,0 +1,317 @@
+import { CampaignCharacter, Character, Characteristics, Container, Movement, Skills } from './types'
+import { makeCharacter } from './factories'
+
+export function normalizeCharacter(raw: unknown): {
+  character: Character
+  issues: string[]
+} {
+  const issues: string[] = []
+
+  // ---- 1. Path resolution (best-effort) ----
+  const path =
+    isObject(raw) && typeof raw.path === 'string'
+      ? raw.path
+      : 'unknown/normalized'
+
+  const character = makeCharacter(path)
+
+  if (!isObject(raw)) {
+    issues.push('Input was not an object; defaults applied')
+    return { character, issues }
+  }
+
+  // ---- 2. Simple scalar fields ----
+  if (typeof raw.name === 'string') {
+    character.name = raw.name
+  }
+
+  if (typeof raw.notes === 'string') {
+    character.notes = raw.notes
+  }
+
+  if (isNumber(raw.hasGauntlets)) {
+    character.hasGauntlets = raw.hasGauntlets
+  }
+
+  if (isNumber(raw.hasHelm)) {
+    character.hasHelm = raw.hasHelm
+  }
+
+  // ---- 3. Characteristics ----
+  if (isObject(raw.characteristics)) {
+    for (const key of Object.keys(character.characteristics) as (keyof Characteristics)[]) {
+      const v = asNumber(raw.characteristics[key])
+      if (v !== undefined) {
+        character.characteristics[key] = v
+      }
+    }
+  } else if (isObject(raw.attributes)) {
+    // legacy alias
+    issues.push('Used legacy "attributes" field')
+    for (const key of Object.keys(character.characteristics) as (keyof Characteristics)[]) {
+      const v = asNumber(raw.attributes[key])
+      if (v !== undefined) {
+        character.characteristics[key] = v
+      }
+    }
+  }
+
+  // ---- 4. Skills ----
+  if (isObject(raw.skills)) {
+    for (const key of Object.keys(character.skills) as (keyof Skills)[]) {
+      const v = asNumber(raw.skills[key])
+      if (v !== undefined) {
+        character.skills[key] = clamp(v, 0, 20)
+      }
+    }
+  }
+
+  // ---- 5. Movement ----
+  if (isObject(raw.movement)) {
+    for (const key of Object.keys(character.movement) as (keyof Movement)[]) {
+      const v = raw.movement[key]
+      if (isNumber(v)) {
+        character.movement[key] = v
+      } else {
+        issues.push(`Movement.${key} was not numeric; default applied`)
+      }
+    }
+  }
+
+  // ---- 6. Armor ----
+  if (isObject(raw.armor)) {
+    const armor = raw.armor
+  
+    for (const key of ARMOR_NUMERIC_FIELDS) {
+      const v = armor[key]
+      if (isNumber(v)) {
+        character.armor[key] = v
+      }
+    }
+
+    character.armor.name = raw.armor.name && typeof raw.armor.name == 'string' ? raw.armor.name : character.armor.name
+    character.armor.type = (raw.armor.type && typeof raw.armor.type == 'light' | 'medium' | 'heavy') ? raw.armor.type : character.armor.type
+  }
+
+  // ---- 7. Weapons (intersection-only) ----
+  if (isRecord(raw.weapons)) {
+    const { weapons, issues: weaponIssues } = normalizeWeapons(raw.weapons)
+    character.weapons = weapons
+    issues.push(...weaponIssues)
+  } else if (isRecord(raw.characterWeapons)) {
+    issues.push('Used legacy characterWeapons')
+    const { weapons, issues: weaponIssues } =
+      normalizeWeapons(raw.characterWeapons)
+    character.weapons = weapons
+    issues.push(...weaponIssues)
+  }
+
+  // ---- 8. Containers ----
+  if (isObject(raw.containers)) {
+    const containers: Record<string, Container> = {}
+  
+    for (const [key, value] of Object.entries(raw.containers)) {
+      if (isObject(value)) {
+        containers[key] = value as Container
+      }
+    }
+  
+    character.containers = containers
+  }
+
+  // ---- 9. ID
+  if(raw.id && typeof raw.id === 'string'){
+    character.id = raw.id
+  }
+  
+  // ---- 10. Final sanity checks ----
+  if (!isNumber(character.characteristics.STA)) {
+    issues.push('STA missing or invalid; default applied')
+  }
+
+  return { character, issues }
+}
+
+
+
+function normalizeWeapons(raw: unknown): {
+  weapons: Character['weapons']
+  issues: string[]
+} {
+  const issues: string[] = []
+  const weapons: Character['weapons'] = {}
+
+  if (!isRecord(raw)) {
+    return { weapons, issues: [] }
+  }
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (!isRecord(value)) {
+      issues.push(`Weapon ${key} ignored (invalid structure)`)
+      continue
+    }
+
+    if (typeof value.name !== 'string' || !Array.isArray(value.attacks)) {
+      issues.push(`Weapon ${key} ignored (missing name or attacks)`)
+      continue
+    }
+
+    const attacks = value.attacks
+      .filter(isRecord)
+      .map((a) => ({
+        type: typeof a.type === 'string' ? a.type : 'melee',
+        impact: isNumber(a.impact) ? a.impact : 0,
+        heavyMod: isNumber(a.heavyMod) ? a.heavyMod : 0,
+        penMod: isNumber(a.penMod) ? a.penMod : 0,
+        range: typeof a.range === 'string' ? a.range : 'short',
+        RES: isNumber(a.RES) ? a.RES : 0,
+        TGH: isNumber(a.TGH) ? a.TGH : 0,
+        AP: isNumber(a.AP) ? a.AP : 0,
+        deflection: isNumber(a.deflection) ? a.deflection : 0,
+        props: typeof a.props === 'string' ? a.props : '',
+        handed: typeof a.handed === 'string' ? a.handed : 'small'
+      }))
+
+    weapons[key] = {
+      name: value.name,
+      penalty: isNumber(value.penalty) ? value.penalty : 0,
+      scale: isNumber(value.scale) ? value.scale : 3,
+      attacks
+    }
+  }
+
+  return { weapons, issues }
+}
+
+
+
+
+
+export function reconcileRuntime(
+  base: CampaignCharacter,
+  raw: unknown
+): { campaignCharacter: CampaignCharacter; issues: string[] } {
+  const issues: string[] = []
+
+  // Always clone base so reconciliation is pure
+  const runtime: CampaignCharacter = structuredClone(base)
+
+  if (!isObject(raw)) {
+    issues.push('Runtime missing or invalid; defaults applied')
+    return { campaignCharacter: runtime, issues }
+  }
+
+  // ------------------------
+  // Resources
+  // ------------------------
+  if (isObject(raw.resources)) {
+    const r = raw.resources
+
+    if (isNumber(r.AP)) {
+      runtime.resources.AP = clamp(r.AP, 0, base.resources.AP)
+    } else if ('AP' in r) {
+      issues.push('Invalid AP; default applied')
+    }
+
+    if (isNumber(r.STA)) {
+      runtime.resources.STA = clamp(r.STA, 0, base.resources.STA)
+    } else if ('STA' in r) {
+      issues.push('Invalid STA; default applied')
+    }
+
+    if (isNumber(r.hunger)) {
+      runtime.resources.hunger = Math.max(0, r.hunger)
+    }
+
+    if (isNumber(r.thirst)) {
+      runtime.resources.thirst = Math.max(0, r.thirst)
+    }
+
+    if (isNumber(r.exhaustion)) {
+      runtime.resources.exhaustion = Math.max(0, r.exhaustion)
+    }
+  } else if ('resources' in raw) {
+    issues.push('Runtime.resources malformed; defaults applied')
+  }
+
+  // ------------------------
+  // Injuries
+  // ------------------------
+  if (isObject(raw.injuries)) {
+    const i = raw.injuries
+
+    const reconcileTrack = (
+      key: 'light' | 'serious' | 'deadly',
+      maxLen: number
+    ) => {
+      if (!Array.isArray(i[key])) return
+
+      runtime.injuries[key] = runtime.injuries[key].map((value) => {
+        const v = value
+        return isNumber(v) ? clamp(v, 0, 20) : 0
+      })
+
+      if (i[key].length !== maxLen) {
+        issues.push(`Injuries.${key} length mismatch; normalized`)
+      }
+    }
+
+    reconcileTrack('light', base.injuries.light.length)
+    reconcileTrack('serious', base.injuries.serious.length)
+    reconcileTrack('deadly', base.injuries.deadly.length)
+  } else if ('injuries' in raw) {
+    issues.push('Runtime.injuries malformed; defaults applied')
+  }
+
+  // ------------------------
+  // Afflictions
+  // ------------------------
+  if (Array.isArray(raw.afflictions)) {
+    // You intentionally allow loose typing here
+    runtime.afflictions = raw.afflictions.filter(el => Object.keys(afflictions).includes(el))
+  } else if ('afflictions' in raw) {
+    issues.push('Runtime.afflictions malformed; cleared')
+  }
+
+  // ------------------------
+  // Action Surge
+  // ------------------------
+  if (typeof raw.hasActionSurge === 'boolean') {
+    runtime.hasActionSurge = raw.hasActionSurge
+  } else if ('hasActionSurge' in raw) {
+    issues.push('Invalid hasActionSurge; default applied')
+  }
+
+  return { campaignCharacter: runtime, issues }
+}
+
+
+const ARMOR_NUMERIC_FIELDS = [
+  'RES',
+  'TGH',
+  'INS',
+  'prot',
+  'cover',
+  'penalty'
+] as const
+
+
+export function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+export function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+
+export function isNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v)
+}
+
+export function asNumber(v: unknown): number | undefined {
+  return isNumber(v) ? v : undefined
+}
+
+export function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n))
+}

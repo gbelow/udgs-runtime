@@ -1,142 +1,104 @@
-import { Character } from './types'
+import z from 'zod'
+import { CampaignCharacter, CampaignCharacterSchema, Character, CharacterSchema } from './types'
 
-export function makeNewCharacter(path: string): Character {
-  return ({
-    path,
-    name: '',
+export const EMPTY_CHARACTER: Character =  CharacterSchema.parse({ path: '',})
 
-    armor: {
-      name: 'Skin',
-      RES: 0,
-      TGH: 0,
-      INS: 0,
-      prot: 0,
-      cover: 0,
-      penalty: 0,
-      type: 'light'
+export function makeCharacter(raw: unknown): Character {
+  if (typeof raw !== 'object' || raw === null) {
+    return EMPTY_CHARACTER
+  }
+
+  const parsed = CharacterIngestSchema.safeParse(raw)
+
+  if (!parsed.success) {
+    return EMPTY_CHARACTER
+  }
+
+  return {
+    ...EMPTY_CHARACTER,
+    ...parsed.data,
+    
+    // deep merge the important nested objects
+    characteristics: {
+      ...EMPTY_CHARACTER.characteristics,
+      ...parsed.data.characteristics,
     },
-
-    characteristics:{
-      size: 3,
-      STR: 10,
-      AGI: 10,
-      STA: 10,    
-      CON: 0,
-      INT: 0,
-      SPI: 0,
-      DEX: 0,
-      melee: 0,
-      ranged: 0,
-      detection: 0,
-      spellcast: 0,
-      conviction1: 0,
-      conviction2: 0,
-      devotion: 0,
-      RES: 5,
-      INS: 5,
-      TGH: 5
-    },
-
     skills: {
-      "strike": 0,
-      "defend": 0,
-      "reflex": 0,
-      "accuracy": 0,
-      "grapple": 0,
-      "SD":0,
-  
-      "stealth": 0,
-      "prestidigitation": 0,
-      "balance": 0,
-      "strength": 0,
-      "health": 0,
-      "swim": 0,
-      "climb": 0,
-  
-      "knowledge": 0,
-      "explore": 0,
-      "cunning": 0,
-      "will": 0,
-      "charm": 0,
-      "stress": 0,
-      "devotion": 0,
-  
-      "combustion": 0,
-      "eletromag": 0,
-      "radiation": 0,
-      "entropy": 0,
-      "biomancy": 0,
-      "telepathy": 0,
-      "animancy": 0
+      ...EMPTY_CHARACTER.skills,
+      ...parsed.data.skills,
     },
-
     movement: {
-      basic: 1,
-      careful: 0.5,
-      crawl: 0.33,
-      run: 0,
-      jump: 0,
-      swim: 0.33,
-      'fast swim': 0.5,
-      stand: 0
+      ...EMPTY_CHARACTER.movement,
+      ...parsed.data.movement,
     },
-
-    hasGauntlets: 0,
-    hasHelm: 0,
-
-    weapons: {
-      hands: {
-        name: 'hands',
-        penalty: 0,
-        scale: 3,
-        attacks: [
-          {
-            type: 'melee',
-            impact: 0,
-            heavyMod: 0,
-            penMod: 0,
-            range: 'short',
-            RES: 20,
-            TGH: 20,
-            AP: 3,
-            deflection: 0,
-            props: 'grapple, draw',
-            handed:"small"
-          },
-          {
-            type: 'melee',
-            impact: 4,
-            heavyMod: 0.5,
-            penMod: 0.2,
-            range: 'short',
-            RES: 20,
-            TGH: 20,
-            AP: 3,
-            deflection: 0,
-            props: 'heavy I, draw',
-            handed:"small"
-          }
-        ]
-      }
+    armor: {
+      ...EMPTY_CHARACTER.armor,
+      ...parsed.data.armor,
     },
-
-    notes: '',
-    containers:{},
-
-  })
+    weapons: parsed.data.weapons ?? EMPTY_CHARACTER.weapons,
+    containers: parsed.data.containers ?? EMPTY_CHARACTER.containers,
+  }
 }
 
-export function makeCharacterResources(char: Character) {
-  if (!char.characteristics || typeof char.characteristics.STA !== 'number') {
-    throw new Error('Character must have valid attributes with STA value')
+export function makeCampaignCharacter(raw: unknown, character: Character):CampaignCharacter {
+
+  const parsed = CharacterResourceIngestSchema.safeParse(raw)
+  const campaignCharacter = CampaignCharacterSchema.parse(character)
+
+  if (!parsed.success) {
+    return campaignCharacter
   }
 
-  const rss = {
-    afflictions: [],
-    resources: { AP: 6, STA: char.characteristics.STA, hunger: 0, thirst: 0, exhaustion: 0 },
-    injuries: { light: [0, 0, 0, 0, 0, 0], serious: [0, 0, 0], deadly: [0, 0] },
-    hasActionSurge: true,
+  return{
+    ...character,
+    afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
+    resources: {
+      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: campaignCharacter.characteristics.STA},
+    },
+    injuries: {
+      ...parsed.data.injuries ?? campaignCharacter.injuries,
+    },
+    hasActionSurge: parsed.data.hasActionSurge ?? campaignCharacter.hasActionSurge,
   }
-  return rss
+
 }
+
+const safeNumber = z.preprocess(
+  v => {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  },
+  z.number().default(1)
+)
+
+export const CharacterIngestSchema = z.object({
+  id: z.string().optional(),
+  path: z.string().optional(),
+  name: z.string().optional(),
+
+  characteristics: z.record(z.string(), z.any()).optional(),
+  skills: z.record(z.string(), z.any()).optional(),
+  movement: z.record(z.string(), safeNumber).optional(),
+
+  hasGauntlets: z.number().optional(),
+  hasHelm: z.number().optional(),
+
+  armor: z.record(z.string(), z.any()).optional(),
+  weapons: z.record(z.string(), z.any()).optional(),
+  containers: z.record(z.string(), z.any()).optional(),
+
+  notes: z.string().optional(),
+
+  
+}).strip()
+
+
+
+export const CharacterResourceIngestSchema = z.object({
+  injuries: z.any().optional(),
+  afflictions: z.array(z.any()).optional(),
+  resources: z.any().optional(),
+  hasActionSurge: z.boolean().optional(),
+  
+}).strip()
 

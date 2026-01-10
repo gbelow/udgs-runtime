@@ -1,7 +1,6 @@
 import { Character } from '../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions } from './afflictions'
-import { getGearPenalties } from './gear'
 import { getAGI, getMelee, getRanged, getDetection, getSpellcast, getSTR } from './characteristics'
 
 export function getStrike(c: Character) {
@@ -77,7 +76,6 @@ export function getClimb(c: Character) {
     skill(c, 'climb') -
     2 * SM -
     3 * c.hasGauntlets -
-    getGearPenalties(c) -
     getAfflictionPenalty(c, 'climb')
   )
 }
@@ -87,7 +85,6 @@ export function getSwim(c: Character) {
     getAGI(c) -
     10 +
     skill(c, 'swim') -
-    getGearPenalties(c) -
     3 * c.hasHelm -
     getAfflictionPenalty(c, 'swim')
   )
@@ -109,7 +106,6 @@ export function getStealth(c: Character) {
   return (
     skill(c, 'stealth') -
     3 * SM -
-    getGearPenalties(c) -
     getAfflictionPenalty(c, 'stealth')
   )
 }

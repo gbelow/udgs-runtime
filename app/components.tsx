@@ -7,7 +7,7 @@ import { CharacterCreator } from './components/CharacterCreator';
 import { scaleWeapon } from './components/utils';
 import { upsertBaseCharacter, deleteBaseCharacter, getCharacter } from './actions';
 import { useAppStore } from './stores/useAppStore';
-import { makeNewCharacter } from './domain/factories';
+import { makeCharacter } from './domain/factories';
 import { Armor, Character, Weapon } from './domain/types';
 import { useCharacterStore } from './stores/useCharacterStore';
 import { equipArmor } from './domain/commands/equipArmor';
@@ -78,7 +78,7 @@ export function CharacterSelector({charList, }: {charList: string[], }){
   const [openCampaignChars, setOpenCampaignChars] = useState(false)
   const {selectedGameTab} = useAppStore((s)=> s)
   const  loadCharacter = useCharacterStore((state) => state.loadCharacter)
-  const  addCharacter = useCombatStore((state) => state.addCharacter)
+  const  addCharacter = useCombatStore((state) => state.loadCharacter)
   const { baseCharacterList, updateBaseCharacterList } = useAppStore((s)=> s )
   
   
@@ -97,7 +97,7 @@ export function CharacterSelector({charList, }: {charList: string[], }){
   };
 
   const createCharacter = (path:string) => {
-    upsertBaseCharacter( makeNewCharacter(path))
+    upsertBaseCharacter( makeCharacter(path))
     updateBaseCharacterList()
   }
 

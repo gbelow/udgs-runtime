@@ -9,6 +9,7 @@ import { Character, Characteristics, Movement, Skills } from '../domain/types';
 import { makeCharacteristicSelector, makeCharacteristicUpdater, makeMovementSelector, makeMovementUpdater, makeSkillSelector, makeSkillUpdater, makeTextSelector, makeTextUpdater } from '../domain/selectors/factories';
 import { putGauntlets, putHelm } from '../domain/commands/equipArmor';
 import { useAppStore } from '../stores/useAppStore';
+import { resetSkill } from '../domain/commands/resetSkills';
 
 export function CharacterCreator() {
 
@@ -179,12 +180,14 @@ function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills})
   const value = character ? makeSkillSelector(skillName)(character) : 0
   const setValue = (e: React.ChangeEvent<HTMLInputElement>) => 
     updateCharacter(makeSkillUpdater(skillName, parseInt(e.target.value))) 
+  const resetValue = () => 
+    updateCharacter(resetSkill( skillName)) 
 
   return(
     <div className='flex flex-col w-10 md:w-16 overflow-hidden'>
       <label className='text-xs'>{title.slice(0,10)}</label>
       <input className='p-1 border border-white rounded w-10 md:w-16 text-center' title={title} type='number' inputMode="numeric" value={value} onChange={setValue} />
-      {/* <button type='button' className='text-xs bg-gray-800 border' onClick={() => setSkills({...skills, [statName]: calculatedValue})}>Reset</button> */}
+      <button type='button' className='text-xs bg-gray-800 border' onClick={resetValue}>Reset</button>
     </div>
   )
 }

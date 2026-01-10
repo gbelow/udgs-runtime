@@ -1,121 +1,26 @@
 {
+  "id": "bdbcc402-43c2-4c1e-b179-5d771c007710",
   "path": "humanoid/experts",
   "name": "Berserker",
-  "size": 3,
-  "attributes": {
-    "STR": 15,
+  "characteristics": {
+    "size": 3,
+    "STR": 10,
     "AGI": 10,
-    "STA": 14,
-    "CON": 4,
+    "STA": 10,
+    "CON": 0,
     "INT": 0,
-    "SPI": 2,
-    "DEX": 2
-  },
-  "movement": {
-    "basic": "1m",
-    "careful": "0.5m",
-    "crawl": "0.33m",
-    "run": 0,
-    "jump": 0,
-    "swim": "0.33m",
-    "fast swim": "0.5m",
-    "stand": 0
-  },
-  "STR": 15,
-  "AGI": 10,
-  "STA": 14,
-  "CON": 4,
-  "INT": 0,
-  "SPI": 2,
-  "DEX": 2,
-  "melee": 2,
-  "ranged": 1,
-  "detection": 1,
-  "spellcast": 0,
-  "convic1": 4,
-  "convic2": 3,
-  "devotion": 0,
-  "RESnat": 7,
-  "INSnat": 7,
-  "TGHnat": 7,
-  "gearPen": 2,
-  "hasGauntlets": 1,
-  "hasHelm": 0,
-  "characterWeapons": {
-    "GreatSword3": {
-      "name": "GreatSword",
-      "handed": "one",
-      "penalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "impact": 14,
-          "heavyMod": 1,
-          "penMod": 1,
-          "range": "long I",
-          "RES": 40,
-          "TGH": 50,
-          "AP": 4,
-          "deflection": 0,
-          "props": "heavy II, DEF, cleave"
-        },
-        {
-          "type": "melee",
-          "impact": 8,
-          "heavyMod": 0.5,
-          "penMod": 2,
-          "range": "long I",
-          "RES": 25,
-          "TGH": 50,
-          "AP": 3,
-          "deflection": 0,
-          "props": "precise, braced, heavy I"
-        }
-      ]
-    },
-    "hands3": {
-      "name": "hands",
-      "handed": "small",
-      "penalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "impact": 0,
-          "heavyMod": 0,
-          "penMod": 0,
-          "range": "short",
-          "RES": 0,
-          "TGH": 0,
-          "AP": 3,
-          "deflection": 0,
-          "props": "grapple, draw"
-        },
-        {
-          "type": "melee",
-          "impact": 0,
-          "heavyMod": 0.5,
-          "penMod": 0.2,
-          "range": "short",
-          "RES": 0,
-          "TGH": 0,
-          "AP": 3,
-          "deflection": 0,
-          "props": "heavy I, draw"
-        }
-      ]
-    }
-  },
-  "armor": {
-    "name": "Brigandine",
-    "RES": 50,
-    "TGH": 25,
-    "INS": 8,
-    "prot": 10,
-    "cover": 12,
-    "penalty": 2,
-    "type": "medium"
+    "SPI": 0,
+    "DEX": 0,
+    "melee": 0,
+    "ranged": 0,
+    "detection": 0,
+    "spellcast": 0,
+    "conviction1": 0,
+    "conviction2": 0,
+    "devotion": 0,
+    "RES": 5,
+    "INS": 5,
+    "TGH": 5
   },
   "skills": {
     "strike": 5,
@@ -124,7 +29,7 @@
     "accuracy": -2,
     "grapple": 8,
     "SD": -2,
-    "sneak": -2,
+    "stealth": 0,
     "prestidigitation": -1,
     "balance": 0,
     "strength": 7,
@@ -132,8 +37,6 @@
     "swim": -2,
     "climb": -3,
     "knowledge": 0,
-    "detect": 0,
-    "sense": 0,
     "explore": 1,
     "cunning": 1,
     "will": 3,
@@ -146,8 +49,69 @@
     "entropy": 0,
     "biomancy": 0,
     "telepathy": 0,
-    "animancy": 0
+    "animancy": 0,
+    "sneak": -2,
+    "detect": 0,
+    "sense": 0
   },
-  "notes": "Reconstrução celular: 3AP+1STA - Regenera número de curas igual à saúde.\n\nContra ataque, giro da morte, levantada técnica, movimentação tática.",
-  "packItems": ""
+  "movement": {
+    "basic": 1,
+    "careful": 1,
+    "crawl": 1,
+    "run": 0,
+    "jump": 0,
+    "swim": 1,
+    "fast swim": 1,
+    "stand": 0
+  },
+  "hasGauntlets": 1,
+  "hasHelm": 0,
+  "armor": {
+    "name": "Brigandine",
+    "RES": 50,
+    "TGH": 25,
+    "INS": 8,
+    "prot": 10,
+    "cover": 12,
+    "penalty": 2,
+    "type": "medium"
+  },
+  "weapons": {
+    "GreatSword": {
+      "name": "GreatSword",
+      "handed": "one",
+      "penalty": 0,
+      "scale": 3,
+      "attacks": [
+        {
+          "type": "melee",
+          "impact": 14,
+          "heavyMod": 1,
+          "penMod": 1,
+          "range": "long I",
+          "RES": 30,
+          "TGH": 50,
+          "AP": 4,
+          "deflection": 0,
+          "props": "heavy II, DEF, cleave",
+          "handed": "two"
+        },
+        {
+          "type": "melee",
+          "impact": 8,
+          "heavyMod": 0.5,
+          "penMod": 2,
+          "range": "long I",
+          "RES": 25,
+          "TGH": 50,
+          "AP": 3,
+          "deflection": 0,
+          "props": "precise, braced, heavy I",
+          "handed": "two"
+        }
+      ]
+    }
+  },
+  "containers": {},
+  "notes": "Reconstrução celular: 3AP+1STA - Regenera número de curas igual à saúde.\n\nContra ataque, giro da morte, levantada técnica, movimentação tática."
 }
