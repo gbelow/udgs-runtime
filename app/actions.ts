@@ -80,28 +80,28 @@ export async function saveCharacter(character: Character) {
   try {
     const list: string[] = (await redis.get('charList')) ?? [];
     
-    await redis.set('charList', [...list, character.name]);
-    await redis.set(character.name, character);
+    await redis.set('charList', [...list, {id: character.id, name: character.name}]);
+    await redis.set(character.id, character);
   } catch (err) {
     console.error('Error saving character to Redis:', err);
     // Optionally, you could throw or return an error state here
   }
 }
 
-export async function deleteCharacter(name: string) {
+export async function deleteCharacter(id: string) {
   try {
-    const list: string[] = (await redis.get('charList')) ?? [];
-    await redis.set('charList', list.filter(el => el !== name));
-    await redis.del(name);
+    const list: {id: string, name: string}[] = (await redis.get('charList')) ?? [];
+    await redis.set('charList', list.filter(el => el.id !== id));
+    await redis.del(id);
   } catch (err) {
     console.error('Error deleting character from Redis:', err);
     // Optionally, you could throw or return an error state here
   }
 }
 
-export async function getCharacter(name: string) {
+export async function getCharacter(id: string) {
   try {
-    const character: Character | null = await redis.get(name);
+    const character: Character | null = await redis.get(id);
     if (character) {
       return character;
     }
@@ -115,7 +115,7 @@ export async function getCharacter(name: string) {
 
 export async function getCharacterList(){
   try{
-    const list : string[] | null = await redis.get('charList')
+    const list : {id: string, name: string}[] | null = await redis.get('charList')
     if(list != null){
       return list
     }

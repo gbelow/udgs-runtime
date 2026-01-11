@@ -5,7 +5,7 @@ import baseWeapons from './weapons.json'
 import { PlayPanel } from './components/PlayPanel';
 import { CharacterCreator } from './components/CharacterCreator';
 import { scaleWeapon } from './components/utils';
-import { upsertBaseCharacter, deleteBaseCharacter, getCharacter } from './actions';
+import { upsertBaseCharacter, deleteBaseCharacter, getCharacter, deleteCharacter } from './actions';
 import { useAppStore } from './stores/useAppStore';
 import { makeCharacter } from './domain/factories';
 import { Armor, Character, Weapon } from './domain/types';
@@ -72,14 +72,14 @@ export function WeaponSelector(){
 
 
 
-export function CharacterSelector({charList, }: {charList: string[], }){
+export function CharacterSelector(){
 
   const [open, setOpen] = useState<{ [key: string]: boolean }>({});
   const [openCampaignChars, setOpenCampaignChars] = useState(false)
   const {selectedGameTab} = useAppStore((s)=> s)
   const  loadCharacter = useCharacterStore((state) => state.loadCharacter)
   const  addCharacter = useCombatStore((state) => state.loadCharacter)
-  const { baseCharacterList, updateBaseCharacterList } = useAppStore((s)=> s )
+  const { baseCharacterList, updateBaseCharacterList, playerCharacterList, updatePlayerCharacterList } = useAppStore((s)=> s )
   
   
   const handleSelectCharacterClick = (character: Character) => {
@@ -89,7 +89,18 @@ export function CharacterSelector({charList, }: {charList: string[], }){
 
   const handleSelectPlayerClick  = async (characterId: string) => {
     const char: Character | null = await getCharacter(characterId)
-    if(char) handleSelectCharacterClick(char)
+    if(!char) return
+      handleSelectCharacterClick(char)
+      await updatePlayerCharacterList()
+  };
+
+  const handleDeletePlayerClick  = async (characterId: string) => {
+    try{
+      await deleteCharacter(characterId)
+      await updatePlayerCharacterList()
+    }catch(e){
+      console.error('Error deleting character:', e);
+    }
   };
 
   const toggle = (key: string) => {
@@ -101,7 +112,7 @@ export function CharacterSelector({charList, }: {charList: string[], }){
     updateBaseCharacterList()
   }
 
-  const handleDeleteCharacter = (path:string, name:string) => {
+  const handleDeleteBaseCharacter = (path:string, name:string) => {
     deleteBaseCharacter(path, name)
     updateBaseCharacterList()
   }
@@ -148,13 +159,13 @@ export function CharacterSelector({charList, }: {charList: string[], }){
                           return(
                             <div
                               key={charKey}
-                              className="flex felx-row p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500"
+                              className="flex flex-row p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500"
                             >
                               <input type={'button'} key={charKey} className='text-center w-full hover:bg-gray-500 p-1 ' value={charKey} aria-label={charKey} onClick={() => handleSelectCharacterClick(val)}/>
                               {/* {charKey} */}
                               {
                                 selectedGameTab == 'edit' ?
-                                <button className="w-6 text-left font-semibold p-1 bg-red-500 rounded" onClick={() => handleDeleteCharacter(topKey+'/'+midKey, charKey)}>
+                                <button className="w-6 text-left font-semibold p-1 bg-red-500 rounded" onClick={() => handleDeleteBaseCharacter(topKey+'/'+midKey, charKey)}>
                                   -
                                 </button>
                                 : null
@@ -175,12 +186,15 @@ export function CharacterSelector({charList, }: {charList: string[], }){
         <div>
           <input type={'button'} key={'oplay'} className='w-full font-bold bg-gray-800 rounded hover:bg-gray-500 p-1 text-left' value={'PCs'} aria-label={'oplay'} onClick={() => setOpenCampaignChars(!openCampaignChars)}/>
           {
-            openCampaignChars && charList.sort().map(el => 
+            openCampaignChars && playerCharacterList.sort().map(el => 
               <div
-                key={el}
-                className="p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500 ml-2"
+                key={el.id}
+                className="flex flex-row p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500 ml-2"
               >
-                <input type={'button'} key={el} className='w-full hover:bg-gray-500 p-1  text-left' value={el} aria-label={el} onClick={() => handleSelectPlayerClick(el)}/>
+                <input type={'button'} key={el.id} className='w-full text-center hover:bg-gray-500 p-1  text-left' value={el.name} aria-label={el.name} onClick={() => handleSelectPlayerClick(el.id)}/>
+                <button className="w-6 text-left font-semibold p-1 bg-red-500 rounded" onClick={() => handleDeletePlayerClick(el.id)}>
+                  -
+                </button>
               </div>
             )
           }
@@ -190,12 +204,9 @@ export function CharacterSelector({charList, }: {charList: string[], }){
   );
 }
 
-export function Sidebar({initialCharList}: {initialCharList: string[]}){
+export function Sidebar(){
 
   const [selectedSidebar, setSelectedSidebar] = useState('') 
-  const [charList] = useState<string[]>(initialCharList)
-  const { baseCharacterList } = useAppStore((s)=> s )
-  
 
   return(
     <>
@@ -210,7 +221,7 @@ export function Sidebar({initialCharList}: {initialCharList: string[]}){
         selectedSidebar == 'Weapon' ?
         <WeaponSelector /> :
         selectedSidebar == 'Character' ?
-        <CharacterSelector charList={charList}/>
+        <CharacterSelector/>
         : null
       }
     </>
@@ -218,7 +229,7 @@ export function Sidebar({initialCharList}: {initialCharList: string[]}){
 }
 
 
-export function App({ initialCharList}: { initialCharList: string[]}){
+export function App(){
 
   const {selectedGameTab, setSelectedGameTab} = useAppStore((s)=> s)
 
@@ -237,7 +248,7 @@ export function App({ initialCharList}: { initialCharList: string[]}){
 
       <main className="grid grid-cols-12 w-full h-full">
       <div className="hidden md:block col-span-2 border pr-1 px-1 h-full">
-        <Sidebar initialCharList={initialCharList}  />
+        <Sidebar />
       </div>
 
       {/* mobile top menu for sidebar */}
@@ -265,7 +276,7 @@ export function App({ initialCharList}: { initialCharList: string[]}){
           >
             ✕ Close
           </button>
-          <Sidebar initialCharList={initialCharList} />
+          <Sidebar />
         </div>
       )}
 

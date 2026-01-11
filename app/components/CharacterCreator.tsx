@@ -16,7 +16,7 @@ export function CharacterCreator() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const {character, updateCharacter} = useCharacterStore(s => s)
-  const {updateBaseCharacterList} = useAppStore(s => s)
+  const {updateBaseCharacterList, updatePlayerCharacterList} = useAppStore(s => s)
   
 
   const handleDeleteCharacterClick = (name: string) => {
@@ -33,10 +33,8 @@ export function CharacterCreator() {
   const handleSaveCharacterClick = () => {
     if(!character) return
     saveCharacter(character)
+    updatePlayerCharacterList()
   }
-
-
-
   
   // size, race, abilities, armor penalties, injuries, movements, AP, STA, STA regen
   return (
@@ -201,6 +199,7 @@ function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills})
 
 function StatDial ({stat, title}:{stat: keyof Characteristics, title: string}){
   const {character, updateCharacter} = useCharacterStore(s => s)
+  // const {character, updateCharacter} = useCharacterStore(s => ({character: s.character, updateCharacter: s.updateCharacter}))
   const value = character ? makeCharacteristicSelector(stat)(character) : 0
   const setValue = (e: React.ChangeEvent<HTMLInputElement>) => 
     updateCharacter(makeCharacteristicUpdater(stat, parseInt(e.target.value))) 

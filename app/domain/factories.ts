@@ -52,7 +52,7 @@ export function makeCampaignCharacter(raw: unknown, character: Character):Campai
     ...campaignCharacter,
     afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
     resources: {
-      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: campaignCharacter.characteristics.STA},
+      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: campaignCharacter.characteristics.STA, AP: 6},
     },
     injuries: {
       ...parsed.data?.injuries ?? campaignCharacter.injuries,

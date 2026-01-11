@@ -18,6 +18,8 @@ import { resetCombat } from '../domain/commands/resetCombat';
 import { getAfflictions } from '../domain/selectors/afflictions';
 import { isCampaignCharacter } from '../domain/utils';
 import { addAffliction } from '../domain/commands/addAffliction';
+import { saveCharacter } from '../actions';
+import { useAppStore } from '../stores/useAppStore';
 
 
 export function PlayPanel(){
@@ -28,6 +30,7 @@ export function PlayPanel(){
 
   const currentCharacter = useGetActiveCampaignCharacter()
   const characterUpdater = useActiveCampaignCharacterUpdater()
+   const {updatePlayerCharacterList} = useAppStore(s => s)
 
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
@@ -68,6 +71,12 @@ export function PlayPanel(){
     const roll = makeFullRoll()
     setRolledSkill({name, value:value+roll})
   }
+
+  const handleSaveCharacterClick = () => {
+      if(!currentCharacter) return
+      saveCharacter(currentCharacter)
+      updatePlayerCharacterList()
+    }
 
 
   return(
@@ -211,6 +220,7 @@ export function PlayPanel(){
               <ZimpleSkill skillName={'animancy'} rollSkill={rollSkill}/>
             </div>
             <textarea aria-label='notes' className='border rounded p-1 min-h-32 w-84 md:w-full justify-center ' value={currentCharacter.notes} readOnly/>
+            <button type='button' className='border rounded p-2' onClick={handleSaveCharacterClick}>Save</button>
           </div>
           <div className='flex flex-col md:col-span-5 gap-2 text-sm items-center'>
             <AfflictionsPannel />

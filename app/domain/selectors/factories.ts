@@ -27,23 +27,8 @@ export function makeCharacteristicSelector (characteristic: keyof Characteristic
 
 export function makeCharacteristicUpdater(characteristic: keyof Characteristics, value: number):CharacterUpdater{
   return((character: Character) => {
-    // Most characteristics are stored as-is, but RES/TGH/INS are *stored* as base additive
-    // terms while being *displayed* as derived effective thresholds.
     if (characteristic === 'RES' || characteristic === 'TGH' || characteristic === 'INS') {
-      const dm = getDM(character)
-      const STR = characteristicSelectors.STR(character)
-      // Invert: effective = floor(((0.5*STR + base) * dm))
-      // Pick the midpoint of the valid interval to avoid floating point edge cases.
-      // We want ((0.5*STR + base) * dm) in [value, value+1).
-      const base = ((value + 0.5) / dm) - 0.5 * STR
-
-      return {
-        ...character,
-        characteristics: {
-          ...character.characteristics,
-          [characteristic]: base,
-        },
-      }
+      return character    // These are derived stats; do not allow direct updates
     }
 
     const calculated = characteristicSelectors[characteristic](character) - character.characteristics[characteristic]

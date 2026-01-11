@@ -1,5 +1,5 @@
 import { getGearPenalties } from "../selectors/gear"
-import { CampaignCharacter, Character } from "../types"
+import { CampaignCharacter } from "../types"
 
 export function actionSurge(c: CampaignCharacter): CampaignCharacter {
   const cost = 3 + Math.floor(getGearPenalties(c) / 3)

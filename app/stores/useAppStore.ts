@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla";
-import { getBasicCharList, JsonObject } from "../actions";
+import { getBasicCharList, getCharacterList, JsonObject } from "../actions";
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
@@ -11,23 +11,36 @@ export interface AppState {
   setSelectedGameTab: (mode: GameTabs) => void
   baseCharacterList: JsonObject
   updateBaseCharacterList: () => void
-  
+  playerCharacterList: {id: string, name: string}[]
+  updatePlayerCharacterList: () => void  
 }
 
 export const createAppStore = (initialState: Partial<AppState>) =>
   createStore<AppState>((set) => ({
     selectedGameTab: 'edit',
-    setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
-
     baseCharacterList: initialState.baseCharacterList || {},
+    playerCharacterList: initialState.playerCharacterList || [],
+    
+    setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
+    
     updateBaseCharacterList: async () => {
       try {
         const baseCharacterList = await getBasicCharList()
-        set({ baseCharacterList })
+        set(s=> ({...s, baseCharacterList}) )
       }catch(err){
         console.log(err)
       }
     },
+
+    updatePlayerCharacterList: async () => {
+      try {
+        const playerCharacterList = await getCharacterList()
+        set(s=> ({...s, playerCharacterList}) )
+      }catch(err){
+        console.log(err)
+      }
+    },
+
   })
 );
 

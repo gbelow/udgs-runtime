@@ -3,7 +3,7 @@ import { env } from 'process'
 
 
 const redis = new Redis({
-  url: 'https://amazed-catfish-25236.upstash.io',
+  url: env.UPSTASH_REDIS_REST_URL ?? '',
   token: env.UPSTASH_REDIS_REST_TOKEN ?? '',
 })
 

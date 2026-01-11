@@ -193,8 +193,14 @@ This architecture required more upfront design and refactoring than a feature-fi
 
 These tradeoffs were intentional.
 
-If continued, the next step would be to extract the domain into a standalone rules engine,
-formalizing the boundaries discovered during development.
+# Next steps:
+* Formalize logic into a standalone rules manifest to make rules portable
+* Creating a json-ld linking the rulebook to the rules
+* Refactoring selector logic to lenses to better utilize the rules engine and tidy architecture
+* Atomize consumption of the zustand store through hooks to improve performance
+* formalizing the boundaries discovered during development and adding tests.
+* Indexing redis database to allow transition from filesystem
+* Implementing various rules from the game, leveraging the rules engine and AI
 
 ---
 
