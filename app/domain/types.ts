@@ -222,20 +222,16 @@ export const CharacterSchema = z.object({
   containers: z.record(z.string(), ContainerSchema).default({}),
 
   notes: z.string().default(''),
-
-  // runtime-capable (optional)
-  fightName: z.string().optional(),
-  injuries: InjuriesSchema.optional(),
-  afflictions: z.array(AfflictionKeySchema).optional(),
-  resources: ResourcesSchema.optional(),
-  hasActionSurge: z.boolean().optional(),
 }).strip()
 
 export type Character = z.infer<typeof CharacterSchema>
 
-export const CampaignCharacterSchema = z.object({
-  ...CharacterSchema.shape,
-  ...CampaignValuesSchema.shape,
+export const CampaignCharacterSchema = CharacterSchema.extend({
+  injuries: InjuriesSchema,
+  afflictions: z.array(AfflictionKeySchema),
+  resources: ResourcesSchema,
+  hasActionSurge: z.boolean(),
+  fightName: z.string().optional(),
 })
 
 export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>
@@ -264,4 +260,4 @@ export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>
 
 
 export type CharacterUpdater = (c: Character) => Character
-export type CampaignCharacterUpdater = (c: CampaignCharacter) => CampaignCharacter
+export type CampaignCharacterUpdater = (c: Character) => CampaignCharacter

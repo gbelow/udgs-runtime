@@ -2,7 +2,7 @@ import { getAfflictions } from "../selectors/afflictions"
 import { AfflictionKey, CampaignCharacter } from "../types"
 
 
-export function addAffliction(item: AfflictionKey) {
+export function addAffliction(item: AfflictionKey): (c: CampaignCharacter) => CampaignCharacter {
   return ((c:CampaignCharacter) => ({
     ...c,
     afflictions: symmetricDifference(getAfflictions(c) ?? [], item as AfflictionKey) as AfflictionKey[]

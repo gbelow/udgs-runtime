@@ -1,6 +1,7 @@
-import { Character } from "../types"
+import { CampaignCharacter, Character } from "../types"
 
-export function restCharacter(c: Character): Character {
+export function restCharacter(c: CampaignCharacter): CampaignCharacter
+ {
   if (!c.resources) {
     return c
   }

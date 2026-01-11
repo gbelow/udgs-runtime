@@ -1,16 +1,6 @@
 {
   "path": "humanoid/common",
   "name": "humus",
-  "armor": {
-    "name": "Skin",
-    "RES": 0,
-    "TGH": 0,
-    "INS": 0,
-    "prot": 0,
-    "cover": 0,
-    "penalty": 0,
-    "type": "light"
-  },
   "characteristics": {
     "size": 3,
     "STR": 10,
@@ -51,6 +41,7 @@
     "will": 0,
     "charm": 0,
     "stress": 0,
+    "acting": 0,
     "devotion": 0,
     "combustion": 0,
     "eletromag": 0,
@@ -72,6 +63,16 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "armor": {
+    "name": "Skin",
+    "RES": 0,
+    "TGH": 0,
+    "INS": 0,
+    "prot": 0,
+    "cover": 0,
+    "penalty": 0,
+    "type": "light"
+  },
   "weapons": {
     "hands": {
       "name": "hands",
@@ -127,40 +128,6 @@
       ]
     }
   },
-  "notes": "asasasa",
   "containers": {},
-  "rest": {
-    "hands": {
-      "name": "hands",
-      "handed": "small",
-      "penalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "impact": 0,
-          "heavyMod": 0,
-          "penMod": 0,
-          "range": "short",
-          "RES": 20,
-          "TGH": 20,
-          "AP": 3,
-          "deflection": 0,
-          "props": "grapple, draw"
-        },
-        {
-          "type": "melee",
-          "impact": 4,
-          "heavyMod": 0.5,
-          "penMod": 0.2,
-          "range": "short",
-          "RES": 20,
-          "TGH": 20,
-          "AP": 3,
-          "deflection": 0,
-          "props": "heavy I, draw"
-        }
-      ]
-    }
-  }
+  "notes": "asasasa"
 }

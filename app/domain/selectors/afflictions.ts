@@ -1,4 +1,4 @@
-import { Character } from '../types'
+import { CampaignCharacter, Character } from '../types'
 import { SkillPenaltyTable, AFFLICTIONS as afflictionDefinitions } from '../tables'
 import { isCampaignCharacter } from '../utils'
 
@@ -74,7 +74,7 @@ function getPenaltyForCategory(
   }
 }
 
-export function getInjuryPenalty(c : Character){
+export function getInjuryPenalty(c : CampaignCharacter) : number {
   if(!c.injuries) return 0  
     const injPen = Math.floor(c.injuries.light.filter(el => el != 0).length/2) + 
     c.injuries.serious.filter(el => el != 0).length + 

@@ -1,16 +1,6 @@
 {
   "path": "humanoid/common",
   "name": "test",
-  "armor": {
-    "name": "Skin",
-    "RES": 0,
-    "TGH": 0,
-    "INS": 0,
-    "prot": 0,
-    "cover": 0,
-    "penalty": 0,
-    "type": "light"
-  },
   "characteristics": {
     "size": 3,
     "STR": 10,
@@ -51,6 +41,7 @@
     "will": 0,
     "charm": 0,
     "stress": 0,
+    "acting": 0,
     "devotion": 0,
     "combustion": 0,
     "eletromag": 0,
@@ -72,6 +63,16 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "armor": {
+    "name": "Skin",
+    "RES": 0,
+    "TGH": 0,
+    "INS": 0,
+    "prot": 0,
+    "cover": 0,
+    "penalty": 0,
+    "type": "light"
+  },
   "weapons": {
     "hands": {
       "name": "hands",
@@ -106,6 +107,6 @@
       ]
     }
   },
-  "notes": "",
-  "containers": {}
+  "containers": {},
+  "notes": ""
 }

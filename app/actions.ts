@@ -44,16 +44,18 @@ export async function getBasicCharList(){
 
 export async function upsertBaseCharacter(data: Character) {
 
-  const targetDir = path.join('app/characters', data.path);
+  const {id, ...character} = data 
+
+  const targetDir = path.join('app/characters', character.path);
 
   // Ensure the directory exists
   fs.mkdirSync(targetDir, { recursive: true });
 
   // Define the target file path
-  const filePath = path.join(targetDir, `${data.name}.json`);
+  const filePath = path.join(targetDir, `${character.name}.json`);
 
   // Write the file (pretty-printed)
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  fs.writeFileSync(filePath, JSON.stringify(character, null, 2), "utf-8");
 
   await deleteBaseCharacter(targetDir, '')
   console.log(`✅ Created: ${filePath}`);

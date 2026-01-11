@@ -1,9 +1,8 @@
 import z from 'zod'
-import { CampaignCharacter, CampaignCharacterSchema, Character, CharacterSchema } from './types'
-
-export const EMPTY_CHARACTER: Character =  CharacterSchema.parse({ path: '',})
+import { CampaignCharacter, CampaignCharacterSchema, CampaignValuesSchema, Character, CharacterSchema } from './types'
 
 export function makeCharacter(raw: unknown): Character {
+  const EMPTY_CHARACTER: Character =  CharacterSchema.parse({ path: '',})
   if (typeof raw !== 'object' || raw === null) {
     return EMPTY_CHARACTER
   }
@@ -43,7 +42,7 @@ export function makeCharacter(raw: unknown): Character {
 export function makeCampaignCharacter(raw: unknown, character: Character):CampaignCharacter {
 
   const parsed = CharacterResourceIngestSchema.safeParse(raw)
-  const campaignCharacter = CampaignCharacterSchema.parse(character)
+  const campaignCharacter = {...character, ...CampaignValuesSchema.parse({})}
 
   if (!parsed.success) {
     return campaignCharacter

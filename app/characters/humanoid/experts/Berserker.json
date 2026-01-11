@@ -1,5 +1,4 @@
 {
-  "id": "bdbcc402-43c2-4c1e-b179-5d771c007710",
   "path": "humanoid/experts",
   "name": "Berserker",
   "characteristics": {
@@ -42,6 +41,7 @@
     "will": 3,
     "charm": 0,
     "stress": 6,
+    "acting": 0,
     "devotion": 2,
     "combustion": 0,
     "eletromag": 0,

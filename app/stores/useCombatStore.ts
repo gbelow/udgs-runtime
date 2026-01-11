@@ -36,6 +36,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   loadCharacter: (rawCharacter) =>
     set((s) => {
       const campaignCharacter = makeCampaignCharacter( rawCharacter, makeCharacter(rawCharacter))
+      console.log('Loaded character into combat store:', campaignCharacter)
       return({
         characters: {
           ...s.characters,

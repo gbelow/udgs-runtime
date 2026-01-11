@@ -1,7 +1,6 @@
 import { movementSelectors, skillSelectors } from ".";
-import { CampaignCharacter, Character, Characteristics, Injuries, Movement, Resources, Skills } from "../types";
+import { CampaignCharacter, CampaignCharacterSchema, CampaignCharacterUpdater, Character, Characteristics, CharacterUpdater, Injuries, Movement, Resources, Skills } from "../types";
 import { characteristicSelectors } from ".";
-import { isCampaignCharacter } from "../utils";
 import { getDM } from "./helpers";
 
 export function makeSkillSelector (skillName: keyof Skills){
@@ -11,7 +10,7 @@ export function makeSkillSelector (skillName: keyof Skills){
   })
 }
 
-export function makeSkillUpdater (skillName:keyof Skills, value: number) {
+export function makeSkillUpdater (skillName:keyof Skills, value: number):CharacterUpdater {
   return( (character: Character) => {
     const calculated = skillSelectors[skillName](character) - character.skills[skillName]
     const updated = {...character, skills: {...character.skills, [skillName]: value - calculated}}
@@ -26,7 +25,7 @@ export function makeCharacteristicSelector (characteristic: keyof Characteristic
   })
 }
 
-export function makeCharacteristicUpdater(characteristic: keyof Characteristics, value: number){
+export function makeCharacteristicUpdater(characteristic: keyof Characteristics, value: number):CharacterUpdater{
   return((character: Character) => {
     // Most characteristics are stored as-is, but RES/TGH/INS are *stored* as base additive
     // terms while being *displayed* as derived effective thresholds.
@@ -60,7 +59,7 @@ export function makeMovementSelector (move: keyof Movement){
   })
 }
 
-export function makeMovementUpdater(moveName: keyof Movement, value: number){
+export function makeMovementUpdater(moveName: keyof Movement, value: number):CharacterUpdater{
   return((character: Character) => {
     const calculated = movementSelectors[moveName](character) - character.movement[moveName]
     const updated = {...character, movement: {...character.movement, [moveName]: value - calculated}}
@@ -75,22 +74,24 @@ export function makeTextSelector (keyName: keyof Character){
   })
 }
 
-export function makeTextUpdater(keyName: keyof Character , value: string){
+export function makeTextUpdater(keyName: keyof Character , value: string):CharacterUpdater{
   return((character: Character) => {
     return ({...character, [keyName]: value})
   })
 }
 
 export function makeResourceSelector (keyName: keyof Resources){
-  return((character: CampaignCharacter) => {
-    if (!character || !character.resources[keyName]) return 0;
-    return character.resources[keyName]
+  return((character: Character) => {
+    const campaignCharacter=CampaignCharacterSchema.parse(character) 
+    if (!campaignCharacter || !campaignCharacter.resources[keyName]) return 0;
+    return campaignCharacter.resources[keyName]
   })
 }
 
-export function makeResourceUpdater(keyName: keyof Resources , value: number){
-  return((character: CampaignCharacter) => {
-    return ({...character, resources:{...character.resources, [keyName]: value}})
+export function makeResourceUpdater(keyName: keyof Resources , value: number):CampaignCharacterUpdater{
+  return((character: Character) => {
+    const campaignCharacter=CampaignCharacterSchema.parse(character)
+    return ({...campaignCharacter, resources:{...campaignCharacter.resources, [keyName]: value}})
   })
 }
 
@@ -101,11 +102,11 @@ export function makeInjurySelector (keyName: keyof Injuries){
   })
 }
 
-export function makeInjuryUpdater(keyName: keyof Injuries , index: number, value: number){
+export function makeInjuryUpdater(keyName: keyof Injuries , index: number, value: number):CampaignCharacterUpdater{
   return((character: Character) => {
-    if(!isCampaignCharacter(character)) return character
-    const newInjury = [...character.injuries[keyName]]
+    const campaignCharacter=CampaignCharacterSchema.parse(character)
+    const newInjury = [...campaignCharacter.injuries[keyName]]
     newInjury[index] = value
-    return ({...character, injuries:{...character.injuries, [keyName]: newInjury}})
+    return ({...campaignCharacter, injuries:{...campaignCharacter.injuries, [keyName]: newInjury}})
   })
 }
