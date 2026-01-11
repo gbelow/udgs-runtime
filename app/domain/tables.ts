@@ -5,7 +5,7 @@ export const SkillPenaltyTable = {
     "defend",
     "reflex",
     "accuracy",
-    "sneak",
+    "stealth",
     "prestidigitation",
     "balance",
     "climb",
@@ -16,7 +16,7 @@ export const SkillPenaltyTable = {
     "reflex",
     "accuracy",
     "grapple",
-    "sneak",
+    "stealth",
     "prestidigitation",
     "balance",
     "strength",
@@ -29,19 +29,19 @@ export const SkillPenaltyTable = {
     "reflex",
     "accuracy",
     "grapple",
-    "sneak",
+    "stealth",
     "prestidigitation",
     "balance",
     "climb",
     "explore",
     "cunning",
-    "detect"
+    "detection"
   ],
   "mental":[
     "strike",
     "reflex",
     "accuracy",
-    "sneak",
+    "stealth",
     "prestidigitation",
     "balance",
     "climb",
@@ -57,7 +57,7 @@ export const SkillPenaltyTable = {
     "biomancy",
     "telepathy",
     "animancy",
-    "detect"
+    "detection"
   ],
   "health":[
     "health"

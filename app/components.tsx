@@ -21,7 +21,7 @@ export function ArmorSelector(){
   const characterUpdater = useActiveCharacterUpdater()
 
   const handleEquipArmorClick = (armor: Armor) => {
-    characterUpdater((c) => equipArmor(c, scaleArmor(armor, c.characteristics.size)))    
+    characterUpdater( equipArmor(armor))    
   };
 
   return(
@@ -43,7 +43,7 @@ export function WeaponSelector(){
   const characterUpdater = useActiveCharacterUpdater()
 
   const handleEquipWeaponClick = (weapon: Weapon) => {
-    characterUpdater((c) => equipWeapon(c, weapon))
+    characterUpdater( equipWeapon( weapon))
   };
 
   const typedBaseWeapons : Record<string, Weapon> = baseWeapons 

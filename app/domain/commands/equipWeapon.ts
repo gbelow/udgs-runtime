@@ -1,9 +1,8 @@
-import { Character, Weapon } from '../types'
+import { Character, CharacterUpdater, Weapon } from '../types'
 
 export function equipWeapon(
-  character: Character,
   weapon: Weapon
-): Character {
+): CharacterUpdater {
   if (!weapon) {
     throw new Error('Weapon is required')
   }
@@ -14,12 +13,12 @@ export function equipWeapon(
     throw new Error('Weapon must have at least one attack')
   }
 
-  return {
+  return (character: Character) => ({
     ...character,
     weapons: {
       ...character.weapons,
       [weapon.name]: weapon
     }
-  }
+  })
 }
 

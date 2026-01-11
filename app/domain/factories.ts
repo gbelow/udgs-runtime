@@ -50,13 +50,13 @@ export function makeCampaignCharacter(raw: unknown, character: Character):Campai
   }
 
   return{
-    ...character,
+    ...campaignCharacter,
     afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
     resources: {
       ...parsed.data.resources ?? {...campaignCharacter.resources, STA: campaignCharacter.characteristics.STA},
     },
     injuries: {
-      ...parsed.data.injuries ?? campaignCharacter.injuries,
+      ...parsed.data?.injuries ?? campaignCharacter.injuries,
     },
     hasActionSurge: parsed.data.hasActionSurge ?? campaignCharacter.hasActionSurge,
   }

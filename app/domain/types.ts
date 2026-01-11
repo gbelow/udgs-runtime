@@ -186,9 +186,19 @@ const AfflictionKeySchema =
 
 
 export const CampaignValuesSchema = z.object({
-  injuries: InjuriesSchema,
+  injuries: InjuriesSchema.default({
+    light: [0, 0, 0, 0, 0, 0],
+    serious: [0, 0, 0],
+    deadly: [0, 0],
+  }),
   afflictions: z.array(AfflictionKeySchema).default([]),
-  resources: ResourcesSchema,
+  resources: ResourcesSchema.default({
+    AP: 0,
+    STA: 0,
+    hunger: 0,
+    thirst: 0,
+    exhaustion: 0,
+  }),
   hasActionSurge: z.boolean().default(false),
 })
 

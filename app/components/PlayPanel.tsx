@@ -17,6 +17,7 @@ import { nextRound } from '../domain/commands/nextRound';
 import { resetCombat } from '../domain/commands/resetCombat';
 import { getAfflictions } from '../domain/selectors/afflictions';
 import { isCampaignCharacter } from '../domain/utils';
+import { addAffliction } from '../domain/commands/addAffliction';
 
 
 export function PlayPanel(){
@@ -305,11 +306,9 @@ function AfflictionsPannel(){
   const afflictions = character ? getAfflictions(character) : []
   const afflictionsList = Object.keys(afflictionDefinitions) as AfflictionKey[]
   const characterUpdater = useActiveCharacterUpdater()
+  
   const setAffliction = (item: AfflictionKey) => 
-    characterUpdater((c) => ({
-      ...c,
-      afflictions: symmetricDifference(getAfflictions(c) ?? [], item as AfflictionKey) as AfflictionKey[]
-    }))
+    characterUpdater((c) => isCampaignCharacter(c) ? addAffliction(item)(c) : c)
 
   return(
     <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>

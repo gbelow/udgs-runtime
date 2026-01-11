@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character } from "./types"
+import { CampaignCharacter, CampaignCharacterSchema, Character } from "./types"
 
 function makeFightName(char: Character, characters: Record<string, Character>){
   let newName = char.name
@@ -18,11 +18,12 @@ export function addCharacterToCombat(char: CampaignCharacter, characters: Record
 export function isCampaignCharacter(
   c: Character | CampaignCharacter
 ): c is CampaignCharacter {
-  return (
-    c.injuries !== undefined &&
-    c.afflictions !== undefined &&
-    c.resources !== undefined &&
-    c.fightName !== undefined &&
-    c.hasActionSurge !== undefined
-  );
+  return (CampaignCharacterSchema.safeParse(c).success);
+  // return (
+  //   c.injuries !== undefined &&
+  //   c.afflictions !== undefined &&
+  //   c.resources !== undefined &&
+  //   c.fightName !== undefined &&
+  //   c.hasActionSurge !== undefined
+  // );
 }
