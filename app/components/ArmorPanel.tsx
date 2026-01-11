@@ -2,11 +2,19 @@
 import { useGetActiveCharacter } from '../hooks/useGetActiveCharacter'
 import { makeCharacter } from '../domain/factories'
 import { ArmorSchema } from '../domain/types'
+import { makeCharacteristicSelector } from '../domain/selectors/factories'
 
 export function ArmorPanel(){
   const character = useGetActiveCharacter()
   const armor = character ? character.armor : ArmorSchema.parse({})
-  const characteristics = character ? character.characteristics : makeCharacter('').characteristics
+
+  // NOTE: characteristics.RES/TGH/INS are now stored as *base* additive terms.
+  // Use selectors to get the effective derived thresholds.
+  const fallback = makeCharacter('')
+  const effectiveRES = character ? makeCharacteristicSelector('RES')(character) : makeCharacteristicSelector('RES')(fallback)
+  const effectiveTGH = character ? makeCharacteristicSelector('TGH')(character) : makeCharacteristicSelector('TGH')(fallback)
+  const effectiveINS = character ? makeCharacteristicSelector('INS')(character) : makeCharacteristicSelector('INS')(fallback)
+
   return(
     <>
     <div>Armor: {armor.name}</div>
@@ -28,26 +36,26 @@ export function ArmorPanel(){
           </tr>
           <tr>
             <td>light</td>
-            <td>{characteristics.RES + armor.prot}</td>
-            <td>{characteristics.TGH + armor.TGH}</td>
-            <td>{characteristics.INS + armor.INS}</td>
+            <td>{effectiveRES + armor.prot}</td>
+            <td>{effectiveTGH + armor.TGH}</td>
+            <td>{effectiveINS + armor.INS}</td>
           </tr>
           <tr>
             <td>serious</td>
-            <td>{characteristics.RES*2 + armor.prot}</td>
-            <td>{characteristics.TGH*2 + armor.TGH}</td>
-            <td>{characteristics.INS*2 + armor.INS}</td>
+            <td>{effectiveRES*2 + armor.prot}</td>
+            <td>{effectiveTGH*2 + armor.TGH}</td>
+            <td>{effectiveINS*2 + armor.INS}</td>
           </tr>
           <tr>
             <td>deadly</td>
-            <td>{characteristics.RES*3 + armor.prot}</td>
-            <td>{characteristics.TGH*3 + armor.TGH}</td>
-            <td>{characteristics.INS*3 + armor.INS}</td>
+            <td>{effectiveRES*3 + armor.prot}</td>
+            <td>{effectiveTGH*3 + armor.TGH}</td>
+            <td>{effectiveINS*3 + armor.INS}</td>
           </tr>
           <tr>
             <td>sudden</td>
-            <td>{characteristics.RES*6 + armor.prot}</td>
-            <td>{characteristics.TGH*6 + armor.TGH}</td>
+            <td>{effectiveRES*6 + armor.prot}</td>
+            <td>{effectiveTGH*6 + armor.TGH}</td>
             <td></td>
           </tr>
         </tbody>

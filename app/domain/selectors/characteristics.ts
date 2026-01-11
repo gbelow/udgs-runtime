@@ -29,8 +29,10 @@ export const getSpellcast = (c: Character) => c.characteristics.spellcast
 export const getConviction1 = (c: Character) => c.characteristics.conviction1
 export const getConviction2 = (c: Character) => c.characteristics.conviction2
 
-export const getRES = (c: Character) => Math.floor(c.characteristics.RES*getDM(c))
-export const getTGH = (c: Character) => Math.floor(c.characteristics.TGH*getDM(c))
-export const getINS = (c: Character) => Math.floor(c.characteristics.INS*getDM(c))
+// Wound thresholds are derived from STR (bulk) + base additive term, then scaled by DM.
+// Stored values in `c.characteristics.RES/TGH/INS` represent the *base* additive term.
+const EPS = 1e-9
 
-
+export const getRES = (c: Character) => Math.floor(((0.5 * getSTR(c) + c.characteristics.RES) * getDM(c)) + EPS)
+export const getTGH = (c: Character) => Math.floor(((0.5 * getSTR(c) + c.characteristics.TGH) * getDM(c)) + EPS)
+export const getINS = (c: Character) => Math.floor(((0.5 * getSTR(c) + c.characteristics.INS) * getDM(c)) + EPS)

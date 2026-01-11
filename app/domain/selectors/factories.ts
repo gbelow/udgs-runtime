@@ -2,6 +2,7 @@ import { movementSelectors, skillSelectors } from ".";
 import { CampaignCharacter, Character, Characteristics, Injuries, Movement, Resources, Skills } from "../types";
 import { characteristicSelectors } from ".";
 import { isCampaignCharacter } from "../utils";
+import { getDM } from "./helpers";
 
 export function makeSkillSelector (skillName: keyof Skills){
   return((character: Character) => {
@@ -27,8 +28,27 @@ export function makeCharacteristicSelector (characteristic: keyof Characteristic
 
 export function makeCharacteristicUpdater(characteristic: keyof Characteristics, value: number){
   return((character: Character) => {
+    // Most characteristics are stored as-is, but RES/TGH/INS are *stored* as base additive
+    // terms while being *displayed* as derived effective thresholds.
+    if (characteristic === 'RES' || characteristic === 'TGH' || characteristic === 'INS') {
+      const dm = getDM(character)
+      const STR = characteristicSelectors.STR(character)
+      // Invert: effective = floor(((0.5*STR + base) * dm))
+      // Pick the midpoint of the valid interval to avoid floating point edge cases.
+      // We want ((0.5*STR + base) * dm) in [value, value+1).
+      const base = ((value + 0.5) / dm) - 0.5 * STR
+
+      return {
+        ...character,
+        characteristics: {
+          ...character.characteristics,
+          [characteristic]: base,
+        },
+      }
+    }
+
     const calculated = characteristicSelectors[characteristic](character) - character.characteristics[characteristic]
-    const updated = {...character, characteristics: {...character.characteristics, [characteristic]: value - calculated}}
+    const updated = { ...character, characteristics: { ...character.characteristics, [characteristic]: value - calculated } }
     return updated
   })
 }
@@ -89,4 +109,3 @@ export function makeInjuryUpdater(keyName: keyof Injuries , index: number, value
     return ({...character, injuries:{...character.injuries, [keyName]: newInjury}})
   })
 }
-

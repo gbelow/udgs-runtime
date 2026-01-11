@@ -170,9 +170,11 @@ export const CharacteristicsSchema = z.object({
   conviction2: z.number().default(0),
   devotion: z.number().default(0),
 
-  RES: z.number().default(5),
-  INS: z.number().default(5),
-  TGH: z.number().default(5),
+  // Base additive terms for derived wound thresholds.
+  // Effective values are computed in selectors from: floor((0.5 * STR + base) * DM)
+  RES: z.number().default(0),
+  INS: z.number().default(0),
+  TGH: z.number().default(0),
 }).strip()
 
 export type Characteristics = z.infer<typeof CharacteristicsSchema>

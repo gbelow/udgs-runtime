@@ -68,6 +68,67 @@ export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 export const injuryMap = {light:2, serious: 10, deadly: 20}
 
+export const CONVICTIONS = {
+  adaptation: {
+    id: 'adaptation',
+    name: 'Adaptation',
+    bonuses: {
+      even: { charm: 1, stress: 1, will: 1 },
+    },
+  },
+  domination: {
+    id: 'domination',
+    name: 'Domination',
+    bonuses: {
+      odd: { charm: 1, stress: 1, will: 1 },
+    },
+    bonusPerLevel: {},
+  },
+  stoicism: {
+    id: 'stoicism',
+    name: 'Stoicism',
+    bonuses: {
+      odd: { stress: 1, will: 1 },
+    },
+    bonusPerLevel: {},
+  },
+  fatalism: {
+    id: 'fatalism',
+    name: 'Fatalism',
+    bonuses: {
+      perLevel: { will: 1 },
+    },
+    bonusPerLevel: {},
+  },
+  ferocity: {
+    id: 'ferocity',
+    name: 'Ferocity',
+    bonuses: {
+      perLevel: { stress: 1 },
+      odd: { will: 1 },
+    },
+    bonusPerLevel: {
+      even: { will: 1 },
+    },
+  },
+  guardian: {
+    id: 'guardian',
+    name: 'Guardian',
+    bonuses: {
+      odd: { stress: 1, will: 1 },
+    },
+    bonusPerLevel: {},
+  },
+  hedonism: {
+    id: 'hedonism',
+    name: 'Hedonism',
+    bonuses: {
+      perLevel: { charm: 1 },
+    },
+    bonusPerLevel: {},
+  },
+}
+
 export const AFFLICTIONS = {
   prone: { mobility: 3, controlable: true},
   grappled: { mobility: 3, controlable: true},

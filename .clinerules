@@ -7,15 +7,10 @@ This is a creation and game running tool to facilitate fallowRPG games.
 - Prefer const/let over var
 
 ## Project Structure
-- Keep game data in JSON files in the app/ directory
 - Components should be in app/components/
-- Types should be centralized in app/types.ts
-- Use the event bus pattern (eventBus.ts) for cross-component communication
+- Types should be centralized in app/domain/types.ts
+- Schemas parse json data in a best effort/lossy way. Only values with matching type and name get loaded into the Character objects.
 
-## TypeScript Conventions
-- Use type inference where possible
-- Export types from app/types.ts
-- Use typeof for JSON-derived types (like CharacterType, WeaponType)
 
 ## React/Next.js Patterns
 - Use React 19 patterns
