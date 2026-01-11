@@ -20,3 +20,23 @@ This is a creation and game running tool to facilitate fallowRPG games.
 ## Game-Specific Guidelines
 - Maintain consistency with existing game mechanics (afflictions, penalties, skills)
 - Follow the character/weapon/armor data structure patterns
+
+# TTRPG Logic Engine Rules
+
+## 1. Context Management (Cost Saving)
+- Before a task: Check the 'Memory Bank' (cline_docs/) to avoid re-reading the whole rulebook.
+- Context Threshold: If context usage > 50%, you MUST propose a 'handoff' via `new_task` tool. 
+- Summary Protocol: Before ending a task, update `cline_docs/progress.md` so the next session starts with a $0.01 summary instead of a $3.00 deep-dive.
+
+## 2. Domain-Driven Design (DDD) Standards
+- Character Data: Must always go through the `Character` Aggregate. 
+- Invariant Protection: Never allow a 'setter' that bypasses the formula: `floor((0.5 * STR + base) * DM)`.
+- Semantic Fidelity: If a code change contradicts the 'Source of Truth' (Rulebook.md), STOP and ask for clarification.
+
+## 3. Knowledge Graph Integrity
+- When extracting rules: Use the `urn:ttrpg:` namespace.
+- Cross-Referencing: Every new mechanic must be checked against `rule_graph.json` for name collisions.
+
+## 4. Optimization
+
+Windows Performance Optimization: When reading files, do not use cmd /c dir ... && type .... Instead, use a single type command. If you need to verify a directory structure, use dir /b or tree /f. Assume that if a file read fails, the error message will be sufficient to inform you of its absence. Avoid redundant metadata checks to reduce process spawning overhead.

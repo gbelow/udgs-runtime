@@ -1,0 +1,302 @@
+[
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:acquiring_a_conviction",
+    "source": "creating.tex",
+    "context": "A character must adopt one worldview conviction and one instinct conviction during character creation. Each has a defined way of gaining XP through the character's actions."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:armor_coverage_and_precision",
+    "source": "combat.tex",
+    "context": "Whenever an attack is a crit, it triggers the possibility of hitting an unprotected part of the body, having its PEN ignore armor toughness. To determine whether that happens, take all the overshoot of the attack's value over the crit thres"
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:block",
+    "source": "combat.tex",
+    "context": "Costs 2 AP, but only shields can be used to block precise attacks. On a glancing blow or miss, it reduces the PEN by the TGH and the impact by the RES of the blocking object. The remainder is transferred to the character."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:changing_attributes",
+    "source": "creating.tex",
+    "context": "It is possible to lose 1 point in one attribute to increase another, but this costs 2 XP."
+  },
+  {
+    "term": "GP",
+    "referencedBy": "urn:ttrpg:keyword:closed_helmet",
+    "source": "gear.tex",
+    "context": "gives -3 to reflexes, -3 to cunning, and -3 to swimming, but hitting the head does not increase the severity of injuries. A closed helmet costs 15 GP or 15"
+  },
+  {
+    "term": "HP",
+    "referencedBy": "urn:ttrpg:keyword:damage_multiplier_dm",
+    "source": "creating.tex",
+    "context": "multiplies the HP of a character, the character's damage tolerances, and their armor, weapon damage, abilities, and spells."
+  },
+  {
+    "term": "MM",
+    "referencedBy": "urn:ttrpg:keyword:extend_spell",
+    "source": "combat.tex",
+    "context": "Increases the sorcery DC by 2 to increase the range of a spell according to the MM."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:gaining_experience_xp",
+    "source": "creating.tex",
+    "context": "Improving skills and proficiencies and learning abilities requires training during free time, which yields experience based on training time. A regular training session for skills and proficiencies takes 10 days for 1 XP and costs a certain"
+  },
+  {
+    "term": "GP",
+    "referencedBy": "urn:ttrpg:keyword:gauntlets",
+    "source": "gear.tex",
+    "context": "Gauntlets give -3 to prestidigitation, -3 to accuracy and climbing, but the armor protects the vulnerability of the hands. A pair of gauntlets costs 15 GP or 15"
+  },
+  {
+    "term": "SD",
+    "referencedBy": "urn:ttrpg:keyword:immobile",
+    "source": "combat.tex",
+    "context": "Cannot move and cannot use any combat skill other than escape the grapple. The SD is reduced to -5 + SMx1. Armor coverage is reduced by an extra -3."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:impact_pen",
+    "source": "gear.tex",
+    "context": "indicates the impact and its penetration. PEN is an estimate of penetration capability based on the speed of the attack, contact area, and hardness of the attacking material."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:improving_attributes",
+    "source": "creating.tex",
+    "context": "The XP cost to improve attributes is equal to the target attribute value divided by 2. However, if the sum of the 3 attributes plus the target value exceeds $40+4*CON-4*SM$, the cost is doubled. For every 3 points higher, it triples, and so"
+  },
+  {
+    "term": "MM",
+    "referencedBy": "urn:ttrpg:keyword:increase_spell",
+    "source": "combat.tex",
+    "context": "Increases the sorcery DC by 4 to amplify spells. It can be used when the spell has its effects multiplied by DM, SM, MM, and VM. The number of times it can be increased depends on environmental conditions and the material used. The amount o"
+  },
+  {
+    "term": "VM",
+    "referencedBy": "urn:ttrpg:keyword:increase_spell",
+    "source": "combat.tex",
+    "context": "Increases the sorcery DC by 4 to amplify spells. It can be used when the spell has its effects multiplied by DM, SM, MM, and VM. The number of times it can be increased depends on environmental conditions and the material used. The amount o"
+  },
+  {
+    "term": "SD",
+    "referencedBy": "urn:ttrpg:keyword:initiate_the_grab",
+    "source": "combat.tex",
+    "context": "attackers must make a strike test with a weapon that haS the grapple property against the opponent's defense or SD. On a hit or critical, the opponent is grappled, and the evasive jump movement is canceled. If the opponent does not attempt "
+  },
+  {
+    "term": "IB",
+    "referencedBy": "urn:ttrpg:keyword:interpretation_bonus_ib",
+    "source": "intrigue.tex",
+    "context": "Interpretation is a very important factor in determining the effectiveness of social actions. If the player's interpretation in the scene is not suitable for the social action they are trying to perform, a negative IB should be applied. The"
+  },
+  {
+    "term": "IB",
+    "referencedBy": "urn:ttrpg:keyword:intimidate",
+    "source": "intrigue.tex",
+    "context": "is an attempt to instill fear in someone or to persuade through threat. For the intimidation IB, one must analyze the likelihood of the threat being carried out and the cost of accepting the threat. It is done with a stress test against Wil"
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:penetration",
+    "source": "combat.tex",
+    "context": "is the component that represents the ability to cut the target. Sharper and harder weapons have greater penetration. If the PEN is greater than or equal to the armor's toughness (TGH), the injury is light. If it is greater than or equal to "
+  },
+  {
+    "term": "IB",
+    "referencedBy": "urn:ttrpg:keyword:persuade",
+    "source": "intrigue.tex",
+    "context": "is an attempt to influence a character to do what one wants or to believe what is being said. Persuasion is a charm test against stress. The better the test result, the more the target does what the other wants and believes what has been sa"
+  },
+  {
+    "term": "NPC",
+    "referencedBy": "urn:ttrpg:keyword:persuade",
+    "source": "intrigue.tex",
+    "context": "is an attempt to influence a character to do what one wants or to believe what is being said. Persuasion is a charm test against stress. The better the test result, the more the target does what the other wants and believes what has been sa"
+  },
+  {
+    "term": "IMP",
+    "referencedBy": "urn:ttrpg:keyword:physical_damage",
+    "source": "combat.tex",
+    "context": "There are two components to consider when receiving injuries from physical attacks: Impact (IMP) and penetration(PEN). Attacks and effects that cause injuries will have some amount of each of these components."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:physical_damage",
+    "source": "combat.tex",
+    "context": "There are two components to consider when receiving injuries from physical attacks: Impact (IMP) and penetration(PEN). Attacks and effects that cause injuries will have some amount of each of these components."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:prohibited_attitudes",
+    "source": "abilities.tex",
+    "context": "Loses 1 XP each time they fail or graze by on a test that is not risky."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:receiving_xp",
+    "source": "creating.tex",
+    "context": "Downtime activities generate experience in knowledge. The character receives XP in knowledge simply by having access to related information. The amount generated will depend on the character's dedication and ability to learn. For example, i"
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:redirect",
+    "source": "combat.tex",
+    "context": "makes a defensive attack against a weapon by spending 3 AP. On a glancing blow, the attack impact is reduced by STR for one-handed weapons and by 2xSTR for two-handed weapons or shields. On a miss, the impact is further reduced by +1xSTR. T"
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:reward_for_specific_feats",
+    "source": "creating.tex",
+    "context": "XP can also be generated by specific events. For example, experiencing multiple exploration events in a certain region can generate survival XP in that region."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:sharpening",
+    "source": "gear.tex",
+    "context": "Is an action that takes one exploration turn and increases the weapon's PEN by 25"
+  },
+  {
+    "term": "MM",
+    "referencedBy": "urn:ttrpg:keyword:short_long_i_ii",
+    "source": "gear.tex",
+    "context": "Short-range attacks can be used in grappling combat but have a range of 1m x MM. Long-range attacks have an extended range of 1m x MM per level and cannot be used in grappling combat."
+  },
+  {
+    "term": "RV",
+    "referencedBy": "urn:ttrpg:keyword:short_rest",
+    "source": "survival.tex",
+    "context": "The character has the option to spend an exploration turn doing nothing, which recovers RV exhaustion."
+  },
+  {
+    "term": "SD",
+    "referencedBy": "urn:ttrpg:keyword:standard_deflection_sd",
+    "source": "creating.tex",
+    "context": "is the standard difficulty to hit a target, which is based solely on its size and movement. The larger the target, the easier it is to hit. The standard deflection is equal to -5-1xSM for stationary targets and -2-1xSM for moving targets. I"
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:keyword:tenacity",
+    "source": "gear.tex",
+    "context": "is the ability to resist cuts, that is, PEN. If PEN > TGH, the equipment breaks."
+  },
+  {
+    "term": "RV",
+    "referencedBy": "urn:ttrpg:keyword:terrain_wear",
+    "source": "survival.tex",
+    "context": "Each terrain has a value that represents how pleasant it is to spend time there. This value is used to determine the RV for resting. Generally, the value ranges from 0 to 5 but can even be negative."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:keyword:varying_xp_cost",
+    "source": "creating.tex",
+    "context": "The amount of XP required to level up can also be arbitrary, depending on the difficulty of learning the knowledge. For example, knowing all the relevant people in a town of 400 inhabitants is much easier than learning a new language. INT i"
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:alcoholic",
+    "source": "abilities.tex",
+    "context": "Penalty of -3 for moral tests if not intoxicated, bonus of +1 if intoxicated. Gains 1/2/3 Hedonism XP for entering combat with alcoholism I/II or III, respectively."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:mechanic:blade_alignment",
+    "source": "abilities.tex",
+    "context": "Increases the RES of blade weapon strikes, that is, with PEN = 1x, by 5xDM."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:center_of_attention",
+    "source": "abilities.tex",
+    "context": "+1 Hedonism XP for each time successfully distracting or provoking someone and -1 if failing."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:cleric",
+    "source": "abilities.tex",
+    "context": "The character becomes a cleric of a deity. It is only possible to become a cleric if the character is not devoted to another and shares a common conviction with the deity. This allows all abilities from the deity's list to be learned with D"
+  },
+  {
+    "term": "TE",
+    "referencedBy": "urn:ttrpg:mechanic:clone",
+    "source": "spells.tex",
+    "context": "Converts the genes of a part of the body of a preserved corpse to match those of another creature of the same species. A living sample of the model must be present. Converts 10kg of biological matter per TE."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:complete_possession",
+    "source": "abilities.tex",
+    "context": "Can permanently possess a body. The XP cost of the ability is for possessing a body, where x represents the difficulty of possessing the body."
+  },
+  {
+    "term": "SD",
+    "referencedBy": "urn:ttrpg:mechanic:counterattack",
+    "source": "abilities.tex",
+    "context": "You can attack in response to an attack, as long as you are within range. Both attacks are made against the opponent's SD. The attack with the higher result hits first, having the chance to interrupt the opponent. The counterattack receives"
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:mechanic:fire_storm",
+    "source": "spells.tex",
+    "context": "Ignites any combustible object in the area. It does not deal damage initially, but blinds and suffocates anyone inside and deals 5 burn damage with PEN 4 to anyone who starts their turn within it."
+  },
+  {
+    "term": "POD",
+    "referencedBy": "urn:ttrpg:mechanic:healing_leaves",
+    "source": "spells.tex",
+    "context": "Generates 5 healing energy leaves that fly around the area. Whenever someone in the area takes damage, a leaf merges with the wound, stopping POD/2 bleeding."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:kleptomania",
+    "source": "abilities.tex",
+    "context": "May be compelled to steal something. Must make a will test with a difficulty of 5 to avoid being compelled. Loses 1 XP if not stealing and gains 1 Hedonism XP if attempting to steal."
+  },
+  {
+    "term": "PV",
+    "referencedBy": "urn:ttrpg:mechanic:lamp",
+    "source": "spells.tex",
+    "context": "Creates a ball of light in a metallic object that you can touch. Otherwise, it makes the caster themselves glow, but costs double stamina and PV."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:mechanic:master_with_blades",
+    "source": "abilities.tex",
+    "context": "Increases the PEN of melee weapons with PEN 2x or greater by 2/4/6."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:nymphomaniac",
+    "source": "abilities.tex",
+    "context": "Receives -3 to resist seduction tests. Gains 1 Hedonism XP each time they successfully seduce someone, but loses 1 XP whenever they fail."
+  },
+  {
+    "term": "XP",
+    "referencedBy": "urn:ttrpg:mechanic:phobia_of_x",
+    "source": "abilities.tex",
+    "context": "Has a moral penalty when in the presence of the phobia's object. Gains 1 Ferocity XP if incapacitating the target of fear."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:mechanic:rain",
+    "source": "spells.tex",
+    "context": "If there are enough clouds, converts them to a location and makes it rain there, soaking everything. Criticals can cause hail to fall, dealing 15 PEN of physical damage per turn."
+  },
+  {
+    "term": "PEN",
+    "referencedBy": "urn:ttrpg:mechanic:shock_explosive",
+    "source": "spells.tex",
+    "context": "Loads explosives with alchemical energy to explode when activated, upon contact with fire or on impact, dealing 20xDM of impact damage and 20xDM PEN as an explosion."
+  },
+  {
+    "term": "SD",
+    "referencedBy": "urn:ttrpg:mechanic:tactical_movement",
+    "source": "abilities.tex",
+    "context": "Whenever the character's last action was running, they receive a +3 bonus to SD against subsequent ranged attacks."
+  }
+]
