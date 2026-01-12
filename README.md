@@ -3,7 +3,7 @@
 
 ### Deterministic Frontend Architecture for Complex Interactive Systems
 
-**Live Demo:** https://fallow-fdxbyst5n-gbelows-projects.vercel.app/
+**Live Demo:** https://fallow-app.vercel.app/
 
 **FallowRPG** is a web application built to explore how complex, highly interdependent rulesets can be modeled in a way that keeps the **frontend predictable, testable, and resilient** under heavy interaction.
 
