@@ -16,6 +16,7 @@ This is a creation and game running tool to facilitate fallowRPG games.
 - Use React 19 patterns
 - Prefer server actions for data mutations
 - Use client components only when needed
+- Use tailwind, not css for styling
 
 ## Game-Specific Guidelines
 - Maintain consistency with existing game mechanics (afflictions, penalties, skills)

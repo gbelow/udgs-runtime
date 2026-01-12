@@ -92,10 +92,10 @@ export function CharacterCreator() {
 
         </div>
         <div className='flex flex-row gap-2 justify-center'>
-          <StatDial stat={'melee'} title={'Corpo'} />
-          <StatDial stat={'ranged'} title={'Distância'} />
-          <StatDial stat={'detection'} title={'Detecção'} />
-          <StatDial stat={'spellcast'} title={'Feitiçaria'} />
+          <StatDial stat={'melee'} title={'Melee'} />
+          <StatDial stat={'ranged'} title={'Ranged'} />
+          <StatDial stat={'detection'} title={'Detection'} />
+          <StatDial stat={'spellcast'} title={'Spellcasting'} />
           <StatDial stat={'conviction1'} title={'Conviction1'} />
           <StatDial stat={'conviction2'} title={'Conviction2'} />
         </div>
