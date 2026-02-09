@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AFFLICTIONS } from './tables'
+import { AFFLICTIONS, injuryDefaults } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -186,11 +186,7 @@ const AfflictionKeySchema =
 
 
 export const CampaignValuesSchema = z.object({
-  injuries: InjuriesSchema.default({
-    light: [0, 0, 0, 0, 0, 0],
-    serious: [0, 0, 0],
-    deadly: [0, 0],
-  }),
+  injuries: InjuriesSchema.default(injuryDefaults),
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.default({
     AP: 0,
@@ -261,3 +257,9 @@ export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>
 
 export type CharacterUpdater = (c: Character) => Character
 export type CampaignCharacterUpdater = (c: Character) => CampaignCharacter
+
+// T must at least satisfy the Character shape
+export interface Lens<T extends Character, V> {
+  get: (subject: T) => V;
+  set: (subject: T, value: V) => T;
+}

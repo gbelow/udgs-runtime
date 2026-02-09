@@ -6,10 +6,14 @@ import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { useCharacterStore } from '../stores/useCharacterStore';
 import { Character, Characteristics, Movement, Skills } from '../domain/types';
-import { makeCharacteristicSelector, makeCharacteristicUpdater, makeMovementSelector, makeMovementUpdater, makeSkillSelector, makeSkillUpdater, makeTextSelector, makeTextUpdater } from '../domain/selectors/factories';
+import { makeTextLens } from '../domain/selectors/factories';
 import { putGauntlets, putHelm } from '../domain/commands/equipArmor';
 import { useAppStore } from '../stores/useAppStore';
 import { resetSkill } from '../domain/commands/resetSkills';
+import { useSkillLens } from '../hooks/useSkillLens';
+import { useMovementLens } from '../hooks/useMovementLens';
+import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
+import { useTextLens } from '../hooks/useTextLens';
 
 export function CharacterCreator() {
 
@@ -182,50 +186,42 @@ export function CharacterCreator() {
 
 function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills}){ 
   const {character, updateCharacter} = useCharacterStore(s => s)
-  const value = character ? makeSkillSelector(skillName)(character) : 0
-  const setValue = (e: React.ChangeEvent<HTMLInputElement>) => 
-    updateCharacter(makeSkillUpdater(skillName, parseInt(e.target.value))) 
+  const [ value, setValue] = useSkillLens(skillName)
   const resetValue = () => 
     updateCharacter(resetSkill( skillName)) 
 
   return(
     <div className='flex flex-col w-10 md:w-16 overflow-hidden'>
       <label className='text-xs'>{title.slice(0,10)}</label>
-      <input className='p-1 border border-white rounded w-10 md:w-16 text-center' title={title} type='number' inputMode="numeric" value={value} onChange={setValue} />
+      <input className='p-1 border border-white rounded w-10 md:w-16 text-center' title={title} type='number' inputMode="numeric" value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
       <button type='button' className='text-xs bg-gray-800 border' onClick={resetValue}>Reset</button>
     </div>
   )
 }
 
 function StatDial ({stat, title}:{stat: keyof Characteristics, title: string}){
-  const {character, updateCharacter} = useCharacterStore(s => s)
   // const {character, updateCharacter} = useCharacterStore(s => ({character: s.character, updateCharacter: s.updateCharacter}))
-  const value = character ? makeCharacteristicSelector(stat)(character) : 0
-  const setValue = (e: React.ChangeEvent<HTMLInputElement>) => 
-    updateCharacter(makeCharacteristicUpdater(stat, parseInt(e.target.value))) 
+  const [value, setValue] = useCharacteristicLens(stat)
 
   return(
     <div className='flex flex-col w-10 md:w-16 overflow-hidden'>
       <label className='text-xs'>{title}</label>
-      <input className='p-1 border border-white rounded w-10 md:w-16 text-center' title={title} type='number' inputMode="numeric" value={value} onChange={setValue} />
+      <input className='p-1 border border-white rounded w-10 md:w-16 text-center' title={title} type='number' inputMode="numeric" value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
     </div>
   )
 }
 
 
 const TextItem = ({keyName, mode}:{keyName: keyof Character, mode: 'normal' | 'large'}) => {
-  const {character, updateCharacter} = useCharacterStore(s => s)
-  const value = character ? makeTextSelector(keyName)(character) : ''
-  const setValue = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>  ) => 
-    updateCharacter(makeTextUpdater(keyName, e.target.value))
+  const [value, setValue] = useTextLens(keyName)
 
   return(
     <>
       {
         mode == 'large' ?
-        <textarea aria-label='notes' className='border rounded p-1 min-h-32' value={value+''} onChange={setValue} /> :
+        <textarea aria-label='notes' className='border rounded p-1 min-h-32' value={value+''} onChange={(e) => setValue(e.target.value)} /> :
         <div className='flex flex-col w-36 md:w-64 overflow-hidden justify-center align-center content-center text-center'>
-          <input className='p-1 border border-white rounded w-36 md:w-64 text-center' title={keyName} type='text'  value={value+''} onChange={setValue} />
+          <input className='p-1 border border-white rounded w-36 md:w-64 text-center' title={keyName} type='text'  value={value+''} onChange={(e) => setValue(e.target.value)} />
         </div>
       }
     </>
@@ -233,16 +229,13 @@ const TextItem = ({keyName, mode}:{keyName: keyof Character, mode: 'normal' | 'l
 }
 
 function Movementinput  ({movementName, title}:{movementName: keyof Movement, title: string}){
-  const {character, updateCharacter} = useCharacterStore(s => s)
-  const value = character ? makeMovementSelector(movementName)(character) : 0
-  const setValue = (e: React.ChangeEvent<HTMLInputElement>) => 
-    updateCharacter(makeMovementUpdater(movementName, (parseFloat(e.target.value))))
+  const [value, setValue] = useMovementLens(movementName)
 
   return(
     <div className='flex flex-col w-20 md:w-20 overflow-hidden justify-center align-center content-center text-center'>
       <label className='text-xs'>{title}</label>
       <div>
-        <input className='p-1 border border-white rounded w-16 text-center' title={title} type='number' value={value} onChange={setValue} />
+        <input className='p-1 border border-white rounded w-16 text-center' title={title} type='number' value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
       </div>
     </div>
   )

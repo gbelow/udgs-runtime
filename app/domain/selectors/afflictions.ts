@@ -24,15 +24,16 @@ export function getAfflictionPenalty(
   skill: keyof Character['skills']
 ): number {
   if(!isCampaignCharacter(character)) return 0
+  
+  const injuryPenalty = getInjuryPenalty(character)
 
   const afflictions = getAfflictions(character)
   if (afflictions.length === 0) {
-    return 0
+    return injuryPenalty
   }
   
   let totalPenalty = 0
   
-  const injuryPenalty = getInjuryPenalty(character)
   
   for (const afflictionName of afflictions) {
     // Type guard: ensure afflictionName is a valid key

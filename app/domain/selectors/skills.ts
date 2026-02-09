@@ -1,8 +1,32 @@
-import { Character } from '../types'
+import { Character, Lens, Skills } from '../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions } from './afflictions'
 import { getAGI, getMelee, getRanged, getDetection, getSpellcast, getSTR } from './characteristics'
-import { characteristicSelectors } from '.'
+import { characteristicLenses } from '.'
+
+
+export function makeSkillLens<T extends Character>(
+  skillName: keyof Character['skills'],
+  getter: (c: T) => number,
+  setter?: (c: T, value: number) => T
+): Lens<T, number> {
+  return {
+    get: getter,
+    set: setter ?? ((subject: T, value: number): T => {
+      const baseValue = subject.skills[skillName];
+      const modifiers = getter(subject) - baseValue;
+      
+      // We return the whole subject T, ensuring metadata (id, etc) is preserved
+      return {
+        ...subject,
+        skills: { 
+          ...subject.skills, 
+          [skillName]: value - modifiers 
+        }
+      } as T;
+    })
+  };
+}
 
 export function getStrike(c: Character) {
   return getMelee(c) + skill(c, 'strike') - getAfflictionPenalty(c, 'strike')
@@ -153,11 +177,11 @@ export function getStress(c: Character) {
 }
 
 export function getActing(c: Character) {
-  return skill(c, 'acting') + characteristicSelectors.SPI(c)
+  return skill(c, 'acting') + characteristicLenses.SPI.get(c)
 }
 
 export function getDevotion(c: Character) {
-  return c.characteristics.SPI + skill(c, 'devotion')
+  return characteristicLenses.SPI.get(c) + skill(c, 'devotion')
 }
 
 const magic =

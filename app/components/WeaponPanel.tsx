@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { makeFullRoll } from "./utils";
 import { dmgArr } from "../domain/tables";
-import { makeCharacteristicSelector, makeSkillSelector } from "../domain/selectors/factories";
 import { useActiveCharacterUpdater } from "../hooks/useActiveCharacterUpdater";
 import { useGetActiveCharacter } from "../hooks/useGetActiveCharacter";
+import { useSkillLens } from "../hooks/useSkillLens";
+import { useCharacteristicLens } from "../hooks/useCharacteristicLens";
 
 export function WeaponPanel(){
 
@@ -13,9 +14,9 @@ export function WeaponPanel(){
   const character = useGetActiveCharacter()
 
   const [lastAtk, setLastAtk] = useState({atk:0, properties: '', weapon: ''})
-  const strike = character ? makeSkillSelector('strike')(character) : 0
-  const accuracy = character ? makeSkillSelector('accuracy')(character) : 0
-  const STR = character ? makeCharacteristicSelector('STR')(character) : 10
+  const [strike] = useSkillLens('strike')
+  const [accuracy] = useSkillLens('accuracy')
+  const [STR] = useCharacteristicLens('STR') ?? 10
   const weapons = character ? character.weapons : {}
 
   const pressAtk = (range: string, heavyMod:number, properties:string, weapon: string) => {

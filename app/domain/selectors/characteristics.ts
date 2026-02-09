@@ -1,6 +1,22 @@
-import { Character } from "../types"
+import { Character, Lens } from "../types"
 import { getGearPenalties } from "./gear"
 import { getDM } from "./helpers"
+
+export function makeCharacteristicLens<T extends Character>(
+  characteristicName: keyof Character['characteristics'], 
+  getter: (c: T) => number, 
+  setter?: (c: T, value: number) => T,
+)
+  : Lens<T, number> {
+    return {
+      get: getter,
+      set: setter ?? ((subject: T, value: number): T => {
+        const calculated = getter(subject) - subject.characteristics[characteristicName]
+        const updated = {...subject, characteristics: {...subject.characteristics, [characteristicName]: value - calculated}}
+        return updated as T;
+      })
+    } 
+}
 
 
 export function getSTR(c: Character): number {

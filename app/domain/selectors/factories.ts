@@ -1,97 +1,44 @@
-import { movementSelectors, skillSelectors } from ".";
 import { CampaignCharacter, CampaignCharacterSchema, CampaignCharacterUpdater, Character, Characteristics, CharacterUpdater, Injuries, Movement, Resources, Skills } from "../types";
-import { characteristicSelectors } from ".";
-import { getDM } from "./helpers";
 
-export function makeSkillSelector (skillName: keyof Skills){
-  return((character: Character) => {
-    if (!character || !skillSelectors[skillName]) return 0;
-    return skillSelectors[skillName](character)
-  })
-}
-
-export function makeSkillUpdater (skillName:keyof Skills, value: number):CharacterUpdater {
-  return( (character: Character) => {
-    const calculated = skillSelectors[skillName](character) - character.skills[skillName]
-    const updated = {...character, skills: {...character.skills, [skillName]: value - calculated}}
-    return updated
-  }) 
-}
-
-export function makeCharacteristicSelector (characteristic: keyof Characteristics){
-  return((character: Character) => {
-    if (!character || !characteristicSelectors[characteristic]) return 0;
-    return characteristicSelectors[characteristic](character)
-  })
-}
-
-export function makeCharacteristicUpdater(characteristic: keyof Characteristics, value: number):CharacterUpdater{
-  return((character: Character) => {
-    if (characteristic === 'RES' || characteristic === 'TGH' || characteristic === 'INS') {
-      return character    // These are derived stats; do not allow direct updates
+export function makeTextLens(keyName: keyof Character){
+  return {
+    get: (character: Character) => {
+      if (!character || !character[keyName]) return '';
+      return character[keyName]
+    },
+    set: (character: Character, value: string) => {
+      return ({...character, [keyName]: value})
     }
-
-    const calculated = characteristicSelectors[characteristic](character) - character.characteristics[characteristic]
-    const updated = { ...character, characteristics: { ...character.characteristics, [characteristic]: value - calculated } }
-    return updated
-  })
+  }
 }
 
-export function makeMovementSelector (move: keyof Movement){
-  return((character: Character) => {
-    if (!character || !movementSelectors[move]) return 0;
-    return movementSelectors[move](character)
-  })
+export function makeResourceLens(keyName: keyof Resources){
+  return {
+    get: (character: Character) => {
+      const campaignCharacter=CampaignCharacterSchema.parse(character) 
+      if (!campaignCharacter || !campaignCharacter.resources[keyName]) return 0;
+      return campaignCharacter.resources[keyName]
+    },
+    set: (character: Character, value: number) => {
+      const campaignCharacter=CampaignCharacterSchema.parse(character)
+      return ({...campaignCharacter, resources:{...campaignCharacter.resources, [keyName]: value}})
+    }
+  }
 }
 
-export function makeMovementUpdater(moveName: keyof Movement, value: number):CharacterUpdater{
-  return((character: Character) => {
-    const calculated = movementSelectors[moveName](character) - character.movement[moveName]
-    const updated = {...character, movement: {...character.movement, [moveName]: value - calculated}}
-    return updated
-  })
-}
-
-export function makeTextSelector (keyName: keyof Character){
-  return((character: Character) => {
-    if (!character || !character[keyName]) return '';
-    return character[keyName]
-  })
-}
-
-export function makeTextUpdater(keyName: keyof Character , value: string):CharacterUpdater{
-  return((character: Character) => {
-    return ({...character, [keyName]: value})
-  })
-}
-
-export function makeResourceSelector (keyName: keyof Resources){
-  return((character: Character) => {
-    const campaignCharacter=CampaignCharacterSchema.parse(character) 
-    if (!campaignCharacter || !campaignCharacter.resources[keyName]) return 0;
-    return campaignCharacter.resources[keyName]
-  })
-}
-
-export function makeResourceUpdater(keyName: keyof Resources , value: number):CampaignCharacterUpdater{
-  return((character: Character) => {
-    const campaignCharacter=CampaignCharacterSchema.parse(character)
-    return ({...campaignCharacter, resources:{...campaignCharacter.resources, [keyName]: value}})
-  })
-}
-
-export function makeInjurySelector (keyName: keyof Injuries){
-  return((character: CampaignCharacter) => {
-    if (!character || !character.injuries[keyName]) return [];
-    return character.injuries[keyName]
-  })
-}
-
-export function makeInjuryUpdater(keyName: keyof Injuries , index: number, value: number):CampaignCharacterUpdater{
-  return((character: Character) => {
-    const campaignCharacter=CampaignCharacterSchema.parse(character)
-    const newInjury = [...campaignCharacter.injuries[keyName]]
-    newInjury[index] = value
-    return ({...campaignCharacter, injuries:{...campaignCharacter.injuries, [keyName]: newInjury}})
-  })
+export function makeInjuryLens (){
+  return {
+    get: (character: Character) => {
+      const campaignCharacter=CampaignCharacterSchema.parse(character) 
+      if (!campaignCharacter || !campaignCharacter.injuries) return {light: [0,0,0], serious: [0,0,0], deadly: [0,0,0]};
+      return campaignCharacter.injuries
+    },
+    set: (character: Character, keyName: keyof Injuries, index: number, value: number) => {
+      const campaignCharacter=CampaignCharacterSchema.parse(character)
+      const updatedInjuries = {...campaignCharacter.injuries}
+      updatedInjuries[keyName] = [...updatedInjuries[keyName]]
+      updatedInjuries[keyName][index] = value
+      return ({...campaignCharacter, injuries:updatedInjuries})
+    }
+  }
 }

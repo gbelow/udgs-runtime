@@ -67,6 +67,7 @@ export const SkillPenaltyTable = {
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 export const injuryMap = {light:2, serious: 10, deadly: 20}
+export const injuryDefaults = {light: [0,0,0,0,0], serious: [0,0,0], deadly: [0,0]}
 
 export const CONVICTIONS = {
   adaptation: {

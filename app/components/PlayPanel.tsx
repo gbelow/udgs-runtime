@@ -9,7 +9,6 @@ import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills }
 import { useActiveCampaignCharacterUpdater } from '../hooks/useActiveCharacterUpdater';
 import { startTurn } from '../domain/commands/startTurn';
 import { useGetActiveCampaignCharacter } from '../hooks/useGetActiveCharacter';
-import { makeCharacteristicSelector, makeInjuryUpdater, makeMovementSelector, makeResourceSelector, makeResourceUpdater, makeSkillSelector } from '../domain/selectors/factories';
 import { actionSurge } from '../domain/commands/actionSurge';
 import { restCharacter } from '../domain/commands/rest';
 import { injuryMap } from '../domain/tables';
@@ -20,6 +19,11 @@ import { isCampaignCharacter } from '../domain/utils';
 import { addAffliction } from '../domain/commands/addAffliction';
 import { saveCharacter } from '../actions';
 import { useAppStore } from '../stores/useAppStore';
+import { useSkillLens } from '../hooks/useSkillLens';
+import { useMovementLens } from '../hooks/useMovementLens';
+import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
+import { useInjuryLens } from '../hooks/useinjuryLens';
+import { useResourceLens } from '../hooks/useResourceLens';
 
 
 export function PlayPanel(){
@@ -31,6 +35,8 @@ export function PlayPanel(){
   const currentCharacter = useGetActiveCampaignCharacter()
   const characterUpdater = useActiveCampaignCharacterUpdater()
    const {updatePlayerCharacterList} = useAppStore(s => s)
+
+  const [injuries, setInjury] = useInjuryLens()
 
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
@@ -52,10 +58,6 @@ export function PlayPanel(){
 
   const doRest = () => {
     characterUpdater(restCharacter)
-  }
-
-  const updateInjury = (type: keyof Injuries, index: number, value: number) => {
-    characterUpdater( makeInjuryUpdater(type, index, value))
   }
 
   const passRound = () => {
@@ -134,19 +136,19 @@ export function PlayPanel(){
             <div className='flex flex-row gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
               <span>Light</span>
               {
-                currentCharacter?.injuries?.light.map((inj, ind) => <InjuryControl key={ind} cures={inj} type='light' setInj={(val) => updateInjury('light', ind, val)} />)
+                injuries?.light.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='light' setInj={(val) => setInjury('light', ind, val)} />)
               }
             </div>
             <div className='flex flex-row gap-1 justify-center'>
               <span>Serious</span>
               {
-                currentCharacter?.injuries?.serious.map((inj, ind) => <InjuryControl key={ind} cures={inj} type='serious' setInj={(val) => updateInjury('serious', ind, val)} />)
+                injuries?.serious.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='serious' setInj={(val) => setInjury('serious', ind, val)} />)
               }
             </div>
             <div className='flex flex-row gap-1 justify-center'>
               <span>Deadly</span>
               {
-              currentCharacter?.injuries?.deadly.map((inj, ind) => <InjuryControl key={ind} cures={inj} type='deadly' setInj={(val) => updateInjury('deadly', ind, val)} />)
+              injuries?.deadly.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='deadly' setInj={(val) => setInjury('deadly', ind, val)} />)
               }
               <input type='button' value='KILL' aria-label='kill' className='p-1 border hover:bg-gray-500 rounded' onClick={ killCharacter} />
 
@@ -163,13 +165,6 @@ export function PlayPanel(){
               <SimpleMove moveName='jump'  title={'jump (1AP+1STA)'} />
               <SimpleMove moveName='stand'  title={'stand up'} />
             </div>
-            {/* <div className='flex flex-row gap-2 justify-center'>
-              <SimpleSkill name={'Mobilidade'} value={currentCharacter.resources.penalties.mobility}/>
-              <SimpleSkill name={'Ferimento'} value={currentCharacter.resources.penalties.injury}  />
-              <SimpleSkill name={'Visão'} value={currentCharacter.resources.penalties.vision}/>
-              <SimpleSkill name={'Mental'} value={currentCharacter.resources.penalties.mental}/>
-              <SimpleSkill name={'Saúde'} value={currentCharacter.resources.penalties.health}/>
-            </div> */}
             <div className='flex flex-row gap-2 justify-center'>
               <SimpleCharacteristic propName={'STR'} />
               <SimpleCharacteristic propName={'AGI'} />
@@ -253,12 +248,7 @@ function InjuryControl({cures, setInj, type}: {cures: number, type:keyof Injurie
 
 function SimpleResource({rssName}: {rssName: keyof Resources}){
 
-  const character = useGetActiveCampaignCharacter()
-  const value = character && isCampaignCharacter(character) ? makeResourceSelector(rssName)(character) : 0
-  const charUpdater = useActiveCampaignCharacterUpdater()
-  
-  const updater = (value: number) => 
-    charUpdater((c) => isCampaignCharacter(c) ? makeResourceUpdater(rssName, value )(c) : c)
+  const [ value, setValue] = useResourceLens(rssName)
 
   return(
     <div className='flex flex-row border rounded text-center justify-around p-1 w-16 overflow-hidden'>
@@ -267,8 +257,8 @@ function SimpleResource({rssName}: {rssName: keyof Resources}){
         <span>{value}</span>
       </div>
       <div className='flex flex-col gap-2'>
-        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'+'} onClick={() => updater(value+1)} />
-        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'-'} onClick={() => updater(value-1)} />
+        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'+'} onClick={() => setValue(value+1)} />
+        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'-'} onClick={() => setValue(value-1)} />
       </div>
       {/* <input type='number' inputMode="numeric" aria-label={name} value={value} onChange={(val) => setRss(val.target.value)} /> */}
     </div>
@@ -277,8 +267,7 @@ function SimpleResource({rssName}: {rssName: keyof Resources}){
 
 
 function SimpleCharacteristic({propName}: {propName: keyof Characteristics}){
-  const character = useGetActiveCampaignCharacter()
-  const value = character ? makeCharacteristicSelector(propName)(character) : 0
+  const [value] = useCharacteristicLens(propName)
   return(
     <div className='flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs' >
       <span>{propName.slice(0,10)}</span>
@@ -288,8 +277,7 @@ function SimpleCharacteristic({propName}: {propName: keyof Characteristics}){
 }
 
 function ZimpleSkill({skillName, rollSkill}: {skillName: keyof Skills, rollSkill?: (name:string, value:number)=> void}){
-  const character = useGetActiveCampaignCharacter()
-  const value = character ? makeSkillSelector(skillName)(character) : 0
+  const [value] = useSkillLens(skillName)
   return(
     <div className='flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs' onClick={() => rollSkill ? rollSkill(skillName, value) : null}>
       <span>{skillName.slice(0,10)}</span>
@@ -299,8 +287,7 @@ function ZimpleSkill({skillName, rollSkill}: {skillName: keyof Skills, rollSkill
 }
 
 function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}){
-  const character = useGetActiveCampaignCharacter()
-  const value = character ? makeMovementSelector(moveName)(character) : 0
+  const [value, setValue] = useMovementLens(moveName)
 
   return(
     <div className='flex flex-col border rounded text-center p-1 w-20 md:w-28 overflow-hidden text-xs'>

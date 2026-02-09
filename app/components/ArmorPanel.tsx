@@ -2,7 +2,7 @@
 import { useGetActiveCharacter } from '../hooks/useGetActiveCharacter'
 import { makeCharacter } from '../domain/factories'
 import { ArmorSchema } from '../domain/types'
-import { makeCharacteristicSelector } from '../domain/selectors/factories'
+import { useCharacteristicLens } from '../hooks/useCharacteristicLens'
 
 export function ArmorPanel(){
   const character = useGetActiveCharacter()
@@ -11,9 +11,9 @@ export function ArmorPanel(){
   // NOTE: characteristics.RES/TGH/INS are now stored as *base* additive terms.
   // Use selectors to get the effective derived thresholds.
   const fallback = makeCharacter('')
-  const effectiveRES = character ? makeCharacteristicSelector('RES')(character) : makeCharacteristicSelector('RES')(fallback)
-  const effectiveTGH = character ? makeCharacteristicSelector('TGH')(character) : makeCharacteristicSelector('TGH')(fallback)
-  const effectiveINS = character ? makeCharacteristicSelector('INS')(character) : makeCharacteristicSelector('INS')(fallback)
+  const effectiveRES = useCharacteristicLens('RES')[0] ?? fallback.characteristics.RES
+  const effectiveTGH = useCharacteristicLens('TGH')[0] ?? fallback.characteristics.TGH
+  const effectiveINS = useCharacteristicLens('INS')[0] ?? fallback.characteristics.INS
 
   return(
     <>
