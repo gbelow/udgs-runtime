@@ -46,6 +46,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     }),
 
   setActiveCharacter: (id) => {
+    console.log(id, "asdf")
     set({ activeCharacterId: id })
   },
 

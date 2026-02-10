@@ -21,7 +21,6 @@ export const useCharacterStore = create<CharacterStore>((set) => ({
   loadCharacter: (rawCharacter) => {
     const character = makeCharacter(rawCharacter)
      
-    // const {afflictions, injuries, hasActionSurge, fightName, resources, id, ...char } = character
     set(() => ({
         character: {...character}
       }

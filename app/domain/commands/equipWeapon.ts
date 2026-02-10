@@ -1,4 +1,4 @@
-import { Character, CharacterUpdater, Weapon } from '../types'
+import { Character, CharacterUpdater, Weapon, WeaponSchema } from '../types'
 
 export function equipWeapon(
   weapon: Weapon
@@ -20,5 +20,30 @@ export function equipWeapon(
       [weapon.name]: weapon
     }
   })
+}
+
+export function unequipWeapon(
+  weaponKey: string
+): CharacterUpdater {
+  if (!weaponKey || typeof weaponKey !== 'string') {
+    throw new Error('Weapon key is required and must be a string')
+  }
+
+  return (character: Character) => {
+    if (!character.weapons || !character.weapons[weaponKey]) {
+      // Weapon not found, return character unchanged
+      return character
+    }
+    const { [weaponKey]: _, ...remainingWeapons } = character.weapons
+    return {
+      ...character,
+      weapons: remainingWeapons
+    }
+  }
+}
+
+export function getCharacterWeapons(character: Character | null): Record<string, Weapon> {
+  if(!character?.weapons) return {}
+  return character.weapons
 }
 

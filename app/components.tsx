@@ -13,15 +13,15 @@ import { useCharacterStore } from './stores/useCharacterStore';
 import { equipArmor } from './domain/commands/equipArmor';
 import { equipWeapon } from './domain/commands/equipWeapon';
 import { scaleArmor } from './domain/selectors/helpers';
-import { useActiveCharacterUpdater } from './hooks/useActiveCharacterUpdater';
 import { useCombatStore } from './stores/useCombatStore';
+import { useActiveCharacter } from './hooks/useActiveCharacter';
 
 
 export function ArmorSelector(){
-  const characterUpdater = useActiveCharacterUpdater()
+  const {update} = useActiveCharacter()
 
   const handleEquipArmorClick = (armor: Armor) => {
-    characterUpdater( equipArmor(armor))    
+    update( equipArmor(armor))    
   };
 
   return(
@@ -33,17 +33,16 @@ export function ArmorSelector(){
           )
         })
       }
-
     </div>
   )
 }
 
 export function WeaponSelector(){
 
-  const characterUpdater = useActiveCharacterUpdater()
+  const {update} = useActiveCharacter()
 
   const handleEquipWeaponClick = (weapon: Weapon) => {
-    characterUpdater( equipWeapon( weapon))
+    update( equipWeapon( weapon))
   };
 
   const typedBaseWeapons : Record<string, Weapon> = baseWeapons 

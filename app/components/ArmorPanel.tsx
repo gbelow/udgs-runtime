@@ -1,15 +1,12 @@
 'use client'
-import { useGetActiveCharacter } from '../hooks/useGetActiveCharacter'
 import { makeCharacter } from '../domain/factories'
 import { ArmorSchema } from '../domain/types'
+import { useArmorLens } from '../hooks/useArmorLens'
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens'
 
 export function ArmorPanel(){
-  const character = useGetActiveCharacter()
-  const armor = character ? character.armor : ArmorSchema.parse({})
+  const [armor] = useArmorLens()
 
-  // NOTE: characteristics.RES/TGH/INS are now stored as *base* additive terms.
-  // Use selectors to get the effective derived thresholds.
   const fallback = makeCharacter('')
   const effectiveRES = useCharacteristicLens('RES')[0] ?? fallback.characteristics.RES
   const effectiveTGH = useCharacteristicLens('TGH')[0] ?? fallback.characteristics.TGH

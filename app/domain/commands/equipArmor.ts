@@ -1,5 +1,5 @@
 import { scaleArmor } from "../selectors/helpers"
-import { Character, Armor, CharacterUpdater } from '../types'
+import { Character, Armor, CharacterUpdater, ArmorSchema } from '../types'
 
 export function equipArmor(  
   armor: Armor
@@ -20,6 +20,12 @@ export function equipArmor(
   return (character: Character) => ({ ...character, armor: scaleArmor(armor, character.characteristics.size) })
 }
 
+export function unequipArmor(): CharacterUpdater {
+  return (character: Character) => {
+    character = {...character, armor: ArmorSchema.parse({})}
+    return character
+  }
+}
 export function putGauntlets(character: Character): Character {
   
   return({

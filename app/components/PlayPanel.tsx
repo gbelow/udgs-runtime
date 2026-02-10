@@ -6,17 +6,7 @@ import { AFFLICTIONS as afflictionDefinitions} from '../domain/tables'
 import { makeFullRoll } from './utils';
 import { CombatStore, useCombatStore } from '../stores/useCombatStore';
 import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
-import { useActiveCampaignCharacterUpdater } from '../hooks/useActiveCharacterUpdater';
-import { startTurn } from '../domain/commands/startTurn';
-import { useGetActiveCampaignCharacter } from '../hooks/useGetActiveCharacter';
-import { actionSurge } from '../domain/commands/actionSurge';
-import { restCharacter } from '../domain/commands/rest';
 import { injuryMap } from '../domain/tables';
-import { nextRound } from '../domain/commands/nextRound';
-import { resetCombat } from '../domain/commands/resetCombat';
-import { getAfflictions } from '../domain/selectors/afflictions';
-import { isCampaignCharacter } from '../domain/utils';
-import { addAffliction } from '../domain/commands/addAffliction';
 import { saveCharacter } from '../actions';
 import { useAppStore } from '../stores/useAppStore';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -24,17 +14,23 @@ import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useResourceLens } from '../hooks/useResourceLens';
+import { useCharacterCommands } from '../hooks/useCharacterCommands';
+import { useCombatCommands } from '../hooks/useCombatCommands';
+import { useAfflictionLens } from '../hooks/useAfflictionLens';
+import { useGameCommands } from '../hooks/useGameCommands';
+import { useActiveCharacterData } from '../hooks/useCharacterDataLens';
+import { useShallow } from 'zustand/shallow';
 
 
 export function PlayPanel(){
 
-  const {
-    characters, removeCharacter, updateCombatState, 
-    round, activeCharacterId} = useCombatStore()
-
-  const currentCharacter = useGetActiveCampaignCharacter()
-  const characterUpdater = useActiveCampaignCharacterUpdater()
-   const {updatePlayerCharacterList} = useAppStore(s => s)
+  const updatePlayerCharacterList = useAppStore(s => s.updatePlayerCharacterList)
+  const { rest, actionSurge, } = useCharacterCommands()
+  const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
+  const { savePlayerCharacter} = useGameCommands()
+  const round = useCombatStore(s => s.round)
+  const isThereActiveCharacter = useCombatStore(s => !!s.activeCharacterId)
+  const { notes, fightName, hasActionSurge} = useActiveCharacterData() 
 
   const [injuries, setInjury] = useInjuryLens()
 
@@ -43,42 +39,10 @@ export function PlayPanel(){
 
   const [rolledSkill, setRolledSkill] = useState({name:'', value:0})
 
-  const handleStartTurnClick = () => {    
-    updateCombatState(startTurn)
-  }
-  
-  const killCharacter = () => {
-    if(!currentCharacter || !currentCharacter.id ) return
-    removeCharacter(currentCharacter.id)
-  }
-
-  const doActionSurge = () => {
-    characterUpdater(actionSurge)
-  }
-
-  const doRest = () => {
-    characterUpdater(restCharacter)
-  }
-
-  const passRound = () => {
-    updateCombatState(nextRound)
-  }
-
-  const resetFight = () => {
-    updateCombatState(resetCombat)
-  }
-
-
   const rollSkill = (name:string, value: number) => {
     const roll = makeFullRoll()
     setRolledSkill({name, value:value+roll})
   }
-
-  const handleSaveCharacterClick = () => {
-      if(!currentCharacter) return
-      saveCharacter(currentCharacter)
-      updatePlayerCharacterList()
-    }
 
 
   return(
@@ -88,29 +52,20 @@ export function PlayPanel(){
           <span>
             Round: {round}
           </span>
-          <input type='button' value='nextRound' aria-label='nextRound' className='p-1 border hover:bg-gray-500 rounded' onClick={passRound} />              
-          <input type='button' value='resetGame' aria-label='resetGame' className='p-1 border hover:bg-gray-500 rounded ml-auto mr-2' onClick={resetFight} />
+          <input type='button' value='nextRound' aria-label='nextRound' className='p-1 border hover:bg-gray-500 rounded' onClick={nextRound} />              
+          <input type='button' value='resetGame' aria-label='resetGame' className='p-1 border hover:bg-gray-500 rounded ml-auto mr-2' onClick={resetCombat} />
         </div>
         <div className='flex flex-row gap-2 w-full overflow-auto p-3'>
-          {
-            Object.entries(characters).map(([id, value]) => 
-              <input className={'p-2 border h-12  '+(id  == activeCharacterId ? 'bg-red-500' : value.hasActionSurge ? 'bg-blue-400' : 'bg-gray-500')} 
-                type='button' value={value.fightName} aria-label={value.fightName} key={id} 
-                onClick={() => {
-                  updateCombatState((s: CombatStore) => ({...s, activeCharacterId: id}))
-                }}
-              />
-            )
-          }
+          <CharacterList />
         </div>
       </div>
       {
-        currentCharacter ?
+        isThereActiveCharacter ?
         <div className='grid grid-cols-1 md:grid-cols-12 py-1'>
           <div className='flex flex-col items-center justify-center md:col-span-7 flex flex-col gap-2 text-sm py-1 md:mr-2'>
             <div className='flex gap-2 text-xs h-8'>
-              <input type='button' value='startTurn' aria-label='startTurn' className='p-1 border hover:bg-gray-500 rounded' onClick={handleStartTurnClick } />  
-              <span className='text-lg'>{currentCharacter.fightName}</span>
+              <input type='button' value='startTurn' aria-label='startTurn' className='p-1 border hover:bg-gray-500 rounded' onClick={startTurn } />  
+              <span className='text-lg'>{fightName}</span>
               <input type='button' value='d10' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice10(Math.floor(Math.random() * 10) + 1)}/>
               <span>
                 Roll: {dice10}
@@ -119,11 +74,11 @@ export function PlayPanel(){
               <span>
                 Roll: {dice6}
               </span>
-              <input type='button' value='action surge' aria-label='action surge' className={'p-1 border hover:bg-gray-500 rounded '+(currentCharacter.hasActionSurge ? 'bg-gray-500': '')} onClick={ doActionSurge } />  
-              <input type='button' value='rest' aria-label='rest' className={'p-1 border hover:bg-gray-500 rounded '} onClick={ doRest } />
+              <input type='button' value='action surge' aria-label='action surge' className={'p-1 border hover:bg-gray-500 rounded '+(hasActionSurge ? 'bg-gray-500': '')} onClick={ actionSurge } />  
+              <input type='button' value='rest' aria-label='rest' className={'p-1 border hover:bg-gray-500 rounded '} onClick={ rest } />
             </div>     
             {
-              currentCharacter ?
+              isThereActiveCharacter ?
               <div className='flex flex-row gap-2 justify-center '>
                 <SimpleResource rssName={'AP'} />
                 <SimpleResource rssName={'STA'} />
@@ -179,43 +134,43 @@ export function PlayPanel(){
               <span className='px-4'>{rolledSkill.name} : {rolledSkill.value}</span>
             </div>
             <div className='flex flex-row gap-2 justify-center'>
-              <ZimpleSkill skillName={'strike'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'accuracy'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'defend'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'reflex'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'grapple'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'cunning'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'SD'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'strike'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'accuracy'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'defend'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'reflex'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'grapple'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'cunning'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'SD'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>
-              <ZimpleSkill skillName={'balance'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'climb'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'strength'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'stealth'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'prestidigitation'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'health'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'swim'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'balance'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'climb'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'strength'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'stealth'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'prestidigitation'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'health'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'swim'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>
-              <ZimpleSkill skillName={'knowledge'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'explore'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'will'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'charm'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'stress'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'acting'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'devotion'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'knowledge'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'explore'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'will'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'charm'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'stress'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'acting'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'devotion'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>
-              <ZimpleSkill skillName={'combustion'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'eletromag'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'radiation'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'entropy'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'biomancy'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'telepathy'} rollSkill={rollSkill}/>
-              <ZimpleSkill skillName={'animancy'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'combustion'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'eletromag'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'radiation'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'entropy'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'biomancy'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'telepathy'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'animancy'} rollSkill={rollSkill}/>
             </div>
-            <textarea aria-label='notes' className='border rounded p-1 min-h-32 w-84 md:w-full justify-center ' value={currentCharacter.notes} readOnly/>
-            <button type='button' className='border rounded p-2' onClick={handleSaveCharacterClick}>Save</button>
+            <textarea aria-label='notes' className='border rounded p-1 min-h-32 w-84 md:w-full justify-center ' value={notes} readOnly/>
+            <button type='button' className='border rounded p-2' onClick={savePlayerCharacter}>Save</button>
           </div>
           <div className='flex flex-col md:col-span-5 gap-2 text-sm items-center'>
             <AfflictionsPannel />
@@ -276,7 +231,7 @@ function SimpleCharacteristic({propName}: {propName: keyof Characteristics}){
   )
 }
 
-function ZimpleSkill({skillName, rollSkill}: {skillName: keyof Skills, rollSkill?: (name:string, value:number)=> void}){
+function SimpleSkill({skillName, rollSkill}: {skillName: keyof Skills, rollSkill?: (name:string, value:number)=> void}){
   const [value] = useSkillLens(skillName)
   return(
     <div className='flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs' onClick={() => rollSkill ? rollSkill(skillName, value) : null}>
@@ -298,13 +253,9 @@ function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}
 }
 
 function AfflictionsPannel(){
-  const character = useGetActiveCampaignCharacter()
-  const afflictions = character ? getAfflictions(character) : []
+
+  const [afflictions, setAffliction] = useAfflictionLens()
   const afflictionsList = Object.keys(afflictionDefinitions) as AfflictionKey[]
-  const characterUpdater = useActiveCampaignCharacterUpdater()
-  
-  const setAffliction = (item: AfflictionKey) => 
-    characterUpdater((c) => isCampaignCharacter(c) ? addAffliction(item)(c) : c)
 
   return(
     <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>
@@ -318,6 +269,21 @@ function AfflictionsPannel(){
   )
 }
 
-function symmetricDifference(arr: AfflictionKey[], item: AfflictionKey) {
-  return arr.includes(item) ? arr.filter(el => el != item) : [...arr, item]
+function CharacterList(){
+  const characters = useCombatStore(useShallow(s => s.characters))
+  const setActiveCharacter = useCombatStore(s => s.setActiveCharacter)
+  const activeCharacterId = useCombatStore(s => s.activeCharacterId)
+  
+  return(
+    <div className='flex flex-row gap-2 w-full overflow-auto p-3'>
+      {
+        Object.entries(characters).map(([id, value]) => 
+          <input className={'p-2 border h-12  '+(id  == activeCharacterId ? 'bg-red-500' : value.hasActionSurge ? 'bg-blue-400' : 'bg-gray-500')} 
+            type='button' value={value.fightName} aria-label={value.fightName} key={id} 
+            onClick={() => setActiveCharacter(id)}
+          />
+        )
+      }
+    </div>
+  )
 }

@@ -3,21 +3,18 @@
 import { useState } from "react";
 import { makeFullRoll } from "./utils";
 import { dmgArr } from "../domain/tables";
-import { useActiveCharacterUpdater } from "../hooks/useActiveCharacterUpdater";
-import { useGetActiveCharacter } from "../hooks/useGetActiveCharacter";
 import { useSkillLens } from "../hooks/useSkillLens";
 import { useCharacteristicLens } from "../hooks/useCharacteristicLens";
+import { useActiveCharacter } from "../hooks/useActiveCharacter";
+import { useWeaponLens } from "../hooks/useWeaponLens";
 
 export function WeaponPanel(){
-
-  const characterUpdater = useActiveCharacterUpdater()
-  const character = useGetActiveCharacter()
+  const {weapons, equip, unequip} = useWeaponLens()
 
   const [lastAtk, setLastAtk] = useState({atk:0, properties: '', weapon: ''})
   const [strike] = useSkillLens('strike')
   const [accuracy] = useSkillLens('accuracy')
   const [STR] = useCharacteristicLens('STR') ?? 10
-  const weapons = character ? character.weapons : {}
 
   const pressAtk = (range: string, heavyMod:number, properties:string, weapon: string) => {
     const roll = makeFullRoll()
@@ -27,11 +24,6 @@ export function WeaponPanel(){
     if(range=='ranged') atk += roll + accuracy
     if(range=='melee') atk += roll + strike
     setLastAtk({atk, properties, weapon})
-  }
-
-  const handleUnequipWeapon = (key: string) => {
-    const {[key]: _ , ...rest } = weapons;
-    characterUpdater((c) => ({...c, weapons: rest}))
   }
 
   return(
@@ -47,7 +39,7 @@ export function WeaponPanel(){
                 {
                   <>
                     <span>Size: {el.scale}</span>
-                    <input type='button' value='unequip' onClick={() => handleUnequipWeapon(el.name)} className='border rounded p-1' />                    
+                    <input type='button' value='unequip' onClick={() => unequip(el.name)} className='border rounded p-1' />                    
                   </>
                 }
               </div>

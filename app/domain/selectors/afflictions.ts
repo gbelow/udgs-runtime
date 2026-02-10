@@ -32,8 +32,7 @@ export function getAfflictionPenalty(
     return injuryPenalty
   }
   
-  let totalPenalty = 0
-  
+  let totalPenalty = 0  
   
   for (const afflictionName of afflictions) {
     // Type guard: ensure afflictionName is a valid key

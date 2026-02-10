@@ -8,11 +8,3 @@ export function getGearPenalties(c: Character){
   return pen 
 }
 
-
-export function getCharacterArmor(c: Character ){
-  return c.armor
-}
-
-export function getCharacterWeapons(c: Character ){
-  return c.weapons
-}
