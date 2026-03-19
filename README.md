@@ -1,11 +1,11 @@
 
-# **FallowRPG**
+# **UDGS-runtime (Unified Domain Game System runtime)**
 
 ### Deterministic Frontend Architecture for Complex Interactive Systems
 
 **Live Demo:** https://fallow-app.vercel.app/
 
-**FallowRPG** is a web application built to explore how complex, highly interdependent rulesets can be modeled in a way that keeps the **frontend predictable, testable, and resilient** under heavy interaction.
+This is a web application built to explore how complex, highly interdependent rulesets can be modeled in a way that keeps the **frontend predictable, testable, and resilient** under heavy interaction.
 
 While themed as a tabletop RPG assistance tool, the project’s primary focus is **frontend architecture**: extracting a deterministic domain layer that dramatically reduces UI complexity and state divergence in React applications.
 
