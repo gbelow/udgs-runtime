@@ -32,7 +32,7 @@ export function getCrawlMovement(c: Character) {
   return getRaw(c, "crawl");
 }
 export function getRunMovement(c: Character) {
-  return Math.floor((getAGI(c) - getGearPenalties(c)) / 3)+getRaw(c, "run");
+  return Math.floor(getAGI(c)/ 3)+getRaw(c, "run");
 }
 export function getSwimMovement(c: Character) {
   return getRaw(c, "swim");
@@ -41,8 +41,8 @@ export function getFastSwimMovement(c: Character) {
   return getRaw(c, "fast swim");
 }
 export function getJumpMovement(c: Character) {
-  return Math.floor((getAGI(c) - getGearPenalties(c)) / 4)+getRaw(c, "jump");
+  return Math.floor(getAGI(c)/ 4)+getRaw(c, "jump");
 }
 export function getStandMovement(c: Character) {
-  return 5 - Math.floor((getAGI(c) - getGearPenalties(c)) / 5)+getRaw(c, "stand");
+  return 5 - Math.floor(getAGI(c)/ 5)+getRaw(c, "stand");
 }

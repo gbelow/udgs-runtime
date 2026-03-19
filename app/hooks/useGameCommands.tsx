@@ -4,7 +4,7 @@ import { saveCharacter } from "../actions"
 
 export function useGameCommands() {
 
-  const { character, update } = useActiveCharacter()
+  const { character } = useActiveCharacter()
   const updatePlayerCharacterList = useAppStore(s => s.updatePlayerCharacterList)
 
   const savePlayerCharacter = () => {

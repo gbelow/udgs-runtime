@@ -7,14 +7,13 @@ export function resetSkill(
 }
 
 export function resetAllSkills(  
-  skill: keyof Skills
 ): CharacterUpdater {
   return (character: Character) => {
-    const skills = {...character.skills}
-    for(skill in skills){
-      skills[skill] = 0
+    const skills = { ...character.skills } as Skills
+    for (const key of Object.keys(skills) as Array<keyof Skills>) {
+      skills[key] = 0
     }
-    return { ...character, skills  }
+    return { ...character, skills }
   }
 }
 

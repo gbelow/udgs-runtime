@@ -9,7 +9,7 @@ import { Character, Characteristics, Movement, Skills } from '../domain/types';
 import { makeTextLens } from '../domain/selectors/factories';
 import { putGauntlets, putHelm } from '../domain/commands/equipArmor';
 import { useAppStore } from '../stores/useAppStore';
-import { resetSkill } from '../domain/commands/resetSkills';
+import { resetSkill, resetAllSkills } from '../domain/commands/resetSkills';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
@@ -45,7 +45,7 @@ export function CharacterCreator() {
     <div className='grid grid-col-1 md:grid-cols-12 w-full px-1'>
       <div className='md:col-span-7 flex flex-col gap-2 text-sm gap-2 px-1'>
         <div>
-          {/* <button className='border p-2 rounded' onClick={resetAll}>Reset</button> */}
+          <button className='border p-2 rounded' onClick={ () => updateCharacter(resetAllSkills())}>Reset Skills</button>
         </div>
           <div className='flex flex-row justify-center gap-2'>
             <label htmlFor="name" className='font-bold'>Name: </label>
@@ -185,7 +185,7 @@ export function CharacterCreator() {
 }
 
 function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills}){ 
-  const {character, updateCharacter} = useCharacterStore(s => s)
+  const {updateCharacter} = useCharacterStore(s => s)
   const [ value, setValue] = useSkillLens(skillName)
   const resetValue = () => 
     updateCharacter(resetSkill( skillName)) 
@@ -200,7 +200,6 @@ function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills})
 }
 
 function StatDial ({stat, title}:{stat: keyof Characteristics, title: string}){
-  // const {character, updateCharacter} = useCharacterStore(s => ({character: s.character, updateCharacter: s.updateCharacter}))
   const [value, setValue] = useCharacteristicLens(stat)
 
   return(
