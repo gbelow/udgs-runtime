@@ -37,9 +37,9 @@ export const SkillsSchema = z.object({
   explore: num.default(0),
   cunning: num.default(0),
   will: num.default(0),
-  charm: num.default(0),
-  stress: num.default(0),
-  acting: num.default(0),
+  persuasion: num.default(0),
+  deception: num.default(0),
+  insight: num.default(0),
   devotion: num.default(0),
 
   combustion: num.default(0),

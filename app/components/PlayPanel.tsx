@@ -155,9 +155,9 @@ export function PlayPanel(){
               <SimpleSkill skillName={'knowledge'} rollSkill={rollSkill}/>
               <SimpleSkill skillName={'explore'} rollSkill={rollSkill}/>
               <SimpleSkill skillName={'will'} rollSkill={rollSkill}/>
-              <SimpleSkill skillName={'charm'} rollSkill={rollSkill}/>
-              <SimpleSkill skillName={'stress'} rollSkill={rollSkill}/>
-              <SimpleSkill skillName={'acting'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'persuasion'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'deception'} rollSkill={rollSkill}/>
+              <SimpleSkill skillName={'insight'} rollSkill={rollSkill}/>
               <SimpleSkill skillName={'devotion'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>

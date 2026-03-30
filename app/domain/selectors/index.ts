@@ -4,11 +4,13 @@ import { getBasicMovement, getCarefulMovement, getCrawlMovement, getFastSwimMove
 import {
   getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD,
   getBalance, getClimb, getSwim, getStrength, getPrestidigitation, getHealth, getKnowledge,
-  getExplore, getWill, getCharm, getStress, getDevotion,
+  getExplore, getWill, getDevotion,
   getCombustion, getEletromag, getRadiation, getEntropy, getBiomancy, getTelepathy, getAnimancy,
   getStealth,
-  getActing,
   makeSkillLens,
+  getPersuasion,
+  getInsight,
+  getDeception,
 } from "./skills";
 
 export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {
@@ -29,9 +31,9 @@ export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {
   knowledge: makeSkillLens("knowledge", getKnowledge),
   explore: makeSkillLens("explore", getExplore),
   will: makeSkillLens("will", getWill),
-  charm: makeSkillLens("charm", getCharm),
-  stress: makeSkillLens("stress", getStress),
-  acting: makeSkillLens("acting", getActing),
+  persuasion: makeSkillLens("persuasion", getPersuasion),
+  deception: makeSkillLens("deception", getDeception),
+  insight: makeSkillLens("insight", getInsight),
   devotion: makeSkillLens("devotion", getDevotion),
   combustion: makeSkillLens("combustion", getCombustion),
   eletromag: makeSkillLens("eletromag", getEletromag),

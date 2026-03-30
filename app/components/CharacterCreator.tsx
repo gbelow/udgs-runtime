@@ -127,9 +127,9 @@ export function CharacterCreator() {
           <SkillItem key={'knowledge'} skillName='knowledge' title='knowledge' />
           <SkillItem key={'explore'} skillName='explore' title='explore' />
           <SkillItem key={'will'} skillName='will' title='will' />
-          <SkillItem key={'charm'} skillName='charm' title='charm' />
-          <SkillItem key={'stress'} skillName='stress' title='stress' />
-          <SkillItem key={'acting'} skillName='acting' title='acting' />
+          <SkillItem key={'persuasion'} skillName='persuasion' title='persuasion' />
+          <SkillItem key={'deception'} skillName='deception' title='deception' />
+          <SkillItem key={'insight'} skillName='insight' title='insight' />
           <SkillItem key={'devotion'} skillName='devotion' title='devotion' />
         </div>
         <div className='flex flex-row gap-2 justify-center'>

@@ -168,16 +168,16 @@ export function getWill(c: Character) {
   return skill(c, 'will') - getAfflictionPenalty(c, 'will')
 }
 
-export function getCharm(c: Character) {
-  return skill(c, 'charm') - getAfflictionPenalty(c, 'charm')
+export function getPersuasion(c: Character) {
+  return skill(c, 'persuasion') - getAfflictionPenalty(c, 'persuasion')
 }
 
-export function getStress(c: Character) {
-  return skill(c, 'stress')
+export function getDeception(c: Character) {
+  return skill(c, 'deception') - getAfflictionPenalty(c, 'deception')
 }
 
-export function getActing(c: Character) {
-  return skill(c, 'acting') + characteristicLenses.SPI.get(c)
+export function getInsight(c: Character) {
+  return skill(c, 'insight') - getAfflictionPenalty(c, 'insight')
 }
 
 export function getDevotion(c: Character) {
