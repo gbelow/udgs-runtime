@@ -114,12 +114,20 @@ export const ContainerSchema = z.object({
 export type Container = z.infer<typeof ContainerSchema>
 
 export const InjuriesSchema = z.object({
-  light: z.array(num).default([0, 0, 0, 0, 0, 0]),
-  serious: z.array(num).default([0, 0, 0]),
-  deadly: z.array(num).default([0, 0]),
+  injuryLevel: z.number().default(0),
+  wounds: z.array(num).default([]),
+  hemorrhage: z.number().default(0),
 }).strip()
 
 export type Injuries = z.infer<typeof InjuriesSchema>
+
+export const WoundSchema = z.object({
+  severity: z.number().default(0),
+  location: z.string().default(''),
+  description: z.string().default(''),
+}).strip()
+
+export type Wound = z.infer<typeof WoundSchema>
 
 export const ResourcesSchema = z.object({
   AP: num.default(0),
@@ -133,7 +141,7 @@ export type Resources = z.infer<typeof ResourcesSchema>
 
 export const AfflictionItemSchema = z.object({
   mobility: num.optional(),
-  vision: num.optional(),
+  sensory: num.optional(),
   mental: num.optional(),
   health: num.optional(),
   injury: num.optional(),

@@ -24,8 +24,8 @@ export function getAfflictionPenalty(
   skill: keyof Character['skills']
 ): number {
   if(!isCampaignCharacter(character)) return 0
-  
-  const injuryPenalty = getInjuryPenalty(character)
+
+  const injuryPenalty = (SkillPenaltyTable["injury"].includes(skill) ? Math.floor(getInjuryPenalty(character)) : 0)
 
   const afflictions = getAfflictions(character)
   if (afflictions.length === 0) {
@@ -45,7 +45,7 @@ export function getAfflictionPenalty(
     // Check each penalty category that affects this skill
     for (const [category, affectedSkills] of Object.entries(SkillPenaltyTable)) {
       if (affectedSkills.includes(skill)) {
-        const penaltyValue = category != 'injury' ? getPenaltyForCategory(afflictionDef, category as keyof typeof SkillPenaltyTable) : injuryPenalty
+        const penaltyValue = getPenaltyForCategory(afflictionDef, category as keyof typeof SkillPenaltyTable) 
         if (penaltyValue > 0) {
           totalPenalty += penaltyValue
         }
@@ -53,18 +53,18 @@ export function getAfflictionPenalty(
     }
   }
 
-  return totalPenalty
+  return totalPenalty - injuryPenalty
 }
 
 function getPenaltyForCategory(
-  affliction: { mobility?: number; vision?: number; mental?: number; health?: number; [key: string]: unknown },
+  affliction: { mobility?: number, sensory?: number; mental?: number; health?: number, controlable: boolean },
   category: keyof typeof SkillPenaltyTable
 ): number {
   switch (category) {
     case 'mobility':
       return affliction.mobility ?? 0
-    case 'vision':
-      return affliction.vision ?? 0
+    case 'sensory':
+      return affliction.sensory ?? 0
     case 'mental':
       return affliction.mental ?? 0
     case 'health':
@@ -76,9 +76,7 @@ function getPenaltyForCategory(
 
 export function getInjuryPenalty(c : CampaignCharacter) : number {
   if(!c.injuries) return 0  
-    const injPen = Math.floor(c.injuries.light.filter(el => el != 0).length/2) + 
-    c.injuries.serious.filter(el => el != 0).length + 
-    2*c.injuries.deadly.filter(el => el != 0).length
+    const injPen = Math.floor(c.injuries.injuryLevel/10)
     return injPen
   
 }

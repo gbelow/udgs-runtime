@@ -1,4 +1,5 @@
-import { CampaignCharacter, CampaignCharacterSchema, CampaignCharacterUpdater, Character, Characteristics, CharacterUpdater, Injuries, Movement, Resources, Skills } from "../types";
+import { injuryDefaults } from "../tables";
+import { CampaignCharacter, CampaignCharacterSchema, CampaignCharacterUpdater, Character, Characteristics, CharacterUpdater, Injuries, Movement, Resources, Skills, Wound } from "../types";
 
 export function makeTextLens(keyName: keyof Character){
   return {
@@ -30,14 +31,12 @@ export function makeInjuryLens (){
   return {
     get: (character: Character) => {
       const campaignCharacter=CampaignCharacterSchema.parse(character) 
-      if (!campaignCharacter || !campaignCharacter.injuries) return {light: [0,0,0], serious: [0,0,0], deadly: [0,0,0]};
+      if (!campaignCharacter || !campaignCharacter.injuries) return injuryDefaults;
       return campaignCharacter.injuries
     },
-    set: (character: Character, keyName: keyof Injuries, index: number, value: number) => {
+    set: (character: Character, keyName: keyof Injuries,  value: number | Wound) => {
       const campaignCharacter=CampaignCharacterSchema.parse(character)
-      const updatedInjuries = {...campaignCharacter.injuries}
-      updatedInjuries[keyName] = [...updatedInjuries[keyName]]
-      updatedInjuries[keyName][index] = value
+      const updatedInjuries = {...campaignCharacter.injuries, [keyName]: value}
       return ({...campaignCharacter, injuries:updatedInjuries})
     }
   }

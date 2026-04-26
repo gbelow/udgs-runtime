@@ -1,8 +1,9 @@
 import { Character, Lens, Skills } from '../types'
 import { getSM, skill } from './helpers'
-import { getAfflictionPenalty, getAfflictions } from './afflictions'
+import { getAfflictionPenalty, getAfflictions, getInjuryPenalty } from './afflictions'
 import { getAGI, getMelee, getRanged, getDetection, getSpellcast, getSTR } from './characteristics'
 import { characteristicLenses } from '.'
+import { isCampaignCharacter } from '../utils'
 
 
 export function makeSkillLens<T extends Character>(

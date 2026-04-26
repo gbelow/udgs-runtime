@@ -2,11 +2,10 @@
 import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
-import { AFFLICTIONS as afflictionDefinitions} from '../domain/tables'
+import { AFFLICTIONS as afflictionDefinitions, injuryMap} from '../domain/tables'
 import { makeFullRoll } from './utils';
 import { CombatStore, useCombatStore } from '../stores/useCombatStore';
 import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
-import { injuryMap } from '../domain/tables';
 import { saveCharacter } from '../actions';
 import { useAppStore } from '../stores/useAppStore';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -31,8 +30,6 @@ export function PlayPanel(){
   const round = useCombatStore(s => s.round)
   const isThereActiveCharacter = useCombatStore(s => !!s.activeCharacterId)
   const { notes, fightName, hasActionSurge} = useActiveCharacterData() 
-
-  const [injuries, setInjury] = useInjuryLens()
 
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
@@ -88,26 +85,7 @@ export function PlayPanel(){
               </div>
               : null
             }                    
-            <div className='flex flex-row gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
-              <span>Light</span>
-              {
-                injuries?.light.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='light' setInj={(val) => setInjury('light', ind, val)} />)
-              }
-            </div>
-            <div className='flex flex-row gap-1 justify-center'>
-              <span>Serious</span>
-              {
-                injuries?.serious.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='serious' setInj={(val) => setInjury('serious', ind, val)} />)
-              }
-            </div>
-            <div className='flex flex-row gap-1 justify-center'>
-              <span>Deadly</span>
-              {
-              injuries?.deadly.map((inj: number, ind: number) => <InjuryControl key={ind} cures={inj} type='deadly' setInj={(val) => setInjury('deadly', ind, val)} />)
-              }
-              <input type='button' value='KILL' aria-label='kill' className='p-1 border hover:bg-gray-500 rounded' onClick={ killCharacter} />
-
-            </div>
+            <InjuryControl />
             <div className='flex flex-row gap-2 justify-center'>
               <SimpleMove moveName='basic' title={'basic (1AP)'} />
               <SimpleMove moveName='careful'  title={'care (1AP)'} />
@@ -191,12 +169,17 @@ export function PlayPanel(){
   )
 }
 
-function InjuryControl({cures, setInj, type}: {cures: number, type:keyof Injuries, setInj: (val: number) => void }){
-  const step = injuryMap[type]
+function InjuryControl(){
+  const [injuries, setInjury] = useInjuryLens()
+  const injuryLevel = injuries.injuryLevel
+
   return(
-    <div className={'flex flex-col border rounded-full text-center p-1 w-12 h-12 text-center items-center justify-center '+(cures>0 ? 'bg-red-600' : null)}>
-      <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={cures} onChange={(e) => setInj(parseInt(e.target.value))} />
-      <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInj(step)} />
+    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
+      <span>Injury Level</span>     
+      <div className={'flex flex-col border rounded-full text-center p-1 w-12 h-12 text-center items-center justify-center '+(injuryLevel>0 ? 'bg-red-600' : null)}>
+        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={injuryLevel} onChange={(e) => setInjury("injuryLevel", parseInt(e.target.value))} />
+        <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury("injuryLevel", injuryLevel + 5)} />
+      </div>
     </div>
   )
 }

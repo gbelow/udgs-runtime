@@ -1,54 +1,23 @@
 
 export const SkillPenaltyTable = {
-  "mobility": [
-    "strike",
-    "defend",
-    "reflex",
-    "accuracy",
-    "stealth",
-    "prestidigitation",
-    "balance",
-    "climb",
+  "mobility":[
+    ""
   ],
   "injury":[
-    "strike",
-    "defend",
-    "reflex",
-    "accuracy",
+    "will",
     "grapple",
-    "stealth",
-    "prestidigitation",
-    "balance",
     "strength",
+    "climb",
     "swim",
-    "climb",
   ],
-  "vision":[
-    "strike",
-    "defend",
-    "reflex",
-    "accuracy",
-    "grapple",
-    "stealth",
-    "prestidigitation",
-    "balance",
-    "climb",
-    "explore",
-    "cunning",
-    "detection"
+  "sensory":[
+    "strike", "defend", "accuracy", "reflex", "cunning", "balance", "climb", "exploration", "stealth", "prestidigitation"
   ],
   "mental":[
-    "strike",
-    "reflex",
-    "accuracy",
-    "stealth",
-    "prestidigitation",
-    "balance",
-    "climb",
     "knowledge",
-    "spellcast",
     "explore",
     "will",
+    "insight",
     "cunning",
     "combustion",
     "eletromag",
@@ -57,7 +26,6 @@ export const SkillPenaltyTable = {
     "biomancy",
     "telepathy",
     "animancy",
-    "detection"
   ],
   "health":[
     "health"
@@ -66,8 +34,8 @@ export const SkillPenaltyTable = {
 
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
-export const injuryMap = {light:2, serious: 10, deadly: 20}
-export const injuryDefaults = {light: [0,0,0,0,0], serious: [0,0,0], deadly: [0,0]}
+export const injuryMap = {t1: 1, t2: 5, t3: 10, t4: 20}
+export const injuryDefaults = {injuryLevel: 0, wounds: [], hemorrhage: 0}
 
 export const CONVICTIONS = {
   adaptation: {
@@ -131,13 +99,15 @@ export const CONVICTIONS = {
 }
 
 export const AFFLICTIONS = {
-  prone: { mobility: 3, controlable: true},
-  grappled: { mobility: 3, controlable: true},
-  immobile: { mobility: 3, controlable: true},
-  limp: { mobility: 3, controlable: true},
+  prone: { mobility: 0, controlable: true},
+  grappled: { mobility: 0, controlable: true},
+  immobile: { mobility: 0, controlable: true},
+  limp: { mobility: 0, controlable: true},
 
-  dazzled: { vision: 2, controlable: true},
-  blind: { vision: 8, controlable: true},
+  disoriented: { sensory: 2, controlable: true},
+  oblivious: { sensory: 5, controlable: true},
+  blind: { sensory: 0, controlable: true},
+  deaf: { sensory: 0, controlable: true},
 
   fear: { mental: 1, controlable: true},
   rage: { mental: 1, controlable: true},

@@ -1,5 +1,5 @@
 import { makeInjuryLens } from "../domain/selectors/factories";
-import { CampaignValuesSchema, Injuries, Resources, ResourcesSchema, Skills } from "../domain/types";
+import { CampaignValuesSchema, Injuries, Resources, ResourcesSchema, Skills, Wound } from "../domain/types";
 import { useActiveCharacter } from "./useActiveCharacter";
 
 export function useInjuryLens() {
@@ -8,8 +8,8 @@ export function useInjuryLens() {
   
   const value = character ? lens.get(character) : CampaignValuesSchema.parse({}).injuries;
 
-  const setValue = (keyName: keyof Injuries, index: number, newValue: number) => {
-    update((c) => lens.set(c, keyName , index, newValue));
+  const setValue = (keyName: keyof Injuries, newValue: number | Wound) => {
+    update((c) => lens.set(c, keyName, newValue));
   };
 
   return [value, setValue] as const;
