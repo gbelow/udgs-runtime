@@ -3,7 +3,8 @@ import { actionSurge as doActionSurge} from "../domain/commands/actionSurge"
 import { addAffliction } from "../domain/commands/addAffliction"
 import { AfflictionKey } from "../domain/types"
 import { restCharacter } from "../domain/commands/rest"
-import { heal } from "../domain/commands/heal"
+import { updateIL as heal } from "../domain/commands/heal"
+import { updateSTA as bleed } from "../domain/commands/bleed"
 
 
 export function useCharacterCommands() {
@@ -22,9 +23,13 @@ export function useCharacterCommands() {
     update(restCharacter)
   }
 
-  const healInjury = (amount: number) => {
-    update( heal(amount));
+  const cureIL = (newIL: number) => {    
+    update(heal(newIL))
+  }
+  
+  const updateSTA = (newSTA: number) => {
+    update(bleed(newSTA))
   }
 
-  return { actionSurge: actionSurge, putAffliction, rest, healInjury }
+  return { actionSurge: actionSurge, putAffliction, rest, cureIL, updateSTA }
 } 

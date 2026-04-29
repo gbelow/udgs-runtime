@@ -9,3 +9,11 @@ export function heal( amount: number): (c: CampaignCharacter) => CampaignCharact
     return {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel - amount, potion: c.injuries.potion - potionDiscount}, resources: {...c.resources, hunger:  newHunger, thirst: newThirst}}
   }
 }
+
+export function updateIL( newIL: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    const amount = Math.max(0, c.injuries.injuryLevel - newIL)
+    if(amount > 0) return heal(amount)(c)
+    return c
+  }
+}

@@ -12,11 +12,8 @@ export function useInjuryLens() {
     update((c) => lens.set(c, keyName, newValue));
   };
   
-  const setInjuryRaw = (keyName: keyof Injuries, newValue: number | Wound) => {
-    update((c) => lens.setRaw(c, keyName, newValue));
-  };
 
 
-  return {injuries, setInjury, setInjuryRaw} as const;
+  return {injuries, setInjury} as const;
   
 }

@@ -173,10 +173,10 @@ export function PlayPanel(){
 }
 
 function DamageControl(){
-  const {injuries, setInjuryRaw} = useInjuryLens()
+  const {injuries, setInjury} = useInjuryLens()
 
   const dealDamage = (amount: number) => {
-    setInjuryRaw('injuryLevel', injuries.injuryLevel + amount);
+    setInjury('injuryLevel', injuries.injuryLevel + amount);
   };
 
   return(
@@ -198,17 +198,18 @@ function DamageControl(){
 
   function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
 
-  const {injuries, setInjury, setInjuryRaw} = useInjuryLens()
+  const {injuries, setInjury} = useInjuryLens()
+  const { cureIL } = useCharacterCommands()
 
   const value = injuries[type]
   return(
     <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
         <span>{type === 'injuryLevel' ? 'Injury Level' : type === 'hemorrhage' ? 'Hemorrhage' : 'Potion'}</span>     
         <div className={'flex flex-col border rounded-full text-center p-1 w-16 h-16 text-center items-center justify-center '+(value>0 ? 'bg-red-600' : null)}>
-          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => setInjuryRaw( type, parseInt(e.target.value))} />
+          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
           <div className='flex flex-row gap-2'>
-            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury(type, value + 1)} />
-            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => setInjury( type, value - 1)} />
+            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury( type, value + 1)} />
+            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => type == 'injuryLevel' ? cureIL(value - 1) : setInjury( type, value + 1)} />
           </div>
         </div>
       </div>
@@ -217,17 +218,18 @@ function DamageControl(){
 
 function SimpleResource({rssName}: {rssName: keyof Resources}){
 
-  const [ value, setValue, setRawValue] = useResourceLens(rssName)
+  const [ value, setValue] = useResourceLens(rssName)
+  const { updateSTA } = useCharacterCommands()
 
   return(
     <div className='flex flex-row border rounded text-center justify-around p-1 w-16 overflow-hidden'>
       <div className='flex flex-col w-8 text-xs'>
         <span>{rssName.slice(0,10)}</span>
-        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={rssName} value={value} onChange={(e) => setRawValue(parseInt(e.target.value) ?? 0)} />
+        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={rssName} value={value} onChange={(e) => setValue(parseInt(e.target.value) ?? 0)} />
       </div>
       <div className='flex flex-col gap-2'>
         <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'+'} onClick={() => setValue(value+1)} />
-        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'-'} onClick={() => setValue(value-1)} />
+        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'-'} onClick={() => rssName == 'STA' ? updateSTA(value-1) : setValue(value-1)} />
       </div>
       {/* <input type='number' inputMode="numeric" aria-label={name} value={value} onChange={(val) => setRss(val.target.value)} /> */}
     </div>

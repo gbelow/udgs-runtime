@@ -23,13 +23,6 @@ export function makeResourceLens(keyName: keyof Resources){
     },
     set: (character: Character, value: number) => {
       const campaignCharacter=CampaignCharacterSchema.parse(character)
-      if(keyName === 'STA') {
-        return ({...bleed( campaignCharacter.resources.STA - value )(campaignCharacter), resources:{...campaignCharacter.resources, [keyName]: value}})
-      }
-      return ({...campaignCharacter, resources:{...campaignCharacter.resources, [keyName]: value}})
-    },
-    setRaw: (character: Character, value: number) => {
-      const campaignCharacter=CampaignCharacterSchema.parse(character)
       return ({...campaignCharacter, resources:{...campaignCharacter.resources, [keyName]: value}})
     }
   }
@@ -43,15 +36,6 @@ export function makeInjuryLens (){
       return campaignCharacter.injuries
     },
     set: (character: Character, keyName: keyof Injuries,  value: number | Wound) => {
-      let campaignCharacter=CampaignCharacterSchema.parse(character)
-      const updatedInjuries = {...campaignCharacter.injuries, [keyName]: value}
-      if(keyName === 'injuryLevel') {
-        const amount = Math.max(0, campaignCharacter.injuries.injuryLevel - (value as number))
-        if(amount > 0) return heal(amount)(campaignCharacter)
-      }
-      return ({...campaignCharacter, injuries:updatedInjuries})
-    },
-    setRaw: (character: Character, keyName: keyof Injuries,  value: number | Wound) => {
       const campaignCharacter=CampaignCharacterSchema.parse(character)
       const updatedInjuries = {...campaignCharacter.injuries, [keyName]: value}
       return ({...campaignCharacter, injuries:updatedInjuries})

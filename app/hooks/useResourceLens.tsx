@@ -11,9 +11,6 @@ export function useResourceLens(keyName: keyof Resources) {
   const setValue = (newValue: number) => {
     update((c) => lens.set(c, newValue));
   };
-  const setRawValue = (newValue: number) => {
-    update((c) => lens.setRaw(c, newValue));
-  };
 
-  return [value, setValue, setRawValue] as const;
+  return [value, setValue] as const;
 }
