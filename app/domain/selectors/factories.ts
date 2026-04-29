@@ -46,8 +46,8 @@ export function makeInjuryLens (){
       let campaignCharacter=CampaignCharacterSchema.parse(character)
       const updatedInjuries = {...campaignCharacter.injuries, [keyName]: value}
       if(keyName === 'injuryLevel') {
-        const amount = campaignCharacter.injuries.injuryLevel - (value as number)
-        return heal(amount)(campaignCharacter)
+        const amount = Math.max(0, campaignCharacter.injuries.injuryLevel - (value as number))
+        if(amount > 0) return heal(amount)(campaignCharacter)
       }
       return ({...campaignCharacter, injuries:updatedInjuries})
     },

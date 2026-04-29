@@ -78,7 +78,6 @@ function getPenaltyForCategory(
 
 export function getInjuryPenalty(c : CampaignCharacter) : number {
   if(!c.injuries) return 0  
-    const injPen = Math.floor(c.injuries.injuryLevel/10)
+    const injPen = Math.floor(c.injuries.injuryLevel/c.injuries.injuryThreshold)
     return injPen
-  
 }

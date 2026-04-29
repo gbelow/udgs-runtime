@@ -83,8 +83,10 @@ export function PlayPanel(){
               : null
             }  
             <div className='flex flex-row gap-4'>                  
-              <InjuryControl />
-              <HemorhageControl />
+              <InjuryControl type='potion' />
+              <DamageControl />
+              <InjuryControl type='injuryLevel' />
+              <InjuryControl type='hemorrhage' />
               <input type="button" className='w-20 h-20 border' onClick={killCharacter} value="Kill" /> 
             </div>                  
             <div className='flex flex-row gap-2 justify-center'>
@@ -170,60 +172,50 @@ export function PlayPanel(){
   )
 }
 
-function InjuryControl(){
-  const [injuries, setInjury, setInjuryRaw] = useInjuryLens()
+function DamageControl(){
+  const {injuries, setInjuryRaw} = useInjuryLens()
 
-  const IL = injuries.injuryLevel
+  const dealDamage = (amount: number) => {
+    setInjuryRaw('injuryLevel', injuries.injuryLevel + amount);
+  };
 
   return(
     <div className='flex flex-row gap-4 justify-center items-center'>      
       <div className='flex flex-col justify-center items-center gap-2 ml-4'>
         <span className='text-xs'>Cause Injury</span>
         <div className='flex flex-row gap-2' >
-          <input type='button' className='border p-1 rounded' aria-label={'causet2Injury'} value={'T2'} onClick={() => setInjury('injuryLevel', IL + 5)} />
-          <input type='button' className='border p-1 rounded' aria-label={'causet3Injury'} value={'T3'} onClick={() => setInjury('injuryLevel', IL + 10)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet2Injury'} value={'T2'} onClick={() => dealDamage(5)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet3Injury'} value={'T3'} onClick={() => dealDamage(10)} />
         </div>
         <div className='flex flex-row gap-2'>
-          <input type='button' className='border p-1 rounded' aria-label={'causet4Injury'} value={'T4'} onClick={() => setInjury('injuryLevel', IL + 20)} />
-          <input type='button' className='border p-1 rounded' aria-label={'causet5Injury'} value={'T5'} onClick={() => setInjury('injuryLevel', IL + 30)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet4Injury'} value={'T4'} onClick={() => dealDamage(20)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet5Injury'} value={'T5'} onClick={() => dealDamage(30)} />
         </div>
-      </div>
-      <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
-        <span>{'Injury Level' }</span>     
-        <div className={'flex flex-col border rounded-full text-center p-1 w-16 h-16 text-center items-center justify-center '+(IL>0 ? 'bg-red-600' : null)}>
-          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={IL} onChange={(e) => setInjuryRaw( "injuryLevel", parseInt(e.target.value))} />
+      </div>      
+    </div>
+  )
+}
+
+  function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
+
+  const {injuries, setInjury, setInjuryRaw} = useInjuryLens()
+
+  const value = injuries[type]
+  return(
+    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
+        <span>{type === 'injuryLevel' ? 'Injury Level' : type === 'hemorrhage' ? 'Hemorrhage' : 'Potion'}</span>     
+        <div className={'flex flex-col border rounded-full text-center p-1 w-16 h-16 text-center items-center justify-center '+(value>0 ? 'bg-red-600' : null)}>
+          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => setInjuryRaw( type, parseInt(e.target.value))} />
           <div className='flex flex-row gap-2'>
-            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury('injuryLevel', IL + 1)} />
-            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => setInjury( 'injuryLevel', IL - 1)} />
+            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury(type, value + 1)} />
+            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => setInjury( type, value - 1)} />
           </div>
         </div>
       </div>
-    </div>
   )
 }
 
-function HemorhageControl(){
-  const [injuries, setInjury] = useInjuryLens()
-
-  const changeInjury = (value: number) => {
-    const newLevel = Math.max(0, value)
-    setInjury('hemorrhage', newLevel)
-  }
-
-  const value =  injuries.hemorrhage
-
-  return(
-    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
-      <span>{ 'Hemorrhage'}</span>
-      <div className={'flex flex-col border rounded-full text-center p-1 w-12 h-12 text-center items-center justify-center '+(value>0 ? 'bg-red-600' : null)}>
-        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => changeInjury( parseInt(e.target.value))} />
-        <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => changeInjury( value + 1)} />
-      </div>
-    </div>
-  )
-}
-
-function SimpleResource({rssName, modifyRss= undefined}: {rssName: keyof Resources, modifyRss?: undefined | ((value:number) => void)}){
+function SimpleResource({rssName}: {rssName: keyof Resources}){
 
   const [ value, setValue, setRawValue] = useResourceLens(rssName)
 
@@ -264,7 +256,7 @@ function SimpleSkill({skillName, rollSkill}: {skillName: keyof Skills, rollSkill
 }
 
 function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}){
-  const [value, setValue] = useMovementLens(moveName)
+  const [value] = useMovementLens(moveName)
 
   return(
     <div className='flex flex-col border rounded text-center p-1 w-20 md:w-28 overflow-hidden text-xs'>

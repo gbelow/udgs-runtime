@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AFFLICTIONS, injuryDefaults } from './tables'
+import { AFFLICTIONS } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -198,15 +198,9 @@ const AfflictionKeySchema =
 
 
 export const CampaignValuesSchema = z.object({
-  injuries: InjuriesSchema.default(injuryDefaults),
+  injuries: InjuriesSchema.partial().default({}).transform(v => InjuriesSchema.parse(v)),
   afflictions: z.array(AfflictionKeySchema).default([]),
-  resources: ResourcesSchema.default({
-    AP: 0,
-    STA: 0,
-    hunger: 0,
-    thirst: 0,
-    exhaustion: 0,
-  }),
+  resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   hasActionSurge: z.boolean().default(false),
 })
 

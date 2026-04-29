@@ -35,7 +35,6 @@ export const SkillPenaltyTable = {
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 export const injuryMap = {t1: 1, t2: 5, t3: 10, t4: 20}
-export const injuryDefaults = {injuryLevel: 0, wounds: [], hemorrhage: 0, potion:0, injuryThreshold: 10, unconsciousThreshold: 40, deathThreshold: 50}
 
 export const CONVICTIONS = {
   adaptation: {

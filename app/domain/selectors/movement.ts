@@ -1,6 +1,5 @@
 import { Character, Lens } from "../types";
 import { getAGI } from "./characteristics";
-import { getGearPenalties } from "./gear";
 
 export function makeMovementLens<T extends Character>(
   moveName: keyof Character['movement'],

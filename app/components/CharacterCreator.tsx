@@ -234,7 +234,7 @@ function Movementinput  ({movementName, title}:{movementName: keyof Movement, ti
     <div className='flex flex-col w-20 md:w-20 overflow-hidden justify-center align-center content-center text-center'>
       <label className='text-xs'>{title}</label>
       <div>
-        <input className='p-1 border border-white rounded w-16 text-center' title={title} type='number' value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
+        <input className='p-1 border border-white rounded w-16 text-center' title={title} type='number' value={value} step={0.1} onChange={(e) => setValue(parseFloat(e.target.value))} />
       </div>
     </div>
   )
