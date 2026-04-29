@@ -3,6 +3,7 @@ import { actionSurge as doActionSurge} from "../domain/commands/actionSurge"
 import { addAffliction } from "../domain/commands/addAffliction"
 import { AfflictionKey } from "../domain/types"
 import { restCharacter } from "../domain/commands/rest"
+import { heal } from "../domain/commands/heal"
 
 
 export function useCharacterCommands() {
@@ -21,5 +22,9 @@ export function useCharacterCommands() {
     update(restCharacter)
   }
 
-  return { actionSurge: actionSurge, putAffliction, rest }
+  const healInjury = (amount: number) => {
+    update( heal(amount));
+  }
+
+  return { actionSurge: actionSurge, putAffliction, rest, healInjury }
 } 

@@ -1,9 +1,8 @@
-import { Character, Lens, Skills } from '../types'
+import { Character, Lens } from '../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions, getInjuryPenalty } from './afflictions'
 import { getAGI, getMelee, getRanged, getDetection, getSpellcast, getSTR } from './characteristics'
 import { characteristicLenses } from '.'
-import { isCampaignCharacter } from '../utils'
 
 
 export function makeSkillLens<T extends Character>(
@@ -146,7 +145,7 @@ export function getPrestidigitation(c: Character) {
 }
 
 export function getHealth(c: Character) {
-  return c.characteristics.CON + skill(c, 'health')
+  return c.characteristics.CON + skill(c, 'health') - getAfflictionPenalty(c, 'health')
 }
 
 export function getKnowledge(c: Character) {

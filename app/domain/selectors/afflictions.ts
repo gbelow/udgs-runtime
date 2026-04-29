@@ -12,9 +12,11 @@ export function getAfflictions(character: Character){
 
   if(rss.thirst > 10) afflictions.add('thirsty') 
   if(rss.thirst > 15) afflictions.add('dehydrated')
+  if(rss.thirst > 20) afflictions.add('confused')
 
-  if(rss.exhaustion > character.resources.STA/2) afflictions.add('tired')
-  if(rss.exhaustion > character.resources.STA) afflictions.add('exhausted')
+  if(rss.exhaustion > (character.characteristics.STA/2)) afflictions.add('tired')
+  if(rss.exhaustion > character.characteristics.STA) afflictions.add('exhausted')
+  if(rss.exhaustion > 1.5*character.characteristics.STA) afflictions.add('confused')
   
   return [...afflictions]
 }

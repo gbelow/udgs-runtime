@@ -117,6 +117,10 @@ export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
   wounds: z.array(num).default([]),
   hemorrhage: z.number().default(0),
+  potion: z.number().default(0),
+  injuryThreshold: z.number().default(10),
+  unconsciousThreshold: z.number().default(40),
+  deathThreshold: z.number().default(50),
 }).strip()
 
 export type Injuries = z.infer<typeof InjuriesSchema>

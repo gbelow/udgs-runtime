@@ -1,5 +1,5 @@
-import { makeResourceLens, makeTextLens } from "../domain/selectors/factories";
-import { Character, Resources, Skills } from "../domain/types";
+import { makeResourceLens } from "../domain/selectors/factories";
+import { Resources } from "../domain/types";
 import { useActiveCharacter } from "./useActiveCharacter";
 
 export function useResourceLens(keyName: keyof Resources) {
@@ -11,6 +11,9 @@ export function useResourceLens(keyName: keyof Resources) {
   const setValue = (newValue: number) => {
     update((c) => lens.set(c, newValue));
   };
+  const setRawValue = (newValue: number) => {
+    update((c) => lens.setRaw(c, newValue));
+  };
 
-  return [value, setValue] as const;
+  return [value, setValue, setRawValue] as const;
 }

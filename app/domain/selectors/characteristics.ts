@@ -1,4 +1,4 @@
-import { Character, Lens } from "../types"
+import { CampaignCharacter, Character, Lens } from "../types"
 import { isCampaignCharacter } from "../utils"
 import { getInjuryPenalty } from "./afflictions"
 import { getGearPenalties } from "./gear"
@@ -28,7 +28,6 @@ export function getSTR(c: Character): number {
 export function getAGI(c: Character): number {
   return c.characteristics.AGI - getGearPenalties(c) 
 }
-
 
 export function getSTA(c: Character): number {
   return c.characteristics.STA

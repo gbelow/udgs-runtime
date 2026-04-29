@@ -2,12 +2,10 @@
 import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
-import { AFFLICTIONS as afflictionDefinitions, injuryMap} from '../domain/tables'
+import { AFFLICTIONS as afflictionDefinitions} from '../domain/tables'
 import { makeFullRoll } from './utils';
-import { CombatStore, useCombatStore } from '../stores/useCombatStore';
+import { useCombatStore } from '../stores/useCombatStore';
 import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
-import { saveCharacter } from '../actions';
-import { useAppStore } from '../stores/useAppStore';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
@@ -23,7 +21,6 @@ import { useShallow } from 'zustand/shallow';
 
 export function PlayPanel(){
 
-  const updatePlayerCharacterList = useAppStore(s => s.updatePlayerCharacterList)
   const { rest, actionSurge, } = useCharacterCommands()
   const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
@@ -84,8 +81,12 @@ export function PlayPanel(){
                 <SimpleResource rssName={'thirst'} />
               </div>
               : null
-            }                    
-            <InjuryControl />
+            }  
+            <div className='flex flex-row gap-4'>                  
+              <InjuryControl />
+              <HemorhageControl />
+              <input type="button" className='w-20 h-20 border' onClick={killCharacter} value="Kill" /> 
+            </div>                  
             <div className='flex flex-row gap-2 justify-center'>
               <SimpleMove moveName='basic' title={'basic (1AP)'} />
               <SimpleMove moveName='careful'  title={'care (1AP)'} />
@@ -170,29 +171,67 @@ export function PlayPanel(){
 }
 
 function InjuryControl(){
-  const [injuries, setInjury] = useInjuryLens()
-  const injuryLevel = injuries.injuryLevel
+  const [injuries, setInjury, setInjuryRaw] = useInjuryLens()
+
+  const IL = injuries.injuryLevel
 
   return(
-    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
-      <span>Injury Level</span>     
-      <div className={'flex flex-col border rounded-full text-center p-1 w-12 h-12 text-center items-center justify-center '+(injuryLevel>0 ? 'bg-red-600' : null)}>
-        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={injuryLevel} onChange={(e) => setInjury("injuryLevel", parseInt(e.target.value))} />
-        <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury("injuryLevel", injuryLevel + 5)} />
+    <div className='flex flex-row gap-4 justify-center items-center'>      
+      <div className='flex flex-col justify-center items-center gap-2 ml-4'>
+        <span className='text-xs'>Cause Injury</span>
+        <div className='flex flex-row gap-2' >
+          <input type='button' className='border p-1 rounded' aria-label={'causet2Injury'} value={'T2'} onClick={() => setInjury('injuryLevel', IL + 5)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet3Injury'} value={'T3'} onClick={() => setInjury('injuryLevel', IL + 10)} />
+        </div>
+        <div className='flex flex-row gap-2'>
+          <input type='button' className='border p-1 rounded' aria-label={'causet4Injury'} value={'T4'} onClick={() => setInjury('injuryLevel', IL + 20)} />
+          <input type='button' className='border p-1 rounded' aria-label={'causet5Injury'} value={'T5'} onClick={() => setInjury('injuryLevel', IL + 30)} />
+        </div>
+      </div>
+      <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
+        <span>{'Injury Level' }</span>     
+        <div className={'flex flex-col border rounded-full text-center p-1 w-16 h-16 text-center items-center justify-center '+(IL>0 ? 'bg-red-600' : null)}>
+          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={IL} onChange={(e) => setInjuryRaw( "injuryLevel", parseInt(e.target.value))} />
+          <div className='flex flex-row gap-2'>
+            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury('injuryLevel', IL + 1)} />
+            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => setInjury( 'injuryLevel', IL - 1)} />
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-function SimpleResource({rssName}: {rssName: keyof Resources}){
+function HemorhageControl(){
+  const [injuries, setInjury] = useInjuryLens()
 
-  const [ value, setValue] = useResourceLens(rssName)
+  const changeInjury = (value: number) => {
+    const newLevel = Math.max(0, value)
+    setInjury('hemorrhage', newLevel)
+  }
+
+  const value =  injuries.hemorrhage
+
+  return(
+    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
+      <span>{ 'Hemorrhage'}</span>
+      <div className={'flex flex-col border rounded-full text-center p-1 w-12 h-12 text-center items-center justify-center '+(value>0 ? 'bg-red-600' : null)}>
+        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => changeInjury( parseInt(e.target.value))} />
+        <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => changeInjury( value + 1)} />
+      </div>
+    </div>
+  )
+}
+
+function SimpleResource({rssName, modifyRss= undefined}: {rssName: keyof Resources, modifyRss?: undefined | ((value:number) => void)}){
+
+  const [ value, setValue, setRawValue] = useResourceLens(rssName)
 
   return(
     <div className='flex flex-row border rounded text-center justify-around p-1 w-16 overflow-hidden'>
       <div className='flex flex-col w-8 text-xs'>
         <span>{rssName.slice(0,10)}</span>
-        <span>{value}</span>
+        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={rssName} value={value} onChange={(e) => setRawValue(parseInt(e.target.value) ?? 0)} />
       </div>
       <div className='flex flex-col gap-2'>
         <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'+'} onClick={() => setValue(value+1)} />
