@@ -7,6 +7,8 @@ import {
   getAttackValues,
   spendAttackResources,
 } from "../domain/character/commands";
+import { getSTR, } from "../domain/character/lenses/characteristics";
+import { getWeaponAttackRows, WeaponAttackRow } from "../domain/character/lenses/gear";
 import { Character, Weapon, WeaponAttack } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { rollFull } from "../domain/combat/dice";
@@ -24,6 +26,12 @@ export function useWeaponLens() {
   // gates re-renders to actual weapons changes (equip/unequip produce a new ref).
   const weapons: Record<string, Weapon> =
     useActiveCharacterSelector((c: Character) => getCharacterWeapons(c)) ?? EMPTY_WEAPONS;
+
+  // The attack table depends on STR (via the STRmod rule) as well as on the
+  // weapons record. Subscribe to STR as a primitive so a STR change re-renders
+  // the table; the row arrays themselves are freshly allocated and so cannot go
+  // through the store selector (Object.is) — same reason as term arrays.
+  useActiveCharacterSelector((c: Character) => getSTR(c));
 
   const equip = (newValue: Weapon) => {
     update(equipWeapon(newValue));
@@ -48,5 +56,13 @@ export function useWeaponLens() {
     return getAttacksList({ atk })(c);
   };
 
-  return { weapons, equip, unequip, attack, getVariantsList } as const;
+  // Fully-computed rows of a weapon's attack table. Every number is final —
+  // WeaponPanel renders them and does no arithmetic of its own.
+  const getAttackRows = (weapon: Weapon): WeaponAttackRow[] => {
+    const c = readActiveCharacter(tab);
+    if (!c) return [];
+    return getWeaponAttackRows(weapon)(c);
+  };
+
+  return { weapons, equip, unequip, attack, getVariantsList, getAttackRows } as const;
 }

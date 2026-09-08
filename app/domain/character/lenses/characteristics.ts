@@ -30,6 +30,15 @@ export function getSTA(c: Character): number {
   return sumTerms(getSTATerms(c))
 }
 
+// combat.tex "Rest": the Rest action costs 4 AP and recovers STA by an amount
+// equal to STA/4. Both the Rest command and the character sheet's "STA regen"
+// readout derive from here, so the displayed number and the applied number
+// cannot drift.
+export const REST_AP_COST = 4
+export function getSTARegen(c: Character): number {
+  return Math.floor(getSTA(c) / 4)
+}
+
 export const getCON = (c: Character) => c.trainables.CON.value
 export const getINT = (c: Character) => c.trainables.INT.value
 export const getSPI = (c: Character) => c.trainables.SPI.value

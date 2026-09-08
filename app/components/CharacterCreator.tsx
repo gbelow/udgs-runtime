@@ -8,13 +8,13 @@ import { ArmorPanel } from './ArmorPanel';
 import { useCharacterStore } from '../stores/useCharacterStore';
 import { Characteristics, Movement, Skills } from '../domain/types';
 import { useAppStore } from '../stores/useAppStore';
-import { resetSkill, resetAllSkills } from '../domain/character/commands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip, isAfflicted } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useTextLens } from '../hooks/useTextLens';
-import { useActiveCharacterData } from '../hooks/useCharacterData';
+import { useSTARegen } from '../hooks/useCharacterData';
+import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
@@ -97,10 +97,10 @@ function DeleteCharacterButton(){
 }
 
 function ResetAllSkillsButton(){
-  const updateCharacter = useCharacterStore(s => s.updateCharacter)
+  const { resetAllSkills } = useCharacterCommands()
 
   const handleResetSkills = () => {
-    updateCharacter(resetAllSkills())
+    resetAllSkills()
   }
 
   return(
@@ -111,7 +111,8 @@ function ResetAllSkillsButton(){
 export function CharacterCreator() {
 
   const STA = useCharacteristicLens('STA')[0] ?? 0
-  const STARegen = Math.floor(STA / 4)
+  // combat.tex "Rest" — recovery amount comes from the domain, not from here.
+  const STARegen = useSTARegen()
   
   return (
     <div className='grid grid-col-1 md:grid-cols-12 w-full px-1 py-2 gap-2'>
@@ -224,11 +225,10 @@ export function CharacterCreator() {
 }
 
 function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills}){
-  const updateCharacter = useCharacterStore(s => s.updateCharacter)
+  const { resetSkill } = useCharacterCommands()
   const [ value, setValue, terms] = useSkillLens(skillName)
   const afflicted = isAfflicted(terms)
-  const resetValue = () =>
-    updateCharacter(resetSkill( skillName))
+  const resetValue = () => resetSkill(skillName)
 
   return(
     <SkillTooltip terms={terms} total={value}>

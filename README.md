@@ -148,6 +148,14 @@ Non-negotiable constraints:
 - All character data flows through the `Character` / `CampaignCharacter` aggregate.
 - Domain functions stay synchronous, pure (no I/O, time, or randomness unless explicitly modeled), and stable under recomputation.
 - Don't add a setter that bypasses the derived-stat invariant `floor(0.5 * STR * DM + base)` — edit the stored base term, not the derived output.
+- **No component performs arithmetic on a domain number.** Components render values and call handlers; if a component needs `a + b`, the domain owes it a getter. This is the rule that keeps the thesis honest — every rule leak this project has had (an armor tier table in JSX, an STA-regen formula in a header, a STR-mod damage formula duplicated between a panel and a command) began as one small expression inside a component that nobody thought was a "rule".
+
+  When the domain doesn't already expose the shape you need, that's the signal to add a **view getter**, not to compute it in the component. A view getter is a pure `(c: Character) => RenderableShape` — the same pattern as `getStrikeTerms`, extended past scalars to rows and tables (`getDamageTiers`, `getWeaponAttackRows`). The tell that you're about to leak a rule is a component reading a raw characteristic (`STR`, `STA`, `TGH`) — it's reading it in order to do arithmetic with it.
+
+  Two ESLint rules enforce the boundary mechanically (`eslint.config.mjs`), so this is a build failure rather than a code-review habit:
+
+  - `app/domain/**` may not import from `app/stores/**`, React, or Zustand — the domain defines its own types and the store imports them, never the reverse.
+  - `app/components/**` may not import from `**/domain/*/lenses/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/combat/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
 
 ## Minimal Feature Context
 

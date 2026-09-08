@@ -1,3 +1,4 @@
+import { scaleWeapon } from '../lenses/helpers'
 import { Character, CharacterUpdater, Weapon, WeaponSchema } from '../../types'
 
 export function equipWeapon(
@@ -13,11 +14,14 @@ export function equipWeapon(
     throw new Error('Weapon must have at least one attack')
   }
 
+  // Size-scale on equip, mirroring equipArmor. Callers pass the catalog weapon
+  // at its chosen scale; the stored weapon is already scaled, so nothing
+  // downstream may scale it a second time.
   return (character: Character) => ({
     ...character,
     weapons: {
       ...character.weapons,
-      [weapon.name]: weapon
+      [weapon.name]: WeaponSchema.parse(scaleWeapon(weapon, weapon.scale))
     }
   })
 }

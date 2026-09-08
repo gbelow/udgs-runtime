@@ -1,6 +1,6 @@
 import { getSTR } from "../lenses/characteristics"
-import { dmgArr } from "../../tables"
 import { CampaignCharacter, Character, WeaponAttack } from "../../types"
+import { applySTRmod } from "../lenses/gear"
 import { updateSTA } from "./bleed"
 import { getAccuracy, getStrike } from "../lenses/skills"
 
@@ -19,10 +19,10 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
 
   return((c:Character) => {
     const STR = getSTR(c)
-    // gear.tex: "STR x" damage entries are a multiple of STR added to the flat
-    // blunt value of the row. Only blunt rows carry STR multiples in the tables.
-    const blunt = Math.floor(atk.blunt + atk.STRmod*STR)
-    const cut = atk.cut
+    // The STR-mod rule lives in the gear lens; both this and the weapon table
+    // row rendered by the UI go through it.
+    const blunt = applySTRmod(atk.blunt, atk.STRmod, c)
+    const cut = applySTRmod(atk.cut, atk.STRmod, c)
 
     const basic = {name: 'basic', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
     const heavyI = {name: 'heavyI', type: 'melee', AP: atk.AP+1, STA:0, penalty: 0, blunt: blunt+ Math.floor(STR/2), cut: cut ? cut+ Math.floor(STR/2) : 0}
@@ -69,12 +69,3 @@ export function getAttackValues (atk: AttackVariant , type: string, weapon: stri
     return{atk: val, type: type, weapon, blunt: atk.blunt, cut: atk.cut}
   })
 }
-
-export function parseAtkDamage (atk: WeaponAttack, scale: number, component: string) {
-  const value = 
-  component === "blunt" ? atk.blunt*scale /*+(atk.heavyMod ? '+' + Math.floor(atk.heavyMod*STR*dmgScale) : '' )*/ :
-  component === "cutting" ? atk.cut*scale /*+ (atk.heavyMod ? '+'+ Math.floor(atk.heavyMod*STR*dmgScale) : '')*/ : 0
-
-  return(value)
-}
-

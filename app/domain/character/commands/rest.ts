@@ -1,4 +1,4 @@
-import { getSTA } from "../lenses/characteristics"
+import { getSTARegen, REST_AP_COST } from "../lenses/characteristics"
 import { CampaignCharacter, Character } from "../../types"
 
 export function restCharacter(c: CampaignCharacter): CampaignCharacter
@@ -7,8 +7,9 @@ export function restCharacter(c: CampaignCharacter): CampaignCharacter
     return c
   }
 
-  const newSTA = c.resources.STA + Math.floor(getSTA(c) / 4)
-  const newAP = c.resources.AP - 4
+  // combat.tex "Rest" — cost and recovery both come from the lens.
+  const newSTA = c.resources.STA + getSTARegen(c)
+  const newAP = c.resources.AP - REST_AP_COST
 
   return {
     ...c,

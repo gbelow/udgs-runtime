@@ -1,23 +1,14 @@
 'use client'
 
 import { useState } from "react";
-import { useCharacteristicLens } from "../hooks/useCharacteristicLens";
 import { useWeaponLens } from "../hooks/useWeaponLens";
 import { WeaponAttack } from "../domain/types";
-import { parseAtkDamage } from "../domain/character/commands";
 
 
 export function WeaponPanel(){
-  const {weapons, unequip, getVariantsList, attack} = useWeaponLens()
+  const {weapons, unequip, getVariantsList, getAttackRows, attack} = useWeaponLens()
 
   const [lastAtk, setLastAtk] = useState({atk:0, type: '', weapon: '', blunt: 0, cut: 0})
-  const [STR] = useCharacteristicLens('STR') ?? 10
-
-
-  const parseModdedValue = (value: number, mod: number) => {
-    if(mod === 0) return value
-      return Math.floor(value + mod*STR)
-  }
 
   const AttackButtons = ({atk, weaponName} : {atk: WeaponAttack, weaponName: string }) =>{
     const attacks = getVariantsList(atk) ?? []
@@ -43,7 +34,7 @@ export function WeaponPanel(){
       <span className="pb-1"> Weapon: {lastAtk.weapon} /  type: {lastAtk.type} / ROLL: {lastAtk.atk}  </span>
       {
         Object.entries(weapons).map(([key, el]) => {
-          
+
           return(
             <div key={key} className='flex flex-col justify-center border rounded p-1'>
               <div className='flex flex-row gap-3' >
@@ -70,16 +61,16 @@ export function WeaponPanel(){
                 </thead>
                 <tbody>
                   {
-                    el.attacks.map((atk, index) => 
-                      <tr key={el+index.toString()}>
-                        <td>{parseModdedValue(atk.RES, atk.RESmod)}</td>
-                        <td>{parseAtkDamage(atk, el.scale, "blunt")}</td>
-                        <td>{parseAtkDamage(atk, el.scale, "cutting")}</td>
-                        <td>{atk.AP + (atk.reload ? '+' + atk.reload : '')/*+ '+' + (atk.heavyMod === 0.5 ? 1 : atk.heavyMod === 1 ? 2 : atk.heavyMod === 1.5 ? 3 : 0)*/}</td>
-                        <td>{atk.range}</td>
-                        <td>{atk.deflection}</td>
-                        <td>{atk.properties}</td>
-                        <td><AttackButtons atk={atk} weaponName={el.name} /></td>
+                    getAttackRows(el).map((row, index) =>
+                      <tr key={el.name+index.toString()}>
+                        <td>{row.RES}</td>
+                        <td>{row.blunt}</td>
+                        <td>{row.cut}</td>
+                        <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
+                        <td>{row.range}</td>
+                        <td>{row.deflection}</td>
+                        <td>{row.properties}</td>
+                        <td><AttackButtons atk={row.attack} weaponName={el.name} /></td>
                       </tr>
                     )
                   }
@@ -92,5 +83,3 @@ export function WeaponPanel(){
     </div>
   )
 }
-
-

@@ -36,7 +36,15 @@ export const SkillPenaltyTable = {
 
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
-export const injuryMap = {T0: 1, T1: 5, T2: 10, T3: 20, T4: 40 }
+
+export const injuryMap: Record<string, { IL: number; woundChance: number }> = {
+  T0: { IL: 1, woundChance: 0 },
+  T1: { IL: 5, woundChance: 0 },
+  T2: { IL: 10, woundChance: 0.5 },
+  T3: { IL: 20, woundChance: 1 },
+  T4: { IL: 30, woundChance: 1 },
+  T5: { IL: 50, woundChance: 1 },
+}
 
 export const AFFLICTIONS = {
   prone: { mobility: 0, controlable: true},

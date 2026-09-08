@@ -12,6 +12,5 @@ export {
   getAttacksList,
   spendAttackResources,
   getAttackValues,
-  parseAtkDamage,
 } from "./weaponAttack"
 export type { AttackVariant } from "./weaponAttack"

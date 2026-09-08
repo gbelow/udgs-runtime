@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { Term } from '../domain/character/lenses'
+import type { Term } from '../domain/character/lenses'
 
 // True when an affliction-sourced term is actively reducing the value.
 // Used to color-code skills that are currently penalized by afflictions.

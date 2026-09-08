@@ -1,4 +1,4 @@
-import { App} from "./components"; 
+import { App } from "./components/App"; 
 import { getBasicCharList, getCharacterList } from "./actions";
 import { AppStoreProvider } from "./stores/appStoreProvider";
 import z from "zod";

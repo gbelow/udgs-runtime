@@ -18,7 +18,6 @@ import { useAfflictionLens } from '../hooks/useAfflictionLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useShallow } from 'zustand/shallow';
-import { injuryMap } from '../domain/tables';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
 
