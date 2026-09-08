@@ -134,7 +134,7 @@ export function getSwim(c: Character) {
 export function getDetectionTerms(c: Character): Term[] {
   return [
     { label: 'detection', value: skill(c, 'detection').value },
-    { label: 'awareness', value: 2 * getAwareness(c) },
+    { label: 'awareness', value: getAwareness(c) },
     { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 detection
     { label: 'affliction', value: -getAfflictionPenalty(c, 'detection') },
   ]
@@ -147,7 +147,7 @@ export function getStealthTerms(c: Character): Term[] {
   const SM = getSM(c)
   return [
     { label: 'stealth', value: skill(c, 'stealth').value },
-    { label: 'size', value: -3 * SM },
+    { label: 'size', value: -2 * SM }, // creating.tex "Skill Modifier (SM)": Stealth -2x
     { label: 'affliction', value: -getAfflictionPenalty(c, 'stealth') },
   ]
 }

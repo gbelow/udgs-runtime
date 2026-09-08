@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { AFFLICTIONS } from './tables'
+import { parseWeaponProperties } from './weaponProperties'
 
 const num = z.number()
 const str = z.string()
@@ -141,8 +142,14 @@ export const WeaponAttackSchema = z.object({
   reload: num.default(0),
   deflection: num.default(0),
 
+  // gear.tex prints properties as one comma-separated cell per attack row, and
+  // the asset mirrors that verbatim so it stays diffable against the book.
   properties: str.default(''),
 }).strip()
+  // Parsed once, here, so no consumer ever string-matches on `properties`.
+  // `.strip()` drops a serialized `props` before this runs, so the derived
+  // value is always recomputed from the authored string and cannot go stale.
+  .transform((atk) => ({ ...atk, props: parseWeaponProperties(atk.properties) }))
 
 export type WeaponAttack = z.infer<typeof WeaponAttackSchema>
 

@@ -14,8 +14,16 @@ export type AttackVariant = {
   cut: number
 }
 
+// gear.tex "Heavy I/II/III". Degree n costs +n AP and adds n/2 x STR to damage;
+// the STA cost and to-hit penalty are not a formula, so they are tabulated.
+const HEAVY_DEGREES: Record<number, { AP: number; STA: number; penalty: number; STRmul: number }> = {
+  1: { AP: 1, STA: 0, penalty: 0, STRmul: 0.5 },
+  2: { AP: 2, STA: 1, penalty: 2, STRmul: 1 },
+  3: { AP: 3, STA: 1, penalty: 3, STRmul: 1.5 },
+}
+
 export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) => AttackVariant[] {
-  const props = atk.properties.split(',').filter(el => ["heavy I", "heavy II", "heavy III", "heavy I-III", "heavy I-II", "heavy II-III", "braced", "hook", "fast"].includes(el.trim())).map(el => el.trim())
+  const props = atk.props
 
   return((c:Character) => {
     const STR = getSTR(c)
@@ -24,29 +32,47 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
     const blunt = applySTRmod(atk.blunt, atk.STRmod, c)
     const cut = applySTRmod(atk.cut, atk.STRmod, c)
 
+    // A heavy attack adds the same STR multiple to both damage components, but
+    // only to a component the attack actually has — a weapon with no cut stays
+    // at 0 rather than becoming a cutting weapon at higher degrees.
+    const heavy = (degree: number): AttackVariant => {
+      const { AP, STA, penalty, STRmul } = HEAVY_DEGREES[degree]
+      const bonus = Math.floor(STRmul * STR)
+      return {
+        name: `heavy${'I'.repeat(degree)}`,
+        type: 'melee',
+        AP: atk.AP + AP,
+        STA,
+        penalty,
+        blunt: blunt + bonus,
+        cut: cut ? cut + bonus : 0,
+      }
+    }
+
     const basic = {name: 'basic', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
-    const heavyI = {name: 'heavyI', type: 'melee', AP: atk.AP+1, STA:0, penalty: 0, blunt: blunt+ Math.floor(STR/2), cut: cut ? cut+ Math.floor(STR/2) : 0}
-    const heavyII = {name: 'heavyII', type: 'melee', AP: atk.AP+2, STA:1, penalty: 2, blunt: blunt+ Math.floor(STR), cut: cut ? cut+ Math.floor(STR) : 0}
-    const heavyIII = {name: 'heavyIII', type: 'melee', AP: atk.AP+3, STA:1, penalty: 3, blunt: blunt+ Math.floor(3*STR/2), cut: cut ? cut+ Math.floor(3*STR/2) : 0}
     const braced = {name: 'braced', type: 'melee', AP: atk.AP+2, STA:1, penalty: 0, blunt: blunt+ Math.floor(STR), cut: cut ? cut+ Math.floor(STR) : 0}
     const hook = {name: 'hook', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
     const quickShot = {name: 'quick', type: 'ranged', AP: atk.AP, STA:0, penalty: 3, blunt, cut }
     const snipe = {name: 'snipe', type: 'ranged', AP: atk.AP+2, STA:0, penalty: 0, blunt, cut }
 
-    const attacks = []
-    if(!props.includes('heavy I-III') && !props.includes('heavy I-II') && !props.includes('heavy II-III') ) attacks.push(basic)
-    if(props.includes('heavy I')) attacks.push(heavyI)
-    if(props.includes('heavy II')) attacks.push(heavyI, heavyII)
-    if(props.includes('heavy III')) attacks.push(heavyI, heavyII, heavyIII)
-    if(props.includes('heavy I-II')) attacks.push(heavyI, heavyII)
-    if(props.includes('heavy I-III')) attacks.push(heavyI, heavyII, heavyIII)
-    if(props.includes('heavy II-III')) attacks.push(heavyII, heavyIII)
-    if(props.includes('braced')) attacks.push(braced)
-    if(props.includes('hook')) attacks.push(hook)
-    if(props.includes('fast')) attacks.push(quickShot, snipe)  
+    const attacks: AttackVariant[] = []
+
+    // gear.tex "Heavy I/II/III": a heavy range ("heavy I-II") sets its lower
+    // bound as the minimum and forbids the normal attack; a bare degree keeps
+    // it. `min === 0` carries that distinction out of the parser.
+    if (!props.heavy || props.heavy.min === 0) attacks.push(basic)
+    if (props.heavy) {
+      for (let degree = Math.max(1, props.heavy.min); degree <= props.heavy.max; degree++) {
+        attacks.push(heavy(degree))
+      }
+    }
+
+    if (props.braced) attacks.push(braced)
+    if (props.hook) attacks.push(hook)
+    if (props.fast) attacks.push(quickShot, snipe)
 
     return attacks
-  })  
+  })
 }
 
 export function spendAttackResources (atk: AttackVariant) {
