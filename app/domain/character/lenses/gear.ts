@@ -1,6 +1,6 @@
 import { Character, Weapon, WeaponAttack } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
-import { getSTR } from "./characteristics";
+import { getSTR, getSTRBase } from "./characteristics";
 import { getTGH } from "./misc";
 import { injuryMap } from "../../tables";
 
@@ -10,13 +10,14 @@ import { injuryMap } from "../../tables";
 // stronger character subtracts from the total. The rulebook does not state a
 // rounding rule; truncating toward zero keeps the modifier symmetric for
 // STR above and below 10. The total floors at 0 — carrying gear never grants
-// a bonus.
+// a bonus. STR is read unpenalized here: this value feeds AGI/STA, which the
+// injury penalty already reduces on its own.
 export function getGearPenalties(c: Character){
   const gear = c.armor.penalty +
     Object.values(c.weapons).reduce((acc: number, weapon: Weapon) => acc + weapon.penalty, 0) +
     getBurdenPenalty(c)
 
-  const strMod = Math.trunc((getSTR(c) - 10) / 3)
+  const strMod = Math.trunc((getSTRBase(c) - 10) / 3)
 
   return Math.max(0, gear - strMod)
 }

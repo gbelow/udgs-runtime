@@ -1,5 +1,8 @@
 import { Character, Lens } from "../../types";
-import { getAGI } from "./characteristics";
+// combat.tex "Afflictions" excludes movement speeds from the injury penalty,
+// so every speed below reads the unpenalized AGI base (gear burden still
+// applies — gear.tex puts that penalty on the attribute itself).
+import { getAGIBase } from "./characteristics";
 
 export function makeMovementLens<T extends Character>(
   moveName: keyof Character['movement'],
@@ -31,7 +34,7 @@ export function getCrawlMovement(c: Character) {
   return getRaw(c, "crawl");
 }
 export function getRunMovement(c: Character) {
-  return Math.floor(getAGI(c)/ 3)+getRaw(c, "run");
+  return Math.floor(getAGIBase(c)/ 3)+getRaw(c, "run");
 }
 export function getSwimMovement(c: Character) {
   return getRaw(c, "swim");
@@ -40,8 +43,8 @@ export function getFastSwimMovement(c: Character) {
   return getRaw(c, "fast swim");
 }
 export function getJumpMovement(c: Character) {
-  return Math.floor(getAGI(c)/ 4)+getRaw(c, "jump");
+  return Math.floor(getAGIBase(c)/ 4)+getRaw(c, "jump");
 }
 export function getStandMovement(c: Character) {
-  return 5 - Math.floor(getAGI(c)/ 5)+getRaw(c, "stand");
+  return 5 - Math.floor(getAGIBase(c)/ 5)+getRaw(c, "stand");
 }

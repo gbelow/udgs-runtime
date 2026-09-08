@@ -330,10 +330,16 @@ function AfflictionsPannel(){
   return(
     <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>
       {
-        afflictionsList.map((item: AfflictionKey) => 
-          <input type='button' key={item} className={'border p-1 ' + (afflictions?.includes(item) ? 'bg-red-500' : null)} 
-            aria-label={item} value={item} onClick={ () => setAffliction(item)} />
-        )
+        afflictionsList.map((item: AfflictionKey) => {
+          // Non-controlable afflictions are derived from hunger, thirst and
+          // exhaustion — they still light up, but they aren't hand-settable.
+          const controlable = afflictionDefinitions[item].controlable
+          return (
+            <input type='button' key={item} disabled={!controlable}
+              className={'border p-1 ' + (afflictions?.includes(item) ? 'bg-red-500 ' : '') + (controlable ? '' : 'opacity-60 cursor-not-allowed')}
+              aria-label={item} value={item} onClick={ () => setAffliction(item)} />
+          )
+        })
       }
     </div>
   )

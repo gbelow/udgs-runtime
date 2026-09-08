@@ -1,11 +1,13 @@
 import { addAffliction } from "../domain/character/commands";
 import { getAfflictions } from "../domain/character/lenses/afflictions";
+import { getBurdenPenalty } from "../domain/item/lenses/containers";
 import { AfflictionKey, CampaignCharacter, Character } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useAppStore } from "../stores/useAppStore";
 import { readActiveCharacter, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
-// getAfflictions depends on the afflictions list AND resource thresholds, and
+// getAfflictions depends on the afflictions list, the resource thresholds AND
+// the carried burden (an "over" burden is lame), and
 // returns a fresh array each call. That can't go through the store selector
 // (a fresh allocation trips useSyncExternalStore's getServerSnapshot check, and
 // a single useShallow wrapper can't be shared across both stores). So we gate
@@ -13,7 +15,7 @@ import { readActiveCharacter, useActiveCharacterSelector, useActiveCharacterUpda
 // non-reactively from a character snapshot.
 function afflictionSignature(c: CampaignCharacter): string {
   const r = c.resources;
-  return `${c.afflictions.join(',')}|${r.hunger ?? 0}|${r.thirst ?? 0}|${r.exhaustion ?? 0}`;
+  return `${c.afflictions.join(',')}|${r.hunger ?? 0}|${r.thirst ?? 0}|${r.exhaustion ?? 0}|${getBurdenPenalty(c)}`;
 }
 
 export function useAfflictionLens() {

@@ -1,5 +1,5 @@
 import { Character, Container, Item } from '../../types'
-import { getSTR } from '../../character/lenses/characteristics'
+import { getSTRBase } from '../../character/lenses/characteristics'
 import { getSize } from '../../character/lenses/misc'
 
 // slots holds 5^(slotBulk - itemBulk): 1 same-bulk item, 5 of the next bulk down, 25 two bulks down
@@ -31,7 +31,7 @@ export function canFitItem(container: Container, item: Item): boolean {
 export function getContainerPenalty(character: Character, container: Container): number {
   const threshold = container.liftThreshold
   const meetsThreshold = !!threshold && (
-    (threshold.STR !== undefined && getSTR(character) >= threshold.STR) ||
+    (threshold.STR !== undefined && getSTRBase(character) >= threshold.STR) ||
     (threshold.size !== undefined && getSize(character) >= threshold.size)
   )
   return meetsThreshold ? Math.max(0, container.penalty - 1) : container.penalty

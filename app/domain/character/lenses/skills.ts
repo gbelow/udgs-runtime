@@ -123,8 +123,7 @@ export function getSwimTerms(c: Character): Term[] {
   return [
     { label: 'AGI', value: getAGI(c) - 10 },
     { label: 'swim', value: skill(c, 'swim').value },
-    // { label: 'gear', value: -3 * c.hasHelm },
-    { label: 'affliction', value: -getAfflictionPenalty(c, 'swim') },
+    { label: 'affliction', value: -getAfflictionPenalty(c, 'swim') }, 
   ]
 }
 export function getSwim(c: Character) {

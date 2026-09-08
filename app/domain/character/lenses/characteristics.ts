@@ -1,10 +1,18 @@
 import { Character, Characteristics } from "../../types"
+import { getInjuryPenalty } from "./afflictions"
 import { getGearPenalties } from "./gear"
 import { Term, sumTerms } from "./terms"
 
-
+// combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
+// does not affect movement speeds, nor TGH. It affects all other usages of
+// attributes." The penalty therefore lives on the three attributes rather than
+// on a list of skills, and everything derived from them inherits it. The stated
+// exceptions read `getSTRBase` / `getAGIBase` below instead.
 export function getSTRTerms(c: Character): Term[] {
-  return [{ label: 'base', value: c.trainables.STR.value }]
+  return [
+    { label: 'base', value: getSTRBase(c) },
+    { label: 'injury', value: -getInjuryPenalty(c) },
+  ]
 }
 export function getSTR(c: Character): number {
   return sumTerms(getSTRTerms(c))
@@ -14,6 +22,7 @@ export function getAGITerms(c: Character): Term[] {
   return [
     { label: 'base', value: c.trainables.AGI.value },
     { label: 'gear', value: -getGearPenalties(c) },
+    { label: 'injury', value: -getInjuryPenalty(c) },
   ]
 }
 export function getAGI(c: Character): number {
@@ -24,10 +33,23 @@ export function getSTATerms(c: Character): Term[] {
   return [
     { label: 'base', value: c.trainables.STA.value },
     { label: 'gear', value: -getGearPenalties(c) },
+    { label: 'injury', value: -getInjuryPenalty(c) },
   ]
 }
 export function getSTA(c: Character): number {
   return sumTerms(getSTATerms(c))
+}
+
+// The attribute values with the injury penalty left out. TGH and the movement
+// speeds are the rulebook's two stated exceptions to it. Burden reads
+// `getSTRBase` for a second reason: the injury threshold is itself derived from
+// the affliction set, which now includes an over-burden `lame`, so reading the
+// penalized STR here would close a loop.
+export function getSTRBase(c: Character): number {
+  return c.trainables.STR.value
+}
+export function getAGIBase(c: Character): number {
+  return c.trainables.AGI.value - getGearPenalties(c)
 }
 
 // combat.tex "Rest": the Rest action costs 4 AP and recovers STA by an amount

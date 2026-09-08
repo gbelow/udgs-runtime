@@ -222,12 +222,14 @@ export const ResourcesSchema = z.object({
 
 export type Resources = z.infer<typeof ResourcesSchema>
 
+// Mirrors `AfflictionDef` in tables.ts — the penalty categories combat.tex
+// names, plus the severity-ladder marker.
 export const AfflictionItemSchema = z.object({
-  mobility: num.optional(),
   sensory: num.optional(),
   mental: num.optional(),
   health: num.optional(),
-  injury: num.optional(),
+  group: str.optional(),
+  rank: num.optional(),
   controlable: z.boolean().default(false),
 }).strip()
 
