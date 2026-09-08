@@ -66,6 +66,7 @@ Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where 
 - When adding a stat/skill/characteristic: add it to the Zod schema in `types.ts`, write its getter in the relevant `lenses/` file, and register it in `lenses/index.ts`. Many entries are commented out (magic schools, extra characteristics) — uncommenting is how features are staged in.
 - New game mechanics: check `rule_graph.json` for name collisions and use the `urn:ttrpg:` namespace when extracting rules. `tools/` holds Python scripts (`extract_rule_graph.py`, `visualize_schema.py`) that generate `rule_graph.json` / `dangling_references.json`.
 - On Windows, avoid chained `cmd /c dir && type`; use single commands to reduce process-spawn overhead.
+- Don't leave comments describing the diff or the reasoning behind a change — that belongs in the commit message, not the file
 
 ## The rulebook (authoritative source for game rules)
 

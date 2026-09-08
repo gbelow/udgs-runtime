@@ -59,9 +59,8 @@ describe('lens inversion — skills', () => {
 // })
 
 describe('lens inversion — characteristics', () => {
-  // Merging skills + characteristics into a single `trainables` map fixed
-  // "devotion": getDevotion (SPI + trainables.devotion) and the generic setter
-  // now read and write the SAME stored base, so it round-trips like the rest.
+  // getDevotion (SPI + trainables.devotion) and the generic setter read and
+  // write the SAME stored base, so "devotion" round-trips like the rest.
   const invertible = Object.keys(characteristicLenses) as (keyof Characteristics)[]
 
   it.each(invertible)('set → get round-trips for "%s"', (name) => {

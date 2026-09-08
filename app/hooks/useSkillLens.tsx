@@ -9,8 +9,8 @@ export function useSkillLens(skillName: keyof Skills) {
   const tab = useAppStore((s) => s.selectedGameTab);
 
   // Select the derived value INSIDE the store selector so re-renders are gated
-  // on the computed output (Object.is), not the whole-character reference. A
-  // one-field mutation no longer drags every skill subscriber into a re-render.
+  // on the computed output (Object.is), not the whole-character reference —
+  // a one-field mutation does not drag every skill subscriber into a re-render.
   const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? 0;
 
   // Per-term breakdown for the tooltip. Derived non-reactively from the active

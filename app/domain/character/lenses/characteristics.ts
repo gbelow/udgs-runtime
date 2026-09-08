@@ -43,7 +43,7 @@ export function getSTA(c: Character): number {
 // The attribute values with the injury penalty left out. TGH and the movement
 // speeds are the rulebook's two stated exceptions to it. Burden reads
 // `getSTRBase` for a second reason: the injury threshold is itself derived from
-// the affliction set, which now includes an over-burden `lame`, so reading the
+// the affliction set, which includes an over-burden `lame`, so reading the
 // penalized STR here would close a loop.
 export function getSTRBase(c: Character): number {
   return c.trainables.STR.value

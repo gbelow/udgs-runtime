@@ -20,7 +20,7 @@ describe('size modifiers', () => {
     expect(getDM(ofSize(size))).toBe(dmgArr[size - 1])
   })
 
-  // getSize now clamps out-of-range sizes into [1, 7], so lookups never throw
+  // getSize clamps out-of-range sizes into [1, 7], so lookups never throw
   // and always resolve to a table entry at the clamped boundary.
   it('clamps sizes below the valid range to the smallest entry', () => {
     expect(getDM(ofSize(0))).toBe(dmgArr[0])

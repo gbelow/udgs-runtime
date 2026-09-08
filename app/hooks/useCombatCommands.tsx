@@ -9,8 +9,8 @@ import { readActiveCharacter } from "./useActiveCharacterSelector"
 export function useCombatCommands() {
 
   const tab = useAppStore((s) => s.selectedGameTab)
-  // Select just the stable action refs — previously this destructured the whole
-  // combat store, subscribing to every combat change.
+  // Select just the stable action refs, not the whole combat store, to avoid
+  // subscribing to every combat change.
   const removeCharacter = useCombatStore((s) => s.removeCharacter)
   const updateCombatState = useCombatStore((s) => s.updateCombatState)
 

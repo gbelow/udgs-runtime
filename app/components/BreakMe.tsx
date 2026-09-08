@@ -30,9 +30,8 @@ const probeState = {
 
 // The probe reads through the SAME gated selector the production lens hooks
 // use (useActiveCharacterSelector), so it reflects the isolated read path —
-// not a whole-character subscription. That's what lets it verify the fix:
-// after migrating a hook to select lens.get(c) inside the store, its probe
-// stops re-rendering on unrelated mutations.
+// not a whole-character subscription. A hook that selects lens.get(c) inside
+// the store should not re-render its probe on unrelated mutations.
 const RenderProbe = memo(function RenderProbe({ entry }: { entry: ProjectionEntry }) {
   // Side effect in render is intentional — this component exists to be counted.
   const value = useActiveCharacterSelector((c: Character) => entry.get(c));
