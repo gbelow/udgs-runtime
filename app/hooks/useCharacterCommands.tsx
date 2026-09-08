@@ -10,15 +10,15 @@ import {
   updateIL as heal,
   updateSTA as bleed,
 } from "../domain/character/commands"
-import { AfflictionKey, Skills } from "../domain/types"
+import { AfflictionKey, Skills, SurgeKind } from "../domain/types"
 
 
 export function useCharacterCommands() {
 
   const update = useActiveCharacterUpdate()
 
-  const actionSurge = () => {
-    update(doActionSurge)
+  const actionSurge = (kind: SurgeKind) => {
+    update(doActionSurge(kind))
   }
 
   const putAffliction = (affliction: AfflictionKey) => {
@@ -54,7 +54,7 @@ export function useCharacterCommands() {
   }
 
   return {
-    actionSurge: actionSurge,
+    actionSurge,
     putAffliction,
     rest,
     cureIL,

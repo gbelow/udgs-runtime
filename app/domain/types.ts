@@ -319,6 +319,9 @@ export type Effect = z.infer<typeof EffectSchema>
 export const ActivationSchema = z.enum(['passive', 'active', 'toggle'])
 export type Activation = z.infer<typeof ActivationSchema>
 
+export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus'])
+export type SurgeKind = z.infer<typeof SurgeKindSchema>
+
 export const AbilityTargetSchema = z.enum(['self', 'other'])
 export type AbilityTarget = z.infer<typeof AbilityTargetSchema>
 
@@ -346,7 +349,7 @@ const CampaignValues = {
   injuries: InjuriesSchema.partial().default({}).transform(v => InjuriesSchema.parse(v)),
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
-  hasActionSurge: z.boolean().default(false),
+  usedSurge: SurgeKindSchema.nullable().default(null),
   activeEffects: z.array(EffectSchema).default([]),
 }
 

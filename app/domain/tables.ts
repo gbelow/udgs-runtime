@@ -77,7 +77,6 @@ const AFFLICTION_DEFS = {
   burning: { controlable: true },
   corroding0: { group: 'corroding', rank: 1, controlable: true },
   corroding1: { group: 'corroding', rank: 2, controlable: true },
-  corroding2: { group: 'corroding', rank: 3, controlable: true },
 
   unconscious: { controlable: true },
 
@@ -173,3 +172,15 @@ export const CONVICTIONS = {
   },
 }
 
+
+// combat.tex "Action surge" — one surge per round. Movement, combat and
+// reaction share the same price and yield; only their spending restriction
+// differs, which the table records as prose for the UI.
+export const SURGES = {
+  movement: { STA: 3, AP: 6, restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
+  combat:   { STA: 3, AP: 6, restriction: 'AP must be spent immediately on attacks or movement.' },
+  reaction: { STA: 3, AP: 6, restriction: 'AP can only be spent on reactions until the end of the round.' },
+  focus:    { STA: 1, AP: 2, restriction: 'AP is free to use. Required for shooting weapons, spells and non-weapon items.' },
+} as const
+
+export const surgeKinds = ['movement', 'combat', 'reaction', 'focus'] as const

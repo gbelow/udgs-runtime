@@ -1,7 +1,7 @@
 import { CampaignCharacter } from '../../types'
 import { CombatState } from '../types'
 
-// set actionSurge to true to all characters.
+// clear the used surge of all characters.
 // add +6 AP to all characters but do not allow higher than 6
 // increase round counter
 export function nextRound(
@@ -12,10 +12,10 @@ export function nextRound(
   for (const [id, character] of Object.entries(state.characters)) {
     let updatedCharacter = character
 
-    // Set actionSurge to true
+    // Clear the surge used last round
     updatedCharacter = {
       ...updatedCharacter,
-      hasActionSurge: true
+      usedSurge: null
     }
 
     // Add +6 AP but cap at 6

@@ -31,13 +31,13 @@ describe('combat command purity', () => {
     const state = combat([fighter('a', { resources: { AP: 2, STA: 0, hunger: 0, thirst: 0, exhaustion: 0 } })])
     const round = state.round
     const ap = state.characters.a.resources.AP
-    const surge = state.characters.a.hasActionSurge
+    const surge = state.characters.a.usedSurge
 
     nextRound(state)
 
     expect(state.round).toBe(round)
     expect(state.characters.a.resources.AP).toBe(ap)
-    expect(state.characters.a.hasActionSurge).toBe(surge)
+    expect(state.characters.a.usedSurge).toBe(surge)
   })
 
   it('resetCombat does not mutate the input state', () => {
@@ -60,10 +60,10 @@ describe('nextRound', () => {
   })
 
   it('grants every character an action surge', () => {
-    const state = combat([fighter('a'), fighter('b', { hasActionSurge: true })])
+    const state = combat([fighter('a'), fighter('b', { usedSurge: 'focus' })])
     const next = nextRound(state)
-    expect(next.characters.a.hasActionSurge).toBe(true)
-    expect(next.characters.b.hasActionSurge).toBe(true)
+    expect(next.characters.a.usedSurge).toBe(null)
+    expect(next.characters.b.usedSurge).toBe(null)
   })
 
   it('adds 6 AP but never above the 6 cap', () => {

@@ -63,3 +63,7 @@
 ## add performance report to break me
 
 gear affects AGI and STA, not skills directly
+
+## issues
+
+add guard against healing when hunger and thirst are too high
