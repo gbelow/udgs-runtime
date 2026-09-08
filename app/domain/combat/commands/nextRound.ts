@@ -1,15 +1,15 @@
-import { CombatStore } from '@/app/stores/useCombatStore';
 import { CampaignCharacter } from '../../types'
+import { CombatState } from '../types'
 
 // set actionSurge to true to all characters.
 // add +6 AP to all characters but do not allow higher than 6
 // increase round counter
 export function nextRound(
-  store: CombatStore
-): CombatStore {
+  state: CombatState
+): CombatState {
   const updatedCharacters: Record<string, CampaignCharacter> = {}
 
-  for (const [id, character] of Object.entries(store.characters)) {
+  for (const [id, character] of Object.entries(state.characters)) {
     let updatedCharacter = character
 
     // Set actionSurge to true
@@ -34,8 +34,8 @@ export function nextRound(
   }
 
   return ({
-    ...store,
+    ...state,
     characters: updatedCharacters,
-    round: store.round + 1
+    round: state.round + 1
   })
 }

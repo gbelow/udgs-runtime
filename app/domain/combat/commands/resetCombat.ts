@@ -1,9 +1,9 @@
-import { CombatStore } from "@/app/stores/useCombatStore";
+import { CombatState } from '../types'
 
 // clear all characters from combat and reset round counter
-export function resetCombat(store: CombatStore): CombatStore {
+export function resetCombat(state: CombatState): CombatState {
   return ({
-    ...store,
+    ...state,
     characters: {},
     round: 0
   })

@@ -1,18 +1,18 @@
-// stores/useCharacterStore.ts
+// stores/useCombatStore.ts
 import { create } from 'zustand'
-import { CampaignCharacter, Character } from '../domain/types'
-import { makeCampaignCharacter, makeCharacter } from '../domain/factories'
+import { CampaignCharacter } from '../domain/types'
+import { CombatState } from '../domain/combat/types'
+import { getActiveCharacter } from '../domain/combat/lenses/activeCharacter'
+import { makeCampaignCharacter } from '../domain/factories'
 import { addCharacterToCombat } from '../domain/utils'
 
-export type CombatStore = {
-  characters: Record<string, CampaignCharacter>
-  activeCharacterId: string | null
-  round: number
-  inTurnCharacter: string
-  
+// The data half of the store is the domain's CombatState — the store adds only
+// the actions that mutate it. Keeping the two halves separate is what lets the
+// combat commands be pure CombatState updaters with no import from here.
+type CombatActions = {
   loadCharacter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
-  getActiveCharacter: (id: string | void) => CampaignCharacter | null
+  getActiveCharacter: () => CampaignCharacter | null
 
   updateActiveCharacter: (
     updater: (c: CampaignCharacter) => CampaignCharacter
@@ -20,8 +20,10 @@ export type CombatStore = {
 
   removeCharacter: (id: string) => void
 
-  updateCombatState: (updater: (state: CombatStore) => CombatStore) => void
+  updateCombatState: (updater: (state: CombatState) => CombatState) => void
 }
+
+export type CombatStore = CombatState & CombatActions
 
 export const useCombatStore = create<CombatStore>((set, get) => ({ 
   characters: {},
@@ -49,11 +51,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
     set({ activeCharacterId: id })
   },
 
-  getActiveCharacter: () => {
-    const {characters, activeCharacterId} = get()
-    if(!activeCharacterId) return null
-    return characters[activeCharacterId]
-  },
+  getActiveCharacter: () => getActiveCharacter(get()),
 
   updateActiveCharacter: (updater) => {
     const currentState = get();

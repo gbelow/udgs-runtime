@@ -1,11 +1,11 @@
-import { CombatStore } from '@/app/stores/useCombatStore'
+import { getActiveCharacter } from '../lenses/activeCharacter'
+import { CombatState } from '../types'
 
 export function startTurn(
-  store: CombatStore,
-) {
-  const character = store.getActiveCharacter()
+  state: CombatState,
+): CombatState {
+  const character = getActiveCharacter(state)
   return(
-    {...store, inTurnCharacter: character?.id ?? ''}
+    {...state, inTurnCharacter: character?.id ?? ''}
   )
-  
 }
