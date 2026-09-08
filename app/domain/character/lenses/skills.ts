@@ -46,7 +46,7 @@ export function getReflexTerms(c: Character): Term[] {
   return [
     { label: 'awareness', value: getAwareness(c) },
     { label: 'ranged', value: getRanged(c) },
-    { label: 'gear', value: -3 * c.hasHelm },
+    { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 reflexes
     { label: 'size', value: -SM },
     { label: 'reflex', value: skill(c, 'reflex').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'reflex') },
@@ -123,7 +123,7 @@ export function getSwimTerms(c: Character): Term[] {
   return [
     { label: 'AGI', value: getAGI(c) - 10 },
     { label: 'swim', value: skill(c, 'swim').value },
-    { label: 'gear', value: -3 * c.hasHelm },
+    // { label: 'gear', value: -3 * c.hasHelm },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'swim') },
   ]
 }
@@ -135,7 +135,7 @@ export function getDetectionTerms(c: Character): Term[] {
   return [
     { label: 'detection', value: skill(c, 'detection').value },
     { label: 'awareness', value: 2 * getAwareness(c) },
-    { label: 'gear', value: 3 * c.hasHelm },
+    { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 detection
     { label: 'affliction', value: -getAfflictionPenalty(c, 'detection') },
   ]
 }

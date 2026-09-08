@@ -12,7 +12,7 @@ export const ArmorSchema = z.object({
   INS: z.number().default(0),
   // poise: z.number().default(0),
   protection: z.number().default(0),
-  deflection: z.number().default(0),
+  deflection: z.number().default(4), // gear.tex "Armors": the Skin row deflects at +4, so an unarmoured default is not 0
   penalty: z.number().default(0),
   properties: str.default(''),
   notes: z.string().default(''),

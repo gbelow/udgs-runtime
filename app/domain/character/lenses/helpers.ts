@@ -32,9 +32,9 @@ export function scaleArmor(armor: Armor, scale: number): Armor {
     ...armor,
     RES: Math.floor(armor.RES * dmgArr[scaleIndex]),
     INS: Math.floor(armor.INS * dmgArr[scaleIndex]),
-    prot: Math.floor(armor.protection * dmgArr[scaleIndex]),
-    // poise: Math.floor(armor.poise * dmgArr[scaleIndex]),
-    cover: armor.deflection - SMArr[scaleIndex]
+    RESlayer: Math.floor(armor.RESlayer * dmgArr[scaleIndex]),
+    protection: Math.floor(armor.protection * dmgArr[scaleIndex]),
+    deflection: armor.deflection - SMArr[scaleIndex]
   }
   return arm
 }

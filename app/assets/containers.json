@@ -12,7 +12,7 @@
     "kind": "backpack",
     "numSlots": 12,
     "slotBulk": 1,
-    "penalty": -1,
+    "penalty": 1,
     "items": []
   },
   "Large Backpack": {
@@ -20,8 +20,11 @@
     "kind": "backpack",
     "numSlots": 12,
     "slotBulk": 2,
-    "penalty": -2,
-    "liftThreshold": { "STR": 15, "size": 4 },
+    "penalty": 2,
+    "liftThreshold": {
+      "STR": 15,
+      "size": 4
+    },
     "items": []
   },
   "Sled": {
@@ -29,7 +32,7 @@
     "kind": "transport",
     "numSlots": 200,
     "slotBulk": 3,
-    "penalty": -3,
+    "penalty": 3,
     "items": []
   },
   "One-Horse Cart": {
@@ -37,7 +40,7 @@
     "kind": "transport",
     "numSlots": 500,
     "slotBulk": 3,
-    "penalty": -3,
+    "penalty": 3,
     "items": []
   },
   "Two-Horse Cart": {
@@ -45,7 +48,7 @@
     "kind": "transport",
     "numSlots": 1000,
     "slotBulk": 3,
-    "penalty": -3,
+    "penalty": 3,
     "items": []
   }
 }

@@ -34,7 +34,7 @@ export function getContainerPenalty(character: Character, container: Container):
     (threshold.STR !== undefined && getSTR(character) >= threshold.STR) ||
     (threshold.size !== undefined && getSize(character) >= threshold.size)
   )
-  return meetsThreshold ? Math.min(0, container.penalty + 1) : container.penalty
+  return meetsThreshold ? Math.max(0, container.penalty - 1) : container.penalty
 }
 
 export function getBurdenPenalty(character: Character): number {
@@ -44,9 +44,11 @@ export function getBurdenPenalty(character: Character): number {
   )
 }
 
+// gear.tex "Containers and burden": light has no effect, then -1 / -2 / -3.
+// Penalties are stored as positive magnitudes and negated at the point of use.
 export function getBurdenLevel(penalty: number): 'light' | 'medium' | 'heavy' | 'over' {
-  if (penalty >= 0) return 'light'
-  if (penalty === -1) return 'medium'
-  if (penalty === -2) return 'heavy'
+  if (penalty <= 0) return 'light'
+  if (penalty === 1) return 'medium'
+  if (penalty === 2) return 'heavy'
   return 'over'
 }

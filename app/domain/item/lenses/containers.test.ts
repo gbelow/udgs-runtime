@@ -72,23 +72,23 @@ describe('canFitItem', () => {
 describe('getContainerPenalty', () => {
   const largeBackpack = ContainerSchema.parse({
     name: 'Large Backpack',
-    penalty: -2,
+    penalty: 2,
     liftThreshold: { STR: 15, size: 4 },
   })
 
   it('applies the flat penalty when the threshold is not met', () => {
     const c = character({ trainables: { STR: { value: 10 } }, size: 3 })
-    expect(getContainerPenalty(c, largeBackpack)).toBe(-2)
+    expect(getContainerPenalty(c, largeBackpack)).toBe(2)
   })
 
   it('reduces the penalty by one level when STR meets the threshold', () => {
     const c = character({ trainables: { STR: { value: 15 } }, size: 3 })
-    expect(getContainerPenalty(c, largeBackpack)).toBe(-1)
+    expect(getContainerPenalty(c, largeBackpack)).toBe(1)
   })
 
   it('reduces the penalty by one level when size meets the threshold', () => {
     const c = character({ trainables: { STR: { value: 10 } }, size: 4 })
-    expect(getContainerPenalty(c, largeBackpack)).toBe(-1)
+    expect(getContainerPenalty(c, largeBackpack)).toBe(1)
   })
 
   it('leaves containers with no liftThreshold untouched', () => {
@@ -105,17 +105,17 @@ describe('getBurdenPenalty / getBurdenLevel', () => {
       size: 3,
       containers: {
         belt: ContainerSchema.parse({ name: 'Belt', penalty: 0 }),
-        backpack: ContainerSchema.parse({ name: 'Backpack', penalty: -1 }),
+        backpack: ContainerSchema.parse({ name: 'Backpack', penalty: 1 }),
       },
     })
-    expect(getBurdenPenalty(c)).toBe(-1)
+    expect(getBurdenPenalty(c)).toBe(1)
     expect(getBurdenLevel(getBurdenPenalty(c))).toBe('medium')
   })
 
   it('maps penalty levels to labels', () => {
     expect(getBurdenLevel(0)).toBe('light')
-    expect(getBurdenLevel(-1)).toBe('medium')
-    expect(getBurdenLevel(-2)).toBe('heavy')
-    expect(getBurdenLevel(-3)).toBe('over')
+    expect(getBurdenLevel(1)).toBe('medium')
+    expect(getBurdenLevel(2)).toBe('heavy')
+    expect(getBurdenLevel(3)).toBe('over')
   })
 })

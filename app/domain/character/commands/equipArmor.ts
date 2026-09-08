@@ -14,7 +14,7 @@ export function equipArmor(
     throw new Error('Armor must have valid RES and INS values')
   }
 
-  return (character: Character) => ({ ...character, armor: scaleArmor(armor, character.size) })
+  return (character: Character) => ({ ...character, armor: ArmorSchema.parse(scaleArmor(armor, character.size)) })
 }
 
 export function unequipArmor(): CharacterUpdater {

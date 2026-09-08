@@ -24,7 +24,7 @@ export function ArmorPanel(){
           <tr >
             <th></th>
             <th>PROT (blunt)</th>
-            <th>RES (piercing)</th>
+            <th>RES (cutting)</th>
             <th>INS (burn)</th>
           </tr>
         </thead>
