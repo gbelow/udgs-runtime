@@ -62,3 +62,4 @@
 
 ## add performance report to break me
 
+gear affects AGI and STA, not skills directly

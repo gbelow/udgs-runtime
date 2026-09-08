@@ -127,11 +127,10 @@ export const WeaponAttackSchema = z.object({
   type: str.default('melee'),
   handed: str.default('small'),
 
-  energy: num.default(0),
+  blunt: num.default(0),
+  cut: num.default(0),
   STRmod: num.default(0),
   heavyMod: num.default(0),
-  SHP: num.default(0),
-  // forceMod: num.default(0),
 
   range: str.default('short'),
 

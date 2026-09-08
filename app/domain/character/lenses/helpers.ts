@@ -53,7 +53,8 @@ export function scaleWeapon(weapon: Weapon, scale: number): Weapon {
     scale: clampedScale,
     attacks: weapon.attacks.map(el => ({
       ...el,
-      energy: Math.floor(el.energy * dmgArr[scaleIndex]),
+      blunt: Math.floor(el.blunt * dmgArr[scaleIndex]),
+      cut: Math.floor(el.cut * dmgArr[scaleIndex]),
       RES: Math.floor(el.RES * dmgArr[scaleIndex]),
 
     }))

@@ -1,4 +1,8 @@
 {
+  "tags": [
+    "humanoid",
+    "experts"
+  ],
   "type": "base",
   "name": "ChampionKnight",
   "trainables": {
@@ -241,8 +245,46 @@
       "type": "proficiency"
     }
   },
+  "knowledges": {},
   "size": 3,
   "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "active": true,
+      "rangePenalty": 2,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "hearing": {
+      "name": "Hearing",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "smell": {
+      "name": "Smell",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "touch": {
+      "name": "Touch",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": false
+    }
+  },
   "movement": {
     "basic": 1,
     "careful": 0.5,
@@ -257,14 +299,17 @@
   "hasHelm": 1,
   "armor": {
     "name": "Full Armor",
-    "RES": 30,
+    "RES": 20,
     "RESlayer": 0,
-    "INS": 10,
-    "protection": 0,
-    "deflection": 0,
+    "poise": 0,
+    "INS": 9,
+    "protection": 10,
+    "deflection": 7,
     "penalty": 3,
-    "properties": "",
-    "notes": ""
+    "properties": "rigid, metallic",
+    "notes": "",
+    "prot": 10,
+    "cover": 7
   },
   "weapons": {
     "Halberd": {
@@ -336,9 +381,6 @@
     }
   },
   "containers": {},
-  "notes": "",
-  "tags": [
-    "humanoid",
-    "experts"
-  ]
+  "abilities": [],
+  "notes": ""
 }

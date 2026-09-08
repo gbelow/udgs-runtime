@@ -65,6 +65,26 @@ Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where 
 - New game mechanics: check `rule_graph.json` for name collisions and use the `urn:ttrpg:` namespace when extracting rules. `tools/` holds Python scripts (`extract_rule_graph.py`, `visualize_schema.py`) that generate `rule_graph.json` / `dangling_references.json`.
 - On Windows, avoid chained `cmd /c dir && type`; use single commands to reduce process-spawn overhead.
 
+## The rulebook (authoritative source for game rules)
+
+The tabletop rules this app implements live in a **separate LaTeX repo**: `C:/Users/Administrator/code/RPG_Below_v7_en` (registered as an additional working directory in `.claude/settings.local.json`, and **read-only** — writes to it are denied; its own `CLAUDE.md` forbids AI editing of the `.tex` text).
+
+**It is the source of truth for game rules; this repo is only an implementation of them.** When a task involves a rule, formula, table, or terminology — before writing a lens, command, or table entry — read the relevant `.tex` there rather than inferring the rule from existing code. If code and rulebook disagree, say so instead of silently picking one.
+
+Read `RPG_Below_v7_en/CLAUDE.md` first for its full file map and design principles. Quick index:
+
+- `play.tex` — **core skill test** (d10 + skill vs DL, degrees of success, exploding die, safe/risky) and the four game loops. Any question about test resolution starts here.
+- `creating.tex` — character model: attributes (STR/AGI/STA), size, races/age, master skill list and **value formulas**, character creation. Maps to `domain/character/lenses/` and `types.ts`.
+- `combat.tex` — combat and everything grid-based. Maps to `domain/combat/`.
+- `gear.tex` — gear properties and gear sheets. Maps to weapons/armor lenses and `app/assets/`.
+- `story.tex`, `survival.tex`, `abilities.tex`, `spells.tex`, `war.tex`, `monsters.tex` — social/knowledge, exploration, abilities, spells, mass combat, NPCs.
+- `main.toc` — generated table of contents; the fastest way to locate a section before grepping.
+
+Compressed cheat-sheets live in `RPG_Below_v7_en/.claude/skills/*/SKILL.md` (`skill-test-core`, `attack-resolution`, `advancement`, `size-table`, `game-loops`). They are not loaded as skills in this project, but reading those files is the cheapest way to get the shape of a mechanic; each names the `.tex` to confirm against. Prefer: skill file for orientation → `.tex` for exact wording.
+
+Do not copy rules prose into this repo. Encode the rule in the domain layer and cite the source file (e.g. `// combat.tex "Strike"`) where a formula is non-obvious.
+
+
 ## Roadmap context
 
 `nextSteps.md` (feature ideas) and `README.md` (architecture rationale, tradeoffs, and the "how to change things safely" workflow) hold design intent. `ui-design-patterns.md` contains the instructions for ui.
