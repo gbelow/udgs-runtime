@@ -1,8 +1,9 @@
 import { getSTARegen } from "../domain/character/lenses/characteristics";
-import { canSurge, getUsedSurge } from "../domain/character/lenses/surge";
+import { getSurgeAvailability, getUsedSurge } from "../domain/character/lenses/surge";
 import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
+import { useShallow } from "zustand/shallow";
 
 export function useActiveCharacterData() {
   // fightName is campaign-only; notes is shared. Each is a
@@ -15,25 +16,23 @@ export function useActiveCharacterData() {
   return { fightName, notes };
 }
 
-// combat.tex "Action surge" — `usedSurge` says which surge was spent (nothing
-// else knows that); `canSurge` says which buttons are still live, which adds the
-// STA the character can afford. Every value crosses the store selector as a
-// primitive: a selector returning an object would have to be useShallow-wrapped,
-// and one wrapper cannot span the two stores useActiveCharacterSelector
-// subscribes — they thrash its single memo cache and never settle.
+// A character outside a fight has no surge to spend, and the constant keeps the
+// fallback from allocating on every call.
+const NO_SURGES: Record<SurgeKind, boolean> = {
+  movement: false, combat: false, reaction: false, focus: false,
+}
+
+// combat.tex "Action surge" — `usedSurge` says which surge was spent, which
+// nothing else knows; `canSurge` says which buttons are live, which adds what
+// the character can afford.
 export function useSurges(): { usedSurge: SurgeKind | null; canSurge: Record<SurgeKind, boolean> } {
   const usedSurge = useActiveCharacterSelector((c: Character) =>
     isCampaignCharacter(c) ? getUsedSurge(c) : null) ?? null;
-  const movement = useActiveCharacterSelector((c: Character) =>
-    isCampaignCharacter(c) && canSurge('movement')(c)) ?? false;
-  const combat = useActiveCharacterSelector((c: Character) =>
-    isCampaignCharacter(c) && canSurge('combat')(c)) ?? false;
-  const reaction = useActiveCharacterSelector((c: Character) =>
-    isCampaignCharacter(c) && canSurge('reaction')(c)) ?? false;
-  const focus = useActiveCharacterSelector((c: Character) =>
-    isCampaignCharacter(c) && canSurge('focus')(c)) ?? false;
+  const canSurge = useActiveCharacterSelector(
+    useShallow((c: Character) => (isCampaignCharacter(c) ? getSurgeAvailability(c) : NO_SURGES)),
+  ) ?? NO_SURGES;
 
-  return { usedSurge, canSurge: { movement, combat, reaction, focus } };
+  return { usedSurge, canSurge };
 }
 
 // combat.tex "Rest" — STA recovered by the Rest action. A primitive, so it goes

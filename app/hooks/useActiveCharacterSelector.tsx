@@ -9,20 +9,25 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // Read side: select a derived value off the active character *inside* the
 // Zustand selector, so the store gates re-renders on the computed output
 // (Object.is by default) rather than on the whole-character reference. This is
-// what stops a one-field mutation from re-rendering every subscriber: lens.get
-// runs on every store change, but only changed outputs trigger a render.
+// what stops a one-field mutation from re-rendering every subscriber: only
+// changed outputs trigger a render.
 //
-// The edit and combat stores are both subscribed (no conditional hook calls),
-// and the active tab picks which result is used. The idle store's selector only
-// fires on its own changes; while it returns a stable value it forces no render.
-// Pass a useShallow-wrapped selector for non-primitive results (arrays, etc.)
-// so a fresh allocation doesn't defeat Object.is.
+// Both stores are subscribed unconditionally (no conditional hook calls), but
+// only the one that owns the active tab runs `sel` — the idle store's selector
+// short-circuits to a constant null, so it allocates nothing and forces no
+// render. `sel` therefore runs exactly once per render, against exactly one
+// character, which is what lets a caller pass a useShallow-wrapped selector for
+// non-primitive results: a single wrapper holds one memo cache, and only one
+// store ever drives it.
 export function useActiveCharacterSelector<T>(
   sel: (c: Character) => T,
 ): T | null {
   const tab = useAppStore((s) => s.selectedGameTab);
-  const editVal = useCharacterStore((s) => (s.character ? sel(s.character) : null));
+  const editVal = useCharacterStore((s) =>
+    tab === "edit" ? (s.character ? sel(s.character) : null) : null,
+  );
   const combatVal = useCombatStore((s) => {
+    if (tab === "edit") return null;
     const id = s.activeCharacterId;
     if (!id) return null;
     const c = s.characters[id];

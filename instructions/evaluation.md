@@ -36,3 +36,54 @@ The honest summary
 The thesis — pure domain owns all rules, React only renders — is genuinely implemented, not aspirational, which puts it well ahead of most projects that claim it. It loses points where the thesis was applied unevenly: combat got the inversion backwards, the UI accumulated four rule leaks including one true duplicate, and the test suite validates the mechanical properties (purity, invertibility) while leaving rulebook fidelity — the thing that's actually hard and actually matters — unverified.
 
 The three highest-value fixes, in order: pull the WeaponPanel damage duplicate back into the domain, define combat state in domain/combat/ and have the store import it, and write per-skill formula tests citing creating.tex.
+
+
+
+Grade: A−, but uneven by layer
+
+┌─────────────────────────────────┬────────┐
+│              Layer              │ Grade  │
+├─────────────────────────────────┼────────┤
+│ Domain (app/domain/**)          │ A / A+ │
+├─────────────────────────────────┼────────┤
+│ Boundary enforcement            │ A      │
+├─────────────────────────────────┼────────┤
+│ State + hooks (stores/, hooks/) │ B      │
+├─────────────────────────────────┼────────┤
+│ Persistence / IO (actions.ts)   │ C+     │
+└─────────────────────────────────┴────────┘
+
+What earns the high marks
+
+The thesis is actually implemented, not just documented. The claim "pure domain owns the rules, React only renders" survives contact with the code. My scan of app/components/*.tsx for arithmetic on domain numbers found essentially nothing outside the exempt BreakMe.tsx — the only leak is the raw d10/d6 buttons in PlayPanel.tsx:67,71, which inline Math.floor(Math.random()*10)+1 while the domain already owns rollFull with an injected entropy seam (domain/combat/dice.ts, wrapped at components/utils.tsx:5). That is a remarkably clean record for a 6.6k-line app.
+
+The boundary is mechanical. The two no-restricted-imports rules in eslint.config.mjs make the layering a build failure rather than a convention, and the comments name the actual regressions that motivated them ("which is how the armor tier table, the STA regen formula and the weapon STR-mod duplicate all got into JSX"). Rules justified by observed decay are worth more than rules justified by principle.
+
+Two design ideas are genuinely strong, not just tidy:
+
+- The terms pattern (skills.ts, terms.ts): every derived value is sumTerms(getXTerms(c)), so the tooltip breakdown and the number it explains are the same computation. Drift between a displayed explanation and a displayed value is structurally impossible, not merely tested.
+- Lens inversion tested over the registry (lens-inversion.test.ts): it.each iterates Object.keys(skillLenses), so set→get round-tripping is proven for every lens and any new lens inherits the check automatically. That's a property over the architecture, not a mirror of the implementation.
+
+Rule provenance is traceable. Inline citations (// combat.tex "Rest", // gear.tex "Heavy I/II/III") plus co-location of constant and getter (REST_AP_COST next to getSTARegen) mean the displayed number and the applied number can't diverge, and a reader can check either against the rulebook.
+
+What pulls it down
+
+1. An unfinished migration left two APIs for one job. useActiveCharacter (whole-character subscription) and useActiveCharacterSelector/useActiveCharacterUpdate (fine-grained, re-render-gated) both exist and are both used. The second was clearly built to fix the first's re-render cost; the first is still exported and live. This is the classic shape that decays.
+
+2. readActiveCharacter is the real crack in the thesis. useActiveCharacterSelector.tsx:38 reads useCharacterStore.getState() non-reactively, and useSkillLens calls it every render to build tooltip terms. Its correctness rests on a comment — "gating the component's re-render on value above keeps this fresh" — which holds only while no input can change a term without changing the sum. Term labels, sign flips, and offsetting modifiers all break that. The project's whole pitch is eliminating silent state divergence, and this is a hand-argued invariant with no test guarding it.
+
+3. The store is slightly more authoritative than advertised. useCombatStore.loadCharacter embeds identity/keying logic inline, and getActiveCharacter lives inside state as a method — so useActiveCharacter's s => s.getActiveCharacter() selector produces a fresh call on every store change. Small, but it's rules-adjacent logic sitting in the layer that's supposed to hold none.
+
+4. Persistence is the weak layer, and it has a live bug. CharacterCreator.tsx:64 calls deleteCharacter(character.name), but actions.ts:113 expects a Redis id — so that button toasts "Character deleted." and deletes nothing. CharacterSelector.tsx:115 passes the id correctly, so the two call sites disagree about the contract. Beyond that: upsertBaseCharacter builds a path from unsanitized character.name (a name containing ../ escapes the target directory), uses synchronous fs inside a server action, and maintains the Redis charList index by non-atomic read-modify-write. The ActionResult discriminated union is good discipline; everything underneath it is not at the standard of the domain.
+
+5. Ingestion validates less than the domain claims to. The ingest schemas lean on z.any() for trainables, injuries, resources, and afflictions, and addBaseValues spreads ...parsedCharacter over the defaults. Lossy-by-design is a defensible choice, but "the domain is the authoritative interpreter" is weaker than stated when the interpreter doesn't type-check its own input at the nested level.
+
+6. Testing is thickest where risk is thinnest. 230 fast tests over pure functions — excellent. Zero over the hooks/store integration (where the tearing concern above lives) and zero over actions.ts (where the actual bug lives).
+
+Minor: getSM/getDM throw on out-of-range size, but getSize clamps to [1,7] first, so those throws are unreachable dead code sitting in a path that runs on every store change for every subscriber. Cosmetics: unused imports (size from zod in factories.ts:1, knowledgesLens), useinjuryLens.tsx casing, .tsx on JSX-free hooks. I'm not counting the commented-out lens entries and staged-out formulas against the grade, since that inert structure is how you stage features in and out.
+
+Bottom line
+
+The domain layer is the work of someone who understood the problem before writing code — it would grade well in a senior review at most shops, and the terms/inversion pair is the kind of idea worth reusing elsewhere. The grade is held below an A by the fact that architectural rigor stops at the domain's edge: the state layer carries an abandoned first attempt alongside its replacement, and the IO layer has no rigor at all. The stated thesis is about the domain, so this is arguably scoped-as-intended — but a reviewer evaluating "the architecture" will read actions.ts too.
+
+Cheapest high-value fixes, in order: the deleteCharacter id/name mismatch, path sanitization on upsertBaseCharacter, then deleting useActiveCharacter in favor of the selector pair.

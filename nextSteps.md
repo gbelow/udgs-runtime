@@ -30,6 +30,7 @@
 - add interface
 - add items list
 - create new item  
+- item customization
 
 ## add abilities 
 - import from rulebook
