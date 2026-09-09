@@ -17,9 +17,7 @@ pnpm test     # vitest (watch)
 pnpm test:run # vitest single run
 ```
 
-- Package manager is **pnpm** (`pnpm-lock.yaml`; the old `yarn.lock` is deleted). Node v20+.
-- Tests run on **Vitest** (`pnpm test` / `pnpm test:run`). Test files (`*.test.ts`) live alongside the domain code they exercise — lenses, commands, factories, and items.
-- Requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`) for Redis persistence.
+Package manager is **pnpm**, Node v20+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).
 
 ## Architecture
 
@@ -27,42 +25,28 @@ Data flows in one direction: **Domain (pure) → Zustand stores (non-authoritati
 
 ### Domain layer (`app/domain/`) — the heart of the project
 
-Pure, synchronous, deterministic, zero React dependencies. Two complementary patterns:
-
-- **Lenses** (`domain/character/lenses/`, `domain/combat/`) — *read-side*. A `Lens<T, V>` has `get(subject)` / `set(subject, value)`. Every derived stat (skills, characteristics, movement, gear-affected values) is computed fresh from the character via a getter. `set` inverts through the modifiers so the stored *base* value changes, never the derived value. Lens registries are aggregated in `lenses/index.ts` (`skillLenses`, `characteristicLenses`, `movementLenses`), keyed by the corresponding type. Getters compose (e.g. `getStrike` calls `getMelee` + affliction penalties).
-- **Commands** (`domain/character/commands/`, `domain/combat/commands/`) — *write-side*. Each exports a pure updater `(character) => character` (often curried, e.g. `addAffliction(key)(c)`). Combat commands operate on the combat state.
+Pure, synchronous, deterministic, zero React dependencies. **Lenses** (`domain/character/lenses/`, `domain/combat/`) are the read side: every derived stat is computed fresh from the character by a getter, and `set` inverts through the modifiers so the stored *base* value changes, never the derived value. Registries are aggregated in `lenses/index.ts` (`skillLenses`, `characteristicLenses`, `movementLenses`), keyed by the corresponding type. **Commands** (`domain/character/commands/`, `domain/combat/commands/`) are the write side: pure updaters `(character) => character`, often curried.
 
 Rule invariant: derived wound/stat values scale STR by the size damage-multiplier and add the stored base term unscaled — `floor(0.5 * STR * DM + base)` (see `getTGH`). This form keeps the base at a `+1` coefficient so the generic lens setter inverts at every size. Never add a setter that bypasses this — change the base, not the derived output. (The commented-out `getRES`/`getINS` still use the older `floor((0.5 * STR + base) * DM)`; reconcile them to the current form if you revive them.)
 
 ### Types & data ingestion (`domain/types.ts`, `domain/factories.ts`)
 
 - **All types are Zod schemas.** `Character` is a discriminated union of `BaseCharacter` (`type: 'base'`, has `path`, stored as JSON files) and `CampaignCharacter` (`type: 'campaign'`, adds `injuries`/`afflictions`/`resources`, stored in Redis). Narrow with `isBaseCharacter` / `isCampaignCharacter` (`domain/utils.ts`).
-- **Ingestion is intentionally lossy/best-effort.** `makeCharacter` / `makeCampaignCharacter` parse arbitrary raw JSON through permissive `*IngestSchema`s, then deep-merge onto a fully-defaulted empty character. Only fields matching type+name survive; unknown keys are stripped. This is deliberate — data shape is versioned and the domain is the authoritative interpreter, so don't add defensive parsing in consumers.
+- **Ingestion is intentionally lossy/best-effort.** `makeCharacter` / `makeCampaignCharacter` parse arbitrary raw JSON through permissive `*IngestSchema`s, then deep-merge onto a fully-defaulted empty character; only fields matching type+name survive. This is deliberate — data shape is versioned and the domain is the authoritative interpreter, so don't add defensive parsing in consumers.
 - Game rule tables (afflictions, damage arrays, etc.) live in `domain/tables.ts`.
 
-### State layer (`app/stores/`) — Zustand, deliberately non-authoritative
+### State, hooks, UI
 
-Zustand only coordinates and bounds memoization/re-renders; it holds no rules.
-- `useCharacterStore` — the single character being edited (`edit` tab).
-- `useCombatStore` — map of `CampaignCharacter`s in a fight, active character, round/turn.
-- `useAppStore` — created via a per-request provider (`appStoreProvider.tsx`, `createAppStore`), holds selected tab and character lists; **must be accessed inside `AppStoreProvider`**.
+Zustand (`app/stores/`) only coordinates and bounds memoization/re-renders; it holds no rules. `useAppStore` is created via a per-request provider and **must be accessed inside `AppStoreProvider`**. `useActiveCharacter` is the key indirection: it reads the current tab (`edit` | `play` | `break`) and returns the active character plus a unified `update(updater)` that dispatches to the right store, so the same domain logic works identically in editing and combat.
 
-`useActiveCharacter` is the key indirection: it reads the current tab (`edit` | `play` | `break`) and returns the active character plus a **unified `update(updater)`** that dispatches to the right store. All command/lens hooks go through it, so the same domain logic works identically in editing and combat.
-
-### Hooks (`app/hooks/`)
-
-Thin adapters, one per concern (`useSkillLens`, `useCharacteristicLens`, `useWeaponLens`, `useCharacterCommands`, `useCombatCommands`, …). Pattern: pull the relevant lens/command from the domain, read via `lens.get(character)`, write via `useActiveCharacter().update(...)`. Keep new logic out of hooks — add it to a lens or command and expose it here.
-
-### UI (`app/components/`)
-
-Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where needed. Components render domain projections and call hooks; they do not own or mutate derived state. Main tabs: `CharacterCreator`, `PlayPanel` (combat), `BreakMe` (stress test). Server actions in `app/actions.ts` are the only persistence boundary (Redis for campaign chars, filesystem JSON under `app/characters/<path>/<name>.json` for base chars).
+Hooks (`app/hooks/`) are thin adapters, one per concern — keep new logic out of them; add it to a lens or command and expose it here. Components (`app/components/`) are declarative and Tailwind-only (no CSS files); they render domain projections and call hooks, and never own or mutate derived state. Server actions in `app/actions.ts` are the only persistence boundary (Redis for campaign characters, filesystem JSON under `app/characters/<path>/<name>.json` for base characters).
 
 ## Conventions
 
 - TypeScript strict; functional components with hooks; `const`/`let`, never `var`.
 - Prefer server actions for mutations; client components only when necessary.
 - **No component performs arithmetic on a domain number.** Components render values and call handlers. If a component needs `a + b` over game data, add the getter to the domain and expose it through a hook — never compute it in JSX. When the domain lacks the *shape* the UI needs (a table, a set of rows), add a **view getter**: a pure `(c: Character) => RenderableShape`, like `getStrikeTerms`, `getDamageTiers`, or `getWeaponAttackRows`. A component reading a raw characteristic (`STR`, `STA`, `TGH`) is almost always about to do arithmetic with it — that's the tell.
-- Two ESLint rules in `eslint.config.mjs` enforce the layering mechanically, so a violation fails `pnpm lint`: `app/domain/**` may not import `app/stores/**`, React, or Zustand; `app/components/**` may not import `**/domain/*/lenses/**` or `**/domain/*/commands/**` (type-only imports are fine via `import type`; `types`/`tables`/`factories`/`utils`/`dice` stay allowed; `BreakMe.tsx` is exempt as an instrumentation harness).
+- Two ESLint rules in `eslint.config.mjs` enforce the layering mechanically, so a violation fails `pnpm lint`: the domain may not import stores, React, or Zustand, and components may not import lenses or commands (`import type` is fine; `BreakMe.tsx` is exempt).
 - When adding a stat/skill/characteristic: add it to the Zod schema in `types.ts`, write its getter in the relevant `lenses/` file, and register it in `lenses/index.ts`. Many entries are commented out (magic schools, extra characteristics) — uncommenting is how features are staged in.
 - New game mechanics: check `rule_graph.json` for name collisions and use the `urn:ttrpg:` namespace when extracting rules. `tools/` holds Python scripts (`extract_rule_graph.py`, `visualize_schema.py`) that generate `rule_graph.json` / `dangling_references.json`.
 - On Windows, avoid chained `cmd /c dir && type`; use single commands to reduce process-spawn overhead.
@@ -70,46 +54,15 @@ Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where 
 
 ## Testing culture
 
-`instructions/testing.md` governs every test in this repo — what gets written, what gets
-rejected, and the conventions around both. Apply it before writing, proposing, or reviewing
-a test.
-
-The suite exists to guard the promises the domain layer makes, not to cover its surface. A
-test file organized one `describe` per exported function is the tell that it was written from
-an export list rather than from a promise. Those promises are:
-
-- **Commands are pure updaters.** `(subject) => subject`, with the subject handed in coming
-  back untouched — the property the whole state layer's reference comparison rests on
-  (`domain/command-purity.test.ts`).
-- **Commands are total over the arm they declare.** A command applied to a character of the
-  type its own signature accepts returns something that still parses against its schema.
-  Which arm of the `Character` union a command accepts is said by its parameter type, so the
-  compiler classifies it; a hand-written list of exceptions would only restate the signatures.
-- **Lenses invert.** `set(c, v)` writes through the modifiers to the stored base so that
-  reading the same lens back returns `v` (`lenses/lens-inversion.test.ts`). Getters that
-  cannot invert are documented in place, never filtered out.
-- **Getters are total over both arms of the union.** `injuries`, `afflictions` and
-  `resources` exist only on `CampaignCharacter`; a getter reaching for one against a base
-  character does not throw, it yields `NaN` through every lens that composes it. The types
-  cannot see this, which is what makes it worth a test.
-- **Ingestion is total and lossless where it claims to be.** Any input, including hostile
-  input, yields a schema-valid character or nothing, and a character survives the round trip
-  through the format it is stored in (`domain/factories.test.ts`).
-- **Shipped data conforms.** Hand-edited catalogs and character files parse against their
-  schemas with nothing silently dropped, so a typo in an asset is distinguishable from a rule
-  this codebase has not implemented (`lenses/armor.test.ts`, `domain/weaponProperties.test.ts`).
-
-Registry completeness is held by the type annotations on the registries themselves
-(`Record<keyof Skills, …>` and friends), not by tests — see the unrepresentability rule in
-`instructions/testing.md`. Add the annotation when a new registry appears.
+`instructions/testing.md`, imported below, governs every test in this repo — what gets written, what gets rejected, and the conventions around both. Apply it before writing, proposing, or reviewing a test. Registry completeness is held by the type annotations on the registries themselves (`Record<keyof Skills, …>` and friends) rather than by tests; add the annotation when a new registry appears.
 
 @instructions/testing.md
 
 ## The rulebook (authoritative source for game rules)
 
-The tabletop rules this app implements live in a **separate LaTeX repo**: `C:/Users/Administrator/code/RPG_Below_v7_en` (registered as an additional working directory in `.claude/settings.local.json`, and **read-only** — writes to it are denied; its own `CLAUDE.md` forbids AI editing of the `.tex` text).
+The tabletop rules this app implements live in a separate, **read-only** LaTeX repo: `C:/Users/Administrator/code/RPG_Below_v7_en` (registered as an additional working directory; writes are denied, and its own `CLAUDE.md` forbids AI editing of the `.tex` text).
 
-**It is the source of truth for game rules; this repo is only an implementation of them.** When a task involves a rule, formula, table, or terminology — before writing a lens, command, or table entry — read the relevant `.tex` there rather than inferring the rule from existing code. If code and rulebook disagree, say so instead of silently picking one.
+**It is the source of truth for game rules; this repo is only an implementation of them.** Before writing a lens, command, or table entry that touches a rule, formula, table, or piece of terminology, read the relevant `.tex` rather than inferring the rule from existing code. If code and rulebook disagree, say so instead of silently picking one. Do not copy rules prose into this repo — encode the rule in the domain layer and cite the source (e.g. `// combat.tex "Strike"`) where a formula is non-obvious.
 
 Read `RPG_Below_v7_en/CLAUDE.md` first for its full file map and design principles. Quick index:
 
@@ -120,10 +73,7 @@ Read `RPG_Below_v7_en/CLAUDE.md` first for its full file map and design principl
 - `story.tex`, `survival.tex`, `abilities.tex`, `spells.tex`, `war.tex`, `monsters.tex` — social/knowledge, exploration, abilities, spells, mass combat, NPCs.
 - `main.toc` — generated table of contents; the fastest way to locate a section before grepping.
 
-Compressed cheat-sheets live in `RPG_Below_v7_en/.claude/skills/*/SKILL.md` (`skill-test-core`, `attack-resolution`, `advancement`, `size-table`, `game-loops`). They are not loaded as skills in this project, but reading those files is the cheapest way to get the shape of a mechanic; each names the `.tex` to confirm against. Prefer: skill file for orientation → `.tex` for exact wording.
-
-Do not copy rules prose into this repo. Encode the rule in the domain layer and cite the source file (e.g. `// combat.tex "Strike"`) where a formula is non-obvious.
-
+Cheat-sheets in `RPG_Below_v7_en/.claude/skills/*/SKILL.md` (`skill-test-core`, `attack-resolution`, `advancement`, `size-table`, `game-loops`) are the cheapest way to get the shape of a mechanic; each names the `.tex` to confirm against. Prefer: skill file for orientation → `.tex` for exact wording.
 
 ## Roadmap context
 
