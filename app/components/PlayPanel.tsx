@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
 import { AFFLICTIONS as afflictionDefinitions, SURGES, surgeKinds } from '../domain/tables'
-import { makeFullRoll } from './utils';
+import { makeDieRoll, makeFullRoll } from './utils';
 import { useCombatStore } from '../stores/useCombatStore';
-import { AfflictionKey, Characteristics, Injuries, Movement, Resources, Skills } from '../domain/types';
+import { AfflictionKey, Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip, isAfflicted } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
@@ -24,7 +24,7 @@ import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
 
 export function PlayPanel(){
 
-  const { rest, actionSurge, } = useCharacterCommands()
+  const { rest } = useCharacterCommands()
   const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
@@ -64,11 +64,11 @@ export function PlayPanel(){
             <div className='flex gap-2 text-xs h-8'>
               <input type='button' value='startTurn' aria-label='startTurn' className='p-1 border hover:bg-gray-500 rounded' onClick={startTurn } />  
               <span className='text-lg'>{fightName}</span>
-              <input type='button' value='d10' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice10(Math.floor(Math.random() * 10) + 1)}/>
+              <input type='button' value='d10' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice10(makeDieRoll(10))}/>
               <span>
                 Roll: {dice10}
               </span>
-              <input type='button' value='d6' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice6(Math.floor(Math.random() * 6) + 1)}/>
+              <input type='button' value='d6' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice6(makeDieRoll(6))}/>
               <span>
                 Roll: {dice6}
               </span>

@@ -37,7 +37,7 @@ Rule invariant: derived wound/stat values scale STR by the size damage-multiplie
 
 ### State, hooks, UI
 
-Zustand (`app/stores/`) only coordinates and bounds memoization/re-renders; it holds no rules. `useAppStore` is created via a per-request provider and **must be accessed inside `AppStoreProvider`**. `useActiveCharacter` is the key indirection: it reads the current tab (`edit` | `play` | `break`) and returns the active character plus a unified `update(updater)` that dispatches to the right store, so the same domain logic works identically in editing and combat.
+Zustand (`app/stores/`) only coordinates and bounds memoization/re-renders; it holds no rules. `useAppStore` is created via a per-request provider and **must be accessed inside `AppStoreProvider`**. `useActiveCharacterSelector` is the key indirection: it reads the current tab (`edit` | `play` | `break`) and runs the caller's selector against the active character *inside* the owning store's selector, so re-renders gate on the derived value rather than the character reference. Its companion `useActiveCharacterUpdate` returns a unified `update(updater)` that dispatches to the right store, so the same domain logic works identically in editing and combat.
 
 Hooks (`app/hooks/`) are thin adapters, one per concern — keep new logic out of them; add it to a lens or command and expose it here. Components (`app/components/`) are declarative and Tailwind-only (no CSS files); they render domain projections and call hooks, and never own or mutate derived state. Server actions in `app/actions.ts` are the only persistence boundary (Redis for campaign characters, filesystem JSON under `app/characters/<path>/<name>.json` for base characters).
 

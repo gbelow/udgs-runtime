@@ -1,8 +1,7 @@
-import z, { size } from 'zod'
+import z from 'zod'
 import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, WeaponSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
-import { knowledgesLens } from './character/lenses/knowledge'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
 // never by the incoming data: an ingested trainable supplies a value, not an

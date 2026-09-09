@@ -4,7 +4,7 @@ import { CampaignCharacter } from '../domain/types'
 import { CombatState } from '../domain/combat/types'
 import { getActiveCharacter } from '../domain/combat/lenses/activeCharacter'
 import { makeCampaignCharacter } from '../domain/factories'
-import { addCharacterToCombat } from '../domain/utils'
+import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
 
 // The data half of the store is the domain's CombatState — the store adds only
 // the actions that mutate it. Keeping the two halves separate is what lets the
@@ -38,11 +38,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   loadCharacter: (rawCharacter) =>
     set((s) => {
       const campaignCharacter = makeCampaignCharacter( rawCharacter)
+      const added = addCharacterToCombat(campaignCharacter, s.characters, () => crypto.randomUUID())
       return({
         characters: {
           ...s.characters,
-          [String(campaignCharacter.id)]: addCharacterToCombat(campaignCharacter, s.characters)
-
+          [added.id]: added
         }
       })
     }),
@@ -72,7 +72,6 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   removeCharacter: (id) =>
     set((s) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [id]: _, ...rest } = s.characters
       return { characters: rest }
     })

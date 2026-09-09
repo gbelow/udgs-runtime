@@ -15,3 +15,11 @@ export function rollFull(rng: () => number): number {
   }
   return roll
 }
+
+
+// A plain uniform die. It carries no exploding rule, but it shares the reason
+// rollFull lives here: the entropy source is injected, so nothing in the app
+// reaches for Math.random on its own.
+export function rollDie(sides: number, rng: () => number): number {
+  return Math.floor(rng() * sides) + 1
+}

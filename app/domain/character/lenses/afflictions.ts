@@ -101,7 +101,7 @@ export function getInjuryPenalty(c: Character): number {
 // The 10 is flat — the rulebook gives nothing that moves it. The per-character
 // `injuries.injuryThreshold` field and the health-affliction reduction below are
 // staged out rather than deleted, in case the threshold becomes variable again.
-export function getIT(c: CampaignCharacter){
+export function getIT(_c: CampaignCharacter){
   // const afflictions = getAfflictions(c)
   // const pen = afflictions.filter(el => el === 'malnourished' || el === 'weakened' || el === 'thirsty' || el === 'dehydrated').length + (afflictions.includes('sick') ? 2 : 0)
   // return Math.max(1, c.injuries.injuryThreshold)

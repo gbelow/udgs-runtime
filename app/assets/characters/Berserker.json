@@ -307,13 +307,13 @@
   "hasHelm": 0,
   "armor": {
     "name": "Brigandine",
-    "RES": 15,
-    "RESlayer": 0,
+    "RES": 12,
+    "RESlayer": 8,
     "INS": 8,
-    "protection": 6,
+    "protection": 8,
     "deflection": 6,
     "penalty": 2,
-    "properties": "metallic",
+    "properties": "metallic, layered",
     "notes": ""
   },
   "weapons": {
@@ -325,32 +325,60 @@
         {
           "type": "melee",
           "handed": "two",
-          "energy": 12,
+          "blunt": 12,
+          "cut": 18,
           "STRmod": 0,
           "heavyMod": 1,
-          "SHP": 1.5,
           "range": "long I",
           "RES": 30,
           "RESmod": 0,
           "AP": 3,
           "reload": 0,
           "deflection": 0,
-          "properties": "sweep, DEF, heavy I-II, bladed"
+          "properties": "sweep, DEF, heavy I-II, bladed",
+          "props": {
+            "heavy": {
+              "min": 1,
+              "max": 2
+            },
+            "braced": false,
+            "hook": false,
+            "fast": false,
+            "recognized": [
+              "sweep",
+              "DEF",
+              "bladed"
+            ],
+            "unknown": []
+          }
         },
         {
           "type": "melee",
           "handed": "two",
-          "energy": 8,
+          "blunt": 6,
+          "cut": 20,
           "STRmod": 0,
           "heavyMod": 0.5,
-          "SHP": 2,
           "range": "long I",
           "RES": 20,
           "RESmod": 0,
           "AP": 3,
           "reload": 0,
           "deflection": 0,
-          "properties": "piercing, heavy I, braced"
+          "properties": "piercing, heavy I, braced",
+          "props": {
+            "heavy": {
+              "min": 0,
+              "max": 1
+            },
+            "braced": true,
+            "hook": false,
+            "fast": false,
+            "recognized": [
+              "piercing"
+            ],
+            "unknown": []
+          }
         }
       ]
     }

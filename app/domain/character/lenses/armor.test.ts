@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import armorsCatalog from '../../../assets/armors.json'
-import { ArmorSchema, ContainerSchema } from '../../types'
-import { scaleArmor } from './helpers'
-import { getGearPenalties } from './gear'
-import { makeCharacter } from '../../factories'
+import { ArmorSchema } from '../../types'
 
 const catalog = armorsCatalog as Record<string, unknown>
 const entries = Object.entries(catalog)

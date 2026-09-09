@@ -3,7 +3,7 @@
 import { Character } from './domain/types';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
-import fs from "fs";
+import fs from "fs/promises";
 import path from "path";
 
 
@@ -24,14 +24,14 @@ export async function loadJsonFromFolder(baseDir: string): Promise<JsonObject> {
   // file's `tags`, not in folder nesting, so there is nothing to recurse into.
   const result: JsonObject = {};
 
-  const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+  const entries = await fs.readdir(baseDir, { withFileTypes: true });
 
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) continue
     // Remove .json extension; the bare name is the character's identity on disk.
     const key = path.basename(entry.name, ".json");
     const fullPath = path.join(baseDir, entry.name);
-    const content = JSON.parse(fs.readFileSync(fullPath, "utf-8")) as JsonValue;
+    const content = JSON.parse(await fs.readFile(fullPath, "utf-8")) as JsonValue;
     result[key] = content;
   }
 
@@ -40,10 +40,24 @@ export async function loadJsonFromFolder(baseDir: string): Promise<JsonObject> {
 
 
 
+const BASE_CHARACTER_DIR = path.join(process.cwd(), "app/assets/characters");
+
+// A base character's name *is* its filename, so it has to resolve to a single
+// safe segment inside BASE_CHARACTER_DIR. A name that traverses is rejected
+// rather than rewritten: the name stored inside the file and the name on disk
+// have to stay the same string for the flat layout to keep its identity.
+function resolveBaseCharacterFile(name: string): string | null {
+  if (!name || name === "." || name === "..") return null;
+  if (/[\/\0]/.test(name)) return null;
+  if (name !== path.basename(name)) return null;
+
+  const filePath = path.resolve(BASE_CHARACTER_DIR, `${name}.json`);
+  return path.dirname(filePath) === BASE_CHARACTER_DIR ? filePath : null;
+}
+
 export async function getBasicCharList(): Promise<ActionResult<JsonObject>> {
   try {
-    const dataDir = path.join(process.cwd(), "app/assets/characters");
-    const characterData = await loadJsonFromFolder(dataDir);
+    const characterData = await loadJsonFromFolder(BASE_CHARACTER_DIR);
     return { ok: true, data: characterData };
   } catch (err) {
     console.error('Error loading base character list:', err);
@@ -60,14 +74,14 @@ export async function upsertBaseCharacter(data: Character): Promise<ActionResult
   const { id, ...character } = data;
   void id;
 
-  try {
-    // Flat layout: <name>.json directly under app/assets/characters. There is
-    // no folder path — categorization is carried by the `tags` field.
-    const targetDir = path.join('app/assets/characters');
-    fs.mkdirSync(targetDir, { recursive: true });
+  // Flat layout: <name>.json directly under app/assets/characters. There is
+  // no folder path — categorization is carried by the `tags` field.
+  const filePath = resolveBaseCharacterFile(character.name);
+  if (!filePath) return { ok: false, error: 'Base character names must be a plain file name.' };
 
-    const filePath = path.join(targetDir, `${character.name}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(character, null, 2), "utf-8");
+  try {
+    await fs.mkdir(BASE_CHARACTER_DIR, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(character, null, 2), "utf-8");
 
     console.log(`✅ Created: ${filePath}`);
     return { ok: true, data: undefined };
@@ -78,30 +92,33 @@ export async function upsertBaseCharacter(data: Character): Promise<ActionResult
 }
 
 export async function deleteBaseCharacter(name: string): Promise<ActionResult> {
-  const filePath = path.join('app/assets/characters', `${name}.json`);
+  const filePath = resolveBaseCharacterFile(name);
+  if (!filePath) return { ok: false, error: 'Base character names must be a plain file name.' };
 
   try {
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      console.log(`🗑️ Deleted: ${filePath}`);
-      return { ok: true, data: undefined };
-    }
-    console.warn(`⚠️ File not found: ${filePath}`);
-    return { ok: false, error: 'Base character file not found.' };
+    await fs.unlink(filePath);
+    console.log(`🗑️ Deleted: ${filePath}`);
+    return { ok: true, data: undefined };
   } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.warn(`⚠️ File not found: ${filePath}`);
+      return { ok: false, error: 'Base character file not found.' };
+    }
     console.error('Error deleting base character:', err);
     return { ok: false, error: 'Failed to delete base character.' };
   }
 }
 
 
+// The player-character index is a Redis hash of id -> name. Every write to it is
+// a single atomic field op, so two saves arriving together cannot each write back
+// a whole list they read before the other's entry existed.
+const CHAR_INDEX_KEY = 'charIndex';
+const LEGACY_CHAR_LIST_KEY = 'charList';
+
 export async function saveCharacter(character: Character): Promise<ActionResult> {
   try {
-    const list: {id: string, name: string}[] = (await redis.get('charList')) ?? [];
-    if(!list.some(el => el.id === character.id)){
-      await redis.set('charList', [...list, {id: character.id, name: character.name}]);
-    }
-
+    await redis.hset(CHAR_INDEX_KEY, { [character.id]: character.name });
     await redis.set(character.id, character);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -112,8 +129,7 @@ export async function saveCharacter(character: Character): Promise<ActionResult>
 
 export async function deleteCharacter(id: string): Promise<ActionResult> {
   try {
-    const list: {id: string, name: string}[] = (await redis.get('charList')) ?? [];
-    await redis.set('charList', list.filter(el => el.id !== id));
+    await redis.hdel(CHAR_INDEX_KEY, id);
     await redis.del(id);
     return { ok: true, data: undefined };
   } catch (err) {
@@ -135,8 +151,19 @@ export async function getCharacter(id: string): Promise<ActionResult<Character |
 
 export async function getCharacterList(): Promise<ActionResult<{id: string, name: string}[]>> {
   try {
-    const list: {id: string, name: string}[] | null = await redis.get('charList');
-    return { ok: true, data: list ?? [] };
+    const index = await redis.hgetall<Record<string, string>>(CHAR_INDEX_KEY);
+    if (index && Object.keys(index).length) {
+      return { ok: true, data: Object.entries(index).map(([id, name]) => ({ id, name })) };
+    }
+
+    // Characters saved before the index was a hash are still in the array at the
+    // old key; fold them in on first read and retire it.
+    const legacy: {id: string, name: string}[] | null = await redis.get(LEGACY_CHAR_LIST_KEY);
+    if (!legacy?.length) return { ok: true, data: [] };
+
+    await redis.hset(CHAR_INDEX_KEY, Object.fromEntries(legacy.map(el => [el.id, el.name])));
+    await redis.del(LEGACY_CHAR_LIST_KEY);
+    return { ok: true, data: legacy };
   } catch (err) {
     console.error('Error getting character list from Redis:', err);
     return { ok: false, error: 'Failed to load character list.' };

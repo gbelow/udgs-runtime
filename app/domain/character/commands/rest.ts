@@ -1,5 +1,5 @@
 import { getSTARegen, REST_AP_COST } from "../lenses/characteristics"
-import { CampaignCharacter, Character } from "../../types"
+import { CampaignCharacter } from "../../types"
 
 export function restCharacter(c: CampaignCharacter): CampaignCharacter
  {

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { deleteCharacter, saveCharacter, upsertBaseCharacter } from '../actions';
+import { deleteBaseCharacter, saveCharacter, upsertBaseCharacter } from '../actions';
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { useCharacterStore } from '../stores/useCharacterStore';
@@ -61,9 +61,9 @@ function DeleteCharacterButton(){
 
   const handleDeleteCharacterClick = async () => {
     if(!character) return
-    const res = await deleteCharacter(character.name)
+    const res = await deleteBaseCharacter(character.name)
     if(!res.ok){ toast.error(res.error); return }
-    toast.success('Character deleted.')
+    toast.success('Base character deleted.')
     updateBaseCharacterList()
     setShowConfirm(false)
   }

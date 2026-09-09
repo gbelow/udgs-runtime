@@ -4,29 +4,19 @@ import { getSize } from './misc'
 
 export const getSM = (c: Character): number => {
   const size = getSize(c)
-  if (size < 1 || size > SMArr.length) {
-    throw new Error(`Invalid character size: ${size}. Size must be between 0 and ${SMArr.length}.`)
-  }
   return SMArr[size-1]
 }
 
 export const getDM = (c: Character): number => {
   const size = getSize(c)
-  if (size < 1 || size > SMArr.length) {
-    throw new Error(`Invalid character size: ${size}. Size must be between 0 and ${SMArr.length}.`)
-  }
   return dmgArr[size-1]
 }
 
 
 export function scaleArmor(armor: Armor, scale: number): Armor {
-  // Validate scale is within bounds (1-7, where scale-1 maps to array indices 0-6)
+  // Sizes run 1-7; scale-1 is the row in the size tables.
   const clampedScale = Math.max(1, Math.min(7, scale))
   const scaleIndex = clampedScale - 1
-  
-  if (scaleIndex < 0 || scaleIndex >= dmgArr.length || scaleIndex >= SMArr.length) {
-    throw new Error(`Invalid scale value: ${scale}. Scale must be between 1 and ${dmgArr.length}.`)
-  }
 
   const arm = {
     ...armor,
@@ -40,13 +30,9 @@ export function scaleArmor(armor: Armor, scale: number): Armor {
 }
 
 export function scaleWeapon(weapon: Weapon, scale: number): Weapon {
-  // Validate scale is within bounds (1-7, where scale-1 maps to array indices 0-6)
+  // Sizes run 1-7; scale-1 is the row in the size tables.
   const clampedScale = Math.max(1, Math.min(7, scale))
   const scaleIndex = clampedScale - 1
-  
-  if (scaleIndex < 0 || scaleIndex >= dmgArr.length) {
-    throw new Error(`Invalid scale value: ${scale}. Scale must be between 1 and ${dmgArr.length}.`)
-  }
 
   const weap = {
     ...weapon,

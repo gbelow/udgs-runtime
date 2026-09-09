@@ -1,4 +1,4 @@
-import { Character, Characteristics, Lens, Movement, Senses, Skills, Trainable, Trainables } from "../../types";
+import { Character, Characteristics, Lens, Movement, Senses, Skills } from "../../types";
 import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConviction2, getDevotion, getDEX, getINT, getMelee, getRanged, getSorcery, getSPI, getSTA, getSTR, characteristicTermGetters } from "./characteristics";
 import { makeInvertingLens, makeTrainableValueLens } from "./factories";
 import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle } from "./magic";

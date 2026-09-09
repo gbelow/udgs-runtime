@@ -71,6 +71,22 @@ const eslintConfig = [
     },
   },
 
+  // Bindings that exist on purpose without being read: the rest-sibling omit
+  // idiom (`const { [key]: _removed, ...rest }`) and parameters held in place
+  // while the formula that used them is staged out. A leading underscore marks
+  // them as deliberate, so the rule keeps flagging the accidental ones.
+  {
+    files: ["app/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      }],
+    },
+  },
+
   // BreakMe is a stress-test harness, not UI: it mounts probes against the lens
   // registry and drives the store directly in order to measure the cost of a
   // mutation. Reaching into the domain is the point of the file.
