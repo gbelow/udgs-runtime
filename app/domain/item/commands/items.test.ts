@@ -5,71 +5,68 @@ import { ContainerSchema, ItemSchema } from '../../types'
 
 function characterWithBelt() {
   return makeCharacter({
-    containers: {
-      belt: ContainerSchema.parse({ name: 'Belt', numSlots: 4, slotBulk: 0 }),
-    },
+    containers: { belt: ContainerSchema.parse({ name: 'Belt', numSlots: 4, slotBulk: 1 }) },
   })
 }
 
-function coin(amount = 1) {
-  return ItemSchema.parse({ name: 'Coin', bulk: 0, amount })
-}
+const coin = (amount = 1) => ItemSchema.parse({ name: 'Coin', bulk: 0, amount })
 
+// An item is addressed by its id — it is how a stack is split, moved and
+// removed — so a copy must never share one with its original.
 describe('duplicateItem', () => {
-  it('gives the copy a new id but keeps the rest', () => {
+  it('changes the id and nothing else', () => {
     const original = coin(5)
     const copy = duplicateItem(original)
     expect(copy.id).not.toBe(original.id)
-    expect(copy.name).toBe('Coin')
-    expect(copy.amount).toBe(5)
+    expect({ ...copy, id: '' }).toEqual({ ...original, id: '' })
   })
 
-  it('applies overrides (e.g. splitting a stack)', () => {
-    const stack = coin(5)
-    const split = duplicateItem(stack, { amount: 2 })
+  it('applies overrides on top of the copy', () => {
+    const split = duplicateItem(coin(5), { amount: 2 })
     expect(split.amount).toBe(2)
-    expect(split.id).not.toBe(stack.id)
+  })
+
+  it('gives every copy its own id', () => {
+    const original = coin(5)
+    const ids = Array.from({ length: 25 }, () => duplicateItem(original).id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })
 
-describe('addItemToContainer', () => {
-  it('adds an item that fits', () => {
-    const c = characterWithBelt()
-    const item = coin(1)
-    const after = addItemToContainer('belt', item)(c)
-    expect(after.containers.belt.items).toHaveLength(1)
-    expect(after.containers.belt.items[0].id).toBe(item.id)
+describe('items go into a container and come back out', () => {
+  it('leaves the container as it found it', () => {
+    const before = characterWithBelt()
+    const item = coin()
+    const after = removeItemFromContainer('belt', item.id)(addItemToContainer('belt', item)(before))
+    expect(after.containers).toEqual(before.containers)
   })
 
-  it('throws when the container does not exist', () => {
-    const c = characterWithBelt()
-    expect(() => addItemToContainer('missing', coin())(c)).toThrow()
-  })
-
-  it('throws when the item does not fit', () => {
-    const c = characterWithBelt()
-    const tooBig = ItemSchema.parse({ name: 'Crate', bulk: 2 })
-    expect(() => addItemToContainer('belt', tooBig)(c)).toThrow()
-  })
-
-  it('does not mutate the input character', () => {
-    const c = characterWithBelt()
-    const before = c.containers.belt.items.length
-    addItemToContainer('belt', coin())(c)
-    expect(c.containers.belt.items.length).toBe(before)
+  it('removes only the item named', () => {
+    const kept = coin(1)
+    const dropped = coin(2)
+    const loaded = addItemToContainer('belt', dropped)(addItemToContainer('belt', kept)(characterWithBelt()))
+    const after = removeItemFromContainer('belt', dropped.id)(loaded)
+    expect(after.containers.belt.items.map((item) => item.id)).toEqual([kept.id])
   })
 })
 
-describe('removeItemFromContainer', () => {
-  it('removes an item by id', () => {
-    const c = characterWithBelt()
-    const item = coin(1)
-    const withItem = addItemToContainer('belt', item)(c)
-    const after = removeItemFromContainer('belt', item.id)(withItem)
-    expect(after.containers.belt.items).toHaveLength(0)
+// Either the item goes in or nothing happens: a container that does not exist,
+// or an item that does not fit, must not leave a half-loaded character behind.
+describe('adding is all or nothing', () => {
+  it('refuses a container that is not there', () => {
+    expect(() => addItemToContainer('missing', coin())(characterWithBelt())).toThrow()
   })
 
-  it('is a no-op when the container does not exist', () => {
+  it('refuses an item too bulky for the slots', () => {
+    expect(() => addItemToContainer('belt', ItemSchema.parse({ name: 'Crate', bulk: 3 }))(characterWithBelt())).toThrow()
+  })
+
+  it('refuses a stack that would overflow the container', () => {
+    const c = characterWithBelt()
+    expect(() => addItemToContainer('belt', ItemSchema.parse({ name: 'Bricks', bulk: 1, amount: 9 }))(c)).toThrow()
+  })
+
+  it('is the identity when removing from a container that is not there', () => {
     const c = characterWithBelt()
     expect(removeItemFromContainer('missing', 'x')(c)).toBe(c)
   })

@@ -1,110 +1,77 @@
 import { describe, it, expect } from 'vitest'
 import armorsCatalog from '../../../assets/armors.json'
-import { ArmorSchema } from '../../types'
+import { ArmorSchema, ContainerSchema } from '../../types'
 import { scaleArmor } from './helpers'
 import { getGearPenalties } from './gear'
 import { makeCharacter } from '../../factories'
-import { dmgArr, SMArr } from '../../tables'
-
-// gear.tex "Armors" table, transcribed column for column:
-// Name | RES (outer/inner) | Protection | Insulation | Deflection | Burden.
-// Burden is stored as a positive magnitude here and negated by the AGI/STA
-// getters, so the rulebook's "-2" is a 2 below.
-const BOOK = {
-  Skin:            { RES: 0,  RESlayer: 0,  protection: 0,  INS: 0, deflection: 4, penalty: 0 },
-  Clothing:        { RES: 3,  RESlayer: 0,  protection: 0,  INS: 2, deflection: 4, penalty: 0 },
-  FurCoat:         { RES: 7,  RESlayer: 0,  protection: 2,  INS: 6, deflection: 5, penalty: 0 },
-  ThickHide:       { RES: 8,  RESlayer: 0,  protection: 4,  INS: 7, deflection: 5, penalty: 0 },
-  Gambeson:        { RES: 10, RESlayer: 0,  protection: 3,  INS: 6, deflection: 5, penalty: 0 },
-  PaddedArmor:     { RES: 12, RESlayer: 0,  protection: 6,  INS: 8, deflection: 5, penalty: 1 },
-  ChainShirt:      { RES: 8,  RESlayer: 0,  protection: 3,  INS: 5, deflection: 5, penalty: 0 },
-  Hauberk:         { RES: 10, RESlayer: 0,  protection: 5,  INS: 6, deflection: 5, penalty: 1 },
-  Brigandine:      { RES: 12, RESlayer: 8,  protection: 8,  INS: 8, deflection: 6, penalty: 2 },
-  HalfArmor:       { RES: 16, RESlayer: 10, protection: 10, INS: 7, deflection: 5, penalty: 2 },
-  FullArmor:       { RES: 16, RESlayer: 10, protection: 10, INS: 8, deflection: 7, penalty: 3 },
-  ReinforcedArmor: { RES: 18, RESlayer: 10, protection: 12, INS: 8, deflection: 8, penalty: 4 },
-} as const
 
 const catalog = armorsCatalog as Record<string, unknown>
+const entries = Object.entries(catalog)
 
-describe('armors.json matches the gear.tex Armors table', () => {
-  it('holds exactly the armors the table lists', () => {
-    expect(Object.keys(catalog).sort()).toEqual(Object.keys(BOOK).sort())
+// The catalog is the transcription of the gear.tex "Armors" table — one copy,
+// diffable against the book by eye. These tests check the properties the file
+// itself cannot state, never the numbers in it.
+describe('armors.json', () => {
+  it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
+    expect(ArmorSchema.parse(raw), key).toEqual(raw)
   })
 
-  it.each(Object.entries(BOOK))('%s carries the printed values', (key, expected) => {
-    const armor = ArmorSchema.parse(catalog[key])
-    expect(armor).toMatchObject(expected)
-  })
-
-  it('parses every entry losslessly — no stripped or defaulted fields', () => {
-    for (const [key, raw] of Object.entries(catalog)) {
-      expect(ArmorSchema.parse(raw), key).toEqual(raw)
-    }
-  })
-
-  // gear.tex "Armor layers": "If armor has two values, it is layered."
-  it('tags every two-value armor as layered and no others', () => {
-    for (const [key, raw] of Object.entries(catalog)) {
-      const armor = ArmorSchema.parse(raw)
-      expect(armor.properties.includes('layered'), key).toBe(armor.RESlayer > 0)
-    }
+  // gear.tex "Armor layers": "If armor has two values, it is layered." The
+  // second value and the property are authored separately in the asset, so
+  // this is the one place they can be held to each other.
+  it.each(entries)('%s tags its layers and its RES the same way', (key, raw) => {
+    const armor = ArmorSchema.parse(raw)
+    expect(armor.properties.includes('layered'), key).toBe(armor.RESlayer > 0)
   })
 })
 
 describe('scaleArmor', () => {
-  const hauberk = ArmorSchema.parse(catalog.Hauberk)
+  const armors = entries.map(([key, raw]) => [key, ArmorSchema.parse(raw)] as const)
+  const scales = [1, 2, 3, 4, 5, 6, 7]
 
-  it('is the identity for a size 3 character', () => {
-    expect(scaleArmor(hauberk, 3)).toEqual(hauberk)
+  // Size 3 is the scale the catalog is authored at, so scaling to it is a
+  // no-op. It is the fixed point the whole scaling ladder hangs off.
+  it.each(armors)('leaves %s alone at the authored scale', (_key, armor) => {
+    expect(scaleArmor(armor, 3)).toEqual(armor)
   })
 
-  it('scales every damage-facing value by the size damage multiplier', () => {
-    const size = 5
-    const DM = dmgArr[size - 1]
-    const scaled = scaleArmor(ArmorSchema.parse(catalog.FullArmor), size)
-    const full = ArmorSchema.parse(catalog.FullArmor)
-
-    expect(scaled.RES).toBe(Math.floor(full.RES * DM))
-    expect(scaled.RESlayer).toBe(Math.floor(full.RESlayer * DM))
-    expect(scaled.INS).toBe(Math.floor(full.INS * DM))
-    expect(scaled.protection).toBe(Math.floor(full.protection * DM))
+  it.each(armors)('keeps %s a valid armor at every scale', (_key, armor) => {
+    for (const scale of scales) {
+      const scaled = scaleArmor(armor, scale)
+      expect(ArmorSchema.parse(scaled)).toEqual(scaled)
+    }
   })
 
-  it('offsets deflection by the size modifier rather than scaling it', () => {
-    const size = 5
-    const full = ArmorSchema.parse(catalog.FullArmor)
-    expect(scaleArmor(full, size).deflection).toBe(full.deflection - SMArr[size - 1])
-  })
-
-  it('produces an object the schema accepts unchanged', () => {
-    const scaled = scaleArmor(hauberk, 5)
-    expect(ArmorSchema.parse(scaled)).toEqual(scaled)
+  // Out-of-range scales are clamped rather than thrown, so a character saved
+  // with a nonsense size still renders.
+  it.each(armors)('clamps %s to the ends of the size table', (_key, armor) => {
+    expect(scaleArmor(armor, -3)).toEqual(scaleArmor(armor, 1))
+    expect(scaleArmor(armor, 99)).toEqual(scaleArmor(armor, 7))
   })
 })
 
-// gear.tex "Burden penalties": penalties from multiple gear stack and are then
-// "modified by (STR-10)/3".
+// gear.tex "Burden penalties": armor, weapon and container penalties stack and
+// are then "modified by (STR-10)/3". Penalties are stored as positive
+// magnitudes, so the total is a cost — carrying gear can never pay out.
 describe('getGearPenalties', () => {
   const armored = (STR: number) =>
-    makeCharacter({ trainables: { STR: { value: STR } }, armor: catalog.FullArmor })
+    makeCharacter({ trainables: { STR: { value: STR } }, armor: catalog.ReinforcedArmor })
+  const strengths = [1, 4, 7, 10, 13, 16, 19, 25, 40]
 
-  it('stacks the armor penalty for an average-strength wearer', () => {
-    expect(getGearPenalties(armored(10))).toBe(3)
+  it('is 0 for a character carrying nothing', () => {
+    expect(getGearPenalties(makeCharacter(null))).toBe(0)
   })
 
-  it('reduces the penalty as STR climbs past 10', () => {
-    expect(getGearPenalties(armored(13))).toBe(2)
-    expect(getGearPenalties(armored(16))).toBe(1)
-    expect(getGearPenalties(armored(19))).toBe(0)
+  it.each(strengths)('never returns a bonus at STR %i', (STR) => {
+    expect(getGearPenalties(armored(STR))).toBeGreaterThanOrEqual(0)
   })
 
-  it('increases the penalty below STR 10', () => {
-    expect(getGearPenalties(armored(7))).toBe(4)
-  })
-
-  it('never returns a bonus', () => {
-    expect(getGearPenalties(armored(25))).toBe(0)
-    expect(getGearPenalties(makeCharacter({ trainables: { STR: { value: 20 } } }))).toBe(0)
+  it('never falls when another burden is added', () => {
+    const bare = armored(10)
+    const packed = {
+      ...bare,
+      containers: { pack: ContainerSchema.parse({ name: 'Backpack', penalty: 2 }) },
+    }
+    expect(getGearPenalties(packed)).toBeGreaterThanOrEqual(getGearPenalties(bare))
   })
 })

@@ -1,62 +1,75 @@
 import { describe, it, expect } from 'vitest'
 import { equipContainer, unequipContainer } from './containers'
 import { makeCharacter } from '../../factories'
-import { ContainerSchema } from '../../types'
+import { ContainerKindSchema, ContainerSchema } from '../../types'
+import type { Character, ContainerKind } from '../../types'
 
+const kinds = ContainerKindSchema.options
+const container = (name: string, kind: ContainerKind) => ContainerSchema.parse({ name, kind })
+
+function carrying(): Character {
+  return {
+    ...makeCharacter(null),
+    containers: {
+      belt: container('Belt', 'belt'),
+      pack: container('Backpack', 'backpack'),
+      sled: container('Sled', 'transport'),
+      cart: container('Cart', 'transport'),
+    },
+  }
+}
+
+const countOf = (c: Character, kind: ContainerKind) =>
+  Object.values(c.containers).filter((container) => container.kind === kind).length
+
+// "Only one belt and one backpack at a time" — a body has one waist and one
+// back. Transports are pulled rather than worn, so nothing limits them. The
+// rule is stated over kinds, so it is checked over kinds.
 describe('equipContainer', () => {
-  it('equips a container under the given key', () => {
-    const c = makeCharacter({})
-    const belt = ContainerSchema.parse({ name: 'Belt', kind: 'belt' })
-    const after = equipContainer('belt', belt)(c)
-    expect(after.containers.belt.name).toBe('Belt')
+  it.each(kinds)('equipping a %s leaves at most one belt and one backpack', (kind) => {
+    const after = equipContainer('new', container('New', kind))(carrying())
+    expect(countOf(after, 'belt')).toBeLessThanOrEqual(1)
+    expect(countOf(after, 'backpack')).toBeLessThanOrEqual(1)
+    expect(after.containers.new.name).toBe('New')
   })
 
-  it('replaces any other entry already of the same kind (backpack)', () => {
-    const c = makeCharacter({
-      containers: {
-        oldPack: ContainerSchema.parse({ name: 'Backpack', kind: 'backpack' }),
-      },
-    })
-    const largeBackpack = ContainerSchema.parse({ name: 'Large Backpack', kind: 'backpack' })
-    const after = equipContainer('newPack', largeBackpack)(c)
-    expect(after.containers.oldPack).toBeUndefined()
-    expect(after.containers.newPack.name).toBe('Large Backpack')
+  it.each(kinds)('equipping a %s keeps every container of another kind', (kind) => {
+    const before = carrying()
+    const after = equipContainer('new', container('New', kind))(before)
+    for (const other of kinds) {
+      if (other === kind) continue
+      expect(countOf(after, other)).toBe(countOf(before, other))
+    }
   })
 
-  it('leaves unrelated containers (e.g. a belt) alone when swapping a backpack', () => {
-    const c = makeCharacter({
-      containers: {
-        belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt' }),
-        oldPack: ContainerSchema.parse({ name: 'Backpack', kind: 'backpack' }),
-      },
-    })
-    const after = equipContainer('newPack', ContainerSchema.parse({ name: 'Large Backpack', kind: 'backpack' }))(c)
-    expect(after.containers.belt).toBeDefined()
+  it('does not limit how many transports are hauled', () => {
+    const after = equipContainer('barrow', container('Wheelbarrow', 'transport'))(carrying())
+    expect(countOf(after, 'transport')).toBe(3)
   })
 
-  it('does not enforce a singleton for transports', () => {
-    const c = makeCharacter({
-      containers: {
-        sled: ContainerSchema.parse({ name: 'Sled', kind: 'transport' }),
-      },
-    })
-    const after = equipContainer('cart', ContainerSchema.parse({ name: 'One-Horse Cart', kind: 'transport' }))(c)
-    expect(after.containers.sled).toBeDefined()
-    expect(after.containers.cart).toBeDefined()
+  it('replaces whatever sat under the same key', () => {
+    const after = equipContainer('belt', container('Wide Belt', 'belt'))(carrying())
+    expect(after.containers.belt.name).toBe('Wide Belt')
   })
 })
 
 describe('unequipContainer', () => {
-  it('removes the container at the given key', () => {
-    const c = makeCharacter({
-      containers: { belt: ContainerSchema.parse({ name: 'Belt' }) },
-    })
-    const after = unequipContainer('belt')(c)
-    expect(after.containers.belt).toBeUndefined()
+  // Only from a character not already wearing that kind: equipping a belt or a
+  // backpack evicts the one it replaces, and unequipping cannot bring it back.
+  it.each(kinds)('undoes equipping a %s', (kind) => {
+    const before = makeCharacter(null)
+    const after = unequipContainer('new')(equipContainer('new', container('New', kind))(before))
+    expect(after.containers).toEqual(before.containers)
   })
 
-  it('is a no-op when the key does not exist', () => {
-    const c = makeCharacter({})
+  it('is the identity for a key nothing is under', () => {
+    const c = carrying()
     expect(unequipContainer('missing')(c)).toBe(c)
+  })
+
+  it('removes only the key it names', () => {
+    const before = carrying()
+    const after = unequipContainer('belt')(before)
+    expect(Object.keys(after.containers)).toEqual(Object.keys(before.containers).filter((key) => key !== 'belt'))
   })
 })

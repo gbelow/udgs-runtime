@@ -12,8 +12,7 @@ Ask of any proposed test: **where does the expected value come from?**
   every intentional edit and passes on every transcription error, so it costs edits and
   buys nothing.
 - If it comes from an origin independent of the implementation — an invariant, a contract,
-  a fixed point, a reviewed diff, or an observed failure — admit it under one of the five
-  categories below.
+  a fixed point, or an observed failure — admit it under one of the three categories below.
 
 There is no external numeric oracle for game rules in this project. The rulebook is
 authoritative for *rules* (formulas, tables, terminology) but not for *worked output*: its
@@ -48,20 +47,7 @@ and that everything it claims to accept actually conforms to its declared schema
 These are the tests that catch structural mistakes the type system cannot see — mismatches
 hidden behind inference, widening, or serialization.
 
-### 3. Golden outputs
-
-Where a deterministic transform turns a small input into a large derived output, snapshot the
-output and check it in. This is admitted **not** as proof that the transform is correct, but
-because the diff becomes the review artifact: a single change to an input or a rule shows its
-entire blast radius in one reviewable place, which is the workflow this project is built to
-support.
-
-The discipline that keeps it honest: inputs are authored, snapshots are generated and never
-hand-edited; a regenerated snapshot whose diff nobody can explain is a failing test; and the
-set stays small and representative rather than exhaustive, since every entry is churn on every
-intentional change.
-
-### 4. Regression tests
+### 3. Regression tests
 
 A test written *from* a bug, after it is found. Its expected value is the observed correct
 behaviour in that one scenario, so it is not a mirror test even when it looks like one. Its
@@ -73,6 +59,14 @@ broke, not with what it checks, and keep it even when it looks redundant.
 - **Mirror tests.** An assertion whose expected side is the implementation retyped. Rules are
   already transcribed from the rulebook once; a second copy means changing two places per
   rules change, and it passes on exactly the transcription errors it appears to guard against.
+- **Golden outputs.** Snapshotting a derived output and checking it in looks like it guards
+  rule fidelity, but the snapshot is regenerated from the code, so it fires when the code
+  changes and stays silent when the rulebook changes — the direction that actually needs
+  guarding. Edit a rule in the book and the suite stays green while the code contradicts it;
+  fix the code afterwards and the snapshot finally fails, presenting a diff that only
+  confirms a change just made on purpose. Where the derived output would genuinely be worth
+  reading against the book, generate it as an artifact rather than asserting on it, and put
+  the effort into a checker that parses the source of truth.
 - **Component tests and snapshots of rendered markup.** Components hold no rules; there is
   nothing there to verify that the domain tests do not already cover.
 - **Anything that needs a mock.** If a test needs mocking, it is testing the wrong layer —

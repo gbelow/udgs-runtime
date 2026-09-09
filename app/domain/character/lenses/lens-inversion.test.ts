@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { skillLenses, characteristicLenses, movementLenses } from './index'
-import { makeCharacter } from '../../factories'
-import type { Characteristics, Movement, Skills } from '../../types'
+import {
+  skillLenses, characteristicLenses, movementLenses, senseLenses, miscLenses,
+  skillTermGetters, characteristicTermGetters, sumTerms,
+} from './index'
+import { makeCampaignCharacter, makeCharacter } from '../../factories'
+import type { CampaignCharacter, Character, Characteristics, Movement, Senses, Skills } from '../../types'
 
 // The core architectural promise of the domain layer: a lens `set(c, v)` writes
 // through the modifiers to the stored *base* so that reading the same lens back
@@ -75,6 +78,77 @@ describe('lens inversion — movement', () => {
     (name) => {
       const lens = movementLenses[name]
       expect(lens.get(lens.set(subject(), TARGET))).toBe(TARGET)
+    },
+  )
+})
+
+describe('lens inversion — misc', () => {
+  it.each(Object.keys(miscLenses) as (keyof typeof miscLenses)[])(
+    'set → get round-trips for "%s"',
+    (name) => {
+      const lens = miscLenses[name]
+      expect(lens.get(lens.set(subject(), TARGET))).toBe(TARGET)
+    },
+  )
+})
+
+describe('lens inversion — senses', () => {
+  const senses = Object.keys(senseLenses) as (keyof Senses)[]
+
+  it.each(senses)('the numeric lenses of "%s" round-trip', (sense) => {
+    for (const field of ['rangePenalty', 'bonus'] as const) {
+      const lens = senseLenses[sense][field]
+      expect(lens.get(lens.set(subject(), TARGET))).toBe(TARGET)
+    }
+  })
+
+  it.each(senses)('the boolean lenses of "%s" round-trip both ways', (sense) => {
+    for (const field of ['active', 'hasSense'] as const) {
+      const lens = senseLenses[sense][field]
+      for (const value of [true, false]) {
+        expect(lens.get(lens.set(subject(), value))).toBe(value)
+      }
+    }
+  })
+})
+
+// The other half of the same promise: every derived value is the sum of the
+// terms the sheet shows as its breakdown, so the tooltip and the number can
+// never drift apart. Held against a subject carrying modifiers from every
+// direction — size, gear, injury and afflictions — so a term that is silently
+// dropped shows up as a difference.
+function afflicted(): CampaignCharacter {
+  const base = makeCampaignCharacter({})
+  return {
+    ...base,
+    trainables: subject().trainables,
+    size: 5,
+    hasHelm: 1,
+    hasGauntlets: 1,
+    afflictions: ['disoriented', 'confused'],
+    injuries: { ...base.injuries, injuryLevel: 25 },
+  }
+}
+
+describe('breakdown terms sum to the derived value', () => {
+  const subjects: [string, Character][] = [['base', subject()], ['afflicted', afflicted()]]
+
+  it('has a breakdown for every skill', () => {
+    expect(Object.keys(skillTermGetters).sort()).toEqual(Object.keys(skillLenses).sort())
+  })
+
+  it.each(Object.keys(skillLenses) as (keyof Skills)[])('"%s" agrees with its terms', (skill) => {
+    for (const [, c] of subjects) {
+      expect(sumTerms(skillTermGetters[skill](c))).toBe(skillLenses[skill].get(c))
+    }
+  })
+
+  it.each(Object.keys(characteristicTermGetters) as (keyof Characteristics)[])(
+    '"%s" agrees with its terms',
+    (name) => {
+      for (const [, c] of subjects) {
+        expect(sumTerms(characteristicTermGetters[name]!(c))).toBe(characteristicLenses[name].get(c))
+      }
     },
   )
 })

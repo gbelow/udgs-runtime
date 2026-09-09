@@ -1,56 +1,144 @@
 import { describe, it, expect } from 'vitest'
 import { makeCharacter, makeCampaignCharacter } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
+import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, WeaponSchema } from './types'
+import weaponsCatalog from '../assets/weapons.json'
+import armorsCatalog from '../assets/armors.json'
 
-describe('makeCharacter — defaults & discrimination', () => {
-  it('returns a fully-defaulted base character for null input', () => {
-    const c = makeCharacter(null)
-    expect(isBaseCharacter(c)).toBe(true)
-    expect(c.type).toBe('base')
-    expect(c.trainables.STR.value).toBe(10) // schema default
-    expect(c.size).toBe(3)
+// Ingestion is the domain's only door to the outside — saved JSON files, Redis
+// documents, hand-edited assets — so what matters is that it is total, that it
+// keeps nothing it cannot vouch for, and that a character survives the trip
+// through the format it is stored in.
+
+// `unvalidated` marks an input the ingest is known to let through in a shape
+// its own schema rejects. Kept in the list rather than dropped from it.
+const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
+  { label: 'null', raw: null },
+  { label: 'undefined', raw: undefined },
+  { label: 'a number', raw: 42 },
+  { label: 'a string', raw: 'not a character' },
+  { label: 'a boolean', raw: true },
+  { label: 'an array', raw: [] },
+  { label: 'an empty object', raw: {} },
+  { label: 'a wrongly-typed name', raw: { name: 42 } },
+  { label: 'a wrongly-typed size', raw: { size: 'big' } },
+  { label: 'trainables that are not a map', raw: { trainables: 'nope' } },
+  // trainables are ingested as `z.any()` and deep-merged raw, so a non-object
+  // trainable reaches the character unchecked.
+  { label: 'a wrongly-typed trainable', raw: { trainables: { STR: 'strong', bogus: { value: 1 } } }, unvalidated: true },
+  { label: 'a null armor', raw: { armor: null } },
+  { label: 'containers that are not a map', raw: { containers: 3 } },
+  { label: 'a malformed weapon', raw: { weapons: { Sword: { attacks: 'many' } } } },
+  // knowledges are ingested the same way, with the same hole.
+  { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
+  { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
+  { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },
+]
+
+const populated = () =>
+  makeCharacter({
+    name: 'Ana',
+    tags: ['party', 'front line'],
+    size: 4,
+    TGH: 2,
+    notes: 'kept',
+    trainables: { STR: { value: 15 }, strike: { value: 4 } },
+    armor: (armorsCatalog as Record<string, unknown>).Hauberk,
+    weapons: { Dagger: WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger) },
+    containers: {
+      belt: ContainerSchema.parse({
+        name: 'Belt',
+        numSlots: 4,
+        slotBulk: 1,
+        items: [ItemSchema.parse({ name: 'Coin', amount: 5 })],
+      }),
+    },
   })
 
-  it('ingests matching fields and fills the rest with defaults', () => {
-    const c = makeCharacter({ name: 'Ana', trainables: { STR: { value: 15 }, strike: { value: 4 } } })
-    expect(c.name).toBe('Ana')
-    expect(c.trainables.STR.value).toBe(15)
-    expect(c.trainables.AGI.value).toBe(10) // untouched -> default
-    expect(c.trainables.strike.value).toBe(4)
-    expect(c.trainables.defend.value).toBe(0) // untouched -> default
-  })
+describe('ingestion is total', () => {
+  for (const { label, raw, unvalidated } of HOSTILE) {
+    const run = unvalidated ? it.fails : it
 
-  it('strips unknown top-level keys', () => {
-    const c = makeCharacter({ name: 'Ana', bogusField: 'nope' })
-    expect((c as Record<string, unknown>).bogusField).toBeUndefined()
-  })
-
-  it('strips unknown keys inside strict sub-schemas (armor)', () => {
-    const c = makeCharacter({ armor: { name: 'Plate', RES: 5, madeUp: 'x' } })
-    expect(c.armor.name).toBe('Plate')
-    expect(c.armor.RES).toBe(5)
-    expect((c.armor as Record<string, unknown>).madeUp).toBeUndefined()
-  })
-
-  it('parses ingested containers/items through their schemas, generating item ids', () => {
-    const c = makeCharacter({
-      containers: {
-        belt: { name: 'Belt', numSlots: 4, slotBulk: 0, items: [{ name: 'Coin', amount: 5 }] },
-      },
+    run(`${label} yields a valid base character`, () => {
+      const c = makeCharacter(raw)
+      expect(isBaseCharacter(c)).toBe(true)
+      expect(BaseCharacterSchema.parse(c)).toEqual(c)
     })
-    expect(c.containers.belt.name).toBe('Belt')
-    expect(c.containers.belt.items[0].id).toBeTruthy()
-    expect(c.containers.belt.items[0].amount).toBe(5)
+
+    run(`${label} yields a valid campaign character`, () => {
+      const c = makeCampaignCharacter(raw)
+      expect(isCampaignCharacter(c)).toBe(true)
+      expect(CampaignCharacterSchema.parse(c)).toEqual(c)
+    })
+  }
+})
+
+describe('makeCharacter defaults to its schema', () => {
+  // The empty character is the schema's own defaults and nothing else, so the
+  // defaults live in one place rather than being restated here.
+  it('fills an unreadable input with exactly the schema defaults', () => {
+    const c = makeCharacter(null)
+    expect({ ...c, id: '' }).toEqual({ ...BaseCharacterSchema.parse({}), id: '' })
+  })
+
+  it('keeps what it recognizes and defaults the rest', () => {
+    const c = makeCharacter({ name: 'Ana', trainables: { strike: { value: 4 } } })
+    const empty = makeCharacter(null)
+    expect(c.name).toBe('Ana')
+    expect(c.trainables.strike.value).toBe(4)
+    expect({ ...c.trainables, strike: null }).toEqual({ ...empty.trainables, strike: null })
+  })
+
+  it('keeps nothing it cannot vouch for', () => {
+    const c = makeCharacter({ name: 'Ana', bogusField: 'nope', armor: { name: 'Plate', RES: 5, madeUp: 'x' } })
+    expect((c as Record<string, unknown>).bogusField).toBeUndefined()
+    expect((c.armor as Record<string, unknown>).madeUp).toBeUndefined()
+    expect(c.armor.name).toBe('Plate')
   })
 })
 
-describe('makeCampaignCharacter', () => {
-  it('produces a campaign character with combat state present', () => {
-    const c = makeCampaignCharacter({})
-    expect(isCampaignCharacter(c)).toBe(true)
-    expect(c.type).toBe('campaign')
-    expect(Array.isArray(c.afflictions)).toBe(true)
-    expect(c.injuries).toBeDefined()
-    expect(c.resources.AP).toBe(6) // default action points
+describe('ingestion settles in one pass', () => {
+  it.each(HOSTILE.map((c) => [c.label, c.raw] as const))('%s settles in one pass', (_label, raw) => {
+    const once = makeCharacter(raw)
+    expect(makeCharacter(once)).toEqual(once)
+  })
+
+  it('is idempotent on a populated character', () => {
+    const c = populated()
+    expect(makeCharacter(c)).toEqual(c)
+  })
+
+  it('is idempotent for campaign characters', () => {
+    const c = makeCampaignCharacter({ ...populated(), type: 'campaign' })
+    expect(makeCampaignCharacter(c)).toEqual(c)
+  })
+})
+
+// Base characters are stored as JSON files and campaign characters in Redis,
+// so JSON is the shape every character has to survive being written in.
+describe('a character survives its storage format', () => {
+  it('round-trips a populated base character through JSON', () => {
+    const c = populated()
+    expect(makeCharacter(JSON.parse(JSON.stringify(c)))).toEqual(c)
+  })
+
+  it('round-trips a campaign character through JSON', () => {
+    const c = makeCampaignCharacter({
+      ...populated(),
+      type: 'campaign',
+      afflictions: ['prone'],
+      resources: { AP: 4, STA: 8, hunger: 3, thirst: 2, exhaustion: 1 },
+      injuries: { injuryLevel: 12, wounds: [], hemorrhage: 2, potion: 0, injuryThreshold: 10, unconsciousThreshold: 40, deathThreshold: 50 },
+    })
+    expect(makeCampaignCharacter(JSON.parse(JSON.stringify(c)))).toEqual(c)
+  })
+
+  it('gives every ingested item an id to be addressed by', () => {
+    const c = makeCharacter({
+      containers: { belt: { name: 'Belt', numSlots: 4, slotBulk: 0, items: [{ name: 'Coin', amount: 5 }] } },
+    })
+    const [item] = c.containers.belt.items
+    expect(item.id).toBeTruthy()
+    expect(item.amount).toBe(5)
   })
 })
