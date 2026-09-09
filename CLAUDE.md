@@ -68,6 +68,14 @@ Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where 
 - On Windows, avoid chained `cmd /c dir && type`; use single commands to reduce process-spawn overhead.
 - Don't leave comments describing the diff or the reasoning behind a change — that belongs in the commit message, not the file
 
+## Testing culture
+
+`instructions/testing.md` governs every test in this repo — what gets written, what gets
+rejected, and the conventions around both. Apply it before writing, proposing, or reviewing
+a test.
+
+@instructions/testing.md
+
 ## The rulebook (authoritative source for game rules)
 
 The tabletop rules this app implements live in a **separate LaTeX repo**: `C:/Users/Administrator/code/RPG_Below_v7_en` (registered as an additional working directory in `.claude/settings.local.json`, and **read-only** — writes to it are denied; its own `CLAUDE.md` forbids AI editing of the `.tex` text).
