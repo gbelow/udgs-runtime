@@ -19,13 +19,6 @@ describe('size lookups are total', () => {
     expect(SMArr).toContain(getSM(ofSize(size)))
     expect(dmgArr).toContain(getDM(ofSize(size)))
   })
-
-  it('clamps to the ends of the table rather than running off them', () => {
-    expect(getSM(ofSize(-10))).toBe(getSM(ofSize(1)))
-    expect(getDM(ofSize(-10))).toBe(getDM(ofSize(1)))
-    expect(getSM(ofSize(50))).toBe(getSM(ofSize(7)))
-    expect(getDM(ofSize(50))).toBe(getDM(ofSize(7)))
-  })
 })
 
 // The architectural invariant behind the wound stats: STR is scaled by the

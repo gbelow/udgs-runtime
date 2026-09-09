@@ -23,11 +23,16 @@ const skillKeys = Object.keys(skillLenses) as (keyof Skills)[]
 const movementKeys = Object.keys(movementLenses) as (keyof Movement)[]
 
 describe('getAfflictionPenalty is total', () => {
-  // A base character carries no afflictions at all, so every skill reads clean.
-  it.each(skillKeys)('is 0 on a base character for "%s"', (skill) => {
+  // Afflictions live only on the campaign arm of the union, so this getter has
+  // to answer for a base character rather than reaching for a field that is
+  // not there — the types cannot see the difference.
+  it.each(skillKeys)('answers for a base character on "%s"', (skill) => {
     expect(getAfflictionPenalty(makeCharacter({ trainables: { STR: { value: 12 } } }), skill)).toBe(0)
   })
 
+  // Penalties are stored and reported as positive magnitudes throughout the
+  // domain, so a penalty getter that returns a bonus is a defect rather than a
+  // sign convention.
   it.each(skillKeys)('never returns a bonus for "%s"', (skill) => {
     expect(getAfflictionPenalty(campaign({ afflictions: afflictionKeys }), skill)).toBeGreaterThanOrEqual(0)
   })

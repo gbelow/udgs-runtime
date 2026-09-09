@@ -35,6 +35,14 @@ Express it as a loop over whatever declares the family, so that a member added l
 the check without anyone remembering to write a test. This is the highest-value category and
 the one to reach for first: it is the only kind of test that covers code not yet written.
 
+An invariant is admissible only if somebody authored it. Ask **who decided this had to be
+true?** A legitimate answer names the rulebook, an architectural promise the project makes
+elsewhere, or a stated convention. A property that was read off the implementation has no
+author: nobody decided it, it is only what the code currently does, so its expected value
+originates in the code under test and the gate rejects it however it is phrased. Naming it
+after an algebraic law does not give it an author, and neither does looping it over a
+registry — that restates the same code once per member.
+
 ### 2. Shape and contract
 
 Assert what must be true of the *form* of a value crossing a boundary, never its content.
@@ -46,6 +54,14 @@ and that everything it claims to accept actually conforms to its declared schema
 
 These are the tests that catch structural mistakes the type system cannot see — mismatches
 hidden behind inference, widening, or serialization.
+
+The boundary is the whole justification for this category, not incidental phrasing. It
+admits a test only where a value genuinely changes representation: parsed from an untyped
+source, serialized to storage or the wire, or handed across a layer that cannot see the
+type. Between two points inside a pure, statically typed layer nothing crosses, the compiler
+already holds the form, and the same assertions become observations wearing a contract's
+vocabulary. Wanting the property for a downstream consumer's benefit does not relocate the
+boundary either — the claim belongs to the layer that actually depends on it.
 
 ### 3. Regression tests
 
@@ -67,6 +83,17 @@ broke, not with what it checks, and keep it even when it looks redundant.
   confirms a change just made on purpose. Where the derived output would genuinely be worth
   reading against the book, generate it as an artifact rather than asserting on it, and put
   the effort into a checker that parses the source of truth.
+- **Properties read off the implementation.** An assertion that a function is idempotent, an
+  involution, additive, monotonic or bounded, when that property follows from the arithmetic
+  or the language semantics of the code as written. It is true, and it is a mirror test: it
+  fires on every deliberate change and stays silent on every wrong one. The tell is that the
+  property can be derived by reading the function and could not have been predicted without
+  it.
+- **Tests of what a type already guarantees.** Before writing a test that a registry is
+  complete, a set of keys agrees with another, or a value has the declared shape, check
+  whether an annotation already makes the failure impossible to compile. Where one does, the
+  test is dead weight from the day it is written; where none does, prefer adding the
+  annotation to adding the test.
 - **Component tests and snapshots of rendered markup.** Components hold no rules; there is
   nothing there to verify that the domain tests do not already cover.
 - **Anything that needs a mock.** If a test needs mocking, it is testing the wrong layer —
@@ -98,3 +125,11 @@ actually demands it, and write the rule from that case.
 - Prefer making a bug unrepresentable over testing for it. A branded id type or an explicit
   return annotation costs nothing to maintain; a test watching for the same mistake costs an
   edit forever. Reach for a test when the type system genuinely cannot see the failure.
+- When a type is tightened so that an existing test can no longer fail, delete the test in
+  the same change. Coverage that a compiler already provides is not kept for reassurance.
+- Where a function accepts only part of a union, its signature is what says so. Drive a
+  registry-wide check off the declared parameter type rather than a hand-maintained list of
+  exceptions, so that misfiling a case fails to compile instead of silently skipping it.
+- No test needs a comment arguing that it deserves to exist. If one is being written, that is
+  evidence the test does not pass the gate — the honest move is to delete the test, not to
+  improve the argument.

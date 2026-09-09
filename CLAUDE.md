@@ -74,6 +74,35 @@ Thin, declarative, Tailwind-only (no CSS files), React 19, `'use client'` where 
 rejected, and the conventions around both. Apply it before writing, proposing, or reviewing
 a test.
 
+The suite exists to guard the promises the domain layer makes, not to cover its surface. A
+test file organized one `describe` per exported function is the tell that it was written from
+an export list rather than from a promise. Those promises are:
+
+- **Commands are pure updaters.** `(subject) => subject`, with the subject handed in coming
+  back untouched — the property the whole state layer's reference comparison rests on
+  (`domain/command-purity.test.ts`).
+- **Commands are total over the arm they declare.** A command applied to a character of the
+  type its own signature accepts returns something that still parses against its schema.
+  Which arm of the `Character` union a command accepts is said by its parameter type, so the
+  compiler classifies it; a hand-written list of exceptions would only restate the signatures.
+- **Lenses invert.** `set(c, v)` writes through the modifiers to the stored base so that
+  reading the same lens back returns `v` (`lenses/lens-inversion.test.ts`). Getters that
+  cannot invert are documented in place, never filtered out.
+- **Getters are total over both arms of the union.** `injuries`, `afflictions` and
+  `resources` exist only on `CampaignCharacter`; a getter reaching for one against a base
+  character does not throw, it yields `NaN` through every lens that composes it. The types
+  cannot see this, which is what makes it worth a test.
+- **Ingestion is total and lossless where it claims to be.** Any input, including hostile
+  input, yields a schema-valid character or nothing, and a character survives the round trip
+  through the format it is stored in (`domain/factories.test.ts`).
+- **Shipped data conforms.** Hand-edited catalogs and character files parse against their
+  schemas with nothing silently dropped, so a typo in an asset is distinguishable from a rule
+  this codebase has not implemented (`lenses/armor.test.ts`, `domain/weaponProperties.test.ts`).
+
+Registry completeness is held by the type annotations on the registries themselves
+(`Record<keyof Skills, …>` and friends), not by tests — see the unrepresentability rule in
+`instructions/testing.md`. Add the annotation when a new registry appears.
+
 @instructions/testing.md
 
 ## The rulebook (authoritative source for game rules)

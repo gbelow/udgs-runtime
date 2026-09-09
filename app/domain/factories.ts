@@ -1,8 +1,25 @@
 import z, { size } from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, WeaponSchema, ContainerSchema, BaseCharacter, SurgeKindSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, WeaponSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
 import { knowledgesLens } from './character/lenses/knowledge'
+
+// A trainable's `name` and `type` are authored by the schema group it belongs to,
+// never by the incoming data: an ingested trainable supplies a value, not an
+// identity. Merging per field rather than per trainable also keeps a partial
+// entry from dropping the fields it does not mention.
+function mergeTrainables(
+  defaults: Trainables,
+  incoming: Record<string, unknown> | undefined,
+): Trainables {
+  if (!incoming) return defaults
+  const entries = Object.entries(defaults).map(([key, base]) => {
+    const raw = incoming[key]
+    if (raw === null || typeof raw !== 'object') return [key, base]
+    return [key, { ...base, ...raw, type: base.type }]
+  })
+  return Object.fromEntries(entries) as Trainables
+}
 
 function addBaseValues(emptyCharacter: BaseCharacter, parsedCharacter: CharacterIngestType): BaseCharacter
 function addBaseValues(emptyCharacter: CampaignCharacter, parsedCharacter: CampaignCharacterIngestType): CampaignCharacter
@@ -13,10 +30,7 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
     ...parsedCharacter,
     
     // deep merge the important nested objects
-    trainables: {
-      ...emptyCharacter.trainables,
-      ...parsedCharacter.trainables,
-    },
+    trainables: mergeTrainables(emptyCharacter.trainables, parsedCharacter.trainables),
     movement: {
       ...emptyCharacter.movement,
       ...parsedCharacter.movement,

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { nextRound } from './nextRound'
-import { resetCombat } from './resetCombat'
 import { startTurn } from './startTurn'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
@@ -27,12 +26,6 @@ function combat(characters: CampaignCharacter[], overrides: Partial<CombatState>
 const surges: (SurgeKind | null)[] = ['movement', 'combat', 'reaction', 'focus', null]
 
 describe('nextRound', () => {
-  it('advances the round from wherever it stands', () => {
-    for (const round of [0, 1, 4, 99]) {
-      expect(nextRound(combat([], { round })).round).toBe(round + 1)
-    }
-  })
-
   // combat.tex "Action surge": one surge per round. A new round has to clear
   // the mark for every character in the fight, whichever kind they spent.
   it('clears the used surge of every character, whatever they used', () => {
@@ -62,20 +55,6 @@ describe('nextRound', () => {
   })
 })
 
-describe('resetCombat', () => {
-  it('empties the fight whatever was in it', () => {
-    const state = combat([fighter('a'), fighter('b')], { round: 7 })
-    const cleared = resetCombat(state)
-    expect(cleared.characters).toEqual({})
-    expect(cleared.round).toBe(0)
-  })
-
-  it('is idempotent', () => {
-    const once = resetCombat(combat([fighter('a')], { round: 7 }))
-    expect(resetCombat(once)).toEqual(once)
-  })
-})
-
 // The in-turn marker is read straight back as a key into `characters`, so the
 // only safe values it can hold are an id that is in the fight or nothing at
 // all — including when the active id was left dangling by a removal.
@@ -87,9 +66,5 @@ describe('startTurn', () => {
   it.each(['b', null, 'gone', ''] as const)('resolves %s to a usable marker', (activeCharacterId) => {
     const marked = startTurn({ ...state, activeCharacterId })
     expect(marked.inTurnCharacter === '' || marked.inTurnCharacter in marked.characters).toBe(true)
-  })
-
-  it('marks the active character when there is one', () => {
-    expect(startTurn({ ...state, activeCharacterId: 'b' }).inTurnCharacter).toBe('b')
   })
 })

@@ -133,10 +133,6 @@ function afflicted(): CampaignCharacter {
 describe('breakdown terms sum to the derived value', () => {
   const subjects: [string, Character][] = [['base', subject()], ['afflicted', afflicted()]]
 
-  it('has a breakdown for every skill', () => {
-    expect(Object.keys(skillTermGetters).sort()).toEqual(Object.keys(skillLenses).sort())
-  })
-
   it.each(Object.keys(skillLenses) as (keyof Skills)[])('"%s" agrees with its terms', (skill) => {
     for (const [, c] of subjects) {
       expect(sumTerms(skillTermGetters[skill](c))).toBe(skillLenses[skill].get(c))

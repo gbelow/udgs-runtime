@@ -23,13 +23,12 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a wrongly-typed name', raw: { name: 42 } },
   { label: 'a wrongly-typed size', raw: { size: 'big' } },
   { label: 'trainables that are not a map', raw: { trainables: 'nope' } },
-  // trainables are ingested as `z.any()` and deep-merged raw, so a non-object
-  // trainable reaches the character unchecked.
-  { label: 'a wrongly-typed trainable', raw: { trainables: { STR: 'strong', bogus: { value: 1 } } }, unvalidated: true },
+  { label: 'a wrongly-typed trainable', raw: { trainables: { STR: 'strong', bogus: { value: 1 } } } },
   { label: 'a null armor', raw: { armor: null } },
   { label: 'containers that are not a map', raw: { containers: 3 } },
   { label: 'a malformed weapon', raw: { weapons: { Sword: { attacks: 'many' } } } },
-  // knowledges are ingested the same way, with the same hole.
+  // knowledges are ingested as `z.any()` into an open record and merged raw, so
+  // a malformed entry still reaches the character unchecked.
   { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
   { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
   { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },

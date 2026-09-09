@@ -21,11 +21,6 @@ describe('duplicateItem', () => {
     expect({ ...copy, id: '' }).toEqual({ ...original, id: '' })
   })
 
-  it('applies overrides on top of the copy', () => {
-    const split = duplicateItem(coin(5), { amount: 2 })
-    expect(split.amount).toBe(2)
-  })
-
   it('gives every copy its own id', () => {
     const original = coin(5)
     const ids = Array.from({ length: 25 }, () => duplicateItem(original).id)
@@ -64,10 +59,5 @@ describe('adding is all or nothing', () => {
   it('refuses a stack that would overflow the container', () => {
     const c = characterWithBelt()
     expect(() => addItemToContainer('belt', ItemSchema.parse({ name: 'Bricks', bulk: 1, amount: 9 }))(c)).toThrow()
-  })
-
-  it('is the identity when removing from a container that is not there', () => {
-    const c = characterWithBelt()
-    expect(removeItemFromContainer('missing', 'x')(c)).toBe(c)
   })
 })

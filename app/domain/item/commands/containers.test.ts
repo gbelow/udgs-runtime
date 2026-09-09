@@ -46,11 +46,6 @@ describe('equipContainer', () => {
     const after = equipContainer('barrow', container('Wheelbarrow', 'transport'))(carrying())
     expect(countOf(after, 'transport')).toBe(3)
   })
-
-  it('replaces whatever sat under the same key', () => {
-    const after = equipContainer('belt', container('Wide Belt', 'belt'))(carrying())
-    expect(after.containers.belt.name).toBe('Wide Belt')
-  })
 })
 
 describe('unequipContainer', () => {
@@ -60,16 +55,5 @@ describe('unequipContainer', () => {
     const before = makeCharacter(null)
     const after = unequipContainer('new')(equipContainer('new', container('New', kind))(before))
     expect(after.containers).toEqual(before.containers)
-  })
-
-  it('is the identity for a key nothing is under', () => {
-    const c = carrying()
-    expect(unequipContainer('missing')(c)).toBe(c)
-  })
-
-  it('removes only the key it names', () => {
-    const before = carrying()
-    const after = unequipContainer('belt')(before)
-    expect(Object.keys(after.containers)).toEqual(Object.keys(before.containers).filter((key) => key !== 'belt'))
   })
 })

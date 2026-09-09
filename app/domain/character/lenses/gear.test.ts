@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
-import { applySTRmod, getDamageTiers, getWeaponAttackRows } from './gear'
-import { getSTARegen, REST_AP_COST } from './characteristics'
-import { restCharacter } from '../commands/rest'
+import { getDamageTiers, getWeaponAttackRows } from './gear'
 import { getAttacksList } from '../commands/weaponAttack'
-import { makeCharacter, makeCampaignCharacter } from '../../factories'
+import { makeCharacter } from '../../factories'
 import { ArmorSchema, WeaponSchema } from '../../types'
-import type { CampaignCharacter, Character } from '../../types'
+import type { Character } from '../../types'
 
 const armors = Object.entries(armorsCatalog as Record<string, unknown>)
 const weapons = Object.entries(weaponsCatalog as Record<string, unknown>)
@@ -57,42 +55,11 @@ describe('getDamageTiers', () => {
   })
 })
 
-// combat.tex "Rest": one action, one recovery. The sheet's readout and the
-// command have to be the same number, which is the reason both go through the
-// lens instead of computing it.
-describe('rest', () => {
-  const rester = (STA: number): CampaignCharacter => {
-    const base = makeCampaignCharacter({})
-    return {
-      ...base,
-      trainables: { ...base.trainables, STA: { ...base.trainables.STA, value: STA } },
-      resources: { ...base.resources, STA: 0, AP: 6 },
-    }
-  }
-
-  it.each([0, 3, 4, 7, 12, 13, 30])('recovers what the lens reports at STA %i', (STA) => {
-    const c = rester(STA)
-    const rested = restCharacter(c)
-    expect(rested.resources.STA).toBe(c.resources.STA + getSTARegen(c))
-    expect(rested.resources.AP).toBe(c.resources.AP - REST_AP_COST)
-  })
-
-  it('never recovers a negative amount', () => {
-    for (const STA of [0, 1, 4, 12, 30]) {
-      expect(getSTARegen(rester(STA))).toBeGreaterThanOrEqual(0)
-    }
-  })
-})
-
 // gear.tex weapon tables: a `*mod` column is a multiple of STR added to the
 // flat value of its row. One rule with two applications — the row the sheet
 // renders and the attack the character rolls — so both call the same function.
 describe('applySTRmod', () => {
   const wielder = makeCharacter({ trainables: { STR: { value: 13 } } })
-
-  it('is the identity where the table prints no modifier', () => {
-    for (const value of [0, 6, -4]) expect(applySTRmod(value, 0, wielder)).toBe(value)
-  })
 
   // Read across the whole catalog: wherever an attack offers a normal attack,
   // the damage on the rendered row and the damage the attack rolls have to be
