@@ -1,4 +1,4 @@
-import { BaseCharacter, CampaignCharacter, Character } from "@/app/domain/types"
+import { CampaignCharacter } from "@/app/domain/types"
 
 function makeFightName(char: CampaignCharacter, characters: Record<string, CampaignCharacter>){
   let newName = char.name

@@ -16,8 +16,9 @@ import {
   getDetection,
   skillTermGetters, Term, sumTerms,
 } from "./skills";
+import { termsDigest } from "./terms";
 
-export { skillTermGetters, characteristicTermGetters, sumTerms }
+export { skillTermGetters, characteristicTermGetters, sumTerms, termsDigest }
 export type { Term }
 
 export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {

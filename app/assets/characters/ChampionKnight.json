@@ -140,49 +140,49 @@
       "type": "skill"
     },
     "STR": {
-      "value": 10,
+      "value": 12,
       "name": "Strength",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "AGI": {
-      "value": 10,
+      "value": 11,
       "name": "Agility",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "STA": {
-      "value": 10,
+      "value": 12,
       "name": "Stamina",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "CON": {
-      "value": 0,
+      "value": 2,
       "name": "Constitution",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "INT": {
-      "value": 0,
+      "value": 1,
       "name": "Intelligence",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "SPI": {
-      "value": 0,
+      "value": 2,
       "name": "Spirit",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "DEX": {
-      "value": 0,
+      "value": 3,
       "name": "Dexterity",
       "XP": 0,
       "talent": "",

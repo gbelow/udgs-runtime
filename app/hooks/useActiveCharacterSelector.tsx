@@ -65,3 +65,21 @@ export function useActiveCharacterUpdate() {
   }
   return update;
 }
+
+// A derived shape that is freshly allocated on every call — a term breakdown, a
+// table of rows — cannot gate its own re-render by identity, and a one-level
+// useShallow cannot either once its elements are objects. Gate it on a string
+// digest of itself: everything the UI can read off the shape is in the digest,
+// so any change that alters what is displayed is a change that schedules the
+// render which recomputes it. Digesting the output rather than the inputs is the
+// point — an input list has to be kept in step with the derivation by hand, and
+// silently goes stale the day the derivation grows a dependency.
+export function useActiveCharacterDerived<T>(
+  compute: (c: Character) => T,
+  digest: (value: T) => string,
+): T | null {
+  const tab = useAppStore((s) => s.selectedGameTab);
+  useActiveCharacterSelector((c) => digest(compute(c)));
+  const c = readActiveCharacter(tab);
+  return c ? compute(c) : null;
+}

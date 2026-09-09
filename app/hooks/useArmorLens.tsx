@@ -1,9 +1,7 @@
 import { equipArmor } from "../domain/character/commands";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
-import { getTGH } from "../domain/character/lenses/misc";
-import { useAppStore } from "../stores/useAppStore";
 import { Armor, ArmorSchema, Character } from "../domain/types";
-import { readActiveCharacter, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 // Stable default for the no-active-character case.
 const DEFAULT_ARMOR: Armor = ArmorSchema.parse({});
@@ -25,14 +23,8 @@ export function useArmorLens() {
 
 // combat.tex "Damage Tiers" — the full table, computed in the domain.
 export function useDamageTiers(): DamageTierRow[] {
-  const tab = useAppStore((s) => s.selectedGameTab);
-
-  // The table depends on the armor object and on derived TGH. Subscribe to both
-  // so either one changing re-renders; the row array is freshly allocated and
-  // so cannot itself go through the store selector (Object.is).
-  useActiveCharacterSelector((c: Character) => c.armor);
-  useActiveCharacterSelector((c: Character) => getTGH(c));
-
-  const active = readActiveCharacter(tab);
-  return active ? getDamageTiers(active) : [];
+  // Gated on a digest of the rows themselves rather than on the armor and TGH
+  // the table happens to read today, so a tier that starts depending on
+  // something else stays fresh without anyone remembering to subscribe to it.
+  return useActiveCharacterDerived(getDamageTiers, JSON.stringify) ?? [];
 }
