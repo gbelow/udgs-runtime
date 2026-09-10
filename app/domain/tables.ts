@@ -1,3 +1,8 @@
+// Rule tables: every constant here is a number the rules turn on. Components do
+// not import this module (eslint enforces it) — a table that the UI needs is
+// reached through a view getter, so the projection stays in the domain. Inert
+// name lists live in `lists.ts`.
+
 // combat.tex "Afflictions" groups skills into the categories a penalty can
 // name. A skill may appear in more than one category (Exploration is both
 // sensory and mental) and the categories then stack.
@@ -117,62 +122,6 @@ export const magic_types = {
   miracle: {proficiency: 'devotion', skill: 'devotion'},
 }
 
-// creating.tex "Areas of Knowledge" — the formal areas a character can train,
-// in the rulebook's order. Commented-out entries there (Building, Politics,
-// Botany, Physics) are deliberately absent.
-export const knowledges_list = [
-  'alchemy',
-  'animancy',
-  'biomancy',
-  'shamanism',
-  'mechanics',
-  'smithing',
-  'chemistry',
-  'medicine',
-  'linguistics',
-  'navigation',
-  'survival',
-  'animal handling',
-]
-
-
-export const CONVICTIONS = {
-  adaptation: {
-    id: 'adaptation',
-    name: 'Adaptation',
-    
-  },
-  domination: {
-    id: 'domination',
-    name: 'Domination',
-  },
-  stoicism: {
-    id: 'stoicism',
-    name: 'Stoicism',
-  },
-  fatalism: {
-    id: 'fatalism',
-    name: 'Fatalism',
-  },
-  ferocity: {
-    id: 'ferocity',
-    name: 'Ferocity',
-  },
-  guardian: {
-    id: 'guardian',
-    name: 'Guardian',
-  },
-  hedonism: {
-    id: 'hedonism',
-    name: 'Hedonism',
-  },
-  providentialism: {
-    id: 'providentialism',
-    name: 'Providencialism',
-  },
-}
-
-
 // combat.tex "Action surge" — one surge per round. Movement, combat and
 // reaction share the same price and yield; only their spending restriction
 // differs, which the table records as prose for the UI.
@@ -182,5 +131,3 @@ export const SURGES = {
   reaction: { STA: 3, AP: 6, restriction: 'AP can only be spent on reactions until the end of the round.' },
   focus:    { STA: 1, AP: 2, restriction: 'AP is free to use. Required for shooting weapons, spells and non-weapon items.' },
 } as const
-
-export const surgeKinds = ['movement', 'combat', 'reaction', 'focus'] as const

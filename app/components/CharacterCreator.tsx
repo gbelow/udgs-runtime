@@ -1,35 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import { toast } from 'sonner'
-import { deleteBaseCharacter, saveCharacter, upsertBaseCharacter } from '../actions';
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
-import { useCharacterStore } from '../stores/useCharacterStore';
 import { Characteristics, Movement, Skills } from '../domain/types';
-import { useAppStore } from '../stores/useAppStore';
+import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip, isAfflicted } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useTextLens } from '../hooks/useTextLens';
-import { useSTARegen } from '../hooks/useCharacterData';
+import { useActiveCharacterData, useSTARegen } from '../hooks/useCharacterData';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
-import { CONVICTIONS, knowledges_list } from '../domain/tables';
+import { CONVICTIONS } from '../domain/lists';
 
 function SaveBaseCharacterButton(){
-  const character = useCharacterStore(s => s.character)
-  const updateBaseCharacterList = useAppStore(s => s.updateBaseCharacterList)
+  const { saveBaseCharacter } = useGameCommands()
 
   const handleClick = async () => {
-    if(!character) return
-    const res = await upsertBaseCharacter(character)
-    if(!res.ok){ toast.error(res.error); return }
-    toast.success('Base character saved.')
-    updateBaseCharacterList()
+    await saveBaseCharacter()
   }
 
   return(
@@ -38,15 +30,10 @@ function SaveBaseCharacterButton(){
 }
 
 function SavePlayerCharacterButton(){
-  const character = useCharacterStore(s => s.character)
-  const updatePlayerCharacterList = useAppStore(s => s.updatePlayerCharacterList)
+  const { savePlayerCharacter } = useGameCommands()
 
   const handleClick = async () => {
-    if(!character) return
-    const res = await saveCharacter(character)
-    if(!res.ok){ toast.error(res.error); return }
-    toast.success('Character saved.')
-    updatePlayerCharacterList()
+    await savePlayerCharacter()
   }
 
   return(
@@ -55,16 +42,12 @@ function SavePlayerCharacterButton(){
 }
 
 function DeleteCharacterButton(){
-  const character = useCharacterStore(s => s.character)
-  const updateBaseCharacterList = useAppStore(s => s.updateBaseCharacterList)
+  const { removeBaseCharacter } = useGameCommands()
+  const { name } = useActiveCharacterData()
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleDeleteCharacterClick = async () => {
-    if(!character) return
-    const res = await deleteBaseCharacter(character.name)
-    if(!res.ok){ toast.error(res.error); return }
-    toast.success('Base character deleted.')
-    updateBaseCharacterList()
+    await removeBaseCharacter()
     setShowConfirm(false)
   }
 
@@ -74,7 +57,7 @@ function DeleteCharacterButton(){
       {showConfirm && (
         <div className="fixed inset-0 flex items-center justify-center bg-black w-64 h-32 m-auto">
           <div className="p-4 rounded shadow-md w-64">
-            <p className="mb-4">Are you sure you want to delete {character?.name}?</p>
+            <p className="mb-4">Are you sure you want to delete {name}?</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowConfirm(false)}
@@ -242,12 +225,11 @@ function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills})
 }
 
 function KnowledgePanel(){
-  const { knowledges, add } = useKnowledgeLens()
+  const { knowledges, available: availableDefaults, add } = useKnowledgeLens()
   const [selected, setSelected] = useState('')
   const [customName, setCustomName] = useState('')
 
   const existingNames = Object.keys(knowledges)
-  const availableDefaults = knowledges_list.filter(name => !existingNames.includes(name))
 
   const handleAdd = () => {
     const name = customName.trim() || selected

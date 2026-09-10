@@ -2,12 +2,11 @@
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
 import { upsertBaseCharacter, deleteBaseCharacter, getCharacter, deleteCharacter, JsonObject } from '../actions';
-import { useAppStore } from '../stores/useAppStore';
+import { useCharacterLibrary, useLoadCharacter } from '../hooks/useCharacterLibrary';
+import { useGameTab } from '../hooks/useGameTab';
 import { makeCharacter } from '../domain/factories';
 import { groupByTags, TreeNode } from '../domain/character/grouping';
 import { BaseCharacter, Character } from '../domain/types';
-import { useCharacterStore } from '../stores/useCharacterStore';
-import { useCombatStore } from '../stores/useCombatStore';
 
 type NodeHandlers = {
   open: { [key: string]: boolean }
@@ -92,15 +91,17 @@ export function CharacterSelector(){
 
   const [open, setOpen] = useState<{ [key: string]: boolean }>({});
   const [openCampaignChars, setOpenCampaignChars] = useState(false)
-  const {selectedGameTab} = useAppStore((s)=> s)
-  const  loadCharacter = useCharacterStore((state) => state.loadCharacter)
-  const  addCharacter = useCombatStore((state) => state.loadCharacter)
-  const { baseCharacterList, updateBaseCharacterList, playerCharacterList, updatePlayerCharacterList } = useAppStore((s)=> s )
-
+  const { tab: selectedGameTab } = useGameTab()
+  const loadCharacter = useLoadCharacter()
+  const {
+    baseCharacterList,
+    playerCharacterList,
+    refreshBaseList: updateBaseCharacterList,
+    refreshPlayerList: updatePlayerCharacterList,
+  } = useCharacterLibrary()
 
   const handleSelectCharacterClick = (character: Character) => {
-    if (selectedGameTab == 'edit') loadCharacter(character)
-    if (selectedGameTab == 'play') addCharacter(character)
+    loadCharacter(character)
   };
 
   const handleSelectPlayerClick  = async (characterId: string) => {

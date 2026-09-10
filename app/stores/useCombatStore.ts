@@ -16,7 +16,7 @@ type CombatActions = {
 
   updateActiveCharacter: (
     updater: (c: CampaignCharacter) => CampaignCharacter
-  ) => void
+  ) => CampaignCharacter | undefined
 
   removeCharacter: (id: string) => void
 

@@ -2,10 +2,9 @@
 import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
-import { AFFLICTIONS as afflictionDefinitions, SURGES, surgeKinds } from '../domain/tables'
 import { makeDieRoll, makeFullRoll } from './utils';
-import { useCombatStore } from '../stores/useCombatStore';
-import { AfflictionKey, Characteristics, Movement, Resources, Skills } from '../domain/types';
+import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
+import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip, isAfflicted } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
@@ -14,10 +13,9 @@ import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
-import { useAfflictionLens } from '../hooks/useAfflictionLens';
+import { useAfflictionRows } from '../hooks/useAfflictionLens';
 import { useGameCommands } from '../hooks/useGameCommands';
-import { useActiveCharacterData, useSurges } from '../hooks/useCharacterData';
-import { useShallow } from 'zustand/shallow';
+import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
 
@@ -28,8 +26,7 @@ export function PlayPanel(){
   const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
-  const round = useCombatStore(s => s.round)
-  const isThereActiveCharacter = useCombatStore(s => !!s.activeCharacterId)
+  const { round, hasActiveCharacter: isThereActiveCharacter } = useCombatState()
   const { notes, fightName } = useActiveCharacterData() 
 
   const [dice10, setDice10] = useState(1)
@@ -324,22 +321,18 @@ function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}
 
 function AfflictionsPannel(){
 
-  const [afflictions, setAffliction] = useAfflictionLens()
-  const afflictionsList = Object.keys(afflictionDefinitions) as AfflictionKey[]
+  const { rows, setAffliction } = useAfflictionRows()
 
   return(
     <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>
       {
-        afflictionsList.map((item: AfflictionKey) => {
-          // Non-controlable afflictions are derived from hunger, thirst and
-          // exhaustion — they still light up, but they aren't hand-settable.
-          const controlable = afflictionDefinitions[item].controlable
-          return (
-            <input type='button' key={item} disabled={!controlable}
-              className={'border p-1 ' + (afflictions?.includes(item) ? 'bg-red-500 ' : '') + (controlable ? '' : 'opacity-60 cursor-not-allowed')}
-              aria-label={item} value={item} onClick={ () => setAffliction(item)} />
-          )
-        })
+        // Non-controlable afflictions are derived from hunger, thirst and
+        // exhaustion — they still light up, but they aren't hand-settable.
+        rows.map((row) => (
+          <input type='button' key={row.key} disabled={!row.controlable}
+            className={'border p-1 ' + (row.active ? 'bg-red-500 ' : '') + (row.controlable ? '' : 'opacity-60 cursor-not-allowed')}
+            aria-label={row.key} value={row.key} onClick={ () => setAffliction(row.key)} />
+        ))
       }
     </div>
   )
@@ -347,17 +340,17 @@ function AfflictionsPannel(){
 
 function SurgeControl(){
   const { actionSurge } = useCharacterCommands()
-  const { usedSurge, canSurge } = useSurges()
+  const options = useSurgeOptions()
 
   return(
     <div className='flex gap-1'>
       {
-        surgeKinds.map(kind =>
-          <input type='button' key={kind} value={kind} aria-label={kind + ' surge'}
-            title={SURGES[kind].STA + ' STA for ' + SURGES[kind].AP + ' AP. ' + SURGES[kind].restriction}
-            disabled={!canSurge[kind]}
-            className={'p-1 border rounded disabled:opacity-40 hover:bg-gray-500 '+(usedSurge === kind ? 'bg-gray-500': '')}
-            onClick={() => actionSurge(kind)} />
+        options.map(option =>
+          <input type='button' key={option.kind} value={option.kind} aria-label={option.kind + ' surge'}
+            title={option.title}
+            disabled={!option.available}
+            className={'p-1 border rounded disabled:opacity-40 hover:bg-gray-500 '+(option.used ? 'bg-gray-500': '')}
+            onClick={() => actionSurge(option.kind)} />
         )
       }
     </div>
@@ -365,17 +358,15 @@ function SurgeControl(){
 }
 
 function CharacterList(){
-  const characters = useCombatStore(useShallow(s => s.characters))
-  const setActiveCharacter = useCombatStore(s => s.setActiveCharacter)
-  const activeCharacterId = useCombatStore(s => s.activeCharacterId)
-  
+  const { roster, setActiveCharacter } = useCombatRoster()
+
   return(
     <div className='flex flex-row gap-2 w-full overflow-auto p-3'>
       {
-        Object.entries(characters).map(([id, value]) => 
-          <input className={'p-2 border h-12  '+(id  == activeCharacterId ? 'bg-red-500' : value.usedSurge ? 'bg-gray-500' : 'bg-blue-400')} 
-            type='button' value={value.fightName} aria-label={value.fightName} key={id} 
-            onClick={() => setActiveCharacter(id)}
+        roster.map((entry) =>
+          <input className={'p-2 border h-12  '+(entry.isActive ? 'bg-red-500' : entry.hasSurged ? 'bg-gray-500' : 'bg-blue-400')}
+            type='button' value={entry.name} aria-label={entry.name} key={entry.id}
+            onClick={() => setActiveCharacter(entry.id)}
           />
         )
       }

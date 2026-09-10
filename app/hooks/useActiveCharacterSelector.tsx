@@ -24,7 +24,7 @@ export function useActiveCharacterSelector<T>(
 ): T | null {
   const tab = useAppStore((s) => s.selectedGameTab);
   const editVal = useCharacterStore((s) =>
-    tab === "edit" ? (s.character ? sel(s.character) : null) : null,
+    tab === "edit" ? sel(s.character) : null,
   );
   const combatVal = useCombatStore((s) => {
     if (tab === "edit") return null;

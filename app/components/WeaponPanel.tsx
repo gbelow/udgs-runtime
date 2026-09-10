@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 import { useWeaponLens } from "../hooks/useWeaponLens";
-import { WeaponAttack } from "../domain/types";
-
+import type { AttackVariant } from "../domain/character/lenses/gear";
 
 export function WeaponPanel(){
-  const {weapons, unequip, getVariantsList, getAttackRows, attack} = useWeaponLens()
+  const { panels, unequip, attack } = useWeaponLens()
 
   const [lastAtk, setLastAtk] = useState({atk:0, type: '', weapon: '', blunt: 0, cut: 0})
 
-  const AttackButtons = ({atk, weaponName} : {atk: WeaponAttack, weaponName: string }) =>{
-    const attacks = getVariantsList(atk) ?? []
+  const AttackButtons = ({variants, weaponName} : {variants: AttackVariant[], weaponName: string }) =>{
     return(
       <>
         {
-          attacks.map(el => {
+          variants.map(el => {
             const handleClick = () => {
               const result = attack(el, el.type, weaponName)
               if (result) {
@@ -33,52 +31,45 @@ export function WeaponPanel(){
     <div className='flex flex-col justify-center w-84 md:w-full'>
       <span className="pb-1"> Weapon: {lastAtk.weapon} /  type: {lastAtk.type} / ROLL: {lastAtk.atk}  </span>
       {
-        Object.entries(weapons).map(([key, el]) => {
-
-          return(
-            <div key={key} className='flex flex-col justify-center border rounded p-1'>
-              <div className='flex flex-row gap-3' >
-                <span>Weapon: {key} </span>
-                {
-                  <>
-                    <span>Size: {el.scale}</span>
-                    <input type='button' value='unequip' onClick={() => unequip(el.name)} className='border rounded p-1' />                    
-                  </>
-                }
-              </div>
-              <table className='md:w-full text-center text-xs'>
-                <thead>
-                  <tr>
-                    <td>RES</td>
-                    <td>blunt</td>
-                    <td>cutting</td>
-                    <td>AP</td>
-                    <td>reach</td>
-                    <td>DEF</td>
-                    <td>properties</td>
-                    <td>attacks</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {
-                    getAttackRows(el).map((row, index) =>
-                      <tr key={el.name+index.toString()}>
-                        <td>{row.RES}</td>
-                        <td>{row.blunt}</td>
-                        <td>{row.cut}</td>
-                        <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
-                        <td>{row.range}</td>
-                        <td>{row.deflection}</td>
-                        <td>{row.properties}</td>
-                        <td><AttackButtons atk={row.attack} weaponName={el.name} /></td>
-                      </tr>
-                    )
-                  }
-                </tbody>
-              </table>
+        panels.map((panel) => (
+          <div key={panel.key} className='flex flex-col justify-center border rounded p-1'>
+            <div className='flex flex-row gap-3' >
+              <span>Weapon: {panel.key} </span>
+              <span>Size: {panel.scale}</span>
+              <input type='button' value='unequip' onClick={() => unequip(panel.name)} className='border rounded p-1' />
             </div>
-          )
-        })
+            <table className='md:w-full text-center text-xs'>
+              <thead>
+                <tr>
+                  <td>RES</td>
+                  <td>blunt</td>
+                  <td>cutting</td>
+                  <td>AP</td>
+                  <td>reach</td>
+                  <td>DEF</td>
+                  <td>properties</td>
+                  <td>attacks</td>
+                </tr>
+              </thead>
+              <tbody>
+                {
+                  panel.rows.map((row, index) =>
+                    <tr key={panel.name+index.toString()}>
+                      <td>{row.RES}</td>
+                      <td>{row.blunt}</td>
+                      <td>{row.cut}</td>
+                      <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
+                      <td>{row.range}</td>
+                      <td>{row.deflection}</td>
+                      <td>{row.properties}</td>
+                      <td><AttackButtons variants={row.variants} weaponName={panel.name} /></td>
+                    </tr>
+                  )
+                }
+              </tbody>
+            </table>
+          </div>
+        ))
       }
     </div>
   )

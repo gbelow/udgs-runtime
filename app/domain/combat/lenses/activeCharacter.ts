@@ -7,3 +7,31 @@ export function getActiveCharacter(state: CombatState): CampaignCharacter | null
   if (!state.activeCharacterId) return null
   return state.characters[state.activeCharacterId] ?? null
 }
+
+export type CombatRosterEntry = {
+  id: string
+  name: string
+  isActive: boolean
+  hasSurged: boolean
+}
+
+// The fight's roster as the UI reads it: who is in it, who is selected, who has
+// already spent their surge this round.
+export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
+  return Object.entries(state.characters).map(([id, c]) => ({
+    id,
+    name: c.fightName ?? '',
+    isActive: id === state.activeCharacterId,
+    hasSurged: c.usedSurge !== null,
+  }))
+}
+
+// Everything the roster displays, as one string. A roster entry is freshly
+// allocated on every call, so it cannot gate its own re-render by identity;
+// gating on this instead means any change the UI can see schedules the render
+// that recomputes it. Same reasoning as the term breakdowns.
+export function getCombatRosterDigest(state: CombatState): string {
+  return getCombatRoster(state)
+    .map((e) => `${e.id}:${e.name}:${e.isActive ? 1 : 0}:${e.hasSurged ? 1 : 0}`)
+    .join('|')
+}

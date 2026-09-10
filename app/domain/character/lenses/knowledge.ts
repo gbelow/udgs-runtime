@@ -1,5 +1,6 @@
 import { Character, Knowledges, Lens, Trainable, TrainableSchema } from '../../types'
 import { getMentalAfflictionPenalty } from './afflictions'
+import { knowledges_list } from '../../lists'
 import { composeLens, makeInvertingSetter, makePropLens } from './factories'
 
 export function emptyKnowledge(name: string): Trainable {
@@ -46,4 +47,12 @@ export function makeKnowledgeLens(name: string): Lens<Character, number> {
     get: getter,
     set: makeInvertingSetter(getter, baseLens.get, baseLens.set),
   }
+}
+
+// The formal areas the character has not trained yet — what an "add knowledge"
+// picker can still offer. Custom names are always allowed, so this is the
+// default list minus what is already held, not a closed set.
+export function getAvailableKnowledges(c: Character): string[] {
+  const held = knowledgesLens.get(c)
+  return knowledges_list.filter((name) => !(name in held))
 }

@@ -6,6 +6,7 @@ import * as resetCombatModule from './combat/commands/resetCombat'
 import * as startTurnModule from './combat/commands/startTurn'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { makeCampaignCharacter } from './factories'
+import { getAttacksList } from './character/lenses/gear'
 import { ArmorSchema, ContainerSchema, ItemSchema, WeaponSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
@@ -48,7 +49,7 @@ function characterSubject(): CampaignCharacter {
   }
 }
 
-const attack = characterCommands.getAttacksList({ atk: dagger.attacks[0] })(characterSubject())[0]
+const attack = getAttacksList({ atk: dagger.attacks[0] })(characterSubject())[0]
 
 // Keyed by the export name so the completeness check below can tell a command
 // that has no purity case from one that is deliberately not an updater.
@@ -83,7 +84,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
 
 // Read projections, not updaters: they take a character and return a value
 // rather than a character, so there is nothing for them to mutate.
-const NOT_UPDATERS = new Set(['getCharacterWeapons', 'getAttacksList', 'getAttackValues'])
+const NOT_UPDATERS = new Set(['getCharacterWeapons', 'getAttackValues'])
 
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound,

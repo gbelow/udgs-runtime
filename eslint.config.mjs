@@ -44,12 +44,14 @@ const eslintConfig = [
     },
   },
 
-  // 2. Components must not reach into the rule-bearing halves of the domain.
-  //    Lenses and commands ARE the game rules; a component that imports one is
-  //    one step away from reimplementing it inline (which is how the armor tier
-  //    table, the STA regen formula and the weapon STR-mod duplicate all got
-  //    into JSX). Go through a hook. Inert modules — types, tables, factories,
-  //    utils, dice — stay allowed.
+  // 2. Components must not reach into the rule-bearing halves of the domain, nor
+  //    into the state layer. Lenses and commands ARE the game rules, and so is
+  //    every constant in tables.ts; a component that imports one is one step
+  //    away from reimplementing it inline (which is how the armor tier table,
+  //    the STA regen formula and the weapon STR-mod duplicate all got into JSX).
+  //    Stores are barred for the other half of the same flow: domain -> stores
+  //    -> hooks -> UI only holds if the UI enters at the hook. Inert modules —
+  //    types, lists, factories, utils, dice — stay allowed.
   {
     files: ["app/components/**/*.{ts,tsx}"],
     rules: {
@@ -65,6 +67,18 @@ const eslintConfig = [
             allowTypeImports: true,
             message:
               "Components render domain projections; they do not import lenses or commands. Add a getter to a lens or a command in app/domain, expose it through a hook in app/hooks, and call the hook. (Type-only imports are fine: use `import type`.)",
+          },
+          {
+            group: ["**/domain/tables"],
+            allowTypeImports: true,
+            message:
+              "tables.ts holds rule data — costs, thresholds, modifiers. A component that indexes it is rendering a rule the domain should have projected: add a view getter beside the table and expose it through a hook. Inert name lists belong in app/domain/lists.ts, which components may import.",
+          },
+          {
+            group: ["**/stores/*", "**/stores/**"],
+            allowTypeImports: true,
+            message:
+              "Components do not talk to Zustand directly. Data flows domain -> stores -> hooks -> UI, so add an adapter in app/hooks (see useGameTab, useCharacterLibrary, useCombatState) and call that instead.",
           },
         ],
       }],

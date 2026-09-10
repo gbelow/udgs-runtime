@@ -118,3 +118,23 @@ export function getIT(_c: CampaignCharacter){
 export function getMentalAfflictionPenalty(c: Character): number {
   return getAfflictions(c).reduce((total: number, key) => total + (AFFLICTIONS[key].mental ?? 0), 0)
 }
+
+export type AfflictionRow = {
+  key: AfflictionKey
+  // Whether the affliction can be toggled by hand. The rungs survival.tex
+  // derives from hunger, thirst and exhaustion are owned by their resource.
+  controlable: boolean
+  active: boolean
+}
+
+// Every affliction the UI can offer, with its current state on this character —
+// the whole board in one shape, so the component neither indexes the rule table
+// nor decides what "active" means.
+export function getAfflictionRows(c: Character): AfflictionRow[] {
+  const active = new Set(getAfflictions(c))
+  return (Object.keys(AFFLICTIONS) as AfflictionKey[]).map((key) => ({
+    key,
+    controlable: AFFLICTIONS[key].controlable,
+    active: active.has(key),
+  }))
+}

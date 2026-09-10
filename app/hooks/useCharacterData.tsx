@@ -1,8 +1,8 @@
 import { getSTARegen } from "../domain/character/lenses/characteristics";
-import { getSurgeAvailability, getUsedSurge } from "../domain/character/lenses/surge";
+import { getSurgeAvailability, getSurgeOptions, getUsedSurge, SurgeOption } from "../domain/character/lenses/surge";
 import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
-import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
 export function useActiveCharacterData() {
@@ -12,8 +12,9 @@ export function useActiveCharacterData() {
   const fightName =
     useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? (c.fightName ?? '') : '')) ?? '';
   const notes = useActiveCharacterSelector((c: Character) => c.notes) ?? '';
+  const name = useActiveCharacterSelector((c: Character) => c.name) ?? '';
 
-  return { fightName, notes };
+  return { fightName, notes, name };
 }
 
 // A character outside a fight has no surge to spend, and the constant keeps the
@@ -39,4 +40,16 @@ export function useSurges(): { usedSurge: SurgeKind | null; canSurge: Record<Sur
 // straight through the store selector.
 export function useSTARegen(): number {
   return useActiveCharacterSelector((c: Character) => getSTARegen(c)) ?? 0;
+}
+
+// combat.tex "Action surge" — one row per surge, carrying the price/restriction
+// text already written out. The component renders these; it does not read the
+// surge table or assemble the label itself.
+export function useSurgeOptions(): SurgeOption[] {
+  return (
+    useActiveCharacterDerived(
+      (c: Character) => (isCampaignCharacter(c) ? getSurgeOptions(c) : []),
+      (options) => options.map((o) => `${o.kind}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|'),
+    ) ?? []
+  );
 }

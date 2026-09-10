@@ -9,8 +9,6 @@ export { resetSkill, resetAllSkills } from "./resetSkills"
 export { removeKnowledge, addKnowledge } from "./knowledge"
 
 export {
-  getAttacksList,
   spendAttackResources,
   getAttackValues,
 } from "./weaponAttack"
-export type { AttackVariant } from "./weaponAttack"

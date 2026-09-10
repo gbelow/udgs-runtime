@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { useAppStore } from '../stores/useAppStore';
+import { useGameTab } from '../hooks/useGameTab';
 import { PlayPanel } from './PlayPanel';
 import { CharacterCreator } from './CharacterCreator';
 import { BreakMe } from './BreakMe';
@@ -8,7 +8,7 @@ import { Sidebar } from './Sidebar';
 
 export function App(){
 
-  const {selectedGameTab, setSelectedGameTab} = useAppStore((s)=> s)
+  const { tab: selectedGameTab, setTab: setSelectedGameTab } = useGameTab()
 
   const [open, setOpen] = useState(false)
 

@@ -1,12 +1,13 @@
 import { addKnowledge, removeKnowledge } from "../domain/character/commands";
 import { getMentalAfflictionPenalty } from "../domain/character/lenses/afflictions";
-import { getKnowledgeValues, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
+import { getAvailableKnowledges, getKnowledgeValues, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
 import { Character, Knowledges } from "../domain/types";
 import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
 // Stable default for the no-active-character case.
 const NO_VALUES: Record<string, number> = {};
+const NO_NAMES: string[] = [];
 
 export function useKnowledgeLens() {
   const update = useActiveCharacterUpdate();
@@ -29,6 +30,9 @@ export function useKnowledgeLens() {
 
   const getValue = (name: string) => values[name] ?? untrained;
 
+  // The formal areas not yet held — a flat string array, so useShallow gates it.
+  const available = useActiveCharacterSelector(useShallow(getAvailableKnowledges)) ?? NO_NAMES;
+
   const setValue = (name: string, value: number) => {
     update((c) => makeKnowledgeLens(name).set(c, value));
   };
@@ -41,5 +45,5 @@ export function useKnowledgeLens() {
     update(removeKnowledge(name));
   };
 
-  return { knowledges, getValue, setValue, add, remove } as const;
+  return { knowledges, available, getValue, setValue, add, remove } as const;
 }

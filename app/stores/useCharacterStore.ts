@@ -4,14 +4,18 @@ import { Character } from '../domain/types'
 import { makeCharacter } from '../domain/factories'
 
 
+// The edit tab is a character *creator*: there is always something to edit, so
+// the store holds a blank character rather than null and `removeCharacter`
+// resets to a fresh one. Nothing downstream has to carry a "no character yet"
+// branch.
 type CharacterStore = {
-  character:  Character | null
+  character: Character
 
   loadCharacter: (rawCharacter: unknown) => void
 
   updateCharacter: (
     updater: (c: Character) => Character
-  ) => Character | undefined
+  ) => Character
 
   removeCharacter: () => void
 }
@@ -29,20 +33,16 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
   },
 
   updateCharacter: (updater) => {
-    const current = get().character;
-    
-    if (!current) return undefined;
-
-    const updated = updater(current);
+    const updated = updater(get().character);
 
     set({ character: updated });
 
     return updated;
   },
-  
+
   removeCharacter: () =>
     set(() => {
-      return { character: null }
+      return { character: makeCharacter(null) }
     }),
 
 }))

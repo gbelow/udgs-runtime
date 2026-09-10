@@ -1,5 +1,6 @@
 import { CampaignCharacter, SurgeKind } from "../../types"
-import { SURGES, surgeKinds } from "../../tables"
+import { SURGES } from "../../tables"
+import { surgeKinds } from "../../lists"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -20,4 +21,22 @@ export function getSurgeAvailability(c: CampaignCharacter): Record<SurgeKind, bo
     availability[kind] = canSurge(kind)(c)
   }
   return availability
+}
+
+export type SurgeOption = {
+  kind: SurgeKind
+  // combat.tex "Action surge" — price and restriction, already written out. The
+  // component shows this string; it does not assemble it from the table.
+  title: string
+  available: boolean
+  used: boolean
+}
+
+export function getSurgeOptions(c: CampaignCharacter): SurgeOption[] {
+  return surgeKinds.map((kind) => ({
+    kind,
+    title: `${SURGES[kind].STA} STA for ${SURGES[kind].AP} AP. ${SURGES[kind].restriction}`,
+    available: canSurge(kind)(c),
+    used: c.usedSurge === kind,
+  }))
 }
