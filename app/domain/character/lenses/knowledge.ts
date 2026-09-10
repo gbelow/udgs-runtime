@@ -29,6 +29,16 @@ export function getKnowledge(name: string): (c: Character) => number {
   return (c: Character) => makeKnowledgeEntryLens(name).get(c).value - getMentalAfflictionPenalty(c)
 }
 
+// Every knowledge the character holds, resolved through its own getter so the
+// mental-affliction penalty is already applied. A flat name -> value record: the
+// shape a list of knowledges renders from, and the shape a per-entry lookup can
+// read without reaching back for the character.
+export function getKnowledgeValues(c: Character): Record<string, number> {
+  return Object.fromEntries(
+    Object.keys(knowledgesLens.get(c)).map((name) => [name, getKnowledge(name)(c)]),
+  )
+}
+
 export function makeKnowledgeLens(name: string): Lens<Character, number> {
   const baseLens = composeLens(makeKnowledgeEntryLens(name), makePropLens<Trainable, 'value'>('value'))
   const getter = getKnowledge(name)

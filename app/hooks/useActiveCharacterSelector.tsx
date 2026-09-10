@@ -36,12 +36,13 @@ export function useActiveCharacterSelector<T>(
   return tab === "edit" ? editVal : combatVal;
 }
 
-// Non-reactive snapshot of the active character — for deriving display-only
-// values (e.g. tooltip term breakdowns) WITHOUT subscribing. A caller that
-// wants updates must gate its own re-render reactively (via
-// useActiveCharacterSelector on the derived value); this read alone does not
-// trigger re-renders. Module-level stores expose getState(), so this works on
-// the server too.
+// Non-reactive snapshot of the active character. In an event handler this is
+// simply correct — a click wants the state as of the click. On the render path
+// it subscribes to nothing, so it is sound only while every input of whatever is
+// derived from it is separately subscribed, and that argument has to be
+// re-checked by hand each time the derivation grows a dependency. Prefer
+// useActiveCharacterSelector (primitives) or useActiveCharacterDerived
+// (freshly-allocated shapes), which gate on the derived value itself.
 export function readActiveCharacter(tab: "edit" | "play" | "break"): Character | null {
   if (tab === "edit") return useCharacterStore.getState().character;
   const s = useCombatStore.getState();

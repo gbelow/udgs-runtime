@@ -13,7 +13,7 @@ type CharacterStore = {
     updater: (c: Character) => Character
   ) => Character | undefined
 
-  removeCharacter: (id: string) => void
+  removeCharacter: () => void
 }
 
 export const useCharacterStore = create<CharacterStore>((set, get) => ({ 

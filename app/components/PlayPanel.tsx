@@ -91,7 +91,7 @@ export function PlayPanel(){
               <DamageControl />
               <InjuryControl type='injuryLevel' />
               <InjuryControl type='hemorrhage' />
-              <input type="button" className={'border p-2 h-12 m-auto ' + (isCharacterDead() ? 'bg-red-500' : '') } onClick={killCharacter} value="Kill" /> 
+              <input type="button" className={'border p-2 h-12 m-auto ' + (isCharacterDead ? 'bg-red-500' : '') } onClick={killCharacter} value="Kill" /> 
             </div>                  
             <div className='flex flex-row gap-2 justify-center'>
               <SimpleMove moveName='basic' title={'basic (1AP)'} />

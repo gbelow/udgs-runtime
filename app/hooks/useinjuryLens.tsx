@@ -1,9 +1,8 @@
-import { getInjuryPenalty } from "../domain/character/lenses/afflictions";
+import { isDead } from "../domain/character/lenses/afflictions";
 import { composeLens, makePropLens } from "../domain/character/lenses/factories";
 import { CampaignCharacter, CampaignValuesSchema, Character, Injuries } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
-import { useAppStore } from "../stores/useAppStore";
-import { readActiveCharacter, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 // Stable default for the no-active-character case (must be a module-level
 // constant so the null branch doesn't allocate a fresh ref each render).
@@ -12,7 +11,6 @@ const injuryLens = makePropLens<CampaignCharacter, 'injuries'>('injuries');
 
 export function useInjuryLens() {
   const update = useActiveCharacterUpdate();
-  const tab = useAppStore((s) => s.selectedGameTab);
 
   // injuries is a state-held object ref — Object.is gates re-renders to actual
   // injuries changes (the setter produces a new ref via structural sharing).
@@ -24,13 +22,9 @@ export function useInjuryLens() {
     update((c) => (isCampaignCharacter(c) ? injuryValueLens.set(c, newValue) : c));
   };
 
-  // Derived from injuries; the injuries selector above already gates re-renders,
-  // so a non-reactive read stays fresh.
-  const active = readActiveCharacter(tab);
-  const isCharacterDead = () => {
-    if (!active || !isCampaignCharacter(active)) return false;
-    return getInjuryPenalty(active) >= 5;
-  };
+  // A primitive selected inside the store selector, so the render it schedules
+  // is the render that recomputes it.
+  const isCharacterDead = useActiveCharacterSelector((c: Character) => isDead(c)) ?? false;
 
   return { injuries, setInjury, isCharacterDead } as const;
 }

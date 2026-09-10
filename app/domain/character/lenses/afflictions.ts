@@ -98,6 +98,10 @@ export function getInjuryPenalty(c: Character): number {
   return Math.floor(c.injuries.injuryLevel / getIT(c))
 }
 
+export function isDead(c: Character): boolean {
+  return isCampaignCharacter(c) && getInjuryPenalty(c) >= 5
+}
+
 // The 10 is flat — the rulebook gives nothing that moves it. The per-character
 // `injuries.injuryThreshold` field and the health-affliction reduction below are
 // staged out rather than deleted, in case the threshold becomes variable again.
