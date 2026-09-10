@@ -63,7 +63,7 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     return campaignCharacter
   }
   
-  const parsed = CampainCharacterIngestSchema.safeParse({...raw, type: 'campaign'})
+  const parsed = CampaignCharacterIngestSchema.safeParse({...raw, type: 'campaign'})
 
   if (!parsed.success) {
     return campaignCharacter
@@ -124,11 +124,11 @@ export const ResourceIngestValues = {
   usedSurge: SurgeKindSchema.nullable().optional(),
 };
 
-export const CampainCharacterIngestSchema = z.object({
+export const CampaignCharacterIngestSchema = z.object({
   ...CharacterIngestValues,
   ...ResourceIngestValues,
 }).strip();
 
 
 export type CharacterIngestType = z.infer<typeof CharacterIngestSchema>
-export type CampaignCharacterIngestType = z.infer<typeof CampainCharacterIngestSchema>
+export type CampaignCharacterIngestType = z.infer<typeof CampaignCharacterIngestSchema>

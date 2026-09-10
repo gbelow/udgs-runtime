@@ -7,8 +7,8 @@ import {
   resetAllSkills as doResetAllSkills,
   resetSkill as doResetSkill,
   restCharacter,
-  updateIL as heal,
-  updateSTA as bleed,
+  updateIL as doUpdateIL,
+  updateSTA as doUpdateSTA,
 } from "../domain/character/commands"
 import { AfflictionKey, Skills, SurgeKind } from "../domain/types"
 
@@ -29,12 +29,12 @@ export function useCharacterCommands() {
     update(restCharacter)
   }
 
-  const cureIL = (newIL: number) => {
-    update(heal(newIL))
+  const updateIL = (newIL: number) => {
+    update(doUpdateIL(newIL))
   }
 
   const updateSTA = (newSTA: number) => {
-    update(bleed(newSTA))
+    update(doUpdateSTA(newSTA))
   }
 
   const toggleGauntlets = () => {
@@ -57,7 +57,7 @@ export function useCharacterCommands() {
     actionSurge,
     putAffliction,
     rest,
-    cureIL,
+    updateIL,
     updateSTA,
     toggleGauntlets,
     toggleHelm,

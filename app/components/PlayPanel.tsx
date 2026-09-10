@@ -220,7 +220,7 @@ function DamageControl(){
   function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
 
   const {injuries, setInjury} = useInjuryLens()
-  const { cureIL } = useCharacterCommands()
+  const { updateIL } = useCharacterCommands()
 
   const value = injuries[type]
   return(
@@ -230,7 +230,7 @@ function DamageControl(){
           <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
           <div className='flex flex-row gap-2'>
             <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury( type, value + 1)} />
-            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => type == 'injuryLevel' ? cureIL(value - 1) : setInjury( type, value - 1)} />
+            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)} />
           </div>
         </div>
       </div>
