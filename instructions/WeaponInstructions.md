@@ -32,4 +32,4 @@ AP for melee weapons is always 3. For ranged ones it is explicit in the book. if
 deflection is always 0.
 heavyMod is 0.5 when property heavy I is present, 1 when heavy 2 and 1.5 when heavy 3.
 heavy now has ranges: heavy I - II means that basic attack is not available, only heavy I and heavy II.
-StrMod exists when damage is STR or a multiple of it. When that happens, energy is 0 and StrMod is the multiple.
+StrMod exists when damage is STR or a multiple of it. When that happens, energy is 0 and StrMod is the multiple. Currently, not weapons are using this

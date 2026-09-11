@@ -87,12 +87,7 @@ describe('applySTRmod', () => {
     expect(compared).toBeGreaterThan(0)
   })
 
-  // Known violation: the row getter never applies STRmod to cut, while the
-  // attack builder applies the blunt multiple to it — so a weapon with no cut
-  // rolls cutting damage it does not display. gear.tex prints an independent
-  // multiple per damage column ("Halberd: Blunt STR, Cut 1.5x STR") that a
-  // single stored STRmod cannot carry either way.
-  it.fails('gives the rendered row and the rolled attack the same cut damage', () => {
+  it('gives the rendered row and the rolled attack the same cut damage', () => {
     expect(disagreements('cut').mismatched).toEqual([])
   })
 })

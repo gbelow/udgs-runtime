@@ -122,12 +122,13 @@ export const magic_types = {
   miracle: {proficiency: 'devotion', skill: 'devotion'},
 }
 
-// combat.tex "Action surge" — one surge per round. Movement, combat and
-// reaction share the same price and yield; only their spending restriction
-// differs, which the table records as prose for the UI.
+// combat.tex "Action surge" — one surge per round. Each kind prices its AP
+// in STA; the movement surge alone scales its yield with AGI, so the yield
+// column is a function of AGI rather than a number. The spending restriction
+// is recorded as prose for the UI.
 export const SURGES = {
-  movement: { STA: 3, AP: 6, restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
-  combat:   { STA: 3, AP: 6, restriction: 'AP must be spent immediately on attacks or movement.' },
-  reaction: { STA: 3, AP: 6, restriction: 'AP can only be spent on reactions until the end of the round.' },
-  focus:    { STA: 1, AP: 2, restriction: 'AP is free to use. Required for shooting weapons, spells and non-weapon items.' },
-} as const
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
+  combat:   { STA: 3, AP: () => 6, restriction: 'AP must be spent immediately on attacks or movement.' },
+  reaction: { STA: 3, AP: () => 6, restriction: 'AP can only be spent on reactions until the end of the round.' },
+  focus:    { STA: 1, AP: () => 2, restriction: 'AP is free to use. Required for shooting weapons, spells and non-weapon items.' },
+} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string }>

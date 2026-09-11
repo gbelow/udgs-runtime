@@ -129,7 +129,8 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
     // The STR-mod rule lives in the gear lens; both this and the weapon table
     // row rendered by the UI go through it.
     const blunt = applySTRmod(atk.blunt, atk.STRmod, c)
-    const cut = applySTRmod(atk.cut, atk.STRmod, c)
+    // Only blunt rows carry STR multiples in the gear.tex tables.
+    const cut = atk.cut
 
     // A heavy attack adds the same STR multiple to both damage components, but
     // only to a component the attack actually has — a weapon with no cut stays

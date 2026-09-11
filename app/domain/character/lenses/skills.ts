@@ -94,6 +94,19 @@ export function getSD(c: Character) {
   return sumTerms(getSDTerms(c))
 }
 
+export function getForceTerms(c: Character): Term[] {
+  const SM = getSM(c)
+  return [
+    { label: 'FOR', value: getSTR(c) - 10 },
+    { label: 'force', value: skill(c, 'force').value },
+    { label: 'size', value: 5 * SM },
+    { label: 'affliction', value: -getAfflictionPenalty(c, 'force') },
+  ]
+}
+export function getForce(c: Character) {
+  return sumTerms(getForceTerms(c))
+}
+
 export function getBalanceTerms(c: Character): Term[] {
   return [
     { label: 'AGI', value: getAGI(c) - 10 },
@@ -256,6 +269,7 @@ export const skillTermGetters: Record<keyof Skills, (c: Character) => Term[]> = 
   stealth: getStealthTerms,
   prestidigitation: getPrestidigitationTerms,
   health: getHealthTerms,
+  force: getForceTerms,
   explore: getExploreTerms,
   will: getWillTerms,
   persuasion: getPersuasionTerms,

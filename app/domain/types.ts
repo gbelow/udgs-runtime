@@ -50,6 +50,7 @@ export const SkillsSchema = z.object({
   balance: trainable('skill', 0, 'Balance'),
   detection: trainable('skill', 0, 'Detection'),
   health: trainable('skill', 0, 'Health'),
+  force: trainable('skill', 0, 'Force'),
   swim: trainable('skill', 0, 'Swim'),
   climb: trainable('skill', 0, 'Climb'),
   explore: trainable('skill', 0, 'Explore'),

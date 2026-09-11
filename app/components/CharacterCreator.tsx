@@ -157,7 +157,7 @@ export function CharacterCreator() {
           <SkillItem key={'defend'} skillName='defend' title='defend' />
           <SkillItem key={'reflex'} skillName='reflex' title='reflex' />
           <SkillItem key={'grapple'} skillName='grapple' title='grapple' />
-          <SkillItem key={'cunning'} skillName='cunning' title='cunning' />
+          <SkillItem key={'force'} skillName='force' title='force' />
           <SkillItem key={'SD'} skillName='SD' title='SD' />
           
         </div>
@@ -172,6 +172,7 @@ export function CharacterCreator() {
         </div>
         <div className='flex flex-row gap-2 justify-center'>
           {/* <SkillItem key={'knowledge'} skillName='knowledge' title='knowledge' /> */}
+          <SkillItem key={'cunning'} skillName='cunning' title='cunning' />
           <SkillItem key={'explore'} skillName='explore' title='explore' />
           <SkillItem key={'will'} skillName='will' title='will' />
           <SkillItem key={'persuasion'} skillName='persuasion' title='persuasion' />

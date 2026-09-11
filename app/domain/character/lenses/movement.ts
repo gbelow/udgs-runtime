@@ -33,8 +33,10 @@ export function getCarefulMovement(c: Character) {
 export function getCrawlMovement(c: Character) {
   return getRaw(c, "crawl");
 }
+// combat.tex "Movement Costs and Speeds": Run and Jump are flat speeds; the
+// stored term is a bonus on top of them.
 export function getRunMovement(c: Character) {
-  return Math.floor(getAGIBase(c)/ 3)+getRaw(c, "run");
+  return 3 + getRaw(c, "run");
 }
 export function getSwimMovement(c: Character) {
   return getRaw(c, "swim");
@@ -43,7 +45,7 @@ export function getFastSwimMovement(c: Character) {
   return getRaw(c, "fast swim");
 }
 export function getJumpMovement(c: Character) {
-  return Math.floor(getAGIBase(c)/ 4)+getRaw(c, "jump");
+  return 2 + getRaw(c, "jump");
 }
 export function getStandMovement(c: Character) {
   return 5 - Math.floor(getAGIBase(c)/ 5)+getRaw(c, "stand");

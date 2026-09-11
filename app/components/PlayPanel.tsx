@@ -131,7 +131,7 @@ export function PlayPanel(){
               <SimpleSkill skillId={'defend'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'reflex'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'grapple'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'cunning'} rollSkill={rollSkill}/>
+              <SimpleSkill skillId={'force'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'SD'} rollSkill={rollSkill}/>
             </div>
             <div className='flex flex-row gap-2 justify-center'>
@@ -145,6 +145,7 @@ export function PlayPanel(){
             </div>
             <div className='flex flex-row gap-2 justify-center'>
               {/* <SimpleSkill skillId={'knowledge'} rollSkill={rollSkill}/> */}
+              <SimpleSkill skillId={'cunning'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'explore'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'will'} rollSkill={rollSkill}/>
               <SimpleSkill skillId={'persuasion'} rollSkill={rollSkill}/>

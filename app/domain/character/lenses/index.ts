@@ -15,6 +15,7 @@ import {
   getDeception,
   getDetection,
   skillTermGetters, Term, sumTerms,
+  getForce,
 } from "./skills";
 import { termsDigest } from "./terms";
 
@@ -36,6 +37,7 @@ export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {
   stealth: makeTrainableValueLens("stealth", getStealth),
   prestidigitation: makeTrainableValueLens("prestidigitation", getPrestidigitation),
   health: makeTrainableValueLens("health", getHealth),
+  force: makeTrainableValueLens("force", getForce),
   // knowledge: makeTrainableValueLens("knowledge", getKnowledge),
   explore: makeTrainableValueLens("explore", getExplore),
   will: makeTrainableValueLens("will", getWill),

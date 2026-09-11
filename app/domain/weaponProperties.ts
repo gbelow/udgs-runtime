@@ -44,7 +44,7 @@ const PARAMETERIZED = /^(STR|size) -?\d+$/i
 
 // The authored vocabulary: the gear.tex "Weapons Properties" proplist, plus the
 // spellings its own weapon tables use for the same rules ("sweep" for Sweeping,
-// "grab" on the Net row) and "smash", defined as an additional effect in
+// "hooked" on the Small Arms rows, "grab" on the Net row) and "smash", defined as an additional effect in
 // combat.tex rather than in the property list. It is kept complete, including
 // the properties promoted to typed fields above — those are matched earlier and
 // never fall through to this set, but a partial list here would read as a claim
@@ -58,6 +58,7 @@ const VOCABULARY = new Set([
   'grab',
   'grapple',
   'hook',
+  'hooked',
   'penetrating',
   'piercing',
   'precise',
@@ -105,6 +106,7 @@ export function parseWeaponProperties(raw: string): WeaponProperties {
         props.braced = true
         continue
       case 'hook':
+      case 'hooked':
         props.hook = true
         continue
       case 'fast':
