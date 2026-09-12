@@ -294,9 +294,29 @@ export const CostSchema = z.object({
 
 export type Cost = z.infer<typeof CostSchema>
 
+export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus'])
+export type SurgeKind = z.infer<typeof SurgeKindSchema>
+
+// Everything a buff can land on, as `<group>:<key>`. The list is derived from
+// the schemas so a key added to a group is a valid target the same day; the
+// getter behind each group is what actually reads the bonus (skills add it as
+// a term, movement scales it by MM, senses add it to the bonus, surges to AP).
+// A group is only listed once every one of its keys is read that way.
+const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
+  keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
+
+export const BUFF_TARGETS = [
+  ...prefixed('skill', Object.keys(SkillsSchema.shape) as (keyof Skills)[]),
+  ...prefixed('movement', Object.keys(MovementSchema.shape) as (keyof Movement)[]),
+  ...prefixed('sense', Object.keys(SensesSchema.shape) as (keyof Senses)[]),
+  ...prefixed('surge', SurgeKindSchema.options),
+]
+export type BuffTarget = (typeof BUFF_TARGETS)[number]
+export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
+
 export const BuffSchema = z.object({
   name: str.default(''),
-  target: str.default(''), // what value does it target
+  target: BuffTargetSchema,
   operation: str.default('+'), // +, *, set
   value: num.default(0),
 }).strip()
@@ -338,9 +358,6 @@ export type Effect = z.infer<typeof EffectSchema>
 export const ActivationSchema = z.enum(['passive', 'active', 'toggle'])
 export type Activation = z.infer<typeof ActivationSchema>
 
-export const SurgeKindSchema = z.enum(['movement', 'combat', 'reaction', 'focus'])
-export type SurgeKind = z.infer<typeof SurgeKindSchema>
-
 export const AbilityTargetSchema = z.enum(['self', 'other'])
 export type AbilityTarget = z.infer<typeof AbilityTargetSchema>
 
@@ -351,16 +368,26 @@ export const TalentSchema = z.object({
 
 export type Talent = z.infer<typeof TalentSchema>
 
+// abilities.tex "Acquiring abilities": a multi-level ability is one entry per
+// stage (I, II, III), each stage carrying only what it adds on top of the one
+// before, and a stage requires the previous one. `family` is the shared name
+// the stages are collapsed under; `section` is the book's subsection.
 export const AbilitySchema = z.object({
   name: str.default(''),
+  family: str.default(''),
+  stage: num.default(1),
+  section: str.default(''),
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
-  cost: CostSchema,
+  usage: str.default(''), // the book's "Usage" field verbatim, for display
+  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0 }),
   description: str.default(''),
-  talent: z.array(TalentSchema),
+  talent: z.array(TalentSchema).default([]),
   XPcost: num.default(6),
   target: AbilityTargetSchema.default('self'),
+  requires: z.array(str).default([]), // catalog keys that must already be learned
   effect: z.array(EffectSchema).default([]),
 }).strip()
+export type AbilityInput = z.input<typeof AbilitySchema>
 
 export type Ability = z.infer<typeof AbilitySchema>
 

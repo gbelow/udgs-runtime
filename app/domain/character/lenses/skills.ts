@@ -1,6 +1,7 @@
 import { Character, Skills } from '../../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions } from './afflictions'
+import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON } from './characteristics'
 import { Term, sumTerms } from './terms'
 
@@ -12,6 +13,7 @@ export function getStrikeTerms(c: Character): Term[] {
     { label: 'melee', value: getMelee(c) },
     { label: 'strike', value: skill(c, 'strike').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'strike') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:strike') },
   ]
 }
 export function getStrike(c: Character) {
@@ -24,6 +26,7 @@ export function getAccuracyTerms(c: Character): Term[] {
     { label: 'gear', value: -3 * c.hasGauntlets },
     { label: 'accuracy', value: skill(c, 'accuracy').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'accuracy') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:accuracy') },
   ]
 }
 export function getAccuracy(c: Character) {
@@ -35,6 +38,7 @@ export function getDefendTerms(c: Character): Term[] {
     { label: 'melee', value: getMelee(c) },
     { label: 'defend', value: skill(c, 'defend').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'defend') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:defend') },
   ]
 }
 export function getDefend(c: Character) {
@@ -50,6 +54,7 @@ export function getReflexTerms(c: Character): Term[] {
     { label: 'size', value: -SM },
     { label: 'reflex', value: skill(c, 'reflex').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'reflex') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:reflex') },
   ]
 }
 export function getReflex(c: Character) {
@@ -64,6 +69,7 @@ export function getGrappleTerms(c: Character): Term[] {
     { label: 'size', value: 5 * SM },
     { label: 'melee', value: getMelee(c) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'grapple') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:grapple') },
   ]
 }
 export function getGrapple(c: Character) {
@@ -75,6 +81,7 @@ export function getCunningTerms(c: Character): Term[] {
     { label: 'cunning', value: skill(c, 'cunning').value },
     { label: 'awareness', value: getAwareness(c) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'cunning') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:cunning') },
   ]
 }
 export function getCunning(c: Character) {
@@ -88,6 +95,7 @@ export function getSDTerms(c: Character): Term[] {
     { label: 'size', value: -SM },
     { label: 'SD', value: skill(c, 'SD').value },
     { label: 'immobile', value: getAfflictions(c).includes('immobile') ? -3 : 0 },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:SD') },
   ]
 }
 export function getSD(c: Character) {
@@ -101,6 +109,7 @@ export function getForceTerms(c: Character): Term[] {
     { label: 'force', value: skill(c, 'force').value },
     { label: 'size', value: 5 * SM },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'force') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:force') },
   ]
 }
 export function getForce(c: Character) {
@@ -112,6 +121,7 @@ export function getBalanceTerms(c: Character): Term[] {
     { label: 'AGI', value: getAGI(c) - 10 },
     { label: 'balance', value: skill(c, 'balance').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'balance') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:balance') },
   ]
 }
 export function getBalance(c: Character) {
@@ -126,6 +136,7 @@ export function getClimbTerms(c: Character): Term[] {
     { label: 'size', value: -2 * SM },
     { label: 'gear', value: -3 * c.hasGauntlets },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'climb') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:climb') },
   ]
 }
 export function getClimb(c: Character) {
@@ -137,6 +148,7 @@ export function getSwimTerms(c: Character): Term[] {
     { label: 'AGI', value: getAGI(c) - 10 },
     { label: 'swim', value: skill(c, 'swim').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'swim') }, 
+    { label: 'abilities', value: getBuffBonus(c, 'skill:swim') },
   ]
 }
 export function getSwim(c: Character) {
@@ -149,6 +161,7 @@ export function getDetectionTerms(c: Character): Term[] {
     { label: 'awareness', value: getAwareness(c) },
     { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 detection
     { label: 'affliction', value: -getAfflictionPenalty(c, 'detection') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:detection') },
   ]
 }
 export function getDetection(c: Character) {
@@ -161,6 +174,7 @@ export function getStealthTerms(c: Character): Term[] {
     { label: 'stealth', value: skill(c, 'stealth').value },
     { label: 'size', value: -2 * SM }, // creating.tex "Skill Modifier (SM)": Stealth -2x
     { label: 'affliction', value: -getAfflictionPenalty(c, 'stealth') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:stealth') },
   ]
 }
 export function getStealth(c: Character) {
@@ -173,6 +187,7 @@ export function getPrestidigitationTerms(c: Character): Term[] {
     { label: 'gear', value: -3 * c.hasGauntlets },
     { label: 'prestidigitation', value: skill(c, 'prestidigitation').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'prestidigitation') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:prestidigitation') },
   ]
 }
 export function getPrestidigitation(c: Character) {
@@ -184,6 +199,7 @@ export function getHealthTerms(c: Character): Term[] {
     { label: 'CON', value: getCON(c) },
     { label: 'health', value: skill(c, 'health').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'health') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:health') },
   ]
 }
 export function getHealth(c: Character) {
@@ -203,6 +219,7 @@ export function getExploreTerms(c: Character): Term[] {
     { label: 'awareness', value: getAwareness(c) },
     { label: 'explore', value: skill(c, 'explore').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'explore') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:explore') },
   ]
 }
 export function getExplore(c: Character) {
@@ -214,6 +231,7 @@ export function getWillTerms(c: Character): Term[] {
     { label: 'will', value: skill(c, 'will').value },
     { label: 'SPI', value: getSPI(c) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'will') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:will') },
   ]
 }
 export function getWill(c: Character) {
@@ -225,6 +243,7 @@ export function getPersuasionTerms(c: Character): Term[] {
     { label: 'charisma', value: getCharisma(c) },
     { label: 'persuasion', value: skill(c, 'persuasion').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'persuasion') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:persuasion') },
   ]
 }
 export function getPersuasion(c: Character) {
@@ -236,6 +255,7 @@ export function getDeceptionTerms(c: Character): Term[] {
     { label: 'charisma', value: getCharisma(c) },
     { label: 'deception', value: skill(c, 'deception').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'deception') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:deception') },
   ]
 }
 export function getDeception(c: Character) {
@@ -247,6 +267,7 @@ export function getInsightTerms(c: Character): Term[] {
     { label: 'charisma', value: getCharisma(c) },
     { label: 'insight', value: skill(c, 'insight').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'insight') },
+    { label: 'abilities', value: getBuffBonus(c, 'skill:insight') },
   ]
 }
 export function getInsight(c: Character) {

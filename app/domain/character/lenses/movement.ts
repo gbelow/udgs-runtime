@@ -3,6 +3,16 @@ import { Character, Lens } from "../../types";
 // so every speed below reads the unpenalized AGI base (gear burden still
 // applies — gear.tex puts that penalty on the attribute itself).
 import { getAGIBase } from "./characteristics";
+import { getBuffBonus } from "./effects";
+import { getMM } from "./helpers";
+
+// abilities.tex states movement bonuses as "+1m xMM", and creating.tex
+// "Movement Multiplier (MM)" multiplies every speed, so an ability's bonus is
+// scaled here. `stand` is an AP cost, not a speed, and takes its bonus flat.
+function getMovementBonus(c: Character, key: keyof Character["movement"]): number {
+  const bonus = getBuffBonus(c, `movement:${key}`)
+  return key === "stand" ? bonus : bonus * getMM(c)
+}
 
 export function makeMovementLens<T extends Character>(
   moveName: keyof Character['movement'],
@@ -19,9 +29,9 @@ export function makeMovementLens<T extends Character>(
   };
 }
 
-// Returns just the stored value from character.movement if set, or default string/number
+// The stored value from character.movement plus whatever abilities add to it.
 export function getRaw (c: Character, key: keyof Character["movement"]) {
-  return c.movement[key];
+  return c.movement[key] + getMovementBonus(c, key);
 };
 
 export function getBasicMovement(c: Character) { 

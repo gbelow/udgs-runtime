@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { AbilityPanel } from './AbilityPanel';
 import { Characteristics, Movement, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -204,6 +205,7 @@ export function CharacterCreator() {
         <ArmorPanel/>
         <WeaponPanel />
         <ContainerPanel />
+        <AbilityPanel />
       </div>
     </div>
   )

@@ -17,6 +17,7 @@ function subject() {
   return makeCharacter({
     size: 3,
     TGH: 0,
+    abilities: ['sprinter-1', 'keen-eyes-1', 'tail-1'],
     trainables: {
       STR: { value: 12 }, AGI: { value: 11 }, STA: { value: 13 },
       CON: { value: 4 }, INT: { value: 3 }, SPI: { value: 2 }, DEX: { value: 5 },
@@ -115,13 +116,14 @@ describe('lens inversion — senses', () => {
 // The other half of the same promise: every derived value is the sum of the
 // terms the sheet shows as its breakdown, so the tooltip and the number can
 // never drift apart. Held against a subject carrying modifiers from every
-// direction — size, gear, injury and afflictions — so a term that is silently
-// dropped shows up as a difference.
+// direction — size, gear, injury, afflictions and abilities — so a term that is
+// silently dropped shows up as a difference.
 function afflicted(): CampaignCharacter {
   const base = makeCampaignCharacter({})
   return {
     ...base,
     trainables: subject().trainables,
+    abilities: subject().abilities,
     size: 5,
     hasHelm: 1,
     hasGauntlets: 1,

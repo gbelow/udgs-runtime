@@ -43,6 +43,7 @@ function characterSubject(): CampaignCharacter {
     armor,
     weapons: { [dagger.name]: dagger },
     containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1, items: [coin] } } }) },
+    abilities: ['sprinter-1'],
     afflictions: ['prone'],
     injuries: { ...base.injuries, injuryLevel: 12, hemorrhage: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
@@ -71,6 +72,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   resetAllSkills: characterCommands.resetAllSkills(),
   addKnowledge: characterCommands.addKnowledge('navigation'),
   removeKnowledge: characterCommands.removeKnowledge('medicine'),
+  learnAbility: characterCommands.learnAbility('sprinter-2'),
+  forgetAbility: characterCommands.forgetAbility('sprinter-1'),
   spendAttackResources: characterCommands.spendAttackResources(attack),
 }
 

@@ -2,6 +2,7 @@ import { CampaignCharacter, SurgeKind } from "../../types"
 import { SURGES } from "../../tables"
 import { surgeKinds } from "../../lists"
 import { getAGI } from "./characteristics"
+import { getBuffBonus } from "./effects"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -11,7 +12,7 @@ export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
 // flat amount. AGI here is the full characteristic — the injury exclusion in
 // "Afflictions" covers movement speeds, not the surge.
 export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
-  return (c: CampaignCharacter) => SURGES[kind].AP(getAGI(c))
+  return (c: CampaignCharacter) => SURGES[kind].AP(getAGI(c)) + getBuffBonus(c, `surge:${kind}`)
 }
 
 // combat.tex "Action surge": one per round, so a surge already spent closes all

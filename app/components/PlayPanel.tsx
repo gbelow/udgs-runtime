@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { AbilityPanel } from './AbilityPanel';
 import { makeDieRoll, makeFullRoll } from './utils';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
@@ -177,6 +178,7 @@ export function PlayPanel(){
             </div>
             <WeaponPanel />
             <ContainerPanel />
+            <AbilityPanel />
             {/* <textarea aria-label='pack' className='border rounded p-1 min-h-32 w-full' value={currentCharacter?.packItems ?? ''}  readOnly /> */}
           </div>
         </div>
