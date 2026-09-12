@@ -1,0 +1,177 @@
+{
+  "Dagger": {
+    "name": "Dagger",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Dagger"
+  },
+  "Wooden Shield": {
+    "name": "Wooden Shield",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Wooden Shield"
+  },
+  "Gambeson": {
+    "name": "Gambeson",
+    "description": "",
+    "type": "armor",
+    "bulk": 1,
+    "refId": "Gambeson"
+  },
+  "Grappling Hook and Rope": {
+    "name": "Grappling Hook and Rope",
+    "description": "Climbing DL 3 anywhere the hook sticks.",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Grappling Hook and Rope"
+  },
+  "Small Tent": {
+    "name": "Small Tent",
+    "description": "Set up camp without skill. Space for 2; shelter against rain and wind; reduces any exposure by 1.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Large Tent": {
+    "name": "Large Tent",
+    "description": "Set up camp without skill. Space for 4; shelter against rain and wind; reduces any exposure by 1.",
+    "type": "misc",
+    "bulk": 2,
+    "refId": ""
+  },
+  "Hammock": {
+    "name": "Hammock",
+    "description": "Reduces exposure to insects by 1.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Bedroll": {
+    "name": "Bedroll",
+    "description": "Reduces cold exposure by 2.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Oil Lamp": {
+    "name": "Oil Lamp",
+    "description": "5 m light radius when lit; burns an oil flask for 8 hours.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Flint": {
+    "name": "Flint",
+    "description": "Lights a campfire within minutes, no test required.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Firewood": {
+    "name": "Firewood",
+    "description": "Dry wood ready to burn for 4 hours.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Rope": {
+    "name": "Rope",
+    "description": "5 m per item.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Canteen": {
+    "name": "Canteen",
+    "description": "Holds 2 L of water.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Jug": {
+    "name": "Jug",
+    "description": "Holds 10 L of water.",
+    "type": "misc",
+    "bulk": 2,
+    "refId": ""
+  },
+  "Shovel": {
+    "name": "Shovel",
+    "description": "Used for digging.",
+    "type": "misc",
+    "bulk": 2,
+    "refId": ""
+  },
+  "Pot": {
+    "name": "Pot",
+    "description": "Boils water and cooks up to 10 portions, improving the preparation test by 2.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Vial": {
+    "name": "Vial",
+    "description": "Holds 50 ml of any liquid.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Chalk": {
+    "name": "Chalk",
+    "description": "Marking a path makes being followed trivial; spent in one ET, lasts until it rains.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Insect Repellant": {
+    "name": "Insect Repellant",
+    "description": "Reduces exposure to insects by 2; lasts for 1 sleep.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Sharpening Stone": {
+    "name": "Sharpening Stone",
+    "description": "",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Fur Cloak": {
+    "name": "Fur Cloak",
+    "description": "Improves resistance to cold exposure by +2.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Muffled Boots": {
+    "name": "Muffled Boots",
+    "description": "+2 to stealth against hearing.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Camouflage": {
+    "name": "Camouflage",
+    "description": "For one terrain. +3 to Stealth vs vision outside combat; -3 in combat in plain sight.",
+    "type": "misc",
+    "bulk": 2,
+    "refId": ""
+  },
+  "Snow Shoes": {
+    "name": "Snow Shoes",
+    "description": "Cancels the penalty for walking in snow.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Armor Repair Kit": {
+    "name": "Armor Repair Kit",
+    "description": "",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  }
+}

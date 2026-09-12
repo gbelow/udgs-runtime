@@ -74,7 +74,7 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     type: 'campaign',
     afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
     resources: {
-      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: getSTA(campaignCharacter), AP: 6},
+      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: getSTA(campaignCharacter), AP: 8},
     },
     injuries: {
       ...parsed.data?.injuries ?? campaignCharacter.injuries,

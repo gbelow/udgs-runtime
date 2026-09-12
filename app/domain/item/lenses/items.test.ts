@@ -3,6 +3,7 @@ import { getItemWeapon, getItemArmor } from './items'
 import { ArmorSchema, ItemSchema, WeaponSchema } from '../../types'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
+import itemsCatalog from '../../../assets/items.json'
 
 const weapons = Object.keys(weaponsCatalog as Record<string, unknown>)
 const armors = Object.keys(armorsCatalog as Record<string, unknown>)
@@ -40,5 +41,26 @@ describe('resolution is total', () => {
     const item = ItemSchema.parse(raw)
     expect(getItemWeapon(item)).toBeUndefined()
     expect(getItemArmor(item)).toBeUndefined()
+  })
+})
+
+// The catalog is the transcription of gear.tex "Utility and Survival" plus a
+// few refId'd weapons and armors. An entry is a template: `id` and `amount`
+// belong to the instance stamped from it, so they are the only fields the
+// parse may add. A template that names a catalog entry must name one that
+// exists, or every item stamped from it is a dead pointer.
+describe('items.json', () => {
+  const entries = Object.entries(itemsCatalog as Record<string, unknown>)
+
+  it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
+    const { id: _id, amount: _amount, ...parsed } = ItemSchema.parse(raw)
+    expect(parsed, key).toEqual(raw)
+  })
+
+  it.each(entries)('%s resolves whatever it references', (key, raw) => {
+    const item = ItemSchema.parse(raw)
+    if (!item.refId) return
+    const resolved = item.type === 'weapon' ? getItemWeapon(item) : item.type === 'armor' ? getItemArmor(item) : undefined
+    expect(resolved, key).toBeDefined()
   })
 })

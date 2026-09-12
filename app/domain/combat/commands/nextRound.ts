@@ -20,7 +20,7 @@ export function nextRound(
 
     // Add +6 AP but cap at 6
     if (updatedCharacter.resources) {
-      const newAP = Math.min(6, updatedCharacter.resources.AP + 6)
+      const newAP = Math.min(8, updatedCharacter.resources.AP + 8)
       updatedCharacter = {
         ...updatedCharacter,
         resources: {

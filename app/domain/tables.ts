@@ -128,7 +128,7 @@ export const magic_types = {
 // is recorded as prose for the UI.
 export const SURGES = {
   movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
-  combat:   { STA: 3, AP: () => 6, restriction: 'AP must be spent immediately on attacks or movement.' },
-  reaction: { STA: 3, AP: () => 6, restriction: 'AP can only be spent on reactions until the end of the round.' },
-  focus:    { STA: 1, AP: () => 2, restriction: 'AP is free to use. Required for shooting weapons, spells and non-weapon items.' },
+  combat:   { STA: 3, AP: () => 4, restriction: 'AP must be spent immediately on attacks or movement.' },
+  reaction: { STA: 3, AP: () => 4, restriction: 'AP can only be spent on reactions until the end of the round.' },
+  focus:    { STA: 0, AP: () => 0, restriction: 'AP is free to use. Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string }>
