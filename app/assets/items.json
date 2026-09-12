@@ -1,4 +1,11 @@
 {
+  "Gauntlet": {
+    "name": "Gauntlet",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Gauntlet"
+  },
   "Dagger": {
     "name": "Dagger",
     "description": "",
@@ -6,19 +13,110 @@
     "bulk": 0,
     "refId": "Dagger"
   },
-  "Wooden Shield": {
-    "name": "Wooden Shield",
+  "Club": {
+    "name": "Club",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Club"
+  },
+  "Stiletto": {
+    "name": "Stiletto",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Stiletto"
+  },
+  "Whip": {
+    "name": "Whip",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Whip"
+  },
+  "Short Sword": {
+    "name": "Short Sword",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Short Sword"
+  },
+  "Rapier": {
+    "name": "Rapier",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Rapier"
+  },
+  "Short Spear": {
+    "name": "Short Spear",
     "description": "",
     "type": "weapon",
     "bulk": 2,
-    "refId": "Wooden Shield"
+    "refId": "Short Spear"
   },
-  "Gambeson": {
-    "name": "Gambeson",
+  "Mace": {
+    "name": "Mace",
     "description": "",
-    "type": "armor",
+    "type": "weapon",
     "bulk": 1,
-    "refId": "Gambeson"
+    "refId": "Mace"
+  },
+  "Battle Axe": {
+    "name": "Battle Axe",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Battle Axe"
+  },
+  "Longsword": {
+    "name": "Longsword",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Longsword"
+  },
+  "Pike": {
+    "name": "Pike",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Pike"
+  },
+  "Halberd": {
+    "name": "Halberd",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Halberd"
+  },
+  "Warhammer": {
+    "name": "Warhammer",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Warhammer"
+  },
+  "Bardiche": {
+    "name": "Bardiche",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Bardiche"
+  },
+  "Greatsword": {
+    "name": "Greatsword",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Greatsword"
+  },
+  "Net": {
+    "name": "Net",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Net"
   },
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
@@ -27,23 +125,430 @@
     "bulk": 1,
     "refId": "Grappling Hook and Rope"
   },
-  "Small Tent": {
-    "name": "Small Tent",
-    "description": "Set up camp without skill. Space for 2; shelter against rain and wind; reduces any exposure by 1.",
+  "Grenade": {
+    "name": "Grenade",
+    "description": "",
+    "type": "weapon",
+    "bulk": 0,
+    "refId": "Grenade"
+  },
+  "Short Bow": {
+    "name": "Short Bow",
+    "description": "",
+    "type": "weapon",
+    "bulk": 1,
+    "refId": "Short Bow"
+  },
+  "Long Bow": {
+    "name": "Long Bow",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Long Bow"
+  },
+  "Heavy Bow": {
+    "name": "Heavy Bow",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Heavy Bow"
+  },
+  "Crossbow": {
+    "name": "Crossbow",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Crossbow"
+  },
+  "Arbalest": {
+    "name": "Arbalest",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Arbalest"
+  },
+  "Wooden Shield": {
+    "name": "Wooden Shield",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Wooden Shield"
+  },
+  "Metal Shield": {
+    "name": "Metal Shield",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Metal Shield"
+  },
+  "Wooden Tower": {
+    "name": "Wooden Tower",
+    "description": "",
+    "type": "weapon",
+    "bulk": 2,
+    "refId": "Wooden Tower"
+  },
+  "Clothing": {
+    "name": "Clothing",
+    "description": "",
+    "type": "armor",
+    "bulk": 1,
+    "refId": "Clothing"
+  },
+  "Fur Coat": {
+    "name": "Fur Coat",
+    "description": "",
+    "type": "armor",
+    "bulk": 1,
+    "refId": "FurCoat"
+  },
+  "Gambeson": {
+    "name": "Gambeson",
+    "description": "",
+    "type": "armor",
+    "bulk": 1,
+    "refId": "Gambeson"
+  },
+  "Padded Armor": {
+    "name": "Padded Armor",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "PaddedArmor"
+  },
+  "Chain Shirt": {
+    "name": "Chain Shirt",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "ChainShirt"
+  },
+  "Hauberk": {
+    "name": "Hauberk",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "Hauberk"
+  },
+  "Brigandine": {
+    "name": "Brigandine",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "Brigandine"
+  },
+  "Half Armor": {
+    "name": "Half Armor",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "HalfArmor"
+  },
+  "Full Armor": {
+    "name": "Full Armor",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "FullArmor"
+  },
+  "Reinforced Armor": {
+    "name": "Reinforced Armor",
+    "description": "",
+    "type": "armor",
+    "bulk": 2,
+    "refId": "ReinforcedArmor"
+  },
+  "Quiver": {
+    "name": "Quiver",
+    "description": "Carries 20 arrows or bolts that cost nothing to draw. Can be slung on a belt.",
     "type": "misc",
     "bulk": 1,
     "refId": ""
   },
-  "Large Tent": {
-    "name": "Large Tent",
-    "description": "Set up camp without skill. Space for 4; shelter against rain and wind; reduces any exposure by 1.",
+  "Alcohol": {
+    "name": "Alcohol",
+    "description": "0.5L flask that can be thrown to coat 1 space in flammable alcohol.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Oil Flask": {
+    "name": "Oil Flask",
+    "description": "0.5L flask that can be thrown to coat 1 space in flammable oil. Cannot be extinguished with water. Can be used to make a torch.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Pitch Pot": {
+    "name": "Pitch Pot",
+    "description": "Pot of pitch with a fuse that can be thrown and burns for 12 burning damage per round and sticks to 1 space or target and produces smoke (black smoke, 2m radius, 1 min fill). This does not extinguish with water and requires 8 AP to be muffled.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Smoke Bundle": {
+    "name": "Smoke Bundle",
+    "description": "Improvised, consumed by use. Damp greenery, dung, or straw rolled in cloth. Produces smoke (white smoke, 2m radius, 5 min fill).",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Torch": {
+    "name": "Torch",
+    "description": "Improvised, discarded after use. Gives 5m light radius when lit, requires an oil flask to burn for 4 hours. Can be used to block attack at RES 10. Lighting it is a DL -2 exploration test.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Smoke Grenade": {
+    "name": "Smoke Grenade",
+    "description": "Can be thrown or attached to a projectile and produces 3m radius of white smoke.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Anticoagulant Poison": {
+    "name": "Anticoagulant Poison",
+    "description": "Adds +1 bleed to any attack. Vial with 10 applications.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Paralytic Poison": {
+    "name": "Paralytic Poison",
+    "description": "DL 5 health to avoid becoming immobile within 20 turns on a graze or in 10 turns on a miss. Paralysis lasts for 1 hour/ 4 hours respectively.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Necrotic Poison": {
+    "name": "Necrotic Poison",
+    "description": "Character must make a DL 8 Health test in the next exploration turn. On a miss, they receive 5 IL. On a graze, 2. The effect does not wear off until a hit is scored.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Soporific Poison": {
+    "name": "Soporific Poison",
+    "description": "Inhalation or ingested. Target must make a DL 5 Health test. On a graze or miss, after 2 minutes, the target falls Unconscious for 1 hour. The target will awake if damaged, but will fall asleep again once danger ends.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Caltrops": {
+    "name": "Caltrops",
+    "description": "A scattered space. Balance DL 3 to avoid taking 10 piercing damage to the leg on a graze or 15 on a miss. One purchase covers one space.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Tripwire": {
+    "name": "Tripwire",
+    "description": "An undetected tripwire forces a balance check DL 3 to avoid falling prone. Detection DL 5.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Rolling Log": {
+    "name": "Rolling Log",
+    "description": "1 ton of wood released downhill along a path. Treat as a huge projectile. Deals 30 blunt damage and pushes with a DL of 30.",
+    "type": "misc",
+    "bulk": 3,
+    "refId": ""
+  },
+  "Alchemical Torch": {
+    "name": "Alchemical Torch",
+    "description": "Allows the use of light spells.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Superior Alchemical Torch": {
+    "name": "Superior Alchemical Torch",
+    "description": "An alchemical torch that amplifies magic once.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Alchemical Prism": {
+    "name": "Alchemical Prism",
+    "description": "Allows the channeling of light.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Electrite": {
+    "name": "Electrite",
+    "description": "A magically activated electrical battery stone. Deals 10 base electric damage. 20 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Superior Electrite": {
+    "name": "Superior Electrite",
+    "description": "Every spell is amplified once automatically. 20 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Magnetite": {
+    "name": "Magnetite",
+    "description": "Can be placed into gear to give magnetic properties.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Fire Stone": {
+    "name": "Fire Stone",
+    "description": "Allows the production of fire from it, dealing 10 base burn damage. 20 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Flamethrower": {
+    "name": "Flamethrower",
+    "description": "A stick mounted with a fire stone to apply pressure to the flames, deals 15 base burn damage.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Venomous Frog Corpse": {
+    "name": "Venomous Frog Corpse",
+    "description": "Produces anticoagulant poison.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Soul Stone": {
+    "name": "Soul Stone",
+    "description": "Used to preserve souls.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Condenser": {
+    "name": "Condenser",
+    "description": "Allows the extraction of water from the air.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Simple Healing": {
+    "name": "Simple Healing",
+    "description": "Heals 5 extra IL over 1 short rest.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Medium Healing": {
+    "name": "Medium Healing",
+    "description": "Heals 10 extra IL over 1 short rest.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Good Healing": {
+    "name": "Good Healing",
+    "description": "Heals 15 extra IL over 1 short rest.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Darkseeing": {
+    "name": "Darkseeing",
+    "description": "Allows seeing in the dark for 1 ET.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Bandages": {
+    "name": "Bandages",
+    "description": "Useful for medicine. 10 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Splint": {
+    "name": "Splint",
+    "description": "Useful for medicine.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Anti-septic": {
+    "name": "Anti-septic",
+    "description": "Reduces infection exposure by 3 when applied with a bandage. 10 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Antibiotic Poultice": {
+    "name": "Antibiotic Poultice",
+    "description": "Reduces infection exposure by 2 when consumed. 5 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Cocaine": {
+    "name": "Cocaine",
+    "description": "Removes the effects of exhaustion for 1 ET, but doubles Wear. Does not prevent unconsciousness. 5 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Morphine": {
+    "name": "Morphine",
+    "description": "Becomes intoxicated, but gets no injury penalty to morale tests. 5 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Ayahuasca": {
+    "name": "Ayahuasca",
+    "description": "Causes confusion, but increases shamanism by +5. 5 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Antidote": {
+    "name": "Antidote",
+    "description": "Removes effect of poison. Price and availability depend on poison. 5 charges.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Coin Pouch": {
+    "name": "Coin Pouch",
+    "description": "Holds up to 20 coins.",
+    "type": "misc",
+    "bulk": 0,
+    "refId": ""
+  },
+  "Oilcloth": {
+    "name": "Oilcloth",
+    "description": "A personal tent that counts as shelter against rain.",
+    "type": "misc",
+    "bulk": 1,
+    "refId": ""
+  },
+  "Small Tent": {
+    "name": "Small Tent",
+    "description": "Allows you to set up camp without skill. Has space for 2 people and counts as shelter against rain and wind. Also reduces any exposure by 1.",
     "type": "misc",
     "bulk": 2,
     "refId": ""
   },
+  "Large Tent": {
+    "name": "Large Tent",
+    "description": "Allows you to set up camp without skill. Has space for 4 people and counts as shelter against rain and wind. Also reduces any exposure by 1.",
+    "type": "misc",
+    "bulk": 3,
+    "refId": "",
+    "amount": 4
+  },
   "Hammock": {
     "name": "Hammock",
-    "description": "Reduces exposure to insects by 1.",
+    "description": "Reduces exposure to insects by 2.",
     "type": "misc",
     "bulk": 1,
     "refId": ""
@@ -57,14 +562,14 @@
   },
   "Oil Lamp": {
     "name": "Oil Lamp",
-    "description": "5 m light radius when lit; burns an oil flask for 8 hours.",
+    "description": "Gives 5m light radius when lit, requires an oil flask to burn for 8 hours.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
   },
   "Flint": {
     "name": "Flint",
-    "description": "Lights a campfire within minutes, no test required.",
+    "description": "Allows lighting a campfire within minutes, no test required.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
@@ -73,26 +578,26 @@
     "name": "Firewood",
     "description": "Dry wood ready to burn for 4 hours.",
     "type": "misc",
-    "bulk": 1,
+    "bulk": 2,
     "refId": ""
   },
   "Rope": {
     "name": "Rope",
-    "description": "5 m per item.",
+    "description": "10 meters. Useful item. Sold per meter.",
     "type": "misc",
-    "bulk": 0,
+    "bulk": 1,
     "refId": ""
   },
   "Canteen": {
     "name": "Canteen",
-    "description": "Holds 2 L of water.",
+    "description": "Holds 2L of water.",
     "type": "misc",
-    "bulk": 0,
+    "bulk": 1,
     "refId": ""
   },
   "Jug": {
     "name": "Jug",
-    "description": "Holds 10 L of water.",
+    "description": "Holds 5L of water.",
     "type": "misc",
     "bulk": 2,
     "refId": ""
@@ -106,35 +611,35 @@
   },
   "Pot": {
     "name": "Pot",
-    "description": "Boils water and cooks up to 10 portions, improving the preparation test by 2.",
+    "description": "Used to boil water and cook up to 10 portions, improving the preparation test by 2.",
     "type": "misc",
-    "bulk": 1,
+    "bulk": 2,
     "refId": ""
   },
   "Vial": {
     "name": "Vial",
-    "description": "Holds 50 ml of any liquid.",
+    "description": "Holds 50ml of any liquid.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
   },
   "Chalk": {
     "name": "Chalk",
-    "description": "Marking a path makes being followed trivial; spent in one ET, lasts until it rains.",
+    "description": "Makes being followed trivial in the marked path. It is spent in one ET and lasts until it rains.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
   },
   "Insect Repellant": {
     "name": "Insect Repellant",
-    "description": "Reduces exposure to insects by 2; lasts for 1 sleep.",
+    "description": "Reduces exposure to insects by 2. Lasts for 1 sleep.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
   },
   "Sharpening Stone": {
     "name": "Sharpening Stone",
-    "description": "",
+    "description": "A sharpening stone.",
     "type": "misc",
     "bulk": 0,
     "refId": ""
@@ -148,30 +653,30 @@
   },
   "Muffled Boots": {
     "name": "Muffled Boots",
-    "description": "+2 to stealth against hearing.",
+    "description": "+2 bonus to stealth against hearing.",
     "type": "misc",
     "bulk": 1,
     "refId": ""
   },
   "Camouflage": {
     "name": "Camouflage",
-    "description": "For one terrain. +3 to Stealth vs vision outside combat; -3 in combat in plain sight.",
+    "description": "Where X is the terrain. Gives +3 to Stealth vs vision outside combat. -3 penalty in combat in plain sight.",
     "type": "misc",
     "bulk": 2,
     "refId": ""
   },
   "Snow Shoes": {
     "name": "Snow Shoes",
-    "description": "Cancels the penalty for walking in snow.",
+    "description": "Cancels penalty for walking in the snow.",
     "type": "misc",
     "bulk": 1,
     "refId": ""
   },
   "Armor Repair Kit": {
     "name": "Armor Repair Kit",
-    "description": "",
+    "description": "Allows repairing armor in the field.",
     "type": "misc",
-    "bulk": 0,
+    "bulk": 1,
     "refId": ""
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getItemWeapon, getItemArmor } from './items'
+import { getCatalogItem, getItemWeapon, getItemArmor } from './items'
 import { ArmorSchema, ItemSchema, WeaponSchema } from '../../types'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
@@ -44,17 +44,26 @@ describe('resolution is total', () => {
   })
 })
 
-// The catalog is the transcription of gear.tex "Utility and Survival" plus a
-// few refId'd weapons and armors. An entry is a template: `id` and `amount`
-// belong to the instance stamped from it, so they are the only fields the
-// parse may add. A template that names a catalog entry must name one that
-// exists, or every item stamped from it is a dead pointer.
+// The catalog is the transcription of the gear.tex item lists and the Bulk
+// column of its weapon, shield and armor tables. An entry is a template: `id`
+// belongs to the instance stamped from it, and `amount` too unless the
+// template sets it (cargo measured in large items), so they are the only
+// fields the parse may add. A template that names a catalog entry must name
+// one that exists, or every item stamped from it is a dead pointer.
 describe('items.json', () => {
   const entries = Object.entries(itemsCatalog as Record<string, unknown>)
 
   it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
-    const { id: _id, amount: _amount, ...parsed } = ItemSchema.parse(raw)
-    expect(parsed, key).toEqual(raw)
+    const { id: _id, ...parsed } = ItemSchema.parse(raw)
+    expect(parsed, key).toEqual({ amount: 1, ...(raw as object) })
+  })
+
+  it.each(entries)('%s stamps a fresh stack each time it is drawn', (key) => {
+    const first = getCatalogItem(key, 3)
+    const second = getCatalogItem(key, 3)
+    expect(first, key).toBeDefined()
+    expect(second?.id).not.toBe(first?.id)
+    expect({ ...second, id: '' }).toEqual({ ...first, id: '' })
   })
 
   it.each(entries)('%s resolves whatever it references', (key, raw) => {

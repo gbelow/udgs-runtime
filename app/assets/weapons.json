@@ -953,7 +953,7 @@
   "Metal Shield": {
     "name": "Metal Shield",
     "handed": "one",
-    "penalty": 2,
+    "penalty": 1,
     "scale": 3,
     "attacks": [
       {

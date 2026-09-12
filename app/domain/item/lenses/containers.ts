@@ -1,4 +1,5 @@
 import { Character, Container, Item, SlotKind } from '../../types'
+import { isSameItem } from './items'
 
 // gear.tex "Slot size and stacking": medium and large slots take their own
 // bulk; a quick slot takes whatever bulk the container's Quick column prints.
@@ -36,9 +37,22 @@ export function getAvailableSlots(container: Container, slot: SlotKind): number 
   return container.slots[slot].numSlots - getUsedSlots(container, slot)
 }
 
+// The group as it would be with the item added: onto an identical stack that
+// is already there, otherwise as a stack of its own. Cargo is a measure, not
+// a count of units, but it merges the same way — two loads of the same cargo
+// are one bigger load.
+export function stackInto(items: Item[], item: Item): Item[] {
+  const at = items.findIndex((other) => isSameItem(other, item))
+  if (at < 0) return [...items, item]
+  const merged = { ...items[at], amount: items[at].amount + item.amount }
+  return items.map((other, i) => (i === at ? merged : other))
+}
+
 export function canFitItem(container: Container, slot: SlotKind, item: Item): boolean {
-  const needed = getSlotsNeeded(container, slot, item)
-  return needed !== null && needed <= getAvailableSlots(container, slot)
+  if (getSlotsNeeded(container, slot, item) === null) return false
+  const group = container.slots[slot]
+  const loaded = { ...container, slots: { ...container.slots, [slot]: { ...group, items: stackInto(group.items, item) } } }
+  return getUsedSlots(loaded, slot) <= group.numSlots
 }
 
 // Whoever has the container equipped bears it — a saddle burdens the horse

@@ -163,13 +163,18 @@ export const WeaponSchema = z.object({
 
 export type Weapon = z.infer<typeof WeaponSchema>
 
+// gear.tex "Containers and Burden": an item is small, medium or large, and
+// cargo is "counted in number of large items". One Item is a stack: `amount`
+// counts identical units for the three sizes, and for cargo it is the number
+// of large items the stack measures (a "4x large" tent is one cargo item of
+// amount 4), which is what its slot cost is read from.
 export const ItemSchema = z.object({
   id: str.default(() => crypto.randomUUID()),
   name: str.default(''), // with no refId, this + description is all that says what the item is
   description: str.default(''),
   type: str.default('misc'), // which catalog refId resolves in, e.g. 'weapon' -> weapons.json, 'armor' -> armors.json
   amount: num.default(1),
-  bulk: num.default(0), // 0 small · 1 medium · 2 large · 3+ cargo
+  bulk: num.default(0), // 0 small · 1 medium · 2 large · 3 cargo
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object
 }).strip()
 

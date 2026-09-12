@@ -38,10 +38,32 @@ describe('items go into a container and come back out', () => {
 
   it('removes only the item named', () => {
     const kept = coin(1)
-    const dropped = coin(2)
+    const dropped = ItemSchema.parse({ name: 'Vial', bulk: 0, amount: 2 })
     const loaded = addItemToContainer('belt', 'quick', dropped)(addItemToContainer('belt', 'quick', kept)(characterWithBelt()))
     const after = removeItemFromContainer('belt', dropped.id)(loaded)
     expect(after.containers.belt.slots.quick.items.map((item) => item.id)).toEqual([kept.id])
+  })
+
+  it('takes part of a stack and leaves the rest', () => {
+    const stack = coin(5)
+    const loaded = addItemToContainer('belt', 'quick', stack)(characterWithBelt())
+    const after = removeItemFromContainer('belt', stack.id, 2)(loaded)
+    expect(after.containers.belt.slots.quick.items).toEqual([{ ...stack, amount: 3 }])
+  })
+})
+
+// gear.tex "Slot size and stacking": a slot holds "an item or stack of items"
+// and "only identical items can be stacked together". Adding a coin to a
+// group that already holds coins joins that stack; a different item does not.
+describe('stacking', () => {
+  it('joins an identical stack instead of taking a slot', () => {
+    const c = addItemToContainer('belt', 'quick', coin(3))(addItemToContainer('belt', 'quick', coin(2))(characterWithBelt()))
+    expect(c.containers.belt.slots.quick.items.map((item) => item.amount)).toEqual([5])
+  })
+
+  it('keeps a different item as a stack of its own', () => {
+    const c = addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Vial', bulk: 0 }))(addItemToContainer('belt', 'quick', coin(2))(characterWithBelt()))
+    expect(c.containers.belt.slots.quick.items.map((item) => item.name)).toEqual(['Coin', 'Vial'])
   })
 })
 
