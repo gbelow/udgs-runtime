@@ -1,5 +1,5 @@
 import { Armor, Character, Skills, Weapon } from '../../types'
-import { dmgArr, MMArr, SMArr } from '../../tables'
+import { dmgArr, RMArr, SMArr } from '../../tables'
 import { getSize } from './misc'
 
 export const getSM = (c: Character): number => {
@@ -12,11 +12,10 @@ export const getDM = (c: Character): number => {
   return dmgArr[size-1]
 }
 
-// creating.tex "Movement Multiplier (MM)": "multiplies all movement speeds and
-// the range of all weapons".
-export const getMM = (c: Character): number => {
+// creating.tex "Reach Multiplier (RM)": "multiplies the range of all weapons".
+export const getRM = (c: Character): number => {
   const size = getSize(c)
-  return MMArr[size-1]
+  return RMArr[size-1]
 }
 
 

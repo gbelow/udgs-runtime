@@ -6,7 +6,7 @@ import { useAbilityLens } from '../hooks/useAbilityLens'
 // name unfolds every stage's text (learned stages highlighted); the button
 // steps the family back one stage, the mirror of the sidebar's learn button.
 export function AbilityPanel(){
-  const { learned, forget } = useAbilityLens()
+  const { learned, forget, toggle } = useAbilityLens()
   const [open, setOpen] = useState<string | null>(null)
 
   return(
@@ -21,9 +21,16 @@ export function AbilityPanel(){
               <button type='button' aria-label={`${row.family} details`} className='text-left grow hover:bg-gray-500'
                 onClick={() => setOpen(open === row.family ? null : row.family)}>
                 <span className='font-bold'>{row.family}</span>
-                {row.stages.length > 1 ? <span className='text-xs text-gray-400'> {row.learnedStage}/{row.stages.length}</span> : null}
+                {row.progress ? <span className='text-xs text-gray-400'> {row.progress}</span> : null}
                 <span className='text-xs text-gray-400'> · {row.usage}</span>
               </button>
+              {
+                row.toggle ?
+                <input type='button' aria-label={`toggle ${row.family}`} value={row.active ? 'on' : 'off'}
+                  className={'border rounded px-1 text-xs ' + (row.active ? 'bg-green-300 text-black' : '')}
+                  onClick={() => toggle(row.toggle!.key)} />
+                : null
+              }
               {
                 row.top ?
                 <input type='button' aria-label={`forget ${row.top.name}`} value={row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}
@@ -36,7 +43,7 @@ export function AbilityPanel(){
               <div className='flex flex-col gap-1 px-1 pt-1 text-xs'>
                 {row.stages.map((stage) => (
                   <div key={stage.key} className={stage.learned ? 'text-green-300' : 'text-gray-500'}>
-                    <span className='font-bold'>{stage.name}</span> — {stage.description}
+                    <span className='font-bold'>{stage.name}</span> — {stage.description || 'nothing new at this level'}
                   </div>
                 ))}
               </div>

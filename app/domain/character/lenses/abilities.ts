@@ -1,5 +1,6 @@
 import { Character } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
+import { isAbilityActive } from './effects'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
 // ability unless the requirements are met" and each is acquired once. Only the
@@ -25,9 +26,11 @@ export type AbilityFamilyView = {
   section: string
   usage: string
   stages: AbilityStageView[]
-  learnedStage: number // 0 when none of the stages is learned
   next: AbilityStageView | null // the stage a click would learn, if any
   top: AbilityStageView | null // the highest learned stage — the one a click would forget
+  progress: string // "2/3" for a multi-stage family, "" otherwise
+  toggle: AbilityStageView | null // the learned stage that carries the family's switch, if any
+  active: boolean // whether that switch is on
 }
 
 export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
@@ -39,9 +42,11 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       section: ability.section,
       usage: ability.usage,
       stages: [],
-      learnedStage: 0,
       next: null,
       top: null,
+      progress: '',
+      toggle: null,
+      active: false,
     }
     const learned = c.abilities.includes(key)
     const stage: AbilityStageView = {
@@ -53,13 +58,17 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       description: ability.description,
     }
     row.stages.push(stage)
-    if (learned) row.learnedStage = Math.max(row.learnedStage, ability.stage)
     families.set(ability.family, row)
   }
   for (const row of families.values()) {
     row.stages.sort((a, b) => a.stage - b.stage)
     row.next = row.stages.find((s) => s.learnable) ?? null
     row.top = row.stages.filter((s) => s.learned).at(-1) ?? null
+    row.toggle = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'toggle') ?? null
+    row.active = row.toggle !== null && isAbilityActive(c, row.toggle.key)
+    // A conviction's stages are its levels and may start at 0, so progress
+    // reads the stage number rather than a count of stages.
+    if (row.stages.length > 1) row.progress = `${row.top?.stage ?? 0}/${row.stages.at(-1)!.stage}`
   }
   return [...families.values()]
 }
@@ -68,6 +77,6 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
 // with every stage's text kept, so the sheet reads "Keen Eyes 2/3" and a step
 // back is a click on the top stage.
 export function getLearnedAbilityRows(c: Character): AbilityFamilyView[] {
-  return getAbilityCatalogRows(c).filter((row) => row.learnedStage > 0)
+  return getAbilityCatalogRows(c).filter((row) => row.top !== null)
 }
 

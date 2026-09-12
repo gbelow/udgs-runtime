@@ -2,7 +2,7 @@ import { Character, Skills } from '../../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, getAfflictions } from './afflictions'
 import { getBuffBonus } from './effects'
-import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON } from './characteristics'
+import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
 
 export { sumTerms }
@@ -226,10 +226,16 @@ export function getExplore(c: Character) {
   return sumTerms(getExploreTerms(c))
 }
 
+// creating.tex "Convictions": "Every odd level of conviction increases will
+// by 1. A conviction at level 1 gives +1 will, a level 3 gives +2 and a level
+// 5, +3." Each of the two convictions counts on its own.
+const oddLevelWill = (level: number) => Math.ceil(level / 2)
+
 export function getWillTerms(c: Character): Term[] {
   return [
     { label: 'will', value: skill(c, 'will').value },
     { label: 'SPI', value: getSPI(c) },
+    { label: 'conviction', value: oddLevelWill(getConviction1(c)) + oddLevelWill(getConviction2(c)) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'will') },
     { label: 'abilities', value: getBuffBonus(c, 'skill:will') },
   ]

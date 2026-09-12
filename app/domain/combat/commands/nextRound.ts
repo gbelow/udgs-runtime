@@ -1,4 +1,5 @@
 import { CampaignCharacter } from '../../types'
+import { payUpkeep } from '../../character/commands/abilities'
 import { CombatState } from '../types'
 
 // clear the used surge of all characters.
@@ -10,7 +11,8 @@ export function nextRound(
   const updatedCharacters: Record<string, CampaignCharacter> = {}
 
   for (const [id, character] of Object.entries(state.characters)) {
-    let updatedCharacter = character
+    // Abilities held on through the round are paid for now
+    let updatedCharacter = payUpkeep(character)
 
     // Clear the surge used last round
     updatedCharacter = {

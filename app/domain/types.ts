@@ -300,7 +300,7 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // Everything a buff can land on, as `<group>:<key>`. The list is derived from
 // the schemas so a key added to a group is a valid target the same day; the
 // getter behind each group is what actually reads the bonus (skills add it as
-// a term, movement scales it by MM, senses add it to the bonus, surges to AP).
+// a term, movement and senses add it to the stored value, surges to AP).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)

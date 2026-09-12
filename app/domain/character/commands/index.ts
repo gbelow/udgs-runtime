@@ -7,7 +7,7 @@ export { actionSurge } from "./actionSurge"
 export { equipArmor, unequipArmor, putGauntlets, putHelm } from "./equipArmor"
 export { resetSkill, resetAllSkills } from "./resetSkills"
 export { removeKnowledge, addKnowledge } from "./knowledge"
-export { learnAbility, forgetAbility } from "./abilities"
+export { learnAbility, forgetAbility, toggleAbility, payUpkeep } from "./abilities"
 
 export {
   spendAttackResources,

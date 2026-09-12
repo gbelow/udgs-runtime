@@ -1,4 +1,4 @@
-import { Ability, Buff, BuffTarget, Character, Effect } from '../../types'
+import { Ability, Buff, BuffTarget, Character, Cost, Effect } from '../../types'
 import { ABILITIES, isAbilityKey } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
 
@@ -48,4 +48,24 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
   return getBuffsForTarget(character, target)
     .filter((b) => b.operation === '+')
     .reduce((sum, b) => sum + b.value, 0)
+}
+
+// A toggled ability is "on" while the effects stamped with its key sit in
+// activeEffects; a base character has nothing to toggle.
+export function isAbilityActive(character: Character, key: string): boolean {
+  return isCampaignCharacter(character) && character.activeEffects.some((e) => e.name === key)
+}
+
+// What every switched-on ability charges at a round change, summed.
+export function getUpkeep(character: Character): Cost {
+  const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0 }
+  if (!isCampaignCharacter(character)) return total
+  for (const effect of character.activeEffects) {
+    if (effect.type !== 'cost' || effect.trigger !== 'end_round') continue
+    total.AP += effect.effect.AP
+    total.STA += effect.effect.STA
+    total.exhaustion += effect.effect.exhaustion
+    total.IL += effect.effect.IL
+  }
+  return total
 }

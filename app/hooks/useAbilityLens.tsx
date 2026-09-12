@@ -1,4 +1,4 @@
-import { forgetAbility, learnAbility } from "../domain/character/commands";
+import { forgetAbility, learnAbility, toggleAbility } from "../domain/character/commands";
 import { AbilityFamilyView, getAbilityCatalogRows, getLearnedAbilityRows } from "../domain/character/lenses/abilities";
 import type { AbilityKey } from "../domain/abilities";
 import { Character } from "../domain/types";
@@ -25,5 +25,9 @@ export function useAbilityLens() {
     update(forgetAbility(key));
   };
 
-  return { catalog, learned, learn, forget } as const;
+  const toggle = (key: AbilityKey) => {
+    update(toggleAbility(key));
+  };
+
+  return { catalog, learned, learn, forget, toggle } as const;
 }

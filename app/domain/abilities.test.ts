@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from './abilities'
-import { forgetAbility, learnAbility } from './character/commands'
-import { makeCharacter } from './factories'
-import type { Character } from './types'
+import { forgetAbility, learnAbility, payUpkeep, toggleAbility } from './character/commands'
+import { getUpkeep } from './character/lenses/effects'
+import { makeCampaignCharacter, makeCharacter } from './factories'
+import type { CampaignCharacter, Character } from './types'
 
 // abilities.tex "Acquiring abilities": a multi-level ability "receives an I,
-// II, III next to its name, indicating each level", so stage n of a family
-// stands on stage n-1 of the same family.
+// II, III next to its name, indicating each level", so every stage of a
+// family but its first stands on the stage before it.
 describe('ability catalog — stages', () => {
-  const staged = ABILITY_KEYS.filter((key) => ABILITIES[key].stage > 1)
+  const familyStages = (family: string) =>
+    ABILITY_KEYS.filter((k) => ABILITIES[k].family === family).sort((a, b) => ABILITIES[a].stage - ABILITIES[b].stage)
+  const staged = ABILITY_KEYS.filter((key) => familyStages(ABILITIES[key].family)[0] !== key)
 
   it.each(staged)('"%s" requires the previous stage of its family', (key) => {
-    const { family, stage, requires } = ABILITIES[key]
-    const previous = ABILITY_KEYS.filter(
-      (k) => ABILITIES[k].family === family && ABILITIES[k].stage === stage - 1,
-    )
-    expect(previous).toHaveLength(1)
-    expect(requires).toContain(previous[0])
+    const stages = familyStages(ABILITIES[key].family)
+    const previous = stages[stages.indexOf(key) - 1]
+    expect(ABILITIES[key].requires).toContain(previous)
   })
 
   it.each(ABILITY_KEYS)('every requirement of "%s" is a catalog key', (key) => {
@@ -61,5 +61,23 @@ describe('learning abilities', () => {
       expect(after.abilities).not.toContain(link)
       expect(holdsRequirements(after)).toBe(true)
     }
+  })
+})
+
+// abilities.tex "Synesthesia": "+1 STA per turn" — an ability held on is paid
+// for at every round change, and one switched off costs nothing.
+describe('toggle abilities', () => {
+  const toggles = ABILITY_KEYS.filter((key) => ABILITIES[key].activation === 'toggle')
+
+  it.each(toggles)('"%s" charges its upkeep at the round change only while on', (key) => {
+    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ resources: { STA: 10, AP: 8 } }))
+    const off = learned as CampaignCharacter
+    const on = toggleAbility(key)(off) as CampaignCharacter
+    const upkeep = getUpkeep(on)
+
+    expect(payUpkeep(off).resources).toEqual(off.resources)
+    expect(payUpkeep(on).resources.STA).toBe(on.resources.STA - upkeep.STA)
+    expect(payUpkeep(on).resources.AP).toBe(on.resources.AP - upkeep.AP)
+    expect(toggleAbility(key)(on)).toEqual(off)
   })
 })

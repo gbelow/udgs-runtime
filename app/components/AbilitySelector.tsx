@@ -32,7 +32,7 @@ export function AbilitySelector(){
                     className='text-left px-1 hover:bg-gray-500 text-sm grow'
                     onClick={() => setOpen(open === row.family ? null : row.family)}>
                     {row.family}
-                    {row.stages.length > 1 ? <span className='text-xs text-gray-400'> {row.learnedStage}/{row.stages.length}</span> : null}
+                    {row.progress ? <span className='text-xs text-gray-400'> {row.progress}</span> : null}
                     <span className='text-xs text-gray-400'> · {row.usage}</span>
                   </button>
                   {
@@ -48,7 +48,7 @@ export function AbilitySelector(){
                   <div className='flex flex-col gap-1 px-2 pb-1 text-xs text-gray-300'>
                     {row.stages.map((stage) => (
                       <div key={stage.key} className={stage.learned ? 'text-green-300' : ''}>
-                        <span className='font-bold'>{stage.name}</span> — {stage.description}
+                        <span className='font-bold'>{stage.name}</span> — {stage.description || 'nothing new at this level'}
                       </div>
                     ))}
                   </div>
