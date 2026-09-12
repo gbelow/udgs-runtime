@@ -5,7 +5,7 @@ import { ContainerSchema, ItemSchema } from '../../types'
 
 function characterWithBelt() {
   return makeCharacter({
-    containers: { belt: ContainerSchema.parse({ name: 'Belt', numSlots: 4, slotBulk: 1 }) },
+    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1 } } }) },
   })
 }
 
@@ -32,16 +32,16 @@ describe('items go into a container and come back out', () => {
   it('leaves the container as it found it', () => {
     const before = characterWithBelt()
     const item = coin()
-    const after = removeItemFromContainer('belt', item.id)(addItemToContainer('belt', item)(before))
+    const after = removeItemFromContainer('belt', item.id)(addItemToContainer('belt', 'quick', item)(before))
     expect(after.containers).toEqual(before.containers)
   })
 
   it('removes only the item named', () => {
     const kept = coin(1)
     const dropped = coin(2)
-    const loaded = addItemToContainer('belt', dropped)(addItemToContainer('belt', kept)(characterWithBelt()))
+    const loaded = addItemToContainer('belt', 'quick', dropped)(addItemToContainer('belt', 'quick', kept)(characterWithBelt()))
     const after = removeItemFromContainer('belt', dropped.id)(loaded)
-    expect(after.containers.belt.items.map((item) => item.id)).toEqual([kept.id])
+    expect(after.containers.belt.slots.quick.items.map((item) => item.id)).toEqual([kept.id])
   })
 })
 
@@ -49,15 +49,15 @@ describe('items go into a container and come back out', () => {
 // or an item that does not fit, must not leave a half-loaded character behind.
 describe('adding is all or nothing', () => {
   it('refuses a container that is not there', () => {
-    expect(() => addItemToContainer('missing', coin())(characterWithBelt())).toThrow()
+    expect(() => addItemToContainer('missing', 'quick', coin())(characterWithBelt())).toThrow()
   })
 
   it('refuses an item too bulky for the slots', () => {
-    expect(() => addItemToContainer('belt', ItemSchema.parse({ name: 'Crate', bulk: 3 }))(characterWithBelt())).toThrow()
+    expect(() => addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Crate', bulk: 3 }))(characterWithBelt())).toThrow()
   })
 
   it('refuses a stack that would overflow the container', () => {
     const c = characterWithBelt()
-    expect(() => addItemToContainer('belt', ItemSchema.parse({ name: 'Bricks', bulk: 1, amount: 9 }))(c)).toThrow()
+    expect(() => addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Bricks', bulk: 1, amount: 9 }))(c)).toThrow()
   })
 })

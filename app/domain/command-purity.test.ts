@@ -42,7 +42,7 @@ function characterSubject(): CampaignCharacter {
     ...withKnowledge,
     armor,
     weapons: { [dagger.name]: dagger },
-    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', numSlots: 4, slotBulk: 1, items: [coin] }) },
+    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1, items: [coin] } } }) },
     afflictions: ['prone'],
     injuries: { ...base.injuries, injuryLevel: 12, hemorrhage: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
@@ -75,9 +75,9 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
 }
 
 const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
-  duplicateItem: (c) => itemCommands.duplicateItem(c.containers.belt.items[0], { amount: 2 }),
-  addItemToContainer: itemCommands.addItemToContainer('belt', ItemSchema.parse({ name: 'Ration', bulk: 1 })),
-  removeItemFromContainer: (c) => itemCommands.removeItemFromContainer('belt', c.containers.belt.items[0].id)(c),
+  duplicateItem: (c) => itemCommands.duplicateItem(c.containers.belt.slots.quick.items[0], { amount: 2 }),
+  addItemToContainer: itemCommands.addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Ration', bulk: 1 })),
+  removeItemFromContainer: (c) => itemCommands.removeItemFromContainer('belt', c.containers.belt.slots.quick.items[0].id)(c),
   equipContainer: itemCommands.equipContainer('pack', ContainerSchema.parse({ name: 'Backpack', kind: 'backpack' })),
   unequipContainer: itemCommands.unequipContainer('belt'),
 }

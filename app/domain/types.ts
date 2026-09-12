@@ -175,20 +175,33 @@ export const ItemSchema = z.object({
 
 export type Item = z.infer<typeof ItemSchema>
 
-export const ContainerKindSchema = z.enum(['belt', 'backpack', 'transport'])
+// gear.tex "Containers": belt, bandolier and backpack are worn one at a time;
+// a saddle rides an animal; vehicles are the only place cargo can go.
+export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'saddle', 'vehicle'])
 export type ContainerKind = z.infer<typeof ContainerKindSchema>
+
+// gear.tex "Containers": the Quick, Medium and Large columns.
+export const SlotKindSchema = z.enum(['quick', 'medium', 'large'])
+export type SlotKind = z.infer<typeof SlotKindSchema>
+
+export const SlotGroupSchema = z.object({
+  numSlots: num.default(0),
+  items: z.array(ItemSchema).default([]),
+}).strip()
+
+export type SlotGroup = z.infer<typeof SlotGroupSchema>
 
 export const ContainerSchema = z.object({
   name: str.default(''),
   kind: ContainerKindSchema.default('backpack'),
-  numSlots: num.default(0),
-  slotBulk: num.default(0), // bulk ladder position one slot accepts
+  slots: z.object({
+    // The Quick column prints the bulk its slots take ("4 medium", "8 small");
+    // medium and large slots take their own bulk, so only quick stores one.
+    quick: SlotGroupSchema.extend({ slotBulk: num.default(0) }).prefault({}),
+    medium: SlotGroupSchema.prefault({}),
+    large: SlotGroupSchema.prefault({}),
+  }).prefault({}),
   penalty: num.default(0),
-  liftThreshold: z.object({ // narrow per-container exception (e.g. Large Backpack's "STR 15 or size 4" footnote) — most containers omit this
-    STR: num.optional(),
-    size: num.optional(),
-  }).optional(),
-  items: z.array(ItemSchema).default([]),
 }).strip()
 
 export type Container = z.infer<typeof ContainerSchema>

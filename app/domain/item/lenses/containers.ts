@@ -1,6 +1,11 @@
-import { Character, Container, Item } from '../../types'
-import { getSTRBase } from '../../character/lenses/characteristics'
-import { getSize } from '../../character/lenses/misc'
+import { Character, Container, Item, SlotKind } from '../../types'
+
+// gear.tex "Slot size and stacking": medium and large slots take their own
+// bulk; a quick slot takes whatever bulk the container's Quick column prints.
+export function getSlotBulk(container: Container, slot: SlotKind): number {
+  if (slot === 'quick') return container.slots.quick.slotBulk
+  return slot === 'medium' ? 1 : 2
+}
 
 // slots holds 5^(slotBulk - itemBulk): 1 same-bulk item, 5 of the next bulk down, 25 two bulks down
 export function getStackCapacity(slotBulk: number, itemBulk: number): number {
@@ -8,38 +13,39 @@ export function getStackCapacity(slotBulk: number, itemBulk: number): number {
   return 5 ** (slotBulk - itemBulk)
 }
 
-export function getUsedSlots(container: Container): number {
-  return container.items.reduce((total, item) => {
-    if (container.slotBulk >= 3) return total + item.amount // cargo: raw weight/volume units, not the stacking ladder
-    const capacity = getStackCapacity(container.slotBulk, item.bulk)
-    return total + (capacity > 0 ? Math.ceil(item.amount / capacity) : item.amount)
-  }, 0)
+// gear.tex "Containers and Burden": cargo is counted in large items and can
+// only be placed in vehicles, so it never stacks and never rides on a body.
+const isCargo = (item: Item) => item.bulk >= 3
+
+// How many slots of the group a stack occupies, or null when the item can
+// never go in that group whatever the free space.
+export function getSlotsNeeded(container: Container, slot: SlotKind, item: Item): number | null {
+  if (isCargo(item)) return container.kind === 'vehicle' && slot === 'large' ? item.amount : null
+  const capacity = getStackCapacity(getSlotBulk(container, slot), item.bulk)
+  return capacity > 0 ? Math.ceil(item.amount / capacity) : null
 }
 
-export function getAvailableSlots(container: Container): number {
-  return container.numSlots - getUsedSlots(container)
-}
-
-export function canFitItem(container: Container, item: Item): boolean {
-  if (container.slotBulk < 3 && item.bulk > container.slotBulk) return false
-  const needed = container.slotBulk >= 3
-    ? item.amount
-    : Math.ceil(item.amount / getStackCapacity(container.slotBulk, item.bulk))
-  return needed <= getAvailableSlots(container)
-}
-
-export function getContainerPenalty(character: Character, container: Container): number {
-  const threshold = container.liftThreshold
-  const meetsThreshold = !!threshold && (
-    (threshold.STR !== undefined && getSTRBase(character) >= threshold.STR) ||
-    (threshold.size !== undefined && getSize(character) >= threshold.size)
+export function getUsedSlots(container: Container, slot: SlotKind): number {
+  return container.slots[slot].items.reduce(
+    (total, item) => total + (getSlotsNeeded(container, slot, item) ?? item.amount),
+    0
   )
-  return meetsThreshold ? Math.max(0, container.penalty - 1) : container.penalty
 }
 
+export function getAvailableSlots(container: Container, slot: SlotKind): number {
+  return container.slots[slot].numSlots - getUsedSlots(container, slot)
+}
+
+export function canFitItem(container: Container, slot: SlotKind, item: Item): boolean {
+  const needed = getSlotsNeeded(container, slot, item)
+  return needed !== null && needed <= getAvailableSlots(container, slot)
+}
+
+// Whoever has the container equipped bears it — a saddle burdens the horse
+// it is equipped on, and the horse is a character like any other.
 export function getBurdenPenalty(character: Character): number {
   return Object.values(character.containers).reduce(
-    (total, container) => total + getContainerPenalty(character, container),
+    (total, container) => total + container.penalty,
     0
   )
 }

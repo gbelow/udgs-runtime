@@ -2,53 +2,161 @@
   "Belt": {
     "name": "Belt",
     "kind": "belt",
-    "numSlots": 4,
-    "slotBulk": 0,
-    "penalty": 0,
-    "items": []
+    "slots": {
+      "quick": {
+        "numSlots": 4,
+        "slotBulk": 1,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "items": []
+      },
+      "large": {
+        "numSlots": 0,
+        "items": []
+      }
+    },
+    "penalty": 0
+  },
+  "Bandolier": {
+    "name": "Bandolier",
+    "kind": "bandolier",
+    "slots": {
+      "quick": {
+        "numSlots": 8,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "items": []
+      },
+      "large": {
+        "numSlots": 0,
+        "items": []
+      }
+    },
+    "penalty": 0
   },
   "Backpack": {
     "name": "Backpack",
     "kind": "backpack",
-    "numSlots": 12,
-    "slotBulk": 1,
-    "penalty": 1,
-    "items": []
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 12,
+        "items": []
+      },
+      "large": {
+        "numSlots": 2,
+        "items": []
+      }
+    },
+    "penalty": 1
   },
   "Large Backpack": {
     "name": "Large Backpack",
     "kind": "backpack",
-    "numSlots": 12,
-    "slotBulk": 2,
-    "penalty": 2,
-    "liftThreshold": {
-      "STR": 15,
-      "size": 4
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 16,
+        "items": []
+      },
+      "large": {
+        "numSlots": 4,
+        "items": []
+      }
     },
-    "items": []
+    "penalty": 2
+  },
+  "Saddle": {
+    "name": "Saddle",
+    "kind": "saddle",
+    "slots": {
+      "quick": {
+        "numSlots": 2,
+        "slotBulk": 2,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 8,
+        "items": []
+      },
+      "large": {
+        "numSlots": 4,
+        "items": []
+      }
+    },
+    "penalty": 0
   },
   "Sled": {
     "name": "Sled",
-    "kind": "transport",
-    "numSlots": 200,
-    "slotBulk": 3,
-    "penalty": 3,
-    "items": []
+    "kind": "vehicle",
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "items": []
+      },
+      "large": {
+        "numSlots": 20,
+        "items": []
+      }
+    },
+    "penalty": 3
   },
   "One-Horse Cart": {
     "name": "One-Horse Cart",
-    "kind": "transport",
-    "numSlots": 500,
-    "slotBulk": 3,
-    "penalty": 3,
-    "items": []
+    "kind": "vehicle",
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "items": []
+      },
+      "large": {
+        "numSlots": 100,
+        "items": []
+      }
+    },
+    "penalty": 2
   },
   "Two-Horse Cart": {
     "name": "Two-Horse Cart",
-    "kind": "transport",
-    "numSlots": 1000,
-    "slotBulk": 3,
-    "penalty": 3,
-    "items": []
+    "kind": "vehicle",
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "items": []
+      },
+      "large": {
+        "numSlots": 200,
+        "items": []
+      }
+    },
+    "penalty": 2
   }
 }

@@ -7,14 +7,21 @@ import type { Character, ContainerKind } from '../../types'
 const kinds = ContainerKindSchema.options
 const container = (name: string, kind: ContainerKind) => ContainerSchema.parse({ name, kind })
 
+// gear.tex "Containers": "only one backpack, one bandolier and one belt at a
+// time" — a body has one waist, one chest and one back. Saddles sit on
+// animals and vehicles are pulled, so nothing limits them.
+const WORN: ContainerKind[] = ['belt', 'bandolier', 'backpack']
+
 function carrying(): Character {
   return {
     ...makeCharacter(null),
     containers: {
       belt: container('Belt', 'belt'),
+      sash: container('Bandolier', 'bandolier'),
       pack: container('Backpack', 'backpack'),
-      sled: container('Sled', 'transport'),
-      cart: container('Cart', 'transport'),
+      saddle: container('Saddle', 'saddle'),
+      sled: container('Sled', 'vehicle'),
+      cart: container('Cart', 'vehicle'),
     },
   }
 }
@@ -22,14 +29,11 @@ function carrying(): Character {
 const countOf = (c: Character, kind: ContainerKind) =>
   Object.values(c.containers).filter((container) => container.kind === kind).length
 
-// "Only one belt and one backpack at a time" — a body has one waist and one
-// back. Transports are pulled rather than worn, so nothing limits them. The
-// rule is stated over kinds, so it is checked over kinds.
+// The rule is stated over kinds, so it is checked over kinds.
 describe('equipContainer', () => {
-  it.each(kinds)('equipping a %s leaves at most one belt and one backpack', (kind) => {
+  it.each(kinds)('equipping a %s leaves at most one of each worn kind', (kind) => {
     const after = equipContainer('new', container('New', kind))(carrying())
-    expect(countOf(after, 'belt')).toBeLessThanOrEqual(1)
-    expect(countOf(after, 'backpack')).toBeLessThanOrEqual(1)
+    for (const worn of WORN) expect(countOf(after, worn)).toBeLessThanOrEqual(1)
     expect(after.containers.new.name).toBe('New')
   })
 
@@ -42,15 +46,16 @@ describe('equipContainer', () => {
     }
   })
 
-  it('does not limit how many transports are hauled', () => {
-    const after = equipContainer('barrow', container('Wheelbarrow', 'transport'))(carrying())
-    expect(countOf(after, 'transport')).toBe(3)
+  it.each(kinds.filter((kind) => !WORN.includes(kind)))('does not limit how many %ss are hauled', (kind) => {
+    const before = carrying()
+    const after = equipContainer('another', container('Another', kind))(before)
+    expect(countOf(after, kind)).toBe(countOf(before, kind) + 1)
   })
 })
 
 describe('unequipContainer', () => {
-  // Only from a character not already wearing that kind: equipping a belt or a
-  // backpack evicts the one it replaces, and unequipping cannot bring it back.
+  // Only from a character not already wearing that kind: equipping a worn kind
+  // evicts the one it replaces, and unequipping cannot bring it back.
   it.each(kinds)('undoes equipping a %s', (kind) => {
     const before = makeCharacter(null)
     const after = unequipContainer('new')(equipContainer('new', container('New', kind))(before))

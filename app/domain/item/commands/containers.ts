@@ -1,11 +1,13 @@
-import { Character, CharacterUpdater, Container } from '../../types'
+import { Character, CharacterUpdater, Container, ContainerKind } from '../../types'
 
-// Equipping a belt/backpack replaces whichever other entry is currently of
-// that same kind (including its contents) — "only one belt and one backpack
-// at a time". Transports aren't limited this way; multiple can be carried.
+// gear.tex "Containers": "only one backpack, one bandolier and one belt at a
+// time". Equipping one of these replaces whichever other entry is currently
+// of that same kind, contents included. Saddles and vehicles aren't limited.
+const WORN_ONE_AT_A_TIME: ReadonlySet<ContainerKind> = new Set(['belt', 'bandolier', 'backpack'])
+
 export function equipContainer(key: string, container: Container): CharacterUpdater {
   return (character: Character) => {
-    const singleton = container.kind === 'belt' || container.kind === 'backpack'
+    const singleton = WORN_ONE_AT_A_TIME.has(container.kind)
     const remaining = Object.fromEntries(
       Object.entries(character.containers).filter(([otherKey, other]) => {
         if (otherKey === key) return false

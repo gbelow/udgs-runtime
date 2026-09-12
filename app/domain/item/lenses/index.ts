@@ -1,2 +1,2 @@
 export { getItemWeapon, getItemArmor } from './items'
-export { getStackCapacity, getUsedSlots, getAvailableSlots, canFitItem, getContainerPenalty, getBurdenPenalty, getBurdenLevel } from './containers'
+export { getSlotBulk, getStackCapacity, getSlotsNeeded, getUsedSlots, getAvailableSlots, canFitItem, getBurdenPenalty, getBurdenLevel } from './containers'

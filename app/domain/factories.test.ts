@@ -47,9 +47,8 @@ const populated = () =>
     containers: {
       belt: ContainerSchema.parse({
         name: 'Belt',
-        numSlots: 4,
-        slotBulk: 1,
-        items: [ItemSchema.parse({ name: 'Coin', amount: 5 })],
+        kind: 'belt',
+        slots: { quick: { numSlots: 4, slotBulk: 1, items: [ItemSchema.parse({ name: 'Coin', amount: 5 })] } },
       }),
     },
   })
@@ -134,9 +133,9 @@ describe('a character survives its storage format', () => {
 
   it('gives every ingested item an id to be addressed by', () => {
     const c = makeCharacter({
-      containers: { belt: { name: 'Belt', numSlots: 4, slotBulk: 0, items: [{ name: 'Coin', amount: 5 }] } },
+      containers: { belt: { name: 'Belt', slots: { quick: { numSlots: 4, items: [{ name: 'Coin', amount: 5 }] } } } },
     })
-    const [item] = c.containers.belt.items
+    const [item] = c.containers.belt.slots.quick.items
     expect(item.id).toBeTruthy()
     expect(item.amount).toBe(5)
   })
