@@ -4,6 +4,7 @@ import { addItemToContainer } from '../commands/items'
 import { makeCharacter } from '../../factories'
 import { ContainerKindSchema, ContainerSchema, ItemSchema, SlotKindSchema } from '../../types'
 import type { Container, Item, SlotKind } from '../../types'
+import containersCatalog from '../../../assets/containers.json'
 
 const bulks = [0, 1, 2, 3, 4]
 const slotKinds = SlotKindSchema.options
@@ -81,5 +82,15 @@ describe('canFitItem agrees with addItemToContainer', () => {
       return accepted !== canFitItem(box, slot, thing)
     })
     expect(disagreements).toEqual([])
+  })
+})
+
+// The catalog is the transcription of the gear.tex Containers table. Its slot
+// groups are stored empty, so the parse may add nothing and strip nothing.
+describe('containers.json', () => {
+  const entries = Object.entries(containersCatalog as Record<string, unknown>)
+
+  it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
+    expect(ContainerSchema.parse(raw), key).toEqual(raw)
   })
 })

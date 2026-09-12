@@ -1,5 +1,6 @@
-import { Character, Container, Item, SlotKind } from '../../types'
+import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
 import { isSameItem } from './items'
+import containersCatalog from '../../../assets/containers.json'
 
 // gear.tex "Slot size and stacking": medium and large slots take their own
 // bulk; a quick slot takes whatever bulk the container's Quick column prints.
@@ -71,4 +72,105 @@ export function getBurdenLevel(penalty: number): 'light' | 'medium' | 'heavy' | 
   if (penalty === 1) return 'medium'
   if (penalty === 2) return 'heavy'
   return 'over'
+}
+
+// A catalog entry is a template with empty slots; equipping it stores a copy
+// on the character, so the same key can be drawn any number of times.
+export function getContainerCatalog(): Record<string, Container> {
+  return Object.fromEntries(
+    Object.entries(containersCatalog as Record<string, unknown>).map(([key, raw]) => [key, ContainerSchema.parse(raw)])
+  )
+}
+
+export function getCatalogContainer(key: string): Container | undefined {
+  const raw = (containersCatalog as Record<string, unknown>)[key]
+  return raw ? ContainerSchema.parse(raw) : undefined
+}
+
+// gear.tex "Containers and Burden": the four item sizes, indexed by bulk.
+const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
+
+export type BurdenLevel = ReturnType<typeof getBurdenLevel>
+
+export type ContainerItemView = {
+  id: string
+  name: string
+  amount: number
+  bulk: number
+  bulkName: string
+  slots: number
+}
+
+// One slot group as the Containers table prints it: the Quick column names the
+// bulk its slots take, the other two are their own bulk.
+export type ContainerSlotView = {
+  slot: SlotKind
+  bulkName: string
+  numSlots: number
+  used: number
+  available: number
+  items: ContainerItemView[]
+}
+
+export type ContainerPanelView = {
+  key: string
+  name: string
+  kind: ContainerKind
+  penalty: number
+  burden: BurdenLevel
+  slots: ContainerSlotView[]
+}
+
+export type BurdenView = {
+  penalty: number
+  level: BurdenLevel
+  label: string
+}
+
+function getContainerPanel(key: string, container: Container): ContainerPanelView {
+  return {
+    key,
+    name: container.name,
+    kind: container.kind,
+    penalty: container.penalty,
+    burden: getBurdenLevel(container.penalty),
+    slots: SlotKindSchema.options
+      .filter((slot) => container.slots[slot].numSlots > 0)
+      .map((slot) => ({
+        slot,
+        bulkName: BULK_NAMES[getSlotBulk(container, slot)] ?? 'cargo',
+        numSlots: container.slots[slot].numSlots,
+        used: getUsedSlots(container, slot),
+        available: getAvailableSlots(container, slot),
+        items: container.slots[slot].items.map((item) => ({
+          id: item.id,
+          name: item.name || item.refId,
+          amount: item.amount,
+          bulk: item.bulk,
+          bulkName: BULK_NAMES[item.bulk] ?? 'cargo',
+          slots: getSlotsNeeded(container, slot, item) ?? item.amount,
+        })),
+      })),
+  }
+}
+
+// The whole container panel in one shape: every equipped container, its slot
+// groups and the stacks in each, with nothing left for the UI to count.
+export function getContainerPanels(c: Character): ContainerPanelView[] {
+  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container))
+}
+
+// The catalog in the same shape, so a sidebar row and an equipped card render
+// the same view.
+export function getContainerCatalogPanels(): ContainerPanelView[] {
+  return Object.entries(getContainerCatalog()).map(([key, container]) => getContainerPanel(key, container))
+}
+
+// gear.tex "Containers and burden": the level a character is at from the
+// containers alone. The penalty is a stored magnitude; the label prints it the
+// way the book does, as the modifier it becomes.
+export function getBurden(c: Character): BurdenView {
+  const penalty = getBurdenPenalty(c)
+  const level = getBurdenLevel(penalty)
+  return { penalty, level, label: penalty > 0 ? `${level} (-${penalty})` : level }
 }
