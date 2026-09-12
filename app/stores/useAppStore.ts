@@ -7,13 +7,20 @@ import { useStore } from "zustand";
 
 type GameTabs = 'edit' | 'play' | 'break'
 
+// The catalog item picked in the sidebar and waiting for a slot to be clicked
+// in the container panel. Pure UI coordination between two components; what
+// it is and where it fits are the domain's to say.
+export type PendingItem = { key: string; amount: number }
+
 export interface AppState {
   selectedGameTab: GameTabs
   setSelectedGameTab: (mode: GameTabs) => void
   baseCharacterList: JsonObject
   updateBaseCharacterList: () => void
   playerCharacterList: {id: string, name: string}[]
-  updatePlayerCharacterList: () => void  
+  updatePlayerCharacterList: () => void
+  pendingItem: PendingItem | null
+  setPendingItem: (pendingItem: PendingItem | null) => void
 }
 
 export const createAppStore = (initialState: Partial<AppState>) =>
@@ -23,6 +30,8 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     playerCharacterList: initialState.playerCharacterList || [],
     
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
+    pendingItem: null,
+    setPendingItem: (pendingItem) => set({ pendingItem }),
     
     updateBaseCharacterList: async () => {
       const res = await getBasicCharList()

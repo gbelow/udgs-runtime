@@ -1,4 +1,5 @@
-export { getCatalogItem, isSameItem, getItemWeapon, getItemArmor } from './items'
+export { getCatalogItem, getItemCatalogRows, getBulkName, isSameItem, getItemWeapon, getItemArmor } from './items'
+export type { ItemCatalogRow } from './items'
 export {
   getSlotBulk, getStackCapacity, getSlotsNeeded, getUsedSlots, getAvailableSlots, stackInto, canFitItem,
   getBurdenPenalty, getBurdenLevel, getBurden,

@@ -6,6 +6,31 @@ import itemsCatalog from '../../../assets/items.json'
 // A catalog entry is a template: stamping it yields an item with its own id
 // and a stack of `amount`, so the same key can be drawn from the catalog
 // any number of times without two stacks ever sharing an identity.
+// gear.tex "Containers and Burden": the four item sizes, indexed by bulk.
+const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
+
+export function getBulkName(bulk: number): string {
+  return BULK_NAMES[bulk] ?? 'cargo'
+}
+
+export type ItemCatalogRow = {
+  key: string
+  name: string
+  type: string
+  bulk: number
+  bulkName: string
+}
+
+// The catalog as rows to pick from, grouped the way the book lists them:
+// weapons, armor, then everything else, each in catalog order.
+export function getItemCatalogRows(): ItemCatalogRow[] {
+  return Object.entries(itemsCatalog as Record<string, unknown>)
+    .map(([key, raw]) => {
+      const item = ItemSchema.parse(raw)
+      return { key, name: item.name || key, type: item.type, bulk: item.bulk, bulkName: getBulkName(item.bulk) }
+    })
+}
+
 export function getCatalogItem(key: string, amount = 1): Item | undefined {
   const raw = (itemsCatalog as Record<string, unknown>)[key]
   return raw ? ItemSchema.parse({ ...(raw as object), amount }) : undefined

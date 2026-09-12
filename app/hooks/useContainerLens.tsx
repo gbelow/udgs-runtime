@@ -10,6 +10,7 @@ import {
 } from "../domain/item/lenses";
 import { Character } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
 const NO_BURDEN: BurdenView = { penalty: 0, level: 'light', label: 'light' };
@@ -22,11 +23,14 @@ const CATALOG_PANELS: ContainerPanelView[] = getContainerCatalogPanels();
 // serves the edit sheet and a character in combat without knowing which.
 export function useContainerLens() {
   const update = useActiveCharacterUpdate();
+  const pendingItem = usePendingItem();
 
   // Every equipped container, its slot groups and their stacks, in one shape
-  // gated on a digest of itself (cf. useWeaponLens).
+  // gated on a digest of itself (cf. useWeaponLens). The pending item is an
+  // input to the projection — each group reports whether it would take it —
+  // and the digest covers that too, so a change of selection re-renders.
   const panels: ContainerPanelView[] =
-    useActiveCharacterDerived(getContainerPanels, JSON.stringify) ?? [];
+    useActiveCharacterDerived((c: Character) => getContainerPanels(c, pendingItem ?? undefined), JSON.stringify) ?? [];
 
   // gear.tex "Containers and burden" — the character-wide level.
   const burden: BurdenView =

@@ -1,5 +1,5 @@
 import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
-import { isSameItem } from './items'
+import { getBulkName, isSameItem } from './items'
 import containersCatalog from '../../../assets/containers.json'
 
 // gear.tex "Slot size and stacking": medium and large slots take their own
@@ -87,9 +87,6 @@ export function getCatalogContainer(key: string): Container | undefined {
   return raw ? ContainerSchema.parse(raw) : undefined
 }
 
-// gear.tex "Containers and Burden": the four item sizes, indexed by bulk.
-const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
-
 export type BurdenLevel = ReturnType<typeof getBurdenLevel>
 
 export type ContainerItemView = {
@@ -102,13 +99,15 @@ export type ContainerItemView = {
 }
 
 // One slot group as the Containers table prints it: the Quick column names the
-// bulk its slots take, the other two are their own bulk.
+// bulk its slots take, the other two are their own bulk. `fits` answers for
+// the item being placed, and is null when nothing is.
 export type ContainerSlotView = {
   slot: SlotKind
   bulkName: string
   numSlots: number
   used: number
   available: number
+  fits: boolean | null
   items: ContainerItemView[]
 }
 
@@ -127,7 +126,7 @@ export type BurdenView = {
   label: string
 }
 
-function getContainerPanel(key: string, container: Container): ContainerPanelView {
+function getContainerPanel(key: string, container: Container, pending?: Item): ContainerPanelView {
   return {
     key,
     name: container.name,
@@ -138,16 +137,17 @@ function getContainerPanel(key: string, container: Container): ContainerPanelVie
       .filter((slot) => container.slots[slot].numSlots > 0)
       .map((slot) => ({
         slot,
-        bulkName: BULK_NAMES[getSlotBulk(container, slot)] ?? 'cargo',
+        bulkName: getBulkName(getSlotBulk(container, slot)),
         numSlots: container.slots[slot].numSlots,
         used: getUsedSlots(container, slot),
         available: getAvailableSlots(container, slot),
+        fits: pending ? canFitItem(container, slot, pending) : null,
         items: container.slots[slot].items.map((item) => ({
           id: item.id,
           name: item.name || item.refId,
           amount: item.amount,
           bulk: item.bulk,
-          bulkName: BULK_NAMES[item.bulk] ?? 'cargo',
+          bulkName: getBulkName(item.bulk),
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
         })),
       })),
@@ -155,9 +155,10 @@ function getContainerPanel(key: string, container: Container): ContainerPanelVie
 }
 
 // The whole container panel in one shape: every equipped container, its slot
-// groups and the stacks in each, with nothing left for the UI to count.
-export function getContainerPanels(c: Character): ContainerPanelView[] {
-  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container))
+// groups and the stacks in each, with nothing left for the UI to count. With
+// an item pending placement, each group also says whether it would take it.
+export function getContainerPanels(c: Character, pending?: Item): ContainerPanelView[] {
+  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container, pending))
 }
 
 // The catalog in the same shape, so a sidebar row and an equipped card render
