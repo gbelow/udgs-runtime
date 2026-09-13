@@ -1,5 +1,5 @@
 import { Ability, Buff, BuffTarget, Character, Cost, Effect } from '../../types'
-import { ABILITIES, isAbilityKey } from '../../abilities'
+import { ABILITIES, AbilityKey, isAbilityKey } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
@@ -15,18 +15,35 @@ export function getLearnedAbilities(character: Character): Ability[] {
     .map((key) => ABILITIES[key])
 }
 
-// Buffs can come from two sources: passive abilities (always contribute
-// while learned) and activeEffects (toggle/active abilities, only while on).
-export function collectBuffs(character: Character): Buff[] {
+// The switched-on abilities: every `active` entry of kind ability whose key is
+// still a learned toggle. `active` comes through a permissive ingest, so an
+// entry that no longer satisfies that (forgotten, renamed in the book,
+// re-authored as passive) is ignored rather than acted on.
+export function getActiveAbilityKeys(character: Character): AbilityKey[] {
+  if (!isCampaignCharacter(character)) return []
+  return character.active
+    .filter((entry) => entry?.kind === 'ability')
+    .map((entry) => entry.key)
+    .filter((key): key is AbilityKey =>
+      isAbilityKey(key) && character.abilities.includes(key) && ABILITIES[key].activation === 'toggle')
+}
+
+export function isAbilityActive(character: Character, key: AbilityKey): boolean {
+  return getActiveAbilityKeys(character).includes(key)
+}
+
+// Everything currently contributing: passive abilities always, toggles while
+// on. Read off the catalog every time — the character holds only references.
+export function getContributingEffects(character: Character): Effect[] {
   const passive = getLearnedAbilities(character)
     .filter((a) => a.activation === 'passive')
     .flatMap((a) => a.effect)
+  const active = getActiveAbilityKeys(character).flatMap((key) => ABILITIES[key].effect)
+  return [...passive, ...active]
+}
 
-  const active: Effect[] = isCampaignCharacter(character)
-    ? character.activeEffects
-    : []
-
-  return [...passive, ...active].filter(isBuff).map((e) => e.effect)
+export function collectBuffs(character: Character): Buff[] {
+  return getContributingEffects(character).filter(isBuff).map((e) => e.effect)
 }
 
 export function groupBuffsByTarget(buffs: Buff[]): Record<string, Buff[]> {
@@ -50,17 +67,10 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
     .reduce((sum, b) => sum + b.value, 0)
 }
 
-// A toggled ability is "on" while the effects stamped with its key sit in
-// activeEffects; a base character has nothing to toggle.
-export function isAbilityActive(character: Character, key: string): boolean {
-  return isCampaignCharacter(character) && character.activeEffects.some((e) => e.name === key)
-}
-
 // What every switched-on ability charges at a round change, summed.
 export function getUpkeep(character: Character): Cost {
   const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0 }
-  if (!isCampaignCharacter(character)) return total
-  for (const effect of character.activeEffects) {
+  for (const effect of getContributingEffects(character)) {
     if (effect.type !== 'cost' || effect.trigger !== 'end_round') continue
     total.AP += effect.effect.AP
     total.STA += effect.effect.STA

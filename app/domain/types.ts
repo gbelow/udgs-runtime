@@ -318,7 +318,6 @@ export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
 
 export const BuffSchema = z.object({
-  name: str.default(''),
   target: BuffTargetSchema,
   operation: str.default('+'), // +, *, set
   value: num.default(0),
@@ -344,7 +343,6 @@ export const TriggerSchema = z.enum(['instant', 'end_round', 'toggle'])
 export type Trigger = z.infer<typeof TriggerSchema>
 
 const EffectBase = {
-  id: z.string().default(() => crypto.randomUUID()),
   name: str.default(''),
   trigger: TriggerSchema.default('instant'),
 }
@@ -357,6 +355,17 @@ export const EffectSchema = z.discriminatedUnion('type', [
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
+export type EffectInput = z.input<typeof EffectSchema>
+
+// Something switched on and held: a toggle ability today, a spell later.
+// The character keeps only the reference; the effects are read off the
+// owning catalog, so nothing copied into state can go stale.
+export const ActiveEntrySchema = z.object({
+  kind: z.enum(['ability', 'spell']),
+  key: str,
+}).strip()
+
+export type ActiveEntry = z.infer<typeof ActiveEntrySchema>
 
 export const ActivationSchema = z.enum(['passive', 'active', 'toggle'])
 export type Activation = z.infer<typeof ActivationSchema>
@@ -399,7 +408,7 @@ const CampaignValues = {
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   usedSurge: SurgeKindSchema.nullable().default(null),
-  activeEffects: z.array(EffectSchema).default([]),
+  active: z.array(ActiveEntrySchema).default([]),
 }
 
 export const CampaignValuesSchema = z.object({

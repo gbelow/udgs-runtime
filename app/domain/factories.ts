@@ -109,6 +109,8 @@ const CharacterIngestValues = {
   weapons: z.record(z.string(), WeaponSchema).optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),
 
+  abilities: z.array(z.string()).optional(),
+
   notes: z.string().optional(), 
 }
 
@@ -122,6 +124,7 @@ export const ResourceIngestValues = {
   afflictions: z.array(z.any()).optional(),
   resources: z.any().optional(),
   usedSurge: SurgeKindSchema.nullable().optional(),
+  active: z.array(z.any()).optional(),
 };
 
 export const CampaignCharacterIngestSchema = z.object({

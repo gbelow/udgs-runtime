@@ -1,4 +1,4 @@
-import { Ability, AbilitySchema, Activation, BuffTarget, Cost, Effect } from './types'
+import { Ability, AbilitySchema, Activation, BuffTarget, Cost, EffectInput } from './types'
 import { ABILITY_TEXT } from './abilities.generated'
 
 // abilities.tex — the ability catalog. The prose (name, section, usage,
@@ -10,13 +10,8 @@ import { ABILITY_TEXT } from './abilities.generated'
 //
 // An ability absent from this map is description-only: the reader sees it
 // exists and reads how it works, and nothing in the domain moves for it yet.
-//
-// Every effect is stamped with its ability's key as `name`, which is how a
-// toggled ability is found again in `activeEffects` to be switched off.
-type EffectInput = Omit<Effect, 'id' | 'name'>
-
 const buff = (target: BuffTarget, value: number): EffectInput =>
-  ({ type: 'buff', trigger: 'instant', effect: { name: '', target, operation: '+', value } })
+  ({ type: 'buff', effect: { target, operation: '+', value } })
 
 // A price paid at every round change while the ability stays on.
 const upkeep = (cost: Partial<Cost>): EffectInput =>
@@ -76,9 +71,7 @@ const AUTHORED: Partial<Record<AbilityKey, Authored>> = {
 
 export const ABILITIES: Record<AbilityKey, Ability> = Object.fromEntries(
   (Object.keys(ABILITY_TEXT) as AbilityKey[]).map((key) => {
-    const authored = AUTHORED[key] ?? {}
-    const effect = (authored.effect ?? []).map((e) => ({ ...e, name: key }))
-    return [key, AbilitySchema.parse({ ...ABILITY_TEXT[key], ...authored, effect })]
+    return [key, AbilitySchema.parse({ ...ABILITY_TEXT[key], ...(AUTHORED[key] ?? {}) })]
   }),
 ) as Record<AbilityKey, Ability>
 

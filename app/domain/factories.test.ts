@@ -41,6 +41,7 @@ const populated = () =>
     size: 4,
     TGH: 2,
     notes: 'kept',
+    abilities: ['sprinter-1', 'synesthesia-1'],
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     weapons: { Dagger: WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger) },
@@ -125,6 +126,7 @@ describe('a character survives its storage format', () => {
       ...populated(),
       type: 'campaign',
       afflictions: ['prone'],
+      active: [{ kind: 'ability', key: 'synesthesia-1' }],
       resources: { AP: 4, STA: 8, hunger: 3, thirst: 2, exhaustion: 1 },
       injuries: { injuryLevel: 12, wounds: [], hemorrhage: 2, potion: 0, injuryThreshold: 10, unconsciousThreshold: 40, deathThreshold: 50 },
     })

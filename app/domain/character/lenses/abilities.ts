@@ -81,7 +81,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
     row.next = row.stages.find((s) => s.learnable) ?? null
     row.top = row.stages.filter((s) => s.learned).at(-1) ?? null
     // Switches and triggers only exist in play — a base character has no
-    // resources to spend and no activeEffects to hold.
+    // resources to spend and nothing to hold switched on.
     if (isCampaignCharacter(c)) {
       row.toggle = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'toggle') ?? null
       row.active = row.toggle !== null && isAbilityActive(c, row.toggle.key)

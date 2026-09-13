@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character, EffectSchema } from "../../types"
+import { CampaignCharacter, Character } from "../../types"
 import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnAbility } from "../lenses/abilities"
@@ -29,23 +29,25 @@ export function forgetAbility(key: string): (c: Character) => Character {
       }
     }
     if (!c.abilities.some((a) => removed.has(a))) return c
-    return { ...c, abilities: c.abilities.filter((a) => !removed.has(a)) }
+    const abilities = c.abilities.filter((a) => !removed.has(a))
+    // a forgotten toggle cannot stay switched on
+    if (isCampaignCharacter(c)) {
+      return { ...c, abilities, active: c.active.filter((e) => !(e.kind === 'ability' && removed.has(e.key))) }
+    }
+    return { ...c, abilities }
   }
 }
 
-// Switches a toggle ability on or off. On: its effects join activeEffects as
-// fresh copies (ids are per instance); off: everything stamped with its key
-// leaves. Only a learned toggle on a campaign character has a switch.
+// Switches a toggle ability on or off by adding or removing its reference in
+// `active`. Only a learned toggle on a campaign character has a switch.
 export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
     if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
-    const ability = ABILITIES[key]
-    if (ability.activation !== 'toggle') return c
+    if (ABILITIES[key].activation !== 'toggle') return c
     if (isAbilityActive(c, key)) {
-      return { ...c, activeEffects: c.activeEffects.filter((e) => e.name !== key) }
+      return { ...c, active: c.active.filter((e) => !(e.kind === 'ability' && e.key === key)) }
     }
-    const copies = ability.effect.map((e) => EffectSchema.parse({ ...e, id: undefined }))
-    return { ...c, activeEffects: [...c.activeEffects, ...copies] }
+    return { ...c, active: [...c.active, { kind: 'ability', key }] }
   }
 }
 
