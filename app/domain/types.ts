@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { AFFLICTIONS } from './tables'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 import { parseWeaponProperties } from './weaponProperties'
 
 const num = z.number()
@@ -300,7 +300,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // Everything a buff can land on, as `<group>:<key>`. The list is derived from
 // the schemas so a key added to a group is a valid target the same day; the
 // getter behind each group is what actually reads the bonus (skills add it as
-// a term, movement and senses add it to the stored value, surges to AP).
+// a term, movement and senses add it to the stored value, surges to AP, and
+// `ap:`/`sta:` move the price of an action in ACTION_COSTS).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -310,6 +311,8 @@ export const BUFF_TARGETS = [
   ...prefixed('movement', Object.keys(MovementSchema.shape) as (keyof Movement)[]),
   ...prefixed('sense', Object.keys(SensesSchema.shape) as (keyof Senses)[]),
   ...prefixed('surge', SurgeKindSchema.options),
+  ...prefixed('ap', Object.keys(ACTION_COSTS) as ActionKind[]),
+  ...prefixed('sta', Object.keys(ACTION_COSTS) as ActionKind[]),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])

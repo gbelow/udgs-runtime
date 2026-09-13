@@ -6,7 +6,7 @@ import { useAbilityLens } from '../hooks/useAbilityLens'
 // name unfolds every stage's text (learned stages highlighted); the button
 // steps the family back one stage, the mirror of the sidebar's learn button.
 export function AbilityPanel(){
-  const { learned, forget, toggle } = useAbilityLens()
+  const { learned, forget, toggle, use } = useAbilityLens()
   const [open, setOpen] = useState<string | null>(null)
 
   return(
@@ -24,6 +24,13 @@ export function AbilityPanel(){
                 {row.progress ? <span className='text-xs text-gray-400'> {row.progress}</span> : null}
                 <span className='text-xs text-gray-400'> · {row.usage}</span>
               </button>
+              {
+                row.use ?
+                <input type='button' aria-label={`use ${row.use.name}`} value={`use · ${row.use.price}`}
+                  className='border border-green-400 text-green-300 rounded px-1 text-xs'
+                  onClick={() => use(row.use!.key)} />
+                : null
+              }
               {
                 row.toggle ?
                 <input type='button' aria-label={`toggle ${row.family}`} value={row.active ? 'on' : 'off'}

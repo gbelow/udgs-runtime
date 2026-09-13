@@ -61,3 +61,17 @@ export function payUpkeep(c: CampaignCharacter): CampaignCharacter {
     injuries: { ...paid.injuries, injuryLevel: paid.injuries.injuryLevel + upkeep.IL },
   }
 }
+
+// Fires an active ability: the price is paid and nothing else moves — the
+// effect is a combat procedure the table resolves. Refused when the character
+// cannot afford it, like an attack.
+export function useAbility(key: AbilityKey): (c: Character) => Character {
+  return (c: Character) => {
+    if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
+    const { activation, cost } = ABILITIES[key]
+    if (activation !== 'active') return c
+    if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return c
+    const paid = updateSTA(c.resources.STA - cost.STA)(c)
+    return { ...paid, resources: { ...paid.resources, AP: paid.resources.AP - cost.AP } }
+  }
+}

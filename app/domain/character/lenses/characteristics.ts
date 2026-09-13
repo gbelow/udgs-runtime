@@ -52,11 +52,10 @@ export function getAGIBase(c: Character): number {
   return c.trainables.AGI.value - getGearPenalties(c)
 }
 
-// combat.tex "Rest": the Rest action costs 4 AP and recovers STA by an amount
-// equal to STA/4. Both the Rest command and the character sheet's "STA regen"
+// combat.tex "Rest": the Rest action recovers STA by an amount equal to STA/4
+// (its AP price is in ACTION_COSTS). Both the Rest command and the "STA regen"
 // readout derive from here, so the displayed number and the applied number
 // cannot drift.
-export const REST_AP_COST = 4
 export function getSTARegen(c: Character): number {
   return Math.floor(getSTA(c) / 4)
 }

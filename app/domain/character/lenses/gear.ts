@@ -3,6 +3,7 @@ import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getTGH } from "./misc";
 import { injuryMap } from "../../tables";
+import { getActionCost } from "./actionCosts";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
 // are then "modified by (STR-10)/3". Penalties are stored as positive
@@ -58,7 +59,9 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
       // Only blunt rows carry STR multiples in the gear.tex tables.
       cut: atk.cut,
       AP: atk.AP,
-      reload: atk.reload,
+      // gear.tex "Reload": the row's own figure, moved by abilities and never
+      // below free; a weapon that does not reload stays at 0.
+      reload: atk.reload ? Math.max(0, atk.reload + getActionCost(c, 'reload').AP) : 0,
       range: atk.range,
       deflection: atk.deflection,
       properties: atk.properties,
@@ -113,13 +116,15 @@ export type AttackVariant = {
   cut: number
 }
 
-// gear.tex "Heavy I/II/III". Degree n costs +n AP and adds n/2 x STR to damage;
-// the STA cost and to-hit penalty are not a formula, so they are tabulated.
-const HEAVY_DEGREES: Record<number, { AP: number; STA: number; penalty: number; STRmul: number }> = {
-  1: { AP: 1, STA: 0, penalty: 0, STRmul: 0.5 },
-  2: { AP: 2, STA: 1, penalty: 2, STRmul: 1 },
-  3: { AP: 3, STA: 1, penalty: 3, STRmul: 1.5 },
+// gear.tex "Heavy I/II/III". Degree n adds n/2 x STR to damage; the to-hit
+// penalty is not a formula, so it is tabulated. The AP/STA price sits with
+// the other action prices in ACTION_COSTS.
+const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
+  1: { penalty: 0, STRmul: 0.5 },
+  2: { penalty: 2, STRmul: 1 },
+  3: { penalty: 3, STRmul: 1.5 },
 }
+const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
 export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) => AttackVariant[] {
   const props = atk.props
@@ -136,7 +141,8 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
     // only to a component the attack actually has — a weapon with no cut stays
     // at 0 rather than becoming a cutting weapon at higher degrees.
     const heavy = (degree: number): AttackVariant => {
-      const { AP, STA, penalty, STRmul } = HEAVY_DEGREES[degree]
+      const { penalty, STRmul } = HEAVY_DEGREES[degree]
+      const { AP, STA } = getActionCost(c, HEAVY_ACTIONS[degree - 1])
       const bonus = Math.floor(STRmul * STR)
       return {
         name: `heavy${'I'.repeat(degree)}`,
@@ -149,11 +155,16 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
       }
     }
 
+    // Variation prices are deltas on the row's AP (combat.tex "Strike").
+    const bracedCost = getActionCost(c, 'braced')
+    const quickCost = getActionCost(c, 'quickShot')
+    const snipeCost = getActionCost(c, 'snipe')
     const basic = {name: 'basic', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
-    const braced = {name: 'braced', type: 'melee', AP: atk.AP+2, STA:1, penalty: 0, blunt: blunt+ Math.floor(STR), cut: cut ? cut+ Math.floor(STR) : 0}
+    const braced = {name: 'braced', type: 'melee', AP: atk.AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, blunt: blunt+ Math.floor(STR), cut: cut ? cut+ Math.floor(STR) : 0}
     const hook = {name: 'hook', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
-    const quickShot = {name: 'quick', type: 'ranged', AP: atk.AP, STA:0, penalty: 3, blunt, cut }
-    const snipe = {name: 'snipe', type: 'ranged', AP: atk.AP+2, STA:0, penalty: 0, blunt, cut }
+    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
+    const quickShot = {name: 'quick', type: 'ranged', AP: atk.AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
+    const snipe = {name: 'snipe', type: 'ranged', AP: atk.AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
 
     const attacks: AttackVariant[] = []
 

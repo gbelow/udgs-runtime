@@ -110,6 +110,10 @@ const AFFLICTION_DEFS = {
   dehydrated: { health: 2, group: 'thirst', rank: 2, controlable: false },
 
   sick: { health: 2, controlable: true },
+
+  // combat.tex "Suffocation": no skill penalty; it costs 1 STA at the start of
+  // every round and forbids Rest (both handled by the commands that own them).
+  suffocating: { controlable: true },
 } satisfies Record<string, AfflictionDef>
 
 // Widened so every entry reads as the same shape; `keyof` still yields the
@@ -134,3 +138,48 @@ export const SURGES = {
   reaction: { STA: 3, AP: () => 4, restriction: 'AP can only be spent on reactions until the end of the round.' },
   focus:    { STA: 0, AP: () => 0, restriction: 'AP is free to use. Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string }>
+
+// combat.tex — the AP/STA price of each named action, in the book's own
+// numbers. An attack variation is a delta on the weapon row's own AP
+// ("Strike": "The AP cost is 3 AP, but that may be modified by attack
+// variations"), so `quickShot` is negative and `reload` is 0: the row carries
+// the base and the entry exists so an ability can move it. Everything else is
+// the full price of a standalone action or reaction.
+export const ACTION_COSTS = {
+  // attack variations — combat.tex "Heavy Attack", "Sweeping Attack",
+  // "Braced Attack", "Hook Attack" (the trip rider, bought after a hit),
+  // "Snipe", "Quick Shot"; gear.tex "Reload"
+  heavy1:    { AP: 1, STA: 0 },
+  heavy2:    { AP: 2, STA: 1 },
+  heavy3:    { AP: 3, STA: 1 },
+  sweep:     { AP: 1, STA: 0 },
+  braced:    { AP: 2, STA: 1 },
+  hookTrip:  { AP: 1, STA: 1 },
+  snipe:     { AP: 2, STA: 0 },
+  quickShot: { AP: -1, STA: 0 },
+  reload:    { AP: 0, STA: 0 },
+  // melee defenses — combat.tex "Defend"
+  evade:       { AP: 2, STA: 0 },
+  evasiveJump: { AP: 2, STA: 1 },
+  block:       { AP: 2, STA: 0 },
+  intercept:   { AP: 3, STA: 0 },
+  // ranged reactions — combat.tex "Reflex"
+  reflex:         { AP: 2, STA: 0 },
+  guard:          { AP: 2, STA: 0 },
+  avoidExplosion: { AP: 3, STA: 0 },
+  // grappling — combat.tex "Grapple"
+  grappleManeuver: { AP: 3, STA: 1 },
+  grappleDefense:  { AP: 2, STA: 1 },
+  catch:           { AP: 3, STA: 1 },
+  pushDrag:        { AP: 2, STA: 1 },
+  // everything else — combat.tex "Rest", "Preparing a reaction", "Analyze",
+  // "Standard Action", "Flanking", "Social actions"
+  rest:           { AP: 4, STA: 0 },
+  prepare:        { AP: 1, STA: 0 },
+  analyze:        { AP: 4, STA: 1 },
+  standardAction: { AP: 3, STA: 0 },
+  switchFocus:    { AP: 1, STA: 0 },
+  socialAction:   { AP: 4, STA: 1 },
+} as const satisfies Record<string, { AP: number; STA: number }>
+
+export type ActionKind = keyof typeof ACTION_COSTS

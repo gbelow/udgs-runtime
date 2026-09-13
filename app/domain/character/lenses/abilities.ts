@@ -1,6 +1,7 @@
 import { Character } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
 import { isAbilityActive } from './effects'
+import { isCampaignCharacter } from '../../utils'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
 // ability unless the requirements are met" and each is acquired once. Only the
@@ -31,6 +32,20 @@ export type AbilityFamilyView = {
   progress: string // "2/3" for a multi-stage family, "" otherwise
   toggle: AbilityStageView | null // the learned stage that carries the family's switch, if any
   active: boolean // whether that switch is on
+  use: AbilityUseView | null // the learned stage that fires for a price, if any
+}
+
+export type AbilityUseView = {
+  key: AbilityKey
+  name: string
+  price: string // "4 AP + 1 STA"
+}
+
+function priceLabel(cost: { AP: number; STA: number }): string {
+  const parts = []
+  if (cost.AP) parts.push(`${cost.AP} AP`)
+  if (cost.STA) parts.push(`${cost.STA} STA`)
+  return parts.join(' + ') || 'free'
 }
 
 export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
@@ -47,6 +62,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       progress: '',
       toggle: null,
       active: false,
+      use: null,
     }
     const learned = c.abilities.includes(key)
     const stage: AbilityStageView = {
@@ -64,8 +80,14 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
     row.stages.sort((a, b) => a.stage - b.stage)
     row.next = row.stages.find((s) => s.learnable) ?? null
     row.top = row.stages.filter((s) => s.learned).at(-1) ?? null
-    row.toggle = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'toggle') ?? null
-    row.active = row.toggle !== null && isAbilityActive(c, row.toggle.key)
+    // Switches and triggers only exist in play — a base character has no
+    // resources to spend and no activeEffects to hold.
+    if (isCampaignCharacter(c)) {
+      row.toggle = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'toggle') ?? null
+      row.active = row.toggle !== null && isAbilityActive(c, row.toggle.key)
+      const usable = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'active')
+      row.use = usable ? { key: usable.key, name: usable.name, price: priceLabel(ABILITIES[usable.key].cost) } : null
+    }
     // A conviction's stages are its levels and may start at 0, so progress
     // reads the stage number rather than a count of stages.
     if (row.stages.length > 1) row.progress = `${row.top?.stage ?? 0}/${row.stages.at(-1)!.stage}`

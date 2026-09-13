@@ -24,7 +24,7 @@ const upkeep = (cost: Partial<Cost>): EffectInput =>
 
 export type AbilityKey = keyof typeof ABILITY_TEXT
 
-type Authored = { activation?: Activation; effect?: EffectInput[] }
+type Authored = { activation?: Activation; cost?: Cost; effect?: EffectInput[] }
 
 const AUTHORED: Partial<Record<AbilityKey, Authored>> = {
   // ── Athletics ─────────────────────────────────────────────────────────
@@ -32,6 +32,14 @@ const AUTHORED: Partial<Record<AbilityKey, Authored>> = {
   'sprinter-2': { effect: [buff('movement:run', 1)] },
   'jumper-1': { effect: [buff('movement:jump', 1)] },
   'jumper-2': { effect: [buff('movement:jump', 1)] },
+
+  // ── Ranged Combat ─────────────────────────────────────────────────────
+  'elite-sniper-2': { effect: [buff('ap:snipe', -1)] },
+  'quick-shooter-3': { effect: [buff('ap:quickShot', -1)] },
+  'quick-reload-1': { effect: [buff('ap:reload', -1)] },
+  'quick-reload-2': { effect: [buff('ap:reload', -1)] },
+  // The book files it as passive; it is a 1 AP reaction the character fires.
+  'precise-reflexes': { activation: 'active', cost: { AP: 1, STA: 0, exhaustion: 0, IL: 0 } },
 
   // ── Melee Combat ──────────────────────────────────────────────────────
   'combo-1': { effect: [buff('surge:combat', 1)] },
