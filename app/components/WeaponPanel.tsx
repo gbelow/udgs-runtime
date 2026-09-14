@@ -5,7 +5,7 @@ import { useWeaponLens } from "../hooks/useWeaponLens";
 import type { AttackVariant } from "../domain/character/lenses/gear";
 
 export function WeaponPanel(){
-  const { panels, unequip, attack } = useWeaponLens()
+  const { panels, attack } = useWeaponLens()
 
   const [lastAtk, setLastAtk] = useState({atk:0, type: '', weapon: '', blunt: 0, cut: 0})
 
@@ -34,13 +34,14 @@ export function WeaponPanel(){
         panels.map((panel) => (
           <div key={panel.key} className='flex flex-col justify-center border rounded p-1'>
             <div className='flex flex-row gap-3' >
-              <span>Weapon: {panel.key} </span>
+              <span>Weapon: {panel.name} </span>
               <span>Size: {panel.scale}</span>
-              <input type='button' value='unequip' onClick={() => unequip(panel.name)} className='border rounded p-1' />
+              <span className='text-xs text-gray-400'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>
             <table className='md:w-full text-center text-xs'>
               <thead>
                 <tr>
+                  <td>hands</td>
                   <td>RES</td>
                   <td>blunt</td>
                   <td>cutting</td>
@@ -54,7 +55,8 @@ export function WeaponPanel(){
               <tbody>
                 {
                   panel.rows.map((row, index) =>
-                    <tr key={panel.name+index.toString()}>
+                    <tr key={panel.name+index.toString()} className={row.usable ? '' : 'text-gray-500'}>
+                      <td>{row.handed}</td>
                       <td>{row.RES}</td>
                       <td>{row.blunt}</td>
                       <td>{row.cut}</td>

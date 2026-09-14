@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, WeaponSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -38,8 +38,20 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...emptyCharacter.armor,
       ...parsedCharacter.armor,
     },
-    weapons: parsedCharacter.weapons ?? emptyCharacter.weapons,
     containers: parsedCharacter.containers ?? emptyCharacter.containers,
+    ...reconcileGrip(parsedCharacter.hands ?? emptyCharacter.hands, parsedCharacter.held ?? emptyCharacter.held),
+  }
+}
+
+// A hand names the stack it holds and every held stack is in some hand. Data
+// that says otherwise â€” a hand on a stack that is not there, a stack no hand
+// is on â€” is read as the hand being free and the stack gone.
+function reconcileGrip(hands: Hand[], held: Item[]): { hands: Hand[]; held: Item[] } {
+  const stacks = new Set(held.map((item) => item.id))
+  const gripped = new Set(hands.map((hand) => hand.itemId))
+  return {
+    hands: hands.map((hand) => (stacks.has(hand.itemId) ? hand : { ...hand, itemId: '' })),
+    held: held.filter((item) => gripped.has(item.id)),
   }
 }
 
@@ -106,7 +118,8 @@ const CharacterIngestValues = {
   hasHelm: z.number().optional(),
 
   armor: ArmorSchema.optional(),
-  weapons: z.record(z.string(), WeaponSchema).optional(),
+  hands: z.array(HandSchema).optional(),
+  held: z.array(ItemSchema).optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),
 
   abilities: z.array(z.string()).optional(),

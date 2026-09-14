@@ -16,7 +16,7 @@ export function ContainerPanel(){
       {
         pending ?
         <div className='flex flex-row gap-2 justify-center items-center text-xs text-green-300'>
-          <span>placing {pending.key} ×{pending.amount} — pick a slot group</span>
+          <span>{pending.source === 'catalog' ? `placing ${pending.key} ×${pending.amount}` : 'storing from hand'} — pick a slot group</span>
           <input type='button' value='cancel' onClick={clear} className='border rounded px-1' />
         </div>
         : null
@@ -40,7 +40,7 @@ export function ContainerPanel(){
 }
 
 function SlotGroupRow({ containerKey, group }: { containerKey: string, group: ContainerSlotView }){
-  const { place, remove } = useItemLens()
+  const { place, remove, draw } = useItemLens()
   const dimmed = group.fits === false
 
   return(
@@ -51,13 +51,14 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
       <span className={'w-10 shrink-0 ' + (group.available < 0 ? 'text-red-400' : '')}>{group.used}/{group.numSlots}</span>
       {
         group.fits ?
-        <input type='button' value='+ place' aria-label={`place in ${containerKey} ${group.slot}`} onClick={() => place(containerKey, group.slot)} className='border border-green-400 text-green-300 rounded px-1' />
+        <input type='button' value={group.storeCost === null ? '+ place' : `+ store (${group.storeCost} AP)`} aria-label={`place in ${containerKey} ${group.slot}`} onClick={() => place(containerKey, group.slot)} className='border border-green-400 text-green-300 rounded px-1' />
         : null
       }
       <div className='flex flex-row flex-wrap gap-1'>
         {group.items.map((item) => (
           <span key={item.id} className='border rounded px-1 flex flex-row gap-1' title={`${item.bulkName} · ${item.slots} slot${item.slots === 1 ? '' : 's'}`}>
             <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}</span>
+            {item.drawable ? <button type='button' aria-label={`draw ${item.name}`} title={item.drawCost === null ? 'take in hand' : `take in hand for ${item.drawCost} AP`} className='text-gray-400 hover:text-white' onClick={() => draw(containerKey, item.id)}>{item.drawCost === null ? 'draw' : `draw ${item.drawCost}AP`}</button> : null}
             {item.amount > 1 ? <button type='button' aria-label={`remove one ${item.name}`} className='text-gray-400 hover:text-white' onClick={() => remove(containerKey, item.id, 1)}>−</button> : null}
             <button type='button' aria-label={`remove ${item.name}`} className='text-gray-400 hover:text-white' onClick={() => remove(containerKey, item.id)}>×</button>
           </span>

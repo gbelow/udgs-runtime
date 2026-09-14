@@ -23,12 +23,13 @@ const authored = [
   'bladed, heavy I-II, DEF',
   'braced, hook',
   'fast',
+  'draw, DEF',
   'STR 16, size 4',
   'piercing, wibble',
 ]
 
 const typedCount = (props: ReturnType<typeof parseWeaponProperties>) =>
-  (props.heavy ? 1 : 0) + (props.braced ? 1 : 0) + (props.hook ? 1 : 0) + (props.fast ? 1 : 0)
+  (props.heavy ? 1 : 0) + (props.braced ? 1 : 0) + (props.hook ? 1 : 0) + (props.fast ? 1 : 0) + (props.draw ? 1 : 0)
 
 describe('parseWeaponProperties keeps every token', () => {
   const strings = [
@@ -73,7 +74,7 @@ describe('props survives a serialization round-trip', () => {
     const weapon = WeaponSchema.parse({ name: 'Test', attacks: [{ blunt: 4, properties: 'heavy I-II' }] })
     const stored = JSON.parse(JSON.stringify(weapon))
     // Simulate a stale parse riding along in the stored JSON.
-    stored.attacks[0].props = { heavy: null, braced: false, hook: false, fast: false, recognized: [], unknown: [] }
+    stored.attacks[0].props = { heavy: null, braced: false, hook: false, fast: false, draw: false, recognized: [], unknown: [] }
 
     expect(WeaponSchema.parse(stored)).toEqual(weapon)
   })

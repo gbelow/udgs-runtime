@@ -7,10 +7,12 @@ import { useStore } from "zustand";
 
 type GameTabs = 'edit' | 'play' | 'break'
 
-// The catalog item picked in the sidebar and waiting for a slot to be clicked
-// in the container panel. Pure UI coordination between two components; what
-// it is and where it fits are the domain's to say.
-export type PendingItem = { key: string; amount: number }
+// The item waiting for a destination to be clicked: a catalog entry picked in
+// the sidebar, or a stack in the hands being put away. Pure UI coordination
+// between components; what it is and where it fits are the domain's to say.
+export type PendingItem =
+  | { source: 'catalog'; key: string; amount: number }
+  | { source: 'hand'; itemId: string }
 
 export interface AppState {
   selectedGameTab: GameTabs

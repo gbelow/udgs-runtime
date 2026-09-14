@@ -18,15 +18,15 @@ export function ItemSelector(){
     <div className='flex flex-col w-full gap-1'>
       <div className='flex flex-row gap-1 items-center'>
         <input className='p-1 border border-white rounded w-full text-sm' type='text' placeholder='filter' aria-label='item filter' value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <input className='w-12 p-1 border border-white rounded text-center text-sm' type='number' inputMode='numeric' min={1} aria-label='item amount' title='amount' value={pending?.amount ?? 1} onChange={(e) => setAmount(parseInt(e.target.value))} disabled={!pending} />
+        <input className='w-12 p-1 border border-white rounded text-center text-sm' type='number' inputMode='numeric' min={1} aria-label='item amount' title='amount' value={pending?.source === 'catalog' ? pending.amount : 1} onChange={(e) => setAmount(parseInt(e.target.value))} disabled={pending?.source !== 'catalog'} />
       </div>
       {
-        pending ?
+        pending?.source === 'catalog' ?
         <div className='flex flex-row gap-2 items-center text-xs px-1'>
           <span className='truncate'>placing: {pending.key} ×{pending.amount}</span>
           <input type='button' value='cancel' onClick={clear} className='border rounded px-1 ml-auto' />
         </div> :
-        <span className='text-xs text-gray-400 px-1'>pick an item, then a slot in a container</span>
+        <span className='text-xs text-gray-400 px-1'>pick an item, then a slot in a container or a hand</span>
       }
       {
         Object.entries(groups).map(([type, rows]) => (
@@ -35,8 +35,8 @@ export function ItemSelector(){
             {rows.map((row) => (
               <input key={row.key} type='button' aria-label={row.name} title={row.bulkName}
                 value={`${row.name} · ${row.bulkName}`}
-                className={'text-left px-1 hover:bg-gray-500 text-sm ' + (pending?.key === row.key ? 'bg-white text-black' : '')}
-                onClick={() => select(row.key, pending?.amount ?? 1)}
+                className={'text-left px-1 hover:bg-gray-500 text-sm ' + (pending?.source === 'catalog' && pending.key === row.key ? 'bg-white text-black' : '')}
+                onClick={() => select(row.key, pending?.source === 'catalog' ? pending.amount : 1)}
               />
             ))}
           </div>

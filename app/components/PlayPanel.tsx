@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { WeaponPanel } from './WeaponPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { makeDieRoll, makeFullRoll } from './utils';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
@@ -176,6 +177,7 @@ export function PlayPanel(){
               {/* <SimpleCharacteristic propName={'TGH'} /> */}
               {/* <SimpleCharacteristic propName={'INS'} /> */}
             </div>
+            <HandsPanel />
             <WeaponPanel />
             <ContainerPanel />
             <AbilityPanel />

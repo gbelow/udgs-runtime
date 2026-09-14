@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { Characteristics, Movement, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
@@ -203,6 +204,7 @@ export function CharacterCreator() {
       </div>
       <div className='flex flex-col text-center md:col-span-5  items-center mx-2 gap-2'>
         <ArmorPanel/>
+        <HandsPanel />
         <WeaponPanel />
         <ContainerPanel />
         <AbilityPanel />

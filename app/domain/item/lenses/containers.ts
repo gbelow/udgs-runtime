@@ -1,5 +1,6 @@
 import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
 import { getBulkName, isSameItem } from './items'
+import { getDrawView, getHeldItem, getStoreCost, isCharged } from './hands'
 import containersCatalog from '../../../assets/containers.json'
 
 // gear.tex "Slot size and stacking": medium and large slots take their own
@@ -96,11 +97,16 @@ export type ContainerItemView = {
   bulk: number
   bulkName: string
   slots: number
+  // Whether a unit could be drawn into the hands, and its AP for a character
+  // in play (null on the sheet, where nothing is charged).
+  drawable: boolean
+  drawCost: number | null
 }
 
 // One slot group as the Containers table prints it: the Quick column names the
 // bulk its slots take, the other two are their own bulk. `fits` answers for
-// the item being placed, and is null when nothing is.
+// the item being placed, and is null when nothing is; `storeCost` is what a
+// character in play pays to put it there when it comes out of the hands.
 export type ContainerSlotView = {
   slot: SlotKind
   bulkName: string
@@ -108,6 +114,7 @@ export type ContainerSlotView = {
   used: number
   available: number
   fits: boolean | null
+  storeCost: number | null
   items: ContainerItemView[]
 }
 
@@ -126,7 +133,8 @@ export type BurdenView = {
   label: string
 }
 
-function getContainerPanel(key: string, container: Container, pending?: Item): ContainerPanelView {
+function getContainerPanel(key: string, container: Container, pending?: Item, c?: Character): ContainerPanelView {
+  const fromHands = c && pending && getHeldItem(c, pending.id) ? pending : undefined
   return {
     key,
     name: container.name,
@@ -142,6 +150,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item): C
         used: getUsedSlots(container, slot),
         available: getAvailableSlots(container, slot),
         fits: pending ? canFitItem(container, slot, pending) : null,
+        storeCost: c && fromHands && isCharged(c) ? getStoreCost(c, slot, fromHands).AP : null,
         items: container.slots[slot].items.map((item) => ({
           id: item.id,
           name: item.name || item.refId,
@@ -149,6 +158,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item): C
           bulk: item.bulk,
           bulkName: getBulkName(item.bulk),
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
+          ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
         })),
       })),
   }
@@ -158,7 +168,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item): C
 // groups and the stacks in each, with nothing left for the UI to count. With
 // an item pending placement, each group also says whether it would take it.
 export function getContainerPanels(c: Character, pending?: Item): ContainerPanelView[] {
-  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container, pending))
+  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container, pending, c))
 }
 
 // The catalog in the same shape, so a sidebar row and an equipped card render

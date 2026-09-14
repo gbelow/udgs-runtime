@@ -211,6 +211,20 @@ export const ContainerSchema = z.object({
 
 export type Container = z.infer<typeof ContainerSchema>
 
+// A hand is a limb that fights and, if it can grip, wields. Its natural weapon
+// is the weapons.json entry it attacks with while empty (gear.tex "Unarmed":
+// the hands of a humanoid); a paw or a mouth still has one but takes no gear.
+// `itemId` names the held stack in `held`, '' when free. Two hands naming the
+// same stack are a two-handed grip (gear.tex "Small/One/Two hands").
+export const HandSchema = z.object({
+  name: str.default('hand'),
+  naturalWeapon: str.default('Unarmed'),
+  canHold: z.boolean().default(true),
+  itemId: str.default(''),
+}).strip()
+
+export type Hand = z.infer<typeof HandSchema>
+
 export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
   wounds: z.array(num).default([]),
@@ -432,7 +446,8 @@ const CharacterValues = {
   hasHelm: z.number().default(0),
   
   armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
-  weapons: z.record(z.string(), WeaponSchema).default({}),
+  hands: z.array(HandSchema).default(() => [HandSchema.parse({}), HandSchema.parse({})]),
+  held: z.array(ItemSchema).default([]),
   containers: z.record(z.string(), ContainerSchema).default({}),
 
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog

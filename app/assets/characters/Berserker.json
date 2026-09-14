@@ -83,6 +83,13 @@
       "talent": "",
       "type": "skill"
     },
+    "force": {
+      "value": 0,
+      "name": "Force",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
     "swim": {
       "value": 0,
       "name": "Swim",
@@ -316,74 +323,72 @@
     "properties": "metallic, layered",
     "notes": ""
   },
-  "weapons": {
-    "Greatsword": {
-      "name": "Greatsword",
-      "penalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 12,
-          "cut": 18,
-          "STRmod": 0,
-          "heavyMod": 1,
-          "range": "long I",
-          "RES": 30,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "sweep, DEF, heavy I-II, bladed",
-          "props": {
-            "heavy": {
-              "min": 1,
-              "max": 2
-            },
-            "braced": false,
-            "hook": false,
-            "fast": false,
-            "recognized": [
-              "sweep",
-              "DEF",
-              "bladed"
-            ],
-            "unknown": []
-          }
+  "hands": [
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "1f23135e-8a21-4f1f-9d1d-e387bd3ae01d"
+    },
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "894278e9-4b36-47ae-a5fe-2f0bbb6d8068"
+    }
+  ],
+  "held": [
+    {
+      "id": "1f23135e-8a21-4f1f-9d1d-e387bd3ae01d",
+      "name": "Wooden Shield",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 2,
+      "refId": "Wooden Shield"
+    },
+    {
+      "id": "894278e9-4b36-47ae-a5fe-2f0bbb6d8068",
+      "name": "Battle Axe",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 1,
+      "refId": "Battle Axe"
+    }
+  ],
+  "containers": {
+    "Saddle": {
+      "name": "Saddle",
+      "kind": "saddle",
+      "slots": {
+        "quick": {
+          "numSlots": 2,
+          "items": [],
+          "slotBulk": 2
         },
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 6,
-          "cut": 20,
-          "STRmod": 0,
-          "heavyMod": 0.5,
-          "range": "long I",
-          "RES": 20,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "piercing, heavy I, braced",
-          "props": {
-            "heavy": {
-              "min": 0,
-              "max": 1
-            },
-            "braced": true,
-            "hook": false,
-            "fast": false,
-            "recognized": [
-              "piercing"
-            ],
-            "unknown": []
-          }
+        "medium": {
+          "numSlots": 8,
+          "items": []
+        },
+        "large": {
+          "numSlots": 4,
+          "items": [
+            {
+              "id": "7aa3a03b-28dd-4294-91ef-67f36bb579b1",
+              "name": "Halberd",
+              "description": "",
+              "type": "weapon",
+              "amount": 1,
+              "bulk": 2,
+              "refId": "Halberd"
+            }
+          ]
         }
-      ]
+      },
+      "penalty": 0
     }
   },
-  "containers": {},
   "abilities": [],
   "notes": ""
 }

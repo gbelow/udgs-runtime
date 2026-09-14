@@ -1,5 +1,6 @@
 import { Character, Weapon, WeaponAttack } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
+import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getTGH } from "./misc";
 import { injuryMap } from "../../tables";
@@ -15,7 +16,7 @@ import { getActionCost } from "./actionCosts";
 // injury penalty already reduces on its own.
 export function getGearPenalties(c: Character){
   const gear = c.armor.penalty +
-    Object.values(c.weapons).reduce((acc: number, weapon: Weapon) => acc + weapon.penalty, 0) +
+    getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + weapon.penalty, 0) +
     getBurdenPenalty(c)
 
   const strMod = Math.trunc((getSTRBase(c) - 10) / 3)
@@ -29,9 +30,9 @@ export function getGearPenalties(c: Character){
 // (STRmod on blunt) and the weapon's own durability (RESmod on RES) — so it
 // lives here once and both the displayed row and the rolled attack call it.
 //
-// Size scaling is deliberately NOT applied here. A weapon is scaled once, at
-// equip time, by `scaleWeapon`, so the stored flat value is already at the
-// wielder's scale; multiplying again would double-scale it.
+// Size scaling is deliberately NOT applied here. A wielded weapon is the
+// catalog entry as printed (see getCatalogWeapon); if scaling returns it
+// belongs in one place, `scaleWeapon`, not here.
 export function applySTRmod(value: number, mod: number, c: Character): number {
   if (mod === 0) return value
   return Math.floor(value + mod * getSTR(c))
@@ -40,6 +41,7 @@ export function applySTRmod(value: number, mod: number, c: Character): number {
 // Read-side projection of one row of a weapon's attack table. Every number is
 // final — the component renders it, it does not compute it.
 export type WeaponAttackRow = {
+  handed: string
   RES: number
   blunt: number
   cut: number
@@ -54,6 +56,7 @@ export type WeaponAttackRow = {
 export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAttackRow[] {
   return (c: Character) =>
     weapon.attacks.map((atk) => ({
+      handed: atk.handed,
       RES: applySTRmod(atk.RES, atk.RESmod, c),
       blunt: applySTRmod(atk.blunt, atk.STRmod, c),
       // Only blunt rows carry STR multiples in the gear.tex tables.
@@ -187,6 +190,9 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
 }
 
 export type WeaponPanelRow = WeaponAttackRow & {
+  // gear.tex "Small/One/Two hands": a two-handed row needs both hands on the
+  // weapon. A row the grip does not allow keeps its numbers and fires nothing.
+  usable: boolean
   // The attack variants this row can fire, already priced against the wielder.
   variants: AttackVariant[]
 }
@@ -195,22 +201,33 @@ export type WeaponPanelView = {
   key: string
   name: string
   scale: number
+  grip: number
+  // '' for a natural weapon: the free hands themselves, not a held item.
+  itemId: string
+  natural: boolean
   rows: WeaponPanelRow[]
 }
 
-// The whole weapon panel in one shape: every equipped weapon, its rows, and the
-// variants each row can fire. One getter means the UI needs no per-weapon
-// lookup back into the character, so nothing on the render path reads state it
-// has not subscribed to.
+// The whole weapon panel in one shape: every weapon in the hands, its rows,
+// and the variants each row can fire. One getter means the UI needs no
+// per-weapon lookup back into the character, so nothing on the render path
+// reads state it has not subscribed to.
 export function getWeaponPanels(c: Character): WeaponPanelView[] {
-  return Object.entries(c.weapons ?? {}).map(([key, weapon]) => ({
+  return getWieldedWeapons(c).map(({ key, weapon, grip, itemId, natural }) => ({
     key,
     name: weapon.name,
     scale: weapon.scale,
-    rows: getWeaponAttackRows(weapon)(c).map((row) => ({
-      ...row,
-      variants: getAttacksList({ atk: row.attack })(c),
-    })),
+    grip,
+    itemId,
+    natural,
+    rows: getWeaponAttackRows(weapon)(c).map((row) => {
+      const usable = isAttackUsable(row.handed, grip)
+      return {
+        ...row,
+        usable,
+        variants: usable ? getAttacksList({ atk: row.attack })(c) : [],
+      }
+    }),
   }))
 }
 
@@ -224,9 +241,12 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.key,
         panel.name,
         panel.scale,
+        panel.grip,
+        panel.itemId,
+        panel.natural,
         panel.rows
           .map((r) =>
-            [r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.deflection, r.properties,
+            [r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.deflection, r.properties,
              r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}`).join('~')]
               .join(','),
           )

@@ -18,27 +18,31 @@
 - knowledges, DONE
 - abilities,
 - spells
-- interface 
+- interface, learning mode
 
 ## add senses
 - list senses and bonus
 - decide interface
 
 ## add items
-- containers: penalty, slots, slot types -- DONE
-- items: name, simple text descriptor - DONE 
-- add interface
-- add items list
-- create new item  
 - item customization
+
+## hands
+- scaleweapons is unused
+- item scaling must be decided
 
 ## add abilities 
 - import from rulebook
 - system to overrule base mechanics and compose multiple abilities -- DONE
-- how to browse list and add to char
-- how to list char abilities
-- clickable abilities use rss automatically
+- how to browse list and add to char -- DONE
+- how to list char abilities -- DONE
+- clickable abilities use rss automatically -- DONE
 - add tooltip to skills to show how abilities change them
+
+## skills
+- open skill explanation on click
+- clickable skill options
+- 
 
 ## spells
 - importing from rulebook

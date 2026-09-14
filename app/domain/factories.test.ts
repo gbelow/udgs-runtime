@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCharacter, makeCampaignCharacter } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
-import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, WeaponSchema } from './types'
-import weaponsCatalog from '../assets/weapons.json'
+import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema } from './types'
 import armorsCatalog from '../assets/armors.json'
 
 // Ingestion is the domain's only door to the outside — saved JSON files, Redis
@@ -26,7 +25,9 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a wrongly-typed trainable', raw: { trainables: { STR: 'strong', bogus: { value: 1 } } } },
   { label: 'a null armor', raw: { armor: null } },
   { label: 'containers that are not a map', raw: { containers: 3 } },
-  { label: 'a malformed weapon', raw: { weapons: { Sword: { attacks: 'many' } } } },
+  { label: 'hands that are not a list', raw: { hands: 'two' } },
+  { label: 'a malformed hand', raw: { hands: [{ canHold: 'yes' }] } },
+  { label: 'a malformed held item', raw: { held: [{ bulk: 'big' }] } },
   // knowledges are ingested as `z.any()` into an open record and merged raw, so
   // a malformed entry still reaches the character unchecked.
   { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
@@ -44,7 +45,8 @@ const populated = () =>
     abilities: ['sprinter-1', 'synesthesia-1'],
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
-    weapons: { Dagger: WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger) },
+    hands: [{ name: 'left', naturalWeapon: 'Unarmed', canHold: true, itemId: 'dagger-1' }, { name: 'right', naturalWeapon: 'Unarmed', canHold: true, itemId: '' }],
+    held: [ItemSchema.parse({ id: 'dagger-1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 0 })],
     containers: {
       belt: ContainerSchema.parse({
         name: 'Belt',

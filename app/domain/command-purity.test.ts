@@ -33,6 +33,7 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const dagger = WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger)
+const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 0 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 5 })
 
 function characterSubject(): CampaignCharacter {
@@ -41,7 +42,8 @@ function characterSubject(): CampaignCharacter {
   return {
     ...withKnowledge,
     armor,
-    weapons: { [dagger.name]: dagger },
+    hands: [{ ...base.hands[0], itemId: daggerItem.id }, base.hands[1]],
+    held: [daggerItem],
     containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1, items: [coin] } } }) },
     abilities: ['sprinter-1', 'synesthesia-1', 'tackle'],
     afflictions: ['prone'],
@@ -60,8 +62,6 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   bleed: characterCommands.bleed(2),
   updateSTA: characterCommands.updateSTA(1),
   addAffliction: characterCommands.addAffliction('blind'),
-  equipWeapon: characterCommands.equipWeapon(dagger),
-  unequipWeapon: characterCommands.unequipWeapon(dagger.name),
   restCharacter: characterCommands.restCharacter,
   actionSurge: characterCommands.actionSurge('focus'),
   equipArmor: characterCommands.equipArmor(armor),
@@ -87,11 +87,16 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   removeItemFromContainer: (c) => itemCommands.removeItemFromContainer('belt', c.containers.belt.slots.quick.items[0].id)(c),
   equipContainer: itemCommands.equipContainer('pack', ContainerSchema.parse({ name: 'Backpack', kind: 'backpack' })),
   unequipContainer: itemCommands.unequipContainer('belt'),
+  holdItem: itemCommands.holdItem(ItemSchema.parse({ name: 'Torch', bulk: 1 })),
+  regripItem: itemCommands.regripItem(daggerItem.id, 2),
+  drawItem: (c) => itemCommands.drawItem('belt', c.containers.belt.slots.quick.items[0].id)(c),
+  storeItem: itemCommands.storeItem(daggerItem.id, 'belt', 'quick'),
+  dropItem: itemCommands.dropItem(daggerItem.id),
 }
 
 // Read projections, not updaters: they take a character and return a value
 // rather than a character, so there is nothing for them to mutate.
-const NOT_UPDATERS = new Set(['getCharacterWeapons', 'getAttackValues'])
+const NOT_UPDATERS = new Set(['getAttackValues'])
 
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound,

@@ -26,6 +26,9 @@ export type WeaponProperties = {
   braced: boolean
   hook: boolean
   fast: boolean
+  // gear.tex "Draw"; combat.tex "Drawing items in combat" prices drawing and
+  // storing the weapon by it.
+  draw: boolean
   // Properties the rulebook defines that do not yet drive an attack variant
   // here. Kept rather than dropped so `unknown` means "not a rule", not merely
   // "not implemented".
@@ -77,6 +80,7 @@ export const EMPTY_PROPERTIES: WeaponProperties = {
   braced: false,
   hook: false,
   fast: false,
+  draw: false,
   recognized: [],
   unknown: [],
 }
@@ -111,6 +115,9 @@ export function parseWeaponProperties(raw: string): WeaponProperties {
         continue
       case 'fast':
         props.fast = true
+        continue
+      case 'draw':
+        props.draw = true
         continue
     }
 

@@ -48,7 +48,13 @@ export function isSameItem(a: Item, b: Item): boolean {
 // backpack can be equipped as the real thing rather than staying a wrapper
 export function getItemWeapon(item: Item): Weapon | undefined {
   if (item.type !== 'weapon' || !item.refId) return undefined
-  const raw = (weaponsCatalog as Record<string, unknown>)[item.refId]
+  return getCatalogWeapon(item.refId)
+}
+
+// The catalog weapon as printed: a scaled-up piece of gear is treated as a
+// normal one until the book decides what scaling does to it.
+export function getCatalogWeapon(key: string): Weapon | undefined {
+  const raw = (weaponsCatalog as Record<string, unknown>)[key]
   return raw ? WeaponSchema.parse(raw) : undefined
 }
 
