@@ -1,7 +1,7 @@
 import { Character, Characteristics, Lens, Movement, Senses, Skills } from "../../types";
 import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConviction2, getDevotion, getDEX, getINT, getMelee, getRanged, getSorcery, getSPI, getSTA, getSTR, characteristicTermGetters } from "./characteristics";
 import { makeInvertingLens, makeTrainableValueLens } from "./factories";
-import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle } from "./magic";
+import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "./magic";
 import { getSize, getTGH } from "./misc";
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement, makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSenseRangePenaltyLens } from "./senses";
@@ -122,6 +122,7 @@ export const magicGetters = {
   alchemy: (c: Character) => getAlchemy(c),
   animancy: (c: Character) => getAnimancy(c),
   biomancy: (c: Character) => getBiomancy(c),
+  shamanism: (c: Character) => getShamanism(c),
   divine: (c: Character) => getDivine(c),
   miracle: (c: Character) => getMiracle(c),
 }

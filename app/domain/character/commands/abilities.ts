@@ -3,7 +3,8 @@ import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnAbility } from "../lenses/abilities"
 import { getUpkeep, isAbilityActive } from "../lenses/effects"
-import { updateSTA } from "./bleed"
+import { canAfford } from "../lenses/cost"
+import { payCost } from "./cost"
 
 export function learnAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
@@ -51,17 +52,9 @@ export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   }
 }
 
-// Charges the upkeep of everything switched on. STA goes through updateSTA so
-// a character who cannot pay bleeds for it like any other STA loss.
+// Charges the upkeep of everything switched on or held.
 export function payUpkeep(c: CampaignCharacter): CampaignCharacter {
-  const upkeep = getUpkeep(c)
-  if (upkeep.AP === 0 && upkeep.STA === 0 && upkeep.exhaustion === 0 && upkeep.IL === 0) return c
-  const paid = updateSTA(c.resources.STA - upkeep.STA)(c)
-  return {
-    ...paid,
-    resources: { ...paid.resources, AP: paid.resources.AP - upkeep.AP, exhaustion: paid.resources.exhaustion + upkeep.exhaustion },
-    injuries: { ...paid.injuries, injuryLevel: paid.injuries.injuryLevel + upkeep.IL },
-  }
+  return payCost(getUpkeep(c))(c)
 }
 
 // Fires an active ability: the price is paid and nothing else moves — the
@@ -72,8 +65,7 @@ export function useAbility(key: AbilityKey): (c: Character) => Character {
     if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
     const { activation, cost } = ABILITIES[key]
     if (activation !== 'active') return c
-    if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return c
-    const paid = updateSTA(c.resources.STA - cost.STA)(c)
-    return { ...paid, resources: { ...paid.resources, AP: paid.resources.AP - cost.AP } }
+    if (!canAfford(c, cost)) return c
+    return payCost(cost)(c)
   }
 }

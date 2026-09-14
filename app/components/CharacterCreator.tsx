@@ -6,6 +6,7 @@ import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
+import { SpellPanel } from './SpellPanel';
 import { Characteristics, Movement, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -208,6 +209,7 @@ export function CharacterCreator() {
         <WeaponPanel />
         <ContainerPanel />
         <AbilityPanel />
+        <SpellPanel />
       </div>
     </div>
   )

@@ -32,7 +32,7 @@
 - item scaling must be decided
 
 ## add abilities 
-- import from rulebook
+- import from rulebook -- DONE
 - system to overrule base mechanics and compose multiple abilities -- DONE
 - how to browse list and add to char -- DONE
 - how to list char abilities -- DONE
@@ -49,6 +49,11 @@
 - browse list
 - spells editor
 - click spells to use
+- add improvements
+
+## attacks
+- apply SOPs
+- show detailed damage breakdown
 
 ## exploration
 - exploration turn apply wear
@@ -66,8 +71,6 @@
 - in ui-design-patterns.md
 
 ## add performance report to break me
-
-gear affects AGI and STA, not skills directly
 
 ## issues
 

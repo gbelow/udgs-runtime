@@ -5,6 +5,7 @@ import { CharacterSelector } from './CharacterSelector';
 import { ContainerSelector } from './ContainerSelector';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
+import { SpellSelector } from './SpellSelector';
 
 export function Sidebar(){
 
@@ -17,6 +18,7 @@ export function Sidebar(){
         <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Container' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_container'} value={'Container'} onClick={() => setSelectedSidebar('Container')}/>
         <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Item' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_item'} value={'Item'} onClick={() => setSelectedSidebar('Item')}/>
         <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Ability' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_ability'} value={'Ability'} onClick={() => setSelectedSidebar('Ability')}/>
+        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Spell' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_spell'} value={'Spell'} onClick={() => setSelectedSidebar('Spell')}/>
         <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Character' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_char'} value={'Character'} onClick={() => setSelectedSidebar('Character')}/>
       </div>
       {
@@ -28,6 +30,8 @@ export function Sidebar(){
         <ItemSelector /> :
         selectedSidebar == 'Ability' ?
         <AbilitySelector /> :
+        selectedSidebar == 'Spell' ?
+        <SpellSelector /> :
         selectedSidebar == 'Character' ?
         <CharacterSelector/>
         : null

@@ -1,5 +1,6 @@
 import { Ability, Buff, BuffTarget, Character, Cost, Effect } from '../../types'
 import { ABILITIES, AbilityKey, isAbilityKey } from '../../abilities'
+import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
@@ -32,14 +33,31 @@ export function isAbilityActive(character: Character, key: AbilityKey): boolean 
   return getActiveAbilityKeys(character).includes(key)
 }
 
-// Everything currently contributing: passive abilities always, toggles while
-// on. Read off the catalog every time — the character holds only references.
+// The spells being held: every `active` entry of kind spell whose key is
+// still a known sustained spell, read as permissively as the abilities.
+export function getActiveSpellKeys(character: Character): SpellKey[] {
+  if (!isCampaignCharacter(character)) return []
+  return character.active
+    .filter((entry) => entry?.kind === 'spell')
+    .map((entry) => entry.key)
+    .filter((key): key is SpellKey =>
+      isSpellKey(key) && key in character.spells && SPELLS[key].type === 'sustained')
+}
+
+export function isSpellActive(character: Character, key: SpellKey): boolean {
+  return getActiveSpellKeys(character).includes(key)
+}
+
+// Everything currently contributing: passive abilities always, toggles and
+// held spells while on. Read off the catalogs every time — the character
+// holds only references.
 export function getContributingEffects(character: Character): Effect[] {
   const passive = getLearnedAbilities(character)
     .filter((a) => a.activation === 'passive')
     .flatMap((a) => a.effect)
   const active = getActiveAbilityKeys(character).flatMap((key) => ABILITIES[key].effect)
-  return [...passive, ...active]
+  const held = getActiveSpellKeys(character).flatMap((key) => SPELLS[key].effect)
+  return [...passive, ...active, ...held]
 }
 
 export function collectBuffs(character: Character): Buff[] {
@@ -69,13 +87,14 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
 
 // What every switched-on ability charges at a round change, summed.
 export function getUpkeep(character: Character): Cost {
-  const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0 }
+  const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }
   for (const effect of getContributingEffects(character)) {
     if (effect.type !== 'cost' || effect.trigger !== 'end_round') continue
     total.AP += effect.effect.AP
     total.STA += effect.effect.STA
     total.exhaustion += effect.effect.exhaustion
     total.IL += effect.effect.IL
+    total.ET += effect.effect.ET
   }
   return total
 }

@@ -5,6 +5,7 @@ import { WeaponPanel } from './WeaponPanel';
 import { ContainerPanel } from './ContainerPanel';
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
+import { SpellPanel } from './SpellPanel';
 import { makeDieRoll, makeFullRoll } from './utils';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
@@ -181,6 +182,7 @@ export function PlayPanel(){
             <WeaponPanel />
             <ContainerPanel />
             <AbilityPanel />
+            <SpellPanel />
             {/* <textarea aria-label='pack' className='border rounded p-1 min-h-32 w-full' value={currentCharacter?.packItems ?? ''}  readOnly /> */}
           </div>
         </div>

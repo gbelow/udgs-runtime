@@ -15,7 +15,7 @@ const buff = (target: BuffTarget, value: number): EffectInput =>
 
 // A price paid at every round change while the ability stays on.
 const upkeep = (cost: Partial<Cost>): EffectInput =>
-  ({ type: 'cost', trigger: 'end_round', effect: { AP: 0, STA: 0, exhaustion: 0, IL: 0, ...cost } })
+  ({ type: 'cost', trigger: 'end_round', effect: { AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0, ...cost } })
 
 export type AbilityKey = keyof typeof ABILITY_TEXT
 
@@ -34,7 +34,7 @@ const AUTHORED: Partial<Record<AbilityKey, Authored>> = {
   'quick-reload-1': { effect: [buff('ap:reload', -1)] },
   'quick-reload-2': { effect: [buff('ap:reload', -1)] },
   // The book files it as passive; it is a 1 AP reaction the character fires.
-  'precise-reflexes': { activation: 'active', cost: { AP: 1, STA: 0, exhaustion: 0, IL: 0 } },
+  'precise-reflexes': { activation: 'active', cost: { AP: 1, STA: 0, exhaustion: 0, IL: 0, ET: 0 } },
 
   // ── Melee Combat ──────────────────────────────────────────────────────
   'combo-1': { effect: [buff('surge:combat', 1)] },

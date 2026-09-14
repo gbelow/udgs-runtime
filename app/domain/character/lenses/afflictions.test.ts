@@ -105,19 +105,17 @@ describe('knowledges under a mental affliction', () => {
 
 // combat.tex names both "all Knowledges" and "all spellcasting", and a spell
 // value is built out of a knowledge — so the penalty has to arrive exactly
-// once, not once per mention.
+// once, not once per mention. Miracles (2 x Devotion) are exempt by decision
+// and must not move at all.
 describe('spellcasting takes the mental penalty once', () => {
-  // getMiracle is 2 x its knowledge, so the penalty inside that knowledge is
-  // doubled along with it. Left standing as a known divergence rather than
-  // filtered out of the loop.
-  const DOUBLED = ['miracle']
+  const EXEMPT = ['miracle']
 
   for (const [name, getter] of Object.entries(magicGetters)) {
-    const run = DOUBLED.includes(name) ? it.fails : it
-    run(name + ' drops by the mental penalty, no more', () => {
+    it(name + (EXEMPT.includes(name) ? ' ignores the mental penalty' : ' drops by the mental penalty, no more'), () => {
       const healthy = addKnowledge(name)(campaign())
       const afflicted = addKnowledge(name)(campaign({ afflictions: ['intoxicated3'] }))
-      expect(getter(healthy) - getter(afflicted)).toBe(getMentalAfflictionPenalty(afflicted))
+      const expected = EXEMPT.includes(name) ? 0 : getMentalAfflictionPenalty(afflicted)
+      expect(getter(healthy) - getter(afflicted)).toBe(expected)
     })
   }
 })

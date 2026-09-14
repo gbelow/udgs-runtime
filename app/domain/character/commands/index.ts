@@ -7,6 +7,7 @@ export { equipArmor, unequipArmor, putGauntlets, putHelm } from "./equipArmor"
 export { resetSkill, resetAllSkills } from "./resetSkills"
 export { removeKnowledge, addKnowledge } from "./knowledge"
 export { learnAbility, forgetAbility, toggleAbility, useAbility, payUpkeep } from "./abilities"
+export { learnSpell, forgetSpell, practiceSpell, castSpell } from "./spells"
 
 export {
   spendAttackResources,

@@ -128,6 +128,24 @@ export const magic_types = {
   miracle: {proficiency: 'devotion', skill: 'devotion'},
 }
 
+// play.tex "Degrees of success": a hit is the DL + 5, and spells.tex "Casting
+// spells" converts every point above a hit into an SOP. Reaching n SOPs on
+// a cast therefore means beating DL + HIT_MARGIN + n.
+export const HIT_MARGIN = 5
+
+// spells.tex "Types of Spells and Modifications" — what each modification
+// costs in SOPs, chosen after the roll. Quicken is written as a DL increase
+// rather than an SOP price; the two are the same number on the die.
+export const SPELL_MODIFICATIONS = {
+  quicken:    { SOP: 4, text: 'cast during any surge, no opportunity attacks' },
+  extend:     { SOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
+  enhance:    { SOP: 4, text: 'the special improvement described in the spell' },
+  amplify:    { SOP: 4, text: 'multiply an effect marked DM, SM, RM or VM once more' },
+  effortless: { SOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
+} as const satisfies Record<string, { SOP: number; text: string }>
+
+export type SpellModification = keyof typeof SPELL_MODIFICATIONS
+
 // combat.tex "Action surge" — one surge per round. Each kind prices its AP
 // in STA; the movement surge alone scales its yield with AGI, so the yield
 // column is a function of AGI rather than a number. The spending restriction

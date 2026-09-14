@@ -304,6 +304,7 @@ export const CostSchema = z.object({
   STA: num.default(0),
   exhaustion: num.default(0),
   IL: num.default(0), // causes loss or gain of attribute
+  ET: num.default(0), // exploration turns, spent by the exploration loop rather than here
 }).strip()
 
 export type Cost = z.infer<typeof CostSchema>
@@ -405,7 +406,7 @@ export const AbilitySchema = z.object({
   section: str.default(''),
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
   usage: str.default(''), // the book's "Usage" field verbatim, for display
-  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0 }),
+  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
   description: str.default(''),
   talent: z.array(TalentSchema).default([]),
   XPcost: num.default(6),
@@ -416,6 +417,84 @@ export const AbilitySchema = z.object({
 export type AbilityInput = z.input<typeof AbilitySchema>
 
 export type Ability = z.infer<typeof AbilitySchema>
+
+// combat.tex "Types of damage"; weapons still carry blunt and cut as columns
+// of their own, this is the shared vocabulary everything else names a kind by.
+export const DamageKindSchema = z.enum(['blunt', 'cut', 'burn', 'electric', 'radiant', 'corrosive'])
+export type DamageKind = z.infer<typeof DamageKindSchema>
+
+// spells.tex "Types of Spells": how a spell lives once cast. A sustained spell
+// is a toggle whose cost comes due again at every round change; a curse holds
+// until the target shrugs it off; a charge waits in an object.
+export const SpellTypeSchema = z.enum(['instant', 'sustained', 'charged', 'curse'])
+export type SpellType = z.infer<typeof SpellTypeSchema>
+
+export const SpellDamageSchema = z.object({
+  value: num.default(0),
+  scaled: z.boolean().default(false), // xDM — scaled by the caster's size
+  kind: DamageKindSchema.default('blunt'),
+}).strip()
+export type SpellDamage = z.infer<typeof SpellDamageSchema>
+
+// `dl` is the side the caster sets (Charisma, Accuracy, a literal) and `roll`
+// is what the defender tests against it. Both are kept as the book's words;
+// resolving the DL side to a number for a given caster is a lens's job.
+export const SpellTestSchema = z.object({
+  dl: str.default(''),
+  roll: str.default(''),
+}).strip()
+export type SpellTest = z.infer<typeof SpellTestSchema>
+
+// What the defender's degree of success on the spell's test does to them.
+export const SpellOutcomesSchema = z.object({
+  miss: str.default(''),
+  graze: str.default(''),
+  hit: str.default(''),
+  crit: str.default(''),
+}).strip()
+export type SpellOutcomes = z.infer<typeof SpellOutcomesSchema>
+
+export const SpellKnowledgeRequirementSchema = z.object({
+  name: str.default(''), // a knowledge name, lowercased like the knowledges record
+  level: num.default(0),
+}).strip()
+
+export const SpellSchema = z.object({
+  name: str.default(''),
+  section: str.default(''), // the book's school, lowercased: the fallback casting knowledge
+  type: SpellTypeSchema.default('instant'),
+  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // paid before the roll
+  costText: str.default(''), // the book's cost field verbatim, for materials and charges the domain does not track
+  knowledge: z.array(SpellKnowledgeRequirementSchema).default([]),
+  requirements: str.default(''), // gear, abilities, other spells — free text, not enforced
+  DL: num.nullable().default(null), // casting DL; null while the book leaves it undecided
+  castRange: str.default(''),
+  castArea: str.default(''),
+  effectRange: str.default(''),
+  effectArea: str.default(''),
+  duration: z.enum(['none', 'permanent', 'ET']).default('none'),
+  durationETs: num.default(0),
+  description: str.default(''),
+  enhance: str.default(''), // what one "Enhance Spell" buys, in the book's words
+  damage: SpellDamageSchema.nullable().default(null),
+  test: SpellTestSchema.nullable().default(null),
+  outcomes: SpellOutcomesSchema.nullable().default(null),
+  effect: z.array(EffectSchema).default([]), // authored: a sustained spell's upkeep lives here
+}).strip()
+export type SpellInput = z.input<typeof SpellSchema>
+export type Spell = z.infer<typeof SpellSchema>
+
+// spells.tex "Learning spells": how a spell was learned decides the skill it
+// is cast with, and `practice` is the per-spell skill trained with XP on top
+// of that (the intuitive route has nothing else).
+export const SpellMethodSchema = z.enum(['intuitive', 'wizard', 'cleric'])
+export type SpellMethod = z.infer<typeof SpellMethodSchema>
+
+export const LearnedSpellSchema = z.object({
+  method: SpellMethodSchema.default('intuitive'),
+  practice: num.default(0),
+}).strip()
+export type LearnedSpell = z.infer<typeof LearnedSpellSchema>
 
 const CampaignValues = {
   injuries: InjuriesSchema.partial().default({}).transform(v => InjuriesSchema.parse(v)),
@@ -451,6 +530,7 @@ const CharacterValues = {
   containers: z.record(z.string(), ContainerSchema).default({}),
 
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog
+  spells: z.record(z.string(), LearnedSpellSchema).default({}), // keyed into the spell catalog
 
   notes: z.string().default(''),
 }

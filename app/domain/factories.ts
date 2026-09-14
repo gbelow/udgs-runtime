@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -18,6 +18,17 @@ function mergeTrainables(
     return [key, { ...base, ...raw, type: base.type }]
   })
   return Object.fromEntries(entries) as Trainables
+}
+
+// A learned spell that is not an object is not a learned spell; one that is
+// gets its missing fields defaulted like any other ingested record.
+function mergeSpells(incoming: Record<string, unknown> | undefined): Record<string, LearnedSpell> {
+  if (!incoming) return {}
+  return Object.fromEntries(
+    Object.entries(incoming)
+      .filter(([, raw]) => raw !== null && typeof raw === 'object')
+      .map(([key, raw]) => [key, LearnedSpellSchema.parse(raw)]),
+  )
 }
 
 function addBaseValues(emptyCharacter: BaseCharacter, parsedCharacter: CharacterIngestType): BaseCharacter
@@ -39,6 +50,7 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...parsedCharacter.armor,
     },
     containers: parsedCharacter.containers ?? emptyCharacter.containers,
+    spells: mergeSpells(parsedCharacter.spells),
     ...reconcileGrip(parsedCharacter.hands ?? emptyCharacter.hands, parsedCharacter.held ?? emptyCharacter.held),
   }
 }
@@ -123,6 +135,7 @@ const CharacterIngestValues = {
   containers: z.record(z.string(), ContainerSchema).optional(),
 
   abilities: z.array(z.string()).optional(),
+  spells: z.record(z.string(), z.any()).optional(),
 
   notes: z.string().optional(), 
 }
