@@ -1,6 +1,6 @@
 import { Character, Spell, SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
-import { HIT_MARGIN, SPELL_MODIFICATIONS } from '../../tables'
+import { HIT_MARGIN, QUICKEN_DL, SPELL_MODIFICATIONS, SpellModification } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike } from './skills'
@@ -52,14 +52,43 @@ export function getMiracleSkill(c: Character, key: SpellKey): number {
 }
 
 // "It is not possible to learn spells with knowledge requirements above 3
-// this way." Everything else the book asks of learning (XP, the grimoire
-// test, the deity's list) is the table's.
+// this way." The wizard and cleric routes are opened by their abilities
+// (abilities.tex "Magic Theory", "Cleric"). Everything else the book asks of
+// learning (XP, the grimoire test, the deity's list) is the table's.
 export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character) => boolean {
   return (c: Character) => {
     if (key in c.spells) return false
-    if (method === 'intuitive') return requirementLevel(SPELLS[key]) <= 3
-    return true
+    switch (method) {
+      case 'intuitive': return requirementLevel(SPELLS[key]) <= 3
+      case 'wizard': return c.abilities.includes('magic-theory')
+      case 'cleric': return c.abilities.includes('cleric')
+    }
   }
+}
+
+// spells.tex "Casting spells": the DL a cast is rolled against, raised by
+// Quicken when the caster forgoes the focus surge.
+export function getCastingDL(spell: Spell, quicken: boolean): number | null {
+  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0)
+}
+
+// play.tex "Degrees of success": a hit is the DL + 5.
+export function isHit(score: number, DL: number): boolean {
+  return score >= DL + HIT_MARGIN
+}
+
+// "Any points above a hit against the DL are converted into SOPs."
+export function getSOP(score: number, DL: number): number {
+  return Math.max(0, score - (DL + HIT_MARGIN))
+}
+
+// "Spells require using a focus surge to be cast in combat scenes." — unless
+// quickened.
+export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boolean {
+  if (!isCampaignCharacter(c) || !(key in c.spells)) return false
+  const spell = SPELLS[key]
+  if (spell.DL === null || !canAfford(c, spell.cost)) return false
+  return quicken || c.usedSurge === 'focus'
 }
 
 // The DL side of a spell's test resolved for this caster. Terms the domain
@@ -148,9 +177,14 @@ export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
   })
 }
 
-// One target per enhancement level: the score that leaves n x 4 SOPs after a
-// hit. Level 0 is the plain hit.
-export type EnhancementLevel = { level: number; target: number }
+// The pending roll on this spell, if the last thing rolled was this spell:
+// what it came to and what each improvement would cost against what is left.
+export type PendingSpellView = {
+  score: number
+  hit: boolean
+  SOP: number
+  modifications: { name: SpellModification; SOP: number; text: string; times: number; affordable: boolean }[]
+}
 
 export type SpellSheetRow = {
   key: SpellKey
@@ -162,9 +196,9 @@ export type SpellSheetRow = {
   skill: number
   miracle: number // the same spell attempted as a miracle
   DL: number | null
+  quickenedDL: number | null
   hitAt: number | null
-  enhancements: EnhancementLevel[] // empty when the spell has no enhancement or no DL
-  modifications: { name: string; SOP: number; text: string }[]
+  pending: PendingSpellView | null
   test: ResolvedTest | null
   damage: string // "20 blunt" already scaled by DM, "" when the spell deals none
   outcomes: { degree: string; text: string }[]
@@ -173,11 +207,28 @@ export type SpellSheetRow = {
   costText: string
   description: string
   enhance: string
-  canCast: boolean // in play, and the price can be met (or the spell is held and a click ends it)
+  canCast: boolean // with the focus surge and the price met (or the spell is held and a click ends it)
+  canQuicken: boolean // castable at +4 DL without the surge
   active: boolean // a sustained spell currently held
 }
 
-const ENHANCEMENT_LEVELS = [0, 1, 2, 3]
+function pendingView(c: Character, key: SpellKey, spell: Spell): PendingSpellView | null {
+  if (!isCampaignCharacter(c) || c.pendingAction === null) return null
+  const pending = c.pendingAction
+  if (pending.kind !== 'spell' || pending.key !== key || spell.DL === null) return null
+  return {
+    score: pending.score,
+    hit: isHit(pending.score, spell.DL),
+    SOP: pending.SOP,
+    modifications: (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => ({
+      name,
+      SOP: SPELL_MODIFICATIONS[name].SOP,
+      text: SPELL_MODIFICATIONS[name].text,
+      times: pending.spent[name] ?? 0,
+      affordable: pending.SOP >= SPELL_MODIFICATIONS[name].SOP,
+    })),
+  }
+}
 
 function rangeLabel(spell: Spell): string {
   return [
@@ -195,12 +246,11 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
       const spell = SPELLS[key]
       const learned = c.spells[key]
       const hitAt = spell.DL === null ? null : spell.DL + HIT_MARGIN
-      const enhancements = hitAt === null || !spell.enhance ? [] :
-        ENHANCEMENT_LEVELS.map((level) => ({ level, target: hitAt + level * SPELL_MODIFICATIONS.enhance.SOP }))
       const damage = spell.damage === null ? '' :
         `${spell.damage.scaled ? Math.floor(spell.damage.value * getDM(c)) : spell.damage.value} ${spell.damage.kind}`
       const active = isSpellActive(c, key)
-      const canCast = isCampaignCharacter(c) && (active || canAfford(c, spell.cost))
+      const canCast = active || canCastSpell(c, key, false)
+      const canQuicken = !active && canCastSpell(c, key, true)
       return {
         key,
         name: spell.name,
@@ -211,9 +261,9 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         skill: getSpellSkill(c, key),
         miracle: getMiracleSkill(c, key),
         DL: spell.DL,
+        quickenedDL: getCastingDL(spell, true),
         hitAt,
-        enhancements,
-        modifications: Object.entries(SPELL_MODIFICATIONS).map(([name, m]) => ({ name, SOP: m.SOP, text: m.text })),
+        pending: pendingView(c, key, spell),
         test: resolveTest(c, spell),
         damage,
         outcomes: spell.outcomes === null ? [] :
@@ -224,6 +274,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         description: spell.description,
         enhance: spell.enhance,
         canCast,
+        canQuicken,
         active,
       }
     })

@@ -1,9 +1,9 @@
 import { Character, SpellMethod } from "../../types"
 import { SPELLS, SpellKey } from "../../spells"
+import { SPELL_MODIFICATIONS, SpellModification } from "../../tables"
 import { isCampaignCharacter } from "../../utils"
-import { canLearnSpell } from "../lenses/spells"
+import { canCastSpell, canLearnSpell, getCastingDL, getSOP, getSpellSkill, isHit } from "../lenses/spells"
 import { isSpellActive } from "../lenses/effects"
-import { canAfford } from "../lenses/cost"
 import { payCost } from "./cost"
 
 export function learnSpell(key: SpellKey, method: SpellMethod): (c: Character) => Character {
@@ -37,21 +37,54 @@ export function practiceSpell(key: SpellKey, delta: number): (c: Character) => C
   }
 }
 
-// Casts a known spell: the price is paid before the roll and nothing else
-// moves — the test and its effect are the table's. A sustained spell is also
-// taken hold of, so its upkeep comes due at the round change; casting it
-// again while held releases it for free. Refused when the character cannot
-// afford it, like an attack.
-export function castSpell(key: SpellKey): (c: Character) => Character {
+// Casts a known spell with a die already rolled: the price is paid whatever
+// the die says ("In case of failure, it fails and the AP and STA are lost"),
+// the roll plus skill is scored against the casting DL and what is left over
+// a hit becomes the pending action's SOPs. Quicken forgoes the focus surge
+// for +4 DL. A sustained spell that hit is taken hold of, so its upkeep comes
+// due at the round change; casting it again while held releases it for free.
+export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Character) => Character {
   return (c: Character) => {
-    if (!isCampaignCharacter(c) || !(key in c.spells)) return c
-    const spell = SPELLS[key]
+    if (!isCampaignCharacter(c)) return c
     if (isSpellActive(c, key)) {
       return { ...c, active: c.active.filter((e) => !(e.kind === 'spell' && e.key === key)) }
     }
-    if (!canAfford(c, spell.cost)) return c
+    if (!canCastSpell(c, key, quicken)) return c
+    const spell = SPELLS[key]
+    const DL = getCastingDL(spell, quicken)
+    if (DL === null) return c
+    const score = roll + getSpellSkill(c, key)
+    const SOP = getSOP(score, DL)
     const paid = payCost(spell.cost)(c)
-    if (spell.type !== 'sustained') return paid
-    return { ...paid, active: [...paid.active, { kind: 'spell', key }] }
+    const hit = isHit(score, DL)
+    return {
+      ...paid,
+      pendingAction: { kind: 'spell', key, score, SOP, spent: {} },
+      active: spell.type === 'sustained' && hit ? [...paid.active, { kind: 'spell', key }] : paid.active,
+    }
   }
+}
+
+// Buys one improvement out of the pending spell's SOPs.
+export function applyModification(mod: SpellModification): (c: Character) => Character {
+  return (c: Character) => {
+    if (!isCampaignCharacter(c) || c.pendingAction === null || c.pendingAction.kind !== 'spell') return c
+    const price = SPELL_MODIFICATIONS[mod].SOP
+    if (c.pendingAction.SOP < price) return c
+    const { spent } = c.pendingAction
+    return {
+      ...c,
+      pendingAction: {
+        ...c.pendingAction,
+        SOP: c.pendingAction.SOP - price,
+        spent: { ...spent, [mod]: (spent[mod] ?? 0) + 1 },
+      },
+    }
+  }
+}
+
+// Done with the roll: nothing is refunded, the slot is simply freed.
+export function clearPendingAction(c: Character): Character {
+  if (!isCampaignCharacter(c) || c.pendingAction === null) return c
+  return { ...c, pendingAction: null }
 }

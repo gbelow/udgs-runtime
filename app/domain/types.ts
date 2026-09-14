@@ -496,12 +496,25 @@ export const LearnedSpellSchema = z.object({
 }).strip()
 export type LearnedSpell = z.infer<typeof LearnedSpellSchema>
 
+// The last action rolled and not yet resolved: what was attempted, what the
+// die came to, and the SOPs it left to spend on improvements. One slot for
+// spells and attacks alike — a new roll replaces it, a round change clears it.
+export const PendingActionSchema = z.object({
+  kind: z.enum(['spell', 'attack']),
+  key: str.default(''),
+  score: num.default(0), // roll + skill
+  SOP: num.default(0), // what is still unspent
+  spent: z.record(z.string(), num).default({}), // improvement -> times bought
+}).strip()
+export type PendingAction = z.infer<typeof PendingActionSchema>
+
 const CampaignValues = {
   injuries: InjuriesSchema.partial().default({}).transform(v => InjuriesSchema.parse(v)),
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   usedSurge: SurgeKindSchema.nullable().default(null),
   active: z.array(ActiveEntrySchema).default([]),
+  pendingAction: PendingActionSchema.nullable().default(null),
 }
 
 export const CampaignValuesSchema = z.object({

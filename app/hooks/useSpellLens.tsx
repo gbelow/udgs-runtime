@@ -1,4 +1,6 @@
-import { castSpell, forgetSpell, learnSpell, practiceSpell } from "../domain/character/commands";
+import { applyModification, castSpell, clearPendingAction, forgetSpell, learnSpell, practiceSpell } from "../domain/character/commands";
+import type { SpellModification } from "../domain/tables";
+import { makeFullRoll } from "../components/utils";
 import { getSpellCatalogRows, getSpellSheetRows, SpellCatalogRow, SpellSheetRow } from "../domain/character/lenses/spells";
 import type { SpellKey } from "../domain/spells";
 import { Character, SpellMethod } from "../domain/types";
@@ -27,9 +29,19 @@ export function useSpellLens() {
     update(practiceSpell(key, delta));
   };
 
-  const cast = (key: SpellKey) => {
-    update(castSpell(key));
+  // The die is thrown here, the one place entropy enters, and handed to the
+  // command already rolled.
+  const cast = (key: SpellKey, quicken = false) => {
+    update(castSpell(key, makeFullRoll(), quicken));
   };
 
-  return { catalog, learned, learn, forget, practice, cast } as const;
+  const modify = (mod: SpellModification) => {
+    update(applyModification(mod));
+  };
+
+  const resolve = () => {
+    update(clearPendingAction);
+  };
+
+  return { catalog, learned, learn, forget, practice, cast, modify, resolve } as const;
 }

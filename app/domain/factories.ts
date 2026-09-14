@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema, PendingActionSchema } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -104,6 +104,7 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
       ...parsed.data?.injuries ?? campaignCharacter.injuries,
     },
     usedSurge: parsed.data.usedSurge ?? campaignCharacter.usedSurge,
+    pendingAction: PendingActionSchema.nullable().catch(null).parse(parsed.data.pendingAction ?? null),
   }
 }
 
@@ -151,6 +152,7 @@ export const ResourceIngestValues = {
   resources: z.any().optional(),
   usedSurge: SurgeKindSchema.nullable().optional(),
   active: z.array(z.any()).optional(),
+  pendingAction: z.any().optional(),
 };
 
 export const CampaignCharacterIngestSchema = z.object({

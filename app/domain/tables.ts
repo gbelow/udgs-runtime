@@ -133,16 +133,19 @@ export const magic_types = {
 // a cast therefore means beating DL + HIT_MARGIN + n.
 export const HIT_MARGIN = 5
 
-// spells.tex "Types of Spells and Modifications" — what each modification
-// costs in SOPs, chosen after the roll. Quicken is written as a DL increase
-// rather than an SOP price; the two are the same number on the die.
+// spells.tex "Types of Spells and Modifications" — what each improvement
+// costs in SOPs, chosen after the roll. Quicken is not here: it is decided
+// before the roll and moves the DL instead (QUICKEN_DL).
 export const SPELL_MODIFICATIONS = {
-  quicken:    { SOP: 4, text: 'cast during any surge, no opportunity attacks' },
   extend:     { SOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
   enhance:    { SOP: 4, text: 'the special improvement described in the spell' },
   amplify:    { SOP: 4, text: 'multiply an effect marked DM, SM, RM or VM once more' },
   effortless: { SOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { SOP: number; text: string }>
+
+// "Quicken Spell: Increases spell DL by 4 to allow it to be cast during any
+// surge and not cause opportunity attacks."
+export const QUICKEN_DL = 4
 
 export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 

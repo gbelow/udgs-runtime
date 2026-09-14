@@ -16,10 +16,11 @@ export function nextRound(
     // being able to breathe
     let updatedCharacter = suffocate(payUpkeep(character))
 
-    // Clear the surge used last round
+    // Clear the surge used last round and the roll left unresolved in it
     updatedCharacter = {
       ...updatedCharacter,
-      usedSurge: null
+      usedSurge: null,
+      pendingAction: null,
     }
 
     // Add +6 AP but cap at 6
