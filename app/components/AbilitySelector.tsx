@@ -48,7 +48,10 @@ export function AbilitySelector(){
                   <div className='flex flex-col gap-1 px-2 pb-1 text-xs text-gray-300'>
                     {row.stages.map((stage) => (
                       <div key={stage.key} className={stage.learned ? 'text-green-300' : ''}>
-                        <span className='font-bold'>{stage.name}</span> — {stage.description || 'nothing new at this level'}
+                        <span className='font-bold'>{stage.name}</span>
+                        {stage.price ? <span className='text-gray-400'> {stage.price}</span> : null}
+                        {stage.requirements ? <span className='text-gray-400'> · needs {stage.requirements}</span> : null}
+                        {' — '}{stage.description || 'nothing new at this level'}
                       </div>
                     ))}
                   </div>

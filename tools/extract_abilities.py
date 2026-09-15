@@ -1,197 +1,274 @@
-"""Extracts the ability catalog text from the rulebook's abilities.tex.
+"""Extracts the ability catalog from the rulebook's abilities.tex.
 
-Reads every active `\\abil{...}`, `\\inna{...}` and `\\convic{...}` block and
-writes app/domain/abilities.generated.ts: one entry per stage, with the
-book's name, section, usage and description. Effects are not in the book's
-text and are authored by hand in app/domain/abilities.ts, keyed by the ids
+Reads every active `\\abil{Name}{key=value, ...}` block and writes
+app/domain/abilities.generated.ts: one entry per stage, with the book's
+name, section, usage, price, talent, requirements and effect text. The
+three short fields follow the grammar documented beside the macro in
+main.tex and are parsed strictly: anything off-grammar stops the run with
+the book's line number rather than degrading to prose. What each stage does
+to a number is authored by hand in app/domain/abilities.ts, keyed by the ids
 this script emits — so re-running it after a rulebook edit refreshes the
-prose without touching the numbers.
+book's side without touching the numbers.
 
 Ids are `<family-slug>` for a single-stage ability and `<family-slug>-<n>` for
-stage n of a multi-stage one; a conviction's levels are its stages.
+stage n of a multi-stage one. Per-level values (`a|b|c`) hand each stage its
+own member; a stage's effect text is the `I. II. III.` segment addressed to
+it when the text is marked that way, and the whole text otherwise.
 """
 
 from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-RULEBOOK = (REPO_ROOT / ".." / "RPG_Below_v7_en" / "abilities.tex").resolve()
+from rulebook import REPO_ROOT, RULEBOOK, clean, line_of, macro_names, read_arg, slug, split_keys, strip_comments
+
+SOURCE = RULEBOOK / "abilities.tex"
 OUT = REPO_ROOT / "app" / "domain" / "abilities.generated.ts"
 
-ROMAN = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
-ROMAN_VALUE = {v: k for k, v in ROMAN.items()}
+ROMAN = ["I", "II", "III", "IV", "V"]
+STAGE = r"(?:I|II|III|IV|V)"
+TALENTS = ("CON", "DEX", "INT", "SPI")
+ATTRIBUTES = ("STR", "AGI", "STA")
+ZERO_COST = {"AP": 0, "STA": 0, "exhaustion": 0, "IL": 0, "ET": 0}
+
+# main.tex "Ability entry" grammar
+COST_UNIT = r"(?:\d+ AP|\d+ STA|\d+ AP \+ \d+ STA|attack(?: \+ \d+ STA)?|\d+ ET|\d+ IL)"
+USAGE_RE = re.compile(
+    rf"^(?:passive|(?P<action>{COST_UNIT})|reaction(?:, (?P<reaction>{COST_UNIT}))?"
+    rf"|sustained, (?P<sustained>{COST_UNIT})/turn|full turn|ritual)$"
+)
+PRICE_RE = re.compile(rf"^(?P<amount>-?\d+(?:\|-?\d+)*) (?P<unit>XP|Karma)(?:, (?P<talent>{'|'.join(TALENTS)}) (?P<level>\d+(?:\|\d+)*))?$")
+LEVEL_RE = re.compile(r"^(?P<name>[A-Z][A-Za-z' ]*?) (?P<level>\d+(?:\|\d+)*)$")
+ATTRIBUTE_RE = re.compile(rf"^(?P<name>{'|'.join(ATTRIBUTES)}) (?P<op>>=|<=|>|<) (?P<value>\d+)$")
+NAME_RE = re.compile(rf"^(?P<family>.+?)(?: (?P<stages>{STAGE}(?:\|{STAGE})+))?$")
+REFERENCE_RE = re.compile(rf"^(?P<family>[A-Z][A-Za-z' ]*?)(?: (?P<stage>{STAGE}))?$")
 
 
-def read_args(text: str, start: int, count: int) -> tuple[list[str], int]:
-    """Reads `count` brace-delimited arguments starting at `start`."""
-    args: list[str] = []
-    i = start
-    for _ in range(count):
-        while i < len(text) and text[i] in " \t\n":
-            i += 1
-        if i >= len(text) or text[i] != "{":
-            raise ValueError(f"expected '{{' at {i}")
-        depth = 0
-        j = i
-        while j < len(text):
-            if text[j] == "{":
-                depth += 1
-            elif text[j] == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            j += 1
-        args.append(text[i + 1 : j])
-        i = j + 1
-    return args, i
+class BookError(Exception):
+    pass
 
 
-def clean(s: str) -> str:
-    s = s.replace("\\magic", "★ ")
-    s = re.sub(r"\$\\star\$", "★", s)
-    s = re.sub(r"\\textbf\{([^}]*)\}", r"\1", s)
-    s = s.replace("\\%", "%").replace("\\\\", " ")
-    s = re.sub(r"\s+", " ", s)
-    return s.strip()
+def per_level(value: str, stages: int, what: str) -> list[str]:
+    """'2|4|6' -> one member per stage; a single value repeats for every stage."""
+    members = value.split("|")
+    if len(members) == 1:
+        return members * stages
+    if len(members) != stages:
+        raise BookError(f"{what} {value!r} lists {len(members)} levels for {stages} stages")
+    return members
 
 
-def slug(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "-", s.lower().replace("★", "")).strip("-")
-
-
-def split_stages(name: str) -> tuple[str, list[int]]:
-    """'Sprinter I/II' -> ('Sprinter', [1, 2]); 'Archer' -> ('Archer', [])."""
-    m = re.match(r"^(.*?)\s+((?:I{1,3}|IV|V)(?:/(?:I{1,3}|IV|V))+)\s*$", name)
-    if not m:
-        return name, []
-    return m.group(1).strip(), [ROMAN_VALUE[r] for r in m.group(2).split("/")]
-
-
-def split_description(desc: str, stages: list[int]) -> dict[int, str]:
-    """Hands each stage the 'I. … II. …' segment addressed to it when the text
-    is marked that way, and the whole text otherwise."""
-    parts = re.split(r"(?:^|\s)(I{1,3}|IV|V)\.\s+", desc)
-    if len(parts) > 1:
-        lead = parts[0].strip()
-        marked = {ROMAN_VALUE[parts[i]]: parts[i + 1].strip() for i in range(1, len(parts), 2)}
-        if len(marked) == len(stages) and all(i + 1 in marked for i in range(len(stages))):
-            return {stage: (lead + " " + marked[i + 1]).strip() for i, stage in enumerate(stages)}
-    # a lone leading "I." introduces a "1/2/3" style text meant for every stage
-    desc = re.sub(r"^I\.\s+", "", desc)
-    return {stage: desc for stage in stages}
-
-
-def usage_to_activation(usage: str) -> str:
-    return "passive" if usage in ("", "passive") else "active"
-
-
-def usage_to_cost(usage: str) -> dict[str, int]:
-    cost: dict[str, int] = {}
-    ap = re.search(r"(\d+)\s*AP", usage)
-    sta = re.search(r"(\d+)\s*STA", usage)
-    if ap:
-        cost["AP"] = int(ap.group(1))
-    if sta:
-        cost["STA"] = int(sta.group(1))
+def parse_cost_unit(unit: str | None) -> dict[str, int]:
+    cost = dict(ZERO_COST)
+    for field, pattern in (("AP", r"(\d+) AP"), ("STA", r"(\d+) STA"), ("ET", r"(\d+) ET"), ("IL", r"(\d+) IL")):
+        m = re.search(pattern, unit or "")
+        if m:
+            cost[field] = int(m.group(1))
     return cost
 
 
-def strip_comments(text: str) -> str:
-    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("%"))
+def parse_usage(usage: str) -> tuple[str, dict[str, int], list[dict]]:
+    """The book's usage word decides how the domain holds the ability: always
+    on, fired for a price, or switched on and paid at every round change."""
+    m = USAGE_RE.match(usage)
+    if not m:
+        raise BookError(f"usage {usage!r} is off-grammar")
+    if usage == "passive":
+        return "passive", dict(ZERO_COST), []
+    if m.group("sustained"):
+        upkeep = {"type": "cost", "trigger": "end_round", "effect": parse_cost_unit(m.group("sustained"))}
+        return "toggle", dict(ZERO_COST), [upkeep]
+    return "active", parse_cost_unit(m.group("action") or m.group("reaction")), []
 
 
-def extract(text: str) -> dict[str, dict]:
-    text = strip_comments(text)
-    entries: dict[str, dict] = {}
+def parse_price(price: str, stages: int) -> list[dict]:
+    """'6 XP, DEX 2|4|6' -> per stage {XPcost, karma, talent}."""
+    m = PRICE_RE.match(price)
+    if not m:
+        raise BookError(f"cost {price!r} is off-grammar")
+    amounts = [int(a) for a in per_level(m.group("amount"), stages, "price")]
+    if m.group("unit") == "Karma":
+        if m.group("talent"):
+            raise BookError(f"cost {price!r}: karma prices have no talent")
+        return [{"XPcost": 0, "karma": a, "talent": []} for a in amounts]
+    if not m.group("talent"):
+        if any(amounts):
+            raise BookError(f"cost {price!r}: an XP price names its talent")
+        return [{"XPcost": 0, "karma": 0, "talent": []} for _ in amounts]
+    levels = [int(l) for l in per_level(m.group("level"), stages, "talent level")]
+    return [{"XPcost": a, "karma": 0, "talent": [{"property": m.group("talent"), "level": l}]} for a, l in zip(amounts, levels)]
+
+
+class Catalog:
+    """Names the requirements grammar can point at, gathered before any
+    requirement is read so a reference is checked against the whole book."""
+
+    def __init__(self, abilities: dict[str, list[str]], spells: set[str], gear: set[str]):
+        self.abilities = abilities  # family -> stage roman numerals ([] for single-stage)
+        self.spells = spells
+        self.gear = gear
+
+    def ability_key(self, reference: str) -> str | None:
+        m = REFERENCE_RE.match(reference)
+        if not m or m.group("family") not in self.abilities:
+            return None
+        family, stage = m.group("family"), m.group("stage")
+        stages = self.abilities[family]
+        if not stages:
+            if stage:
+                raise BookError(f"{reference!r}: {family!r} has no levels")
+            return slug(family)
+        if stage and stage not in stages:
+            raise BookError(f"{reference!r}: {family!r} has no level {stage}")
+        # abilities.tex "Requirements": a bare family name asks for its first level
+        return f"{slug(family)}-{ROMAN.index(stage or stages[0]) + 1}"
+
+
+def parse_requirement(item: str, stages: int, catalog: Catalog) -> list[dict]:
+    """One item of the requirements list, per stage."""
+    negated = item.startswith("not ")
+    item = item[4:] if negated else item
+    if item[:1].islower() or item[:1].isdigit():
+        return [{"kind": "condition", "name": item, "not": negated}] * stages
+    m = ATTRIBUTE_RE.match(item)
+    if m:
+        return [{"kind": "attribute", "name": m.group("name"), "op": m.group("op"), "level": int(m.group("value")), "not": negated}] * stages
+    m = LEVEL_RE.match(item)
+    if m:
+        return [{"kind": "trainable", "name": m.group("name"), "level": int(l), "not": negated}
+                for l in per_level(m.group("level"), stages, f"requirement {item!r}")]
+    key = catalog.ability_key(item)
+    if key:
+        return [{"kind": "ability", "name": key, "not": negated}] * stages
+    if item in catalog.spells:
+        return [{"kind": "spell", "name": slug(item), "not": negated}] * stages
+    if item in catalog.gear:
+        return [{"kind": "gear", "name": item, "not": negated}] * stages
+    raise BookError(f"requirement {item!r} names nothing in the book")
+
+
+def parse_requirements(text: str, stages: int, catalog: Catalog) -> list[list[list[dict]]]:
+    """'A, B or C' -> per stage [[A], [B, C]]: every outer item is needed, any
+    inner alternative satisfies it."""
+    if not text:
+        return [[] for _ in range(stages)]
+    per_stage: list[list[list[dict]]] = [[] for _ in range(stages)]
+    for item in text.split(","):
+        alternatives = [parse_requirement(alt.strip(), stages, catalog) for alt in re.split(r"\bor\b", item.strip())]
+        for stage in range(stages):
+            per_stage[stage].append([alt[stage] for alt in alternatives])
+    return per_stage
+
+
+def split_effect(text: str, stages: int) -> list[str]:
+    """Hands each stage its `I. … II. …` segment when the text is marked that
+    way; otherwise the whole text, with every `a|b|c` collapsed to the stage's
+    own value."""
+    marks = re.findall(rf"(?:^|\s)({STAGE})\.\s", text)
+    if marks:
+        if marks != ROMAN[:stages]:
+            raise BookError(f"effect segments {marks} do not match {stages} stages")
+        parts = re.split(rf"(?:^|\s){STAGE}\.\s+", text)
+        lead = parts[0].strip()
+        return [(lead + " " + part.strip()).strip() for part in parts[1:]]
+    if stages == 1:
+        return [text]
+    out = []
+    for stage in range(stages):
+        def pick(m: re.Match) -> str:
+            members = m.group(0).split("|")
+            if len(members) != stages:
+                raise BookError(f"effect value {m.group(0)!r} lists {len(members)} levels for {stages} stages")
+            return members[stage]
+        out.append(re.sub(r"(?<![\d|])\d+(?:\|\d+)+(?![\d|])", pick, text))
+    return out
+
+
+def scan(text: str) -> list[tuple[int, str, str, dict[str, str]]]:
+    """(line, section, name, fields) for every active \\abil, in book order."""
+    entries = []
     section = ""
-    conviction: str | None = None
-    # conviction levels collect text across several \convic lines
-    conviction_levels: dict[str, dict[int, list[str]]] = {}
-
-    token = re.compile(r"\\(section|subsection|subsubsection|abil|inna|convic)\b")
+    token = re.compile(r"\\(section|subsection|subsubsection|abil)\{")
     pos = 0
     while True:
         m = token.search(text, pos)
         if not m:
             break
-        kind = m.group(1)
-        if m.start() > 0 and text[m.start() - 1] == "{":
-            # the macro's own newcommand definition, not a use of it
-            pos = m.end()
+        if m.group(1) != "abil":
+            title, pos = read_arg(text, m.end() - 1)
+            section = clean(title).rstrip(":").replace("★ ", "")
             continue
-        if kind in ("section", "subsection", "subsubsection"):
-            (title,), pos = read_args(text, m.end(), 1)
-            title = clean(title).rstrip(":").replace("★ ", "")
-            cm = re.match(r"^(?:Conviction of\s+(.*)|(.*?)\s+Conviction)$", title)
-            if cm:
-                conviction = (cm.group(1) or cm.group(2)).strip()
-                section = "Convictions"
-                conviction_levels.setdefault(conviction, {})
-            else:
-                conviction = None
-                section = title
-            continue
+        line = line_of(text, m.start())
+        try:
+            name, pos = read_arg(text, m.end() - 1)
+            body, pos = read_arg(text, pos)
+            entries.append((line, section, clean(name), split_keys(body)))
+        except ValueError as e:
+            raise BookError(f"abilities.tex:{line}: {e}") from None
+    return entries
 
-        if kind == "convic":
-            (levels, body), pos = read_args(text, m.end(), 2)
-            assert conviction, "\\convic outside a conviction section"
-            stages = [int(x) for x in levels.split("/")]
-            body = clean(body)
-            for stage, desc in split_description(body, stages).items():
-                conviction_levels[conviction].setdefault(stage, []).append(desc)
-            continue
 
-        argc = 5 if kind == "abil" else 7
-        args, pos = read_args(text, m.end(), argc)
-        args = [clean(a) for a in args]
-        if kind == "abil":
-            name, usage, _cost, _req, desc = args
-        else:
-            name, usage, _cost, _req, area, duration, desc = args
-            desc = f"Range/Area: {area}. Duration: {duration}. {desc}"
-        family, stages = split_stages(name)
-        key_base = slug(family)
-        common = {
-            "family": family,
-            "section": section,
-            "usage": usage,
-            "activation": usage_to_activation(usage),
-        }
-        cost = usage_to_cost(usage)
-        if cost:
-            common["cost"] = cost
-        if not stages:
-            entries[key_base] = {"name": family, "stage": 1, **common, "description": desc}
-            continue
-        texts = split_description(desc, stages)
-        for i, stage in enumerate(stages):
-            key = f"{key_base}-{stage}"
-            entry = {"name": f"{family} {ROMAN[stage]}", "stage": stage, **common, "description": texts[stage]}
+def extract(text: str) -> dict[str, dict]:
+    text = strip_comments(text)
+    scanned = scan(text)
+    families: dict[str, list[str]] = {}
+    for line, _, name, _ in scanned:
+        m = NAME_RE.match(name.replace("★ ", ""))
+        stages = m.group("stages").split("|") if m.group("stages") else []
+        if stages and stages != ROMAN[: len(stages)]:
+            raise BookError(f"abilities.tex:{line}: levels {m.group('stages')!r} do not run I|II|III")
+        if m.group("family") in families:
+            raise BookError(f"abilities.tex:{line}: duplicate ability {m.group('family')!r}")
+        families[m.group("family")] = stages
+    catalog = Catalog(families, macro_names(RULEBOOK / "spells.tex", "spell"), macro_names(RULEBOOK / "gear.tex", "gitem"))
+
+    entries: dict[str, dict] = {}
+    for line, section, name, fields in scanned:
+        try:
+            unknown = set(fields) - {"usage", "cost", "requirements", "range", "duration", "effect"}
+            if unknown:
+                raise BookError(f"unknown keys {sorted(unknown)}")
+            for key in ("usage", "cost", "effect"):
+                if key not in fields:
+                    raise BookError(f"missing {key}")
+            m = NAME_RE.match(name.replace("★ ", ""))
+            family = ("★ " if "★" in name else "") + m.group("family")
+            stages = families[m.group("family")]
+            count = max(1, len(stages))
+            activation, cost, effect = parse_usage(fields["usage"])
+            prices = parse_price(fields["cost"], count)
+            requirements = parse_requirements(fields.get("requirements", ""), count, catalog)
+            texts = split_effect(fields["effect"], count)
+            if ("range" in fields) != ("duration" in fields):
+                raise BookError("range and duration come together")
+            if "range" in fields:
+                texts = [f"Range/Area: {fields['range']}. Duration: {fields['duration']}. {t}" for t in texts]
+        except BookError as e:
+            raise BookError(f"abilities.tex:{line}: {name}: {e}") from None
+        for i in range(count):
+            key = slug(m.group("family")) + (f"-{i + 1}" if stages else "")
+            requires = [alt["name"] for group in requirements[i] for alt in group if alt["kind"] == "ability" and not alt["not"]]
             if i > 0:
-                entry["requires"] = [f"{key_base}-{stages[i - 1]}"]
-            entries[key] = entry
-
-    # creating.tex "Convictions": levels run to 5 and start at 0, so every
-    # level is a stage even where the book grants nothing new at it.
-    for name, levels in conviction_levels.items():
-        key_base = slug(name)
-        ordered = list(range(min(min(levels), 1), 6))
-        for i, stage in enumerate(ordered):
+                requires.insert(0, f"{slug(m.group('family'))}-{i}")
             entry = {
-                "name": f"{name} {ROMAN[stage]}",
-                "family": name,
-                "stage": stage,
-                "section": "Convictions",
-                "usage": "passive",
-                "activation": "passive",
-                "description": " ".join(levels.get(stage, [])),
+                "name": f"{family} {stages[i]}" if stages else family,
+                "family": family,
+                "stage": i + 1,
+                "section": section,
+                "usage": fields["usage"],
+                "activation": activation,
+                "cost": cost,
+                **prices[i],
+                "requires": requires,
+                "requirements": requirements[i],
+                "description": texts[i],
             }
-            if i > 0:
-                entry["requires"] = [f"{key_base}-{ordered[i - 1]}"]
-            entries[f"{key_base}-{stage}"] = entry
+            if effect:
+                entry["effect"] = effect
+            entries[key] = entry
     return entries
 
 
@@ -210,7 +287,11 @@ def render(entries: dict[str, dict]) -> str:
 
 
 def main() -> None:
-    entries = extract(RULEBOOK.read_text(encoding="utf-8"))
+    source = Path(sys.argv[1]) if len(sys.argv) > 1 else SOURCE
+    try:
+        entries = extract(source.read_text(encoding="utf-8"))
+    except BookError as e:
+        sys.exit(str(e))
     OUT.write_text(render(entries), encoding="utf-8")
     print(f"wrote {len(entries)} entries to {OUT.relative_to(REPO_ROOT)}")
 

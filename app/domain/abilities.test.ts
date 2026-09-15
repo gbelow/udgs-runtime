@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from './abilities'
+import { SPELL_KEYS } from './spells'
 import { forgetAbility, learnAbility, payUpkeep, toggleAbility } from './character/commands'
 import { getUpkeep } from './character/lenses/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
-import type { CampaignCharacter, Character } from './types'
+import type { CampaignCharacter, Character, Requirement } from './types'
 
 // abilities.tex "Acquiring abilities": a multi-level ability "receives an I,
 // II, III next to its name, indicating each level", so every stage of a
@@ -21,6 +22,10 @@ describe('ability catalog — stages', () => {
 
   it.each(ABILITY_KEYS)('every requirement of "%s" is a catalog key', (key) => {
     for (const req of ABILITIES[key].requires) expect(ABILITY_KEYS).toContain(req)
+    for (const alt of ABILITIES[key].requirements.flat()) {
+      if (alt.kind === 'ability') expect(ABILITY_KEYS).toContain(alt.name)
+      if (alt.kind === 'spell') expect(SPELL_KEYS).toContain(alt.name)
+    }
   })
 })
 
@@ -36,25 +41,75 @@ function chain(key: AbilityKey): AbilityKey[] {
   return [...requires.flatMap((req) => chain(req as AbilityKey)), key]
 }
 
+const ENFORCED: Requirement['kind'][] = ['ability', 'spell', 'attribute']
+
+// A value on the far side of an attribute threshold: past it when `meet`,
+// short of it otherwise.
+function attributeValue(req: Requirement, meet: boolean): number {
+  const above = req.op === '>' || req.op === '>='
+  const past = req.op === '>' || req.op === '<' ? 1 : 0
+  return above === meet ? req.level + past : req.level - past
+}
+
+// Grants or withholds one requirement item on a character; nothing the
+// domain cannot read (trainables, gear, conditions) is touched.
+function grant(c: Character, req: Requirement, meet: boolean): Character {
+  const present = meet !== req.not
+  switch (req.kind) {
+    case 'ability':
+      return present
+        ? { ...c, abilities: [...new Set([...c.abilities, ...chain(req.name as AbilityKey)])] }
+        : { ...c, abilities: c.abilities.filter((a) => a !== req.name) }
+    case 'spell': {
+      const spells = { ...c.spells }
+      if (present) spells[req.name] = { method: 'intuitive', practice: 0 }
+      else delete spells[req.name]
+      return { ...c, spells }
+    }
+    case 'attribute': {
+      const name = req.name as 'STR' | 'AGI' | 'STA'
+      return { ...c, trainables: { ...c.trainables, [name]: { ...c.trainables[name], value: attributeValue(req, present) } } }
+    }
+    default:
+      return c
+  }
+}
+
+// Everything the domain can see of an ability's requirements, met outright.
+function ready(key: AbilityKey): Character {
+  const { requires, requirements } = ABILITIES[key]
+  const chained = requires.reduce<Character>((c, k) => grant(c, { kind: 'ability', name: k, level: 0, op: '>=', not: false }, true), makeCharacter({}))
+  return requirements.reduce<Character>((c, item) => grant(c, item[0], true), chained)
+}
+
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
 // ability unless the requirements are met" and "Abilities can only be
 // acquired once".
 describe('learning abilities', () => {
-  it.each(ABILITY_KEYS)('"%s" is learnable on a blank character iff it has no requirements', (key) => {
-    const blank = makeCharacter({})
-    const learned = learnAbility(key)(blank).abilities.includes(key)
-    expect(learned).toBe(ABILITIES[key].requires.length === 0)
-  })
-
-  it.each(ABILITY_KEYS)('"%s" is learnable once its chain is learned, and only once', (key) => {
-    const ready = chain(key).slice(0, -1).reduce<Character>((c, k) => learnAbility(k)(c), makeCharacter({}))
-    const once = learnAbility(key)(ready)
+  it.each(ABILITY_KEYS)('"%s" is learnable once its requirements are met, and only once', (key) => {
+    const once = learnAbility(key)(ready(key))
     expect(once.abilities).toContain(key)
     expect(learnAbility(key)(once)).toBe(once)
   })
 
+  // Every item whose alternatives the domain can all read is necessary:
+  // withholding it, and it alone, closes the ability.
+  const gated: [AbilityKey, string, Requirement[]][] = ABILITY_KEYS.flatMap((key) => [
+    ...ABILITIES[key].requires.map((req): [AbilityKey, string, Requirement[]] =>
+      [key, `ability ${req}`, [{ kind: 'ability', name: req, level: 0, op: '>=', not: false }]]),
+    ...ABILITIES[key].requirements
+      .filter((item) => item.every((alt) => ENFORCED.includes(alt.kind)))
+      .map((item): [AbilityKey, string, Requirement[]] =>
+        [key, item.map((alt) => `${alt.not ? 'not ' : ''}${alt.kind} ${alt.name}`).join(' or '), item]),
+  ])
+
+  it.each(gated)('"%s" is not learnable without %s', (key, _label, item) => {
+    const short = item.reduce<Character>((c, alt) => grant(c, alt, false), ready(key))
+    expect(learnAbility(key)(short)).toBe(short)
+  })
+
   it.each(ABILITY_KEYS)('forgetting any link of the chain to "%s" leaves the requirements met', (key) => {
-    const full = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCharacter({}))
+    const full = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), ready(key))
     expect(holdsRequirements(full)).toBe(true)
     for (const link of chain(key)) {
       const after = forgetAbility(link)(full)
@@ -70,7 +125,7 @@ describe('toggle abilities', () => {
   const toggles = ABILITY_KEYS.filter((key) => ABILITIES[key].activation === 'toggle')
 
   it.each(toggles)('"%s" charges its upkeep at the round change only while on', (key) => {
-    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ resources: { STA: 10, AP: 8 } }))
+    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ ...ready(key), resources: { STA: 10, AP: 8 } }))
     const off = learned as CampaignCharacter
     const on = toggleAbility(key)(off) as CampaignCharacter
     const upkeep = getUpkeep(on)

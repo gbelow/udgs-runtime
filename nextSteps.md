@@ -45,15 +45,16 @@
 - 
 
 ## spells
-- importing from rulebook
-- browse list
 - spells editor
-- click spells to use
-- add improvements
+- add spell enahncements
+- drain AP/SP
 
 ## attacks
 - apply SOPs
 - show detailed damage breakdown
+
+## resolutions
+- targeting
 
 ## exploration
 - exploration turn apply wear

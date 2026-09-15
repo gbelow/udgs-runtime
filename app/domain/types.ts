@@ -395,6 +395,19 @@ export const TalentSchema = z.object({
 
 export type Talent = z.infer<typeof TalentSchema>
 
+// abilities.tex "Requirements": one item of what an ability asks for before
+// it can be learned. `name` is a catalog key for an ability or spell, the
+// book's word for a trainable, gear or condition; `level` is the minimum for
+// a trainable and the threshold an attribute is compared against with `op`.
+export const RequirementSchema = z.object({
+  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition']),
+  name: str.default(''),
+  level: num.default(0),
+  op: z.enum(['>', '<', '>=', '<=']).default('>='),
+  not: z.boolean().default(false), // "not X": the item must be absent
+}).strip()
+export type Requirement = z.infer<typeof RequirementSchema>
+
 // abilities.tex "Acquiring abilities": a multi-level ability is one entry per
 // stage (I, II, III), each stage carrying only what it adds on top of the one
 // before, and a stage requires the previous one. `family` is the shared name
@@ -408,10 +421,12 @@ export const AbilitySchema = z.object({
   usage: str.default(''), // the book's "Usage" field verbatim, for display
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
   description: str.default(''),
-  talent: z.array(TalentSchema).default([]),
-  XPcost: num.default(6),
+  talent: z.array(TalentSchema).default([]), // creating.tex "Talent and Learning": the talent and training level the XP price assumes
+  XPcost: num.default(0),
+  karma: num.default(0), // negative: received when the ability is taken
   target: AbilityTargetSchema.default('self'),
   requires: z.array(str).default([]), // catalog keys that must already be learned
+  requirements: z.array(z.array(RequirementSchema)).default([]), // every outer item is needed, any inner alternative satisfies it
   effect: z.array(EffectSchema).default([]),
 }).strip()
 export type AbilityInput = z.input<typeof AbilitySchema>

@@ -1,14 +1,56 @@
-import { Character } from '../../types'
+import { Character, Requirement } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
+import { SPELLS, SpellKey } from '../../spells'
 import { isAbilityActive } from './effects'
+import { getAGI, getSTA, getSTR } from './characteristics'
 import { isCampaignCharacter } from '../../utils'
 
+const ATTRIBUTE = { STR: getSTR, AGI: getAGI, STA: getSTA } as const
+
+// One item of an ability's requirements, as far as the domain can see it.
+// Trainable levels are the book's words (a skill, a knowledge, a conviction)
+// with no fixed home on the character yet, and gear and conditions are the
+// table's to judge — those hold until the domain can read them.
+function holdsRequirement(c: Character, req: Requirement): boolean {
+  switch (req.kind) {
+    case 'ability': return c.abilities.includes(req.name) !== req.not
+    case 'spell': return (req.name in c.spells) !== req.not
+    case 'attribute': return compare(ATTRIBUTE[req.name as keyof typeof ATTRIBUTE]?.(c) ?? 0, req.op, req.level) !== req.not
+    case 'trainable':
+    case 'gear':
+    case 'condition':
+      return true
+  }
+}
+
+function compare(value: number, op: Requirement['op'], threshold: number): boolean {
+  switch (op) {
+    case '>': return value > threshold
+    case '<': return value < threshold
+    case '>=': return value >= threshold
+    case '<=': return value <= threshold
+  }
+}
+
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
-// ability unless the requirements are met" and each is acquired once. Only the
-// stage chain is enforced here — a stage requires the one before it.
+// ability unless the requirements are met" and each is acquired once. Every
+// listed item is needed and any alternative within an item satisfies it.
 export function canLearnAbility(key: AbilityKey): (c: Character) => boolean {
   return (c: Character) =>
-    !c.abilities.includes(key) && ABILITIES[key].requires.every((req) => c.abilities.includes(req))
+    !c.abilities.includes(key) &&
+    ABILITIES[key].requires.every((req) => c.abilities.includes(req)) &&
+    ABILITIES[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))
+}
+
+// creating.tex "Talent and Learning": the XP price doubles for every level
+// the training level sits above the character's talent. A karma-priced
+// ability costs no XP.
+export function getAbilityXPCost(key: AbilityKey): (c: Character) => number {
+  return (c: Character) => {
+    const { XPcost, talent } = ABILITIES[key]
+    const shortfall = talent.reduce((worst, t) => Math.max(worst, t.level - c.trainables[t.property].value), 0)
+    return XPcost * 2 ** shortfall
+  }
 }
 
 export type AbilityStageView = {
@@ -18,6 +60,8 @@ export type AbilityStageView = {
   learned: boolean
   learnable: boolean
   description: string
+  price: string // "12 XP", "4 Karma", "" for a free stage
+  requirements: string // "Archer, Riding I · Medicine 1", in the book's words
 }
 
 // One row per family, its stages in order, so the sidebar can show "Sprinter"
@@ -39,6 +83,26 @@ export type AbilityUseView = {
   key: AbilityKey
   name: string
   price: string // "4 AP + 1 STA"
+}
+
+function learningPrice(c: Character, key: AbilityKey): string {
+  const { karma } = ABILITIES[key]
+  if (karma) return `${karma} Karma`
+  const xp = getAbilityXPCost(key)(c)
+  return xp ? `${xp} XP` : ''
+}
+
+function requirementLabel(req: Requirement): string {
+  const name = req.kind === 'ability' ? ABILITIES[req.name as AbilityKey].name
+    : req.kind === 'spell' ? SPELLS[req.name as SpellKey].name
+    : req.kind === 'trainable' ? `${req.name} ${req.level}`
+    : req.kind === 'attribute' ? `${req.name} ${req.op} ${req.level}`
+    : req.name
+  return req.not ? `not ${name}` : name
+}
+
+function requirementsLabel(requirements: Requirement[][]): string {
+  return requirements.map((item) => item.map(requirementLabel).join(' or ')).join(' · ')
 }
 
 function priceLabel(cost: { AP: number; STA: number }): string {
@@ -72,6 +136,8 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       learned,
       learnable: canLearnAbility(key)(c),
       description: ability.description,
+      price: learningPrice(c, key),
+      requirements: requirementsLabel(ability.requirements),
     }
     row.stages.push(stage)
     families.set(ability.family, row)
