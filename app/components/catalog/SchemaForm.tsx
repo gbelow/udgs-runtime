@@ -11,7 +11,8 @@ import { emptyValue, Field, FieldType } from '../../forms/schemaFields'
 // An override replaces the widget for every field at a path, where the path
 // is the field names from the root joined by '.', array indices left out
 // ("stages.requirements.name"). It receives the enclosing object so a widget
-// can depend on a sibling (a requirement's name list depends on its kind).
+// can depend on a sibling (a requirement's name list depends on its kind);
+// returning null hides the field.
 export type FieldOverride = (props: { value: unknown; onChange: (v: unknown) => void; parent: Record<string, unknown> }) => ReactNode
 export type Overrides = Record<string, FieldOverride>
 
@@ -110,6 +111,8 @@ function Fields({ fields, value, onChange, path, overrides }: { fields: Field[];
         const widget = override
           ? override({ value: record[field.name], onChange: (v) => set(field.name, v), parent: record })
           : <Value type={field.type} value={record[field.name]} onChange={(v) => set(field.name, v)} path={fieldPath} overrides={overrides} parent={record} />
+        // an override that renders nothing hides the field
+        if (widget === null) return null
         // a scalar sits inside its label; a nested block only carries a caption
         return isScalar(field.type) || override !== undefined
           ? <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>

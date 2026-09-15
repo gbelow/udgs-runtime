@@ -1,6 +1,7 @@
 "use server"
 
-import { AbilityFamilySchema, Character } from './domain/types';
+import { Character } from './domain/types';
+import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
 import fs from "fs/promises";
@@ -174,9 +175,11 @@ export async function getCharacterList(): Promise<ActionResult<{id: string, name
 // ── catalogs ────────────────────────────────────────────────────────────
 // A catalog is one JSON file under app/assets keyed by entry; the domain
 // imports it at build time, so this is content editing on a dev machine, the
-// way base characters are, and the result is committed.
+// way base characters are, and the result is committed. What the form held
+// is what gets written — validated against the catalog's schema, but not
+// passed through it, so nothing a schema derives (a weapon attack's parsed
+// properties) lands in the file.
 const ASSET_DIR = path.join(process.cwd(), "app/assets");
-const CATALOG_KEY = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 async function readCatalog(file: string): Promise<Record<string, JsonValue>> {
   return JSON.parse(await fs.readFile(path.join(ASSET_DIR, file), "utf-8")) as Record<string, JsonValue>;
@@ -186,32 +189,34 @@ async function writeCatalog(file: string, catalog: Record<string, JsonValue>): P
   await fs.writeFile(path.join(ASSET_DIR, file), JSON.stringify(catalog, null, 2) + "\n", "utf-8");
 }
 
-export async function saveAbilityFamily(key: string, raw: unknown): Promise<ActionResult> {
-  if (!CATALOG_KEY.test(key)) return { ok: false, error: 'Ability keys are lowercase words joined by dashes.' };
-  const parsed = AbilityFamilySchema.safeParse(raw);
+export async function saveCatalogEntry(catalog: string, key: string, raw: unknown): Promise<ActionResult> {
+  if (!isCatalogName(catalog)) return { ok: false, error: 'No such catalog.' };
+  const spec = CATALOGS[catalog];
+  if (!key.trim()) return { ok: false, error: `${spec.label} need a name.` };
+  const parsed = spec.schema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
-  if (!parsed.data.family.trim()) return { ok: false, error: 'Abilities need a name.' };
   try {
-    const catalog = await readCatalog('abilities.json');
-    catalog[key] = parsed.data as unknown as JsonValue;
-    await writeCatalog('abilities.json', catalog);
+    const entries = await readCatalog(spec.file);
+    entries[key] = raw as JsonValue;
+    await writeCatalog(spec.file, entries);
     return { ok: true, data: undefined };
   } catch (err) {
-    console.error('Error writing ability catalog:', err);
-    return { ok: false, error: 'Failed to save ability.' };
+    console.error(`Error writing ${spec.file}:`, err);
+    return { ok: false, error: `Failed to save to ${spec.label}.` };
   }
 }
 
-export async function deleteAbilityFamily(key: string): Promise<ActionResult> {
-  if (!CATALOG_KEY.test(key)) return { ok: false, error: 'Ability keys are lowercase words joined by dashes.' };
+export async function deleteCatalogEntry(catalog: string, key: string): Promise<ActionResult> {
+  if (!isCatalogName(catalog)) return { ok: false, error: 'No such catalog.' };
+  const spec = CATALOGS[catalog];
   try {
-    const catalog = await readCatalog('abilities.json');
-    if (!(key in catalog)) return { ok: false, error: 'No such ability.' };
-    delete catalog[key];
-    await writeCatalog('abilities.json', catalog);
+    const entries = await readCatalog(spec.file);
+    if (!(key in entries)) return { ok: false, error: `No such entry in ${spec.label}.` };
+    delete entries[key];
+    await writeCatalog(spec.file, entries);
     return { ok: true, data: undefined };
   } catch (err) {
-    console.error('Error writing ability catalog:', err);
-    return { ok: false, error: 'Failed to delete ability.' };
+    console.error(`Error writing ${spec.file}:`, err);
+    return { ok: false, error: `Failed to delete from ${spec.label}.` };
   }
 }

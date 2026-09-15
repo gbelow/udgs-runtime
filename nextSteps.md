@@ -5,39 +5,50 @@
 ## add convictions 
 - selection within the options -- DONE
 - auto add abilities
-
-## add knowledges
-- allow adding random knowledges -- DONE
+- conviction requirements not firing
+- convictions must be one worldview and one temperament
 
 ## magic
 - interface: toggleable?
-- intuitive, three knowledges, divine and miracles - add mental penalties - DONE
+- spell cast range number, not string. same with other distance measures. effect can be amplified, cast can be extended
 
 ## XP tracking
-- on skills, DONE
-- knowledges, DONE
-- abilities,
-- spells
+- spells - intuitive requires XP track
+- add half learned abilities - XP track
+- trainable as wrapper
 - interface, learning mode
+- add training formulas - talent for proficiencies, skills, attributes, spells, abilities
 
 ## add senses
 - list senses and bonus
 - decide interface
 
-## add items
-- item customization
+## items editor
+- weapons/armor customization
+- item types in form of list
+- bulk in form of text
+- separate by item category
+
+
+## weapons/armor
+- add properties list to weapons
+- add customization options to weapons
+- add customization options to armors
+- think about resLayer
+- armor properties must be 
+- define shields
+- remove strMod, RESmod, heavymod, 
+- handed = small makes no sense - make new property maneuverable or sth
+- draw weapon properties from vocabulary 
 
 ## hands
 - scaleweapons is unused
 - item scaling must be decided
+- item requirements must be in hand
+- auto track spending charges
 
 ## add abilities 
-- import from rulebook -- DONE
-- system to overrule base mechanics and compose multiple abilities -- DONE
-- how to browse list and add to char -- DONE
-- how to list char abilities -- DONE
-- clickable abilities use rss automatically -- DONE
-- add tooltip to skills to show how abilities change them
+- add tex generator from catalogue
 
 ## skills
 - open skill explanation on click
@@ -46,12 +57,14 @@
 
 ## spells
 - spells editor
-- add spell enahncements
-- drain AP/SP
+- add spell enahncements details
+- tests - 
+- damage as an effect
 
 ## attacks
 - apply SOPs
 - show detailed damage breakdown
+- select target
 
 ## resolutions
 - targeting
