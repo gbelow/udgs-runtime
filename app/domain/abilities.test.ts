@@ -4,7 +4,18 @@ import { SPELL_KEYS } from './spells'
 import { forgetAbility, learnAbility, payUpkeep, toggleAbility } from './character/commands'
 import { getUpkeep } from './character/lenses/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
+import { AbilityFamilySchema } from './types'
+import catalog from '../assets/abilities.json'
 import type { CampaignCharacter, Character, Requirement } from './types'
+
+// The catalog crosses from untyped JSON into the schema here: every entry
+// must carry every field it claims, so an edit that drops or misnames one
+// fails instead of silently taking a default.
+describe('abilities.json', () => {
+  it.each(Object.entries(catalog as Record<string, unknown>))('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
+    expect(AbilityFamilySchema.parse(raw), key).toEqual(raw)
+  })
+})
 
 // abilities.tex "Acquiring abilities": a multi-level ability "receives an I,
 // II, III next to its name, indicating each level", so every stage of a

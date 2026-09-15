@@ -61,10 +61,9 @@
 - rest value calculated automatically
 
 ## saving assets to redis
-- categorizing character types for sidebar navigation
 - getting chars per user
 - save encounter
-- items, spells
+- items, spells, abilities
 
 ## explore integration with VTTs
 

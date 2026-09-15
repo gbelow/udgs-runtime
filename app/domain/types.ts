@@ -408,26 +408,49 @@ export const RequirementSchema = z.object({
 }).strip()
 export type Requirement = z.infer<typeof RequirementSchema>
 
-// abilities.tex "Acquiring abilities": a multi-level ability is one entry per
-// stage (I, II, III), each stage carrying only what it adds on top of the one
-// before, and a stage requires the previous one. `family` is the shared name
-// the stages are collapsed under; `section` is the book's subsection.
+// What one level of an ability states for itself: its price, what it asks
+// for, what it does. Shared between the stored family shape and the
+// expanded per-stage catalog entry.
+const AbilityStageValues = {
+  XPcost: num.default(0),
+  karma: num.default(0), // negative: received when the ability is taken
+  talent: z.array(TalentSchema).default([]), // creating.tex "Talent and Learning": the talent and training level the XP price assumes
+  requirements: z.array(z.array(RequirementSchema)).default([]), // every outer item is needed, any inner alternative satisfies it
+  description: str.default(''),
+  effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
+}
+
+export const AbilityStageSchema = z.object(AbilityStageValues).strip()
+export type AbilityStage = z.infer<typeof AbilityStageSchema>
+
+// abilities.tex "Acquiring abilities": an ability is stored as a family —
+// what every level shares, then one stage per level (I, II, III). This is
+// the shape app/assets/abilities.json holds and the editor writes.
+export const AbilityFamilySchema = z.object({
+  family: str.default(''),
+  section: str.default(''),
+  activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
+  usage: str.default(''), // the book's "Usage" field verbatim, for display
+  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
+  target: AbilityTargetSchema.default('self'),
+  stages: z.array(AbilityStageSchema).min(1),
+}).strip()
+export type AbilityFamily = z.infer<typeof AbilityFamilySchema>
+export type AbilityFamilyInput = z.input<typeof AbilityFamilySchema>
+
+// One stage of a family expanded for the domain: its own catalog entry,
+// carrying what it adds on top of the stage before and requiring that stage.
 export const AbilitySchema = z.object({
   name: str.default(''),
   family: str.default(''),
   stage: num.default(1),
   section: str.default(''),
-  activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
-  usage: str.default(''), // the book's "Usage" field verbatim, for display
+  activation: ActivationSchema.default('passive'),
+  usage: str.default(''),
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
-  description: str.default(''),
-  talent: z.array(TalentSchema).default([]), // creating.tex "Talent and Learning": the talent and training level the XP price assumes
-  XPcost: num.default(0),
-  karma: num.default(0), // negative: received when the ability is taken
   target: AbilityTargetSchema.default('self'),
   requires: z.array(str).default([]), // catalog keys that must already be learned
-  requirements: z.array(z.array(RequirementSchema)).default([]), // every outer item is needed, any inner alternative satisfies it
-  effect: z.array(EffectSchema).default([]),
+  ...AbilityStageValues,
 }).strip()
 export type AbilityInput = z.input<typeof AbilitySchema>
 
