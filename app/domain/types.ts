@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ABILITY_SECTIONS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 import { parseWeaponProperties } from './weaponProperties'
 
@@ -426,12 +427,14 @@ export type AbilityStage = z.infer<typeof AbilityStageSchema>
 // abilities.tex "Acquiring abilities": an ability is stored as a family —
 // what every level shares, then one stage per level (I, II, III). This is
 // the shape app/assets/abilities.json holds and the editor writes.
+export const AbilitySectionSchema = z.enum(ABILITY_SECTIONS)
+export type AbilitySection = z.infer<typeof AbilitySectionSchema>
+
 export const AbilityFamilySchema = z.object({
   family: str.default(''),
-  section: str.default(''),
+  section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
-  usage: str.default(''), // the book's "Usage" field verbatim, for display
-  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
+  cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // what a use of an active ability takes, on top of its instant cost effects
   target: AbilityTargetSchema.default('self'),
   stages: z.array(AbilityStageSchema).min(1),
 }).strip()
@@ -444,9 +447,8 @@ export const AbilitySchema = z.object({
   name: str.default(''),
   family: str.default(''),
   stage: num.default(1),
-  section: str.default(''),
+  section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'),
-  usage: str.default(''),
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
   target: AbilityTargetSchema.default('self'),
   requires: z.array(str).default([]), // catalog keys that must already be learned

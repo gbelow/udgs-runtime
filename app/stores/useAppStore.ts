@@ -5,7 +5,7 @@ import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 
-type GameTabs = 'edit' | 'play' | 'break'
+export type GameTabs = 'edit' | 'play' | 'break' | 'catalog'
 
 // The item waiting for a destination to be clicked: a catalog entry picked in
 // the sidebar, or a stack in the hands being put away. Pure UI coordination

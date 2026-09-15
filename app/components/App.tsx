@@ -5,6 +5,7 @@ import { PlayPanel } from './PlayPanel';
 import { CharacterCreator } from './CharacterCreator';
 import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
+import { CatalogEditor } from './catalog/CatalogEditor';
 
 export function App(){
 
@@ -21,10 +22,17 @@ export function App(){
           {/* <input className={'py-1 rounded px-2 hover:bg-gray-500 '+ (selectedPage == 'Play' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_play'} value={'Play'} onClick={() => setSelectedPage('Play')}/> */}
           <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'play' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_play'} value={'Run'} onClick={() => setSelectedGameTab('play')}/>
           <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'break' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_break'} value={'Break Me'} onClick={() => setSelectedGameTab('break')}/>
+          <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'catalog' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_catalog'} value={'Catalog'} onClick={() => setSelectedGameTab('catalog')}/>
         </div>
       </header>
 
       <main className="grid grid-cols-12 w-full h-full">
+      {selectedGameTab == 'catalog' ? (
+        <div className="col-span-12 mx-2 text-sm md:text-md">
+          <CatalogEditor />
+        </div>
+      ) : (
+      <>
       <div className="hidden md:block col-span-2 border pr-1 px-1 h-full">
         <Sidebar />
       </div>
@@ -70,6 +78,8 @@ export function App(){
             null
         }
       </div>
+      </>
+      )}
       </main>
     </>
   )

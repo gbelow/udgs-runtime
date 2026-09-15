@@ -3,7 +3,6 @@
     "family": "Large Stomach",
     "section": "CON",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -49,7 +48,6 @@
     "family": "Obese",
     "section": "CON",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -78,7 +76,6 @@
     "family": "Sprinter",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -142,7 +139,6 @@
     "family": "Jumper",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -206,7 +202,6 @@
     "family": "Climber",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -276,7 +271,6 @@
     "family": "Gymnast",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -346,7 +340,6 @@
     "family": "Swimmer",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -416,7 +409,6 @@
     "family": "Riding",
     "section": "Athletics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -471,7 +463,6 @@
     "family": "Mounted Shooter",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -551,7 +542,6 @@
     "family": "Thrower",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -593,7 +583,6 @@
     "family": "Archer",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -622,7 +611,6 @@
     "family": "Elite Sniper",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -718,7 +706,6 @@
     "family": "Quick Shooter",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -814,7 +801,6 @@
     "family": "Crossbow and Shield",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -843,7 +829,6 @@
     "family": "Steady Arms",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -872,7 +857,6 @@
     "family": "Archer's Muscles",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -934,7 +918,6 @@
     "family": "Archer's Reflexes",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -973,7 +956,6 @@
     "family": "Precise Reflexes",
     "section": "Ranged Combat",
     "activation": "active",
-    "usage": "reaction, 1 AP",
     "cost": {
       "AP": 1,
       "STA": 0,
@@ -1002,7 +984,6 @@
     "family": "Quick Reload",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1066,7 +1047,6 @@
     "family": "Jump Shot",
     "section": "Ranged Combat",
     "activation": "active",
-    "usage": "attack + 1 STA",
     "cost": {
       "AP": 0,
       "STA": 1,
@@ -1095,7 +1075,6 @@
     "family": "Tactical Movement",
     "section": "Ranged Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1124,7 +1103,6 @@
     "family": "Blade Alignment",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1153,7 +1131,6 @@
     "family": "Gentle Art",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1182,7 +1159,6 @@
     "family": "Clinch",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1211,7 +1187,6 @@
     "family": "Grappling Combat",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1240,7 +1215,6 @@
     "family": "Counterattack",
     "section": "Melee Combat",
     "activation": "active",
-    "usage": "reaction, attack",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1269,7 +1243,6 @@
     "family": "Battle Coordination",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1298,7 +1271,6 @@
     "family": "Defender",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1327,7 +1299,6 @@
     "family": "Defensive Advance",
     "section": "Melee Combat",
     "activation": "active",
-    "usage": "3 AP + 1 STA",
     "cost": {
       "AP": 3,
       "STA": 1,
@@ -1356,7 +1327,6 @@
     "family": "Death Spin",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1385,7 +1355,6 @@
     "family": "Charge",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1414,7 +1383,6 @@
     "family": "Tackle",
     "section": "Melee Combat",
     "activation": "active",
-    "usage": "4 AP + 1 STA",
     "cost": {
       "AP": 4,
       "STA": 1,
@@ -1443,7 +1411,6 @@
     "family": "Jousting",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1505,7 +1472,6 @@
     "family": "Technical Lift",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1534,7 +1500,6 @@
     "family": "Combo",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1598,7 +1563,6 @@
     "family": "Lunge",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1627,7 +1591,6 @@
     "family": "Shield Wall",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1656,7 +1619,6 @@
     "family": "Pikeman",
     "section": "Melee Combat",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1685,7 +1647,6 @@
     "family": "Precise Evasion",
     "section": "Melee Combat",
     "activation": "active",
-    "usage": "reaction, 1 AP",
     "cost": {
       "AP": 1,
       "STA": 0,
@@ -1714,7 +1675,6 @@
     "family": "Riposte",
     "section": "Melee Combat",
     "activation": "active",
-    "usage": "reaction, attack",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1743,7 +1703,6 @@
     "family": "Adaptive Learning",
     "section": "Adaptation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1777,7 +1736,6 @@
     "family": "Silver Tongue",
     "section": "Domination",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1832,7 +1790,6 @@
     "family": "Overrule",
     "section": "Domination",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1866,7 +1823,6 @@
     "family": "Mockery",
     "section": "Domination",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1900,7 +1856,6 @@
     "family": "★ Backlash",
     "section": "Domination",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1934,7 +1889,6 @@
     "family": "Exploit Weakness",
     "section": "Domination",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -1968,7 +1922,6 @@
     "family": "Deliberate",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2020,7 +1973,6 @@
     "family": "Cunning Studies",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2054,7 +2006,6 @@
     "family": "★ Prepared Casting",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2106,7 +2057,6 @@
     "family": "First Mover",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2140,7 +2090,6 @@
     "family": "Initiative Edge",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2174,7 +2123,6 @@
     "family": "Perfect Preparation",
     "section": "Stoicism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2208,7 +2156,6 @@
     "family": "Quick Resolve",
     "section": "Fatalism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2242,7 +2189,6 @@
     "family": "Iron Will",
     "section": "Fatalism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2316,7 +2262,6 @@
     "family": "Unwearied",
     "section": "Fatalism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2368,7 +2313,6 @@
     "family": "Grace Under Pressure",
     "section": "Fatalism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2402,7 +2346,6 @@
     "family": "Unshakable",
     "section": "Fatalism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2436,7 +2379,6 @@
     "family": "Fury",
     "section": "Ferocity",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2470,7 +2412,6 @@
     "family": "Voluntary Rage",
     "section": "Ferocity",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2504,7 +2445,6 @@
     "family": "Unstoppable",
     "section": "Ferocity",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2556,7 +2496,6 @@
     "family": "Rage Endurance",
     "section": "Ferocity",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2590,7 +2529,6 @@
     "family": "★ Spirit of Battle",
     "section": "Ferocity",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2624,7 +2562,6 @@
     "family": "Protection Surge",
     "section": "Guardian",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2658,7 +2595,6 @@
     "family": "Bulwark",
     "section": "Guardian",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2710,7 +2646,6 @@
     "family": "Rallying Guard",
     "section": "Guardian",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2744,7 +2679,6 @@
     "family": "Guardian's Vigor",
     "section": "Guardian",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2796,7 +2730,6 @@
     "family": "Self-Control",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2866,7 +2799,6 @@
     "family": "Tolerance",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2918,7 +2850,6 @@
     "family": "Showman",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2970,7 +2901,6 @@
     "family": "Light Fingers",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3022,7 +2952,6 @@
     "family": "Seducer",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3074,7 +3003,6 @@
     "family": "Sharp Tongue",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3126,7 +3054,6 @@
     "family": "Sly Words",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3178,7 +3105,6 @@
     "family": "Reveler",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3212,7 +3138,6 @@
     "family": "Rallying Taunt",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3246,7 +3171,6 @@
     "family": "Lucky Streak",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3280,7 +3204,6 @@
     "family": "Bookworm",
     "section": "Hedonism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3314,7 +3237,6 @@
     "family": "Right to Trial",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3348,7 +3270,6 @@
     "family": "Keeper of Promises",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3382,7 +3303,6 @@
     "family": "Honesty",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3416,7 +3336,6 @@
     "family": "Steady Purpose",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3450,7 +3369,6 @@
     "family": "Judge",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3484,7 +3402,6 @@
     "family": "Inspiring Rally",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3518,7 +3435,6 @@
     "family": "Undaunted Oath",
     "section": "Providentialism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3552,7 +3468,6 @@
     "family": "★ Cleric",
     "section": "Deities and Devotion",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3586,7 +3501,6 @@
     "family": "★ Miracle",
     "section": "Deities and Devotion",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3620,7 +3534,6 @@
     "family": "★ Divine Intervention",
     "section": "Deities and Devotion",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3654,7 +3567,6 @@
     "family": "★ Divine Avatar",
     "section": "Deities and Devotion",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3688,7 +3600,6 @@
     "family": "Alcoholic",
     "section": "Vices",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3712,7 +3623,6 @@
     "family": "Center of Attention",
     "section": "Vices",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3736,7 +3646,6 @@
     "family": "Kleptomaniac",
     "section": "Vices",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3760,7 +3669,6 @@
     "family": "Nymphomaniac",
     "section": "Vices",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3784,7 +3692,6 @@
     "family": "Glutton",
     "section": "Vices",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3808,7 +3715,6 @@
     "family": "Explosive",
     "section": "Traumas",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3832,7 +3738,6 @@
     "family": "Phobia",
     "section": "Traumas",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3856,7 +3761,6 @@
     "family": "Fear of Heights",
     "section": "Traumas",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3880,7 +3784,6 @@
     "family": "Insomnia",
     "section": "Traumas",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3904,7 +3807,6 @@
     "family": "Learn Language",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3938,7 +3840,6 @@
     "family": "Translate",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -3972,7 +3873,6 @@
     "family": "Literacy",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4006,7 +3906,6 @@
     "family": "Cypher",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4040,7 +3939,6 @@
     "family": "Decipher",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4074,7 +3972,6 @@
     "family": "Forgery",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4108,7 +4005,6 @@
     "family": "Identify Language",
     "section": "Linguistics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4142,7 +4038,6 @@
     "family": "First Aid",
     "section": "Medicine",
     "activation": "active",
-    "usage": "full turn",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4176,7 +4071,6 @@
     "family": "Cauterization",
     "section": "Medicine",
     "activation": "active",
-    "usage": "4 AP",
     "cost": {
       "AP": 4,
       "STA": 0,
@@ -4210,7 +4104,6 @@
     "family": "Bone Setting",
     "section": "Medicine",
     "activation": "active",
-    "usage": "1 ET",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4253,7 +4146,6 @@
     "family": "Wound Triage",
     "section": "Medicine",
     "activation": "active",
-    "usage": "1 ET",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4296,7 +4188,6 @@
     "family": "Diagnosis",
     "section": "Medicine",
     "activation": "active",
-    "usage": "0 AP",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4330,7 +4221,6 @@
     "family": "Autopsy",
     "section": "Medicine",
     "activation": "active",
-    "usage": "1 ET",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4364,7 +4254,6 @@
     "family": "Surgery",
     "section": "Medicine",
     "activation": "active",
-    "usage": "1 ET",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4398,7 +4287,6 @@
     "family": "Lockpicking",
     "section": "Mechanics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4427,7 +4315,6 @@
     "family": "Trapping",
     "section": "Mechanics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4461,7 +4348,6 @@
     "family": "Mechanism Craftsman",
     "section": "Mechanics",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4495,7 +4381,6 @@
     "family": "Chemistry Craftsman",
     "section": "Chemistry",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4529,7 +4414,6 @@
     "family": "Smithing Craftsman",
     "section": "Smithing",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4563,7 +4447,6 @@
     "family": "Geographer",
     "section": "Navigation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4597,7 +4480,6 @@
     "family": "Superior Orientation",
     "section": "Navigation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4631,7 +4513,6 @@
     "family": "Spatial Memory",
     "section": "Navigation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4665,7 +4546,6 @@
     "family": "Cartography",
     "section": "Navigation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4717,7 +4597,6 @@
     "family": "Survivalist",
     "section": "Survival",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4751,7 +4630,6 @@
     "family": "Improvised Crafting",
     "section": "Survival",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4785,7 +4663,6 @@
     "family": "Tracking",
     "section": "Survival",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4819,7 +4696,6 @@
     "family": "Odor Repertoire",
     "section": "Survival",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4867,7 +4743,6 @@
     "family": "Taming",
     "section": "Animal Handling",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4901,7 +4776,6 @@
     "family": "Command Pet",
     "section": "Animal Handling",
     "activation": "active",
-    "usage": "2 AP",
     "cost": {
       "AP": 2,
       "STA": 0,
@@ -4935,7 +4809,6 @@
     "family": "Animal Psychology",
     "section": "Animal Handling",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -4969,7 +4842,6 @@
     "family": "Animal Anatomy",
     "section": "Animal Handling",
     "activation": "active",
-    "usage": "4 AP + 1 STA",
     "cost": {
       "AP": 4,
       "STA": 1,
@@ -5003,7 +4875,6 @@
     "family": "Veterinarian",
     "section": "Animal Handling",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5037,7 +4908,6 @@
     "family": "Hunting",
     "section": "Animal Handling",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5071,7 +4941,6 @@
     "family": "Battle Commands",
     "section": "Cunning",
     "activation": "active",
-    "usage": "1 AP",
     "cost": {
       "AP": 1,
       "STA": 0,
@@ -5100,7 +4969,6 @@
     "family": "Strategist",
     "section": "Cunning",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5155,7 +5023,6 @@
     "family": "Prepared",
     "section": "Cunning",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5184,7 +5051,6 @@
     "family": "Desperate Action",
     "section": "Cunning",
     "activation": "active",
-    "usage": "reaction, 1 STA",
     "cost": {
       "AP": 0,
       "STA": 1,
@@ -5213,7 +5079,6 @@
     "family": "Improved Feint",
     "section": "Cunning",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5242,7 +5107,6 @@
     "family": "★ Magic Theory",
     "section": "General",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5281,7 +5145,6 @@
     "family": "★ Battle Mage",
     "section": "General",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5336,7 +5199,6 @@
     "family": "★ Intracellular Micro-combustion",
     "section": "Alchemy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5375,7 +5237,6 @@
     "family": "★ Grenadier",
     "section": "Alchemy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5404,7 +5265,6 @@
     "family": "★ Taser Mastery",
     "section": "Alchemy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5443,7 +5303,6 @@
     "family": "Synesthesia",
     "section": "Animancy",
     "activation": "toggle",
-    "usage": "sustained, 1 STA/turn",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5537,7 +5396,6 @@
     "family": "Blind Combat",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5576,7 +5434,6 @@
     "family": "Martial Spirit",
     "section": "Animancy",
     "activation": "active",
-    "usage": "2 STA",
     "cost": {
       "AP": 0,
       "STA": 2,
@@ -5615,7 +5472,6 @@
     "family": "Counterspell",
     "section": "Animancy",
     "activation": "active",
-    "usage": "reaction, 2 STA",
     "cost": {
       "AP": 0,
       "STA": 2,
@@ -5654,7 +5510,6 @@
     "family": "Magical Interpretation",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5693,7 +5548,6 @@
     "family": "Advanced Possession",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5732,7 +5586,6 @@
     "family": "Complete Possession",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5780,7 +5633,6 @@
     "family": "Avatar",
     "section": "Animancy",
     "activation": "active",
-    "usage": "6 AP",
     "cost": {
       "AP": 6,
       "STA": 0,
@@ -5819,7 +5671,6 @@
     "family": "Universal Communication",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5848,7 +5699,6 @@
     "family": "Central Intelligence",
     "section": "Animancy",
     "activation": "toggle",
-    "usage": "sustained, 2 AP/turn",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5900,7 +5750,6 @@
     "family": "Mind Reading",
     "section": "Animancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5939,7 +5788,6 @@
     "family": "★ Metabolic Control",
     "section": "Biomancy",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -5978,7 +5826,6 @@
     "family": "★ Muscular Autophagy",
     "section": "Biomancy",
     "activation": "active",
-    "usage": "2 IL",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6017,7 +5864,6 @@
     "family": "★ Cell Reconstruction",
     "section": "Biomancy",
     "activation": "active",
-    "usage": "1 AP + 1 STA",
     "cost": {
       "AP": 1,
       "STA": 1,
@@ -6056,7 +5902,6 @@
     "family": "★ Spirit Diplomacy",
     "section": "Shamanism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6090,7 +5935,6 @@
     "family": "★ Spirit Finding",
     "section": "Shamanism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6124,7 +5968,6 @@
     "family": "Grow!",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6158,7 +6001,6 @@
     "family": "Shrink!",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6199,7 +6041,6 @@
     "family": "Large Hands",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6240,7 +6081,6 @@
     "family": "Keen Eyes",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6343,7 +6183,6 @@
     "family": "Acute Ears",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6446,7 +6285,6 @@
     "family": "Sensitive Nose",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6549,7 +6387,6 @@
     "family": "Beautiful",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6583,7 +6420,6 @@
     "family": "Ugly",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6607,7 +6443,6 @@
     "family": "Regenerative Reservoir",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6631,7 +6466,6 @@
     "family": "Resurrection",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6683,7 +6517,6 @@
     "family": "Tireless",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6724,7 +6557,6 @@
     "family": "Adaptive Sleep",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6758,7 +6590,6 @@
     "family": "Amplified Pheromones",
     "section": "Physical Transfiguration",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6792,7 +6623,6 @@
     "family": "Elf",
     "section": "Spiritual Mutation",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6826,7 +6656,6 @@
     "family": "Fur",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6860,7 +6689,6 @@
     "family": "Scales",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6894,7 +6722,6 @@
     "family": "Claws",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6918,7 +6745,6 @@
     "family": "Gills",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -6942,7 +6768,6 @@
     "family": "Tail",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -7016,7 +6841,6 @@
     "family": "Bear Nose",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -7040,7 +6864,6 @@
     "family": "Infrared Vision",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -7064,7 +6887,6 @@
     "family": "Owl Eyes",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -7088,7 +6910,6 @@
     "family": "Bat Ears",
     "section": "Chimerism",
     "activation": "passive",
-    "usage": "passive",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -7105,6 +6926,47 @@
         "requirements": [],
         "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense. This is not as good as vision as a dominant sense, so it leaves the character disoriented when used as the only active sense. This does not work in complete silence.",
         "effect": []
+      }
+    ]
+  },
+  "test": {
+    "family": "test",
+    "section": "CON",
+    "activation": "active",
+    "cost": {
+      "AP": 2,
+      "STA": 0,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "target": "self",
+    "stages": [
+      {
+        "XPcost": 0,
+        "karma": 0,
+        "talent": [
+          {
+            "level": 2,
+            "property": "CON"
+          }
+        ],
+        "requirements": [],
+        "description": "IT TESTS IF IT WORKS",
+        "effect": [
+          {
+            "name": "",
+            "trigger": "end_round",
+            "type": "cost",
+            "effect": {
+              "AP": 0,
+              "STA": 2,
+              "exhaustion": 1,
+              "IL": 2,
+              "ET": 0
+            }
+          }
+        ]
       }
     ]
   }

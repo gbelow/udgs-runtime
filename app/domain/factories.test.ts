@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCharacter, makeCampaignCharacter } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
+import { getSTA } from './character/lenses/characteristics'
 import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema } from './types'
 import armorsCatalog from '../assets/armors.json'
 
@@ -57,6 +58,24 @@ const populated = () =>
   })
 
 describe('ingestion is total', () => {
+  // A campaign character saved before `exhaustion` existed came back with the
+  // partial resources record it was saved with, and every cost paid from it
+  // went NaN.
+  it('lands a partial resources record on a complete one', () => {
+    const c = makeCampaignCharacter({ resources: { STA: 20, AP: 8 } })
+    expect(CampaignCharacterSchema.parse(c).resources).toEqual(c.resources)
+    expect(c.resources).toMatchObject({ STA: 20, AP: 8 })
+  })
+
+  // The fix for the case above merged the raw through the schema, whose
+  // defaults then overrode the full-STA start of a character with no
+  // resources block at all.
+  it('starts a character with no resources block at full STA', () => {
+    const c = makeCampaignCharacter({})
+    expect(c.resources.STA).toBe(getSTA(c))
+    expect(c.resources.AP).toBe(8)
+  })
+
   for (const { label, raw, unvalidated } of HOSTILE) {
     const run = unvalidated ? it.fails : it
 

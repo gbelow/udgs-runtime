@@ -1,5 +1,5 @@
 import { CampaignCharacter, Character } from "../domain/types";
-import { useAppStore } from "../stores/useAppStore";
+import { GameTabs, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
 
@@ -43,7 +43,7 @@ export function useActiveCharacterSelector<T>(
 // re-checked by hand each time the derivation grows a dependency. Prefer
 // useActiveCharacterSelector (primitives) or useActiveCharacterDerived
 // (freshly-allocated shapes), which gate on the derived value itself.
-export function readActiveCharacter(tab: "edit" | "play" | "break"): Character | null {
+export function readActiveCharacter(tab: GameTabs): Character | null {
   if (tab === "edit") return useCharacterStore.getState().character;
   const s = useCombatStore.getState();
   const id = s.activeCharacterId;

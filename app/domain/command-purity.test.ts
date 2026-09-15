@@ -86,7 +86,9 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   applyModification: characterCommands.applyModification('extend'),
   clearPendingAction: characterCommands.clearPendingAction,
   suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
-  payUpkeep: (c) => characterCommands.payUpkeep(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
+  applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
+  applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
+  expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
   spendAttackResources: characterCommands.spendAttackResources(attack),
 }
 

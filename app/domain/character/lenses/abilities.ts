@@ -1,7 +1,8 @@
-import { Character, Requirement } from '../../types'
+import { Character, Cost, Requirement } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
 import { SPELLS, SpellKey } from '../../spells'
-import { isAbilityActive } from './effects'
+import { getDrain, isAbilityActive } from './effects'
+import { canAfford } from './cost'
 import { getAGI, getSTA, getSTR } from './characteristics'
 import { isCampaignCharacter } from '../../utils'
 
@@ -69,10 +70,11 @@ export type AbilityStageView = {
 export type AbilityFamilyView = {
   family: string
   section: string
-  usage: string
+  usage: string // "passive", "2 AP + 1 STA", "sustained, 1 STA/turn"
   stages: AbilityStageView[]
   next: AbilityStageView | null // the stage a click would learn, if any
   top: AbilityStageView | null // the highest learned stage — the one a click would forget
+  complete: boolean // every stage learned; otherwise a null `next` means the next stage is locked
   progress: string // "2/3" for a multi-stage family, "" otherwise
   toggle: AbilityStageView | null // the learned stage that carries the family's switch, if any
   active: boolean // whether that switch is on
@@ -82,7 +84,8 @@ export type AbilityFamilyView = {
 export type AbilityUseView = {
   key: AbilityKey
   name: string
-  price: string // "4 AP + 1 STA"
+  price: string // "4 AP + 1 STA" — the cost that gates a use; instant drains are not part of it
+  affordable: boolean // whether the character can pay it right now
 }
 
 function learningPrice(c: Character, key: AbilityKey): string {
@@ -105,10 +108,24 @@ function requirementsLabel(requirements: Requirement[][]): string {
   return requirements.map((item) => item.map(requirementLabel).join(' or ')).join(' · ')
 }
 
-function priceLabel(cost: { AP: number; STA: number }): string {
+// How the ability is held, in the words the book used for its Usage field:
+// always on, fired for a price, or switched on and paid per turn.
+function usageLabel(key: AbilityKey): string {
+  const ability = ABILITIES[key]
+  switch (ability.activation) {
+    case 'passive': return 'passive'
+    case 'active': return priceLabel(ability.cost)
+    case 'toggle': return `sustained, ${priceLabel(getDrain(ability.effect, 'end_round'))}/turn`
+  }
+}
+
+function priceLabel(cost: Cost): string {
   const parts = []
   if (cost.AP) parts.push(`${cost.AP} AP`)
   if (cost.STA) parts.push(`${cost.STA} STA`)
+  if (cost.exhaustion) parts.push(`${cost.exhaustion} exhaustion`)
+  if (cost.IL) parts.push(`${cost.IL} IL`)
+  if (cost.ET) parts.push(`${cost.ET} ET`)
   return parts.join(' + ') || 'free'
 }
 
@@ -119,10 +136,11 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
     const row = families.get(ability.family) ?? {
       family: ability.family,
       section: ability.section,
-      usage: ability.usage,
+      usage: usageLabel(key),
       stages: [],
       next: null,
       top: null,
+      complete: false,
       progress: '',
       toggle: null,
       active: false,
@@ -146,13 +164,17 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
     row.stages.sort((a, b) => a.stage - b.stage)
     row.next = row.stages.find((s) => s.learnable) ?? null
     row.top = row.stages.filter((s) => s.learned).at(-1) ?? null
+    row.complete = row.stages.every((s) => s.learned)
     // Switches and triggers only exist in play — a base character has no
     // resources to spend and nothing to hold switched on.
     if (isCampaignCharacter(c)) {
       row.toggle = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'toggle') ?? null
       row.active = row.toggle !== null && isAbilityActive(c, row.toggle.key)
       const usable = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'active')
-      row.use = usable ? { key: usable.key, name: usable.name, price: priceLabel(ABILITIES[usable.key].cost) } : null
+      if (usable) {
+        const { cost } = ABILITIES[usable.key]
+        row.use = { key: usable.key, name: usable.name, price: priceLabel(cost), affordable: canAfford(c, cost) }
+      }
     }
     // A conviction's stages are its levels and may start at 0, so progress
     // reads the stage number rather than a count of stages.

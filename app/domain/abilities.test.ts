@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from './abilities'
 import { SPELL_KEYS } from './spells'
-import { forgetAbility, learnAbility, payUpkeep, toggleAbility } from './character/commands'
-import { getUpkeep } from './character/lenses/effects'
+import { applyTrigger, forgetAbility, learnAbility, toggleAbility, useAbility } from './character/commands'
+import { nextRound } from './combat/commands/nextRound'
+import { getDrain, getUpkeep } from './character/lenses/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
 import { AbilityFamilySchema } from './types'
 import catalog from '../assets/abilities.json'
@@ -141,9 +142,42 @@ describe('toggle abilities', () => {
     const on = toggleAbility(key)(off) as CampaignCharacter
     const upkeep = getUpkeep(on)
 
-    expect(payUpkeep(off).resources).toEqual(off.resources)
-    expect(payUpkeep(on).resources.STA).toBe(on.resources.STA - upkeep.STA)
-    expect(payUpkeep(on).resources.AP).toBe(on.resources.AP - upkeep.AP)
+    const endRound = applyTrigger('end_round')
+    expect(endRound(off).resources).toEqual(off.resources)
+    expect(endRound(on).resources.STA).toBe(on.resources.STA - upkeep.STA)
+    expect(endRound(on).resources.AP).toBe(on.resources.AP - upkeep.AP)
     expect(toggleAbility(key)(on)).toEqual(off)
+  })
+})
+
+// An ability's `cost` is the price of a use and its effects' `trigger` says
+// when each falls due: `instant` at the use, `end_round` at the round change
+// (types.ts TriggerSchema). A fired ability used to be forgotten the moment
+// its price was paid, so a cost it listed for the round change was never
+// charged.
+describe('used abilities', () => {
+  const actives = ABILITY_KEYS.filter((key) => ABILITIES[key].activation === 'active')
+
+  it.each(actives)('"%s" pays its price and instant drain at the use and its round-change drain once, at the next round', (key) => {
+    const learned = chain(key).reduce<Character>((c, k) => learnAbility(k)(c), makeCampaignCharacter({ ...ready(key), resources: { STA: 20, AP: 8 } })) as CampaignCharacter
+    const { cost, effect } = ABILITIES[key]
+    const drain = getDrain(effect, 'instant')
+    const upkeep = getDrain(effect, 'end_round')
+
+    const used = useAbility(key)(learned) as CampaignCharacter
+    expect(used.resources.STA).toBe(learned.resources.STA - cost.STA - drain.STA)
+    expect(used.resources.AP).toBe(learned.resources.AP - cost.AP - drain.AP)
+    expect(used.resources.exhaustion).toBe(learned.resources.exhaustion + cost.exhaustion + drain.exhaustion)
+
+    const round = (c: CampaignCharacter) => nextRound({ characters: { c }, activeCharacterId: 'c', round: 0, inTurnCharacter: 'c' }).characters.c
+    const after = round(used)
+    expect(after.resources.STA).toBe(used.resources.STA - upkeep.STA)
+    expect(after.resources.exhaustion).toBe(used.resources.exhaustion + upkeep.exhaustion)
+    expect(after.injuries.injuryLevel).toBe(used.injuries.injuryLevel + upkeep.IL)
+
+    const later = round(after)
+    expect(later.resources.STA).toBe(after.resources.STA)
+    expect(later.resources.exhaustion).toBe(after.resources.exhaustion)
+    expect(later.injuries.injuryLevel).toBe(after.injuries.injuryLevel)
   })
 })

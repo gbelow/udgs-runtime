@@ -1,10 +1,14 @@
-import { Ability, Buff, BuffTarget, Character, Cost, Effect } from '../../types'
+import { Ability, Buff, BuffTarget, Character, Cost, Effect, Trigger } from '../../types'
 import { ABILITIES, AbilityKey, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
   return effect.type === 'buff'
+}
+
+function isCost(effect: Effect): effect is Extract<Effect, { type: 'cost' }> {
+  return effect.type === 'cost'
 }
 
 // The learned abilities that still resolve in the catalog. A character saved
@@ -16,17 +20,24 @@ export function getLearnedAbilities(character: Character): Ability[] {
     .map((key) => ABILITIES[key])
 }
 
-// The switched-on abilities: every `active` entry of kind ability whose key is
-// still a learned toggle. `active` comes through a permissive ingest, so an
-// entry that no longer satisfies that (forgotten, renamed in the book,
-// re-authored as passive) is ignored rather than acted on.
+// The abilities in effect: every `active` entry of kind ability whose key is
+// still a learned toggle (switched on) or a learned active one (fired this
+// round, cleared at the round change). `active` comes through a permissive
+// ingest, so an entry that no longer satisfies that (forgotten, renamed in
+// the book, re-authored as passive) is ignored rather than acted on.
 export function getActiveAbilityKeys(character: Character): AbilityKey[] {
   if (!isCampaignCharacter(character)) return []
   return character.active
     .filter((entry) => entry?.kind === 'ability')
     .map((entry) => entry.key)
     .filter((key): key is AbilityKey =>
-      isAbilityKey(key) && character.abilities.includes(key) && ABILITIES[key].activation === 'toggle')
+      isAbilityKey(key) && character.abilities.includes(key) && ABILITIES[key].activation !== 'passive')
+}
+
+// Whether a fired ability has anything left to do after its instant price:
+// a buff for the rest of the round, a cost at the round change.
+export function lingers(ability: Ability): boolean {
+  return ability.effect.some((e) => !(isCost(e) && e.trigger === 'instant'))
 }
 
 export function isAbilityActive(character: Character, key: AbilityKey): boolean {
@@ -85,16 +96,36 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
     .reduce((sum, b) => sum + b.value, 0)
 }
 
-// What every switched-on ability charges at a round change, summed.
-export function getUpkeep(character: Character): Cost {
+function sumCosts(costs: Cost[]): Cost {
   const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }
-  for (const effect of getContributingEffects(character)) {
-    if (effect.type !== 'cost' || effect.trigger !== 'end_round') continue
-    total.AP += effect.effect.AP
-    total.STA += effect.effect.STA
-    total.exhaustion += effect.effect.exhaustion
-    total.IL += effect.effect.IL
-    total.ET += effect.effect.ET
+  for (const cost of costs) {
+    total.AP += cost.AP
+    total.STA += cost.STA
+    total.exhaustion += cost.exhaustion
+    total.IL += cost.IL
+    total.ET += cost.ET
   }
   return total
+}
+
+// The effects of a list that fall due on a trigger.
+export function effectsOn(effects: Effect[], trigger: Trigger): Effect[] {
+  return effects.filter((e) => e.trigger === trigger)
+}
+
+// Everything in effect on the character that falls due on a trigger — what
+// the effect processor applies when that trigger happens.
+export function effectsDue(character: Character, trigger: Trigger): Effect[] {
+  return effectsOn(getContributingEffects(character), trigger)
+}
+
+// The drain a list of effects takes on a trigger, summed. Unlike a price it
+// is not checked for — it lands even if it leaves a pool negative.
+export function getDrain(effects: Effect[], trigger: Trigger): Cost {
+  return sumCosts(effectsOn(effects, trigger).filter(isCost).map((e) => e.effect))
+}
+
+// What everything switched on, held or fired charges at the round change.
+export function getUpkeep(character: Character): Cost {
+  return getDrain(getContributingEffects(character), 'end_round')
 }

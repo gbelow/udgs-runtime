@@ -26,8 +26,8 @@ export function AbilityPanel(){
               </button>
               {
                 row.use ?
-                <input type='button' aria-label={`use ${row.use.name}`} value={`use · ${row.use.price}`}
-                  className='border border-green-400 text-green-300 rounded px-1 text-xs'
+                <input type='button' aria-label={`use ${row.use.name}`} value={`use · ${row.use.price}`} disabled={!row.use.affordable}
+                  className='border border-green-400 text-green-300 rounded px-1 text-xs disabled:opacity-40'
                   onClick={() => use(row.use!.key)} />
                 : null
               }

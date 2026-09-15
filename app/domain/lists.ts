@@ -34,3 +34,41 @@ export const CONVICTIONS = {
 }
 
 export const surgeKinds = ['movement', 'combat', 'reaction', 'focus'] as const
+
+// abilities.tex — the subsections an ability is filed under, in the book's
+// order. Groups the catalog in the sidebar and decides where a rendered entry
+// lands in the chapter.
+export const ABILITY_SECTIONS = [
+  'CON',
+  'Athletics',
+  'Ranged Combat',
+  'Melee Combat',
+  'Adaptation',
+  'Domination',
+  'Stoicism',
+  'Fatalism',
+  'Ferocity',
+  'Guardian',
+  'Hedonism',
+  'Providentialism',
+  'Deities and Devotion',
+  'Vices',
+  'Traumas',
+  'Linguistics',
+  'Medicine',
+  'Mechanics',
+  'Chemistry',
+  'Smithing',
+  'Navigation',
+  'Survival',
+  'Animal Handling',
+  'Cunning',
+  'General',
+  'Alchemy',
+  'Animancy',
+  'Biomancy',
+  'Shamanism',
+  'Physical Transfiguration',
+  'Spiritual Mutation',
+  'Chimerism',
+] as const

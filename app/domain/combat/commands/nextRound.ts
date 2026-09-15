@@ -1,5 +1,6 @@
 import { CampaignCharacter } from '../../types'
-import { payUpkeep } from '../../character/commands/abilities'
+import { expireUsedAbilities } from '../../character/commands/abilities'
+import { applyTrigger } from '../../character/commands/effects'
 import { suffocate } from '../../character/commands/bleed'
 import { CombatState } from '../types'
 
@@ -12,9 +13,10 @@ export function nextRound(
   const updatedCharacters: Record<string, CampaignCharacter> = {}
 
   for (const [id, character] of Object.entries(state.characters)) {
-    // Abilities held on through the round are paid for now, and so is not
-    // being able to breathe
-    let updatedCharacter = suffocate(payUpkeep(character))
+    // Everything due at the round change lands now — the upkeep of what is
+    // held on or was fired this round — and so does not being able to
+    // breathe; a fired ability is then spent
+    let updatedCharacter = suffocate(expireUsedAbilities(applyTrigger('end_round')(character)))
 
     // Clear the surge used last round and the roll left unresolved in it
     updatedCharacter = {

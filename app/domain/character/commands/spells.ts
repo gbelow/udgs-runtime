@@ -3,7 +3,8 @@ import { SPELLS, SpellKey } from "../../spells"
 import { SPELL_MODIFICATIONS, SpellModification } from "../../tables"
 import { isCampaignCharacter } from "../../utils"
 import { canCastSpell, canLearnSpell, getCastingDL, getSOP, getSpellSkill, isHit } from "../lenses/spells"
-import { isSpellActive } from "../lenses/effects"
+import { effectsOn, isSpellActive } from "../lenses/effects"
+import { applyEffects } from "./effects"
 import { payCost } from "./cost"
 
 export function learnSpell(key: SpellKey, method: SpellMethod): (c: Character) => Character {
@@ -55,7 +56,8 @@ export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Cha
     if (DL === null) return c
     const score = roll + getSpellSkill(c, key)
     const SOP = getSOP(score, DL)
-    const paid = payCost(spell.cost)(c)
+    // the casting price, then whatever the spell lists as instant
+    const paid = applyEffects(effectsOn(spell.effect, 'instant'))(payCost(spell.cost)(c))
     const hit = isHit(score, DL)
     return {
       ...paid,

@@ -40,7 +40,7 @@ export function AbilitySelector(){
                     <input type='button' aria-label={`learn ${row.next.name}`} value={row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}
                       className='border border-green-400 text-green-300 rounded px-1 text-xs'
                       onClick={() => learn(row.next!.key)} />
-                    : <span className='text-xs text-gray-400 px-1'>learned</span>
+                    : <span className='text-xs text-gray-400 px-1'>{row.complete ? 'learned' : 'locked'}</span>
                   }
                 </div>
                 {

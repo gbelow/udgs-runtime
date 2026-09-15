@@ -97,8 +97,13 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     ...addBaseValues(campaignCharacter, parsed.data),
     type: 'campaign',
     afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
+    // a fresh character starts full; whatever the raw carries overrides that
+    // field by field, so a partial record still lands on a complete one
     resources: {
-      ...parsed.data.resources ?? {...campaignCharacter.resources, STA: getSTA(campaignCharacter), AP: 8},
+      ...campaignCharacter.resources,
+      STA: getSTA(campaignCharacter),
+      AP: 8,
+      ...knownNumbers(parsed.data.resources, campaignCharacter.resources),
     },
     injuries: {
       ...parsed.data?.injuries ?? campaignCharacter.injuries,
@@ -163,3 +168,15 @@ export const CampaignCharacterIngestSchema = z.object({
 
 export type CharacterIngestType = z.infer<typeof CharacterIngestSchema>
 export type CampaignCharacterIngestType = z.infer<typeof CampaignCharacterIngestSchema>
+
+// The fields of `raw` that `shape` also has and that hold a finite number —
+// the lossy read every ingested record gets.
+function knownNumbers<T extends Record<string, number>>(raw: unknown, shape: T): Partial<T> {
+  if (typeof raw !== 'object' || raw === null) return {}
+  const out: Partial<T> = {}
+  for (const key of Object.keys(shape) as (keyof T)[]) {
+    const value = (raw as Record<string, unknown>)[key as string]
+    if (typeof value === 'number' && Number.isFinite(value)) out[key] = value as T[keyof T]
+  }
+  return out
+}

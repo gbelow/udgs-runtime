@@ -2,7 +2,8 @@ import { CampaignCharacter, Character } from "../../types"
 import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnAbility } from "../lenses/abilities"
-import { getUpkeep, isAbilityActive } from "../lenses/effects"
+import { effectsOn, isAbilityActive, lingers } from "../lenses/effects"
+import { applyEffects } from "./effects"
 import { canAfford } from "../lenses/cost"
 import { payCost } from "./cost"
 
@@ -52,20 +53,26 @@ export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   }
 }
 
-// Charges the upkeep of everything switched on or held.
-export function payUpkeep(c: CampaignCharacter): CampaignCharacter {
-  return payCost(getUpkeep(c))(c)
+// A fired ability's turn is over at the round change: once its upkeep is
+// paid it stops contributing. Toggles and held spells stay.
+export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {
+  const active = c.active.filter((e) => !(e.kind === 'ability' && isAbilityKey(e.key) && ABILITIES[e.key].activation === 'active'))
+  return active.length === c.active.length ? c : { ...c, active }
 }
 
-// Fires an active ability: the price is paid and nothing else moves — the
-// effect is a combat procedure the table resolves. Refused when the character
-// cannot afford it, like an attack.
+// Fires an active ability. Its `cost` is the price: refused when the
+// character cannot afford it, like an attack. Its instant effects are then
+// processed — a cost there is a drain that lands regardless — and whatever
+// else it lists, a buff or a cost due at the round change, is in effect
+// until the round ends. The rest of what it does is a combat procedure the
+// table resolves.
 export function useAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
     if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
-    const { activation, cost } = ABILITIES[key]
-    if (activation !== 'active') return c
-    if (!canAfford(c, cost)) return c
-    return payCost(cost)(c)
+    const ability = ABILITIES[key]
+    if (ability.activation !== 'active') return c
+    if (!canAfford(c, ability.cost)) return c
+    const fired = applyEffects(effectsOn(ability.effect, 'instant'))(payCost(ability.cost)(c))
+    return lingers(ability) ? { ...fired, active: [...fired.active, { kind: 'ability', key }] } : fired
   }
 }
