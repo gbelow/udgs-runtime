@@ -33,7 +33,7 @@ export function App(){
         </div>
       ) : (
       <>
-      <div className="hidden md:block col-span-2 border pr-1 px-1 h-full">
+      <div className="hidden md:block col-span-2 border-r border-gray-700 pl-1 pr-2 h-full">
         <Sidebar />
       </div>
 
@@ -55,7 +55,7 @@ export function App(){
 
       {/* Mobile Sidebar */}
       {open && (
-        <div className="md:hidden absolute top-0 left-0 w-64 h-full bg-gray-900 text-white shadow-lg z-50">
+        <div className="md:hidden absolute top-0 left-0 w-64 h-full bg-gray-900 text-white shadow-lg z-50 px-2 overflow-y-auto">
           <button
             onClick={() => setOpen(false)}
             className="p-2 text-right w-full"

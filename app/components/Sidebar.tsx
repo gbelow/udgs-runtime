@@ -7,35 +7,33 @@ import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 
+const PANELS = {
+  Armor: ArmorSelector,
+  Container: ContainerSelector,
+  Item: ItemSelector,
+  Ability: AbilitySelector,
+  Spell: SpellSelector,
+  Character: CharacterSelector,
+} as const
+type PanelName = keyof typeof PANELS
+const PANEL_NAMES = Object.keys(PANELS) as PanelName[]
+
 export function Sidebar(){
 
-  const [selectedSidebar, setSelectedSidebar] = useState('') 
+  const [selected, setSelected] = useState<PanelName | null>(null)
+  const Panel = selected ? PANELS[selected] : null
 
   return(
-    <>
-      <div className='flex flex-row flex-wrap items-start justify-between mb-2 text-xs'>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Armor' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_armor'} value={'Armor'} onClick={() => setSelectedSidebar('Armor')}/>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Container' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_container'} value={'Container'} onClick={() => setSelectedSidebar('Container')}/>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Item' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_item'} value={'Item'} onClick={() => setSelectedSidebar('Item')}/>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Ability' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_ability'} value={'Ability'} onClick={() => setSelectedSidebar('Ability')}/>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Spell' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_spell'} value={'Spell'} onClick={() => setSelectedSidebar('Spell')}/>
-        <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedSidebar == 'Character' ? 'bg-white text-black' : '')} type={'button'} aria-label={'sbar_char'} value={'Character'} onClick={() => setSelectedSidebar('Character')}/>
+    <div className='flex flex-col gap-2 h-full text-left'>
+      <div className='flex flex-row flex-wrap gap-1 text-xs'>
+        {PANEL_NAMES.map((name) => (
+          <input key={name} className={`py-1 rounded px-2 hover:bg-gray-500 ${selected === name ? 'bg-white text-black' : ''}`}
+            type='button' aria-label={`sbar_${name.toLowerCase()}`} value={name} onClick={() => setSelected(name)} />
+        ))}
       </div>
-      {
-        selectedSidebar == 'Armor' ?
-        <ArmorSelector /> :
-        selectedSidebar == 'Container' ?
-        <ContainerSelector /> :
-        selectedSidebar == 'Item' ?
-        <ItemSelector /> :
-        selectedSidebar == 'Ability' ?
-        <AbilitySelector /> :
-        selectedSidebar == 'Spell' ?
-        <SpellSelector /> :
-        selectedSidebar == 'Character' ?
-        <CharacterSelector/>
-        : null
-      }
-    </>
+      <div className='flex flex-col gap-1 max-h-[85vh] overflow-y-auto pr-2'>
+        {Panel ? <Panel /> : <span className='text-sm text-gray-400'>Pick a panel above.</span>}
+      </div>
+    </div>
   )
 }
