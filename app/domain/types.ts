@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS } from './lists'
+import { ABILITY_SECTIONS, ITEM_TYPES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 import { parseWeaponProperties } from './weaponProperties'
 
@@ -169,11 +169,16 @@ export type Weapon = z.infer<typeof WeaponSchema>
 // counts identical units for the three sizes, and for cargo it is the number
 // of large items the stack measures (a "4x large" tent is one cargo item of
 // amount 4), which is what its slot cost is read from.
+export const ItemTypeSchema = z.enum(ITEM_TYPES)
+export type ItemType = z.infer<typeof ItemTypeSchema>
+
 export const ItemSchema = z.object({
   id: str.default(() => crypto.randomUUID()),
   name: str.default(''), // with no refId, this + description is all that says what the item is
   description: str.default(''),
-  type: str.default('misc'), // which catalog refId resolves in, e.g. 'weapon' -> weapons.json, 'armor' -> armors.json
+  // which catalog refId resolves in ('weapon' -> weapons.json, 'armor' -> armors.json); a type
+  // the list no longer has (items saved as 'misc') lands in the general bucket
+  type: ItemTypeSchema.catch('utility').default('utility'),
   amount: num.default(1),
   bulk: num.default(0), // 0 small · 1 medium · 2 large · 3 cargo
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object

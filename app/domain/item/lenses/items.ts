@@ -1,4 +1,5 @@
-import { Armor, ArmorSchema, Item, ItemSchema, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Weapon, WeaponSchema } from '../../types'
+import { BULK_NAMES } from '../../lists'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
@@ -6,9 +7,6 @@ import itemsCatalog from '../../../assets/items.json'
 // A catalog entry is a template: stamping it yields an item with its own id
 // and a stack of `amount`, so the same key can be drawn from the catalog
 // any number of times without two stacks ever sharing an identity.
-// gear.tex "Containers and Burden": the four item sizes, indexed by bulk.
-const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
-
 export function getBulkName(bulk: number): string {
   return BULK_NAMES[bulk] ?? 'cargo'
 }
@@ -16,7 +14,7 @@ export function getBulkName(bulk: number): string {
 export type ItemCatalogRow = {
   key: string
   name: string
-  type: string
+  type: ItemType
   bulk: number
   bulkName: string
 }

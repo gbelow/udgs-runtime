@@ -42,13 +42,13 @@ function def(schema: z.ZodType): Def {
 }
 
 // zod 4 keeps the wrapped schema under `innerType` for default/prefault/
-// optional, and a transform is a pipe whose input side is the authored shape,
-// so a field's own kind is read through those wrappers.
+// optional/catch, and a transform is a pipe whose input side is the authored
+// shape, so a field's own kind is read through those wrappers.
 function unwrap(schema: z.ZodType): z.ZodType {
   let s = schema
   for (;;) {
     const d = def(s)
-    if ((d.type === 'default' || d.type === 'prefault' || d.type === 'optional') && d.innerType) s = d.innerType
+    if ((d.type === 'default' || d.type === 'prefault' || d.type === 'optional' || d.type === 'catch') && d.innerType) s = d.innerType
     else if (d.type === 'pipe' && d.in) s = d.in
     else return s
   }

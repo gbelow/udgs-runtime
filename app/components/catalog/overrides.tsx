@@ -3,7 +3,7 @@ import { Overrides } from './SchemaForm'
 import { CatalogName } from '../../forms/catalogs'
 import { ABILITY_KEYS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
-import { knowledges_list } from '../../domain/lists'
+import { BULK_NAMES, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 
@@ -43,6 +43,24 @@ const itemRef = suggesting((parent) => {
   return type === 'weapon' ? Object.keys(weapons) : type === 'armor' ? Object.keys(armors) : []
 })
 
+// A bulk is stored as the index into the size list and picked by name.
+function bulkSelect(names: readonly string[]): Widget {
+  return function BulkSelect({ value, onChange }) {
+    return (
+      <select className={input} value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))}>
+        {names.map((name, bulk) => <option key={name} value={bulk}>{name}</option>)}
+      </select>
+    )
+  }
+}
+
+const itemBulk = bulkSelect(BULK_NAMES)
+// gear.tex "Slot size and stacking": slots come in the first three sizes only
+const slotBulk = bulkSelect(BULK_NAMES.slice(0, 3))
+
+// a catalog container is a template; its slots are filled on a character
+const hidden: Widget = () => null
+
 export const OVERRIDES: Record<CatalogName, Overrides> = {
   abilities: {
     'stages.requirements.name': requirementName,
@@ -62,8 +80,14 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   items: {
     refId: itemRef,
     description: textarea,
+    bulk: itemBulk,
     // a catalog item is a template; the id is minted when a copy lands on a character
-    id: () => null,
+    id: hidden,
   },
-  containers: {},
+  containers: {
+    'slots.quick.slotBulk': slotBulk,
+    'slots.quick.items': hidden,
+    'slots.medium.items': hidden,
+    'slots.large.items': hidden,
+  },
 }

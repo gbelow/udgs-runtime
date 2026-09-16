@@ -101,8 +101,11 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
 function Fields({ fields, value, onChange, path, overrides }: { fields: Field[]; value: Record<string, unknown>; onChange: (v: unknown) => void; path: string; overrides: Overrides }) {
   const record = value ?? {}
   const set = (name: string, v: unknown) => onChange({ ...record, [name]: v })
-  // a block of scalars reads as one row; anything nested gets its own block
-  const compact = fields.every((f) => isScalar(f.type))
+  // a scalar, or anything an override widgets, sits inside its label; a nested
+  // block only carries a caption
+  const inline = (field: Field) => isScalar(field.type) || overrides[join(path, field.name)] !== undefined
+  // a block of inline fields reads as one row; anything nested gets its own block
+  const compact = fields.every(inline)
   return (
     <div className={compact ? 'flex flex-row flex-wrap gap-2' : 'flex flex-col gap-1'}>
       {fields.map((field) => {
@@ -113,10 +116,14 @@ function Fields({ fields, value, onChange, path, overrides }: { fields: Field[];
           : <Value type={field.type} value={record[field.name]} onChange={(v) => set(field.name, v)} path={fieldPath} overrides={overrides} parent={record} />
         // an override that renders nothing hides the field
         if (widget === null) return null
-        // a scalar sits inside its label; a nested block only carries a caption
-        return isScalar(field.type) || override !== undefined
-          ? <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>
-          : <div key={field.name} className='flex flex-col text-xs text-gray-400'><span>{field.name}</span>{widget}</div>
+        if (inline(field)) return <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>
+        // a nested object is ruled off from its siblings; an array rules off its own elements
+        return (
+          <div key={field.name} className='flex flex-col text-xs text-gray-400'>
+            <span>{field.name}</span>
+            {field.type.kind === 'object' ? <div className='border-l border-gray-700 pl-2 py-1'>{widget}</div> : widget}
+          </div>
+        )
       })}
     </div>
   )

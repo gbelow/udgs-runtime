@@ -72,3 +72,13 @@ export const ABILITY_SECTIONS = [
   'Spiritual Mutation',
   'Chimerism',
 ] as const
+
+// gear.tex "Containers and Burden" — the four item sizes, indexed by the
+// stored bulk. The first three are also the slot sizes a container has.
+export const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
+
+// gear.tex — the sections an item is filed under, in the book's order:
+// "Weapons", "Armors", then the "Tools of War" and "Special Items"
+// subsections. Groups the item catalog and names the catalog a refId
+// resolves in (weapons.json, armors.json).
+export const ITEM_TYPES = ['weapon', 'armor', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
