@@ -15,7 +15,7 @@
 ## XP tracking
 - spells - intuitive requires XP track
 - add half learned abilities - XP track
-- trainable as wrapper
+- trainable as wrapper - abilities and spells
 - interface, learning mode
 - add training formulas - talent for proficiencies, skills, attributes, spells, abilities
 
@@ -58,16 +58,22 @@
 ## spells
 - spells editor
 - add spell enahncements details
-- tests - 
+- tests - results
 - damage as an effect
 
 ## attacks
 - apply SOPs
 - show detailed damage breakdown
 - select target
+- damage as an effect
 
 ## resolutions
 - targeting
+
+## compiling to book
+- finish caalogue issue
+- add insertable variables to descriptions
+- compile abilities/spells/items into tex
 
 ## exploration
 - exploration turn apply wear

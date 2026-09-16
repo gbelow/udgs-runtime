@@ -49,6 +49,11 @@ describe('severity ladders', () => {
   const groups = [...new Set(afflictionKeys.map((key) => AFFLICTIONS[key].group))].filter(
     (group): group is string => group !== undefined,
   )
+  // Afflictions that supersede a ladder would empty it; keep them out so the
+  // ladder rule is what is under test here.
+  const laddersOnly = getAfflictions(
+    campaign({ afflictions: afflictionKeys.filter((key) => AFFLICTIONS[key].supersedes === undefined) }),
+  )
 
   it('never returns the same affliction twice', () => {
     expect(everything).toEqual([...new Set(everything)])
@@ -57,7 +62,17 @@ describe('severity ladders', () => {
   it.each(groups)('keeps only the worst rung of the "%s" ladder', (group) => {
     const rungs = afflictionKeys.filter((key) => AFFLICTIONS[key].group === group)
     const worst = rungs.reduce((a, b) => ((AFFLICTIONS[a].rank ?? 0) >= (AFFLICTIONS[b].rank ?? 0) ? a : b))
-    expect(everything.filter((key) => AFFLICTIONS[key].group === group)).toEqual([worst])
+    expect(laddersOnly.filter((key) => AFFLICTIONS[key].group === group)).toEqual([worst])
+  })
+
+  // combat.tex prints Tired/Exhausted/Confused as one "-1/-2/-4" penalty line
+  // while allowing confusion on its own, so a superseding affliction replaces
+  // the ladder rather than stacking on its rung.
+  const superseders = afflictionKeys.filter((key) => AFFLICTIONS[key].supersedes !== undefined)
+  it.each(superseders)('"%s" empties the ladder it supersedes', (key) => {
+    const group = AFFLICTIONS[key].supersedes
+    expect(everything.filter((k) => AFFLICTIONS[k].group === group)).toEqual([])
+    expect(everything).toContain(key)
   })
 
   it('does not duplicate an affliction that is both hand-set and derived', () => {

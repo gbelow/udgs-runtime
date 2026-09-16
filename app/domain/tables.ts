@@ -58,62 +58,77 @@ export const injuryMap: Record<string, { IL: number; woundChance: number }> = {
 // what the character may do, not as modifiers. The one exception is `immobile`,
 // whose "-5-1*SM" to hit is part of the SD getter, not a skill penalty.
 //
+// `supersedes` names a ladder this affliction replaces outright while it is
+// on: the ladder's rungs drop out of the derived set instead of stacking.
+//
 // `controlable` is whether the affliction can be toggled by hand. The rungs
 // that survival.tex derives from hunger, thirst and exhaustion are not: they
 // are owned by their resource and clicking them does nothing.
+//
+// `category` is the heading the affliction sits under on the sheet. It is a UI
+// grouping, distinct from the penalty categories combat.tex names.
+export type AfflictionCategory = 'mobility' | 'sensory' | 'damage' | 'mental' | 'health'
+
 export type AfflictionDef = {
   sensory?: number
   mental?: number
   health?: number
   group?: string
   rank?: number
+  supersedes?: string
   controlable: boolean
+  category: AfflictionCategory
 }
 
+// Display order of the headings.
+export const AFFLICTION_CATEGORIES: AfflictionCategory[] = ['mobility', 'sensory', 'damage', 'mental', 'health']
+
 const AFFLICTION_DEFS = {
-  lame: { controlable: true },
-  prone: { controlable: true },
-  grappled: { controlable: true },
-  immobile: { controlable: true },
+  lame: { controlable: true, category: "mobility" },
+  prone: { controlable: true, category: "mobility" },
+  grappled: { controlable: true, category: "mobility" },
+  immobile: { controlable: true, category: "mobility" },
 
-  disoriented: { sensory: 2, controlable: true },
-  oblivious: { sensory: 5, controlable: true },
-  blind: { controlable: true },
-  deaf: { controlable: true },
+  disoriented: { sensory: 2, group: "disorient", controlable: true, category: "sensory" },
+  oblivious: { sensory: 5, group: "disorient", controlable: true, category: "sensory" },
+  blind: { controlable: true, category: "sensory" },
+  deaf: { controlable: true, category: "sensory" },
 
-  burning: { controlable: true },
-  corroding0: { group: 'corroding', rank: 1, controlable: true },
-  corroding1: { group: 'corroding', rank: 2, controlable: true },
+  burning: { controlable: true, category: "damage" },
+  corroding0: { group: 'corroding', rank: 1, controlable: true, category: "damage" },
+  corroding1: { group: 'corroding', rank: 2, controlable: true, category: "damage" },
 
-  unconscious: { controlable: true },
+  unconscious: { controlable: true, category: "mental" },
 
-  afraid: { mental: 1, controlable: true },
-  enraged: { mental: 1, controlable: true },
-  dominated: { controlable: true },
+  afraid: { mental: 1, controlable: true, category: "mental" },
+  enraged: { mental: 1, controlable: true, category: "mental" },
+  dominated: { controlable: true, category: "mental" },
 
-  intoxicated1: { mental: 1, group: 'intoxicated', rank: 1, controlable: true },
-  intoxicated2: { mental: 2, group: 'intoxicated', rank: 2, controlable: true },
-  intoxicated3: { mental: 3, group: 'intoxicated', rank: 3, controlable: true },
+  intoxicated1: { mental: 1, group: 'intoxicated', rank: 1, controlable: true, category: "health" },
+  intoxicated2: { mental: 2, group: 'intoxicated', rank: 2, controlable: true, category: "health" },
+  intoxicated3: { mental: 3, group: 'intoxicated', rank: 3, controlable: true, category: "health" },
 
-  // combat.tex lists Tired/Exhausted/Confused as one -1/-2/-4 mental ladder.
-  // Confusion can also arrive on its own (spells, extreme exhaustion), which is
-  // why it is the top rung rather than a separate affliction — and why it is
-  // the one rung of this ladder that stays hand-settable.
-  tired: { mental: 1, group: 'fatigue', rank: 1, controlable: false },
-  exhausted: { mental: 2, group: 'fatigue', rank: 2, controlable: false },
-  confused: { mental: 4, group: 'fatigue', rank: 3, controlable: true },
+  // combat.tex lists Tired/Exhausted/Confused on one -1/-2/-4 line, but "it is
+  // possible to be confused without being tired or exhausted": confusion is
+  // its own affliction that extreme exhaustion happens to cause (survival.tex
+  // "> 11 = Confused"), not the top rung of the fatigue ladder. The single
+  // line is still one penalty, so confusion supersedes the ladder rather than
+  // adding to it.
+  tired: { mental: 1, group: 'fatigue', rank: 1, controlable: false, category: "health" },
+  exhausted: { mental: 2, group: 'fatigue', rank: 2, controlable: false, category: "health" },
+  confused: { mental: 4, supersedes: 'fatigue', controlable: true, category: "mental" },
 
-  weakened: { health: 1, group: 'hunger', rank: 1, controlable: false },
-  malnourished: { health: 2, group: 'hunger', rank: 2, controlable: false },
+  weakened: { health: 1, group: 'hunger', rank: 1, controlable: false, category: "health" },
+  malnourished: { health: 2, group: 'hunger', rank: 2, controlable: false, category: "health" },
 
-  thirsty: { health: 1, group: 'thirst', rank: 1, controlable: false },
-  dehydrated: { health: 2, group: 'thirst', rank: 2, controlable: false },
+  thirsty: { health: 1, group: 'thirst', rank: 1, controlable: false, category: "health" },
+  dehydrated: { health: 2, group: 'thirst', rank: 2, controlable: false, category: "health" },
 
-  sick: { health: 2, controlable: true },
+  sick: { health: 2, controlable: true, category: "health" },
 
   // combat.tex "Suffocation": no skill penalty; it costs 1 STA at the start of
   // every round and forbids Rest (both handled by the commands that own them).
-  suffocating: { controlable: true },
+  suffocating: { controlable: true, category: "damage" },
 } satisfies Record<string, AfflictionDef>
 
 // Widened so every entry reads as the same shape; `keyof` still yields the

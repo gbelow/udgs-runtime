@@ -1,5 +1,5 @@
 import { AfflictionKey, CampaignCharacter, Character, Skills } from '../../types'
-import { AFFLICTIONS, AfflictionDef, SkillPenaltyTable } from '../../tables'
+import { AFFLICTIONS, AFFLICTION_CATEGORIES, AfflictionCategory, AfflictionDef, SkillPenaltyTable } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
 import { getBurdenLevel, getBurdenPenalty } from '../../item/lenses/containers'
 
@@ -38,7 +38,17 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   // gear.tex "Containers and burden": an "over" burden also makes the character lame.
   if (getBurdenLevel(getBurdenPenalty(character)) === 'over') afflictions.add('lame')
 
-  return worstOfEachGroup([...afflictions])
+  return worstOfEachGroup(dropSupersededGroups([...afflictions]))
+}
+
+// An affliction that `supersedes` a ladder removes every rung of it — confused
+// replaces tired/exhausted (combat.tex writes the three as one penalty line).
+function dropSupersededGroups(keys: AfflictionKey[]): AfflictionKey[] {
+  const superseded = new Set(keys.map((key) => AFFLICTIONS[key].supersedes))
+  return keys.filter((key) => {
+    const { group } = AFFLICTIONS[key]
+    return !group || !superseded.has(group)
+  })
 }
 
 // Within a severity ladder only the worst rung applies — a malnourished
@@ -136,5 +146,51 @@ export function getAfflictionRows(c: Character): AfflictionRow[] {
     key,
     controlable: AFFLICTIONS[key].controlable,
     active: active.has(key),
+  }))
+}
+
+// One control per affliction, where a severity ladder is one control that
+// shows only the rung the character is on. `label` is that rung, or the
+// ladder's name when the character is on none. `toggle` is the key a click
+// hands to `addAffliction`: the rung above the current one, or the current one
+// itself at the top so the click switches the ladder off. A standalone
+// affliction is a ladder of one rung, so it toggles itself.
+export type AfflictionEntry = {
+  name: string
+  label: string
+  active: boolean
+  controlable: boolean
+  toggle: AfflictionKey
+}
+
+export type AfflictionSection = {
+  category: AfflictionCategory
+  entries: AfflictionEntry[]
+}
+
+// The board sectioned by heading. A ladder sits under the category of its
+// lowest rung.
+export function getAfflictionBoard(c: Character): AfflictionSection[] {
+  const ladders = new Map<string, AfflictionRow[]>()
+  for (const row of getAfflictionRows(c)) {
+    const name = AFFLICTIONS[row.key].group ?? row.key
+    ladders.set(name, [...(ladders.get(name) ?? []), row])
+  }
+  const entries = [...ladders.entries()].map(([name, rungs]): [AfflictionCategory, AfflictionEntry] => {
+    rungs.sort((a, b) => (AFFLICTIONS[a.key].rank ?? 0) - (AFFLICTIONS[b.key].rank ?? 0))
+    const at = rungs.findIndex((r) => r.active)
+    const current = rungs[at] ?? null
+    const toggle = at < 0 ? rungs[0] : (rungs[at + 1] ?? current)
+    return [AFFLICTIONS[rungs[0].key].category, {
+      name,
+      label: current?.key ?? name,
+      active: current !== null,
+      controlable: rungs[0].controlable,
+      toggle: toggle.key,
+    }]
+  })
+  return AFFLICTION_CATEGORIES.map((category) => ({
+    category,
+    entries: entries.filter(([cat]) => cat === category).map(([, entry]) => entry),
   }))
 }

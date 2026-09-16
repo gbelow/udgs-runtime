@@ -1,5 +1,5 @@
 import { addAffliction } from "../domain/character/commands";
-import { AfflictionRow, getAfflictionRows, getAfflictions } from "../domain/character/lenses/afflictions";
+import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows, getAfflictions } from "../domain/character/lenses/afflictions";
 import { AfflictionKey, Character } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -42,4 +42,24 @@ export function useAfflictionRows(): { rows: AfflictionRow[]; setAffliction: (a:
   };
 
   return { rows, setAffliction };
+}
+
+// The board sectioned by category with ladders folded into one entry each.
+// Sections are fixed by the table, so only which rung each entry shows, and
+// whether it is lit, need to reach the digest — a one-rung ladder keeps the
+// same label on and off.
+export function useAfflictionBoard(): { sections: AfflictionSection[]; setAffliction: (a: AfflictionKey) => void } {
+  const update = useActiveCharacterUpdate();
+
+  const sections =
+    useActiveCharacterDerived(
+      (c: Character) => getAfflictionBoard(c),
+      (list) => list.map((s) => s.entries.map((e) => (e.active ? '+' : '-') + e.label).join(',')).join('|'),
+    ) ?? [];
+
+  const setAffliction = (affliction: AfflictionKey) => {
+    update(addAffliction(affliction));
+  };
+
+  return { sections, setAffliction };
 }

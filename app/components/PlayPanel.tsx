@@ -17,7 +17,7 @@ import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
-import { useAfflictionRows } from '../hooks/useAfflictionLens';
+import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
@@ -329,17 +329,26 @@ function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}
 
 function AfflictionsPannel(){
 
-  const { rows, setAffliction } = useAfflictionRows()
+  const { sections, setAffliction } = useAfflictionBoard()
 
   return(
-    <div className='flex flex-row w-84 md:w-full flex-wrap gap-2 justify-center text-xs'>
+    <div className='flex flex-row w-84 md:w-full flex-wrap gap-3 justify-center items-start text-xs'>
       {
-        // Non-controlable afflictions are derived from hunger, thirst and
-        // exhaustion — they still light up, but they aren't hand-settable.
-        rows.map((row) => (
-          <input type='button' key={row.key} disabled={!row.controlable}
-            className={'border p-1 ' + (row.active ? 'bg-red-500 ' : '') + (row.controlable ? '' : 'opacity-60 cursor-not-allowed')}
-            aria-label={row.key} value={row.key} onClick={ () => setAffliction(row.key)} />
+        sections.map((section) => (
+          <div key={section.category} className='flex flex-col gap-1'>
+            <span className='uppercase text-gray-400 text-center'>{section.category}</span>
+            {
+              // A ladder is one button showing only the rung the character is
+              // on; a click steps it up and wraps to off from the top.
+              // Non-controlable entries are derived from hunger, thirst and
+              // exhaustion — they still light up, but they aren't hand-settable.
+              section.entries.map((entry) => (
+                <input type='button' key={entry.name} disabled={!entry.controlable} title={entry.name}
+                  className={'border rounded p-1 ' + (entry.active ? 'bg-red-500 ' : '') + (entry.controlable ? 'hover:bg-gray-500' : 'opacity-60 cursor-not-allowed')}
+                  aria-label={entry.name} value={entry.label} onClick={ () => setAffliction(entry.toggle)} />
+              ))
+            }
+          </div>
         ))
       }
     </div>
