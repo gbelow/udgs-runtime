@@ -8,17 +8,17 @@ import { ContainerSchema, HandSchema, ItemSchema } from '../../types'
 import type { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 
 const coin = () => ItemSchema.parse({ name: 'Coin', bulk: 0 })
-const dagger = () => ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 0 })
-const spear = () => ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 2 })
-const book = () => ItemSchema.parse({ name: 'Book', bulk: 1 })
+const dagger = () => ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+const spear = () => ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
+const book = () => ItemSchema.parse({ name: 'Book', bulk: 2 })
 
 // A belt, a bandolier and a backpack: quick slots of two bulks, and slots that
 // are not quick at all.
 function carrying(): Character {
   return makeCharacter({
     containers: {
-      belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1 } } }),
-      sash: ContainerSchema.parse({ name: 'Bandolier', kind: 'bandolier', slots: { quick: { numSlots: 8, slotBulk: 0 } } }),
+      belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2 } } }),
+      sash: ContainerSchema.parse({ name: 'Bandolier', kind: 'bandolier', slots: { quick: { numSlots: 8, slotBulk: 1 } } }),
       pack: ContainerSchema.parse({ name: 'Backpack', kind: 'backpack', slots: { medium: { numSlots: 12 }, large: { numSlots: 2 } } }),
     },
   })

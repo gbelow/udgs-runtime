@@ -1,30 +1,28 @@
 import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
 import { getBulkName, isSameItem } from './items'
 import { getDrawView, getHeldItem, getStoreCost, isCharged } from './hands'
+import { getSize } from '../../character/lenses/misc'
 import containersCatalog from '../../../assets/containers.json'
 
-// gear.tex "Slot size and stacking": medium and large slots take their own
-// bulk; a quick slot takes whatever bulk the container's Quick column prints.
 export function getSlotBulk(container: Container, slot: SlotKind): number {
-  if (slot === 'quick') return container.slots.quick.slotBulk
-  return slot === 'medium' ? 1 : 2
+  return container.slots[slot].slotBulk
 }
 
-// slots holds 5^(slotBulk - itemBulk): 1 same-bulk item, 5 of the next bulk down, 25 two bulks down
+// gear.tex "Slot size and stacking": a slot holds one item of its bulk, 3 one
+// step below, 10 two steps below, then on down the VM ladder: 30, 100, ...
 export function getStackCapacity(slotBulk: number, itemBulk: number): number {
-  if (itemBulk > slotBulk) return 0
-  return 5 ** (slotBulk - itemBulk)
+  const steps = slotBulk - itemBulk
+  if (steps < 0) return 0
+  return (steps % 2 === 0 ? 1 : 3) * 10 ** Math.floor(steps / 2)
 }
-
-// gear.tex "Containers and Burden": cargo is counted in large items and can
-// only be placed in vehicles, so it never stacks and never rides on a body.
-const isCargo = (item: Item) => item.bulk >= 3
 
 // How many slots of the group a stack occupies, or null when the item can
-// never go in that group whatever the free space.
+// never go in that group whatever the free space. gear.tex "Quick slots":
+// "can only carry 1 item each", so a stack there is one slot per unit.
 export function getSlotsNeeded(container: Container, slot: SlotKind, item: Item): number | null {
-  if (isCargo(item)) return container.kind === 'vehicle' && slot === 'large' ? item.amount : null
-  const capacity = getStackCapacity(getSlotBulk(container, slot), item.bulk)
+  const slotBulk = getSlotBulk(container, slot)
+  if (slot === 'quick') return item.bulk <= slotBulk ? item.amount : null
+  const capacity = getStackCapacity(slotBulk, item.bulk)
   return capacity > 0 ? Math.ceil(item.amount / capacity) : null
 }
 
@@ -40,9 +38,7 @@ export function getAvailableSlots(container: Container, slot: SlotKind): number 
 }
 
 // The group as it would be with the item added: onto an identical stack that
-// is already there, otherwise as a stack of its own. Cargo is a measure, not
-// a count of units, but it merges the same way — two loads of the same cargo
-// are one bigger load.
+// is already there, otherwise as a stack of its own.
 export function stackInto(items: Item[], item: Item): Item[] {
   const at = items.findIndex((other) => isSameItem(other, item))
   if (at < 0) return [...items, item]
@@ -57,22 +53,31 @@ export function canFitItem(container: Container, slot: SlotKind, item: Item): bo
   return getUsedSlots(loaded, slot) <= group.numSlots
 }
 
+// gear.tex "Containers and burden": "burden penalty = character size -
+// container burden. If the number is negative, add it to the character's
+// burden penalty." Penalties are stored as positive magnitudes and negated at
+// the point of use, so this is the magnitude a container costs its bearer.
+export function getContainerPenalty(c: Character, container: Container): number {
+  return Math.max(0, container.burden - getSize(c))
+}
+
+// gear.tex "Containers and burden": "If the container's burden is 3 higher
+// than the character, it causes the lame affliction."
+export function isLamingContainer(c: Character, container: Container): boolean {
+  return container.burden - getSize(c) >= 3
+}
+
 // Whoever has the container equipped bears it — a saddle burdens the horse
 // it is equipped on, and the horse is a character like any other.
-export function getBurdenPenalty(character: Character): number {
-  return Object.values(character.containers).reduce(
-    (total, container) => total + container.penalty,
+export function getBurdenPenalty(c: Character): number {
+  return Object.values(c.containers).reduce(
+    (total, container) => total + getContainerPenalty(c, container),
     0
   )
 }
 
-// gear.tex "Containers and burden": light has no effect, then -1 / -2 / -3.
-// Penalties are stored as positive magnitudes and negated at the point of use.
-export function getBurdenLevel(penalty: number): 'light' | 'medium' | 'heavy' | 'over' {
-  if (penalty <= 0) return 'light'
-  if (penalty === 1) return 'medium'
-  if (penalty === 2) return 'heavy'
-  return 'over'
+export function isLamedByBurden(c: Character): boolean {
+  return Object.values(c.containers).some((container) => isLamingContainer(c, container))
 }
 
 // A catalog entry is a template with empty slots; equipping it stores a copy
@@ -87,8 +92,6 @@ export function getCatalogContainer(key: string): Container | undefined {
   const raw = (containersCatalog as Record<string, unknown>)[key]
   return raw ? ContainerSchema.parse(raw) : undefined
 }
-
-export type BurdenLevel = ReturnType<typeof getBurdenLevel>
 
 export type ContainerItemView = {
   id: string
@@ -118,18 +121,20 @@ export type ContainerSlotView = {
   items: ContainerItemView[]
 }
 
+// `burden` is the container's own step; `penalty` is what it costs the
+// character bearing it, and null on a catalog row that nobody bears yet.
 export type ContainerPanelView = {
   key: string
   name: string
   kind: ContainerKind
-  penalty: number
-  burden: BurdenLevel
+  burden: number
+  penalty: { value: number; lame: boolean } | null
   slots: ContainerSlotView[]
 }
 
 export type BurdenView = {
   penalty: number
-  level: BurdenLevel
+  lame: boolean
   label: string
 }
 
@@ -139,8 +144,8 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
     key,
     name: container.name,
     kind: container.kind,
-    penalty: container.penalty,
-    burden: getBurdenLevel(container.penalty),
+    burden: container.burden,
+    penalty: c ? { value: getContainerPenalty(c, container), lame: isLamingContainer(c, container) } : null,
     slots: SlotKindSchema.options
       .filter((slot) => container.slots[slot].numSlots > 0)
       .map((slot) => ({
@@ -177,11 +182,12 @@ export function getContainerCatalogPanels(): ContainerPanelView[] {
   return Object.entries(getContainerCatalog()).map(([key, container]) => getContainerPanel(key, container))
 }
 
-// gear.tex "Containers and burden": the level a character is at from the
-// containers alone. The penalty is a stored magnitude; the label prints it the
-// way the book does, as the modifier it becomes.
+// gear.tex "Containers and burden": what the containers alone cost the
+// character. The penalty is a magnitude; the label prints it the way the book
+// does, as the modifier it becomes.
 export function getBurden(c: Character): BurdenView {
   const penalty = getBurdenPenalty(c)
-  const level = getBurdenLevel(penalty)
-  return { penalty, level, label: penalty > 0 ? `${level} (-${penalty})` : level }
+  const lame = isLamedByBurden(c)
+  const label = penalty > 0 ? `-${penalty}` : 'none'
+  return { penalty, lame, label: lame ? `${label} (lame)` : label }
 }

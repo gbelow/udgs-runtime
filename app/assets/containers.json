@@ -5,19 +5,21 @@
     "slots": {
       "quick": {
         "numSlots": 4,
-        "slotBulk": 1,
+        "slotBulk": 2,
         "items": []
       },
       "medium": {
         "numSlots": 0,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 0,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 0
+    "burden": 3
   },
   "Bandolier": {
     "name": "Bandolier",
@@ -25,19 +27,21 @@
     "slots": {
       "quick": {
         "numSlots": 8,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 0,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 0,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 0
+    "burden": 3
   },
   "Backpack": {
     "name": "Backpack",
@@ -45,19 +49,21 @@
     "slots": {
       "quick": {
         "numSlots": 0,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 12,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 2,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 1
+    "burden": 4
   },
   "Large Backpack": {
     "name": "Large Backpack",
@@ -65,19 +71,21 @@
     "slots": {
       "quick": {
         "numSlots": 0,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 16,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 4,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 2
+    "burden": 5
   },
   "Saddle": {
     "name": "Saddle",
@@ -85,19 +93,21 @@
     "slots": {
       "quick": {
         "numSlots": 2,
-        "slotBulk": 2,
+        "slotBulk": 3,
         "items": []
       },
       "medium": {
         "numSlots": 8,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 4,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 0
+    "burden": 5
   },
   "Sled": {
     "name": "Sled",
@@ -105,19 +115,21 @@
     "slots": {
       "quick": {
         "numSlots": 0,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 0,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 20,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 3
+    "burden": 6
   },
   "One-Horse Cart": {
     "name": "One-Horse Cart",
@@ -125,19 +137,21 @@
     "slots": {
       "quick": {
         "numSlots": 0,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 0,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 100,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 2
+    "burden": 7
   },
   "Two-Horse Cart": {
     "name": "Two-Horse Cart",
@@ -145,18 +159,20 @@
     "slots": {
       "quick": {
         "numSlots": 0,
-        "slotBulk": 0,
+        "slotBulk": 1,
         "items": []
       },
       "medium": {
         "numSlots": 0,
+        "slotBulk": 2,
         "items": []
       },
       "large": {
         "numSlots": 200,
+        "slotBulk": 3,
         "items": []
       }
     },
-    "penalty": 2
+    "burden": 7
   }
 }

@@ -164,11 +164,9 @@ export const WeaponSchema = z.object({
 
 export type Weapon = z.infer<typeof WeaponSchema>
 
-// gear.tex "Containers and Burden": an item is small, medium or large, and
-// cargo is "counted in number of large items". One Item is a stack: `amount`
-// counts identical units for the three sizes, and for cargo it is the number
-// of large items the stack measures (a "4x large" tent is one cargo item of
-// amount 4), which is what its slot cost is read from.
+// gear.tex "Containers and Burden": an item's bulk is a size-like step —
+// tiny 0, small 1, medium 2, large 3, then numeric — and scaling an item
+// scales its bulk with it. One Item is a stack of `amount` identical units.
 export const ItemTypeSchema = z.enum(ITEM_TYPES)
 export type ItemType = z.infer<typeof ItemTypeSchema>
 
@@ -180,14 +178,14 @@ export const ItemSchema = z.object({
   // the list no longer has (items saved as 'misc') lands in the general bucket
   type: ItemTypeSchema.catch('utility').default('utility'),
   amount: num.default(1),
-  bulk: num.default(0), // 0 small · 1 medium · 2 large · 3 cargo
+  bulk: num.default(1), // 0 tiny · 1 small · 2 medium · 3 large · 4+ numeric
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
 
 // gear.tex "Containers": belt, bandolier and backpack are worn one at a time;
-// a saddle rides an animal; vehicles are the only place cargo can go.
+// a saddle rides an animal; vehicles are drawn by one.
 export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'saddle', 'vehicle'])
 export type ContainerKind = z.infer<typeof ContainerKindSchema>
 
@@ -195,10 +193,16 @@ export type ContainerKind = z.infer<typeof ContainerKindSchema>
 export const SlotKindSchema = z.enum(['quick', 'medium', 'large'])
 export type SlotKind = z.infer<typeof SlotKindSchema>
 
-export const SlotGroupSchema = z.object({
+// Every group stores the bulk its slots take: the Quick column prints it
+// ("4 medium", "8 small"), the other two are named after theirs, and scaling
+// a container moves all of them together (gear.tex "Scaling a container").
+const slotGroup = (slotBulk: number) => z.object({
   numSlots: num.default(0),
+  slotBulk: num.default(slotBulk),
   items: z.array(ItemSchema).default([]),
 }).strip()
+
+export const SlotGroupSchema = slotGroup(1)
 
 export type SlotGroup = z.infer<typeof SlotGroupSchema>
 
@@ -206,13 +210,13 @@ export const ContainerSchema = z.object({
   name: str.default(''),
   kind: ContainerKindSchema.default('backpack'),
   slots: z.object({
-    // The Quick column prints the bulk its slots take ("4 medium", "8 small");
-    // medium and large slots take their own bulk, so only quick stores one.
-    quick: SlotGroupSchema.extend({ slotBulk: num.default(0) }).prefault({}),
-    medium: SlotGroupSchema.prefault({}),
-    large: SlotGroupSchema.prefault({}),
+    quick: slotGroup(1).prefault({}),
+    medium: slotGroup(2).prefault({}),
+    large: slotGroup(3).prefault({}),
   }).prefault({}),
-  penalty: num.default(0),
+  // gear.tex "Containers": the Burden column, a size-like step compared to
+  // the bearer's size; the penalty it becomes is derived, not stored.
+  burden: num.default(3),
 }).strip()
 
 export type Container = z.infer<typeof ContainerSchema>

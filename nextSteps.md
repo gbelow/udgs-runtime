@@ -26,9 +26,7 @@
 ## items editor
 - weapons/armor customization
 - item types in form of list
-- bulk in form of text
 - separate by item category
-
 
 ## weapons/armor
 - add properties list to weapons

@@ -7,7 +7,7 @@ export type { Grip, Wielded, HandView, HeldItemView, HandsPanelView } from './ha
 export type { ItemCatalogRow } from './items'
 export {
   getSlotBulk, getStackCapacity, getSlotsNeeded, getUsedSlots, getAvailableSlots, stackInto, canFitItem,
-  getBurdenPenalty, getBurdenLevel, getBurden,
+  getContainerPenalty, isLamingContainer, getBurdenPenalty, isLamedByBurden, getBurden,
   getContainerCatalog, getCatalogContainer, getContainerPanels, getContainerCatalogPanels,
 } from './containers'
-export type { BurdenLevel, BurdenView, ContainerItemView, ContainerSlotView, ContainerPanelView } from './containers'
+export type { BurdenView, ContainerItemView, ContainerSlotView, ContainerPanelView } from './containers'

@@ -43,20 +43,15 @@ const itemRef = suggesting((parent) => {
   return type === 'weapon' ? Object.keys(weapons) : type === 'armor' ? Object.keys(armors) : []
 })
 
-// A bulk is stored as the index into the size list and picked by name.
-function bulkSelect(names: readonly string[]): Widget {
-  return function BulkSelect({ value, onChange }) {
-    return (
-      <select className={input} value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))}>
-        {names.map((name, bulk) => <option key={name} value={bulk}>{name}</option>)}
-      </select>
-    )
-  }
-}
+// A bulk is stored as a number and picked by name while it has one; past the
+// named steps the list goes on numerically, as far as the book's biggest item.
+const BULK_OPTIONS: readonly string[] = [...BULK_NAMES, ...Array.from({ length: 5 }, (_, i) => String(BULK_NAMES.length + i))]
 
-const itemBulk = bulkSelect(BULK_NAMES)
-// gear.tex "Slot size and stacking": slots come in the first three sizes only
-const slotBulk = bulkSelect(BULK_NAMES.slice(0, 3))
+const bulkSelect: Widget = ({ value, onChange }) => (
+  <select className={input} value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))}>
+    {BULK_OPTIONS.map((name, bulk) => <option key={name} value={bulk}>{name}</option>)}
+  </select>
+)
 
 // a catalog container is a template; its slots are filled on a character
 const hidden: Widget = () => null
@@ -80,12 +75,14 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   items: {
     refId: itemRef,
     description: textarea,
-    bulk: itemBulk,
+    bulk: bulkSelect,
     // a catalog item is a template; the id is minted when a copy lands on a character
     id: hidden,
   },
   containers: {
-    'slots.quick.slotBulk': slotBulk,
+    'slots.quick.slotBulk': bulkSelect,
+    'slots.medium.slotBulk': bulkSelect,
+    'slots.large.slotBulk': bulkSelect,
     'slots.quick.items': hidden,
     'slots.medium.items': hidden,
     'slots.large.items': hidden,

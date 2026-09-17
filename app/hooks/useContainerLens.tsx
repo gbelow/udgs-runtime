@@ -13,7 +13,7 @@ import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharact
 import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
-const NO_BURDEN: BurdenView = { penalty: 0, level: 'light', label: 'light' };
+const NO_BURDEN: BurdenView = { penalty: 0, lame: false, label: 'none' };
 
 // The catalog is static, so it is projected once per module rather than once
 // per render.
@@ -32,7 +32,7 @@ export function useContainerLens() {
   const panels: ContainerPanelView[] =
     useActiveCharacterDerived((c: Character) => getContainerPanels(c, pendingItem ?? undefined), JSON.stringify) ?? [];
 
-  // gear.tex "Containers and burden" — the character-wide level.
+  // gear.tex "Containers and burden" — the character-wide penalty.
   const burden: BurdenView =
     useActiveCharacterSelector(useShallow((c: Character) => getBurden(c))) ?? NO_BURDEN;
 

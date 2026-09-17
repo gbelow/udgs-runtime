@@ -11,8 +11,8 @@ export function ContainerSelector(){
           <div key={row.key} className='flex flex-col hover:bg-gray-500 p-1'>
             <input type={'button'} className='text-center w-full' value={row.name} aria-label={row.name} onClick={() => equip(row.key)} />
             <span className='text-xs text-gray-400'>
-              {row.slots.map((s) => `${s.numSlots} ${s.slot === 'quick' ? `quick (${s.bulkName})` : s.slot}`).join(' · ')}
-              {' · '}{row.burden}
+              {row.slots.map((s) => `${s.numSlots} ${s.slot} (${s.bulkName})`).join(' · ')}
+              {' · burden '}{row.burden}
             </span>
           </div>
         ))

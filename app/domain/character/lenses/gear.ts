@@ -7,7 +7,7 @@ import { injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
-// are then "modified by (STR-10)/3". Penalties are stored as positive
+// are then "modified by (STR-10)/5". Penalties are stored as positive
 // magnitudes here and negated by the AGI/STA getters that consume them, so a
 // stronger character subtracts from the total. The rulebook does not state a
 // rounding rule; truncating toward zero keeps the modifier symmetric for
@@ -19,7 +19,7 @@ export function getGearPenalties(c: Character){
     getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + weapon.penalty, 0) +
     getBurdenPenalty(c)
 
-  const strMod = Math.trunc((getSTRBase(c) - 10) / 3)
+  const strMod = Math.trunc((getSTRBase(c) - 10) / 5)
 
   return Math.max(0, gear - strMod)
 }

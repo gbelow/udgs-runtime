@@ -28,7 +28,8 @@ export function ContainerPanel(){
           <div key={panel.key} className='flex flex-col border rounded p-1 text-left'>
             <div className='flex flex-row gap-3 items-center'>
               <span className='font-bold'>{panel.name}</span>
-              <span className='text-xs text-gray-400'>{panel.kind} · {panel.burden}</span>
+              <span className='text-xs text-gray-400'>{panel.kind} · burden {panel.burden}</span>
+              {panel.penalty && panel.penalty.value > 0 ? <span className='text-xs text-red-400'>-{panel.penalty.value}{panel.penalty.lame ? ' · lame' : ''}</span> : null}
               <input type='button' value='unequip' onClick={() => unequip(panel.key)} className='border rounded px-1 ml-auto' />
             </div>
             {panel.slots.map((group) => <SlotGroupRow key={group.slot} containerKey={panel.key} group={group} />)}
@@ -46,7 +47,7 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
   return(
     <div className={'flex flex-row gap-2 items-baseline text-xs ' + (dimmed ? 'text-gray-500' : '')}>
       <span className='w-24 shrink-0'>
-        {group.slot}{group.slot === 'quick' ? ` (${group.bulkName})` : ''}
+        {group.slot} ({group.bulkName})
       </span>
       <span className={'w-10 shrink-0 ' + (group.available < 0 ? 'text-red-400' : '')}>{group.used}/{group.numSlots}</span>
       {

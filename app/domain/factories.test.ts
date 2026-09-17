@@ -47,12 +47,12 @@ const populated = () =>
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     hands: [{ name: 'left', naturalWeapon: 'Unarmed', canHold: true, itemId: 'dagger-1' }, { name: 'right', naturalWeapon: 'Unarmed', canHold: true, itemId: '' }],
-    held: [ItemSchema.parse({ id: 'dagger-1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 0 })],
+    held: [ItemSchema.parse({ id: 'dagger-1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })],
     containers: {
       belt: ContainerSchema.parse({
         name: 'Belt',
         kind: 'belt',
-        slots: { quick: { numSlots: 4, slotBulk: 1, items: [ItemSchema.parse({ name: 'Coin', amount: 5 })] } },
+        slots: { quick: { numSlots: 4, slotBulk: 2, items: [ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 4 })] } },
       }),
     },
   })

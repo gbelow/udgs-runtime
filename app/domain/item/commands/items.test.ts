@@ -3,9 +3,9 @@ import { duplicateItem, addItemToContainer, removeItemFromContainer } from './it
 import { makeCharacter } from '../../factories'
 import { ContainerSchema, ItemSchema } from '../../types'
 
-function characterWithBelt() {
+function characterWithPack() {
   return makeCharacter({
-    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1 } } }) },
+    containers: { pack: ContainerSchema.parse({ name: 'Backpack', kind: 'backpack', slots: { medium: { numSlots: 12 } } }) },
   })
 }
 
@@ -30,25 +30,25 @@ describe('duplicateItem', () => {
 
 describe('items go into a container and come back out', () => {
   it('leaves the container as it found it', () => {
-    const before = characterWithBelt()
+    const before = characterWithPack()
     const item = coin()
-    const after = removeItemFromContainer('belt', item.id)(addItemToContainer('belt', 'quick', item)(before))
+    const after = removeItemFromContainer('pack', item.id)(addItemToContainer('pack', 'medium', item)(before))
     expect(after.containers).toEqual(before.containers)
   })
 
   it('removes only the item named', () => {
     const kept = coin(1)
     const dropped = ItemSchema.parse({ name: 'Vial', bulk: 0, amount: 2 })
-    const loaded = addItemToContainer('belt', 'quick', dropped)(addItemToContainer('belt', 'quick', kept)(characterWithBelt()))
-    const after = removeItemFromContainer('belt', dropped.id)(loaded)
-    expect(after.containers.belt.slots.quick.items.map((item) => item.id)).toEqual([kept.id])
+    const loaded = addItemToContainer('pack', 'medium', dropped)(addItemToContainer('pack', 'medium', kept)(characterWithPack()))
+    const after = removeItemFromContainer('pack', dropped.id)(loaded)
+    expect(after.containers.pack.slots.medium.items.map((item) => item.id)).toEqual([kept.id])
   })
 
   it('takes part of a stack and leaves the rest', () => {
     const stack = coin(5)
-    const loaded = addItemToContainer('belt', 'quick', stack)(characterWithBelt())
-    const after = removeItemFromContainer('belt', stack.id, 2)(loaded)
-    expect(after.containers.belt.slots.quick.items).toEqual([{ ...stack, amount: 3 }])
+    const loaded = addItemToContainer('pack', 'medium', stack)(characterWithPack())
+    const after = removeItemFromContainer('pack', stack.id, 2)(loaded)
+    expect(after.containers.pack.slots.medium.items).toEqual([{ ...stack, amount: 3 }])
   })
 })
 
@@ -57,13 +57,13 @@ describe('items go into a container and come back out', () => {
 // group that already holds coins joins that stack; a different item does not.
 describe('stacking', () => {
   it('joins an identical stack instead of taking a slot', () => {
-    const c = addItemToContainer('belt', 'quick', coin(3))(addItemToContainer('belt', 'quick', coin(2))(characterWithBelt()))
-    expect(c.containers.belt.slots.quick.items.map((item) => item.amount)).toEqual([5])
+    const c = addItemToContainer('pack', 'medium', coin(3))(addItemToContainer('pack', 'medium', coin(2))(characterWithPack()))
+    expect(c.containers.pack.slots.medium.items.map((item) => item.amount)).toEqual([5])
   })
 
   it('keeps a different item as a stack of its own', () => {
-    const c = addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Vial', bulk: 0 }))(addItemToContainer('belt', 'quick', coin(2))(characterWithBelt()))
-    expect(c.containers.belt.slots.quick.items.map((item) => item.name)).toEqual(['Coin', 'Vial'])
+    const c = addItemToContainer('pack', 'medium', ItemSchema.parse({ name: 'Vial', bulk: 0 }))(addItemToContainer('pack', 'medium', coin(2))(characterWithPack()))
+    expect(c.containers.pack.slots.medium.items.map((item) => item.name)).toEqual(['Coin', 'Vial'])
   })
 })
 
@@ -71,15 +71,15 @@ describe('stacking', () => {
 // or an item that does not fit, must not leave a half-loaded character behind.
 describe('adding is all or nothing', () => {
   it('refuses a container that is not there', () => {
-    expect(() => addItemToContainer('missing', 'quick', coin())(characterWithBelt())).toThrow()
+    expect(() => addItemToContainer('missing', 'quick', coin())(characterWithPack())).toThrow()
   })
 
   it('refuses an item too bulky for the slots', () => {
-    expect(() => addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Crate', bulk: 3 }))(characterWithBelt())).toThrow()
+    expect(() => addItemToContainer('pack', 'medium', ItemSchema.parse({ name: 'Crate', bulk: 3 }))(characterWithPack())).toThrow()
   })
 
   it('refuses a stack that would overflow the container', () => {
-    const c = characterWithBelt()
-    expect(() => addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Bricks', bulk: 1, amount: 9 }))(c)).toThrow()
+    const c = characterWithPack()
+    expect(() => addItemToContainer('pack', 'medium', ItemSchema.parse({ name: 'Bricks', bulk: 2, amount: 13 }))(c)).toThrow()
   })
 })

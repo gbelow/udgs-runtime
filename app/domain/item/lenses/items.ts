@@ -4,11 +4,8 @@ import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
 
-// A catalog entry is a template: stamping it yields an item with its own id
-// and a stack of `amount`, so the same key can be drawn from the catalog
-// any number of times without two stacks ever sharing an identity.
 export function getBulkName(bulk: number): string {
-  return BULK_NAMES[bulk] ?? 'cargo'
+  return BULK_NAMES[bulk] ?? `bulk ${bulk}`
 }
 
 export type ItemCatalogRow = {
@@ -29,6 +26,9 @@ export function getItemCatalogRows(): ItemCatalogRow[] {
     })
 }
 
+// A catalog entry is a template: stamping it yields an item with its own id
+// and a stack of `amount`, so the same key can be drawn from the catalog
+// any number of times without two stacks ever sharing an identity.
 export function getCatalogItem(key: string, amount = 1): Item | undefined {
   const raw = (itemsCatalog as Record<string, unknown>)[key]
   return raw ? ItemSchema.parse({ ...(raw as object), amount }) : undefined

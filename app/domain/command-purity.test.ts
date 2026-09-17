@@ -33,8 +33,8 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const dagger = WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger)
-const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 0 })
-const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 5 })
+const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 
 function characterSubject(): CampaignCharacter {
   const base = makeCampaignCharacter({})
@@ -44,7 +44,7 @@ function characterSubject(): CampaignCharacter {
     armor,
     hands: [{ ...base.hands[0], itemId: daggerItem.id }, base.hands[1]],
     held: [daggerItem],
-    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1, items: [coin] } } }) },
+    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2, items: [coin] } } }) },
     abilities: ['sprinter-1', 'synesthesia-1', 'tackle'],
     spells: { sleep: { method: 'intuitive', practice: 1 }, darken: { method: 'intuitive', practice: 0 } },
     usedSurge: 'focus',

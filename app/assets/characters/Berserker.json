@@ -344,7 +344,7 @@
       "description": "",
       "type": "weapon",
       "amount": 1,
-      "bulk": 2,
+      "bulk": 3,
       "refId": "Wooden Shield"
     },
     {
@@ -353,42 +353,35 @@
       "description": "",
       "type": "weapon",
       "amount": 1,
-      "bulk": 1,
+      "bulk": 2,
       "refId": "Battle Axe"
     }
   ],
   "containers": {
-    "Saddle": {
-      "name": "Saddle",
-      "kind": "saddle",
+    "Backpack": {
+      "name": "Backpack",
+      "kind": "backpack",
       "slots": {
         "quick": {
-          "numSlots": 2,
-          "items": [],
-          "slotBulk": 2
+          "numSlots": 0,
+          "slotBulk": 1,
+          "items": []
         },
         "medium": {
-          "numSlots": 8,
+          "numSlots": 12,
+          "slotBulk": 2,
           "items": []
         },
         "large": {
-          "numSlots": 4,
-          "items": [
-            {
-              "id": "7aa3a03b-28dd-4294-91ef-67f36bb579b1",
-              "name": "Halberd",
-              "description": "",
-              "type": "weapon",
-              "amount": 1,
-              "bulk": 2,
-              "refId": "Halberd"
-            }
-          ]
+          "numSlots": 2,
+          "slotBulk": 3,
+          "items": []
         }
       },
-      "penalty": 0
+      "burden": 4
     }
   },
   "abilities": [],
+  "spells": {},
   "notes": ""
 }

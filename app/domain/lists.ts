@@ -73,9 +73,9 @@ export const ABILITY_SECTIONS = [
   'Chimerism',
 ] as const
 
-// gear.tex "Containers and Burden" — the four item sizes, indexed by the
-// stored bulk. The first three are also the slot sizes a container has.
-export const BULK_NAMES = ['small', 'medium', 'large', 'cargo'] as const
+// gear.tex "Containers and Burden" — the named bulks, indexed by the stored
+// bulk; past these "the list goes on numerically".
+export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 
 // gear.tex — the sections an item is filed under, in the book's order:
 // "Weapons", "Armors", then the "Tools of War" and "Special Items"

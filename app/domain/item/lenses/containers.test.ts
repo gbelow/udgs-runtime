@@ -6,12 +6,12 @@ import { ContainerKindSchema, ContainerSchema, ItemSchema, SlotKindSchema } from
 import type { Container, Item, SlotKind } from '../../types'
 import containersCatalog from '../../../assets/containers.json'
 
-const bulks = [0, 1, 2, 3, 4]
+const bulks = [0, 1, 2, 3, 4, 5]
 const slotKinds = SlotKindSchema.options
 
-// A slot holds one item of its own bulk and five times as many of each bulk
-// below it. The ladder is the rule; these are the properties it has to keep
-// whatever the ratio is.
+// A slot holds one item of its own bulk and more of each bulk below it. The
+// ladder is the rule; these are the properties it has to keep whatever its
+// steps are.
 describe('getStackCapacity', () => {
   it.each(bulks)('holds exactly one item of its own bulk at slot bulk %i', (bulk) => {
     expect(getStackCapacity(bulk, bulk)).toBe(1)
@@ -27,16 +27,16 @@ describe('getStackCapacity', () => {
 
 describe('slot accounting', () => {
   const containers: [string, Container][] = [
-    ['empty belt', ContainerSchema.parse({ kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 1 } } })],
+    ['empty belt', ContainerSchema.parse({ kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2 } } })],
     ['personal', ContainerSchema.parse({
       kind: 'backpack',
       slots: {
         medium: { numSlots: 12, items: [ItemSchema.parse({ bulk: 0, amount: 25 }), ItemSchema.parse({ bulk: 1, amount: 6 })] },
-        large: { numSlots: 2, items: [ItemSchema.parse({ bulk: 1, amount: 6 })] },
+        large: { numSlots: 2, items: [ItemSchema.parse({ bulk: 2, amount: 6 })] },
       },
     })],
-    ['cargo', ContainerSchema.parse({
-      kind: 'vehicle', slots: { large: { numSlots: 100, items: [ItemSchema.parse({ bulk: 3, amount: 40 })] } },
+    ['loaded cart', ContainerSchema.parse({
+      kind: 'vehicle', slots: { large: { numSlots: 100, items: [ItemSchema.parse({ bulk: 3, amount: 40 }), ItemSchema.parse({ bulk: 5, amount: 2 })] } },
     })],
   ]
 
@@ -55,14 +55,14 @@ describe('canFitItem agrees with addItemToContainer', () => {
 
   const cases: [Container, SlotKind, Item][] = []
   for (const kind of ContainerKindSchema.options) {
-    for (const slotBulk of [0, 1, 2]) {
+    for (const slotBulk of [0, 1, 2, 3]) {
       for (const numSlots of [0, 1, 2, 5]) {
         const box = ContainerSchema.parse({
           name: 'Test', kind,
-          slots: { quick: { numSlots, slotBulk }, medium: { numSlots }, large: { numSlots } },
+          slots: { quick: { numSlots, slotBulk }, medium: { numSlots, slotBulk: slotBulk + 1 }, large: { numSlots, slotBulk: slotBulk + 2 } },
         })
         for (const slot of slotKinds) {
-          for (const bulk of [0, 1, 2, 3]) {
+          for (const bulk of [0, 1, 2, 3, 4, 6]) {
             for (const amount of [1, 3, 6, 30]) cases.push([box, slot, item(bulk, amount)])
           }
         }

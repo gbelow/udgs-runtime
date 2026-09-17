@@ -18,7 +18,7 @@ function pay(c: Character, cost: ActionCost): Character | null {
 // The first free hands that can hold take the stack. Whatever else the move
 // costs has been paid by the time this runs.
 function grip(c: Character, item: Item, hands: Grip): Character {
-  if (!canBeHeld(item)) {
+  if (!canBeHeld(c, item)) {
     throw new Error(`"${item.name || item.refId}" cannot be held`)
   }
   const free = c.hands.flatMap((hand, index) => (hand.itemId === '' && hand.canHold ? [index] : []))

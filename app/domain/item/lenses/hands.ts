@@ -1,6 +1,7 @@
 import { CampaignCharacter, Character, Hand, Item, SlotKind, Weapon } from '../../types'
 import { getBulkName, getCatalogWeapon, getItemWeapon } from './items'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
+import { getSize } from '../../character/lenses/misc'
 import { isCampaignCharacter } from '../../utils'
 
 // gear.tex "Small/One/Two hands": a stack is gripped by one hand or two. Any
@@ -25,14 +26,14 @@ export function getFreeHoldingHands(c: Character): Hand[] {
   return getFreeHands(c).filter((hand) => hand.canHold)
 }
 
-// gear.tex "Hands": "Items held in hands can be of any size" — cargo is a
-// measure of large items, not a thing, so it alone is never held.
-export function canBeHeld(item: Item): boolean {
-  return item.bulk < 3
+// gear.tex "Hands": "can carry an item up to one bulk higher than the
+// character's size".
+export function canBeHeld(c: Character, item: Item): boolean {
+  return item.bulk <= getSize(c) + 1
 }
 
 export function canHoldWith(c: Character, item: Item, grip: Grip): boolean {
-  return canBeHeld(item) && getFreeHoldingHands(c).length >= grip
+  return canBeHeld(c, item) && getFreeHoldingHands(c).length >= grip
 }
 
 export function hasDraw(item: Item): boolean {
@@ -45,22 +46,22 @@ const plusAP = (cost: ActionCost, ap: number): ActionCost => ({ AP: cost.AP + ap
 export const FREE: ActionCost = { AP: 0, STA: 0 }
 
 // combat.tex "Drawing items in combat": from any slot but a quick one, 4 AP on
-// top of a standard action. From a quick slot a small item or a weapon with
-// draw is free, a medium item is a standard action and a large one two.
+// top of a standard action. From a quick slot an item up to small or a weapon
+// with draw is free, a medium item is a standard action and a large one two.
 export function getDrawCost(c: Character, slot: SlotKind, item: Item): ActionCost {
   const standard = getActionCost(c, 'standardAction')
   if (slot !== 'quick') return plusAP(standard, 4)
-  if (item.bulk === 0 || hasDraw(item)) return FREE
-  if (item.bulk === 1) return standard
+  if (item.bulk <= 1 || hasDraw(item)) return FREE
+  if (item.bulk === 2) return standard
   return times(standard, 2)
 }
 
-// combat.tex "Putting items away": a small item or a weapon with draw goes into
-// a quick slot for a standard action; anything else, anywhere, is 4 AP more.
-// Dropping is free.
+// combat.tex "Putting items away": an item up to small or a weapon with draw
+// goes into a quick slot for a standard action; anything else, anywhere, is
+// 4 AP more. Dropping is free.
 export function getStoreCost(c: Character, slot: SlotKind, item: Item): ActionCost {
   const standard = getActionCost(c, 'standardAction')
-  if (slot === 'quick' && (item.bulk === 0 || hasDraw(item))) return standard
+  if (slot === 'quick' && (item.bulk <= 1 || hasDraw(item))) return standard
   return plusAP(standard, 4)
 }
 
