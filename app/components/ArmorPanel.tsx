@@ -41,7 +41,7 @@ export function ArmorPanel(){
         </tbody>
       </table>
       <div className='flex gap-2 text-center justify-center'>
-        <span>Penal {armor.penalty}</span>
+        <span>Penal {armor.burdenPenalty}</span>
         <span>Deflection {armor.deflection}</span>
         <span> {armor.properties}</span>
       </div>

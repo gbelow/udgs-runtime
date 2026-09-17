@@ -77,14 +77,14 @@
     "INS": 2,
     "protection": 0,
     "deflection": 3,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
   "weapons": {
     "Unarmed": {
       "name": "Unarmed",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {

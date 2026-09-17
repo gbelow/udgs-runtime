@@ -319,7 +319,7 @@
     "INS": 8,
     "protection": 8,
     "deflection": 6,
-    "penalty": 2,
+    "burdenPenalty": 2,
     "properties": "metallic, layered",
     "notes": ""
   },

@@ -6,7 +6,7 @@
     "INS": 0,
     "protection": 0,
     "deflection": 4,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
@@ -17,7 +17,7 @@
     "INS": 2,
     "protection": 0,
     "deflection": 4,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
@@ -28,7 +28,7 @@
     "INS": 6,
     "protection": 2,
     "deflection": 5,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
@@ -39,7 +39,7 @@
     "INS": 7,
     "protection": 4,
     "deflection": 5,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
@@ -50,7 +50,7 @@
     "INS": 6,
     "protection": 3,
     "deflection": 5,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "fiber",
     "notes": ""
   },
@@ -61,7 +61,7 @@
     "INS": 8,
     "protection": 6,
     "deflection": 5,
-    "penalty": 1,
+    "burdenPenalty": 1,
     "properties": "fiber",
     "notes": ""
   },
@@ -72,7 +72,7 @@
     "INS": 5,
     "protection": 3,
     "deflection": 5,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "metallic",
     "notes": ""
   },
@@ -83,7 +83,7 @@
     "INS": 6,
     "protection": 5,
     "deflection": 5,
-    "penalty": 1,
+    "burdenPenalty": 1,
     "properties": "metallic",
     "notes": ""
   },
@@ -94,7 +94,7 @@
     "INS": 8,
     "protection": 8,
     "deflection": 6,
-    "penalty": 2,
+    "burdenPenalty": 2,
     "properties": "metallic, layered",
     "notes": ""
   },
@@ -105,7 +105,7 @@
     "INS": 7,
     "protection": 10,
     "deflection": 5,
-    "penalty": 2,
+    "burdenPenalty": 2,
     "properties": "rigid, metallic, layered",
     "notes": ""
   },
@@ -116,7 +116,7 @@
     "INS": 8,
     "protection": 10,
     "deflection": 7,
-    "penalty": 3,
+    "burdenPenalty": 3,
     "properties": "rigid, metallic, layered",
     "notes": ""
   },
@@ -127,7 +127,7 @@
     "INS": 8,
     "protection": 12,
     "deflection": 8,
-    "penalty": 4,
+    "burdenPenalty": 4,
     "properties": "rigid, metallic, layered",
     "notes": ""
   }

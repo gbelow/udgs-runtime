@@ -1,10 +1,11 @@
-import { Character, Weapon, WeaponAttack } from "../../types";
+import { Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getTGH } from "./misc";
 import { injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
+import { getHeavyRange, hasProperty } from "../../weaponProperties";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
 // are then "modified by (STR-10)/5". Penalties are stored as positive
@@ -15,8 +16,8 @@ import { getActionCost } from "./actionCosts";
 // a bonus. STR is read unpenalized here: this value feeds AGI/STA, which the
 // injury penalty already reduces on its own.
 export function getGearPenalties(c: Character){
-  const gear = c.armor.penalty +
-    getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + weapon.penalty, 0) +
+  const gear = c.armor.burdenPenalty +
+    getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + (weapon.shield?.burdenPenalty ?? 0), 0) +
     getBurdenPenalty(c)
 
   const strMod = Math.trunc((getSTRBase(c) - 10) / 5)
@@ -25,48 +26,46 @@ export function getGearPenalties(c: Character){
 }
 
 
-// gear.tex weapon tables: a `*mod` column is a multiple of STR added to the flat
-// value of its row. It is one rule with two applications — attack damage
-// (STRmod on blunt) and the weapon's own durability (RESmod on RES) — so it
-// lives here once and both the displayed row and the rolled attack call it.
-//
-// Size scaling is deliberately NOT applied here. A wielded weapon is the
-// catalog entry as printed (see getCatalogWeapon); if scaling returns it
-// belongs in one place, `scaleWeapon`, not here.
-export function applySTRmod(value: number, mod: number, c: Character): number {
-  if (mod === 0) return value
-  return Math.floor(value + mod * getSTR(c))
+// gear.tex "DEF": "The blocking value is equal to STR if weapon is one handed,
+// and 2x STR if two handed or a shield." A row without DEF cannot block at
+// all, which null carries out to the panel.
+export function getBlockValue(atk: WeaponAttack, shield: boolean, c: Character): number | null {
+  if (!hasProperty(atk.properties, 'DEF')) return null
+  return atk.handed === 'two' || shield ? 2 * getSTR(c) : getSTR(c)
 }
 
 // Read-side projection of one row of a weapon's attack table. Every number is
 // final — the component renders it, it does not compute it.
 export type WeaponAttackRow = {
-  handed: string
+  name: string
+  handed: Handed
   RES: number
   blunt: number
   cut: number
   AP: number
   reload: number
-  range: string
-  deflection: number
-  properties: string
+  range: Range
+  block: number | null
+  STRreq: number | null
+  properties: WeaponProperty[]
   attack: WeaponAttack
 }
 
 export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAttackRow[] {
   return (c: Character) =>
     weapon.attacks.map((atk) => ({
+      name: atk.name,
       handed: atk.handed,
-      RES: applySTRmod(atk.RES, atk.RESmod, c),
-      blunt: applySTRmod(atk.blunt, atk.STRmod, c),
-      // Only blunt rows carry STR multiples in the gear.tex tables.
+      RES: atk.RES,
+      blunt: atk.blunt,
       cut: atk.cut,
       AP: atk.AP,
       // gear.tex "Reload": the row's own figure, moved by abilities and never
-      // below free; a weapon that does not reload stays at 0.
-      reload: atk.reload ? Math.max(0, atk.reload + getActionCost(c, 'reload').AP) : 0,
+      // below free; a row without the property stays at 0 whatever it stores.
+      reload: hasProperty(atk.properties, 'reload') ? Math.max(0, (atk.reload ?? 0) + getActionCost(c, 'reload').AP) : 0,
       range: atk.range,
-      deflection: atk.deflection,
+      block: getBlockValue(atk, weapon.shield !== undefined, c),
+      STRreq: atk.STRreq ?? null,
       properties: atk.properties,
       attack: atk,
     }))
@@ -130,15 +129,12 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
 export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) => AttackVariant[] {
-  const props = atk.props
+  const heavyRange = getHeavyRange(atk.properties)
+  const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
 
   return((c:Character) => {
     const STR = getSTR(c)
-    // The STR-mod rule lives in the gear lens; both this and the weapon table
-    // row rendered by the UI go through it.
-    const blunt = applySTRmod(atk.blunt, atk.STRmod, c)
-    // Only blunt rows carry STR multiples in the gear.tex tables.
-    const cut = atk.cut
+    const { blunt, cut } = atk
 
     // A heavy attack adds the same STR multiple to both damage components, but
     // only to a component the attack actually has — a weapon with no cut stays
@@ -173,17 +169,17 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
 
     // gear.tex "Heavy I/II/III": a heavy range ("heavy I-II") sets its lower
     // bound as the minimum and forbids the normal attack; a bare degree keeps
-    // it. `min === 0` carries that distinction out of the parser.
-    if (!props.heavy || props.heavy.min === 0) attacks.push(basic)
-    if (props.heavy) {
-      for (let degree = Math.max(1, props.heavy.min); degree <= props.heavy.max; degree++) {
+    // it. `min === 0` carries that distinction out of getHeavyRange.
+    if (!heavyRange || heavyRange.min === 0) attacks.push(basic)
+    if (heavyRange) {
+      for (let degree = Math.max(1, heavyRange.min); degree <= heavyRange.max; degree++) {
         attacks.push(heavy(degree))
       }
     }
 
-    if (props.braced) attacks.push(braced)
-    if (props.hook) attacks.push(hook)
-    if (props.fast) attacks.push(quickShot, snipe)
+    if (has('braced')) attacks.push(braced)
+    if (has('hook')) attacks.push(hook)
+    if (has('fast')) attacks.push(quickShot, snipe)
 
     return attacks
   })
@@ -205,6 +201,9 @@ export type WeaponPanelView = {
   // '' for a natural weapon: the free hands themselves, not a held item.
   itemId: string
   natural: boolean
+  // gear.tex "Shields": the cover a shield adds to a block or guard, and
+  // whether it is a body shield; null for anything that is not a shield.
+  shield: { cover: number; body: boolean } | null
   rows: WeaponPanelRow[]
 }
 
@@ -220,6 +219,7 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     grip,
     itemId,
     natural,
+    shield: weapon.shield ? { cover: weapon.shield.cover, body: weapon.shield.body } : null,
     rows: getWeaponAttackRows(weapon)(c).map((row) => {
       const usable = isAttackUsable(row.handed, grip)
       return {
@@ -244,9 +244,10 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.grip,
         panel.itemId,
         panel.natural,
+        panel.shield ? `${panel.shield.cover}/${panel.shield.body}` : '',
         panel.rows
           .map((r) =>
-            [r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.deflection, r.properties,
+            [r.name, r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
              r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}`).join('~')]
               .join(','),
           )

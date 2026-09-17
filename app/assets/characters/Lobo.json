@@ -44,7 +44,7 @@
     "mãos": {
       "name": "mãos",
       "handed": "small",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {
@@ -81,7 +81,7 @@
     "INS": 5,
     "prot": 2,
     "cover": 15,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "type": "light"
   },
   "skills": {

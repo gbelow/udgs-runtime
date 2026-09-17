@@ -25,8 +25,55 @@ function join(path: string, name: string): string {
   return path ? `${path}.${name}` : name
 }
 
+// What fits inside a label on one row: a scalar, or an unset-able scalar.
 function isScalar(type: FieldType): boolean {
+  if (type.kind === 'nullable' || type.kind === 'optional') return isScalar(type.inner)
   return ['string', 'number', 'boolean', 'literal', 'enum'].includes(type.kind)
+}
+
+// A fieldset, possibly one that can be left unset.
+function isRecord(type: FieldType): boolean {
+  if (type.kind === 'nullable' || type.kind === 'optional') return isRecord(type.inner)
+  return type.kind === 'object'
+}
+
+function isSet(value: unknown): boolean {
+  return value !== null && value !== undefined
+}
+
+// A nullable or optional field: a checkbox that sets it to the empty value of
+// its kind or clears it back to its absent form.
+function Unsettable({ type, value, onChange, path, overrides, parent }: ValueProps & { type: Extract<FieldType, { kind: 'nullable' | 'optional' }> }) {
+  const absent = type.kind === 'nullable' ? null : undefined
+  return (
+    <div className='flex flex-row gap-2 items-start'>
+      <input type='checkbox' aria-label={`${path} set`} checked={isSet(value)} onChange={(e) => onChange(e.target.checked ? emptyValue(type.innerSchema) : absent)} />
+      {isSet(value) ?
+        <div className='grow'><Value type={type.inner} value={value} onChange={onChange} path={path} overrides={overrides} parent={parent} /></div>
+        : <span className='text-xs text-gray-500'>none</span>}
+    </div>
+  )
+}
+
+// An array of an enum is a set: one checkbox per option, kept in the enum's
+// own order so the saved list reads the same however it was ticked.
+function EnumSet({ options, value, onChange, path }: { options: string[]; value: unknown; onChange: (v: unknown) => void; path: string }) {
+  const picked = new Set((value as unknown[]) ?? [])
+  const toggle = (option: string, on: boolean) => {
+    const next = new Set(picked)
+    if (on) next.add(option); else next.delete(option)
+    onChange(options.filter((o) => next.has(o)))
+  }
+  return (
+    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1'>
+      {options.map((option) => (
+        <label key={option} className='flex flex-row gap-1 items-center text-sm text-gray-200'>
+          <input type='checkbox' aria-label={`${path} ${option}`} checked={picked.has(option)} onChange={(e) => toggle(option, e.target.checked)} />
+          {option}
+        </label>
+      ))}
+    </div>
+  )
 }
 
 function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
@@ -48,19 +95,38 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
     case 'object':
       return <Fields fields={type.fields} value={value as Record<string, unknown>} onChange={onChange} path={path} overrides={overrides} />
     case 'array': {
+      if (type.element.kind === 'enum') return <EnumSet options={type.element.options} value={value} onChange={onChange} path={path} />
       const items = (value as unknown[]) ?? []
       const set = (i: number, v: unknown) => onChange(items.map((it, j) => (j === i ? v : it)))
       const remove = (i: number) => onChange(items.filter((_, j) => j !== i))
       const add = () => onChange([...items, emptyValue(type.elementSchema)])
-      const inline = isScalar(type.element)
+      const removable = items.length > type.min
+      const element = (item: unknown, i: number) => <Value type={type.element} value={item} onChange={(v) => set(i, v)} path={path} overrides={overrides} parent={parent} />
+      const removeButton = (i: number) => <input type='button' className={button} value='×' aria-label={`remove ${path} ${i + 1}`} disabled={!removable} onClick={() => remove(i)} />
+      // a list of scalars is one row per value; a list of records is one card
+      // per record, numbered and captioned by its name if it has one, so where
+      // one ends and the next begins is visible
+      const cards = !isScalar(type.element)
+      const caption = (item: unknown) => {
+        const name = (item as Record<string, unknown> | null)?.name
+        return typeof name === 'string' && name ? name : ''
+      }
       return (
-        <div className='flex flex-col gap-1'>
-          {items.map((item, i) => (
-            <div key={i} className={inline ? 'flex flex-row gap-1 items-center' : 'flex flex-row gap-1 items-start border-l border-gray-700 pl-2'}>
-              <div className='grow'>
-                <Value type={type.element} value={item} onChange={(v) => set(i, v)} path={path} overrides={overrides} parent={parent} />
+        <div className='flex flex-col gap-2'>
+          {items.map((item, i) => cards ? (
+            <div key={i} className='flex flex-col gap-1 border border-gray-600 rounded bg-gray-800/40 p-2'>
+              <div className='flex flex-row items-center'>
+                <span className='text-xs font-mono text-gray-400'>#{i + 1}</span>
+                <span className='text-xs text-gray-300 pl-2'>{caption(item)}</span>
+                <span className='grow' />
+                {removeButton(i)}
               </div>
-              <input type='button' className={button} value='×' aria-label={`remove ${path} ${i + 1}`} disabled={items.length <= type.min} onClick={() => remove(i)} />
+              {element(item, i)}
+            </div>
+          ) : (
+            <div key={i} className='flex flex-row gap-1 items-center'>
+              <div className='grow'>{element(item, i)}</div>
+              {removeButton(i)}
             </div>
           ))}
           <div><input type='button' className={button} value='+ add' aria-label={`add ${path}`} onClick={add} /></div>
@@ -68,14 +134,8 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
       )
     }
     case 'nullable':
-      return (
-        <div className='flex flex-row gap-2 items-start'>
-          <input type='checkbox' aria-label={`${path} set`} checked={value !== null && value !== undefined} onChange={(e) => onChange(e.target.checked ? emptyValue(type.innerSchema) : null)} />
-          {value !== null && value !== undefined ?
-            <div className='grow'><Value type={type.inner} value={value} onChange={onChange} path={path} overrides={overrides} parent={parent} /></div>
-            : <span className='text-xs text-gray-500'>none</span>}
-        </div>
-      )
+    case 'optional':
+      return <Unsettable type={type} value={value} onChange={onChange} path={path} overrides={overrides} parent={parent} />
     case 'union': {
       const record = (value ?? {}) as Record<string, unknown>
       const current = String(record[type.discriminator] ?? type.options[0]?.value)
@@ -104,27 +164,33 @@ function Fields({ fields, value, onChange, path, overrides }: { fields: Field[];
   // a scalar, or anything an override widgets, sits inside its label; a nested
   // block only carries a caption
   const inline = (field: Field) => isScalar(field.type) || overrides[join(path, field.name)] !== undefined
-  // a block of inline fields reads as one row; anything nested gets its own block
-  const compact = fields.every(inline)
+
+  const rendered = fields.map((field) => {
+    const fieldPath = join(path, field.name)
+    const override = overrides[fieldPath]
+    const widget = override
+      ? override({ value: record[field.name], onChange: (v) => set(field.name, v), parent: record })
+      : <Value type={field.type} value={record[field.name]} onChange={(v) => set(field.name, v)} path={fieldPath} overrides={overrides} parent={record} />
+    return { field, widget, inline: inline(field) }
+  }).filter(({ widget }) => widget !== null) // an override that renders nothing hides the field
+
+  // the inline fields share one wrapping row; every nested block follows on
+  // its own line, ruled off from its siblings
+  const row = rendered.filter((r) => r.inline)
+  const blocks = rendered.filter((r) => !r.inline)
   return (
-    <div className={compact ? 'flex flex-row flex-wrap gap-2' : 'flex flex-col gap-1'}>
-      {fields.map((field) => {
-        const fieldPath = join(path, field.name)
-        const override = overrides[fieldPath]
-        const widget = override
-          ? override({ value: record[field.name], onChange: (v) => set(field.name, v), parent: record })
-          : <Value type={field.type} value={record[field.name]} onChange={(v) => set(field.name, v)} path={fieldPath} overrides={overrides} parent={record} />
-        // an override that renders nothing hides the field
-        if (widget === null) return null
-        if (inline(field)) return <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>
-        // a nested object is ruled off from its siblings; an array rules off its own elements
-        return (
-          <div key={field.name} className='flex flex-col text-xs text-gray-400'>
-            <span>{field.name}</span>
-            {field.type.kind === 'object' ? <div className='border-l border-gray-700 pl-2 py-1'>{widget}</div> : widget}
-          </div>
-        )
-      })}
+    <div className='flex flex-col gap-1'>
+      {row.length > 0 && (
+        <div className='flex flex-row flex-wrap gap-2'>
+          {row.map(({ field, widget }) => <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>)}
+        </div>
+      )}
+      {blocks.map(({ field, widget }) => (
+        <div key={field.name} className='flex flex-col text-xs text-gray-400'>
+          <span>{field.name}</span>
+          {isRecord(field.type) ? <div className='border-l border-gray-700 pl-2 py-1'>{widget}</div> : widget}
+        </div>
+      ))}
     </div>
   )
 }

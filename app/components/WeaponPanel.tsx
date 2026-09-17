@@ -36,11 +36,13 @@ export function WeaponPanel(){
             <div className='flex flex-row gap-3' >
               <span>Weapon: {panel.name} </span>
               <span>Size: {panel.scale}</span>
+              {panel.shield && <span>{panel.shield.body ? 'Body shield' : 'Shield'} · Cover +{panel.shield.cover}</span>}
               <span className='text-xs text-gray-400'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>
             <table className='md:w-full text-center text-xs'>
               <thead>
                 <tr>
+                  <td>attack</td>
                   <td>hands</td>
                   <td>RES</td>
                   <td>blunt</td>
@@ -56,14 +58,15 @@ export function WeaponPanel(){
                 {
                   panel.rows.map((row, index) =>
                     <tr key={panel.name+index.toString()} className={row.usable ? '' : 'text-gray-500'}>
+                      <td className='text-left'>{row.name}</td>
                       <td>{row.handed}</td>
                       <td>{row.RES}</td>
                       <td>{row.blunt}</td>
                       <td>{row.cut}</td>
                       <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
                       <td>{row.range}</td>
-                      <td>{row.deflection}</td>
-                      <td>{row.properties}</td>
+                      <td>{row.block ?? '-'}</td>
+                      <td>{[...row.properties, ...(row.STRreq !== null ? [`STR ${row.STRreq}`] : [])].join(', ')}</td>
                       <td><AttackButtons variants={row.variants} weaponName={panel.name} /></td>
                     </tr>
                   )

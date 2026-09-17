@@ -1,8 +1,9 @@
-import { CampaignCharacter, Character, Hand, Item, SlotKind, Weapon } from '../../types'
+import { CampaignCharacter, Character, Hand, Handed, Item, SlotKind, Weapon } from '../../types'
 import { getBulkName, getCatalogWeapon, getItemWeapon } from './items'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { getSize } from '../../character/lenses/misc'
 import { isCampaignCharacter } from '../../utils'
+import { hasProperty } from '../../weaponProperties'
 
 // gear.tex "Small/One/Two hands": a stack is gripped by one hand or two. Any
 // number of hands can be free, but no stack takes more than two.
@@ -37,7 +38,7 @@ export function canHoldWith(c: Character, item: Item, grip: Grip): boolean {
 }
 
 export function hasDraw(item: Item): boolean {
-  return getItemWeapon(item)?.attacks.some((atk) => atk.props.draw) ?? false
+  return getItemWeapon(item)?.attacks.some((atk) => hasProperty(atk.properties, 'draw')) ?? false
 }
 
 const times = (cost: ActionCost, n: number): ActionCost => ({ AP: cost.AP * n, STA: cost.STA * n })
@@ -101,7 +102,7 @@ export function getWieldedWeapons(c: Character): Wielded[] {
 }
 
 // gear.tex "Small/One/Two hands": "Two-handed weapons require both hands".
-export function isAttackUsable(handed: string, grip: number): boolean {
+export function isAttackUsable(handed: Handed, grip: number): boolean {
   return handed === 'two' ? grip >= 2 : grip >= 1
 }
 

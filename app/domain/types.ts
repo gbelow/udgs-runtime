@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ITEM_TYPES } from './lists'
+import { ABILITY_SECTIONS, ATTACK_TYPES, HANDS, ITEM_TYPES, RANGES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
-import { parseWeaponProperties } from './weaponProperties'
 
 const num = z.number()
 const str = z.string()
@@ -15,7 +14,7 @@ export const ArmorSchema = z.object({
   // poise: z.number().default(0),
   protection: z.number().default(0),
   deflection: z.number().default(4), // gear.tex "Armors": the Skin row deflects at +4, so an unarmoured default is not 0
-  penalty: z.number().default(0),
+  burdenPenalty: z.number().default(0),
   properties: str.default(''),
   notes: z.string().default(''),
 }).strip()
@@ -126,39 +125,58 @@ export const MovementSchema = z.object({
 
 export type Movement = z.infer<typeof MovementSchema>
 
+export const AttackTypeSchema = z.enum(ATTACK_TYPES)
+export type AttackType = z.infer<typeof AttackTypeSchema>
+
+export const HandedSchema = z.enum(HANDS)
+export type Handed = z.infer<typeof HandedSchema>
+
+export const RangeSchema = z.enum(RANGES)
+export type Range = z.infer<typeof RangeSchema>
+
+export const WeaponPropertySchema = z.enum(WEAPON_PROPERTIES)
+export type WeaponProperty = z.infer<typeof WeaponPropertySchema>
+
+// One row of a gear.tex weapon table. Its block value is not stored: gear.tex
+// "DEF" derives it from the wielder's STR and the row's hands.
 export const WeaponAttackSchema = z.object({
-  type: str.default('melee'),
-  handed: str.default('small'),
-
-  blunt: num.default(0),
-  cut: num.default(0),
-  STRmod: num.default(0),
-  heavyMod: num.default(0),
-
-  range: str.default('short'),
+  name: str.default(''),
+  type: AttackTypeSchema.default('melee'),
+  handed: HandedSchema.default('one'),
+  range: RangeSchema.default('short'),
 
   RES: num.default(0),
-  RESmod: num.default(0),
-
+  blunt: num.default(0),
+  cut: num.default(0),
   AP: num.default(0),
-  reload: num.default(0),
-  deflection: num.default(0),
 
-  // gear.tex prints properties as one comma-separated cell per attack row, and
-  // the asset mirrors that verbatim so it stays diffable against the book.
-  properties: str.default(''),
+  // gear.tex Ranged Weapons table prints AP as "4+4": the second term is the
+  // reload, and only a row with the reload property has one.
+  reload: num.optional(),
+  // gear.tex "STR x": the strength requirement, absent when the row has none.
+  STRreq: num.optional(),
+
+  properties: z.array(WeaponPropertySchema).default([]),
 }).strip()
-  // Parsed once, here, so no consumer ever string-matches on `properties`.
-  // `.strip()` drops a serialized `props` before this runs, so the derived
-  // value is always recomputed from the authored string and cannot go stale.
-  .transform((atk) => ({ ...atk, props: parseWeaponProperties(atk.properties) }))
 
 export type WeaponAttack = z.infer<typeof WeaponAttackSchema>
 
+// gear.tex "Shields" table: what a shield has beyond its attack rows. Present
+// only on a shield; its absence is what makes a weapon not one.
+export const ShieldSchema = z.object({
+  burdenPenalty: num.default(0),
+  cover: num.default(0),
+  insulation: num.default(0),
+  // gear.tex "Shields": "Body shields ... can provide total cover."
+  body: z.boolean().default(false),
+}).strip()
+
+export type Shield = z.infer<typeof ShieldSchema>
+
 export const WeaponSchema = z.object({
   name: str.default(''),
-  penalty: num.default(0),
   scale: num.default(3),
+  shield: ShieldSchema.optional(),
   attacks: z.array(WeaponAttackSchema).default([]),
 }).strip()
 

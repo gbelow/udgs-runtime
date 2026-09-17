@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
-import { getAttacksList, getDamageTiers, getWeaponAttackRows } from './gear'
+import { getDamageTiers } from './gear'
 import { makeCharacter } from '../../factories'
-import { ArmorSchema, WeaponSchema } from '../../types'
+import { ArmorSchema } from '../../types'
 import type { Character } from '../../types'
 
 const armors = Object.entries(armorsCatalog as Record<string, unknown>)
-const weapons = Object.entries(weaponsCatalog as Record<string, unknown>)
 
 // combat.tex "Damage Tiers": the threshold for tier n is the armor value plus
 // n x TGH, one ladder per damage type. The numbers belong to the armor and the
@@ -51,43 +49,5 @@ describe('getDamageTiers', () => {
   it('reports a wound chance that is a probability', () => {
     const rows = getDamageTiers(wearing(armorsCatalog.FullArmor))
     expect(rows.every((row) => row.woundChance >= 0 && row.woundChance <= 1)).toBe(true)
-  })
-})
-
-// gear.tex weapon tables: a `*mod` column is a multiple of STR added to the
-// flat value of its row. One rule with two applications — the row the sheet
-// renders and the attack the character rolls — so both call the same function.
-describe('applySTRmod', () => {
-  const wielder = makeCharacter({ trainables: { STR: { value: 13 } } })
-
-  // Read across the whole catalog: wherever an attack offers a normal attack,
-  // the damage on the rendered row and the damage the attack rolls have to be
-  // one number. This is the duplication the lens exists to prevent.
-  function disagreements(column: 'blunt' | 'cut') {
-    const mismatched: string[] = []
-    let compared = 0
-
-    for (const [key, raw] of weapons) {
-      const weapon = WeaponSchema.parse(raw)
-      const rows = getWeaponAttackRows(weapon)(wielder)
-      weapon.attacks.forEach((atk, index) => {
-        const basic = getAttacksList({ atk })(wielder).find((variant) => variant.name === 'basic')
-        if (!basic) return
-        compared++
-        if (rows[index][column] !== basic[column]) mismatched.push(`${key}[${index}]`)
-      })
-    }
-
-    return { mismatched, compared }
-  }
-
-  it('gives the rendered row and the rolled attack the same blunt damage', () => {
-    const { mismatched, compared } = disagreements('blunt')
-    expect(mismatched).toEqual([])
-    expect(compared).toBeGreaterThan(0)
-  })
-
-  it('gives the rendered row and the rolled attack the same cut damage', () => {
-    expect(disagreements('cut').mismatched).toEqual([])
   })
 })

@@ -78,7 +78,7 @@
     "poise": 0,
     "protection": 0,
     "deflection": 0,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "properties": "",
     "TGH": 0,
     "prot": 3,
@@ -88,7 +88,7 @@
   "weapons": {
     "Unarmed": {
       "name": "Unarmed",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {

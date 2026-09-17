@@ -56,6 +56,15 @@ const bulkSelect: Widget = ({ value, onChange }) => (
 // a catalog container is a template; its slots are filled on a character
 const hidden: Widget = () => null
 
+// gear.tex "Reload": the second term of the AP column exists only on a row
+// with the reload property, so the field appears with it. A bare number,
+// not the optional's own set/unset toggle: ticking the property is the toggle.
+const reloadCost: Widget = ({ value, onChange, parent }) => {
+  const properties = Array.isArray(parent.properties) ? parent.properties : []
+  if (!properties.includes('reload')) return null
+  return <input className={input} type='number' step='any' value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))} />
+}
+
 export const OVERRIDES: Record<CatalogName, Overrides> = {
   abilities: {
     'stages.requirements.name': requirementName,
@@ -70,7 +79,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
     'outcomes.hit': textarea,
     'outcomes.crit': textarea,
   },
-  weapons: {},
+  weapons: { 'attacks.reload': reloadCost },
   armors: { notes: textarea },
   items: {
     refId: itemRef,

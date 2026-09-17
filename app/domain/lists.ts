@@ -82,3 +82,45 @@ export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 // subsections. Groups the item catalog and names the catalog a refId
 // resolves in (weapons.json, armors.json).
 export const ITEM_TYPES = ['weapon', 'armor', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
+
+// gear.tex "Weapons Properties" — the vocabulary of an attack row's
+// properties cell, in the book's order, then the spellings its own tables add
+// ("grab" on the Net row; "smash", defined among combat.tex's additional
+// effects). One spelling per rule: the tables' "sweep" and "hooked" are the
+// proplist's "sweeping" and "hook". "STR x" is parameterized, so it is the
+// attack's own `STRreq` field rather than a member here.
+export const WEAPON_PROPERTIES = [
+  'grapple',
+  'sweeping',
+  'braced',
+  'shaft',
+  'DEF',
+  'hook',
+  'heavy I',
+  'heavy II',
+  'heavy III',
+  'heavy I-II',
+  'heavy I-III',
+  'heavy II-III',
+  'piercing',
+  'bladed',
+  'penetrating',
+  'precise',
+  'vicious',
+  'slow',
+  'fast',
+  'UF',
+  'draw',
+  'reload',
+  'grab',
+  'smash',
+] as const
+
+export const ATTACK_TYPES = ['melee', 'ranged'] as const
+
+// gear.tex "One/Two hands".
+export const HANDS = ['one', 'two'] as const
+
+// gear.tex "Short, Long I/II" for melee; the Range column of the ranged
+// tables for the rest. "9m" is the Net's own figure.
+export const RANGES = ['short', 'long I', 'long II', 'STR', '2xSTR', '9m', '100m', '150m', '200m'] as const

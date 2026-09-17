@@ -75,13 +75,13 @@
     "INS": 6,
     "prot": 3,
     "cover": 4,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "type": "cloth"
   },
   "weapons": {
     "Dagger": {
       "name": "Dagger",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {

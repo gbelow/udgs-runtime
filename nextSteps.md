@@ -29,15 +29,10 @@
 - separate by item category
 
 ## weapons/armor
-- add properties list to weapons
 - add customization options to weapons
 - add customization options to armors
 - think about resLayer
 - armor properties must be 
-- define shields
-- remove strMod, RESmod, heavymod, 
-- handed = small makes no sense - make new property maneuverable or sth
-- draw weapon properties from vocabulary 
 
 ## hands
 - scaleweapons is unused

@@ -80,7 +80,7 @@
     "INS": 6,
     "protection": 4,
     "deflection": 5,
-    "penalty": 1,
+    "burdenPenalty": 1,
     "properties": "metallic",
     "notes": "",
     "prot": 4,
@@ -89,7 +89,7 @@
   "weapons": {
     "Unarmed": {
       "name": "Unarmed",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {
@@ -128,7 +128,7 @@
     },
     "Stiletto": {
       "name": "Stiletto",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {
@@ -167,7 +167,7 @@
     },
     "Warhammer": {
       "name": "Warhammer",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {

@@ -78,7 +78,7 @@
     "poise": 0,
     "protection": 0,
     "deflection": 0,
-    "penalty": 2,
+    "burdenPenalty": 2,
     "properties": "",
     "TGH": 25,
     "prot": 15,
@@ -88,7 +88,7 @@
   "weapons": {
     "Longsword": {
       "name": "Longsword",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {

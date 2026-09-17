@@ -75,13 +75,13 @@
     "INS": 4,
     "prot": 0,
     "cover": 2,
-    "penalty": 0,
+    "burdenPenalty": 0,
     "type": "cloth"
   },
   "weapons": {
     "ShortSword": {
       "name": "ShortSword",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 5,
       "attacks": [
         {

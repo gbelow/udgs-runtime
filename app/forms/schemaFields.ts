@@ -14,6 +14,9 @@ export type FieldType =
   | { kind: 'object'; fields: Field[] }
   | { kind: 'array'; element: FieldType; elementSchema: z.ZodType; min: number }
   | { kind: 'nullable'; inner: FieldType; innerSchema: z.ZodType }
+  // absent from the record altogether, so a saved entry carries the field only
+  // while it is set
+  | { kind: 'optional'; inner: FieldType; innerSchema: z.ZodType }
   | { kind: 'union'; discriminator: string; options: { value: string; fields: Field[]; schema: z.ZodType }[] }
   | { kind: 'unknown' }
 
@@ -42,13 +45,15 @@ function def(schema: z.ZodType): Def {
 }
 
 // zod 4 keeps the wrapped schema under `innerType` for default/prefault/
-// optional/catch, and a transform is a pipe whose input side is the authored
-// shape, so a field's own kind is read through those wrappers.
+// catch, and a transform is a pipe whose input side is the authored shape, so
+// a field's own kind is read through those wrappers. An optional is not a
+// wrapper to see through: it is the field's kind, since the form has to offer
+// leaving it unset.
 function unwrap(schema: z.ZodType): z.ZodType {
   let s = schema
   for (;;) {
     const d = def(s)
-    if ((d.type === 'default' || d.type === 'prefault' || d.type === 'optional' || d.type === 'catch') && d.innerType) s = d.innerType
+    if ((d.type === 'default' || d.type === 'prefault' || d.type === 'catch') && d.innerType) s = d.innerType
     else if (d.type === 'pipe' && d.in) s = d.in
     else return s
   }
@@ -76,6 +81,8 @@ export function describeSchema(schema: z.ZodType): FieldType {
       return d.element ? { kind: 'array', element: describeSchema(d.element), elementSchema: d.element, min: minLength(d) } : { kind: 'unknown' }
     case 'nullable':
       return d.innerType ? { kind: 'nullable', inner: describeSchema(d.innerType), innerSchema: d.innerType } : { kind: 'unknown' }
+    case 'optional':
+      return d.innerType ? { kind: 'optional', inner: describeSchema(d.innerType), innerSchema: d.innerType } : { kind: 'unknown' }
     case 'union': {
       const discriminator = d.discriminator
       if (!discriminator) return { kind: 'unknown' }
@@ -114,6 +121,7 @@ export function emptyValue(schema: z.ZodType): unknown {
     case 'number': return 0
     case 'boolean': return false
     case 'nullable': return null
+    case 'optional': return undefined
     default: return undefined
   }
 }

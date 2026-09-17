@@ -1,998 +1,956 @@
 {
   "Unarmed": {
     "name": "Unarmed",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "grapple",
         "type": "melee",
+        "handed": "one",
+        "range": "short",
+        "RES": 0,
         "blunt": 0,
         "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "short",
-        "RES": 0,
-        "RESmod": 0.5,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "grapple, DEF, braced, hooked, draw",
-        "handed": "small"
+        "properties": [
+          "grapple",
+          "braced",
+          "DEF",
+          "hook",
+          "draw"
+        ]
       },
       {
+        "name": "punch",
         "type": "melee",
-        "blunt": 5,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 0,
-        "RESmod": 1,
+        "blunt": 5,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, heavy I, smash",
-        "handed": "small"
+        "properties": [
+          "heavy I",
+          "draw",
+          "smash"
+        ]
       }
     ]
   },
   "Claws": {
     "name": "Claws",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "claw",
         "type": "melee",
-        "blunt": 4,
-        "cut": 12,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "short",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 5,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "bladed, grapple, hooked",
-        "handed": "small"
+        "properties": [
+          "grapple",
+          "hook"
+        ]
       }
     ]
   },
   "Gauntlet": {
     "name": "Gauntlet",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "grapple",
         "type": "melee",
+        "handed": "one",
+        "range": "short",
+        "RES": 25,
         "blunt": 0,
         "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "short",
-        "RES": 25,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "grapple, DEF, hooked",
-        "handed": "small"
+        "properties": [
+          "grapple",
+          "DEF",
+          "hook"
+        ]
       },
       {
+        "name": "punch",
         "type": "melee",
-        "blunt": 8,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 25,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy I, smash",
-        "handed": "one"
+        "properties": [
+          "heavy I",
+          "smash"
+        ]
       }
     ]
   },
   "Dagger": {
     "name": "Dagger",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "stab",
         "type": "melee",
-        "blunt": 4,
-        "cut": 15,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 4,
+        "cut": 15,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, DEF, piercing, bladed, precise, heavy I",
-        "handed": "small"
+        "properties": [
+          "DEF",
+          "heavy I",
+          "piercing",
+          "bladed",
+          "precise",
+          "draw"
+        ]
       },
       {
+        "name": "throw",
         "type": "ranged",
-        "blunt": 4,
-        "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "STR",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 4,
+        "cut": 16,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, precise, slow",
-        "handed": "small"
+        "properties": [
+          "precise",
+          "slow",
+          "draw"
+        ]
       }
     ]
   },
   "Club": {
     "name": "Club",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "strike",
         "type": "melee",
-        "blunt": 8,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, heavy I",
-        "handed": "small"
+        "properties": [
+          "DEF",
+          "heavy I"
+        ]
       }
     ]
   },
   "Stiletto": {
     "name": "Stiletto",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "stab",
         "type": "melee",
-        "blunt": 4,
-        "cut": 20,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 4,
+        "cut": 15,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, penetrating, precise, piercing, heavy I",
-        "handed": "small"
+        "properties": [
+          "heavy I",
+          "piercing",
+          "penetrating",
+          "precise",
+          "draw"
+        ]
       },
       {
+        "name": "parry",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, DEF",
-        "handed": "small"
+        "properties": [
+          "DEF",
+          "draw"
+        ]
       }
     ]
   },
   "Whip": {
     "name": "Whip",
-    "handed": "small",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "lash",
         "type": "melee",
-        "blunt": 0,
-        "cut": 6,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "long II",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 6,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw",
-        "handed": "small"
+        "properties": [
+          "draw"
+        ]
       },
       {
+        "name": "entangle",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "long II",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "grapple",
-        "handed": "small"
+        "properties": [
+          "grapple"
+        ]
       }
     ]
   },
   "Short Sword": {
     "name": "Short Sword",
-    "handed": "one",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "thrust",
         "type": "melee",
+        "handed": "one",
+        "range": "short",
+        "RES": 20,
         "blunt": 4,
         "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "short",
-        "RES": 20,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "precise, piercing, bladed, draw",
-        "handed": "one"
+        "properties": [
+          "piercing",
+          "bladed",
+          "precise",
+          "draw"
+        ]
       },
       {
+        "name": "cut",
         "type": "melee",
-        "blunt": 8,
-        "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 16,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "sweep, draw, DEF, heavy I, bladed",
-        "handed": "one"
+        "properties": [
+          "sweeping",
+          "DEF",
+          "heavy I",
+          "bladed",
+          "draw"
+        ]
       }
     ]
   },
   "Rapier": {
     "name": "Rapier",
-    "handed": "one",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "thrust",
         "type": "melee",
+        "handed": "one",
+        "range": "long I",
+        "RES": 15,
         "blunt": 5,
         "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "long I",
-        "RES": 15,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "draw, precise, piercing, penetrating",
-        "handed": "one"
+        "properties": [
+          "piercing",
+          "penetrating",
+          "precise",
+          "draw"
+        ]
       },
       {
+        "name": "parry",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "long I",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF",
-        "handed": "one"
+        "properties": [
+          "DEF"
+        ]
       }
     ]
   },
   "Short Spear": {
     "name": "Short Spear",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "thrust",
         "type": "melee",
-        "blunt": 6,
-        "cut": 24,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "two",
         "range": "long I",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 6,
+        "cut": 24,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "braced, piercing, penetrating, heavy I",
-        "handed": "two"
+        "properties": [
+          "braced",
+          "heavy I",
+          "piercing",
+          "penetrating"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, shaft, grapple",
-        "handed": "two"
+        "properties": [
+          "grapple",
+          "shaft",
+          "DEF"
+        ]
       },
       {
+        "name": "throw",
         "type": "ranged",
-        "blunt": 8,
-        "cut": 20,
-        "STRmod": 0,
-        "heavyMod": 1,
+        "handed": "one",
         "range": "2xSTR",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 20,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "slow, piercing, heavy I-II",
-        "handed": "one"
+        "properties": [
+          "heavy I-II",
+          "piercing",
+          "slow"
+        ]
       }
     ]
   },
   "Mace": {
     "name": "Mace",
-    "handed": "one",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "strike",
         "type": "melee",
-        "blunt": 12,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 1,
+        "handed": "one",
         "range": "short",
         "RES": 50,
-        "RESmod": 0,
+        "blunt": 12,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy I-II, smash",
-        "handed": "one"
+        "properties": [
+          "heavy I-II",
+          "smash"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, shaft",
-        "handed": "one"
+        "properties": [
+          "shaft",
+          "DEF"
+        ]
       }
     ]
   },
   "Battle Axe": {
     "name": "Battle Axe",
-    "handed": "one",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "chop",
         "type": "melee",
-        "blunt": 10,
-        "cut": 15,
-        "STRmod": 0,
-        "heavyMod": 1,
+        "handed": "one",
         "range": "short",
         "RES": 25,
-        "RESmod": 0,
+        "blunt": 10,
+        "cut": 15,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy I-II, bladed",
-        "handed": "one"
+        "properties": [
+          "heavy I-II",
+          "bladed"
+        ]
       },
       {
+        "name": "parry",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "short",
         "RES": 15,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF",
-        "handed": "one"
+        "properties": [
+          "DEF"
+        ]
       }
     ]
   },
   "Longsword": {
     "name": "Longsword",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "cut",
         "type": "melee",
+        "handed": "two",
+        "range": "long I",
+        "RES": 20,
         "blunt": 10,
         "cut": 18,
-        "STRmod": 0,
-        "heavyMod": 0.5,
-        "range": "long I",
-        "RES": 20,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "sweep, DEF, heavy I, bladed",
-        "handed": "two"
+        "properties": [
+          "sweeping",
+          "DEF",
+          "heavy I",
+          "bladed"
+        ]
       },
       {
+        "name": "half-sword thrust",
         "type": "melee",
-        "blunt": 4,
-        "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "two",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
-        "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "piercing, penetrating, precise, heavy I",
-        "handed": "two"
-      },
-      {
-        "type": "melee",
         "blunt": 4,
         "cut": 16,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "AP": 3,
+        "properties": [
+          "heavy I",
+          "piercing",
+          "penetrating",
+          "precise"
+        ]
+      },
+      {
+        "name": "thrust",
+        "type": "melee",
+        "handed": "two",
         "range": "long I",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 4,
+        "cut": 16,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "piercing",
-        "handed": "two"
+        "properties": [
+          "piercing"
+        ]
       }
     ]
   },
   "Pike": {
     "name": "Pike",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "thrust",
         "type": "melee",
-        "blunt": 6,
-        "cut": 24,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "two",
         "range": "long II",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 6,
+        "cut": 24,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "braced, piercing, heavy I",
-        "handed": "two"
+        "properties": [
+          "braced",
+          "heavy I",
+          "piercing"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "long I",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "shaft",
-        "handed": "two"
+        "properties": [
+          "shaft"
+        ]
       }
     ]
   },
   "Halberd": {
     "name": "Halberd",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "spear point",
         "type": "melee",
+        "handed": "two",
+        "range": "long I",
+        "RES": 20,
         "blunt": 6,
         "cut": 24,
-        "STRmod": 0,
-        "heavyMod": 0.5,
-        "range": "long I",
-        "RES": 20,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "braced, piercing, penetrating, heavy I",
-        "handed": "two"
+        "properties": [
+          "braced",
+          "heavy I",
+          "piercing",
+          "penetrating"
+        ]
       },
       {
+        "name": "hook",
         "type": "melee",
+        "handed": "two",
+        "range": "long I",
+        "RES": 30,
         "blunt": 5,
         "cut": 12,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "long I",
-        "RES": 30,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "hook, bladed",
-        "handed": "two"
+        "properties": [
+          "hook",
+          "bladed"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, shaft, grapple",
-        "handed": "two"
+        "properties": [
+          "grapple",
+          "shaft",
+          "DEF"
+        ]
       },
       {
+        "name": "axe head",
         "type": "melee",
-        "blunt": 12,
-        "cut": 20,
-        "STRmod": 0,
-        "heavyMod": 1.5,
+        "handed": "two",
         "range": "long I",
         "RES": 30,
-        "RESmod": 0,
+        "blunt": 12,
+        "cut": 20,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy I-III, bladed",
-        "handed": "two"
+        "properties": [
+          "heavy I-III",
+          "bladed"
+        ]
       }
     ]
   },
   "Warhammer": {
     "name": "Warhammer",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "spear point",
         "type": "melee",
+        "handed": "two",
+        "range": "long I",
+        "RES": 20,
         "blunt": 6,
         "cut": 24,
-        "STRmod": 0,
-        "heavyMod": 0.5,
-        "range": "long I",
-        "RES": 20,
-        "RESmod": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "braced, piercing, penetrating, heavy I",
-        "handed": "two"
+        "properties": [
+          "braced",
+          "heavy I",
+          "piercing",
+          "penetrating"
+        ]
       },
       {
+        "name": "hook",
         "type": "melee",
-        "blunt": 5,
-        "cut": 12,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "long I",
         "RES": 30,
-        "RESmod": 0,
+        "blunt": 5,
+        "cut": 12,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "hook, bladed",
-        "handed": "two"
+        "properties": [
+          "hook",
+          "bladed"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, shaft, grapple",
-        "handed": "two"
+        "properties": [
+          "grapple",
+          "shaft",
+          "DEF"
+        ]
       },
       {
+        "name": "hammer",
         "type": "melee",
-        "blunt": 14,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 1.5,
+        "handed": "two",
         "range": "long I",
         "RES": 100,
-        "RESmod": 0,
+        "blunt": 14,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy II-III, smash",
-        "handed": "two"
+        "properties": [
+          "heavy II-III",
+          "smash"
+        ]
       }
     ]
   },
   "Bardiche": {
     "name": "Bardiche",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "chop",
         "type": "melee",
-        "blunt": 12,
-        "cut": 20,
-        "STRmod": 0,
-        "heavyMod": 1.5,
+        "handed": "two",
         "range": "long I",
         "RES": 30,
-        "RESmod": 0,
+        "blunt": 12,
+        "cut": 20,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "heavy I-III, sweep, bladed",
-        "handed": "two"
+        "properties": [
+          "sweeping",
+          "heavy I-III",
+          "bladed"
+        ]
       },
       {
+        "name": "shaft",
         "type": "melee",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "DEF, shaft, grapple",
-        "handed": "two"
+        "properties": [
+          "grapple",
+          "shaft",
+          "DEF"
+        ]
       }
     ]
   },
   "Greatsword": {
     "name": "Greatsword",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "cut",
         "type": "melee",
-        "blunt": 12,
-        "cut": 18,
-        "STRmod": 0,
-        "heavyMod": 1,
+        "handed": "two",
         "range": "long I",
         "RES": 30,
-        "RESmod": 0,
+        "blunt": 12,
+        "cut": 18,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "sweep, DEF, heavy I-II, bladed",
-        "handed": "two"
+        "properties": [
+          "sweeping",
+          "DEF",
+          "heavy I-II",
+          "bladed"
+        ]
       },
       {
+        "name": "thrust",
         "type": "melee",
-        "blunt": 6,
-        "cut": 20,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "two",
         "range": "long I",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 6,
+        "cut": 20,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "piercing, heavy I, braced",
-        "handed": "two"
+        "properties": [
+          "braced",
+          "heavy I",
+          "piercing"
+        ]
       }
     ]
   },
   "Net": {
     "name": "Net",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "throw",
         "type": "ranged",
+        "handed": "two",
+        "range": "9m",
+        "RES": 15,
         "blunt": 0,
         "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
-        "range": "9m, 2m rad",
-        "RES": 15,
-        "RESmod": 0,
         "AP": 4,
         "reload": 10,
-        "deflection": 0,
-        "properties": "grab, reload, slow, grapple",
-        "handed": "two"
+        "properties": [
+          "grapple",
+          "slow",
+          "reload",
+          "grab"
+        ]
       }
     ]
   },
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "throw",
         "type": "ranged",
-        "blunt": 6,
-        "cut": 10,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "STR",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 6,
+        "cut": 10,
         "AP": 4,
         "reload": 4,
-        "deflection": 0,
-        "properties": "slow, hook",
-        "handed": "two"
+        "properties": [
+          "hook",
+          "slow",
+          "reload"
+        ]
       }
     ]
   },
   "Grenade": {
     "name": "Grenade",
-    "handed": "one",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "throw",
         "type": "ranged",
-        "blunt": 0,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "one",
         "range": "2xSTR",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 0,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "slow",
-        "handed": "one"
+        "properties": [
+          "slow"
+        ]
       }
     ]
   },
   "Short Bow": {
     "name": "Short Bow",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "shoot",
         "type": "ranged",
-        "blunt": 6,
-        "cut": 18,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "100m",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 6,
+        "cut": 18,
         "AP": 5,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "piercing, fast",
-        "handed": "two"
+        "properties": [
+          "piercing",
+          "precise",
+          "fast"
+        ]
       }
     ]
   },
   "Long Bow": {
     "name": "Long Bow",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "shoot",
         "type": "ranged",
-        "blunt": 8,
-        "cut": 25,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "150m",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 25,
         "AP": 6,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "STR 13, piercing, fast",
-        "handed": "two"
+        "STRreq": 13,
+        "properties": [
+          "piercing",
+          "precise",
+          "fast"
+        ]
       }
     ]
   },
   "Heavy Bow": {
     "name": "Heavy Bow",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "shoot",
         "type": "ranged",
-        "blunt": 10,
-        "cut": 30,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "200m",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 10,
+        "cut": 30,
         "AP": 6,
-        "reload": 0,
-        "deflection": 0,
-        "properties": "STR 16, piercing, fast",
-        "handed": "two"
+        "STRreq": 16,
+        "properties": [
+          "piercing",
+          "precise",
+          "fast"
+        ]
       }
     ]
   },
   "Crossbow": {
     "name": "Crossbow",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "shoot",
         "type": "ranged",
-        "blunt": 8,
-        "cut": 22,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "150m",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 22,
         "AP": 4,
         "reload": 4,
-        "deflection": 0,
-        "properties": "reload, piercing, fast",
-        "handed": "two"
+        "properties": [
+          "piercing",
+          "precise",
+          "fast",
+          "reload"
+        ]
       }
     ]
   },
   "Arbalest": {
     "name": "Arbalest",
-    "handed": "two",
-    "penalty": 0,
     "scale": 3,
     "attacks": [
       {
+        "name": "shoot",
         "type": "ranged",
-        "blunt": 10,
-        "cut": 26,
-        "STRmod": 0,
-        "heavyMod": 0,
+        "handed": "two",
         "range": "200m",
         "RES": 10,
-        "RESmod": 0,
+        "blunt": 10,
+        "cut": 26,
         "AP": 4,
         "reload": 6,
-        "deflection": 0,
-        "properties": "reload, piercing, fast",
-        "handed": "two"
+        "properties": [
+          "piercing",
+          "precise",
+          "fast",
+          "reload"
+        ]
       }
     ]
   },
   "Wooden Shield": {
     "name": "Wooden Shield",
-    "handed": "one",
-    "penalty": 1,
     "scale": 3,
+    "shield": {
+      "burdenPenalty": 1,
+      "cover": 2,
+      "insulation": 10,
+      "body": false
+    },
     "attacks": [
       {
+        "name": "bash",
         "type": "melee",
-        "blunt": 8,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 4,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 2,
-        "properties": "DEF, heavy I",
-        "handed": "one"
+        "properties": [
+          "DEF",
+          "heavy I"
+        ]
       }
     ]
   },
   "Metal Shield": {
     "name": "Metal Shield",
-    "handed": "one",
-    "penalty": 1,
     "scale": 3,
+    "shield": {
+      "burdenPenalty": 1,
+      "cover": 2,
+      "insulation": 10,
+      "body": false
+    },
     "attacks": [
       {
+        "name": "bash",
         "type": "melee",
-        "blunt": 8,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 30,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 2,
-        "properties": "DEF, heavy I",
-        "handed": "one"
+        "properties": [
+          "DEF",
+          "heavy I"
+        ]
       }
     ]
   },
   "Wooden Tower": {
     "name": "Wooden Tower",
-    "handed": "one",
-    "penalty": 2,
     "scale": 3,
+    "shield": {
+      "burdenPenalty": 2,
+      "cover": 2,
+      "insulation": 15,
+      "body": true
+    },
     "attacks": [
       {
+        "name": "bash",
         "type": "melee",
-        "blunt": 8,
-        "cut": 0,
-        "STRmod": 0,
-        "heavyMod": 0.5,
+        "handed": "one",
         "range": "short",
         "RES": 20,
-        "RESmod": 0,
+        "blunt": 8,
+        "cut": 0,
         "AP": 3,
-        "reload": 0,
-        "deflection": 4,
-        "properties": "DEF, heavy I",
-        "handed": "one"
+        "properties": [
+          "DEF",
+          "heavy I"
+        ]
       }
     ]
   }

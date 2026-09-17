@@ -304,14 +304,14 @@
     "INS": 8,
     "protection": 10,
     "deflection": 7,
-    "penalty": 3,
+    "burdenPenalty": 3,
     "properties": "rigid, metallic, layered",
     "notes": ""
   },
   "weapons": {
     "Halberd": {
       "name": "Halberd",
-      "penalty": 0,
+      "burdenPenalty": 0,
       "scale": 3,
       "attacks": [
         {
