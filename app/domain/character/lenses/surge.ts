@@ -3,6 +3,7 @@ import { SURGES } from "../../tables"
 import { surgeKinds } from "../../lists"
 import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
+import { getAfflictions } from "./afflictions"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -17,9 +18,15 @@ export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
 
 // combat.tex "Action surge": one per round, so a surge already spent closes all
 // four. Past that each kind has its own price — 3 STA for movement, combat and
-// reaction, 1 for focus — so the affordable set is not uniform.
+// reaction, 1 for focus — so the affordable set is not uniform. A surge is
+// also closed by the affliction that forbids it (afraid / enraged); the
+// derived set is read so a forced state counts the same as a hand-set one.
 export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
-  return (c: CampaignCharacter) => c.usedSurge === null && SURGES[kind].STA <= c.resources.STA
+  return (c: CampaignCharacter) => {
+    const surge = SURGES[kind]
+    if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
+    return !('forbiddenBy' in surge) || !getAfflictions(c).includes(surge.forbiddenBy)
+  }
 }
 
 // View getter: which surge buttons are live, as a flat record of primitives the

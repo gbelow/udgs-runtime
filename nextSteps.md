@@ -46,6 +46,7 @@
 - item scaling must be decided
 - item requirements must be in hand
 - auto track spending charges
+- localized damage
 
 ## add abilities 
 - add tex generator from catalogue
@@ -69,6 +70,9 @@
 
 ## resolutions
 - targeting
+
+# morale test
+-add it
 
 ## compiling to book
 - finish caalogue issue

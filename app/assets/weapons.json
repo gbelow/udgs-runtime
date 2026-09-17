@@ -474,7 +474,7 @@
         "reload": 0,
         "deflection": 0,
         "properties": "piercing, penetrating, precise, heavy I",
-        "handed": "one"
+        "handed": "two"
       },
       {
         "type": "melee",

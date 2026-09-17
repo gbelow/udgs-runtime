@@ -29,10 +29,12 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   } else if (rss.thirst >= 8) afflictions.add('dehydrated')
   else if (rss.thirst >= 4) afflictions.add('thirsty')
 
-  // survival.tex "Rest, Exhaustion and Healing": > 11 confused, 8-11 exhausted,
-  // 4-7 tired.
-  if (rss.exhaustion > 11) afflictions.add('confused')
-  else if (rss.exhaustion >= 8) afflictions.add('exhausted')
+  // survival.tex "Rest, Exhaustion and Healing": > 11 confused + exhausted,
+  // 8-11 exhausted, 4-7 tired.
+  if (rss.exhaustion > 11) {
+    afflictions.add('confused')
+    afflictions.add('exhausted')
+  } else if (rss.exhaustion >= 8) afflictions.add('exhausted')
   else if (rss.exhaustion >= 4) afflictions.add('tired')
 
   // gear.tex "Containers and burden": an "over" burden also makes the character lame.
@@ -41,8 +43,8 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   return worstOfEachGroup(dropSupersededGroups([...afflictions]))
 }
 
-// An affliction that `supersedes` a ladder removes every rung of it — confused
-// replaces tired/exhausted (combat.tex writes the three as one penalty line).
+// An affliction that `supersedes` a ladder removes every rung of it. No entry
+// uses it at present; the seam stays for the next rule that does.
 function dropSupersededGroups(keys: AfflictionKey[]): AfflictionKey[] {
   const superseded = new Set(keys.map((key) => AFFLICTIONS[key].supersedes))
   return keys.filter((key) => {

@@ -1,15 +1,16 @@
 import { CampaignCharacter, SurgeKind } from "../../types"
 import { SURGES } from "../../tables"
 import { bleed } from "./bleed"
-import { getSurgeAP } from "../lenses/surge"
+import { canSurge, getSurgeAP } from "../lenses/surge"
 
 // combat.tex "Action surge": a character is entitled to one surge per round, so
 // a character that already used one this round cannot surge again, whichever
-// kind it was.
+// kind it was. `canSurge` holds the whole gate — round, price and affliction —
+// so the command refuses exactly what the button shows as closed.
 export function actionSurge(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { STA } = SURGES[kind]
-    if (c.usedSurge !== null || !c.resources || STA > c.resources.STA) return c
+    if (!c.resources || !canSurge(kind)(c)) return c
     const char = bleed(STA)(c)
     return {
       ...char,

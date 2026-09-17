@@ -65,9 +65,9 @@ describe('severity ladders', () => {
     expect(laddersOnly.filter((key) => AFFLICTIONS[key].group === group)).toEqual([worst])
   })
 
-  // combat.tex prints Tired/Exhausted/Confused as one "-1/-2/-4" penalty line
-  // while allowing confusion on its own, so a superseding affliction replaces
-  // the ladder rather than stacking on its rung.
+  // A superseding affliction replaces the whole ladder rather than stacking on
+  // its rung. Driven off the table: the check is inert while no entry declares
+  // `supersedes`, and picks the next one up without a case being written.
   const superseders = afflictionKeys.filter((key) => AFFLICTIONS[key].supersedes !== undefined)
   it.each(superseders)('"%s" empties the ladder it supersedes', (key) => {
     const group = AFFLICTIONS[key].supersedes

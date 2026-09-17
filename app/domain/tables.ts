@@ -108,15 +108,13 @@ const AFFLICTION_DEFS = {
   intoxicated2: { mental: 2, group: 'intoxicated', rank: 2, controlable: true, category: "health" },
   intoxicated3: { mental: 3, group: 'intoxicated', rank: 3, controlable: true, category: "health" },
 
-  // combat.tex lists Tired/Exhausted/Confused on one -1/-2/-4 line, but "it is
-  // possible to be confused without being tired or exhausted": confusion is
-  // its own affliction that extreme exhaustion happens to cause (survival.tex
-  // "> 11 = Confused"), not the top rung of the fatigue ladder. The single
-  // line is still one penalty, so confusion supersedes the ladder rather than
-  // adding to it.
+  // combat.tex: confusion is its own mental affliction, not the top rung of the
+  // fatigue ladder — "it is possible to be confused without being tired or
+  // exhausted, but extreme exhaustion causes confusion" (survival.tex "> 11 =
+  // Confused + Exhausted"), so the two penalties stack.
   tired: { mental: 1, group: 'fatigue', rank: 1, controlable: false, category: "health" },
   exhausted: { mental: 2, group: 'fatigue', rank: 2, controlable: false, category: "health" },
-  confused: { mental: 4, supersedes: 'fatigue', controlable: true, category: "mental" },
+  confused: { mental: 3, controlable: true, category: "mental" },
 
   weakened: { health: 1, group: 'hunger', rank: 1, controlable: false, category: "health" },
   malnourished: { health: 2, group: 'hunger', rank: 2, controlable: false, category: "health" },
@@ -167,13 +165,15 @@ export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 // combat.tex "Action surge" — one surge per round. Each kind prices its AP
 // in STA; the movement surge alone scales its yield with AGI, so the yield
 // column is a function of AGI rather than a number. The spending restriction
-// is recorded as prose for the UI.
+// is recorded as prose for the UI. `forbiddenBy` is the affliction under which
+// the surge cannot be made voluntarily (combat.tex "Afflictions": afraid bars
+// the combat surge, enraged the reaction surge).
 export const SURGES = {
   movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
-  combat:   { STA: 3, AP: () => 4, restriction: 'AP must be spent immediately on attacks or movement.' },
-  reaction: { STA: 3, AP: () => 4, restriction: 'AP can only be spent on reactions until the end of the round.' },
+  combat:   { STA: 3, AP: () => 4, restriction: 'AP must be spent immediately on attacks or movement. Not while afraid.', forbiddenBy: 'afraid' },
+  reaction: { STA: 3, AP: () => 4, restriction: 'AP can only be spent on reactions until the end of the round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, restriction: 'AP is free to use. Required for shooting weapons, spells and use items from containers.' },
-} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string }>
+} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 
 // combat.tex — the AP/STA price of each named action, in the book's own
 // numbers. An attack variation is a delta on the weapon row's own AP
