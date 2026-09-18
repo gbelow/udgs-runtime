@@ -26,7 +26,6 @@
 ## items editor
 - weapons/armor customization
 - item types in form of list
-- separate by item category
 
 ## weapons/armor
 - latex table generator from the weapons catalogue (gear.tex stattables)
@@ -36,8 +35,6 @@
 - armor properties must be 
 
 ## hands
-- scaleweapons is unused
-- item scaling must be decided
 - item requirements must be in hand
 - auto track spending charges
 - localized damage

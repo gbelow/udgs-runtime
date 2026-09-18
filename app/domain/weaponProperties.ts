@@ -1,5 +1,5 @@
-import type { AttackType, Range, WeaponProperty } from './types'
-import { MELEE_RANGES } from './lists'
+import type { AttackKind, AttackType, Range, WeaponProperty } from './types'
+import { MELEE_RANGES, SHOT_RANGES } from './lists'
 
 // gear.tex "Heavy I/II/III": "Having a higher degree of heavy allows using any
 // lower degree. Having heavy I-III or similar means that heavy I is minimum,
@@ -31,7 +31,15 @@ export function getHeavyRange(properties: readonly WeaponProperty[]): HeavyRange
 }
 
 // gear.tex "Short, Long I/II" are melee reaches; every other range is a shot
-// or a throw, so an attack's range decides what kind of attack it is.
+// or a throw (combat.tex "Throw", "Shoot"), so an attack's range decides what
+// kind of attack it is.
+export function getAttackKind(range: Range): AttackKind {
+  if ((MELEE_RANGES as readonly string[]).includes(range)) return 'melee'
+  return (SHOT_RANGES as readonly string[]).includes(range) ? 'shoot' : 'throw'
+}
+
+// Which skill the attack is rolled with: strike for melee, accuracy for both
+// kinds of ranged attack (combat.tex "Accuracy": "a throw or shot").
 export function getAttackType(range: Range): AttackType {
-  return (MELEE_RANGES as readonly string[]).includes(range) ? 'melee' : 'ranged'
+  return getAttackKind(range) === 'melee' ? 'melee' : 'ranged'
 }

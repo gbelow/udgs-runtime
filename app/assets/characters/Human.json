@@ -73,7 +73,6 @@
   "armor": {
     "name": "Clothing",
     "RES": 3,
-    "RESlayer": 0,
     "INS": 2,
     "protection": 0,
     "deflection": 3,

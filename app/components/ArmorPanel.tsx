@@ -31,7 +31,7 @@ export function ArmorPanel(){
               <tr key={row.tier}>
                 <td>T{row.tier}</td>
                 <td>{row.blunt}</td>
-                <td>{row.RES + (row.RESlayer > 0 ? "/" + row.RESlayer : '')}</td>
+                <td>{row.RES}</td>
                 <td>{row.INS}</td>
                 {/* <td>{row.IL}</td>
                 <td>{row.woundChance > 0 ? Math.round(row.woundChance * 100) + '%' : '-'}</td> */}

@@ -1,12 +1,13 @@
-import { AttackType, Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
+import { AttackKind, AttackType, Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getSTR, getSTRBase } from "./characteristics";
-import { getTGH } from "./misc";
-import { injuryMap } from "../../tables";
+import { getSize, getTGH } from "./misc";
+import { dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
-import { getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
+import { getAttackKind, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
+import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
 // are then "modified by (STR-10)/5". Penalties are stored as positive
@@ -27,12 +28,32 @@ export function getGearPenalties(c: Character){
 }
 
 
+// gear.tex "Size Scaling": "Wielding a weapon that is larger than appropriate
+// increases the cost of AP for all attacks by +1, and uses STR-5 in the
+// contribution of STR to damage. This penalty applies to any contribution of
+// STR for any attack, including braced, hooked, and heavy." Two sizes larger
+// is already unholdable (gear.tex "Hands"), so this is the one-step case.
+export function isOversize(weapon: Weapon, c: Character): boolean {
+  return weapon.scale > getSize(c)
+}
+
+// The STR that goes into this weapon's damage.
+function getWieldSTR(weapon: Weapon, c: Character): number {
+  return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
+}
+
+function getAPSurcharge(weapon: Weapon, c: Character): number {
+  return isOversize(weapon, c) ? 1 : 0
+}
+
 // gear.tex "DEF": "The blocking value is equal to STR if weapon is one handed,
-// and 2x STR if two handed or a shield." A row without DEF cannot block at
-// all, which null carries out to the panel.
-export function getBlockValue(atk: WeaponAttack, shield: boolean, c: Character): number | null {
+// and 2x STR if two handed or a shield. This value scales with weapon size."
+// — by the weapon's own DM. A row without DEF cannot block at all, which null
+// carries out to the panel.
+export function getBlockValue(atk: WeaponAttack, weapon: Weapon, c: Character): number | null {
   if (!hasProperty(atk.properties, 'DEF')) return null
-  return atk.handed === 'two' || shield ? 2 * getSTR(c) : getSTR(c)
+  const hands = atk.handed === 'two' || weapon.shield !== undefined ? 2 : 1
+  return Math.floor(hands * getSTR(c) * dmgArr[weapon.scale - 1])
 }
 
 // combat.tex "Strike": a strike is a melee weapon attack, and it is the strike
@@ -41,14 +62,20 @@ export function getBlockValue(atk: WeaponAttack, shield: boolean, c: Character):
 // and neither does a grapple I, which gear.tex "Grapple I/II" says deals no
 // damage; a grapple II "deals damage normally" and so is a strike.
 export function isStrike(atk: WeaponAttack): boolean {
-  return getAttackType(atk.range) === 'melee' && !hasProperty(atk.properties, 'grapple I')
+  return getAttackKind(atk.range) === 'melee' && !hasProperty(atk.properties, 'grapple I')
 }
 
 export type Damage = { blunt: number; cut: number }
 
-export function getStrikeDamage(atk: WeaponAttack, c: Character): Damage {
-  const bonus = isStrike(atk) ? Math.floor(0.5 * getSTR(c) * getDM(c)) : 0
+export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character): Damage {
+  const bonus = isStrike(atk) ? Math.floor(0.5 * getWieldSTR(weapon, c) * getDM(c)) : 0
   return { blunt: atk.blunt + bonus, cut: atk.cut + bonus }
+}
+
+// combat.tex "Shoot": "Requires Focus surge to use." A throw does not. On the
+// sheet there is no surge to have used, so nothing is withheld there.
+export function needsFocus(atk: WeaponAttack, c: Character): boolean {
+  return getAttackKind(atk.range) === 'shoot' && isCampaignCharacter(c) && c.usedSurge !== 'focus'
 }
 
 // Read-side projection of one row of a weapon's attack table. Every number is
@@ -56,6 +83,7 @@ export function getStrikeDamage(atk: WeaponAttack, c: Character): Damage {
 export type WeaponAttackRow = {
   name: string
   type: AttackType
+  kind: AttackKind
   handed: Handed
   RES: number
   blunt: number
@@ -65,6 +93,8 @@ export type WeaponAttackRow = {
   range: Range
   block: number | null
   STRreq: number | null
+  // combat.tex "Shoot": a shot this character has not surged focus for.
+  needsFocus: boolean
   properties: WeaponProperty[]
   attack: WeaponAttack
 }
@@ -74,17 +104,19 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
     weapon.attacks.map((atk) => ({
       name: atk.name,
       type: getAttackType(atk.range),
+      kind: getAttackKind(atk.range),
       handed: atk.handed,
       RES: atk.RES,
       // The damage the normal attack deals, STR included — not the bare row.
-      ...getStrikeDamage(atk, c),
-      AP: atk.AP,
+      ...getStrikeDamage(atk, weapon, c),
+      AP: atk.AP + getAPSurcharge(weapon, c),
       // gear.tex "Reload": the row's own figure, moved by abilities and never
       // below free; a row without the property stays at 0 whatever it stores.
       reload: hasProperty(atk.properties, 'reload') ? Math.max(0, (atk.reload ?? 0) + getActionCost(c, 'reload').AP) : 0,
       range: atk.range,
-      block: getBlockValue(atk, weapon.shield !== undefined, c),
+      block: getBlockValue(atk, weapon, c),
       STRreq: atk.STRreq ?? null,
+      needsFocus: needsFocus(atk, c),
       properties: atk.properties,
       attack: atk,
     }))
@@ -98,9 +130,6 @@ export type DamageTierRow = {
   tier: number
   blunt: number
   RES: number
-  // gear.tex "Rigid armors": when RES is given as two numbers the second is the
-  // inner layer. 0 means the armor has no second layer.
-  RESlayer: number
   INS: number
   IL: number
   woundChance: number
@@ -119,7 +148,6 @@ export function getDamageTiers(c: Character): DamageTierRow[] {
       tier,
       blunt: armor.protection + tier * TGH,
       RES: armor.RES + tier * TGH,
-      RESlayer: armor.RESlayer > 0 ? armor.RESlayer + tier * TGH : 0,
       INS: armor.INS + tier * TGH,
       IL: effect.IL,
       woundChance: effect.woundChance,
@@ -147,28 +175,30 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 }
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
-export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) => AttackVariant[] {
+export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
   const heavyRange = getHeavyRange(atk.properties)
   const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
+  const kind = getAttackKind(atk.range)
+  const type = getAttackType(atk.range)
 
   return((c:Character) => {
     // Every STR contribution to damage is scaled by DM (creating.tex "Damage
     // Multiplier"), and every variation is a delta on the normal attack
     // (combat.tex "Strike"), so they all start from its damage, not the row's.
-    const STRxDM = getSTR(c) * getDM(c)
-    const type = getAttackType(atk.range)
-    const { blunt, cut } = getStrikeDamage(atk, c)
+    const STRxDM = getWieldSTR(weapon, c) * getDM(c)
+    const AP = atk.AP + getAPSurcharge(weapon, c)
+    const { blunt, cut } = getStrikeDamage(atk, weapon, c)
     // combat.tex "Heavy Attack": "Bonus applies to blunt damage and cutting damage."
     const plus = (bonus: number): Damage => ({ blunt: blunt + bonus, cut: cut + bonus })
 
     const heavy = (degree: number): AttackVariant => {
       const { penalty, STRmul } = HEAVY_DEGREES[degree]
-      const { AP, STA } = getActionCost(c, HEAVY_ACTIONS[degree - 1])
+      const cost = getActionCost(c, HEAVY_ACTIONS[degree - 1])
       return {
         name: `heavy${'I'.repeat(degree)}`,
         type,
-        AP: atk.AP + AP,
-        STA,
+        AP: AP + cost.AP,
+        STA: cost.STA,
         penalty,
         ...plus(Math.floor(STRmul * STRxDM)),
       }
@@ -178,13 +208,13 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
     const bracedCost = getActionCost(c, 'braced')
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
-    const basic: AttackVariant = { name: 'basic', type, AP: atk.AP, STA: 0, penalty: 0, blunt, cut }
+    const basic: AttackVariant = { name: 'basic', type, AP, STA: 0, penalty: 0, blunt, cut }
     // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
-    const braced: AttackVariant = { name: 'braced', type, AP: atk.AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)) }
-    const hook: AttackVariant = { name: 'hook', type, AP: atk.AP, STA: 0, penalty: 0, blunt, cut }
+    const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)) }
+    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut }
     // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
-    const quickShot: AttackVariant = { name: 'quick', type, AP: atk.AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
-    const snipe: AttackVariant = { name: 'snipe', type, AP: atk.AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
+    const quickShot: AttackVariant = { name: 'quick', type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
+    const snipe: AttackVariant = { name: 'snipe', type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
 
     const attacks: AttackVariant[] = []
 
@@ -200,7 +230,12 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
 
     if (has('braced')) attacks.push(braced)
     if (has('hook')) attacks.push(hook)
-    if (has('fast')) attacks.push(quickShot, snipe)
+    // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
+    // use quick shot unless STR is +3 points higher than the requirement."
+    if (kind === 'shoot') {
+      if (atk.STRreq === undefined || getSTR(c) >= atk.STRreq + 3) attacks.push(quickShot)
+      attacks.push(snipe)
+    }
 
     return attacks
   })
@@ -218,6 +253,8 @@ export type WeaponPanelView = {
   key: string
   name: string
   scale: number
+  // gear.tex "Size Scaling": one size above the wielder, and priced for it.
+  oversize: boolean
   grip: number
   // '' for a natural weapon: the free hands themselves, not a held item.
   itemId: string
@@ -237,6 +274,7 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     key,
     name: weapon.name,
     scale: weapon.scale,
+    oversize: isOversize(weapon, c),
     grip,
     itemId,
     natural,
@@ -246,7 +284,7 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
       return {
         ...row,
         usable,
-        variants: usable ? getAttacksList({ atk: row.attack })(c) : [],
+        variants: usable && !row.needsFocus ? getAttacksList({ atk: row.attack, weapon })(c) : [],
       }
     }),
   }))
@@ -262,13 +300,14 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.key,
         panel.name,
         panel.scale,
+        panel.oversize,
         panel.grip,
         panel.itemId,
         panel.natural,
         panel.shield ? `${panel.shield.cover}/${panel.shield.body}` : '',
         panel.rows
           .map((r) =>
-            [r.name, r.type, r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
+            [r.name, r.kind, r.handed, r.usable, r.needsFocus, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
              r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}`).join('~')]
               .join(','),
           )

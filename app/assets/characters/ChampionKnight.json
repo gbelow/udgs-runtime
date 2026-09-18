@@ -300,7 +300,6 @@
   "armor": {
     "name": "Full Armor",
     "RES": 16,
-    "RESlayer": 10,
     "INS": 8,
     "protection": 10,
     "deflection": 7,

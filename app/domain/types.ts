@@ -8,7 +8,6 @@ const str = z.string()
 export const ArmorSchema = z.object({
   name: z.string().default('Skin'),
   RES: z.number().default(0),
-  RESlayer: z.number().default(0),
   // TGH: z.number().default(0),
   INS: z.number().default(0),
   // poise: z.number().default(0),
@@ -127,6 +126,9 @@ export type Movement = z.infer<typeof MovementSchema>
 
 export const AttackTypeSchema = z.enum(ATTACK_TYPES)
 export type AttackType = z.infer<typeof AttackTypeSchema>
+
+// combat.tex "Strike", "Throw", "Shoot": the three basic weapon attacks.
+export type AttackKind = 'melee' | 'throw' | 'shoot'
 
 export const HandedSchema = z.enum(HANDS)
 export type Handed = z.infer<typeof HandedSchema>

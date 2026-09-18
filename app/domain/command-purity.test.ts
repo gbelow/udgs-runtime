@@ -55,7 +55,7 @@ function characterSubject(): CampaignCharacter {
   }
 }
 
-const attack = getAttacksList({ atk: dagger.attacks[0] })(characterSubject())[0]
+const attack = getAttacksList({ atk: dagger.attacks[0], weapon: dagger })(characterSubject())[0]
 
 // Keyed by the export name so the completeness check below can tell a command
 // that has no purity case from one that is deliberately not an updater.

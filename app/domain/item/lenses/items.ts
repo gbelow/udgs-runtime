@@ -1,5 +1,6 @@
 import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
+import { scaleWeapon } from '../../character/lenses/helpers'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
@@ -42,15 +43,30 @@ export function isSameItem(a: Item, b: Item): boolean {
     && a.description === b.description && a.bulk === b.bulk
 }
 
-// resolves what a refId'd item actually is, so e.g. a weapon sitting in a
-// backpack can be equipped as the real thing rather than staying a wrapper
-export function getItemWeapon(item: Item): Weapon | undefined {
-  if (item.type !== 'weapon' || !item.refId) return undefined
-  return getCatalogWeapon(item.refId)
+// gear.tex "Size Scaling": "Every piece of gear in the list is made for a
+// size 3 creature", and "Containers and Burden": scaling an item "also scales
+// item bulk by the same amount". So how far an item's bulk sits from its
+// template's is how far it has been scaled from size 3. An item with no
+// template in the catalog has nothing to be measured against and is size 3.
+export const GEAR_SIZE = 3
+
+export function getItemScale(item: Item): number {
+  const template = Object.values(itemsCatalog as Record<string, unknown>)
+    .map((raw) => ItemSchema.parse(raw))
+    .find((t) => t.type === item.type && t.refId === item.refId)
+  return template ? GEAR_SIZE + item.bulk - template.bulk : GEAR_SIZE
 }
 
-// The catalog weapon as printed: a scaled-up piece of gear is treated as a
-// normal one until the book decides what scaling does to it.
+// resolves what a refId'd item actually is, so e.g. a weapon sitting in a
+// backpack can be equipped as the real thing rather than staying a wrapper —
+// at the size the item has been scaled to (gear.tex "Scaling weapons").
+export function getItemWeapon(item: Item): Weapon | undefined {
+  if (item.type !== 'weapon' || !item.refId) return undefined
+  const weapon = getCatalogWeapon(item.refId)
+  return weapon && scaleWeapon(weapon, getItemScale(item))
+}
+
+// The catalog weapon as printed, made for a size 3 creature.
 export function getCatalogWeapon(key: string): Weapon | undefined {
   const raw = (weaponsCatalog as Record<string, unknown>)[key]
   return raw ? WeaponSchema.parse(raw) : undefined

@@ -10,10 +10,16 @@ const armors = Object.keys(armorsCatalog as Record<string, unknown>)
 
 // An item with a refId is a pointer into a catalog; resolving it is what lets a
 // weapon sitting in a backpack be equipped as the real thing. Driven off the
-// catalogs, so an entry added to either is resolved without a new case.
+// catalogs, so an entry added to either is resolved without a new case. A
+// weapon is stamped from its own item template, at the bulk the book lists it
+// at, so it comes back as printed rather than scaled (gear.tex "Size Scaling").
+const weaponTemplate = (refId: string) =>
+  Object.values(itemsCatalog as Record<string, unknown>).map((raw) => ItemSchema.parse(raw)).find((t) => t.type === 'weapon' && t.refId === refId)
+  ?? ItemSchema.parse({ name: refId, type: 'weapon', refId })
+
 describe('resolving a catalog item', () => {
   it.each(weapons)('resolves the weapon "%s"', (refId) => {
-    const item = ItemSchema.parse({ name: refId, type: 'weapon', refId })
+    const item = weaponTemplate(refId)
     expect(getItemWeapon(item)).toEqual(WeaponSchema.parse((weaponsCatalog as Record<string, unknown>)[refId]))
     expect(getItemArmor(item)).toBeUndefined()
   })

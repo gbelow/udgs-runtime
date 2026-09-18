@@ -113,8 +113,8 @@
         "handed": "one",
         "range": "STR",
         "RES": 15,
-        "blunt": 0,
-        "cut": 12,
+        "blunt": 4,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "precise",
@@ -316,8 +316,8 @@
         "handed": "one",
         "range": "2xSTR",
         "RES": 20,
-        "blunt": 4,
-        "cut": 16,
+        "blunt": 1,
+        "cut": 20,
         "AP": 3,
         "properties": [
           "heavy I-II",
@@ -411,7 +411,7 @@
       },
       {
         "name": "half-sword thrust",
-        "handed": "two",
+        "handed": "one",
         "range": "short",
         "RES": 20,
         "blunt": 0,
@@ -433,7 +433,8 @@
         "cut": 12,
         "AP": 3,
         "properties": [
-          "piercing"
+          "piercing",
+          "penetrating"
         ]
       }
     ]
@@ -453,7 +454,8 @@
         "properties": [
           "braced",
           "heavy I",
-          "piercing"
+          "piercing",
+          "penetrating"
         ]
       },
       {
@@ -656,7 +658,8 @@
         "properties": [
           "braced",
           "heavy I",
-          "piercing"
+          "piercing",
+          "bladed"
         ]
       }
     ]
@@ -675,7 +678,6 @@
         "AP": 4,
         "reload": 10,
         "properties": [
-          "grapple I",
           "slow",
           "reload",
           "grab"
@@ -692,14 +694,13 @@
         "handed": "two",
         "range": "STR",
         "RES": 10,
-        "blunt": 2,
-        "cut": 6,
+        "blunt": 6,
+        "cut": 10,
         "AP": 4,
         "reload": 4,
         "properties": [
           "hook",
-          "slow",
-          "reload"
+          "slow"
         ]
       }
     ]
@@ -731,8 +732,8 @@
         "handed": "two",
         "range": "100m",
         "RES": 10,
-        "blunt": 2,
-        "cut": 14,
+        "blunt": 6,
+        "cut": 18,
         "AP": 5,
         "properties": [
           "piercing",
@@ -751,8 +752,8 @@
         "handed": "two",
         "range": "150m",
         "RES": 10,
-        "blunt": 4,
-        "cut": 21,
+        "blunt": 8,
+        "cut": 25,
         "AP": 6,
         "STRreq": 13,
         "properties": [
@@ -772,8 +773,8 @@
         "handed": "two",
         "range": "200m",
         "RES": 10,
-        "blunt": 6,
-        "cut": 26,
+        "blunt": 10,
+        "cut": 30,
         "AP": 6,
         "STRreq": 16,
         "properties": [
@@ -793,8 +794,8 @@
         "handed": "two",
         "range": "150m",
         "RES": 10,
-        "blunt": 4,
-        "cut": 18,
+        "blunt": 8,
+        "cut": 22,
         "AP": 4,
         "reload": 4,
         "properties": [
@@ -815,8 +816,8 @@
         "handed": "two",
         "range": "200m",
         "RES": 10,
-        "blunt": 6,
-        "cut": 22,
+        "blunt": 10,
+        "cut": 26,
         "AP": 4,
         "reload": 6,
         "properties": [

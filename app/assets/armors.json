@@ -2,7 +2,6 @@
   "Skin": {
     "name": "Skin",
     "RES": 0,
-    "RESlayer": 0,
     "INS": 0,
     "protection": 0,
     "deflection": 4,
@@ -13,7 +12,6 @@
   "Clothing": {
     "name": "Clothing",
     "RES": 3,
-    "RESlayer": 0,
     "INS": 2,
     "protection": 0,
     "deflection": 4,
@@ -24,7 +22,6 @@
   "FurCoat": {
     "name": "Fur Coat",
     "RES": 7,
-    "RESlayer": 0,
     "INS": 6,
     "protection": 2,
     "deflection": 5,
@@ -35,7 +32,6 @@
   "ThickHide": {
     "name": "Thick Hide",
     "RES": 8,
-    "RESlayer": 0,
     "INS": 7,
     "protection": 4,
     "deflection": 5,
@@ -46,7 +42,6 @@
   "Gambeson": {
     "name": "Gambeson",
     "RES": 10,
-    "RESlayer": 0,
     "INS": 6,
     "protection": 3,
     "deflection": 5,
@@ -57,7 +52,6 @@
   "PaddedArmor": {
     "name": "Padded Armor",
     "RES": 12,
-    "RESlayer": 0,
     "INS": 8,
     "protection": 6,
     "deflection": 5,
@@ -68,7 +62,6 @@
   "ChainShirt": {
     "name": "Chain Shirt",
     "RES": 8,
-    "RESlayer": 0,
     "INS": 5,
     "protection": 3,
     "deflection": 5,
@@ -79,7 +72,6 @@
   "Hauberk": {
     "name": "Hauberk",
     "RES": 10,
-    "RESlayer": 0,
     "INS": 6,
     "protection": 5,
     "deflection": 5,
@@ -90,7 +82,6 @@
   "Brigandine": {
     "name": "Brigandine",
     "RES": 12,
-    "RESlayer": 8,
     "INS": 8,
     "protection": 8,
     "deflection": 6,
@@ -101,7 +92,6 @@
   "HalfArmor": {
     "name": "Half Armor",
     "RES": 16,
-    "RESlayer": 10,
     "INS": 7,
     "protection": 10,
     "deflection": 5,
@@ -112,7 +102,6 @@
   "FullArmor": {
     "name": "Full Armor",
     "RES": 16,
-    "RESlayer": 10,
     "INS": 8,
     "protection": 10,
     "deflection": 7,
@@ -123,7 +112,6 @@
   "ReinforcedArmor": {
     "name": "Reinforced Armor",
     "RES": 18,
-    "RESlayer": 10,
     "INS": 8,
     "protection": 12,
     "deflection": 8,

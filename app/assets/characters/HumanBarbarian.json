@@ -75,7 +75,6 @@
   "armor": {
     "name": "Hauberk",
     "RES": 12,
-    "RESlayer": 0,
     "poise": 0,
     "INS": 6,
     "protection": 4,

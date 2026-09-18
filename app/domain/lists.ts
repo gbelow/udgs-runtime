@@ -107,7 +107,6 @@ export const WEAPON_PROPERTIES = [
   'bladed',
   'penetrating',
   'precise',
-  'vicious',
   'slow',
   'fast',
   'UF',
@@ -123,8 +122,11 @@ export const ATTACK_TYPES = ['melee', 'ranged'] as const
 export const HANDS = ['one', 'two'] as const
 
 // gear.tex "Short, Long I/II": the reaches of a melee attack. Anything else
-// in a Range column is a ranged attack, so the range alone says which an
-// attack is; "9m" is the Net's own figure.
+// in a Range column is a ranged attack, and combat.tex "Throw"/"Shoot" split
+// those in two: a throw's range comes from STR ("9m" is the Net's own figure,
+// and the Net is thrown), a shot's is the weapon's. The range alone says
+// which kind an attack is.
 export const MELEE_RANGES = ['short', 'long I', 'long II'] as const
-export const RANGED_RANGES = ['STR', '2xSTR', '9m', '100m', '150m', '200m'] as const
-export const RANGES = [...MELEE_RANGES, ...RANGED_RANGES] as const
+export const THROWN_RANGES = ['STR', '2xSTR', '9m'] as const
+export const SHOT_RANGES = ['100m', '150m', '200m'] as const
+export const RANGES = [...MELEE_RANGES, ...THROWN_RANGES, ...SHOT_RANGES] as const

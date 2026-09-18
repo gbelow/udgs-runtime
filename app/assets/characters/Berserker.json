@@ -315,7 +315,6 @@
   "armor": {
     "name": "Brigandine",
     "RES": 12,
-    "RESlayer": 8,
     "INS": 8,
     "protection": 8,
     "deflection": 6,

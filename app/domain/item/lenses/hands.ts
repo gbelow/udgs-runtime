@@ -2,6 +2,7 @@ import { CampaignCharacter, Character, Hand, Handed, Item, SlotKind, Weapon } fr
 import { getBulkName, getCatalogWeapon, getItemWeapon } from './items'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { getSize } from '../../character/lenses/misc'
+import { scaleWeapon } from '../../character/lenses/helpers'
 import { isCampaignCharacter } from '../../utils'
 import { hasProperty } from '../../weaponProperties'
 
@@ -84,7 +85,8 @@ export type Wielded = {
 // resolve to a catalog weapon, then the natural weapon of each free hand. Free
 // hands sharing a natural weapon pool into one entry gripped by all of them,
 // so a two-handed natural attack needs two free hands the way a two-handed
-// weapon needs two hands on it.
+// weapon needs two hands on it. A natural weapon is part of the creature, so
+// it is the creature's size (gear.tex "Scaling weapons").
 export function getWieldedWeapons(c: Character): Wielded[] {
   const held = c.held.flatMap((item) => {
     const weapon = getItemWeapon(item)
@@ -96,7 +98,7 @@ export function getWieldedWeapons(c: Character): Wielded[] {
   }
   const fromHands = [...natural].flatMap(([name, grip]) => {
     const weapon = getCatalogWeapon(name)
-    return weapon ? [{ key: `natural:${name}`, weapon, grip, itemId: '', natural: true }] : []
+    return weapon ? [{ key: `natural:${name}`, weapon: scaleWeapon(weapon, getSize(c)), grip, itemId: '', natural: true }] : []
   })
   return [...held, ...fromHands]
 }

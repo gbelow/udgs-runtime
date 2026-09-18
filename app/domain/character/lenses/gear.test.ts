@@ -33,19 +33,6 @@ describe('getDamageTiers', () => {
     })
   })
 
-  // gear.tex "Rigid armors": the second RES number is the inner layer, and 0
-  // means there is no second layer to report rather than a layer worth nothing.
-  it.each(armors)('reports an inner layer for %s only if it has one', (key, raw) => {
-    const armor = ArmorSchema.parse(raw)
-    const rows = getDamageTiers(wearing(raw))
-    if (armor.RESlayer > 0) {
-      const step = rows[1].RESlayer - rows[0].RESlayer
-      rows.forEach((row, tier) => expect(row.RESlayer - armor.RESlayer, key).toBe(tier * step))
-    } else {
-      expect(rows.every((row) => row.RESlayer === 0), key).toBe(true)
-    }
-  })
-
   it('reports a wound chance that is a probability', () => {
     const rows = getDamageTiers(wearing(armorsCatalog.FullArmor))
     expect(rows.every((row) => row.woundChance >= 0 && row.woundChance <= 1)).toBe(true)
