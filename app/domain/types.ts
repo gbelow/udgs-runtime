@@ -137,11 +137,11 @@ export type Range = z.infer<typeof RangeSchema>
 export const WeaponPropertySchema = z.enum(WEAPON_PROPERTIES)
 export type WeaponProperty = z.infer<typeof WeaponPropertySchema>
 
-// One row of a gear.tex weapon table. Its block value is not stored: gear.tex
-// "DEF" derives it from the wielder's STR and the row's hands.
+// One row of a gear.tex weapon table. Whether it is melee or ranged is not
+// stored, its range says (see getAttackType); nor is its block value, which
+// gear.tex "DEF" derives from the wielder's STR and the row's hands.
 export const WeaponAttackSchema = z.object({
   name: str.default(''),
-  type: AttackTypeSchema.default('melee'),
   handed: HandedSchema.default('one'),
   range: RangeSchema.default('short'),
 

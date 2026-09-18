@@ -90,7 +90,8 @@ export const ITEM_TYPES = ['weapon', 'armor', 'flammable', 'poison', 'trap', 'ma
 // proplist's "sweeping" and "hook". "STR x" is parameterized, so it is the
 // attack's own `STRreq` field rather than a member here.
 export const WEAPON_PROPERTIES = [
-  'grapple',
+  'grapple I',
+  'grapple II',
   'sweeping',
   'braced',
   'shaft',
@@ -121,6 +122,9 @@ export const ATTACK_TYPES = ['melee', 'ranged'] as const
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
 
-// gear.tex "Short, Long I/II" for melee; the Range column of the ranged
-// tables for the rest. "9m" is the Net's own figure.
-export const RANGES = ['short', 'long I', 'long II', 'STR', '2xSTR', '9m', '100m', '150m', '200m'] as const
+// gear.tex "Short, Long I/II": the reaches of a melee attack. Anything else
+// in a Range column is a ranged attack, so the range alone says which an
+// attack is; "9m" is the Net's own figure.
+export const MELEE_RANGES = ['short', 'long I', 'long II'] as const
+export const RANGED_RANGES = ['STR', '2xSTR', '9m', '100m', '150m', '200m'] as const
+export const RANGES = [...MELEE_RANGES, ...RANGED_RANGES] as const

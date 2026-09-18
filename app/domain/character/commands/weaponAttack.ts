@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character } from "../../types"
+import { AttackType, CampaignCharacter, Character } from "../../types"
 import { AttackVariant } from "../lenses/gear"
 import { updateSTA } from "./bleed"
 import { getAccuracy, getStrike } from "../lenses/skills"
@@ -14,7 +14,7 @@ export function spendAttackResources (atk: AttackVariant) {
 }
 
 
-export function getAttackValues (atk: AttackVariant , type: string, weapon: string, roll: number) {
+export function getAttackValues (atk: AttackVariant , type: AttackType, weapon: string, roll: number) {
   return((c: Character) => {
     let val = roll - atk.penalty
     if(type=='ranged') val += getAccuracy(c)

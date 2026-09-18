@@ -20,7 +20,7 @@ export function WeaponPanel(){
                 setLastAtk(result)
               }
             }
-            return <input className="bg-gray-500 border rounded px-1" type='button' key={el.name} value={el.name} onClick={handleClick} />
+            return <input className="bg-gray-500 border rounded px-1" type='button' key={el.name} value={`${el.name} ${el.blunt}/${el.cut}`} title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`} onClick={handleClick} />
           })
         }
       </>

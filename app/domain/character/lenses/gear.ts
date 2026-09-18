@@ -1,11 +1,12 @@
-import { Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
+import { AttackType, Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getTGH } from "./misc";
 import { injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
-import { getHeavyRange, hasProperty } from "../../weaponProperties";
+import { getDM } from "./helpers";
+import { getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
 // are then "modified by (STR-10)/5". Penalties are stored as positive
@@ -34,10 +35,27 @@ export function getBlockValue(atk: WeaponAttack, shield: boolean, c: Character):
   return atk.handed === 'two' || shield ? 2 * getSTR(c) : getSTR(c)
 }
 
+// combat.tex "Strike": a strike is a melee weapon attack, and it is the strike
+// that carries the wielder's strength: 0.5 x STR x DM — current STR, the
+// wielder's DM — on blunt and cut alike. A shot or a throw does not get it,
+// and neither does a grapple I, which gear.tex "Grapple I/II" says deals no
+// damage; a grapple II "deals damage normally" and so is a strike.
+export function isStrike(atk: WeaponAttack): boolean {
+  return getAttackType(atk.range) === 'melee' && !hasProperty(atk.properties, 'grapple I')
+}
+
+export type Damage = { blunt: number; cut: number }
+
+export function getStrikeDamage(atk: WeaponAttack, c: Character): Damage {
+  const bonus = isStrike(atk) ? Math.floor(0.5 * getSTR(c) * getDM(c)) : 0
+  return { blunt: atk.blunt + bonus, cut: atk.cut + bonus }
+}
+
 // Read-side projection of one row of a weapon's attack table. Every number is
 // final — the component renders it, it does not compute it.
 export type WeaponAttackRow = {
   name: string
+  type: AttackType
   handed: Handed
   RES: number
   blunt: number
@@ -55,10 +73,11 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
   return (c: Character) =>
     weapon.attacks.map((atk) => ({
       name: atk.name,
+      type: getAttackType(atk.range),
       handed: atk.handed,
       RES: atk.RES,
-      blunt: atk.blunt,
-      cut: atk.cut,
+      // The damage the normal attack deals, STR included — not the bare row.
+      ...getStrikeDamage(atk, c),
       AP: atk.AP,
       // gear.tex "Reload": the row's own figure, moved by abilities and never
       // below free; a row without the property stays at 0 whatever it stores.
@@ -109,7 +128,7 @@ export function getDamageTiers(c: Character): DamageTierRow[] {
 }
 
 export type AttackVariant = {
-  type: string
+  type: AttackType
   name: string
   AP: number
   STA:number
@@ -118,9 +137,9 @@ export type AttackVariant = {
   cut: number
 }
 
-// gear.tex "Heavy I/II/III". Degree n adds n/2 x STR to damage; the to-hit
-// penalty is not a formula, so it is tabulated. The AP/STA price sits with
-// the other action prices in ACTION_COSTS.
+// combat.tex "Heavy Attack". Degree n adds n/2 x STR x DM to damage; the
+// to-hit penalty is not a formula, so it is tabulated. The AP/STA price sits
+// with the other action prices in ACTION_COSTS.
 const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
   1: { penalty: 0, STRmul: 0.5 },
   2: { penalty: 2, STRmul: 1 },
@@ -133,24 +152,25 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
   const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
 
   return((c:Character) => {
-    const STR = getSTR(c)
-    const { blunt, cut } = atk
+    // Every STR contribution to damage is scaled by DM (creating.tex "Damage
+    // Multiplier"), and every variation is a delta on the normal attack
+    // (combat.tex "Strike"), so they all start from its damage, not the row's.
+    const STRxDM = getSTR(c) * getDM(c)
+    const type = getAttackType(atk.range)
+    const { blunt, cut } = getStrikeDamage(atk, c)
+    // combat.tex "Heavy Attack": "Bonus applies to blunt damage and cutting damage."
+    const plus = (bonus: number): Damage => ({ blunt: blunt + bonus, cut: cut + bonus })
 
-    // A heavy attack adds the same STR multiple to both damage components, but
-    // only to a component the attack actually has — a weapon with no cut stays
-    // at 0 rather than becoming a cutting weapon at higher degrees.
     const heavy = (degree: number): AttackVariant => {
       const { penalty, STRmul } = HEAVY_DEGREES[degree]
       const { AP, STA } = getActionCost(c, HEAVY_ACTIONS[degree - 1])
-      const bonus = Math.floor(STRmul * STR)
       return {
         name: `heavy${'I'.repeat(degree)}`,
-        type: 'melee',
+        type,
         AP: atk.AP + AP,
         STA,
         penalty,
-        blunt: blunt + bonus,
-        cut: cut ? cut + bonus : 0,
+        ...plus(Math.floor(STRmul * STRxDM)),
       }
     }
 
@@ -158,12 +178,13 @@ export function getAttacksList ({atk} : {atk: WeaponAttack }) : (c: Character) =
     const bracedCost = getActionCost(c, 'braced')
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
-    const basic = {name: 'basic', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
-    const braced = {name: 'braced', type: 'melee', AP: atk.AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, blunt: blunt+ Math.floor(STR), cut: cut ? cut+ Math.floor(STR) : 0}
-    const hook = {name: 'hook', type: 'melee', AP: atk.AP, STA:0, penalty: 0, blunt, cut }
+    const basic: AttackVariant = { name: 'basic', type, AP: atk.AP, STA: 0, penalty: 0, blunt, cut }
+    // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
+    const braced: AttackVariant = { name: 'braced', type, AP: atk.AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)) }
+    const hook: AttackVariant = { name: 'hook', type, AP: atk.AP, STA: 0, penalty: 0, blunt, cut }
     // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
-    const quickShot = {name: 'quick', type: 'ranged', AP: atk.AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
-    const snipe = {name: 'snipe', type: 'ranged', AP: atk.AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
+    const quickShot: AttackVariant = { name: 'quick', type, AP: atk.AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
+    const snipe: AttackVariant = { name: 'snipe', type, AP: atk.AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
 
     const attacks: AttackVariant[] = []
 
@@ -247,7 +268,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.shield ? `${panel.shield.cover}/${panel.shield.body}` : '',
         panel.rows
           .map((r) =>
-            [r.name, r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
+            [r.name, r.type, r.handed, r.usable, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
              r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}`).join('~')]
               .join(','),
           )

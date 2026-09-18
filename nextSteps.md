@@ -29,6 +29,7 @@
 - separate by item category
 
 ## weapons/armor
+- latex table generator from the weapons catalogue (gear.tex stattables)
 - add customization options to weapons
 - add customization options to armors
 - think about resLayer

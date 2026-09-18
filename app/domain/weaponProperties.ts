@@ -1,4 +1,5 @@
-import type { WeaponProperty } from './types'
+import type { AttackType, Range, WeaponProperty } from './types'
+import { MELEE_RANGES } from './lists'
 
 // gear.tex "Heavy I/II/III": "Having a higher degree of heavy allows using any
 // lower degree. Having heavy I-III or similar means that heavy I is minimum,
@@ -27,4 +28,10 @@ export function getHeavyRange(properties: readonly WeaponProperty[]): HeavyRange
     if (range) return range
   }
   return null
+}
+
+// gear.tex "Short, Long I/II" are melee reaches; every other range is a shot
+// or a throw, so an attack's range decides what kind of attack it is.
+export function getAttackType(range: Range): AttackType {
+  return (MELEE_RANGES as readonly string[]).includes(range) ? 'melee' : 'ranged'
 }

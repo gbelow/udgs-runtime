@@ -5,7 +5,6 @@
     "attacks": [
       {
         "name": "grapple",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 0,
@@ -13,7 +12,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "braced",
           "DEF",
           "hook",
@@ -22,11 +21,10 @@
       },
       {
         "name": "punch",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 0,
-        "blunt": 5,
+        "blunt": 0,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -43,15 +41,14 @@
     "attacks": [
       {
         "name": "claw",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 10,
         "blunt": 0,
-        "cut": 5,
+        "cut": 1,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple II",
           "hook"
         ]
       }
@@ -63,7 +60,6 @@
     "attacks": [
       {
         "name": "grapple",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 25,
@@ -71,18 +67,17 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "DEF",
           "hook"
         ]
       },
       {
         "name": "punch",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 25,
-        "blunt": 8,
+        "blunt": 4,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -98,12 +93,11 @@
     "attacks": [
       {
         "name": "stab",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
-        "blunt": 4,
-        "cut": 15,
+        "blunt": 0,
+        "cut": 11,
         "AP": 3,
         "properties": [
           "DEF",
@@ -116,12 +110,11 @@
       },
       {
         "name": "throw",
-        "type": "ranged",
         "handed": "one",
         "range": "STR",
         "RES": 15,
-        "blunt": 4,
-        "cut": 16,
+        "blunt": 0,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "precise",
@@ -137,11 +130,10 @@
     "attacks": [
       {
         "name": "strike",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
-        "blunt": 8,
+        "blunt": 4,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -157,12 +149,11 @@
     "attacks": [
       {
         "name": "stab",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
-        "blunt": 4,
-        "cut": 15,
+        "blunt": 0,
+        "cut": 11,
         "AP": 3,
         "properties": [
           "heavy I",
@@ -174,7 +165,6 @@
       },
       {
         "name": "parry",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
@@ -194,12 +184,11 @@
     "attacks": [
       {
         "name": "lash",
-        "type": "melee",
         "handed": "one",
         "range": "long II",
         "RES": 10,
         "blunt": 0,
-        "cut": 6,
+        "cut": 2,
         "AP": 3,
         "properties": [
           "draw"
@@ -207,7 +196,6 @@
       },
       {
         "name": "entangle",
-        "type": "melee",
         "handed": "one",
         "range": "long II",
         "RES": 15,
@@ -215,7 +203,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple"
+          "grapple I"
         ]
       }
     ]
@@ -226,12 +214,11 @@
     "attacks": [
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 20,
-        "blunt": 4,
-        "cut": 16,
+        "blunt": 0,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "piercing",
@@ -242,12 +229,11 @@
       },
       {
         "name": "cut",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 20,
-        "blunt": 8,
-        "cut": 16,
+        "blunt": 4,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "sweeping",
@@ -265,12 +251,11 @@
     "attacks": [
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "one",
         "range": "long I",
         "RES": 15,
-        "blunt": 5,
-        "cut": 16,
+        "blunt": 1,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "piercing",
@@ -281,7 +266,6 @@
       },
       {
         "name": "parry",
-        "type": "melee",
         "handed": "one",
         "range": "long I",
         "RES": 15,
@@ -300,12 +284,11 @@
     "attacks": [
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 6,
-        "cut": 24,
+        "blunt": 2,
+        "cut": 20,
         "AP": 3,
         "properties": [
           "braced",
@@ -316,7 +299,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "two",
         "range": "short",
         "RES": 15,
@@ -324,19 +306,18 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "shaft",
           "DEF"
         ]
       },
       {
         "name": "throw",
-        "type": "ranged",
         "handed": "one",
         "range": "2xSTR",
         "RES": 20,
-        "blunt": 8,
-        "cut": 20,
+        "blunt": 4,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "heavy I-II",
@@ -352,11 +333,10 @@
     "attacks": [
       {
         "name": "strike",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 50,
-        "blunt": 12,
+        "blunt": 8,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -366,7 +346,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
@@ -386,12 +365,11 @@
     "attacks": [
       {
         "name": "chop",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 25,
-        "blunt": 10,
-        "cut": 15,
+        "blunt": 6,
+        "cut": 11,
         "AP": 3,
         "properties": [
           "heavy I-II",
@@ -400,7 +378,6 @@
       },
       {
         "name": "parry",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 15,
@@ -419,12 +396,11 @@
     "attacks": [
       {
         "name": "cut",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 10,
-        "cut": 18,
+        "blunt": 6,
+        "cut": 14,
         "AP": 3,
         "properties": [
           "sweeping",
@@ -435,12 +411,11 @@
       },
       {
         "name": "half-sword thrust",
-        "type": "melee",
         "handed": "two",
         "range": "short",
         "RES": 20,
-        "blunt": 4,
-        "cut": 16,
+        "blunt": 0,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "heavy I",
@@ -451,12 +426,11 @@
       },
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 4,
-        "cut": 16,
+        "blunt": 0,
+        "cut": 12,
         "AP": 3,
         "properties": [
           "piercing"
@@ -470,12 +444,11 @@
     "attacks": [
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "two",
         "range": "long II",
         "RES": 20,
-        "blunt": 6,
-        "cut": 24,
+        "blunt": 2,
+        "cut": 20,
         "AP": 3,
         "properties": [
           "braced",
@@ -485,7 +458,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
@@ -504,12 +476,11 @@
     "attacks": [
       {
         "name": "spear point",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 6,
-        "cut": 24,
+        "blunt": 2,
+        "cut": 20,
         "AP": 3,
         "properties": [
           "braced",
@@ -520,12 +491,11 @@
       },
       {
         "name": "hook",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 30,
-        "blunt": 5,
-        "cut": 12,
+        "blunt": 1,
+        "cut": 8,
         "AP": 3,
         "properties": [
           "hook",
@@ -534,7 +504,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "two",
         "range": "short",
         "RES": 20,
@@ -542,19 +511,18 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "shaft",
           "DEF"
         ]
       },
       {
         "name": "axe head",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 30,
-        "blunt": 12,
-        "cut": 20,
+        "blunt": 8,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "heavy I-III",
@@ -569,12 +537,11 @@
     "attacks": [
       {
         "name": "spear point",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 6,
-        "cut": 24,
+        "blunt": 2,
+        "cut": 20,
         "AP": 3,
         "properties": [
           "braced",
@@ -585,12 +552,11 @@
       },
       {
         "name": "hook",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 30,
-        "blunt": 5,
-        "cut": 12,
+        "blunt": 0,
+        "cut": 8,
         "AP": 3,
         "properties": [
           "hook",
@@ -599,7 +565,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "two",
         "range": "short",
         "RES": 20,
@@ -607,18 +572,17 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "shaft",
           "DEF"
         ]
       },
       {
         "name": "hammer",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 100,
-        "blunt": 14,
+        "blunt": 10,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -634,12 +598,11 @@
     "attacks": [
       {
         "name": "chop",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 30,
-        "blunt": 12,
-        "cut": 20,
+        "blunt": 8,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "sweeping",
@@ -649,7 +612,6 @@
       },
       {
         "name": "shaft",
-        "type": "melee",
         "handed": "two",
         "range": "short",
         "RES": 20,
@@ -657,7 +619,7 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple",
+          "grapple I",
           "shaft",
           "DEF"
         ]
@@ -670,12 +632,11 @@
     "attacks": [
       {
         "name": "cut",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 30,
-        "blunt": 12,
-        "cut": 18,
+        "blunt": 8,
+        "cut": 14,
         "AP": 3,
         "properties": [
           "sweeping",
@@ -686,12 +647,11 @@
       },
       {
         "name": "thrust",
-        "type": "melee",
         "handed": "two",
         "range": "long I",
         "RES": 20,
-        "blunt": 6,
-        "cut": 20,
+        "blunt": 2,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "braced",
@@ -707,7 +667,6 @@
     "attacks": [
       {
         "name": "throw",
-        "type": "ranged",
         "handed": "two",
         "range": "9m",
         "RES": 15,
@@ -716,7 +675,7 @@
         "AP": 4,
         "reload": 10,
         "properties": [
-          "grapple",
+          "grapple I",
           "slow",
           "reload",
           "grab"
@@ -730,12 +689,11 @@
     "attacks": [
       {
         "name": "throw",
-        "type": "ranged",
         "handed": "two",
         "range": "STR",
         "RES": 10,
-        "blunt": 6,
-        "cut": 10,
+        "blunt": 2,
+        "cut": 6,
         "AP": 4,
         "reload": 4,
         "properties": [
@@ -752,7 +710,6 @@
     "attacks": [
       {
         "name": "throw",
-        "type": "ranged",
         "handed": "one",
         "range": "2xSTR",
         "RES": 20,
@@ -771,12 +728,11 @@
     "attacks": [
       {
         "name": "shoot",
-        "type": "ranged",
         "handed": "two",
         "range": "100m",
         "RES": 10,
-        "blunt": 6,
-        "cut": 18,
+        "blunt": 2,
+        "cut": 14,
         "AP": 5,
         "properties": [
           "piercing",
@@ -792,12 +748,11 @@
     "attacks": [
       {
         "name": "shoot",
-        "type": "ranged",
         "handed": "two",
         "range": "150m",
         "RES": 10,
-        "blunt": 8,
-        "cut": 25,
+        "blunt": 4,
+        "cut": 21,
         "AP": 6,
         "STRreq": 13,
         "properties": [
@@ -814,12 +769,11 @@
     "attacks": [
       {
         "name": "shoot",
-        "type": "ranged",
         "handed": "two",
         "range": "200m",
         "RES": 10,
-        "blunt": 10,
-        "cut": 30,
+        "blunt": 6,
+        "cut": 26,
         "AP": 6,
         "STRreq": 16,
         "properties": [
@@ -836,12 +790,11 @@
     "attacks": [
       {
         "name": "shoot",
-        "type": "ranged",
         "handed": "two",
         "range": "150m",
         "RES": 10,
-        "blunt": 8,
-        "cut": 22,
+        "blunt": 4,
+        "cut": 18,
         "AP": 4,
         "reload": 4,
         "properties": [
@@ -859,12 +812,11 @@
     "attacks": [
       {
         "name": "shoot",
-        "type": "ranged",
         "handed": "two",
         "range": "200m",
         "RES": 10,
-        "blunt": 10,
-        "cut": 26,
+        "blunt": 6,
+        "cut": 22,
         "AP": 4,
         "reload": 6,
         "properties": [
@@ -888,11 +840,10 @@
     "attacks": [
       {
         "name": "bash",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 20,
-        "blunt": 4,
+        "blunt": 0,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -914,11 +865,10 @@
     "attacks": [
       {
         "name": "bash",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 30,
-        "blunt": 8,
+        "blunt": 4,
         "cut": 0,
         "AP": 3,
         "properties": [
@@ -940,11 +890,10 @@
     "attacks": [
       {
         "name": "bash",
-        "type": "melee",
         "handed": "one",
         "range": "short",
         "RES": 20,
-        "blunt": 8,
+        "blunt": 4,
         "cut": 0,
         "AP": 3,
         "properties": [

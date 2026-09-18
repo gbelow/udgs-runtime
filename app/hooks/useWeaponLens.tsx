@@ -9,6 +9,7 @@ import {
   WeaponPanelView,
 } from "../domain/character/lenses/gear";
 import { isCampaignCharacter } from "../domain/utils";
+import type { AttackType } from "../domain/types";
 import { rollFull } from "../domain/combat/dice";
 import { useAppStore } from "../stores/useAppStore";
 import { readActiveCharacter, useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -25,7 +26,7 @@ export function useWeaponLens() {
   const panels: WeaponPanelView[] =
     useActiveCharacterDerived(getWeaponPanels, getWeaponPanelsDigest) ?? [];
 
-  const attack = (atk: AttackVariant, type: string, weapon: string) => {
+  const attack = (atk: AttackVariant, type: AttackType, weapon: string) => {
     const active = readActiveCharacter(tab);
     if (!active || !isCampaignCharacter(active)) return;
     const newCharacter = update(spendAttackResources(atk));
