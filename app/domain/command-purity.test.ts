@@ -4,15 +4,14 @@ import * as itemCommands from './item/commands'
 import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
 import * as startTurnModule from './combat/commands/startTurn'
+import * as actionsModule from './combat/commands/action'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { makeCampaignCharacter } from './factories'
-import { getAttacksList } from './character/lenses/gear'
-import { ArmorSchema, ContainerSchema, ItemSchema, WeaponSchema } from './types'
+import { ArmorSchema, ContainerSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
-import weaponsCatalog from '../assets/weapons.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -32,7 +31,6 @@ function deepFreeze<T>(value: T): T {
 }
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
-const dagger = WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
@@ -57,8 +55,6 @@ function characterSubject(): CampaignCharacter {
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }
-
-const attack = getAttacksList({ atk: dagger.attacks[0], weapon: dagger })(characterSubject())[0]
 
 // The subject with nothing on and the AP to put something on.
 const bareAndRested = (c: CampaignCharacter): CampaignCharacter => ({ ...c, worn: null, resources: { ...c.resources, AP: 12 } })
@@ -100,7 +96,6 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
-  spendAttackResources: characterCommands.spendAttackResources(attack),
 }
 
 const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
@@ -116,21 +111,35 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   dropItem: itemCommands.dropItem(daggerItem.id),
 }
 
-// Read projections, not updaters: they take a character and return a value
-// rather than a character, so there is nothing for them to mutate.
-const NOT_UPDATERS = new Set(['getAttackValues'])
+const NOT_UPDATERS = new Set<string>()
 
+const newId = () => 'issued'
+
+// The subject holds a strike declared by `a` at `b`, with `b`'s evade in
+// answer, so every phase has something to act on; the commands that need the
+// fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound,
   resetCombat: combatCommands.resetCombat,
   startTurn: combatCommands.startTurn,
+  declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(combatCommands.cancelAction()(s))),
+  amendAction: combatCommands.amendAction({ location: 'head' }),
+  setTarget: combatCommands.setTarget('b'),
+  declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
+  withdrawReaction: combatCommands.withdrawReaction('b'),
+  cancelAction: combatCommands.cancelAction(),
+  rollAction: combatCommands.rollAction(7),
+  resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
 }
 
 function combatSubject(): CombatState {
-  const fighter = { ...characterSubject(), id: 'a' }
+  const a = { ...characterSubject(), id: 'a', fightName: 'a' }
+  const b = { ...characterSubject(), id: 'b', fightName: 'b' }
+  const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }
+  const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
-    ...CombatStateSchema.parse({}),
-    characters: { a: fighter },
+    ...CombatStateSchema.parse({ actions: [strike, evade] }),
+    characters: { a, b },
     activeCharacterId: 'a',
     round: 3,
   }

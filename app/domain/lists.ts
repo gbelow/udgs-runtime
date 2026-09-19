@@ -137,6 +137,10 @@ export const MATERIALS = ['metal', 'rock', 'wood', 'bone', 'flesh', 'fiber', 'li
 
 export const ATTACK_TYPES = ['melee', 'ranged'] as const
 
+// combat.tex "Localized damage": the places a humanoid can be aimed at, in the
+// book's order; what aiming at each does is in `tables.ts` LOCATIONS.
+export const HIT_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
+
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
 

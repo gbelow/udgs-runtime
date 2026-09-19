@@ -9,8 +9,3 @@ export { removeKnowledge, addKnowledge } from "./knowledge"
 export { learnAbility, forgetAbility, toggleAbility, useAbility, expireUsedAbilities } from "./abilities"
 export { applyEffects, applyTrigger } from "./effects"
 export { learnSpell, forgetSpell, practiceSpell, castSpell, applyModification, clearPendingAction } from "./spells"
-
-export {
-  spendAttackResources,
-  getAttackValues,
-} from "./weaponAttack"

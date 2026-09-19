@@ -6,7 +6,8 @@ import { ContainerPanel } from './ContainerPanel';
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { makeDieRoll, makeFullRoll } from './utils';
+import { ActionPanel } from './ActionPanel';
+import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
@@ -51,13 +52,6 @@ export function PlayPanel(){
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
 
-  const [rolledSkill, setRolledSkill] = useState({name:'', value:0})
-
-  const rollSkill = (name:string, value: number) => {
-    const roll = makeFullRoll()
-    setRolledSkill({name, value:value+roll})
-  }
-
   return(
     <div className='flex flex-col text-left'>
       <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
@@ -77,8 +71,8 @@ export function PlayPanel(){
               <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
               <SurgeControl />
               <Button aria-label='rest' onClick={rest}>rest</Button>
-              <span className='ml-auto text-xs text-muted'>last roll <span className='font-mono text-fg'>{rolledSkill.name} {rolledSkill.value || ''}</span></span>
             </div>
+            <ActionPanel />
 
             <div className='flex flex-col gap-1'>
               <SectionLabel>Resources</SectionLabel>
@@ -114,16 +108,16 @@ export function PlayPanel(){
             </div>
 
             <div className='flex flex-col gap-1'>
-              <SectionLabel>Combat · click to roll</SectionLabel>
-              <Tiles>{COMBAT.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
+              <SectionLabel>Combat</SectionLabel>
+              <Tiles>{COMBAT.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
             </div>
             <div className='flex flex-col gap-1'>
               <SectionLabel>Physical</SectionLabel>
-              <Tiles>{PHYSICAL.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
+              <Tiles>{PHYSICAL.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
             </div>
             <div className='flex flex-col gap-1'>
               <SectionLabel>Mind &amp; social</SectionLabel>
-              <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
+              <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
             </div>
             <KnowledgesPanel />
             <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
@@ -234,13 +228,12 @@ function SimpleCharacteristic({propName}: {propName: keyof Characteristics}){
   )
 }
 
-function SimpleSkill({skillId, rollSkill}: {skillId: keyof Skills, rollSkill?: (name:string, value:number)=> void}){
+function SimpleSkill({skillId}: {skillId: keyof Skills}){
   const [value, , terms, view] = useSkillLens(skillId)
   const [name] = useTrainableNameLens(skillId)
   return(
     <SkillTooltip terms={terms} total={value}>
-      <StatTile label={name} value={value} modifier={view.modifier} afflicted={view.afflicted}
-        onRoll={rollSkill ? () => rollSkill(name, value) : undefined} />
+      <StatTile label={name} value={value} modifier={view.modifier} afflicted={view.afflicted} />
     </SkillTooltip>
   )
 }
@@ -330,18 +323,19 @@ function SurgeControl(){
 }
 
 function CharacterList(){
-  const { roster, setActiveCharacter } = useCombatRoster()
+  const { roster, pick } = useCombatRoster()
 
   return(
     <div className='flex flex-row gap-1.5 grow overflow-x-auto'>
       {
         roster.map((entry) =>
           <Button key={entry.id} aria-label={entry.name}
-            variant={entry.isActive ? 'primary' : 'default'}
-            className={entry.isActive ? 'bg-accent/15' : ''}
-            onClick={() => setActiveCharacter(entry.id)}>
+            variant={entry.targetable ? 'bad' : entry.isActive ? 'primary' : 'default'}
+            className={entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}
+            onClick={() => pick(entry)}>
             {entry.name}
             {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
+            {entry.role && entry.role !== 'none' ? <span className='ml-1.5 text-[10px] text-muted'>{entry.role}</span> : null}
           </Button>
         )
       }

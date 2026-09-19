@@ -1,4 +1,4 @@
-import { MATERIALS } from './lists'
+import { HIT_LOCATIONS, MATERIALS } from './lists'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -223,6 +223,17 @@ export const ACTION_COSTS = {
 } as const satisfies Record<string, { AP: number; STA: number }>
 
 export type ActionKind = keyof typeof ACTION_COSTS
+
+// combat.tex "Localized damage", the humanoid locations: the penalty to the
+// attack test for aiming there, stored as a positive magnitude, and the
+// highest injury tier the body takes from a hit there (`null` when the book
+// sets no cap). Chest is the default when nothing is declared.
+export const LOCATIONS = {
+  chest: { penalty: 0, maxTier: null },
+  hand:  { penalty: 10, maxTier: 2 },
+  leg:   { penalty: 0, maxTier: 3 },
+  head:  { penalty: 5, maxTier: null },
+} as const satisfies Record<(typeof HIT_LOCATIONS)[number], { penalty: number; maxTier: number | null }>
 
 // combat.tex "What cuts?": "There are 4 levels of material hardness. The first
 // is for liquids. The second is for fabrics, flesh, and similar materials. The

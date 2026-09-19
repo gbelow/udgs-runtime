@@ -103,16 +103,16 @@ function useChangeCount(value: number | string, input: React.RefObject<HTMLInput
   return count
 }
 
-// A label over a value. Rollable tiles are buttons; editable ones carry an
+// A label over a value. Clickable tiles are buttons; editable ones carry an
 // input; the rest are plain. `modifier` is the net change shown in the corner,
 // `afflicted` paints the tile as harmed, and any change to `value` from
 // outside the tile flashes its border once.
-export function StatTile({ label, value, modifier = 0, afflicted = false, onRoll, onChange, step, title, footer, className = '' }: {
+export function StatTile({ label, value, modifier = 0, afflicted = false, onClick, onChange, step, title, footer, className = '' }: {
   label: ReactNode
   value: number | string
   modifier?: number
   afflicted?: boolean
-  onRoll?: () => void
+  onClick?: () => void
   onChange?: (value: number) => void
   step?: number
   title?: string
@@ -122,7 +122,7 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onRoll
   const input = useRef<HTMLInputElement>(null)
   const changes = useChangeCount(value, input)
   const frame = `relative flex flex-col gap-px w-16 min-w-0 rounded border bg-surface px-1 py-1 text-center
-    ${afflicted ? 'border-bad' : 'border-line'} ${onRoll ? 'cursor-pointer hover:border-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent' : ''} ${className}`
+    ${afflicted ? 'border-bad' : 'border-line'} ${onClick ? 'cursor-pointer hover:border-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent' : ''} ${className}`
   const body = (
     <>
       <span className='text-[10px] leading-tight text-muted truncate' title={title ?? (typeof label === 'string' ? label : undefined)}>{label}</span>
@@ -138,8 +138,8 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onRoll
       {changes > 0 ? <span key={changes} aria-hidden className='absolute inset-0 rounded animate-flash motion-reduce:animate-none pointer-events-none' /> : null}
     </>
   )
-  return onRoll ?
-    <button type='button' className={frame} onClick={onRoll} aria-label={title ?? String(label)}>{body}</button> :
+  return onClick ?
+    <button type='button' className={frame} onClick={onClick} aria-label={title ?? String(label)}>{body}</button> :
     <div className={frame}>{body}</div>
 }
 

@@ -1,37 +1,37 @@
 'use client'
 
-import { useState } from "react";
 import { useWeaponLens } from "../hooks/useWeaponLens";
+import { useCombatActions } from "../hooks/useCombatActions";
 import type { AttackVariant } from "../domain/character/lenses/gear";
+import type { AttackKind } from "../domain/types";
 import { Button, Panel } from "./ui";
 
 const th = 'font-medium px-1 pb-1 border-b border-line'
 
+// The weapons in hand as a table; a melee row's variants declare a strike
+// with that row filled in, so the action panel opens at the target step.
 export function WeaponPanel(){
-  const { panels, attack } = useWeaponLens()
+  const { panels } = useWeaponLens()
+  const { declare } = useCombatActions()
 
-  const [lastAtk, setLastAtk] = useState({atk:0, type: '', weapon: '', blunt: 0, cut: 0})
-
-  const AttackButtons = ({variants, weaponName} : {variants: AttackVariant[], weaponName: string }) =>{
+  const AttackButtons = ({ variants, weaponKey, attack, kind }: { variants: AttackVariant[], weaponKey: string, attack: string, kind: AttackKind }) =>{
     return(
       <span className='flex flex-row flex-wrap gap-1'>
         {
-          variants.map(el => {
-            const handleClick = () => {
-              const result = attack(el, el.type, weaponName)
-              if (result) {
-                setLastAtk(result)
-              }
-            }
-            return <Button size='xs' key={el.name} title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`} onClick={handleClick}>{el.name} <span className='font-mono'>{el.blunt}/{el.cut}</span></Button>
-          })
+          variants.map(el =>
+            <Button size='xs' key={el.name} disabled={kind !== 'melee'}
+              title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`}
+              onClick={() => declare({ kind: 'strike', weaponKey, attack, variant: el.name })}>
+              {el.name} <span className='font-mono'>{el.blunt}/{el.cut}</span>
+            </Button>
+          )
         }
       </span>
     )
   }
 
   return(
-    <Panel title='Weapons' meta={lastAtk.weapon ? <>last attack · {lastAtk.weapon} {lastAtk.type} · <span className='font-mono text-fg'>{lastAtk.atk}</span></> : null}>
+    <Panel title='Weapons'>
       {
         panels.map((panel) => (
           <div key={panel.key} className='flex flex-col gap-1'>
@@ -70,7 +70,7 @@ export function WeaponPanel(){
                         <td className='px-1 py-0.5'>{row.range}</td>
                         <td className='px-1 py-0.5 text-right font-mono'>{row.block ?? '–'}</td>
                         <td className='px-1 py-0.5 text-muted'>{row.properties.join(', ')}</td>
-                        <td className='px-1 py-0.5'>{row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponName={panel.name} />}</td>
+                        <td className='px-1 py-0.5'>{row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponKey={panel.key} attack={row.name} kind={row.kind} />}</td>
                       </tr>
                     )
                   }

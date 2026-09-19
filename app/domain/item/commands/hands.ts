@@ -7,7 +7,7 @@ import { updateSTA } from '../../character/commands/bleed'
 
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
-// character untouched the way spendAttackResources does.
+// character untouched.
 export function pay(c: Character, cost: ActionCost): Character | null {
   if (!isCharged(c)) return c
   if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
