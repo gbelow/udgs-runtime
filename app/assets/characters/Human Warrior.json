@@ -72,18 +72,14 @@
   },
   "hasGauntlets": 1,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "4bad58f0-07cc-4d6f-a474-2ef8bccbfdcd",
     "name": "Brigandine",
-    "RES": 15,
-    "poise": 0,
-    "INS": 8,
-    "protection": 6,
-    "deflection": 6,
-    "burdenPenalty": 2,
-    "properties": "metallic",
-    "notes": "",
-    "prot": 6,
-    "cover": 6
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 5,
+    "refId": "Brigandine"
   },
   "weapons": {
     "Unarmed": {

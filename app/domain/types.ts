@@ -16,6 +16,9 @@ export const ArmorSchema = z.object({
   burdenPenalty: z.number().default(0),
   properties: str.default(''),
   notes: z.string().default(''),
+  // the size the armor is made for, stamped when it is scaled from the
+  // catalog; absent on the bare default, which is no armor at all
+  scale: num.optional(),
 }).strip()
 
 export type Armor = z.infer<typeof ArmorSchema>
@@ -606,7 +609,11 @@ const CharacterValues = {
   hasGauntlets: z.number().default(0),
   hasHelm: z.number().default(0),
   
+  // what the creature is under anything it wears — skin, fur, hide; the rows
+  // of the gear.tex "Armors" table with no bulk, which are not items
   armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
+  // the armor item being worn over it, if any (gear.tex "Donning and Doffing armor")
+  worn: ItemSchema.nullable().default(null),
   hands: z.array(HandSchema).default(() => [HandSchema.parse({}), HandSchema.parse({})]),
   held: z.array(ItemSchema).default([]),
   containers: z.record(z.string(), ContainerSchema).default({}),

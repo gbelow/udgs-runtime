@@ -26,6 +26,7 @@ export function scaleArmor(armor: Armor, scale: number): Armor {
 
   const arm = {
     ...armor,
+    scale: clampedScale,
     RES: Math.floor(armor.RES * dmgArr[scaleIndex]),
     INS: Math.floor(armor.INS * dmgArr[scaleIndex]),
     protection: Math.floor(armor.protection * dmgArr[scaleIndex]),

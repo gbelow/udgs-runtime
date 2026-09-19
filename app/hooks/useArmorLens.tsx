@@ -1,24 +1,29 @@
-import { equipArmor } from "../domain/character/commands";
+import { doffArmor } from "../domain/character/commands";
+import { ArmorPanelView, getArmorPanel } from "../domain/character/lenses/armor";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
-import { Armor, ArmorSchema, Character } from "../domain/types";
-import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useAppStore } from "../stores/useAppStore";
+import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 // Stable default for the no-active-character case.
-const DEFAULT_ARMOR: Armor = ArmorSchema.parse({});
+const BARE: ArmorPanelView = { name: 'Skin', worn: null, burdenPenalty: 0, deflection: 4, properties: '', notes: '' };
 
+// The armor as the body presents it — the worn item's, or the creature's own —
+// in one shape gated on a digest of itself (cf. useWeaponLens). Putting armor
+// on happens where the item is, in the container or hands panels; here it
+// only comes off.
 export function useArmorLens() {
   const update = useActiveCharacterUpdate();
+  const pending = useAppStore((s) => s.pendingItem);
+  const setPending = useAppStore((s) => s.setPendingItem);
 
-  // armor is a state-held object ref — Object.is gates re-renders to actual
-  // armor changes (equipArmor produces a new ref via structural sharing).
-  const value: Armor =
-    useActiveCharacterSelector((c: Character) => c.armor) ?? DEFAULT_ARMOR;
+  const panel: ArmorPanelView = useActiveCharacterDerived(getArmorPanel, JSON.stringify) ?? BARE;
 
-  const setValue = (newValue: Armor) => {
-    update(equipArmor(newValue));
+  const drop = () => {
+    update(doffArmor(null));
+    if (pending?.source === 'worn') setPending(null);
   };
 
-  return [value, setValue] as const;
+  return { panel, drop } as const;
 }
 
 // combat.tex "Damage Tiers" — the full table, computed in the domain.

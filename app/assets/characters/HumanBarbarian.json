@@ -72,18 +72,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "a1ec1cef-4a76-4a02-9fe2-d5e2a76d494a",
     "name": "Hauberk",
-    "RES": 12,
-    "poise": 0,
-    "INS": 6,
-    "protection": 4,
-    "deflection": 5,
-    "burdenPenalty": 1,
-    "properties": "metallic",
-    "notes": "",
-    "prot": 4,
-    "cover": 5
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 4,
+    "refId": "Hauberk"
   },
   "weapons": {
     "Unarmed": {

@@ -312,15 +312,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "e1ecf5db-fda0-4d58-963a-1235b0fc9307",
     "name": "Brigandine",
-    "RES": 12,
-    "INS": 8,
-    "protection": 8,
-    "deflection": 6,
-    "burdenPenalty": 2,
-    "properties": "metallic, layered",
-    "notes": ""
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 5,
+    "refId": "Brigandine"
   },
   "hands": [
     {

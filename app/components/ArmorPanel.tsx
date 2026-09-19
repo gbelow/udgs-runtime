@@ -2,16 +2,36 @@
 import { useActiveCharacterSelector } from '../hooks/useActiveCharacterSelector'
 import { useArmorLens, useDamageTiers } from '../hooks/useArmorLens'
 import { useCharacterCommands } from '../hooks/useCharacterCommands'
+import { useItemLens } from '../hooks/useItemLens'
 
 export function ArmorPanel(){
-  const [armor] = useArmorLens()
+  const { panel: armor, drop } = useArmorLens()
+  const { pending, selectWorn, clear } = useItemLens()
   // combat.tex "Damage Tiers" — thresholds, IL and wound chance all come from
   // the domain; this component only lays the table out.
   const tiers = useDamageTiers()
+  const doffing = pending?.source === 'worn'
 
   return(
     <>
-      <div className='font-bold '>Armor: {armor.name}</div>
+      <div className={'flex flex-row flex-wrap gap-3 items-center ' + (doffing ? 'text-green-300' : '')}>
+        <span className='font-bold'>Armor: {armor.name}</span>
+        {
+          armor.worn ?
+          <>
+            <span>Size: {armor.worn.scale}{armor.worn.fits ? '' : ' (does not fit)'}</span>
+            {
+              doffing ?
+              <input type='button' value='cancel' aria-label='cancel taking off armor' onClick={clear} className='border rounded px-1 text-xs' /> :
+              armor.worn.canDoff ?
+              <input type='button' value={armor.worn.doffCost === null ? 'take off' : `take off (${armor.worn.doffCost} AP +)`} aria-label='take off armor' title='then pick a slot group to put it in' onClick={selectWorn} className='border rounded px-1 text-xs' /> :
+              <span className='text-xs text-gray-400'>takes minutes to take off</span>
+            }
+            {armor.worn.canDoff ? <input type='button' value='drop' aria-label='drop armor' onClick={drop} className='border rounded px-1 text-xs' /> : null}
+          </> :
+          <span className='text-xs text-gray-400'>wear armor from a container or the hands</span>
+        }
+      </div>
       <ArmorAddons />
       
       <table className='w-84 md:w-full text-center'>

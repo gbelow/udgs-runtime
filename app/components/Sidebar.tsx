@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { ArmorSelector } from './ArmorSelector';
 import { CharacterSelector } from './CharacterSelector';
 import { ContainerSelector } from './ContainerSelector';
 import { ItemSelector } from './ItemSelector';
@@ -8,7 +7,6 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 
 const PANELS = {
-  Armor: ArmorSelector,
   Container: ContainerSelector,
   Item: ItemSelector,
   Ability: AbilitySelector,

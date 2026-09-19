@@ -297,15 +297,14 @@
   },
   "hasGauntlets": 1,
   "hasHelm": 1,
-  "armor": {
+  "worn": {
+    "id": "d3527701-3067-4b4f-b9c4-d03b23a3e2db",
     "name": "Full Armor",
-    "RES": 16,
-    "INS": 8,
-    "protection": 10,
-    "deflection": 7,
-    "burdenPenalty": 3,
-    "properties": "rigid, metallic, layered",
-    "notes": ""
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 5,
+    "refId": "FullArmor"
   },
   "weapons": {
     "Halberd": {

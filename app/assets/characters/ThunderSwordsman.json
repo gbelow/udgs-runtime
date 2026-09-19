@@ -71,19 +71,14 @@
   },
   "hasGauntlets": 1,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "778b7bd5-53d0-45ef-bde6-4a5d9d4e942e",
     "name": "Half Armor",
-    "RES": 30,
-    "INS": 7,
-    "poise": 0,
-    "protection": 0,
-    "deflection": 0,
-    "burdenPenalty": 2,
-    "properties": "",
-    "TGH": 25,
-    "prot": 15,
-    "cover": 5,
-    "type": "rigid"
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 5,
+    "refId": "HalfArmor"
   },
   "weapons": {
     "Longsword": {

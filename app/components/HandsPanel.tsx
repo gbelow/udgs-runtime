@@ -3,7 +3,7 @@ import { useHandsLens } from '../hooks/useHandsLens'
 import { useItemLens } from '../hooks/useItemLens'
 
 export function HandsPanel(){
-  const { panel, hold, regrip, drop } = useHandsLens()
+  const { panel, hold, regrip, drop, wear } = useHandsLens()
   const { pending, selectHeld, clear } = useItemLens()
 
   return(
@@ -35,9 +35,10 @@ export function HandsPanel(){
           return (
             <div key={item.id} className={'flex flex-row flex-wrap gap-2 items-center border rounded px-1 ' + (putting ? 'border-green-400' : '')}>
               <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}</span>
-              <span className='text-gray-400'>{item.bulkName} · {item.grip}h</span>
+              <span className='text-gray-400'>size {item.scale} · {item.bulkName} · {item.grip}h</span>
               {item.canGrip[1] ? <input type='button' value='1h' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)} className='border rounded px-1' /> : null}
               {item.canGrip[2] ? <input type='button' value='2h' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)} className='border rounded px-1' /> : null}
+              {item.wear ? <input type='button' value={item.wear.cost === null ? 'wear' : `wear (${item.wear.cost} AP)`} aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)} className={'border rounded px-1 ' + (item.wear.wearable ? '' : 'text-gray-600 border-gray-600')} /> : null}
               {
                 putting ?
                 <input type='button' value='cancel' aria-label={`cancel storing ${item.name}`} onClick={clear} className='border rounded px-1 ml-auto' /> :

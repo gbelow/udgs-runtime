@@ -35,7 +35,7 @@ export function WeaponPanel(){
           <div key={panel.key} className='flex flex-col justify-center border rounded p-1'>
             <div className='flex flex-row gap-3' >
               <span>Weapon: {panel.name} </span>
-              <span>Size: {panel.scale}{panel.oversize ? ' (oversize: +1 AP, STR-5)' : ''}</span>
+              <span>Size: {panel.scale}{!panel.wieldable ? ' (too large to wield)' : panel.oversize ? ' (oversize: +1 AP, STR-5)' : ''}</span>
               {panel.shield && <span>{panel.shield.body ? 'Body shield' : 'Shield'} · Cover +{panel.shield.cover}</span>}
               <span className='text-xs text-gray-400'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>
