@@ -34,7 +34,7 @@ export function getFreeHoldingHands(c: Character): Hand[] {
 // possible, but makes the character lame." Holding is about bulk; whether a
 // held weapon can be fought with is about its size (isWieldable).
 export function canBeHeld(c: Character, item: Item): boolean {
-  return item.bulk <= getSize(c) + 3
+  return item.bulk <= getSize(c) + 2
 }
 
 export function isLamingHold(c: Character, item: Item): boolean {

@@ -86,7 +86,7 @@
     "protection": 8,
     "deflection": 6,
     "burdenPenalty": 2,
-    "properties": "metallic, layered",
+    "properties": "metallic, rigid, layered",
     "notes": ""
   },
   "HalfArmor": {
