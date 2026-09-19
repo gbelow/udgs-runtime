@@ -7,7 +7,7 @@ import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { makeDieRoll, makeFullRoll } from './utils';
-import { Button, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
+import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -311,9 +311,11 @@ function SurgeControl(){
     <div className='flex gap-1'>
       {
         options.map(option =>
-          <Button key={option.kind} aria-label={option.kind + ' surge'} title={option.title}
-            disabled={!option.available} active={option.used} className={option.used ? 'text-muted' : ''}
-            onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
+          <Tooltip key={option.kind} text={option.title}>
+            <Button aria-label={option.kind + ' surge'}
+              disabled={!option.available} active={option.used} className={option.used ? 'text-muted' : ''}
+              onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
+          </Tooltip>
         )
       }
     </div>

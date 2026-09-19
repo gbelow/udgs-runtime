@@ -27,7 +27,6 @@
 - weapons/armor customization
 
 ## weapons/armor
-- latex table generator from the weapons catalogue (gear.tex stattables)
 - add customization options to weapons
 - add customization options to armors
 - think about resLayer
@@ -47,10 +46,10 @@
 - 
 
 ## spells
-- spells editor
 - add spell enahncements details
 - tests - results
 - damage as an effect
+- add tex generator from catalogue
 
 ## attacks
 - apply SOPs

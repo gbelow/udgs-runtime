@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useSpellLens } from '../hooks/useSpellLens'
-import { Button, Panel, Row } from './ui'
+import { Button, Panel, Row, Tooltip } from './ui'
 
 // The spells a character knows, one row per spell: the skill it is cast
 // with, the casting DL and, unfolded, the test the target makes and what each
@@ -47,9 +47,11 @@ export function SpellPanel(){
                   rolled {row.pending.score} · {row.pending.hit ? `${row.pending.SOP} SOP left` : 'miss'}
                 </span>
                 {row.pending.modifications.map((m) => (
-                  <Button size='xs' key={m.name} aria-label={`${m.name} ${row.name}`} title={m.text} disabled={!m.affordable}
-                    variant={m.times ? 'good' : 'default'} className={m.times ? 'bg-good/15' : ''}
-                    onClick={() => modify(m.name)}>{m.name} {m.SOP}{m.times ? ` ×${m.times}` : ''}</Button>
+                  <Tooltip key={m.name} text={m.text}>
+                    <Button size='xs' aria-label={`${m.name} ${row.name}`} disabled={!m.affordable}
+                      variant={m.times ? 'good' : 'default'} className={m.times ? 'bg-good/15' : ''}
+                      onClick={() => modify(m.name)}>{m.name} {m.SOP}{m.times ? ` ×${m.times}` : ''}</Button>
+                  </Tooltip>
                 ))}
                 <Button size='xs' variant='primary' aria-label={`resolve ${row.name}`} onClick={resolve}>done</Button>
               </div>

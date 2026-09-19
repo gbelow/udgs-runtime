@@ -1,5 +1,5 @@
 'use client'
-import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, useEffect, useRef, useState } from 'react'
+import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
 // selects, good is the pending flow, bad is harm, muted is derived or
@@ -26,7 +26,7 @@ export function Button({ variant = 'default', size = 'sm', active = false, class
 ){
   return (
     <button type='button'
-      className={`rounded border whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface
+      className={`rounded border whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-surface
         focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1
         ${VARIANT[variant]} ${SIZE[size]} ${active ? 'bg-raised' : ''} ${className}`}
       {...rest} />
@@ -141,6 +141,45 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onRoll
   return onRoll ?
     <button type='button' className={frame} onClick={onRoll} aria-label={title ?? String(label)}>{body}</button> :
     <div className={frame}>{body}</div>
+}
+
+const POPOVER_EDGE = 8
+
+// A hover popover anchored to its child: opens centred above, slides sideways
+// just enough to stay inside the viewport, drops below when there is no room
+// above. SkillTooltip and Tooltip both render through it.
+export function Popover({ content, children, className = '' }: { content: ReactNode, children: ReactNode, className?: string }){
+  const [open, setOpen] = useState(false)
+  const [shift, setShift] = useState({ x: 0, below: false })
+  const tip = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !tip.current) return
+    const r = tip.current.getBoundingClientRect()
+    const x = r.left < POPOVER_EDGE ? POPOVER_EDGE - r.left : r.right > window.innerWidth - POPOVER_EDGE ? window.innerWidth - POPOVER_EDGE - r.right : 0
+    setShift({ x, below: r.top < POPOVER_EDGE })
+  }, [open])
+
+  return (
+    <div className={`relative ${className}`} onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setShift({ x: 0, below: false }) }}>
+      {children}
+      {open ?
+      <div ref={tip} role='tooltip'
+        style={{ transform: `translateX(calc(-50% + ${shift.x}px))` }}
+        className={`absolute z-50 left-1/2 w-max ${shift.below ? 'top-full mt-1' : 'bottom-full mb-1'}
+                    bg-raised border border-line rounded p-2 text-xs shadow-lg shadow-black/40 text-left font-normal text-fg`}>
+        {content}
+      </div>
+      : null}
+    </div>
+  )
+}
+
+// A plain text tooltip in the theme, in place of the browser's title bubble.
+// Wraps in a span so it sits inline among buttons.
+export function Tooltip({ text, children, className = '' }: { text: ReactNode, children: ReactNode, className?: string }){
+  if (!text) return <>{children}</>
+  return <Popover content={<span className='block max-w-64 whitespace-normal'>{text}</span>} className={`inline-flex ${className}`}>{children}</Popover>
 }
 
 // The wrapping grid a set of tiles sits in.
