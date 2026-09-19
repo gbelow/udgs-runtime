@@ -263,13 +263,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 // Where the open action stands
 
 // The one thing the table is waiting on. `react` is the defender's moment —
-// the die may be thrown from it, with no reaction meaning SD.
-export type ActionStep = 'declare' | 'target' | 'react' | 'confirm'
+// the die may be thrown from it, with no reaction meaning SD. `spend` is a
+// hit with HOP to spend before it is applied; the purchases are optional, so
+// it is confirmed from there too.
+export type ActionStep = 'declare' | 'target' | 'react' | 'spend' | 'confirm'
 
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
-  if (open.status === 'rolled') return 'confirm'
+  if (open.status === 'rolled') return open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   const actor = state.characters[open.actorId]
   if (!actor || !isDeclarationComplete(actor, open)) return 'declare'
   if (open.targetId === null) return 'target'

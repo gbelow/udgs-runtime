@@ -129,6 +129,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   withdrawReaction: combatCommands.withdrawReaction('b'),
   cancelAction: combatCommands.cancelAction(),
   rollAction: combatCommands.rollAction(7),
+  spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(20)(s))),
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
 }
 

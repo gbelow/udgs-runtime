@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema } from '../types'
-import { HIT_LOCATIONS } from '../lists'
+import { CampaignCharacterSchema, WeaponPropertySchema } from '../types'
+import { HIT_LOCATIONS, HOP_PURCHASES } from '../lists'
 
 const num = z.number()
 const str = z.string()
@@ -23,6 +23,9 @@ export const ActionRollSchema = z.object({
   HOP: num.default(0),
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
+
+export const HOPPurchaseSchema = z.enum(HOP_PURCHASES)
+export type HOPPurchase = z.infer<typeof HOPPurchaseSchema>
 
 export const ActionCostSchema = z.object({
   AP: num.default(0),
@@ -50,7 +53,7 @@ const ActionBase = {
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought
-  spent: z.record(str, num).default({}),
+  spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
 
 // A weapon row is named the way the hands name it: the wielded key (an item id
@@ -61,6 +64,32 @@ const WeaponRowRef = {
   attack: str.default(''),
 }
 
+// combat.tex "Defend": how the target met the attack, none being the SD.
+export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept'])
+export type DefenseKind = z.infer<typeof DefenseKindSchema>
+
+// The attacker's side of a strike, final: everything the target needs to
+// turn the attack into an injury without looking back at the attacker. It is
+// written when the strike resolves, once the HOP are spent, and the target's
+// reducer reads only this. The defense is on it because what a block or an
+// intercept does to the damage is the attacker's number to carry.
+export const StrikeFactsSchema = z.object({
+  blunt: num.default(0),
+  cut: num.default(0),
+  hardness: num.default(0),
+  force: num.default(0),
+  properties: z.array(WeaponPropertySchema).default([]),
+  location: HitLocationSchema.default('chest'),
+  degree: DegreeSchema.default('miss'),
+  defense: DefenseKindSchema.default('none'),
+  block: num.default(0), // gear.tex "DEF": what the blocking object absorbs
+  shield: z.boolean().default(false),
+  bypass: z.boolean().default(false),
+  penetrating: z.boolean().default(false),
+  smash: z.boolean().default(false),
+}).strip()
+export type StrikeFacts = z.infer<typeof StrikeFactsSchema>
+
 // combat.tex "Strike": a melee weapon attack; the variation and the location
 // are declared before the roll (combat.tex "Melee Combat", "Localized damage").
 export const StrikeActionSchema = z.object({
@@ -69,6 +98,7 @@ export const StrikeActionSchema = z.object({
   ...WeaponRowRef,
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
+  facts: StrikeFactsSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
@@ -91,11 +121,11 @@ export type StrikeAction = z.infer<typeof StrikeActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 
 // The declaration a click makes: an action minus everything the commands fill
-// in (identity, status, the roll). What is left is the kind and its own
-// declared fields, each optional so a bare kind can be declared and completed
-// step by step.
+// in (identity, status, the roll, the facts). What is left is the kind and its
+// own declared fields, each optional so a bare kind can be declared and
+// completed step by step.
 export type ActionDraft = {
-  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind'>>
+  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
 }[ActionKind]
 
 // The shape of a fight. This lives in the domain — not in the Zustand store —

@@ -19,6 +19,7 @@ import {
   isDeclarationComplete,
 } from './action'
 import { ActionCost } from '../../character/lenses/actionCosts'
+import { HOPOption, Outcome, getHOPOptions, getHOPRemaining, getOutcomePreview } from './damage'
 
 // The open action as the panel reads it, every field final.
 export type OpenActionView = {
@@ -50,9 +51,13 @@ export type ActionPanelView = {
   locations: LocationOption[]
   targets: { id: string; name: string }[]
   canRoll: boolean
+  // once rolled: what the hit's overflow can buy, and what the strike does
+  // to the target as it stands
+  hop: { remaining: number; options: HOPOption[] }
+  outcome: Outcome | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], strikes: [], locations: [], targets: [], canRoll: false }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], strikes: [], locations: [], targets: [], canRoll: false, hop: { remaining: 0, options: [] }, outcome: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -94,6 +99,10 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     locations: strike ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
     canRoll: step === 'react' && !!actor && isDeclarationComplete(actor, open),
+    hop: strike && target && strike.status === 'rolled'
+      ? { remaining: getHOPRemaining(strike, target), options: getHOPOptions(state, strike) }
+      : { remaining: 0, options: [] },
+    outcome: open.status === 'rolled' ? getOutcomePreview(state, open) : null,
   }
 }
 

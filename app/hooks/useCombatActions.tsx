@@ -8,10 +8,11 @@ import {
   resolveAction,
   rollAction,
   setTarget,
+  spendHOP,
   withdrawReaction,
 } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/lenses/action";
-import type { ActionDraft } from "../domain/combat/types";
+import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The action being played out, and the clicks that move it along. The view
@@ -43,7 +44,8 @@ export function useCombatActions() {
   };
   const cancel = () => update(cancelAction());
   const roll = () => update(rollAction(rollFull(Math.random)));
+  const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const resolve = () => update(resolveAction());
 
-  return { view, declare, amend, target, react, withdraw, cancel, roll, resolve } as const;
+  return { view, declare, amend, target, react, withdraw, cancel, roll, spend, resolve } as const;
 }

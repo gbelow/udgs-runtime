@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CombatState } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type CombatState, type HOPPurchase } from '../types'
 import { isReaction } from '../actionCatalog'
 import {
   findOption,
@@ -12,6 +12,7 @@ import {
   isPiercingStrike,
   scoreAttack,
 } from '../lenses/action'
+import { getHOPOptions, getStrikeFacts } from '../lenses/damage'
 import { reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
 import { ActionCost } from '../../character/lenses/actionCosts'
@@ -151,12 +152,29 @@ function priceFor(state: CombatState, action: Action): ActionCost | null {
   return cost
 }
 
-// Lands the rolled action on everyone it concerns and closes it.
+// combat.tex "Success Overflow": buys one effect out of the hit's HOP. Only
+// what the option list offers as open, so the command refuses exactly what
+// the button shows as closed. A purchase is never taken back — the die is
+// already thrown, and what is spent stays spent.
+export function spendHOP(purchase: HOPPurchase): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'strike' || open.status !== 'rolled') return state
+    if (!getHOPOptions(state, open).find((o) => o.purchase === purchase)?.available) return state
+    return replaceActions(state, [{ ...open, spent: { ...open.spent, [purchase]: (open.spent[purchase] ?? 0) + 1 } }])
+  }
+}
+
+// Lands the rolled action on everyone it concerns and closes it. A strike
+// has its attacker's side written down first, so the record says what
+// landed and the target's reducer needs nothing but the action.
 export function resolveAction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'rolled') return state
-    const resolved: Action = { ...open, status: 'resolved' }
+    const resolved: Action = open.kind === 'strike'
+      ? { ...open, status: 'resolved', facts: getStrikeFacts(state, open) }
+      : { ...open, status: 'resolved' }
     return applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
   }
 }

@@ -1,4 +1,5 @@
-import { HIT_LOCATIONS, MATERIALS } from './lists'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS } from './lists'
+import type { AfflictionKey, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -39,14 +40,57 @@ export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 // creating.tex "Reach Multiplier (RM)": multiplies the range of all weapons.
 export const RMArr = [0.5, 1, 1, 1.5, 1.5, 2, 2.5]
 
-export const injuryMap: Record<string, { IL: number; woundChance: number }> = {
-  T0: { IL: 1, woundChance: 0 },
-  T1: { IL: 5, woundChance: 0 },
-  T2: { IL: 10, woundChance: 0.5 },
-  T3: { IL: 20, woundChance: 1 },
-  T4: { IL: 30, woundChance: 1 },
-  T5: { IL: 50, woundChance: 1 },
+// combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
+// threshold column is armor + tier x TGH and is computed where it is needed.
+export const injuryMap: Record<string, { IL: number; bleed: number; woundChance: number }> = {
+  T0: { IL: 1, bleed: 0, woundChance: 0 },
+  T1: { IL: 5, bleed: 0, woundChance: 0 },
+  T2: { IL: 10, bleed: 1, woundChance: 0.5 },
+  T3: { IL: 20, bleed: 2, woundChance: 1 },
+  T4: { IL: 30, bleed: 3, woundChance: 1 },
+  T5: { IL: 50, bleed: 4, woundChance: 1 },
 }
+export const MAX_TIER = 5
+
+// combat.tex "Success Overflow" and "Localized damage" (the hand switch): what
+// a hit's HOP can buy. `cost` is a number of HOP or the target's deflection;
+// `property` is the weapon property that allows the effect (gear.tex "Weapons
+// Properties"), null where any weapon may. The book lists no property for
+// Smash, but the catalog carries one, so it is read as the gate.
+export const HOP_EFFECTS = {
+  extraCut:   { cost: 1,            property: 'bladed' },
+  bypass:     { cost: 'deflection', property: 'precise' },
+  penetrating:{ cost: 'deflection', property: 'penetrating' },
+  smash:      { cost: 'deflection', property: 'smash' },
+  handSwitch: { cost: 3,            property: null },
+} as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
+
+// combat.tex "Additional effects": what an interruption and a stun cost in AP.
+export const INTERRUPTION_AP = 2
+export const STUN_AP = 4
+
+// combat.tex "Wounds" table, keyed by location and then by the lowest tier
+// that causes it; a higher tier takes the worse wound. `heal` is the IL wound
+// (null for "no heal"), `affliction` what the consequence is on the sheet.
+// The hand's consequence (a useless or lost hand) has no affliction to carry
+// it and is left to the table.
+export const WOUNDS: Record<(typeof HIT_LOCATIONS)[number], { tier: number; name: string; heal: number | null; affliction: AfflictionKey | null; amputation: boolean }[]> = {
+  chest: [],
+  hand: [
+    { tier: 2, name: 'broken hand', heal: 10, affliction: null, amputation: false },
+    { tier: 4, name: 'amputated hand', heal: null, affliction: null, amputation: true },
+  ],
+  leg: [
+    { tier: 3, name: 'broken leg', heal: 20, affliction: 'lame', amputation: false },
+    { tier: 5, name: 'amputated leg', heal: null, affliction: 'lame', amputation: true },
+  ],
+  head: [],
+}
+// combat.tex "Wounds": "Shocked — T4 blunt+smash — 5 — immobile".
+export const SHOCKED = { tier: 4, name: 'shocked', heal: 5, affliction: 'immobile' } as const
+// combat.tex "Head": T3 blunt, cutting or electric, or any stun, is
+// unconsciousness; T4 is death.
+export const HEAD = { unconscious: 3, death: 4 } as const
 
 // combat.tex "Afflictions". Penalties are stored as positive magnitudes and
 // negated where they are consumed, matching the gear catalogs.

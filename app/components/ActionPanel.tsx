@@ -2,6 +2,7 @@
 import { useCombatActions } from '../hooks/useCombatActions'
 import type { ActionOption, StrikeOption } from '../domain/combat/lenses/action'
 import type { OpenActionView } from '../domain/combat/lenses/actionPanel'
+import type { HOPOption, Outcome } from '../domain/combat/lenses/damage'
 import type { ActionCost } from '../domain/character/lenses/actionCosts'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
@@ -10,6 +11,7 @@ const STEP_LABEL = {
   declare: 'declare the attack',
   target: 'pick a target on the roster',
   react: 'the target answers',
+  spend: 'spend the overflow',
   confirm: 'apply',
 } as const
 
@@ -17,7 +19,7 @@ const STEP_LABEL = {
 // nothing is open, then one step at a time — the declaration, the target,
 // the defender's answer and the die, the result — until it is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, withdraw, cancel, roll, resolve } = useCombatActions()
+  const { view, declare, amend, target, react, withdraw, cancel, roll, spend, resolve } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -31,7 +33,8 @@ export function ActionPanel(){
     )
   }
 
-  const canCancel = step !== 'confirm'
+  const rolled = step === 'spend' || step === 'confirm'
+  const canCancel = !rolled
   return (
     <Panel title={<>{open.actor} · {open.label}{open.target ? <> → {open.target}</> : null}</>}
       meta={step ? STEP_LABEL[step] : null}
@@ -40,7 +43,7 @@ export function ActionPanel(){
 
       <Declaration open={open} strikes={view.strikes} onStrike={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
-      {view.locations.length > 0 && step !== 'confirm' ? (
+      {view.locations.length > 0 && !rolled ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
           {view.locations.map((l) =>
@@ -73,15 +76,22 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {step === 'confirm' && open.roll ? (
+      {rolled && open.roll ? (
         <div className='flex flex-col gap-1'>
           <Test open={open} />
           <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
             <span>die <span className='font-mono'>{open.roll.die}</span></span>
             <span>score <span className='font-mono'>{open.roll.score}</span> vs <span className='font-mono'>{open.roll.DL}</span></span>
             <span className={`font-medium ${open.roll.degree === 'miss' ? 'text-bad' : open.roll.degree === 'hit' ? 'text-good' : ''}`}>{open.roll.degree}</span>
-            {open.roll.HOP ? <span>HOP <span className='font-mono'>{open.roll.HOP}</span></span> : null}
+            {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
           </div>
+          {step === 'spend' ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>overflow</SectionLabel>
+              {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onClick={() => spend(o.purchase)} />)}
+            </div>
+          ) : null}
+          {view.outcome ? <OutcomeLine outcome={view.outcome} target={open.target ?? ''} /> : null}
           <div><Button variant='primary' aria-label='resolve action' onClick={resolve}>done</Button></div>
         </div>
       ) : null}
@@ -130,6 +140,35 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
     <Button size='xs' active={active} disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
       {option.label} <Cost cost={option.cost} />
     </Button>
+  )
+}
+
+function HOPButton({ option, onClick }: { option: HOPOption, onClick: () => void }){
+  return (
+    <Button size='xs' disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
+      {option.label} <span className='font-mono text-muted'>{option.cost}</span>
+      {option.bought ? <span className='ml-1 font-mono text-good'>×{option.bought}</span> : null}
+    </Button>
+  )
+}
+
+// What the strike does to the target as it stands, one line.
+function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
+  if (outcome.stopped) return <div className='text-sm'>{target}: <span className='text-good'>intercepted</span></div>
+  if (outcome.tier === null) {
+    return <div className='text-sm'>{target}: <span className='font-mono'>{outcome.damage}</span> {outcome.type} vs <span className='font-mono'>{outcome.armor}</span> · <span className='text-muted'>no injury</span></div>
+  }
+  return (
+    <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
+      <span>{target}: <span className='font-mono'>{outcome.damage}</span> {outcome.type} vs <span className='font-mono'>{outcome.armor}</span></span>
+      <span className='font-medium text-bad'>T{outcome.tier}{outcome.bodyTier !== outcome.tier ? <span className='text-muted'> (body T{outcome.bodyTier})</span> : null}</span>
+      <span>+<span className='font-mono'>{outcome.IL}</span> IL</span>
+      {outcome.bleed ? <span>bleed +<span className='font-mono'>{outcome.bleed}</span></span> : null}
+      {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.heal !== null ? ` (${outcome.wound.heal} IL)` : ''}</span> : null}
+      {outcome.afflictions.map((a) => <span key={a} className='text-bad'>{a}</span>)}
+      {outcome.interruption !== 'none' ? <span>{outcome.interruption} −<span className='font-mono'>{outcome.apLoss}</span> AP</span> : null}
+      {outcome.dead ? <span className='font-medium text-bad'>dead</span> : null}
+    </div>
   )
 }
 

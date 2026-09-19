@@ -141,6 +141,10 @@ export const ATTACK_TYPES = ['melee', 'ranged'] as const
 // book's order; what aiming at each does is in `tables.ts` LOCATIONS.
 export const HIT_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
 
+// combat.tex "Success Overflow" and the hand switch of "Localized damage":
+// what HOP can buy, in the book's order; prices and gates are in `tables.ts`.
+export const HOP_PURCHASES = ['extraCut', 'bypass', 'penetrating', 'smash', 'handSwitch'] as const
+
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
 
