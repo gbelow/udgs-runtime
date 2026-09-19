@@ -116,6 +116,14 @@ export function isDead(c: Character): boolean {
   return isCampaignCharacter(c) && getInjuryPenalty(c) >= 5
 }
 
+// The injury penalty read as a stage for display, 0 (unhurt) to 5 (dead):
+// combat.tex "Injuries and Death" puts collapse at 40 IL and death past 50,
+// and nothing past death is a further stage.
+export type InjuryStage = 0 | 1 | 2 | 3 | 4 | 5
+export function getInjuryStage(c: Character): InjuryStage {
+  return Math.min(5, Math.max(0, getInjuryPenalty(c))) as InjuryStage
+}
+
 // The 10 is flat — the rulebook gives nothing that moves it. The per-character
 // `injuries.injuryThreshold` field and the health-affliction reduction below are
 // staged out rather than deleted, in case the threshold becomes variable again.

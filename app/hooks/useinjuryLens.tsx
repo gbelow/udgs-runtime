@@ -1,4 +1,4 @@
-import { isDead } from "../domain/character/lenses/afflictions";
+import { getInjuryStage, isDead } from "../domain/character/lenses/afflictions";
 import { composeLens, makePropLens } from "../domain/character/lenses/factories";
 import { CampaignCharacter, CampaignValuesSchema, Character, Injuries } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
@@ -25,6 +25,7 @@ export function useInjuryLens() {
   // A primitive selected inside the store selector, so the render it schedules
   // is the render that recomputes it.
   const isCharacterDead = useActiveCharacterSelector((c: Character) => isDead(c)) ?? false;
+  const injuryStage = useActiveCharacterSelector((c: Character) => getInjuryStage(c)) ?? 0;
 
-  return { injuries, setInjury, isCharacterDead } as const;
+  return { injuries, setInjury, isCharacterDead, injuryStage } as const;
 }

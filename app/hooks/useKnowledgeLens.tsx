@@ -1,8 +1,9 @@
 import { addKnowledge, removeKnowledge } from "../domain/character/commands";
 import { getMentalAfflictionPenalty } from "../domain/character/lenses/afflictions";
-import { getAvailableKnowledges, getKnowledgeValues, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
+import { getAvailableKnowledges, getKnowledgeTerms, getKnowledgeValues, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
+import { Term, termsDigest, termsView } from "../domain/character/lenses";
 import { Character, Knowledges } from "../domain/types";
-import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
 // Stable default for the no-active-character case.
@@ -46,4 +47,10 @@ export function useKnowledgeLens() {
   };
 
   return { knowledges, available, getValue, setValue, add, remove } as const;
+}
+
+// One knowledge's breakdown, gated on a digest of the terms — see useSkillLens.
+export function useKnowledgeTerms(name: string) {
+  const terms: Term[] = useActiveCharacterDerived(getKnowledgeTerms(name), termsDigest) ?? [];
+  return [terms, termsView(terms)] as const;
 }

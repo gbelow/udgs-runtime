@@ -19,7 +19,7 @@ import { useActiveCharacterData, useSTARegen } from '../hooks/useCharacterData';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
-import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
+import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 import { CONVICTIONS } from '../domain/lists';
 
 const MOVES: { name: keyof Movement, title: string }[] = [
@@ -31,7 +31,8 @@ const MOVES: { name: keyof Movement, title: string }[] = [
   { name: 'jump', title: 'jump · 1AP+1STA' },
   { name: 'stand', title: 'stand up' },
 ]
-const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', 'CON', 'DEX', 'INT', 'SPI']
+const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', ]
+const TALENTS: (keyof Characteristics)[] = [ 'CON', 'DEX', 'INT', 'SPI']
 const TRAINABLES: (keyof Characteristics)[] = ['melee', 'ranged', 'awareness', 'sorcery', 'charisma', 'devotion']
 const COMBAT: (keyof Skills)[] = ['strike', 'accuracy', 'defend', 'reflex', 'grapple', 'force', 'SD']
 const PHYSICAL: (keyof Skills)[] = ['balance', 'climb', 'swim', 'detection', 'stealth', 'prestidigitation', 'health']
@@ -100,12 +101,20 @@ export function CharacterCreator() {
           <Tiles>{MOVES.map((m) => <Movementinput key={m.name} movementName={m.name} title={m.title} />)}</Tiles>
         </div>
 
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Attributes</SectionLabel>
-          <Tiles>
-            {ATTRIBUTES.map((s) => <StatDial key={s} stat={s} title={s} />)}
-            <NumberDial stat={'size'} title={'size'} />
-          </Tiles>
+        <div className='flex flex-row gap-3'>
+          <div className='flex flex-col gap-1'>
+            <SectionLabel>Attributes</SectionLabel>
+            <Tiles>
+              {ATTRIBUTES.map((s) => <StatDial key={s} stat={s} title={s} />)}
+              <NumberDial stat={'size'} title={'size'} />
+            </Tiles>
+          </div>
+            <div className='flex flex-col gap-1'>
+            <SectionLabel>Talents</SectionLabel>
+            <Tiles>
+              {TALENTS.map((s) => <StatDial key={s} stat={s} title={s} />)}
+            </Tiles>
+          </div>
         </div>
 
         <div className='flex flex-col gap-1'>
@@ -205,8 +214,14 @@ function KnowledgePanel(){
 
 function KnowledgeItem({ name }:{ name: string }){
   const { getValue, setValue, remove } = useKnowledgeLens()
-  return <StatTile label={name} title={name} value={getValue(name)} onChange={(v) => setValue(name, v)}
-    footer={<ResetFooter label='remove' onClick={() => remove(name)} />} />
+  const [terms, view] = useKnowledgeTerms(name)
+  const value = getValue(name)
+  return(
+    <SkillTooltip terms={terms} total={value}>
+      <StatTile label={name} title={name} value={value} onChange={(v) => setValue(name, v)} modifier={view.modifier} afflicted={view.afflicted}
+        footer={<ResetFooter label='remove' onClick={() => remove(name)} />} />
+    </SkillTooltip>
+  )
 }
 
 function StatDial ({stat, title}:{stat: keyof Characteristics, title: string}){

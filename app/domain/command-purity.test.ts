@@ -53,7 +53,7 @@ function characterSubject(): CampaignCharacter {
     usedSurge: 'focus',
     pendingAction: { kind: 'spell', key: 'sleep', score: 12, SOP: 7, spent: {} },
     afflictions: ['prone'],
-    injuries: { ...base.injuries, injuryLevel: 12, hemorrhage: 2, potion: 3 },
+    injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }

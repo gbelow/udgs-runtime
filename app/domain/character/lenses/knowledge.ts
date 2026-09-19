@@ -2,6 +2,7 @@ import { Character, Knowledges, Lens, Trainable, TrainableSchema } from '../../t
 import { getMentalAfflictionPenalty } from './afflictions'
 import { knowledges_list } from '../../lists'
 import { composeLens, makeInvertingSetter, makePropLens } from './factories'
+import { Term, sumTerms } from './terms'
 
 export function emptyKnowledge(name: string): Trainable {
   return TrainableSchema.parse({ name, type: 'knowledge' })
@@ -26,8 +27,15 @@ export function makeKnowledgeEntryLens(name: string): Lens<Character, Trainable>
 // combat.tex "Afflictions": mental penalties affect "all Knowledges". The
 // getter therefore reports the afflicted value, and the setter inverts through
 // the penalty so writing a knowledge level still changes the stored base.
+export function getKnowledgeTerms(name: string): (c: Character) => Term[] {
+  return (c: Character) => [
+    { label: name, value: makeKnowledgeEntryLens(name).get(c).value },
+    { label: 'affliction', value: -getMentalAfflictionPenalty(c) },
+  ]
+}
 export function getKnowledge(name: string): (c: Character) => number {
-  return (c: Character) => makeKnowledgeEntryLens(name).get(c).value - getMentalAfflictionPenalty(c)
+  const terms = getKnowledgeTerms(name)
+  return (c: Character) => sumTerms(terms(c))
 }
 
 // Every knowledge the character holds, resolved through its own getter so the

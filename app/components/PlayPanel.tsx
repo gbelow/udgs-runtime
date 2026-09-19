@@ -22,7 +22,7 @@ import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
-import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
+import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 
 const MOVES: { name: keyof Movement, title: string }[] = [
   { name: 'basic', title: 'basic · 1AP' },
@@ -97,7 +97,7 @@ export function PlayPanel(){
                 <InjuryControl type='potion' />
                 <DamageControl />
                 <InjuryControl type='injuryLevel' />
-                <InjuryControl type='hemorrhage' />
+                <InjuryControl type='bleed' />
                 <Button variant='bad' active={isCharacterDead} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
               </div>
             </div>
@@ -169,20 +169,33 @@ function DamageControl(){
   )
 }
 
-const INJURY_TITLES = { injuryLevel: 'injury level', hemorrhage: 'hemorrhage', potion: 'potion' } as const
+const INJURY_TITLES = { injuryLevel: 'injury level', bleed: 'bleed', potion: 'potion' } as const
 
-function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
+// The injury dial's ring and digits, one colour per stage.
+const INJURY_STAGE_CLASS = {
+  0: 'border-line bg-surface',
+  1: 'border-injury-1 bg-injury-1/15 text-injury-1',
+  2: 'border-injury-2 bg-injury-2/20 text-injury-2',
+  3: 'border-injury-3 bg-injury-3/25 text-injury-3',
+  4: 'border-injury-4 bg-injury-4/40 text-injury-3',
+  5: 'border-injury-5 bg-injury-5/70 text-fg',
+} as const
 
-  const {injuries, setInjury} = useInjuryLens()
+function InjuryControl({type}: {type: 'injuryLevel' | 'bleed' | 'potion'}){
+
+  const {injuries, setInjury, injuryStage} = useInjuryLens()
   const { updateIL } = useCharacterCommands()
 
   const value = injuries[type]
-  const harmed = type !== 'potion' && value > 0
+  const ring =
+    type === 'injuryLevel' ? INJURY_STAGE_CLASS[injuryStage] :
+    type === 'bleed' && value > 0 ? 'border-bad bg-bad/15 text-bad' :
+    'border-line bg-surface'
   return(
     <div className='flex flex-col items-center gap-1'>
       <span className='text-[10px] text-muted'>{INJURY_TITLES[type]}</span>
-      <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${harmed ? 'border-bad bg-bad/15' : 'border-line bg-surface'}`}>
-        <NumberInput className={`w-10 border-transparent text-base ${harmed ? 'text-bad' : ''}`} aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
+      <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${ring}`}>
+        <NumberInput className='w-10 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
         <div className='flex flex-row gap-2 text-xs text-muted'>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'causeInjury'} onClick={() => setInjury( type, value + 1)}>+</button>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'healInjury'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)}>−</button>
@@ -248,7 +261,13 @@ function KnowledgesPanel(){
 
 function SimpleKnowledge({name}: {name: string}){
   const { getValue } = useKnowledgeLens()
-  return <StatTile label={name} value={getValue(name)} />
+  const [terms, view] = useKnowledgeTerms(name)
+  const value = getValue(name)
+  return(
+    <SkillTooltip terms={terms} total={value}>
+      <StatTile label={name} value={value} modifier={view.modifier} afflicted={view.afflicted} />
+    </SkillTooltip>
+  )
 }
 
 function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}){

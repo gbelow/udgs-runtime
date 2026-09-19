@@ -290,7 +290,7 @@ export type Hand = z.infer<typeof HandSchema>
 export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
   wounds: z.array(num).default([]),
-  hemorrhage: z.number().default(0),
+  bleed: z.number().default(0),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
   unconsciousThreshold: z.number().default(40),

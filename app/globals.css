@@ -19,6 +19,14 @@
   --accent: #D1934F;
   --good: #5CB87A;
   --bad: #DC4C4C;
+
+  /* Injury stages, one per multiple of 10 IL (combat.tex "Injury level"):
+     1–3 climb from gold to the bad red, 4 is collapse, 5 is death. */
+  --injury-1: #C9A24A;
+  --injury-2: #D8823F;
+  --injury-3: #DC4C4C;
+  --injury-4: #A8262B;
+  --injury-5: #5A1216;
 }
 
 :root[data-theme="frost"] {
@@ -55,6 +63,11 @@
   --color-accent: var(--accent);
   --color-good: var(--good);
   --color-bad: var(--bad);
+  --color-injury-1: var(--injury-1);
+  --color-injury-2: var(--injury-2);
+  --color-injury-3: var(--injury-3);
+  --color-injury-4: var(--injury-4);
+  --color-injury-5: var(--injury-5);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --animate-flash: flash 700ms ease-out;
@@ -73,6 +86,12 @@ body {
   color: var(--fg);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
+}
+
+/* Controls take the colour of whatever they sit in, so a graded dial or a
+   harmed row colours its input without fighting a class on the element. */
+input, textarea, select, button {
+  color: inherit;
 }
 
 /* Native popups (select lists, date pickers) paint from the element's own

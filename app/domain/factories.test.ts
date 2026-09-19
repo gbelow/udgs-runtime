@@ -149,7 +149,7 @@ describe('a character survives its storage format', () => {
       afflictions: ['prone'],
       active: [{ kind: 'ability', key: 'synesthesia-1' }],
       resources: { AP: 4, STA: 8, hunger: 3, thirst: 2, exhaustion: 1 },
-      injuries: { injuryLevel: 12, wounds: [], hemorrhage: 2, potion: 0, injuryThreshold: 10, unconsciousThreshold: 40, deathThreshold: 50 },
+      injuries: { injuryLevel: 12, wounds: [], bleed: 2, potion: 0, injuryThreshold: 10, unconsciousThreshold: 40, deathThreshold: 50 },
     })
     expect(makeCampaignCharacter(JSON.parse(JSON.stringify(c)))).toEqual(c)
   })

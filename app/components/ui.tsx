@@ -44,7 +44,7 @@ export function ListButton({ selected = false, className = '', ...rest }:
   )
 }
 
-export const inputClass = 'bg-transparent border border-line rounded px-1 text-fg outline-none focus:border-accent disabled:opacity-40'
+export const inputClass = 'bg-transparent border border-line rounded px-1 outline-none focus:border-accent disabled:opacity-40'
 export const numberClass = `${inputClass} text-center font-mono appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
 
 export function TextInput({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>){

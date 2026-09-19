@@ -4,7 +4,7 @@ import { getAfflictions } from "../lenses/afflictions"
 
 export function bleed( amount: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const damage = amount*c.injuries.hemorrhage
+    const damage = amount*c.injuries.bleed
     return {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel + damage}}
   }
 }
