@@ -1,5 +1,5 @@
-import { Armor, Character, Item, SlotKind } from '../../types'
-import { GEAR_SIZE, getItemArmor, getItemScale } from '../../item/lenses/items'
+import { Armor, ArmorProperty, Character, Item, Material, SlotKind } from '../../types'
+import { GEAR_SIZE, getHardness, getItemArmor, getItemScale } from '../../item/lenses/items'
 import { getDrawCost, getStoreCost, isCharged } from '../../item/lenses/costs'
 import { ActionCost, getActionCost } from './actionCosts'
 import { getSize } from './misc'
@@ -90,7 +90,9 @@ export type ArmorPanelView = {
   worn: { id: string; name: string; scale: number; fits: boolean; doffCost: number | null; canDoff: boolean } | null
   burdenPenalty: number
   deflection: number
-  properties: string
+  material: Material
+  hardness: number
+  properties: ArmorProperty[]
   notes: string
 }
 
@@ -111,6 +113,8 @@ export function getArmorPanel(c: Character): ArmorPanelView {
       : null,
     burdenPenalty: armor.burdenPenalty,
     deflection: armor.deflection,
+    material: armor.material,
+    hardness: getHardness(armor.material),
     properties: armor.properties,
     notes: armor.notes,
   }

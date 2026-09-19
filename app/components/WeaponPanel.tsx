@@ -66,7 +66,7 @@ export function WeaponPanel(){
                       <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
                       <td>{row.range}</td>
                       <td>{row.block ?? '-'}</td>
-                      <td>{[...row.properties, ...(row.STRreq !== null ? [`STR ${row.STRreq}`] : [])].join(', ')}</td>
+                      <td>{row.properties.join(', ')}</td>
                       <td>{row.needsFocus ? <span className='text-xs'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponName={panel.name} />}</td>
                     </tr>
                   )

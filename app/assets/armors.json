@@ -1,122 +1,142 @@
 {
   "Skin": {
     "name": "Skin",
+    "material": "flesh",
     "RES": 0,
     "INS": 0,
     "protection": 0,
     "deflection": 4,
     "burdenPenalty": 0,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "Clothing": {
     "name": "Clothing",
+    "material": "fiber",
     "RES": 3,
     "INS": 2,
     "protection": 0,
     "deflection": 4,
     "burdenPenalty": 0,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "FurCoat": {
     "name": "Fur Coat",
+    "material": "fiber",
     "RES": 7,
     "INS": 6,
     "protection": 2,
     "deflection": 5,
     "burdenPenalty": 0,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "ThickHide": {
     "name": "Thick Hide",
+    "material": "fiber",
     "RES": 8,
     "INS": 7,
     "protection": 4,
     "deflection": 5,
     "burdenPenalty": 0,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "Gambeson": {
     "name": "Gambeson",
+    "material": "fiber",
     "RES": 10,
     "INS": 6,
     "protection": 3,
     "deflection": 5,
     "burdenPenalty": 0,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "PaddedArmor": {
     "name": "Padded Armor",
+    "material": "fiber",
     "RES": 12,
     "INS": 8,
     "protection": 6,
     "deflection": 5,
     "burdenPenalty": 1,
-    "properties": "fiber",
+    "properties": [],
     "notes": ""
   },
   "ChainShirt": {
     "name": "Chain Shirt",
+    "material": "metal",
     "RES": 8,
     "INS": 5,
     "protection": 3,
     "deflection": 5,
     "burdenPenalty": 0,
-    "properties": "metallic",
+    "properties": [],
     "notes": ""
   },
   "Hauberk": {
     "name": "Hauberk",
+    "material": "metal",
     "RES": 10,
     "INS": 6,
     "protection": 5,
     "deflection": 5,
     "burdenPenalty": 1,
-    "properties": "metallic",
+    "properties": [],
     "notes": ""
   },
   "Brigandine": {
     "name": "Brigandine",
+    "material": "metal",
     "RES": 12,
     "INS": 8,
     "protection": 8,
     "deflection": 6,
     "burdenPenalty": 2,
-    "properties": "metallic, rigid, layered",
+    "properties": [
+      "rigid"
+    ],
     "notes": ""
   },
   "HalfArmor": {
     "name": "Half Armor",
+    "material": "metal",
     "RES": 16,
     "INS": 7,
     "protection": 10,
     "deflection": 5,
     "burdenPenalty": 2,
-    "properties": "rigid, metallic, layered",
+    "properties": [
+      "rigid"
+    ],
     "notes": ""
   },
   "FullArmor": {
     "name": "Full Armor",
+    "material": "metal",
     "RES": 16,
     "INS": 8,
     "protection": 10,
     "deflection": 7,
     "burdenPenalty": 3,
-    "properties": "rigid, metallic, layered",
+    "properties": [
+      "rigid"
+    ],
     "notes": ""
   },
   "ReinforcedArmor": {
     "name": "Reinforced Armor",
+    "material": "metal",
     "RES": 18,
     "INS": 8,
     "protection": 12,
     "deflection": 8,
     "burdenPenalty": 4,
-    "properties": "rigid, metallic, layered",
+    "properties": [
+      "rigid"
+    ],
     "notes": ""
   }
 }

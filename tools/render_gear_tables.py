@@ -39,8 +39,14 @@ ARMOR_COLSPEC = "@{}lccccccc@{}"
 
 # gear.tex "Containers and Burden": the named bulk steps; larger stays numeric
 BULK_WORDS = {0: "tiny", 1: "small", 2: "medium", 3: "large"}
-# gear.tex "Armors": the table's section order; anything else follows alphabetically
-ARMOR_PROPERTY_ORDER = ["fiber", "metallic", "rigid", "layered"]
+LISTS = REPO_ROOT / "app" / "domain" / "lists.ts"
+
+# gear.tex "Weapons Properties" lists Heavy between Hook and Piercing
+HEAVY_PRECEDES = "piercing"
+# gear.tex "Weapons Properties": "All weapon attacks are made out of metal,
+# unless otherwise stated", and the Armors table heads its metal group "Metallic"
+ASSUMED_MATERIAL = "metal"
+MATERIAL_WORDS = {"metal": "Metallic"}
 
 TINT = r"\rowcolor{fallowtint}"
 
@@ -117,11 +123,44 @@ def bulk_word(bulk: int | None) -> str:
     return BULK_WORDS.get(bulk, str(bulk))
 
 
+def vocabulary(name: str) -> list[str]:
+    """The members of an `as const` list in app/domain/lists.ts, in its order."""
+    m = re.search(rf"export const {name} = \[(.*?)\] as const", LISTS.read_text(encoding="utf-8"), re.S)
+    if not m:
+        raise BookError(f"no {name} list in {LISTS.name}")
+    return re.findall(r"'([^']*)'", m.group(1))
+
+
+WEAPON_PROPERTIES = vocabulary("WEAPON_PROPERTIES")
+
+
+def roman(degree: int) -> str:
+    return "I" * degree
+
+
+def heavy(attack: dict) -> str | None:
+    """gear.tex "Heavy I/II/III": a bare degree keeps the normal attack, a range
+    forbids it — `heavy II` for min 0, `heavy I-II` otherwise."""
+    if "heavy" not in attack:
+        return None
+    low, high = attack["heavy"]["min"], attack["heavy"]["max"]
+    return f"heavy {roman(high)}" if low == 0 else f"heavy {roman(low)}-{roman(high)}"
+
+
 def properties(attack: dict) -> str:
-    listed = list(attack["properties"])
-    if "STRreq" in attack:
-        listed.insert(0, f"STR {number(attack['STRreq'])}")  # gear.tex "STR x" sits among the properties
-    return ", ".join(listed)
+    """The properties cell as the app prints it (getAttackPropertyLabels): STR
+    first, the vocabulary's order with heavy in its slot, and a material the
+    book would not assume last."""
+    order = WEAPON_PROPERTIES.index
+    listed = sorted(attack["properties"], key=order)
+    cell = [f"STR {number(attack['STRreq'])}"] if "STRreq" in attack else []
+    cell += [p for p in listed if order(p) < order(HEAVY_PRECEDES)]
+    if (h := heavy(attack)) is not None:
+        cell.append(h)
+    cell += [p for p in listed if order(p) >= order(HEAVY_PRECEDES)]
+    if attack["material"] != ASSUMED_MATERIAL:
+        cell.append(attack["material"])
+    return ", ".join(cell)
 
 
 def ap(attack: dict) -> str:
@@ -202,9 +241,12 @@ def render_table(caption: str, colspec: str, columns: list[str], items: list[lis
 
 
 def with_attack_column(table: BookTable) -> tuple[list[str], str]:
-    """The book's header and colspec with an Attack column after the first."""
+    """The book's header and colspec with an Attack column after the first,
+    added unless a previous render already left one there."""
     if table.columns[0] != "Weapon" or not table.colspec.startswith("@{}l"):
         raise BookError(f"stattable {table.caption!r} does not start with a Weapon column")
+    if table.columns[1:2] == ["Attack"]:
+        return table.columns, table.colspec
     return [table.columns[0], "Attack", *table.columns[1:]], "@{}ll" + table.colspec[len("@{}l"):]
 
 
@@ -213,15 +255,14 @@ def bulks(items: dict) -> dict[tuple[str, str], int]:
     return {(item["type"], item["refId"]): item["bulk"] for item in items.values() if item.get("refId")}
 
 
-def armor_group(armor: dict) -> tuple[tuple[int, str], ...]:
-    tokens = [t.strip() for t in armor["properties"].split(",") if t.strip()]
-    rank = lambda t: (ARMOR_PROPERTY_ORDER.index(t) if t in ARMOR_PROPERTY_ORDER else len(ARMOR_PROPERTY_ORDER), t)
-    return tuple(sorted(rank(t) for t in tokens))
+def armor_group(armor: dict) -> tuple[str, ...]:
+    """gear.tex "Armors" groups its rows by material and construction: "Fiber",
+    "Metallic", "Metallic, Rigid"."""
+    return (armor["material"], *armor["properties"])
 
 
-def group_label(group: tuple[tuple[int, str], ...]) -> str:
-    words = [t.capitalize() for _, t in group] or ["Other"]
-    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+def group_label(group: tuple[str, ...]) -> str:
+    return ", ".join(MATERIAL_WORDS.get(t, t.capitalize()) for t in group)
 
 
 def render_armors(armors: dict, tables: dict[str, BookTable], bulk_of: dict[tuple[str, str], int]) -> list[str]:

@@ -1,4 +1,4 @@
-export { GEAR_SIZE, getCatalogItem, getItemCatalogRows, getBulkName, isSameItem, getItemScale, getItemWeapon, getItemArmor, getCatalogWeapon } from './items'
+export { GEAR_SIZE, getCatalogItem, getItemCatalogRows, getBulkName, getHardness, isSameItem, getItemScale, getItemWeapon, getItemArmor, getCatalogWeapon } from './items'
 export {
   getGrip, getHeldItem, getFreeHands, getFreeHoldingHands, canBeHeld, isLamingHold, isLamedByHeld, canHoldWith, hasDraw,
   getDrawCost, getStoreCost, isCharged, getWieldedWeapons, isAttackUsable, getHandsPanel, getDrawView,

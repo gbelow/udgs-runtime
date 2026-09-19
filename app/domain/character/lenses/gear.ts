@@ -1,13 +1,14 @@
-import { AttackKind, AttackType, Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
+import { AttackKind, AttackType, Character, Handed, Material, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
+import { getHardness } from "../../item/lenses/items";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize, getTGH } from "./misc";
 import { dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
 import { getArmor } from "./armor";
-import { getAttackKind, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
+import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
 import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
@@ -102,7 +103,10 @@ export type WeaponAttackRow = {
   STRreq: number | null
   // combat.tex "Shoot": a shot this character has not surged focus for.
   needsFocus: boolean
-  properties: WeaponProperty[]
+  material: Material
+  hardness: number
+  // The properties cell as printed: the listed properties, heavy, STR x.
+  properties: string[]
   attack: WeaponAttack
 }
 
@@ -124,7 +128,9 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
       block: getBlockValue(atk, weapon, c),
       STRreq: atk.STRreq ?? null,
       needsFocus: needsFocus(atk, c),
-      properties: atk.properties,
+      material: atk.material,
+      hardness: getHardness(atk.material),
+      properties: getAttackPropertyLabels(atk),
       attack: atk,
     }))
 }
@@ -183,7 +189,7 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
-  const heavyRange = getHeavyRange(atk.properties)
+  const heavyRange = getHeavyRange(atk)
   const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
   const kind = getAttackKind(atk.range)
   const type = getAttackType(atk.range)

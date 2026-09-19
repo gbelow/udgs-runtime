@@ -2,13 +2,14 @@ import { useShallow } from "zustand/shallow";
 import { doffArmor, equipArmor } from "../domain/character/commands";
 import { ArmorPanelView, getArmorPanel, getEquipView, WearView } from "../domain/character/lenses/armor";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
+import { getHardness } from "../domain/item/lenses";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
-const BARE: ArmorPanelView = { name: 'Skin', worn: null, burdenPenalty: 0, deflection: 4, properties: '', notes: '' };
+const BARE: ArmorPanelView = { name: 'Skin', worn: null, burdenPenalty: 0, deflection: 4, material: 'flesh', hardness: getHardness('flesh'), properties: [], notes: '' };
 
 // The armor as the body presents it — the worn item's, or the creature's own —
 // in one shape gated on a digest of itself (cf. useWeaponLens). Armor goes on

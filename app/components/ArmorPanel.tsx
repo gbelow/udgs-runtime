@@ -70,7 +70,8 @@ export function ArmorPanel(){
       <div className='flex gap-2 text-center justify-center'>
         <span>Penal {armor.burdenPenalty}</span>
         <span>Deflection {armor.deflection}</span>
-        <span> {armor.properties}</span>
+        <span>{armor.material} (hardness {armor.hardness})</span>
+        <span>{armor.properties.join(', ')}</span>
       </div>
       {
         armor.notes ?

@@ -1,9 +1,16 @@
-import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Material, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
+import { MATERIAL_HARDNESS } from '../../tables'
 import { scaleArmor, scaleWeapon } from '../../character/lenses/helpers'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
+
+// combat.tex "What cuts?": what a material can cut or break is decided by its
+// hardness, so every attack and armor reads it off its material.
+export function getHardness(material: Material): number {
+  return MATERIAL_HARDNESS[material]
+}
 
 export function getBulkName(bulk: number): string {
   return BULK_NAMES[bulk] ?? `bulk ${bulk}`
