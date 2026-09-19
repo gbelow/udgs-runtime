@@ -1,4 +1,4 @@
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { CombatState } from '../types'
 
 // Read-side: which character is active is a pure function of combat state.
@@ -13,16 +13,19 @@ export type CombatRosterEntry = {
   name: string
   isActive: boolean
   hasSurged: boolean
+  usedSurge: SurgeKind | null
 }
 
 // The fight's roster as the UI reads it: who is in it, who is selected, who has
-// already spent their surge this round.
+// already spent their surge this round and which one (combat.tex "Action
+// surge": one per round, cleared by nextRound).
 export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
   return Object.entries(state.characters).map(([id, c]) => ({
     id,
     name: c.fightName ?? '',
     isActive: id === state.activeCharacterId,
     hasSurged: c.usedSurge !== null,
+    usedSurge: c.usedSurge,
   }))
 }
 
@@ -32,6 +35,6 @@ export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
 // that recomputes it. Same reasoning as the term breakdowns.
 export function getCombatRosterDigest(state: CombatState): string {
   return getCombatRoster(state)
-    .map((e) => `${e.id}:${e.name}:${e.isActive ? 1 : 0}:${e.hasSurged ? 1 : 0}`)
+    .map((e) => `${e.id}:${e.name}:${e.isActive ? 1 : 0}:${e.usedSurge ?? ''}`)
     .join('|')
 }

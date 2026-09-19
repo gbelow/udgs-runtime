@@ -311,10 +311,17 @@ function SurgeControl(){
     <div className='flex gap-1'>
       {
         options.map(option =>
-          <Tooltip key={option.kind} text={option.title}>
-            <Button aria-label={option.kind + ' surge'}
-              disabled={!option.available} active={option.used} className={option.used ? 'text-muted' : ''}
-              onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
+          // The surge spent this round stays lit until nextRound clears it; the
+          // other three close (combat.tex "Action surge": one per round).
+          <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
+            {
+              option.used ?
+              <Button aria-label={option.kind + ' surge'} aria-pressed variant='primary' className='bg-accent/20 pointer-events-none'>
+                <span className='mr-1'>✓</span>{option.kind} surge
+              </Button> :
+              <Button aria-label={option.kind + ' surge'} disabled={!option.available}
+                onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
+            }
           </Tooltip>
         )
       }
@@ -331,8 +338,11 @@ function CharacterList(){
         roster.map((entry) =>
           <Button key={entry.id} aria-label={entry.name}
             variant={entry.isActive ? 'primary' : 'default'}
-            className={entry.isActive ? 'bg-accent/15' : entry.hasSurged ? 'text-muted border-dashed' : ''}
-            onClick={() => setActiveCharacter(entry.id)}>{entry.name}</Button>
+            className={entry.isActive ? 'bg-accent/15' : ''}
+            onClick={() => setActiveCharacter(entry.id)}>
+            {entry.name}
+            {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
+          </Button>
         )
       }
     </div>
