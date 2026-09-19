@@ -1,12 +1,14 @@
-import { AttackKind, AttackType, Character, Handed, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
+import { AttackKind, AttackType, Character, Handed, Material, Range, Weapon, WeaponAttack, WeaponProperty } from "../../types";
 import { getBurdenPenalty } from "../../item/lenses/containers";
 import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
+import { getHardness } from "../../item/lenses/items";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize, getTGH } from "./misc";
 import { dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
-import { getAttackKind, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
+import { getArmor } from "./armor";
+import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
 import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
@@ -18,7 +20,7 @@ import { isCampaignCharacter } from "../../utils";
 // a bonus. STR is read unpenalized here: this value feeds AGI/STA, which the
 // injury penalty already reduces on its own.
 export function getGearPenalties(c: Character){
-  const gear = c.armor.burdenPenalty +
+  const gear = getArmor(c).burdenPenalty +
     getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + (weapon.shield?.burdenPenalty ?? 0), 0) +
     getBurdenPenalty(c)
 
@@ -31,10 +33,16 @@ export function getGearPenalties(c: Character){
 // gear.tex "Size Scaling": "Wielding a weapon that is larger than appropriate
 // increases the cost of AP for all attacks by +1, and uses STR-5 in the
 // contribution of STR to damage. This penalty applies to any contribution of
-// STR for any attack, including braced, hooked, and heavy." Two sizes larger
-// is already unholdable (gear.tex "Hands"), so this is the one-step case.
+// STR for any attack, including braced, hooked, and heavy. Wielding a weapon
+// 2 size categories larger is impossible." The hands may still hold such a
+// weapon — holding goes by bulk (gear.tex "Hands") — it just cannot be fought
+// with.
 export function isOversize(weapon: Weapon, c: Character): boolean {
   return weapon.scale > getSize(c)
+}
+
+export function isWieldable(weapon: Weapon, c: Character): boolean {
+  return weapon.scale <= getSize(c) + 1
 }
 
 // The STR that goes into this weapon's damage.
@@ -95,7 +103,10 @@ export type WeaponAttackRow = {
   STRreq: number | null
   // combat.tex "Shoot": a shot this character has not surged focus for.
   needsFocus: boolean
-  properties: WeaponProperty[]
+  material: Material
+  hardness: number
+  // The properties cell as printed: the listed properties, heavy, STR x.
+  properties: string[]
   attack: WeaponAttack
 }
 
@@ -117,7 +128,9 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
       block: getBlockValue(atk, weapon, c),
       STRreq: atk.STRreq ?? null,
       needsFocus: needsFocus(atk, c),
-      properties: atk.properties,
+      material: atk.material,
+      hardness: getHardness(atk.material),
+      properties: getAttackPropertyLabels(atk),
       attack: atk,
     }))
 }
@@ -137,7 +150,7 @@ export type DamageTierRow = {
 
 export function getDamageTiers(c: Character): DamageTierRow[] {
   const TGH = getTGH(c)
-  const armor = c.armor
+  const armor = getArmor(c)
 
   // The tier number comes from the injuryMap key (T0..T6), not from the entry's
   // position, so reordering or inserting an entry can't silently shift every
@@ -176,7 +189,7 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
-  const heavyRange = getHeavyRange(atk.properties)
+  const heavyRange = getHeavyRange(atk)
   const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
   const kind = getAttackKind(atk.range)
   const type = getAttackType(atk.range)
@@ -243,7 +256,8 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
 
 export type WeaponPanelRow = WeaponAttackRow & {
   // gear.tex "Small/One/Two hands": a two-handed row needs both hands on the
-  // weapon. A row the grip does not allow keeps its numbers and fires nothing.
+  // weapon. A row the grip does not allow, or a weapon too large to wield,
+  // keeps its numbers and fires nothing.
   usable: boolean
   // The attack variants this row can fire, already priced against the wielder.
   variants: AttackVariant[]
@@ -255,6 +269,8 @@ export type WeaponPanelView = {
   scale: number
   // gear.tex "Size Scaling": one size above the wielder, and priced for it.
   oversize: boolean
+  // gear.tex "Size Scaling": two or more above, and unusable in the hands.
+  wieldable: boolean
   grip: number
   // '' for a natural weapon: the free hands themselves, not a held item.
   itemId: string
@@ -275,12 +291,13 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     name: weapon.name,
     scale: weapon.scale,
     oversize: isOversize(weapon, c),
+    wieldable: isWieldable(weapon, c),
     grip,
     itemId,
     natural,
     shield: weapon.shield ? { cover: weapon.shield.cover, body: weapon.shield.body } : null,
     rows: getWeaponAttackRows(weapon)(c).map((row) => {
-      const usable = isAttackUsable(row.handed, grip)
+      const usable = isWieldable(weapon, c) && isAttackUsable(row.handed, grip)
       return {
         ...row,
         usable,
@@ -301,6 +318,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.name,
         panel.scale,
         panel.oversize,
+        panel.wieldable,
         panel.grip,
         panel.itemId,
         panel.natural,

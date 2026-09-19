@@ -25,7 +25,6 @@
 
 ## items editor
 - weapons/armor customization
-- item types in form of list
 
 ## weapons/armor
 - latex table generator from the weapons catalogue (gear.tex stattables)

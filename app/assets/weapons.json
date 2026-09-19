@@ -7,6 +7,7 @@
         "name": "grapple",
         "handed": "one",
         "range": "short",
+        "material": "flesh",
         "RES": 0,
         "blunt": 0,
         "cut": 0,
@@ -23,12 +24,16 @@
         "name": "punch",
         "handed": "one",
         "range": "short",
+        "material": "flesh",
         "RES": 0,
         "blunt": 0,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "heavy I",
           "draw",
           "smash"
         ]
@@ -43,6 +48,7 @@
         "name": "claw",
         "handed": "one",
         "range": "short",
+        "material": "bone",
         "RES": 10,
         "blunt": 0,
         "cut": 1,
@@ -62,6 +68,7 @@
         "name": "grapple",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 25,
         "blunt": 0,
         "cut": 0,
@@ -76,12 +83,16 @@
         "name": "punch",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 25,
         "blunt": 4,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "heavy I",
           "smash"
         ]
       }
@@ -95,13 +106,17 @@
         "name": "stab",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 15,
         "blunt": 0,
         "cut": 11,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "DEF",
-          "heavy I",
           "piercing",
           "bladed",
           "precise",
@@ -112,6 +127,7 @@
         "name": "throw",
         "handed": "one",
         "range": "STR",
+        "material": "metal",
         "RES": 15,
         "blunt": 4,
         "cut": 16,
@@ -132,13 +148,17 @@
         "name": "strike",
         "handed": "one",
         "range": "short",
+        "material": "wood",
         "RES": 15,
         "blunt": 4,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "DEF",
-          "heavy I"
+          "DEF"
         ]
       }
     ]
@@ -151,12 +171,16 @@
         "name": "stab",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 15,
         "blunt": 0,
         "cut": 11,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "heavy I",
           "piercing",
           "penetrating",
           "precise",
@@ -167,6 +191,7 @@
         "name": "parry",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -186,6 +211,7 @@
         "name": "lash",
         "handed": "one",
         "range": "long II",
+        "material": "fiber",
         "RES": 10,
         "blunt": 0,
         "cut": 2,
@@ -198,6 +224,7 @@
         "name": "entangle",
         "handed": "one",
         "range": "long II",
+        "material": "fiber",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -216,6 +243,7 @@
         "name": "thrust",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 20,
         "blunt": 0,
         "cut": 12,
@@ -231,14 +259,18 @@
         "name": "cut",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 20,
         "blunt": 4,
         "cut": 12,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "sweeping",
           "DEF",
-          "heavy I",
           "bladed",
           "draw"
         ]
@@ -253,6 +285,7 @@
         "name": "thrust",
         "handed": "one",
         "range": "long I",
+        "material": "metal",
         "RES": 15,
         "blunt": 1,
         "cut": 12,
@@ -268,6 +301,7 @@
         "name": "parry",
         "handed": "one",
         "range": "long I",
+        "material": "metal",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -286,13 +320,17 @@
         "name": "thrust",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 2,
         "cut": 20,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "braced",
-          "heavy I",
           "piercing",
           "penetrating"
         ]
@@ -301,6 +339,7 @@
         "name": "shaft",
         "handed": "two",
         "range": "short",
+        "material": "wood",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -315,12 +354,16 @@
         "name": "throw",
         "handed": "one",
         "range": "2xSTR",
+        "material": "metal",
         "RES": 20,
         "blunt": 1,
         "cut": 20,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 2
+        },
         "properties": [
-          "heavy I-II",
           "piercing",
           "slow"
         ]
@@ -335,12 +378,16 @@
         "name": "strike",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 50,
         "blunt": 8,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 2
+        },
         "properties": [
-          "heavy I-II",
           "smash"
         ]
       },
@@ -348,6 +395,7 @@
         "name": "shaft",
         "handed": "one",
         "range": "short",
+        "material": "wood",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -367,12 +415,16 @@
         "name": "chop",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 25,
         "blunt": 6,
         "cut": 11,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 2
+        },
         "properties": [
-          "heavy I-II",
           "bladed"
         ]
       },
@@ -380,6 +432,7 @@
         "name": "parry",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
@@ -398,14 +451,18 @@
         "name": "cut",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 6,
         "cut": 14,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "sweeping",
           "DEF",
-          "heavy I",
           "bladed"
         ]
       },
@@ -413,12 +470,16 @@
         "name": "half-sword thrust",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 20,
         "blunt": 0,
         "cut": 12,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "heavy I",
           "piercing",
           "penetrating",
           "precise"
@@ -428,6 +489,7 @@
         "name": "thrust",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 0,
         "cut": 12,
@@ -447,13 +509,17 @@
         "name": "thrust",
         "handed": "two",
         "range": "long II",
+        "material": "metal",
         "RES": 20,
         "blunt": 2,
         "cut": 20,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "braced",
-          "heavy I",
           "piercing",
           "penetrating"
         ]
@@ -462,6 +528,7 @@
         "name": "shaft",
         "handed": "two",
         "range": "long I",
+        "material": "wood",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
@@ -480,13 +547,17 @@
         "name": "spear point",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 2,
         "cut": 20,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "braced",
-          "heavy I",
           "piercing",
           "penetrating"
         ]
@@ -495,6 +566,7 @@
         "name": "hook",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 30,
         "blunt": 1,
         "cut": 8,
@@ -508,6 +580,7 @@
         "name": "shaft",
         "handed": "two",
         "range": "short",
+        "material": "wood",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
@@ -522,12 +595,16 @@
         "name": "axe head",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 30,
         "blunt": 8,
         "cut": 16,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 3
+        },
         "properties": [
-          "heavy I-III",
           "bladed"
         ]
       }
@@ -541,13 +618,17 @@
         "name": "spear point",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 2,
         "cut": 20,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "braced",
-          "heavy I",
           "piercing",
           "penetrating"
         ]
@@ -556,6 +637,7 @@
         "name": "hook",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 30,
         "blunt": 0,
         "cut": 8,
@@ -569,6 +651,7 @@
         "name": "shaft",
         "handed": "two",
         "range": "short",
+        "material": "wood",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
@@ -583,12 +666,16 @@
         "name": "hammer",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 100,
         "blunt": 10,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 2,
+          "max": 3
+        },
         "properties": [
-          "heavy II-III",
           "smash"
         ]
       }
@@ -602,13 +689,17 @@
         "name": "chop",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 30,
         "blunt": 8,
         "cut": 16,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 3
+        },
         "properties": [
           "sweeping",
-          "heavy I-III",
           "bladed"
         ]
       },
@@ -616,6 +707,7 @@
         "name": "shaft",
         "handed": "two",
         "range": "short",
+        "material": "wood",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
@@ -636,14 +728,18 @@
         "name": "cut",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 30,
         "blunt": 8,
         "cut": 14,
         "AP": 3,
+        "heavy": {
+          "min": 1,
+          "max": 2
+        },
         "properties": [
           "sweeping",
           "DEF",
-          "heavy I-II",
           "bladed"
         ]
       },
@@ -651,13 +747,17 @@
         "name": "thrust",
         "handed": "two",
         "range": "long I",
+        "material": "metal",
         "RES": 20,
         "blunt": 2,
         "cut": 16,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
           "braced",
-          "heavy I",
           "piercing",
           "bladed"
         ]
@@ -672,15 +772,16 @@
         "name": "throw",
         "handed": "two",
         "range": "9m",
+        "material": "fiber",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
         "AP": 4,
         "reload": 10,
         "properties": [
+          "grapple I",
           "slow",
-          "reload",
-          "grab"
+          "reload"
         ]
       }
     ]
@@ -693,6 +794,7 @@
         "name": "throw",
         "handed": "two",
         "range": "STR",
+        "material": "metal",
         "RES": 10,
         "blunt": 6,
         "cut": 10,
@@ -713,6 +815,7 @@
         "name": "throw",
         "handed": "one",
         "range": "2xSTR",
+        "material": "metal",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
@@ -731,6 +834,7 @@
         "name": "shoot",
         "handed": "two",
         "range": "100m",
+        "material": "metal",
         "RES": 10,
         "blunt": 6,
         "cut": 18,
@@ -751,6 +855,7 @@
         "name": "shoot",
         "handed": "two",
         "range": "150m",
+        "material": "metal",
         "RES": 10,
         "blunt": 8,
         "cut": 25,
@@ -772,6 +877,7 @@
         "name": "shoot",
         "handed": "two",
         "range": "200m",
+        "material": "metal",
         "RES": 10,
         "blunt": 10,
         "cut": 30,
@@ -793,6 +899,7 @@
         "name": "shoot",
         "handed": "two",
         "range": "150m",
+        "material": "metal",
         "RES": 10,
         "blunt": 8,
         "cut": 22,
@@ -815,6 +922,7 @@
         "name": "shoot",
         "handed": "two",
         "range": "200m",
+        "material": "metal",
         "RES": 10,
         "blunt": 10,
         "cut": 26,
@@ -843,13 +951,17 @@
         "name": "bash",
         "handed": "one",
         "range": "short",
+        "material": "wood",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "DEF",
-          "heavy I"
+          "DEF"
         ]
       }
     ]
@@ -868,13 +980,17 @@
         "name": "bash",
         "handed": "one",
         "range": "short",
+        "material": "metal",
         "RES": 30,
         "blunt": 4,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "DEF",
-          "heavy I"
+          "DEF"
         ]
       }
     ]
@@ -893,13 +1009,17 @@
         "name": "bash",
         "handed": "one",
         "range": "short",
+        "material": "wood",
         "RES": 20,
         "blunt": 4,
         "cut": 0,
         "AP": 3,
+        "heavy": {
+          "min": 0,
+          "max": 1
+        },
         "properties": [
-          "DEF",
-          "heavy I"
+          "DEF"
         ]
       }
     ]

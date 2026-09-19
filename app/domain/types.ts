@@ -1,12 +1,23 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ATTACK_TYPES, HANDS, ITEM_TYPES, RANGES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, RANGES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 
 const num = z.number()
 const str = z.string()
 
+// What a piece of gear is made of; hardness follows from it (tables.ts
+// MATERIAL_HARDNESS), so it is stored on every attack and armor rather than a
+// "metallic" property.
+export const MaterialSchema = z.enum(MATERIALS)
+export type Material = z.infer<typeof MaterialSchema>
+
+export const ArmorPropertySchema = z.enum(ARMOR_PROPERTIES)
+export type ArmorProperty = z.infer<typeof ArmorPropertySchema>
+
 export const ArmorSchema = z.object({
   name: z.string().default('Skin'),
+  // the bare default is the creature's own hide
+  material: MaterialSchema.default('flesh'),
   RES: z.number().default(0),
   // TGH: z.number().default(0),
   INS: z.number().default(0),
@@ -14,8 +25,13 @@ export const ArmorSchema = z.object({
   protection: z.number().default(0),
   deflection: z.number().default(4), // gear.tex "Armors": the Skin row deflects at +4, so an unarmoured default is not 0
   burdenPenalty: z.number().default(0),
-  properties: str.default(''),
+  // stored characters from before the vocabulary carried a free string here;
+  // ingestion is lossy by design, so an unreadable list reads as none
+  properties: z.array(ArmorPropertySchema).catch([]),
   notes: z.string().default(''),
+  // the size the armor is made for, stamped when it is scaled from the
+  // catalog; absent on the bare default, which is no armor at all
+  scale: num.optional(),
 }).strip()
 
 export type Armor = z.infer<typeof ArmorSchema>
@@ -139,6 +155,17 @@ export type Range = z.infer<typeof RangeSchema>
 export const WeaponPropertySchema = z.enum(WEAPON_PROPERTIES)
 export type WeaponProperty = z.infer<typeof WeaponPropertySchema>
 
+// gear.tex "Heavy I/II/III": "Having a higher degree of heavy allows using any
+// lower degree. Having heavy I-III or similar means that heavy I is minimum,
+// and normal attacks are not allowed." That is two bounds, not six spellings:
+// `min` is the lowest heavy degree available and `max` the highest, with
+// `min === 0` meaning the normal (non-heavy) attack is still allowed.
+export const HeavyRangeSchema = z.object({
+  min: num.int().min(0).max(HEAVY_MAX_DEGREE).default(0),
+  max: num.int().min(1).max(HEAVY_MAX_DEGREE).default(1),
+}).strip()
+export type HeavyRange = z.infer<typeof HeavyRangeSchema>
+
 // One row of a gear.tex weapon table. Whether it is melee or ranged is not
 // stored, its range says (see getAttackType); nor is its block value, which
 // gear.tex "DEF" derives from the wielder's STR and the row's hands.
@@ -146,6 +173,9 @@ export const WeaponAttackSchema = z.object({
   name: str.default(''),
   handed: HandedSchema.default('one'),
   range: RangeSchema.default('short'),
+  // gear.tex "Weapons Properties": "All weapon attacks are made out of metal,
+  // unless otherwise stated."
+  material: MaterialSchema.default('metal'),
 
   RES: num.default(0),
   blunt: num.default(0),
@@ -157,6 +187,8 @@ export const WeaponAttackSchema = z.object({
   reload: num.optional(),
   // gear.tex "STR x": the strength requirement, absent when the row has none.
   STRreq: num.optional(),
+  // gear.tex "Heavy I/II/III": the degrees offered, absent when the row has none.
+  heavy: HeavyRangeSchema.optional(),
 
   properties: z.array(WeaponPropertySchema).default([]),
 }).strip()
@@ -606,7 +638,11 @@ const CharacterValues = {
   hasGauntlets: z.number().default(0),
   hasHelm: z.number().default(0),
   
+  // what the creature is under anything it wears — skin, fur, hide; the rows
+  // of the gear.tex "Armors" table with no bulk, which are not items
   armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
+  // the armor item being worn over it, if any (gear.tex "Donning and Doffing armor")
+  worn: ItemSchema.nullable().default(null),
   hands: z.array(HandSchema).default(() => [HandSchema.parse({}), HandSchema.parse({})]),
   held: z.array(ItemSchema).default([]),
   containers: z.record(z.string(), ContainerSchema).default({}),

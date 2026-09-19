@@ -1,3 +1,5 @@
+import { MATERIALS } from './lists'
+
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
 // reached through a view getter, so the projection stays in the domain. Inert
@@ -214,8 +216,25 @@ export const ACTION_COSTS = {
   prepare:        { AP: 1, STA: 0 },
   analyze:        { AP: 4, STA: 1 },
   standardAction: { AP: 3, STA: 0 },
+  // gear.tex "Donning and Doffing armor": "6 AP to don/doff medium armors"
+  donMedium:      { AP: 6, STA: 0 },
   switchFocus:    { AP: 1, STA: 0 },
   socialAction:   { AP: 4, STA: 1 },
 } as const satisfies Record<string, { AP: number; STA: number }>
 
 export type ActionKind = keyof typeof ACTION_COSTS
+
+// combat.tex "What cuts?": "There are 4 levels of material hardness. The first
+// is for liquids. The second is for fabrics, flesh, and similar materials. The
+// third is for wood, horns, bones and other solids. The fourth is for metals
+// and rocks." A weapon cuts what is softer than it; gear.tex "Breakage and
+// Hardness" adds that hardness 1 and 2 break nothing.
+export const MATERIAL_HARDNESS: Record<(typeof MATERIALS)[number], number> = {
+  metal: 4,
+  rock: 4,
+  wood: 3,
+  bone: 3,
+  flesh: 2,
+  fiber: 2,
+  liquid: 1,
+}

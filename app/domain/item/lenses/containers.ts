@@ -1,6 +1,7 @@
 import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
 import { getBulkName, isSameItem } from './items'
 import { getDrawView, getHeldItem, getStoreCost, isCharged } from './hands'
+import { getWearView, WearView } from '../../character/lenses/armor'
 import { getSize } from '../../character/lenses/misc'
 import containersCatalog from '../../../assets/containers.json'
 
@@ -104,6 +105,8 @@ export type ContainerItemView = {
   // in play (null on the sheet, where nothing is charged).
   drawable: boolean
   drawCost: number | null
+  // For an armor item, whether it could be put on from here; null otherwise.
+  wear: WearView | null
 }
 
 // One slot group as the Containers table prints it: the Quick column names the
@@ -138,8 +141,10 @@ export type BurdenView = {
   label: string
 }
 
+// A pending stack that is already on the character — in the hands or on the
+// back — pays to be put away; a catalog pick appears in the slot for nothing.
 function getContainerPanel(key: string, container: Container, pending?: Item, c?: Character): ContainerPanelView {
-  const fromHands = c && pending && getHeldItem(c, pending.id) ? pending : undefined
+  const fromHands = c && pending && (getHeldItem(c, pending.id) || c.worn?.id === pending.id) ? pending : undefined
   return {
     key,
     name: container.name,
@@ -164,6 +169,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
           bulkName: getBulkName(item.bulk),
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
           ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
+          wear: c ? getWearView(c, slot, item) : null,
         })),
       })),
   }

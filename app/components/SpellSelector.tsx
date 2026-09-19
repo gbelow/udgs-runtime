@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Button, SectionLabel, TextInput } from './ui'
 import { useSpellLens } from '../hooks/useSpellLens'
 import type { SpellCatalogRow } from '../domain/character/lenses/spells'
 import type { SpellMethod } from '../domain/types'
@@ -23,38 +24,37 @@ export function SpellSelector(){
 
   return(
     <div className='flex flex-col w-full gap-1'>
-      <input className='p-1 border border-white rounded w-full text-sm' type='text' placeholder='filter' aria-label='spell filter' value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <TextInput className='w-full' placeholder='filter' aria-label='spell filter' value={filter} onChange={(e) => setFilter(e.target.value)} />
       {
         Object.entries(sections).map(([section, rows]) => (
           <div key={section} className='flex flex-col'>
-            <span className='text-xs uppercase text-gray-400 px-1 pt-1'>{section}</span>
+            <SectionLabel className='px-1 pt-2'>{section}</SectionLabel>
             {rows.map((row) => (
               <div key={row.key} className='flex flex-col'>
                 <div className='flex flex-row items-center'>
                   <button type='button' aria-label={`${row.name} details`}
-                    className='text-left px-1 hover:bg-gray-500 text-sm grow'
+                    className='text-left px-1 rounded text-sm grow cursor-pointer hover:bg-raised'
                     onClick={() => setOpen(open === row.key ? null : row.key)}>
                     {row.name}
-                    <span className='text-xs text-gray-400'> · {row.knowledge} · DL {row.DL ?? '?'}</span>
+                    <span className='text-xs text-muted'> · {row.knowledge} · DL {row.DL ?? '?'}</span>
                   </button>
                   {
                     row.learned ?
-                    <span className='text-xs text-gray-400 px-1'>learned</span> :
+                    <span className='text-xs text-muted px-1'>learned</span> :
                     METHODS.map((method) => (
-                      <input key={method} type='button' aria-label={`learn ${row.name} ${method}`} value={method[0]}
+                      <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
                         title={`learn ${method}`} disabled={!row.learnable[method]}
-                        className='border border-green-400 text-green-300 rounded px-1 text-xs disabled:opacity-30'
-                        onClick={() => learn(row.key, method)} />
+                        onClick={() => learn(row.key, method)}>{method[0]}</Button>
                     ))
                   }
                 </div>
                 {
                   open === row.key ?
-                  <div className='flex flex-col gap-1 px-2 pb-1 text-xs text-gray-300'>
-                    <span><span className='text-gray-400'>cost</span> {row.costText} · <span className='text-gray-400'>{row.type}</span></span>
-                    {row.requirements ? <span><span className='text-gray-400'>requires</span> {row.requirements}</span> : null}
+                  <div className='flex flex-col gap-1 px-2 pb-1 text-xs'>
+                    <span><span className='text-muted'>cost</span> {row.costText} · <span className='text-muted'>{row.type}</span></span>
+                    {row.requirements ? <span><span className='text-muted'>requires</span> {row.requirements}</span> : null}
                     <span>{row.description}</span>
-                    {row.enhance ? <span><span className='text-gray-400'>enhance</span> {row.enhance}</span> : null}
+                    {row.enhance ? <span><span className='text-muted'>enhance</span> {row.enhance}</span> : null}
                   </div>
                   : null
                 }

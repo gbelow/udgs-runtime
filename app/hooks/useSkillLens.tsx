@@ -1,4 +1,4 @@
-import { skillLenses, skillTermGetters, Term, termsDigest } from "../domain/character/lenses";
+import { skillLenses, skillTermGetters, Term, termsDigest, termsView } from "../domain/character/lenses";
 import { Character, Skills } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
@@ -23,5 +23,5 @@ export function useSkillLens(skillName: keyof Skills) {
     update((c) => lens.set(c, newValue));
   };
 
-  return [value, setValue, terms] as const;
+  return [value, setValue, terms, termsView(terms)] as const;
 }

@@ -1,11 +1,12 @@
 import { holdItem, regripItem, dropItem } from "../domain/item/commands";
+import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem, getHandsPanel, Grip, HandsPanelView } from "../domain/item/lenses";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
-const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: null };
+const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: null, lamingHold: false };
 
 // The hands and what they hold, in one shape gated on a digest of itself (cf.
 // useContainerLens). The pending catalog item is an input — the panel says
@@ -23,7 +24,7 @@ export function useHandsLens() {
   // Takes the pending catalog pick straight into the hands.
   const hold = (grip: Grip) => {
     if (pending?.source !== 'catalog') return;
-    const item = getCatalogItem(pending.key, pending.amount);
+    const item = getCatalogItem(pending.key, pending.amount, pending.scale);
     if (!item) return;
     update(holdItem(item, grip));
   };
@@ -37,5 +38,10 @@ export function useHandsLens() {
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
-  return { panel, hold, regrip, drop } as const;
+  const wear = (itemId: string) => {
+    update(wearFromHands(itemId));
+    if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
+  };
+
+  return { panel, hold, regrip, drop, wear } as const;
 }

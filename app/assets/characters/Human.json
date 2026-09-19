@@ -70,15 +70,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "aa19f1e6-3883-4d12-91d9-d8987766f8d4",
     "name": "Clothing",
-    "RES": 3,
-    "INS": 2,
-    "protection": 0,
-    "deflection": 3,
-    "burdenPenalty": 0,
-    "properties": "fiber",
-    "notes": ""
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 2,
+    "refId": "Clothing"
   },
   "weapons": {
     "Unarmed": {

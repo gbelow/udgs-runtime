@@ -8,11 +8,13 @@ import { useStore } from "zustand";
 export type GameTabs = 'edit' | 'play' | 'break' | 'catalog'
 
 // The item waiting for a destination to be clicked: a catalog entry picked in
-// the sidebar, or a stack in the hands being put away. Pure UI coordination
-// between components; what it is and where it fits are the domain's to say.
+// the sidebar, at the size it is to be stamped at, a stack in the hands being
+// put away, or the armor being taken off. Pure UI coordination between
+// components; what it is and where it fits are the domain's to say.
 export type PendingItem =
-  | { source: 'catalog'; key: string; amount: number }
+  | { source: 'catalog'; key: string; amount: number; scale: number }
   | { source: 'hand'; itemId: string }
+  | { source: 'worn' }
 
 export interface AppState {
   selectedGameTab: GameTabs

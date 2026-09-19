@@ -68,15 +68,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "5320c231-81a6-48e2-9ff5-b6edc6770f38",
     "name": "Clothing",
-    "RES": 6,
-    "TGH": 0,
-    "INS": 4,
-    "prot": 0,
-    "cover": 2,
-    "burdenPenalty": 0,
-    "type": "cloth"
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 2,
+    "refId": "Clothing"
   },
   "weapons": {
     "ShortSword": {

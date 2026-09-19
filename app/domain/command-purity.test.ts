@@ -35,6 +35,8 @@ const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambe
 const dagger = WeaponSchema.parse((weaponsCatalog as Record<string, unknown>).Dagger)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
+const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
+const packedGambeson = gambeson()
 
 function characterSubject(): CampaignCharacter {
   const base = makeCampaignCharacter({})
@@ -42,9 +44,10 @@ function characterSubject(): CampaignCharacter {
   return {
     ...withKnowledge,
     armor,
+    worn: gambeson(),
     hands: [{ ...base.hands[0], itemId: daggerItem.id }, base.hands[1]],
     held: [daggerItem],
-    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2, items: [coin] } } }) },
+    containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2, items: [coin, packedGambeson] } } }) },
     abilities: ['sprinter-1', 'synesthesia-1', 'tackle'],
     spells: { sleep: { method: 'intuitive', practice: 1 }, darken: { method: 'intuitive', practice: 0 } },
     usedSurge: 'focus',
@@ -57,6 +60,9 @@ function characterSubject(): CampaignCharacter {
 
 const attack = getAttacksList({ atk: dagger.attacks[0], weapon: dagger })(characterSubject())[0]
 
+// The subject with nothing on and the AP to put something on.
+const bareAndRested = (c: CampaignCharacter): CampaignCharacter => ({ ...c, worn: null, resources: { ...c.resources, AP: 12 } })
+
 // Keyed by the export name so the completeness check below can tell a command
 // that has no purity case from one that is deliberately not an updater.
 const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
@@ -67,8 +73,13 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   addAffliction: characterCommands.addAffliction('blind'),
   restCharacter: characterCommands.restCharacter,
   actionSurge: characterCommands.actionSurge('focus'),
-  equipArmor: characterCommands.equipArmor(armor),
-  unequipArmor: characterCommands.unequipArmor(),
+  wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareAndRested(c)),
+  wearFromHands: (c) => {
+    const suit = gambeson()
+    return characterCommands.wearFromHands(suit.id)(itemCommands.holdItem(suit)(bareAndRested(c)))
+  },
+  equipArmor: (c) => characterCommands.equipArmor(gambeson())(bareAndRested(c)),
+  doffArmor: characterCommands.doffArmor(null),
   putGauntlets: characterCommands.putGauntlets,
   putHelm: characterCommands.putHelm,
   resetSkill: characterCommands.resetSkill('strike'),

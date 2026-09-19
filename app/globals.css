@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
+/* Semantic palette. One meaning per token:
+     bg / surface / raised   ground, cards+tiles+inputs, anything lifted (hover, popover)
+     line                    borders and rules
+     fg / muted              values and text, labels+derived+disabled
+     accent                  selected, active, focus, primary action — never harm
+     good                    pending equip/store flows, positive terms
+     bad                     injury, affliction, negative terms, dead, delete
+   Umber is the default; the others are selected with data-theme on <html>
+   (see app/theme.ts). */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0A0806;
+  --surface: #14100C;
+  --raised: #1E1812;
+  --line: #35291D;
+  --fg: #EADFCB;
+  --muted: #93826A;
+  --accent: #D1934F;
+  --good: #5CB87A;
+  --bad: #DC4C4C;
+}
+
+:root[data-theme="frost"] {
+  --bg: #050E1B;
+  --surface: #0B1526;
+  --raised: #132035;
+  --line: #22344D;
+  --fg: #D6E8F5;
+  --muted: #7E93AD;
+  --accent: #8DC8EE;
+  --good: #3ECF8E;
+  --bad: #E5484D;
+}
+
+:root[data-theme="ember"] {
+  --bg: #050E1B;
+  --surface: #0B1526;
+  --raised: #132035;
+  --line: #22344D;
+  --fg: #D6E8F5;
+  --muted: #7E93AD;
+  --accent: #D69A52;
+  --good: #3ECF8E;
+  --bad: #E5484D;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-good: var(--good);
+  --color-bad: var(--bad);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --animate-flash: flash 700ms ease-out;
+  @keyframes flash {
+    from { box-shadow: 0 0 0 2px var(--accent); }
+    to { box-shadow: 0 0 0 2px transparent; }
   }
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Native popups (select lists, date pickers) paint from the element's own
+   colours, not the page's, so they need the tokens set directly. */
+select, option, optgroup {
+  background-color: var(--surface);
+  color: var(--fg);
+  color-scheme: dark;
 }

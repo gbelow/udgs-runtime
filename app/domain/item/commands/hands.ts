@@ -8,7 +8,7 @@ import { updateSTA } from '../../character/commands/bleed'
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
 // character untouched the way spendAttackResources does.
-function pay(c: Character, cost: ActionCost): Character | null {
+export function pay(c: Character, cost: ActionCost): Character | null {
   if (!isCharged(c)) return c
   if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
   const paid = cost.STA > 0 ? updateSTA(c.resources.STA - cost.STA)(c) : c
@@ -73,20 +73,26 @@ export function regripItem(itemId: string, hands: Grip): CharacterUpdater {
   }
 }
 
+// The stack an id names in a container, and the slot group it sits in.
+export function findInContainer(c: Character, containerKey: string, itemId: string): { slot: SlotKind; item: Item } {
+  const container = c.containers[containerKey]
+  if (!container) {
+    throw new Error(`Container "${containerKey}" not found`)
+  }
+  const found = (Object.keys(container.slots) as SlotKind[]).flatMap((slot) =>
+    container.slots[slot].items.flatMap((item) => (item.id === itemId ? [{ slot, item }] : [])),
+  )[0]
+  if (!found) {
+    throw new Error(`Item "${itemId}" not in container "${containerKey}"`)
+  }
+  return found
+}
+
 // combat.tex "Drawing items in combat": one unit leaves the container's stack
 // for the hands, at the price of where it sat.
 export function drawItem(containerKey: string, itemId: string, hands: Grip = 1): CharacterUpdater {
   return (c: Character) => {
-    const container = c.containers[containerKey]
-    if (!container) {
-      throw new Error(`Container "${containerKey}" not found`)
-    }
-    const found = (Object.keys(container.slots) as SlotKind[]).flatMap((slot) =>
-      container.slots[slot].items.flatMap((item) => (item.id === itemId ? [{ slot, item }] : [])),
-    )[0]
-    if (!found) {
-      throw new Error(`Item "${itemId}" not in container "${containerKey}"`)
-    }
+    const found = findInContainer(c, containerKey, itemId)
     const paid = pay(c, getDrawCost(c, found.slot, found.item))
     if (!paid) return c
     const unit = duplicateItem(found.item, { amount: 1 })

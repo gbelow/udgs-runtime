@@ -136,6 +136,7 @@ const CharacterIngestValues = {
   hasHelm: z.number().optional(),
 
   armor: ArmorSchema.optional(),
+  worn: ItemSchema.nullable().optional(),
   hands: z.array(HandSchema).optional(),
   held: z.array(ItemSchema).optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),

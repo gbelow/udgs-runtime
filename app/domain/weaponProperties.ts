@@ -1,33 +1,42 @@
-import type { AttackKind, AttackType, Range, WeaponProperty } from './types'
-import { MELEE_RANGES, SHOT_RANGES } from './lists'
-
-// gear.tex "Heavy I/II/III": "Having a higher degree of heavy allows using any
-// lower degree. Having heavy I-III or similar means that heavy I is minimum,
-// and normal attacks are not allowed." That is two bounds, not six spellings:
-// `min` is the lowest heavy degree available and `max` the highest, with
-// `min === 0` meaning the normal (non-heavy) attack is still allowed.
-export type HeavyRange = { min: number; max: number }
-
-const HEAVY: Partial<Record<WeaponProperty, HeavyRange>> = {
-  'heavy I': { min: 0, max: 1 },
-  'heavy II': { min: 0, max: 2 },
-  'heavy III': { min: 0, max: 3 },
-  'heavy I-II': { min: 1, max: 2 },
-  'heavy I-III': { min: 1, max: 3 },
-  'heavy II-III': { min: 2, max: 3 },
-}
+import type { AttackKind, AttackType, HeavyRange, Range, WeaponAttack, WeaponProperty } from './types'
+import { MELEE_RANGES, SHOT_RANGES, WEAPON_PROPERTIES } from './lists'
 
 export function hasProperty(properties: readonly WeaponProperty[], property: WeaponProperty): boolean {
   return properties.includes(property)
 }
 
 // The heavy degrees an attack offers, or null when it has no heavy property.
-export function getHeavyRange(properties: readonly WeaponProperty[]): HeavyRange | null {
-  for (const property of properties) {
-    const range = HEAVY[property]
-    if (range) return range
-  }
-  return null
+export function getHeavyRange(atk: Pick<WeaponAttack, 'heavy'>): HeavyRange | null {
+  return atk.heavy ?? null
+}
+
+const roman = (degree: number) => 'I'.repeat(degree)
+
+// gear.tex "Heavy I/II/III": a bare degree ("heavy II") keeps the normal
+// attack and offers every degree up to it; a range ("heavy I-III") starts at
+// its minimum and forbids the normal attack.
+export function getHeavyLabel({ min, max }: HeavyRange): string {
+  return min === 0 ? `heavy ${roman(max)}` : `heavy ${roman(min)}-${roman(max)}`
+}
+
+// gear.tex "Weapons Properties" lists Heavy between Hook and Piercing, so the
+// printed cell puts it there.
+const HEAVY_PRECEDES: WeaponProperty = 'piercing'
+
+// The attack's properties cell as the book prints it: "STR x" first, the
+// listed properties in the vocabulary's order with heavy in its slot, and the
+// material last when it is anything but the metal the book assumes.
+export function getAttackPropertyLabels(atk: WeaponAttack): string[] {
+  const order = (p: WeaponProperty) => WEAPON_PROPERTIES.indexOf(p)
+  const listed = [...atk.properties].sort((a, b) => order(a) - order(b))
+  const heavy = getHeavyRange(atk)
+  return [
+    ...(atk.STRreq !== undefined ? [`STR ${atk.STRreq}`] : []),
+    ...listed.filter((p) => order(p) < order(HEAVY_PRECEDES)),
+    ...(heavy ? [getHeavyLabel(heavy)] : []),
+    ...listed.filter((p) => order(p) >= order(HEAVY_PRECEDES)),
+    ...(atk.material !== 'metal' ? [atk.material] : []),
+  ]
 }
 
 // gear.tex "Short, Long I/II" are melee reaches; every other range is a shot

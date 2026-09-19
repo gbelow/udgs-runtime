@@ -1,13 +1,14 @@
 'use client'
 import { Overrides } from './SchemaForm'
+import { inputClass } from '../ui'
 import { CatalogName } from '../../forms/catalogs'
 import { ABILITY_KEYS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
-import { BULK_NAMES, knowledges_list } from '../../domain/lists'
+import { BULK_NAMES, HEAVY_MAX_DEGREE, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 
-const input = 'bg-transparent border border-gray-600 rounded px-1 text-sm w-full'
+const input = `${inputClass} text-sm w-full`
 
 // The few fields whose widget the schema alone cannot pick: long text, and
 // names that point into another catalog and want its keys offered.
@@ -65,6 +66,31 @@ const reloadCost: Widget = ({ value, onChange, parent }) => {
   return <input className={input} type='number' step='any' value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))} />
 }
 
+// gear.tex "Heavy I/II/III": a heavy property is a range of degrees, picked
+// as its two ends. "normal" at the low end keeps the normal attack ("heavy
+// II"); a degree there forbids it ("heavy I-II"). "normal" at the high end is
+// no heavy at all, and the field is left absent like an unset reload.
+const HEAVY_DEGREES = ['normal', ...Array.from({ length: HEAVY_MAX_DEGREE }, (_, i) => 'I'.repeat(i + 1))]
+
+const heavyRange: Widget = ({ value, onChange }) => {
+  const range = (value ?? null) as { min: number; max: number } | null
+  const min = range?.min ?? 0
+  const max = range?.max ?? 0
+  const set = (nextMin: number, nextMax: number) => onChange(nextMax === 0 ? undefined : { min: Math.min(nextMin, nextMax), max: nextMax })
+  const select = (label: string, degree: number, pick: (d: number) => void) => (
+    <select className={input} aria-label={`heavy ${label}`} value={degree} onChange={(e) => pick(Number(e.target.value))}>
+      {HEAVY_DEGREES.map((name, d) => <option key={name} value={d}>{name}</option>)}
+    </select>
+  )
+  return (
+    <div className='flex flex-row gap-1 items-center'>
+      {select('from', min, (d) => set(d, Math.max(d, max)))}
+      <span>to</span>
+      {select('to', max, (d) => set(min, d))}
+    </div>
+  )
+}
+
 export const OVERRIDES: Record<CatalogName, Overrides> = {
   abilities: {
     'stages.requirements.name': requirementName,
@@ -79,7 +105,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
     'outcomes.hit': textarea,
     'outcomes.crit': textarea,
   },
-  weapons: { 'attacks.reload': reloadCost },
+  weapons: { 'attacks.reload': reloadCost, 'attacks.heavy': heavyRange },
   armors: { notes: textarea },
   items: {
     refId: itemRef,

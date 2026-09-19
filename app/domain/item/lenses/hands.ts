@@ -1,10 +1,11 @@
-import { CampaignCharacter, Character, Hand, Handed, Item, SlotKind, Weapon } from '../../types'
-import { getBulkName, getCatalogWeapon, getItemWeapon } from './items'
-import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
+import { Character, Hand, Handed, Item, SlotKind, Weapon } from '../../types'
+import { getBulkName, getCatalogWeapon, getItemScale, getItemWeapon } from './items'
+import { getDrawCost, isCharged } from './costs'
 import { getSize } from '../../character/lenses/misc'
 import { scaleWeapon } from '../../character/lenses/helpers'
-import { isCampaignCharacter } from '../../utils'
-import { hasProperty } from '../../weaponProperties'
+import { getWearView, WearView } from '../../character/lenses/armor'
+
+export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 
 // gear.tex "Small/One/Two hands": a stack is gripped by one hand or two. Any
 // number of hands can be free, but no stack takes more than two.
@@ -29,47 +30,23 @@ export function getFreeHoldingHands(c: Character): Hand[] {
 }
 
 // gear.tex "Hands": "can carry an item up to one bulk higher than the
-// character's size".
+// character's size without penalty. Carrying something up to 3 bulk higher is
+// possible, but makes the character lame." Holding is about bulk; whether a
+// held weapon can be fought with is about its size (isWieldable).
 export function canBeHeld(c: Character, item: Item): boolean {
-  return item.bulk <= getSize(c) + 1
+  return item.bulk <= getSize(c) + 2
+}
+
+export function isLamingHold(c: Character, item: Item): boolean {
+  return item.bulk > getSize(c) + 1
+}
+
+export function isLamedByHeld(c: Character): boolean {
+  return c.held.some((item) => isLamingHold(c, item))
 }
 
 export function canHoldWith(c: Character, item: Item, grip: Grip): boolean {
   return canBeHeld(c, item) && getFreeHoldingHands(c).length >= grip
-}
-
-export function hasDraw(item: Item): boolean {
-  return getItemWeapon(item)?.attacks.some((atk) => hasProperty(atk.properties, 'draw')) ?? false
-}
-
-const times = (cost: ActionCost, n: number): ActionCost => ({ AP: cost.AP * n, STA: cost.STA * n })
-const plusAP = (cost: ActionCost, ap: number): ActionCost => ({ AP: cost.AP + ap, STA: cost.STA })
-
-export const FREE: ActionCost = { AP: 0, STA: 0 }
-
-// combat.tex "Drawing items in combat": from any slot but a quick one, 4 AP on
-// top of a standard action. From a quick slot an item up to small or a weapon
-// with draw is free, a medium item is a standard action and a large one two.
-export function getDrawCost(c: Character, slot: SlotKind, item: Item): ActionCost {
-  const standard = getActionCost(c, 'standardAction')
-  if (slot !== 'quick') return plusAP(standard, 4)
-  if (item.bulk <= 1 || hasDraw(item)) return FREE
-  if (item.bulk === 2) return standard
-  return times(standard, 2)
-}
-
-// combat.tex "Putting items away": an item up to small or a weapon with draw
-// goes into a quick slot for a standard action; anything else, anywhere, is
-// 4 AP more. Dropping is free.
-export function getStoreCost(c: Character, slot: SlotKind, item: Item): ActionCost {
-  const standard = getActionCost(c, 'standardAction')
-  if (slot === 'quick' && (item.bulk <= 1 || hasDraw(item))) return standard
-  return plusAP(standard, 4)
-}
-
-// Only a character in play has AP to spend; on the sheet every move is free.
-export function isCharged(c: Character): c is CampaignCharacter {
-  return isCampaignCharacter(c)
 }
 
 export type Wielded = {
@@ -121,18 +98,25 @@ export type HeldItemView = {
   name: string
   amount: number
   bulkName: string
+  scale: number
   grip: number
+  // gear.tex "Hands": more than one bulk over the holder's size lames them.
+  laming: boolean
   // Whether the stack could be regripped to that many hands. Moving between
   // one and two hands costs nothing (gear.tex "Small/One/Two hands").
   canGrip: Record<Grip, boolean>
+  // For an armor item, whether it could be put on from here; null otherwise.
+  wear: WearView | null
 }
 
 export type HandsPanelView = {
   hands: HandView[]
   held: HeldItemView[]
   freeHolding: number
-  // For the item being placed, whether the hands could take it as is.
+  // For the item being placed, whether the hands could take it as is, and
+  // whether taking it would lame the holder.
   canHold: Record<Grip, boolean> | null
+  lamingHold: boolean
 }
 
 export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
@@ -155,12 +139,16 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         name: item.name || item.refId,
         amount: item.amount,
         bulkName: getBulkName(item.bulk),
+        scale: getItemScale(item),
         grip,
+        laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
+        wear: getWearView(c, null, item),
       }
     }),
     freeHolding,
     canHold: pending ? { 1: canHoldWith(c, pending, 1), 2: canHoldWith(c, pending, 2) } : null,
+    lamingHold: pending ? isLamingHold(c, pending) : false,
   }
 }
 

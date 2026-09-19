@@ -68,15 +68,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "bd1a18c0-6251-4868-950b-8e891278b336",
     "name": "Gambeson",
-    "RES": 10,
-    "TGH": 0,
-    "INS": 6,
-    "prot": 3,
-    "cover": 4,
-    "burdenPenalty": 0,
-    "type": "cloth"
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 2,
+    "refId": "Gambeson"
   },
   "weapons": {
     "Dagger": {

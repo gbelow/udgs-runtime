@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getCatalogItem, getItemWeapon, getItemArmor } from './items'
+import { getCatalogItem, getItemWeapon, getItemArmor, getItemScale, GEAR_SIZE } from './items'
 import { ArmorSchema, ItemSchema, WeaponSchema } from '../../types'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
@@ -10,23 +10,23 @@ const armors = Object.keys(armorsCatalog as Record<string, unknown>)
 
 // An item with a refId is a pointer into a catalog; resolving it is what lets a
 // weapon sitting in a backpack be equipped as the real thing. Driven off the
-// catalogs, so an entry added to either is resolved without a new case. A
-// weapon is stamped from its own item template, at the bulk the book lists it
-// at, so it comes back as printed rather than scaled (gear.tex "Size Scaling").
-const weaponTemplate = (refId: string) =>
-  Object.values(itemsCatalog as Record<string, unknown>).map((raw) => ItemSchema.parse(raw)).find((t) => t.type === 'weapon' && t.refId === refId)
-  ?? ItemSchema.parse({ name: refId, type: 'weapon', refId })
+// catalogs, so an entry added to either is resolved without a new case. An
+// item is stamped from its own template, at the bulk the book lists it at, so
+// it comes back as printed rather than scaled (gear.tex "Size Scaling").
+const template = (type: 'weapon' | 'armor', refId: string) =>
+  Object.values(itemsCatalog as Record<string, unknown>).map((raw) => ItemSchema.parse(raw)).find((t) => t.type === type && t.refId === refId)
+  ?? ItemSchema.parse({ name: refId, type, refId })
 
 describe('resolving a catalog item', () => {
   it.each(weapons)('resolves the weapon "%s"', (refId) => {
-    const item = weaponTemplate(refId)
+    const item = template('weapon', refId)
     expect(getItemWeapon(item)).toEqual(WeaponSchema.parse((weaponsCatalog as Record<string, unknown>)[refId]))
     expect(getItemArmor(item)).toBeUndefined()
   })
 
   it.each(armors)('resolves the armor "%s"', (refId) => {
-    const item = ItemSchema.parse({ name: refId, type: 'armor', refId })
-    expect(getItemArmor(item)).toEqual(ArmorSchema.parse((armorsCatalog as Record<string, unknown>)[refId]))
+    const item = template('armor', refId)
+    expect(getItemArmor(item)).toEqual({ ...ArmorSchema.parse((armorsCatalog as Record<string, unknown>)[refId]), scale: GEAR_SIZE })
     expect(getItemWeapon(item)).toBeUndefined()
   })
 })
@@ -69,6 +69,16 @@ describe('items.json', () => {
     expect(first, key).toBeDefined()
     expect(second?.id).not.toBe(first?.id)
     expect({ ...second, id: '' }).toEqual({ ...first, id: '' })
+  })
+
+  // An item carries its size in its bulk, so stamping a template at a size and
+  // reading the size back off the stamp must agree at every size a creature
+  // can be — for the flavor entries too, which have a template to be measured
+  // against even though nothing resolves through them.
+  it.each(entries)('%s reads back the size it was stamped at', (key) => {
+    for (let scale = 1; scale <= 7; scale++) {
+      expect(getItemScale(getCatalogItem(key, 1, scale)!), `${key} at size ${scale}`).toBe(scale)
+    }
   })
 
   it.each(entries)('%s resolves whatever it references', (key, raw) => {

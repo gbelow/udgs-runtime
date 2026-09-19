@@ -1,6 +1,5 @@
 'use client'
 import { useState } from 'react'
-import { ArmorSelector } from './ArmorSelector';
 import { CharacterSelector } from './CharacterSelector';
 import { ContainerSelector } from './ContainerSelector';
 import { ItemSelector } from './ItemSelector';
@@ -8,7 +7,6 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 
 const PANELS = {
-  Armor: ArmorSelector,
   Container: ContainerSelector,
   Item: ItemSelector,
   Ability: AbilitySelector,
@@ -27,12 +25,13 @@ export function Sidebar(){
     <div className='flex flex-col gap-2 h-full text-left'>
       <div className='flex flex-row flex-wrap gap-1 text-xs'>
         {PANEL_NAMES.map((name) => (
-          <input key={name} className={`py-1 rounded px-2 hover:bg-gray-500 ${selected === name ? 'bg-white text-black' : ''}`}
-            type='button' aria-label={`sbar_${name.toLowerCase()}`} value={name} onClick={() => setSelected(name)} />
+          <button key={name} type='button' aria-label={`sbar_${name.toLowerCase()}`}
+            className={`py-1 px-2 rounded border ${selected === name ? 'border-accent text-accent bg-raised' : 'border-line text-muted hover:text-fg hover:bg-raised'}`}
+            onClick={() => setSelected(name)}>{name}</button>
         ))}
       </div>
       <div className='flex flex-col gap-1 max-h-[85vh] overflow-y-auto pr-2'>
-        {Panel ? <Panel /> : <span className='text-sm text-gray-400'>Pick a panel above.</span>}
+        {Panel ? <Panel /> : <span className='text-sm text-muted'>Pick a panel above.</span>}
       </div>
     </div>
   )

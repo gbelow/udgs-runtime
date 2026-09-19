@@ -71,19 +71,14 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
-  "armor": {
+  "worn": {
+    "id": "c7b83b7b-e228-4f1e-b197-7a1eb98dbbce",
     "name": "Chain Shirt",
-    "RES": 12,
-    "INS": 5,
-    "poise": 0,
-    "protection": 0,
-    "deflection": 0,
-    "burdenPenalty": 0,
-    "properties": "",
-    "TGH": 0,
-    "prot": 3,
-    "cover": 4,
-    "type": "metallic"
+    "description": "",
+    "type": "armor",
+    "amount": 1,
+    "bulk": 3,
+    "refId": "ChainShirt"
   },
   "weapons": {
     "Unarmed": {

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated rulebook tables (tools/render_gear_tables.py)
+/tools/out/
+
+# python bytecode
+__pycache__/

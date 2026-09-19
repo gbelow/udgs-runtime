@@ -6928,46 +6928,5 @@
         "effect": []
       }
     ]
-  },
-  "test": {
-    "family": "test",
-    "section": "CON",
-    "activation": "active",
-    "cost": {
-      "AP": 2,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 0
-    },
-    "target": "self",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [
-          {
-            "level": 2,
-            "property": "CON"
-          }
-        ],
-        "requirements": [],
-        "description": "IT TESTS IF IT WORKS",
-        "effect": [
-          {
-            "name": "",
-            "trigger": "end_round",
-            "type": "cost",
-            "effect": {
-              "AP": 0,
-              "STA": 2,
-              "exhaustion": 1,
-              "IL": 2,
-              "ET": 0
-            }
-          }
-        ]
-      }
-    ]
   }
 }
