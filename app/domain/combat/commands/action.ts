@@ -154,14 +154,26 @@ function priceFor(state: CombatState, action: Action): ActionCost | null {
 
 // combat.tex "Success Overflow": buys one effect out of the hit's HOP. Only
 // what the option list offers as open, so the command refuses exactly what
-// the button shows as closed. A purchase is never taken back — the die is
-// already thrown, and what is spent stays spent.
+// the button shows as closed.
 export function spendHOP(purchase: HOPPurchase): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'strike' || open.status !== 'rolled') return state
     if (!getHOPOptions(state, open).find((o) => o.purchase === purchase)?.available) return state
     return replaceActions(state, [{ ...open, spent: { ...open.spent, [purchase]: (open.spent[purchase] ?? 0) + 1 } }])
+  }
+}
+
+// Takes one purchase back. Nothing has landed on the target until the
+// action resolves, so the overflow is free to re-spend up to that point.
+export function refundHOP(purchase: HOPPurchase): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'strike' || open.status !== 'rolled') return state
+    const bought = open.spent[purchase] ?? 0
+    if (bought === 0) return state
+    const { [purchase]: _, ...rest } = open.spent
+    return replaceActions(state, [{ ...open, spent: bought > 1 ? { ...rest, [purchase]: bought - 1 } : rest }])
   }
 }
 

@@ -29,23 +29,29 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
-// lands on the level, the bleed on its intensity, the wound's own IL on the
-// wound list ("tracked separately from the main IL"), and a death from the
-// head puts the level at the threshold that is death.
+// lands on the level, the bleed on its intensity, the wound joins what the
+// character carries in `active` until it is healed, and a death from the
+// head puts the level at the threshold that is death. A wound already
+// carried is not carried twice, and its affliction is read off it rather
+// than stored; only unconsciousness, which no wound carries, is written.
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    // an affliction the target already carries is not toggled off again
-    const afflicted = { ...c, afflictions: [...new Set([...c.afflictions, ...outcome.afflictions])] }
-    const injuryLevel = afflicted.injuries.injuryLevel + outcome.IL
+    const { wound } = outcome
+    const carried = wound && c.active.some((e) => e.kind === 'wound' && e.key === wound.key && (e.hand ?? null) === wound.hand)
+    const active = wound && !carried
+      ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(wound.hand !== null ? { hand: wound.hand } : {}) }]
+      : c.active
+    const injuryLevel = c.injuries.injuryLevel + outcome.IL
     return {
-      ...afflicted,
+      ...c,
+      active,
+      afflictions: [...new Set([...c.afflictions, ...outcome.afflictions.filter((a) => a === 'unconscious')])],
       injuries: {
-        ...afflicted.injuries,
-        injuryLevel: outcome.dead ? Math.max(injuryLevel, afflicted.injuries.deathThreshold) : injuryLevel,
-        bleed: afflicted.injuries.bleed + outcome.bleed,
-        wounds: outcome.wound?.heal != null ? [...afflicted.injuries.wounds, outcome.wound.heal] : afflicted.injuries.wounds,
+        ...c.injuries,
+        injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
+        bleed: c.injuries.bleed + outcome.bleed,
       },
-      resources: { ...afflicted.resources, AP: afflicted.resources.AP - outcome.apLoss },
+      resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
     }
   }
 }

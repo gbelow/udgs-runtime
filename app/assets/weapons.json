@@ -34,8 +34,7 @@
           "max": 1
         },
         "properties": [
-          "draw",
-          "smash"
+          "draw"
         ]
       }
     ]
@@ -92,9 +91,7 @@
           "min": 0,
           "max": 1
         },
-        "properties": [
-          "smash"
-        ]
+        "properties": []
       }
     ]
   },
@@ -387,9 +384,7 @@
           "min": 1,
           "max": 2
         },
-        "properties": [
-          "smash"
-        ]
+        "properties": []
       },
       {
         "name": "shaft",
@@ -675,9 +670,7 @@
           "min": 2,
           "max": 3
         },
-        "properties": [
-          "smash"
-        ]
+        "properties": []
       }
     ]
   },

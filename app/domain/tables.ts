@@ -42,26 +42,27 @@ export const RMArr = [0.5, 1, 1, 1.5, 1.5, 2, 2.5]
 
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.
-export const injuryMap: Record<string, { IL: number; bleed: number; woundChance: number }> = {
-  T0: { IL: 1, bleed: 0, woundChance: 0 },
-  T1: { IL: 5, bleed: 0, woundChance: 0 },
-  T2: { IL: 10, bleed: 1, woundChance: 0.5 },
-  T3: { IL: 20, bleed: 2, woundChance: 1 },
-  T4: { IL: 30, bleed: 3, woundChance: 1 },
-  T5: { IL: 50, bleed: 4, woundChance: 1 },
+export const injuryMap: Record<string, { IL: number; bleed: number }> = {
+  T0: { IL: 1, bleed: 0 },
+  T1: { IL: 5, bleed: 0 },
+  T2: { IL: 10, bleed: 1 },
+  T3: { IL: 20, bleed: 2 },
+  T4: { IL: 30, bleed: 3 },
+  T5: { IL: 50, bleed: 4 },
 }
 export const MAX_TIER = 5
 
 // combat.tex "Success Overflow" and "Localized damage" (the hand switch): what
 // a hit's HOP can buy. `cost` is a number of HOP or the target's deflection;
 // `property` is the weapon property that allows the effect (gear.tex "Weapons
-// Properties"), null where any weapon may. The book lists no property for
-// Smash, but the catalog carries one, so it is read as the gate.
+// Properties"), null where any weapon may. Smash is free and open to any
+// weapon; its only gate is that the blunt damage reaches T1, which is read
+// off the outcome.
 export const HOP_EFFECTS = {
   extraCut:   { cost: 1,            property: 'bladed' },
   bypass:     { cost: 'deflection', property: 'precise' },
   penetrating:{ cost: 'deflection', property: 'penetrating' },
-  smash:      { cost: 'deflection', property: 'smash' },
+  smash:      { cost: 0,            property: null },
   handSwitch: { cost: 3,            property: null },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
 
@@ -69,25 +70,20 @@ export const HOP_EFFECTS = {
 export const INTERRUPTION_AP = 2
 export const STUN_AP = 4
 
-// combat.tex "Wounds" table, keyed by location and then by the lowest tier
-// that causes it; a higher tier takes the worse wound. `heal` is the IL wound
-// (null for "no heal"), `affliction` what the consequence is on the sheet.
-// The hand's consequence (a useless or lost hand) has no affliction to carry
-// it and is left to the table.
-export const WOUNDS: Record<(typeof HIT_LOCATIONS)[number], { tier: number; name: string; heal: number | null; affliction: AfflictionKey | null; amputation: boolean }[]> = {
-  chest: [],
-  hand: [
-    { tier: 2, name: 'broken hand', heal: 10, affliction: null, amputation: false },
-    { tier: 4, name: 'amputated hand', heal: null, affliction: null, amputation: true },
-  ],
-  leg: [
-    { tier: 3, name: 'broken leg', heal: 20, affliction: 'lame', amputation: false },
-    { tier: 5, name: 'amputated leg', heal: null, affliction: 'lame', amputation: true },
-  ],
-  head: [],
-}
-// combat.tex "Wounds": "Shocked — T4 blunt+smash — 5 — immobile".
-export const SHOCKED = { tier: 4, name: 'shocked', heal: 5, affliction: 'immobile' } as const
+// combat.tex "Wounds" table. A wound is a permanent effect the character
+// carries in `active` until healed: `heal` is the IL wound to heal it away
+// (null for "no heal" — an amputation is for good), `affliction` its
+// consequence on the sheet, `tier` the lowest tier at the location that
+// causes it. Shocked alone needs the blunt type and a smash. A hand's
+// consequence is carried by the hand itself (hands.ts), not by an affliction.
+export const WOUNDS = {
+  brokenHand:    { name: 'broken hand',    location: 'hand',  tier: 2, heal: 10,   affliction: null,       amputation: false, smash: false },
+  amputatedHand: { name: 'amputated hand', location: 'hand',  tier: 4, heal: null, affliction: null,       amputation: true,  smash: false },
+  brokenLeg:     { name: 'broken leg',     location: 'leg',   tier: 3, heal: 20,   affliction: 'lame',     amputation: false, smash: false },
+  amputatedLeg:  { name: 'amputated leg',  location: 'leg',   tier: 5, heal: null, affliction: 'lame',     amputation: true,  smash: false },
+  shocked:       { name: 'shocked',        location: 'chest', tier: 4, heal: 5,    affliction: 'immobile', amputation: false, smash: true },
+} as const satisfies Record<string, { name: string; location: (typeof HIT_LOCATIONS)[number]; tier: number; heal: number | null; affliction: AfflictionKey | null; amputation: boolean; smash: boolean }>
+export type WoundKey = keyof typeof WOUNDS
 // combat.tex "Head": T3 blunt, cutting or electric, or any stun, is
 // unconsciousness; T4 is death.
 export const HEAD = { unconscious: 3, death: 4 } as const

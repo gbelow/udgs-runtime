@@ -5,6 +5,7 @@ import {
   cancelAction,
   declareAction,
   declareReaction,
+  refundHOP,
   resolveAction,
   rollAction,
   setTarget,
@@ -45,7 +46,8 @@ export function useCombatActions() {
   const cancel = () => update(cancelAction());
   const roll = () => update(rollAction(rollFull(Math.random)));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
+  const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const resolve = () => update(resolveAction());
 
-  return { view, declare, amend, target, react, withdraw, cancel, roll, spend, resolve } as const;
+  return { view, declare, amend, target, react, withdraw, cancel, roll, spend, refund, resolve } as const;
 }

@@ -19,7 +19,7 @@ const STEP_LABEL = {
 // nothing is open, then one step at a time — the declaration, the target,
 // the defender's answer and the die, the result — until it is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, withdraw, cancel, roll, spend, resolve } = useCombatActions()
+  const { view, declare, amend, target, react, withdraw, cancel, roll, spend, refund, resolve } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -47,7 +47,8 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
           {view.locations.map((l) =>
-            <Button key={l.location} size='xs' active={l.location === open.location}
+            <Button key={l.location} size='xs' variant={l.location === open.location ? 'primary' : 'default'}
+              className={l.location === open.location ? 'bg-accent/15' : ''}
               title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
               onClick={() => amend({ location: l.location })}>
               {l.location}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
@@ -67,7 +68,7 @@ export function ActionPanel(){
         <div className='flex flex-col gap-1'>
           <div className='flex flex-row flex-wrap gap-1 items-center'>
             <SectionLabel>{open.target} answers</SectionLabel>
-            <Button size='xs' active={open.reaction === null} onClick={withdraw}>take it (SD)</Button>
+            <Button size='xs' variant={open.reaction === null ? 'primary' : 'default'} className={open.reaction === null ? 'bg-accent/15' : ''} onClick={withdraw}>take it (SD)</Button>
             {view.options.map((o) =>
               <OptionButton key={o.label} option={o} active={open.reaction?.label === o.label} onClick={() => react(o.draft)} />)}
           </div>
@@ -88,7 +89,7 @@ export function ActionPanel(){
           {step === 'spend' ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>overflow</SectionLabel>
-              {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onClick={() => spend(o.purchase)} />)}
+              {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onBuy={() => spend(o.purchase)} onRefund={() => refund(o.purchase)} />)}
             </div>
           ) : null}
           {view.outcome ? <OutcomeLine outcome={view.outcome} target={open.target ?? ''} /> : null}
@@ -137,18 +138,26 @@ function Test({ open }: { open: OpenActionView }){
 
 function OptionButton({ option, active = false, onClick }: { option: ActionOption, active?: boolean, onClick: () => void }){
   return (
-    <Button size='xs' active={active} disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
+    <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+      disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
       {option.label} <Cost cost={option.cost} />
     </Button>
   )
 }
 
-function HOPButton({ option, onClick }: { option: HOPOption, onClick: () => void }){
+// A purchase: click to buy, and once bought a second control to take it
+// back — the die is thrown but nothing has landed yet.
+function HOPButton({ option, onBuy, onRefund }: { option: HOPOption, onBuy: () => void, onRefund: () => void }){
+  const bought = option.bought > 0
   return (
-    <Button size='xs' disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
-      {option.label} <span className='font-mono text-muted'>{option.cost}</span>
-      {option.bought ? <span className='ml-1 font-mono text-good'>×{option.bought}</span> : null}
-    </Button>
+    <span className='inline-flex items-stretch'>
+      <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
+        disabled={!option.available} title={option.reason ?? undefined} onClick={onBuy}>
+        {option.label} <span className='font-mono text-muted'>{option.cost}</span>
+        {bought ? <span className='ml-1 font-mono'>×{option.bought}</span> : null}
+      </Button>
+      {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
+    </span>
   )
 }
 
@@ -164,7 +173,7 @@ function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
       <span className='font-medium text-bad'>T{outcome.tier}{outcome.bodyTier !== outcome.tier ? <span className='text-muted'> (body T{outcome.bodyTier})</span> : null}</span>
       <span>+<span className='font-mono'>{outcome.IL}</span> IL</span>
       {outcome.bleed ? <span>bleed +<span className='font-mono'>{outcome.bleed}</span></span> : null}
-      {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.heal !== null ? ` (${outcome.wound.heal} IL)` : ''}</span> : null}
+      {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.hand !== null ? ` (hand ${outcome.wound.hand + 1})` : ''}{outcome.wound.heal !== null ? ` · heals at ${outcome.wound.heal} IL` : ' · no heal'}</span> : null}
       {outcome.afflictions.map((a) => <span key={a} className='text-bad'>{a}</span>)}
       {outcome.interruption !== 'none' ? <span>{outcome.interruption} −<span className='font-mono'>{outcome.apLoss}</span> AP</span> : null}
       {outcome.dead ? <span className='font-medium text-bad'>dead</span> : null}

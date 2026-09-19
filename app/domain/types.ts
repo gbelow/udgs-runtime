@@ -289,7 +289,6 @@ export type Hand = z.infer<typeof HandSchema>
 
 export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
-  wounds: z.array(num).default([]),
   bleed: z.number().default(0),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
@@ -298,14 +297,6 @@ export const InjuriesSchema = z.object({
 }).strip()
 
 export type Injuries = z.infer<typeof InjuriesSchema>
-
-export const WoundSchema = z.object({
-  severity: z.number().default(0),
-  location: z.string().default(''),
-  description: z.string().default(''),
-}).strip()
-
-export type Wound = z.infer<typeof WoundSchema>
 
 export const ResourcesSchema = z.object({
   AP: num.default(0),
@@ -434,12 +425,14 @@ export const EffectSchema = z.discriminatedUnion('type', [
 export type Effect = z.infer<typeof EffectSchema>
 export type EffectInput = z.input<typeof EffectSchema>
 
-// Something switched on and held: a toggle ability today, a spell later.
-// The character keeps only the reference; the effects are read off the
-// owning catalog, so nothing copied into state can go stale.
+// Something switched on and held: a toggle ability, a held spell, or a
+// wound carried until it is healed. The character keeps only the reference;
+// the effects are read off the owning catalog, so nothing copied into state
+// can go stale. A wound to a hand names the hand (its index) it disables.
 export const ActiveEntrySchema = z.object({
-  kind: z.enum(['ability', 'spell']),
+  kind: z.enum(['ability', 'spell', 'wound']),
   key: str,
+  hand: num.optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>

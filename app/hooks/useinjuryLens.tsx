@@ -17,7 +17,7 @@ export function useInjuryLens() {
   const injuries: Injuries =
     useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? injuryLens.get(c) : null)) ?? DEFAULT_INJURIES;
 
-  const setInjury = (keyName: keyof Injuries, newValue: number | number[]) => {
+  const setInjury = (keyName: keyof Injuries, newValue: number) => {
     const injuryValueLens = composeLens(injuryLens, makePropLens<Injuries, keyof Injuries>(keyName));
     update((c) => (isCampaignCharacter(c) ? injuryValueLens.set(c, newValue) : c));
   };

@@ -3,6 +3,7 @@ import { AFFLICTIONS, AFFLICTION_CATEGORIES, AfflictionCategory, AfflictionDef, 
 import { isCampaignCharacter } from '../../utils'
 import { isLamedByBurden } from '../../item/lenses/containers'
 import { isLamedByHeld } from '../../item/lenses/hands'
+import { getWoundAfflictions } from './wounds'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
 // character's own state forces on them. survival.tex states each resource's
@@ -41,6 +42,9 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   // gear.tex "Containers and burden": a container 3 over the character's size
   // makes them lame; gear.tex "Hands": so does holding more than 1 bulk over it.
   if (isLamedByBurden(character) || isLamedByHeld(character)) afflictions.add('lame')
+
+  // combat.tex "Wounds": a carried wound's consequence, for as long as it is
+  for (const key of getWoundAfflictions(character)) afflictions.add(key)
 
   return worstOfEachGroup(dropSupersededGroups([...afflictions]))
 }

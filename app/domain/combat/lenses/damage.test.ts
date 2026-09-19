@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, StrikeFactsSchema, type CombatState, type StrikeFacts } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import type { CampaignCharacter } from '../../types'
+import { ItemSchema, type CampaignCharacter } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
-import { LOCATIONS, injuryMap } from '../../tables'
+import { LOCATIONS, STUN_AP, injuryMap } from '../../tables'
 import { getOutcome, getOutcomePreview } from './damage'
 import { getOpenAction } from './action'
 import { declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
@@ -48,6 +48,28 @@ describe('the degree', () => {
       expect(outcome.wound).toBeNull()
       expect(outcome.dead).toBe(false)
     }
+  })
+})
+
+describe('interruption', () => {
+  // An interruption or stun is a minimum spend on the action: a defender who
+  // already paid at least that much for their reaction loses nothing more.
+  it('takes nothing from a defender who already spent the minimum', () => {
+    for (const blunt of damages) {
+      const outcome = getOutcome(facts({ blunt, smash: true, defense: 'evade', defenseAP: STUN_AP }), target)
+      expect(outcome.apLoss).toBe(0)
+    }
+  })
+})
+
+describe('hand wounds', () => {
+  // combat.tex "Hand": the hand a wound takes is the one used for defense —
+  // the one holding what the target blocked with.
+  it('land on the hand holding the blocking item', () => {
+    const dagger = ItemSchema.parse({ id: 'd1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+    const blocker = { ...target, hands: [target.hands[0], { ...target.hands[1], itemId: dagger.id }], held: [dagger] }
+    const outcome = getOutcome(facts({ blunt: 200, location: 'hand', defense: 'block', defenseWeaponKey: dagger.id }), blocker)
+    expect(outcome.wound?.hand).toBe(1)
   })
 })
 

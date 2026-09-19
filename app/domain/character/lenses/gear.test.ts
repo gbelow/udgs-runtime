@@ -32,9 +32,4 @@ describe('getDamageTiers', () => {
       expect(row.INS - armor.INS, key).toBe(tier * step)
     })
   })
-
-  it('reports a wound chance that is a probability', () => {
-    const rows = getDamageTiers(wearing(armorsCatalog.FullArmor))
-    expect(rows.every((row) => row.woundChance >= 0 && row.woundChance <= 1)).toBe(true)
-  })
 })

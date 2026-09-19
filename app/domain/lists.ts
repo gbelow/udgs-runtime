@@ -107,7 +107,6 @@ export const WEAPON_PROPERTIES = [
   'UF',
   'draw',
   'reload',
-  'smash',
 ] as const
 
 // gear.tex "Heavy I/II/III": the highest degree a heavy attack comes in.

@@ -4,6 +4,7 @@ import { getDrawCost, isCharged } from './costs'
 import { getSize } from '../../character/lenses/misc'
 import { scaleWeapon } from '../../character/lenses/helpers'
 import { getWearView, WearView } from '../../character/lenses/armor'
+import { isHandWounded } from '../../character/lenses/wounds'
 
 export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 
@@ -11,8 +12,14 @@ export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 // number of hands can be free, but no stack takes more than two.
 export type Grip = 1 | 2
 
+// The hands that are there to be used: combat.tex "Wounds" takes a broken
+// or amputated hand out of the count, whatever it was holding.
+function getSoundHands(c: Character): Hand[] {
+  return c.hands.filter((_, index) => !isHandWounded(c, index))
+}
+
 export function getGrip(c: Character, itemId: string): number {
-  return c.hands.filter((hand) => hand.itemId === itemId).length
+  return getSoundHands(c).filter((hand) => hand.itemId === itemId).length
 }
 
 export function getHeldItem(c: Character, itemId: string): Item | undefined {
@@ -22,7 +29,7 @@ export function getHeldItem(c: Character, itemId: string): Item | undefined {
 // A free hand fights with its natural weapon; a free hand that can hold is the
 // one that may take gear.
 export function getFreeHands(c: Character): Hand[] {
-  return c.hands.filter((hand) => hand.itemId === '')
+  return getSoundHands(c).filter((hand) => hand.itemId === '')
 }
 
 export function getFreeHoldingHands(c: Character): Hand[] {

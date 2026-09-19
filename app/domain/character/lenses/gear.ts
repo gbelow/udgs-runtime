@@ -145,7 +145,6 @@ export type DamageTierRow = {
   RES: number
   INS: number
   IL: number
-  woundChance: number
 }
 
 export function getDamageTiers(c: Character): DamageTierRow[] {
@@ -163,7 +162,6 @@ export function getDamageTiers(c: Character): DamageTierRow[] {
       RES: armor.RES + tier * TGH,
       INS: armor.INS + tier * TGH,
       IL: effect.IL,
-      woundChance: effect.woundChance,
     }
   })
 }
