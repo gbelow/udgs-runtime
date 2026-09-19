@@ -7,10 +7,11 @@ import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { makeDieRoll, makeFullRoll } from './utils';
+import { Button, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
-import { SkillTooltip, isAfflicted } from './SkillTooltip';
+import { SkillTooltip } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -23,6 +24,20 @@ import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterDa
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens } from '../hooks/useKnowledgeLens';
 
+const MOVES: { name: keyof Movement, title: string }[] = [
+  { name: 'basic', title: 'basic · 1AP' },
+  { name: 'careful', title: 'careful · 1AP' },
+  { name: 'crawl', title: 'crawl · 1AP' },
+  { name: 'run', title: 'run · 2AP' },
+  { name: 'swim', title: 'swim · 1AP' },
+  { name: 'jump', title: 'jump · 1AP+1STA' },
+  { name: 'stand', title: 'stand up' },
+]
+const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', 'CON', 'INT', 'SPI', 'DEX']
+const TRAINABLES: (keyof Characteristics)[] = ['melee', 'ranged', 'awareness', 'charisma', 'sorcery', 'conviction1', 'conviction2', 'devotion']
+const COMBAT: (keyof Skills)[] = ['strike', 'accuracy', 'defend', 'reflex', 'grapple', 'force', 'SD']
+const PHYSICAL: (keyof Skills)[] = ['balance', 'climb', 'detection', 'stealth', 'prestidigitation', 'health', 'swim']
+const MIND: (keyof Skills)[] = ['cunning', 'explore', 'will', 'persuasion', 'deception', 'insight']
 
 export function PlayPanel(){
 
@@ -31,7 +46,7 @@ export function PlayPanel(){
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
   const { round, hasActiveCharacter: isThereActiveCharacter } = useCombatState()
-  const { notes, fightName } = useActiveCharacterData() 
+  const { notes, fightName } = useActiveCharacterData()
 
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
@@ -43,147 +58,85 @@ export function PlayPanel(){
     setRolledSkill({name, value:value+roll})
   }
 
-
   return(
-    <div className='flex flex-col justify-center '>
-      <div className='flex flex-col'>
-        <div className='flex flex-row gap-2 w-full' >
-          <span>
-            Round: {round}
-          </span>
-          <input type='button' value='nextRound' aria-label='nextRound' className='p-1 border hover:bg-gray-500 rounded' onClick={nextRound} />              
-          <input type='button' value='resetGame' aria-label='resetGame' className='p-1 border hover:bg-gray-500 rounded ml-auto mr-2' onClick={resetCombat} />
-        </div>
-        <div className='flex flex-row gap-2 w-full overflow-auto p-3'>
-          <CharacterList />
-        </div>
+    <div className='flex flex-col text-left'>
+      <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
+        <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
+        <CharacterList />
+        <Button aria-label='nextRound' onClick={nextRound}>next round</Button>
+        <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       {
         isThereActiveCharacter ?
-        <div className='grid grid-cols-1 md:grid-cols-12 py-1'>
-          <div className='flex flex-col items-center justify-center md:col-span-7 flex flex-col gap-2 text-sm py-1 md:mr-2'>
-            <div className='flex gap-2 text-xs h-8'>
-              <input type='button' value='startTurn' aria-label='startTurn' className='p-1 border hover:bg-gray-500 rounded' onClick={startTurn } />  
-              <span className='text-lg'>{fightName}</span>
-              <input type='button' value='d10' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice10(makeDieRoll(10))}/>
-              <span>
-                Roll: {dice10}
-              </span>
-              <input type='button' value='d6' aria-label='roll' className='p-1 border hover:bg-gray-500 rounded' onClick={() => setDice6(makeDieRoll(6))}/>
-              <span>
-                Roll: {dice6}
-              </span>
+        <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3'>
+          <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
+            <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+              <span className='text-base font-medium mr-2'>{fightName}</span>
+              <Button variant='primary' aria-label='startTurn' onClick={startTurn}>start turn</Button>
+              <Button aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
+              <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
               <SurgeControl />
-              <input type='button' value='rest' aria-label='rest' className={'p-1 border hover:bg-gray-500 rounded '} onClick={ rest } />
-            </div>     
-            {
-              isThereActiveCharacter ?
-              <div className='flex flex-row gap-2 justify-center '>
+              <Button aria-label='rest' onClick={rest}>rest</Button>
+              <span className='ml-auto text-xs text-muted'>last roll <span className='font-mono text-fg'>{rolledSkill.name} {rolledSkill.value || ''}</span></span>
+            </div>
+
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Resources</SectionLabel>
+              <div className='flex flex-row flex-wrap gap-1.5'>
                 <SimpleResource rssName={'AP'} />
                 <SimpleResource rssName={'STA'} />
                 <SimpleResource rssName={'exhaustion'} />
                 <SimpleResource rssName={'hunger'} />
                 <SimpleResource rssName={'thirst'} />
               </div>
-              : null
-            }  
-            <div className='flex flex-row gap-4'>                  
-              <InjuryControl type='potion' />
-              <DamageControl />
-              <InjuryControl type='injuryLevel' />
-              <InjuryControl type='hemorrhage' />
-              <input type="button" className={'border p-2 h-12 m-auto ' + (isCharacterDead ? 'bg-red-500' : '') } onClick={killCharacter} value="Kill" /> 
-            </div>                  
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleMove moveName='basic' title={'basic (1AP)'} />
-              <SimpleMove moveName='careful'  title={'care (1AP)'} />
-              <SimpleMove moveName='crawl'  title={'crawl (1AP)'} />
-              <SimpleMove moveName='run'  title={'run (2AP )'} />
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleMove moveName='swim'  title={'swim (1AP)'} />
-              {/* <SimpleMove moveName='fast swim'  title={'swim (1AP+1STA)'} /> */}
-              <SimpleMove moveName='jump'  title={'jump (1AP+1STA)'} />
-              <SimpleMove moveName='stand'  title={'stand up'} />
+
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Injury</SectionLabel>
+              <div className='flex flex-row flex-wrap gap-3 items-end'>
+                <InjuryControl type='potion' />
+                <DamageControl />
+                <InjuryControl type='injuryLevel' />
+                <InjuryControl type='hemorrhage' />
+                <Button variant='bad' active={isCharacterDead} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+              </div>
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleCharacteristic propName={'STR'} />
-              <SimpleCharacteristic propName={'AGI'} />
-              <SimpleCharacteristic propName={'STA'} />
-              <SimpleCharacteristic propName={'CON'} />
-              <SimpleCharacteristic propName={'INT'} />
-              <SimpleCharacteristic propName={'SPI'} />
-              <SimpleCharacteristic propName={'DEX'} />
+
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Movement</SectionLabel>
+              <Tiles>{MOVES.map((m) => <SimpleMove key={m.name} moveName={m.name} title={m.title} />)}</Tiles>
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleCharacteristic propName={'melee'} />
-              <SimpleCharacteristic propName={'ranged'} />
-              <SimpleCharacteristic propName={'awareness'} />
-              <SimpleCharacteristic propName={'charisma'} />
-              <SimpleCharacteristic propName={'sorcery'} />
-              <SimpleCharacteristic propName={'conviction1'} />
-              <SimpleCharacteristic propName={'conviction2'} />
-              <SimpleCharacteristic propName={'devotion'} />
+
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Characteristics</SectionLabel>
+              <Tiles>{ATTRIBUTES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
+              <Tiles>{TRAINABLES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
             </div>
-            <div className='flex flex-row'>
-              <h2 className='text-md'>Last roll:</h2>
-              <span className='px-4'>{rolledSkill.name} : {rolledSkill.value}</span>
+
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Combat · click to roll</SectionLabel>
+              <Tiles>{COMBAT.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleSkill skillId={'strike'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'accuracy'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'defend'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'reflex'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'grapple'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'force'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'SD'} rollSkill={rollSkill}/>
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Physical</SectionLabel>
+              <Tiles>{PHYSICAL.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              <SimpleSkill skillId={'balance'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'climb'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'detection'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'stealth'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'prestidigitation'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'health'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'swim'} rollSkill={rollSkill}/>
+            <div className='flex flex-col gap-1'>
+              <SectionLabel>Mind &amp; social</SectionLabel>
+              <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} rollSkill={rollSkill} />)}</Tiles>
             </div>
-            <div className='flex flex-row gap-2 justify-center'>
-              {/* <SimpleSkill skillId={'knowledge'} rollSkill={rollSkill}/> */}
-              <SimpleSkill skillId={'cunning'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'explore'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'will'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'persuasion'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'deception'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'insight'} rollSkill={rollSkill}/>
-              {/* <SimpleSkill skillId={'devotion'} rollSkill={rollSkill}/> */}
-            </div>
-            {/* <div className='flex flex-row gap-2 justify-center'>
-              <SimpleSkill skillId={'combustion'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'eletromag'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'radiation'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'entropy'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'biomancy'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'telepathy'} rollSkill={rollSkill}/>
-              <SimpleSkill skillId={'animancy'} rollSkill={rollSkill}/>
-            </div> */}
             <KnowledgesPanel />
-            <textarea aria-label='notes' className='border rounded p-1 min-h-32 w-84 md:w-full justify-center ' value={notes} readOnly/>
-            <button type='button' className='border rounded p-2' onClick={savePlayerCharacter}>Save</button>
+            <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
+            <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
           </div>
-          <div className='flex flex-col md:col-span-5 gap-2 text-sm items-center'>
+          <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
             <AfflictionsPannel />
-            <ArmorPanel  />
-            <div className='flex flex-row gap-2 text-center justify-center'>
-              {/* <SimpleCharacteristic propName={'RES'} /> */}
-              {/* <SimpleCharacteristic propName={'TGH'} /> */}
-              {/* <SimpleCharacteristic propName={'INS'} /> */}
-            </div>
+            <ArmorPanel />
             <HandsPanel />
             <WeaponPanel />
             <ContainerPanel />
             <AbilityPanel />
             <SpellPanel />
-            {/* <textarea aria-label='pack' className='border rounded p-1 min-h-32 w-full' value={currentCharacter?.packItems ?? ''}  readOnly /> */}
           </div>
         </div>
         : null
@@ -199,49 +152,43 @@ function DamageButton({amount}: {amount: number}){
     setInjury('injuryLevel', injuries.injuryLevel + amount);
   }
 
-  return(
-    <div className='flex flex-row'>
-      <input type='button' className='border p-1' aria-label={`cause${amount}Injury`} value={amount} onClick={ dealDamage} />
-    </div>
-  )
+  return <Button size='xs' variant='bad' className='font-mono w-8' aria-label={`cause${amount}Injury`} onClick={dealDamage}>{amount}</Button>
 }
 
 function DamageControl(){
-
   return(
-    <div className='flex flex-row gap-4 justify-center items-center'>      
-      <div className='flex flex-col justify-center items-center gap-2 ml-4'>
-        <span className='text-xs'>Cause Injury</span>
-        <div className='flex flex-row gap-2' >
-          <DamageButton amount={5} />
-          <DamageButton amount={10} />
-        </div>
-        <div className='flex flex-row gap-2'>
-          <DamageButton amount={20} />
-          <DamageButton amount={30} />
-        </div>
-      </div>      
+    <div className='flex flex-col items-center gap-1'>
+      <span className='text-[10px] text-muted'>cause injury</span>
+      <div className='grid grid-cols-2 gap-1'>
+        <DamageButton amount={5} />
+        <DamageButton amount={10} />
+        <DamageButton amount={20} />
+        <DamageButton amount={30} />
+      </div>
     </div>
   )
 }
 
-  function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
+const INJURY_TITLES = { injuryLevel: 'injury level', hemorrhage: 'hemorrhage', potion: 'potion' } as const
+
+function InjuryControl({type}: {type: 'injuryLevel' | 'hemorrhage' | 'potion'}){
 
   const {injuries, setInjury} = useInjuryLens()
   const { updateIL } = useCharacterCommands()
 
   const value = injuries[type]
+  const harmed = type !== 'potion' && value > 0
   return(
-    <div className='flex flex-col gap-1 flex-wrap w-84 md:w-full justify-center items-center'>
-        <span>{type === 'injuryLevel' ? 'Injury Level' : type === 'hemorrhage' ? 'Hemorrhage' : 'Potion'}</span>     
-        <div className={'flex flex-col border rounded-full text-center p-1 w-16 h-16 text-center items-center justify-center '+(value>0 ? 'bg-red-600' : null)}>
-          <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
-          <div className='flex flex-row gap-2'>
-            <input type='button' aria-label={'causeInjury'} value={'+'} onClick={() => setInjury( type, value + 1)} />
-            <input type='button' aria-label={'healInjury'} value={'-'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)} />
-          </div>
+    <div className='flex flex-col items-center gap-1'>
+      <span className='text-[10px] text-muted'>{INJURY_TITLES[type]}</span>
+      <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${harmed ? 'border-bad bg-bad/15' : 'border-line bg-surface'}`}>
+        <NumberInput className={`w-10 border-transparent text-base ${harmed ? 'text-bad' : ''}`} aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
+        <div className='flex flex-row gap-2 text-xs text-muted'>
+          <button type='button' className='hover:text-fg cursor-pointer' aria-label={'causeInjury'} onClick={() => setInjury( type, value + 1)}>+</button>
+          <button type='button' className='hover:text-fg cursor-pointer' aria-label={'healInjury'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)}>−</button>
         </div>
       </div>
+    </div>
   )
 }
 
@@ -251,43 +198,36 @@ function SimpleResource({rssName}: {rssName: keyof Resources}){
   const { updateSTA } = useCharacterCommands()
 
   return(
-    <div className='flex flex-row border rounded text-center justify-around p-1 w-16 overflow-hidden'>
-      <div className='flex flex-col w-8 text-xs'>
-        <span>{rssName.slice(0,10)}</span>
-        <input className='w-12 text-center' type='number' inputMode="numeric" aria-label={rssName} value={value} onChange={(e) => setValue(parseInt(e.target.value) ?? 0)} />
+    <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 w-24'>
+      <div className='flex flex-col min-w-0 grow'>
+        <span className='text-[10px] text-muted truncate'>{rssName}</span>
+        <NumberInput className='w-full border-transparent text-left text-base px-0' aria-label={rssName} value={value} onChange={(e) => setValue(parseInt(e.target.value) ?? 0)} />
       </div>
-      <div className='flex flex-col gap-2'>
-        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'+'} onClick={() => setValue(value+1)} />
-        <input type='button' className='border rounded-full w-4 h-4 font-bold text-center align-center justify-center ' aria-label={rssName} value={'-'} onClick={() => rssName == 'STA' ? updateSTA(value-1) : setValue(value-1)} />
+      <div className='flex flex-col gap-0.5'>
+        <button type='button' className='border border-line rounded w-4 h-4 text-[10px] leading-none text-muted hover:text-fg hover:border-muted cursor-pointer' aria-label={rssName} onClick={() => setValue(value+1)}>+</button>
+        <button type='button' className='border border-line rounded w-4 h-4 text-[10px] leading-none text-muted hover:text-fg hover:border-muted cursor-pointer' aria-label={rssName} onClick={() => rssName == 'STA' ? updateSTA(value-1) : setValue(value-1)}>−</button>
       </div>
     </div>
   )
 }
 
-
 function SimpleCharacteristic({propName}: {propName: keyof Characteristics}){
-  const [value, , terms] = useCharacteristicLens(propName)
+  const [value, , terms, view] = useCharacteristicLens(propName)
   const [name] = useTrainableNameLens(propName)
   return(
     <SkillTooltip terms={terms} total={value}>
-      <div className='flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs' >
-        <span>{name.slice(0,10)}</span>
-        <span>{value}</span>
-      </div>
+      <StatTile label={name} value={value} modifier={view.modifier} afflicted={view.afflicted} />
     </SkillTooltip>
   )
 }
 
 function SimpleSkill({skillId, rollSkill}: {skillId: keyof Skills, rollSkill?: (name:string, value:number)=> void}){
-  const [value, , terms] = useSkillLens(skillId)
+  const [value, , terms, view] = useSkillLens(skillId)
   const [name] = useTrainableNameLens(skillId)
-  const afflicted = isAfflicted(terms)
   return(
     <SkillTooltip terms={terms} total={value}>
-      <div className={`flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs ${afflicted ? 'border-red-500' : ''}`} onClick={() => rollSkill ? rollSkill(name, value) : null}>
-        <span>{name.slice(0,10)}</span>
-        <span className={afflicted ? 'text-red-400' : ''}>{value}</span>
-      </div>
+      <StatTile label={name} value={value} modifier={view.modifier} afflicted={view.afflicted}
+        onRoll={rollSkill ? () => rollSkill(name, value) : undefined} />
     </SkillTooltip>
   )
 }
@@ -299,32 +239,21 @@ function KnowledgesPanel(){
   if(!names.length) return null
 
   return(
-    <div className='flex flex-row gap-2 justify-center flex-wrap'>
-      {names.map(name => <SimpleKnowledge key={name} name={name} />)}
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Knowledge</SectionLabel>
+      <Tiles>{names.map(name => <SimpleKnowledge key={name} name={name} />)}</Tiles>
     </div>
   )
 }
 
 function SimpleKnowledge({name}: {name: string}){
   const { getValue } = useKnowledgeLens()
-  const value = getValue(name)
-  return(
-    <div className='flex flex-col border rounded text-center p-1 w-10 md:w-16 overflow-hidden text-xs' >
-      <span>{name.slice(0,10)}</span>
-      <span>{value}</span>
-    </div>
-  )
+  return <StatTile label={name} value={getValue(name)} />
 }
 
 function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}){
   const [value] = useMovementLens(moveName)
-
-  return(
-    <div className='flex flex-col border rounded text-center p-1 w-20 md:w-28 overflow-hidden text-xs'>
-      <span>{title.slice(0,10)}</span>
-      <span>{value}</span>
-    </div>
-  )
+  return <StatTile label={title} value={value} className='w-22' />
 }
 
 function AfflictionsPannel(){
@@ -332,20 +261,20 @@ function AfflictionsPannel(){
   const { sections, setAffliction } = useAfflictionBoard()
 
   return(
-    <div className='flex flex-row w-84 md:w-full flex-wrap gap-3 justify-center items-start text-xs'>
+    <div className='flex flex-row flex-wrap gap-3 items-start text-xs'>
       {
         sections.map((section) => (
           <div key={section.category} className='flex flex-col gap-1'>
-            <span className='uppercase text-gray-400 text-center'>{section.category}</span>
+            <SectionLabel>{section.category}</SectionLabel>
             {
               // A ladder is one button showing only the rung the character is
               // on; a click steps it up and wraps to off from the top.
               // Non-controlable entries are derived from hunger, thirst and
               // exhaustion — they still light up, but they aren't hand-settable.
               section.entries.map((entry) => (
-                <input type='button' key={entry.name} disabled={!entry.controlable} title={entry.name}
-                  className={'border rounded p-1 ' + (entry.active ? 'bg-red-500 ' : '') + (entry.controlable ? 'hover:bg-gray-500' : 'opacity-60 cursor-not-allowed')}
-                  aria-label={entry.name} value={entry.label} onClick={ () => setAffliction(entry.toggle)} />
+                <Button key={entry.name} size='xs' disabled={!entry.controlable} title={entry.name}
+                  variant={entry.active ? 'bad' : 'default'} className={`text-left ${entry.active ? 'bg-bad/15' : ''}`}
+                  aria-label={entry.name} onClick={() => setAffliction(entry.toggle)}>{entry.label}</Button>
               ))
             }
           </div>
@@ -363,11 +292,9 @@ function SurgeControl(){
     <div className='flex gap-1'>
       {
         options.map(option =>
-          <input type='button' key={option.kind} value={option.kind} aria-label={option.kind + ' surge'}
-            title={option.title}
-            disabled={!option.available}
-            className={'p-1 border rounded disabled:opacity-40 hover:bg-gray-500 '+(option.used ? 'bg-gray-500': '')}
-            onClick={() => actionSurge(option.kind)} />
+          <Button key={option.kind} aria-label={option.kind + ' surge'} title={option.title}
+            disabled={!option.available} active={option.used} className={option.used ? 'text-muted' : ''}
+            onClick={() => actionSurge(option.kind)}>{option.kind} surge</Button>
         )
       }
     </div>
@@ -378,13 +305,13 @@ function CharacterList(){
   const { roster, setActiveCharacter } = useCombatRoster()
 
   return(
-    <div className='flex flex-row gap-2 w-full overflow-auto p-3'>
+    <div className='flex flex-row gap-1.5 grow overflow-x-auto'>
       {
         roster.map((entry) =>
-          <input className={'p-2 border h-12  '+(entry.isActive ? 'bg-red-500' : entry.hasSurged ? 'bg-gray-500' : 'bg-blue-400')}
-            type='button' value={entry.name} aria-label={entry.name} key={entry.id}
-            onClick={() => setActiveCharacter(entry.id)}
-          />
+          <Button key={entry.id} aria-label={entry.name}
+            variant={entry.isActive ? 'primary' : 'default'}
+            className={entry.isActive ? 'bg-accent/15' : entry.hasSurged ? 'text-muted border-dashed' : ''}
+            onClick={() => setActiveCharacter(entry.id)}>{entry.name}</Button>
         )
       }
     </div>

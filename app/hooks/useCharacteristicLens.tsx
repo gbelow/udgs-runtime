@@ -1,4 +1,4 @@
-import { characteristicLenses, characteristicTermGetters, Term, termsDigest } from "../domain/character/lenses";
+import { characteristicLenses, characteristicTermGetters, Term, termsDigest, termsView } from "../domain/character/lenses";
 import { Character, Characteristics } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
@@ -19,5 +19,5 @@ export function useCharacteristicLens(characteristicName: keyof Characteristics)
     update((c) => lens.set(c, newValue));
   };
 
-  return [value, setValue, terms] as const;
+  return [value, setValue, terms, termsView(terms)] as const;
 }

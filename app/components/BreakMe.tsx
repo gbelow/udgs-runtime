@@ -37,7 +37,7 @@ const RenderProbe = memo(function RenderProbe({ entry }: { entry: ProjectionEntr
   const value = useActiveCharacterSelector((c: Character) => entry.get(c));
   if (probeState.measuring) probeState.rendered.add(entry.name);
   return (
-    <span className="text-xs px-1 py-0.5 border rounded min-w-6 text-center">
+    <span className="text-xs px-1 py-0.5 border border-line rounded min-w-6 text-center">
       {value === null || value === undefined ? "—" : String(value)}
     </span>
   );
@@ -164,14 +164,14 @@ export function BreakMe() {
   return(
     <div className="py-2 flex flex-col gap-3">
       <div className="flex flex-row flex-wrap gap-2 items-center">
-        <input type={'button'} className='hover:bg-gray-500 p-1 font-bold border rounded' value={'Load Random Characters'} aria-label={'random_char'} onClick={() => loadRandomCharacters(loadCount)}/>
+        <input type={'button'} className='hover:bg-raised p-1 font-bold border border-line rounded' value={'Load Random Characters'} aria-label={'random_char'} onClick={() => loadRandomCharacters(loadCount)}/>
         <label className="text-xs flex items-center gap-1">
           count
-          <input type={'number'} className='text-center hover:bg-gray-500 p-1 w-16 border rounded' value={loadCount} aria-label={'load_count'} onChange={(e) => setLoadCount(parseInt(e.target.value) || 1)}/>
+          <input type={'number'} className='text-center hover:bg-raised p-1 w-16 border border-line rounded' value={loadCount} aria-label={'load_count'} onChange={(e) => setLoadCount(parseInt(e.target.value) || 1)}/>
         </label>
         <label className="text-xs flex items-center gap-1 ml-auto">
           Panels
-          <input type={'number'} className='text-center hover:bg-gray-500 p-1 w-16 border rounded' value={numPanels} aria-label={'add_panel'} onChange={(e) => setNumPanels(parseInt(e.target.value) || 1)}/>
+          <input type={'number'} className='text-center hover:bg-raised p-1 w-16 border border-line rounded' value={numPanels} aria-label={'add_panel'} onChange={(e) => setNumPanels(parseInt(e.target.value) || 1)}/>
         </label>
       </div>
 
@@ -186,9 +186,9 @@ export function BreakMe() {
             <div className="flex flex-col">
               <span>{throughput.usPerChar.toFixed(2)} µs / character</span>
               <span>{throughput.opsPerMs.toFixed(0)} ops/ms ({throughput.count} lenses)</span>
-              <span className="text-gray-500">{throughput.iterations} iters, {throughput.totalMs.toFixed(2)} ms</span>
+              <span className="text-muted">{throughput.iterations} iters, {throughput.totalMs.toFixed(2)} ms</span>
             </div>
-          ) : <span className="text-gray-500">—</span>}
+          ) : <span className="text-muted">—</span>}
         </MetricCard>
 
         <MetricCard
@@ -204,8 +204,8 @@ export function BreakMe() {
                 <span>{scaling.totalMs.toFixed(3)} ms total</span>
                 <span>{scaling.usPerChar.toFixed(2)} µs / character</span>
               </div>
-            ) : <span className="text-gray-500">load characters first</span>
-          ) : <span className="text-gray-500">—</span>}
+            ) : <span className="text-muted">load characters first</span>
+          ) : <span className="text-muted">—</span>}
         </MetricCard>
 
         <MetricCard
@@ -218,9 +218,9 @@ export function BreakMe() {
           {latency != null ? (
             <div className="flex flex-col">
               <span>{latency.toFixed(2)} µs</span>
-              <span className="text-gray-500">update + fan-out</span>
+              <span className="text-muted">update + fan-out</span>
             </div>
-          ) : hasActiveCharacter ? <span className="text-gray-500">—</span> : <span className="text-gray-500">no active character</span>}
+          ) : hasActiveCharacter ? <span className="text-muted">—</span> : <span className="text-muted">no active character</span>}
         </MetricCard>
 
         <MetricCard
@@ -234,7 +234,7 @@ export function BreakMe() {
             <label className="flex items-center gap-1">
               target
               <select
-                className="text-center border rounded p-1 max-w-40"
+                className="text-center border border-line rounded p-1 max-w-40"
                 value={probeTarget}
                 onChange={(e) => setProbeTarget(e.target.value)}
               >
@@ -248,18 +248,18 @@ export function BreakMe() {
                 <span>{probe.rendered} / {probe.of} probes re-rendered</span>
                 <span>{probe.offenders.length} offender{probe.offenders.length === 1 ? "" : "s"} (value unchanged)</span>
                 {probe.offenders.length > 0 && (
-                  <span className="text-gray-500 break-words">{probe.offenders.join(", ")}</span>
+                  <span className="text-muted break-words">{probe.offenders.join(", ")}</span>
                 )}
                 <span>PlayPanel commit: {probe.panelMs.toFixed(3)} ms ({probe.numPanelsAtRun} panel{probe.numPanelsAtRun === 1 ? "" : "s"})</span>
               </div>
-            ) : hasActiveCharacter ? <span className="text-gray-500">—</span> : <span className="text-gray-500">no active character</span>}
+            ) : hasActiveCharacter ? <span className="text-muted">—</span> : <span className="text-muted">no active character</span>}
           </div>
         </MetricCard>
       </div>
 
       {/* The probe grid stays mounted so its subscriptions are live. */}
-      <div className="border rounded p-2">
-        <div className="text-xs text-gray-500 mb-1">Re-render probes (one per registered lens/getter):</div>
+      <div className="border border-line rounded p-2">
+        <div className="text-xs text-muted mb-1">Re-render probes (one per registered lens/getter):</div>
         <div className="flex flex-wrap gap-1">
           {PROBE_ENTRIES.map((e) => <RenderProbe key={e.name} entry={e} />)}
         </div>
@@ -290,13 +290,13 @@ function MetricCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border rounded p-2 flex flex-col gap-1 text-xs">
+    <div className="border border-line rounded p-2 flex flex-col gap-1 text-xs">
       <div className="font-bold">{title}</div>
-      <div className="text-gray-500">{hint}</div>
+      <div className="text-muted">{hint}</div>
       <div className="min-h-10 py-1">{children}</div>
       <input
         type="button"
-        className="border rounded p-1 hover:bg-gray-500 disabled:opacity-40 disabled:hover:bg-transparent mt-auto"
+        className="border rounded p-1 hover:bg-raised disabled:opacity-40 disabled:hover:bg-transparent mt-auto"
         value={runLabel}
         onClick={onRun}
         disabled={disabled}

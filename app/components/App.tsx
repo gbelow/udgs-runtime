@@ -7,6 +7,13 @@ import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
 import { CatalogEditor } from './catalog/CatalogEditor';
 
+const TABS = [
+  { tab: 'edit', label: 'Character', mobile: true },
+  { tab: 'play', label: 'Run', mobile: false },
+  { tab: 'break', label: 'Break Me', mobile: false },
+  { tab: 'catalog', label: 'Catalog', mobile: false },
+] as const
+
 export function App(){
 
   const { tab: selectedGameTab, setTab: setSelectedGameTab } = useGameTab()
@@ -15,14 +22,13 @@ export function App(){
 
   return(
     <>      
-      <header className="py-4 h-12">
-        <div className='flex flex-row justify-start items-start text-start gap-2'>
-          {/* <input className={'p-1 w-full hover:bg-gray-500 '+ (selectedPage == 'Select' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_select'} value={'Select'} onClick={() => setSelectedPage('Select')}/> */}
-          <input className={'py-1 rounded px-2 hover:bg-gray-500 '+ (selectedGameTab == 'edit' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_char'} value={'Character'} onClick={() => setSelectedGameTab('edit')}/>
-          {/* <input className={'py-1 rounded px-2 hover:bg-gray-500 '+ (selectedPage == 'Play' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_play'} value={'Play'} onClick={() => setSelectedPage('Play')}/> */}
-          <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'play' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_play'} value={'Run'} onClick={() => setSelectedGameTab('play')}/>
-          <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'break' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_break'} value={'Break Me'} onClick={() => setSelectedGameTab('break')}/>
-          <input className={'py-1 rounded px-2 hover:bg-gray-500 hidden md:block '+ (selectedGameTab == 'catalog' ? 'bg-white text-black' : '')} type={'button'} aria-label={'head_catalog'} value={'Catalog'} onClick={() => setSelectedGameTab('catalog')}/>
+      <header className="w-full h-12 border-b border-line bg-surface px-2">
+        <div className='flex flex-row justify-start items-stretch h-full gap-1'>
+          {TABS.map(({ tab, label, mobile }) => (
+            <button key={tab} type='button' aria-label={`head_${tab}`}
+              className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${selectedGameTab === tab ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
+              onClick={() => setSelectedGameTab(tab)}>{label}</button>
+          ))}
         </div>
       </header>
 
@@ -33,12 +39,12 @@ export function App(){
         </div>
       ) : (
       <>
-      <div className="hidden md:block col-span-2 border-r border-gray-700 pl-1 pr-2 h-full">
+      <div className="hidden md:block col-span-2 border-r border-line pl-1 pr-2 h-full">
         <Sidebar />
       </div>
 
       {/* mobile top menu for sidebar */}
-      <div className="md:hidden flex items-center justify-between text-white p-2 h-8">
+      <div className="md:hidden flex items-center justify-between p-2 h-8">
         <button
           type='button'
           onClick={() => setOpen((prev) => !prev)}
@@ -46,16 +52,16 @@ export function App(){
         >
           {/* Hamburger icon */}
           <div className="space-y-1">
-            <span className="block w-6 h-0.5 bg-white"></span>
-            <span className="block w-6 h-0.5 bg-white"></span>
-            <span className="block w-6 h-0.5 bg-white"></span>
+            <span className="block w-6 h-0.5 bg-fg"></span>
+            <span className="block w-6 h-0.5 bg-fg"></span>
+            <span className="block w-6 h-0.5 bg-fg"></span>
           </div>
         </button>
       </div>
 
       {/* Mobile Sidebar */}
       {open && (
-        <div className="md:hidden absolute top-0 left-0 w-64 h-full bg-gray-900 text-white shadow-lg z-50 px-2 overflow-y-auto">
+        <div className="md:hidden absolute top-0 left-0 w-64 h-full bg-surface border-r border-line shadow-lg z-50 px-2 overflow-y-auto">
           <button
             onClick={() => setOpen(false)}
             className="p-2 text-right w-full"

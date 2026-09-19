@@ -7,6 +7,7 @@ import { useGameTab } from '../hooks/useGameTab';
 import { makeCharacter } from '../domain/factories';
 import { groupByTags, TreeNode } from '../domain/character/grouping';
 import { BaseCharacter, Character } from '../domain/types';
+import { ListButton } from './ui';
 
 type NodeHandlers = {
   open: { [key: string]: boolean }
@@ -31,21 +32,11 @@ function CharacterTreeNode({ node, depth, handlers }: {
 }) {
   if (node.type === 'character') {
     return (
-      <div className="flex flex-row p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500">
-        <input
-          type={'button'}
-          className='text-center w-full hover:bg-gray-500 p-1'
-          value={node.character.name}
-          aria-label={node.character.name}
-          onClick={() => handlers.onSelect(node.character)}
-        />
+      <div className="flex flex-row items-center gap-1">
+        <ListButton className='grow py-0.5' aria-label={node.character.name} onClick={() => handlers.onSelect(node.character)}>{node.character.name}</ListButton>
         {handlers.selectedGameTab === 'edit' ? (
-          <button
-            className="w-6 text-left font-semibold p-1 bg-red-500 rounded"
-            onClick={() => handlers.onDelete(node.character.name)}
-          >
-            -
-          </button>
+          <button type='button' className="w-5 text-xs text-muted hover:text-bad cursor-pointer" title={`delete ${node.character.name}`}
+            onClick={() => handlers.onDelete(node.character.name)}>×</button>
         ) : null}
       </div>
     )
@@ -56,23 +47,17 @@ function CharacterTreeNode({ node, depth, handlers }: {
   const isTop = depth === 0
 
   return (
-    <div className="mb-2">
-      <div className="flex flex-row mb-1 gap-1">
-        <button
-          onClick={() => handlers.toggle(key)}
-          className={`w-full text-left p-1 rounded ${isTop ? 'font-bold bg-gray-800' : 'font-semibold bg-gray-700'}`}
-        >
-          {node.label}
+    <div className="flex flex-col gap-0.5">
+      <div className="flex flex-row items-center gap-1">
+        <button type='button' onClick={() => handlers.toggle(key)}
+          className={`grow text-left px-1 py-0.5 rounded cursor-pointer hover:bg-raised ${isTop ? 'text-[10px] uppercase tracking-wider text-muted' : 'text-sm text-muted'}`}>
+          <span className='inline-block w-3 text-muted'>{isOpen ? '▾' : '▸'}</span>{node.label}
         </button>
-        <button
-          className="w-6 text-left font-semibold p-1 bg-gray-700 rounded"
-          onClick={() => handlers.onCreate(node.tags)}
-        >
-          +
-        </button>
+        <button type='button' className="w-5 text-xs text-muted hover:text-good cursor-pointer" title='new character here'
+          onClick={() => handlers.onCreate(node.tags)}>+</button>
       </div>
       {isOpen && (
-        <div className="ml-4 mt-1 space-y-1">
+        <div className="ml-3 pl-1 border-l border-line flex flex-col gap-0.5">
           {node.children.map(child => (
             <CharacterTreeNode
               key={nodeKey(child)}
@@ -161,7 +146,7 @@ export function CharacterSelector(){
   }
 
   return (
-    <div className="bg-gray-900 text-white p-2">
+    <div className="flex flex-col gap-1 text-sm">
       {
         tree.map(node => (
           <CharacterTreeNode key={nodeKey(node)} node={node} depth={0} handlers={handlers} />
@@ -169,17 +154,14 @@ export function CharacterSelector(){
       }
       {
         <div>
-          <input type={'button'} key={'oplay'} className='w-full font-bold bg-gray-800 rounded hover:bg-gray-500 p-1 text-left' value={'PCs'} aria-label={'oplay'} onClick={() => setOpenCampaignChars(!openCampaignChars)}/>
+          <button type='button' key={'oplay'} className='w-full text-left px-1 py-0.5 rounded cursor-pointer hover:bg-raised text-[10px] uppercase tracking-wider text-muted' aria-label={'oplay'} onClick={() => setOpenCampaignChars(!openCampaignChars)}>
+            <span className='inline-block w-3'>{openCampaignChars ? '▾' : '▸'}</span>PCs
+          </button>
           {
             openCampaignChars && playerCharacterList.sort().map(el =>
-              <div
-                key={el.id}
-                className="flex flex-row p-1 bg-gray-600 rounded cursor-pointer hover:bg-gray-500 ml-2"
-              >
-                <input type={'button'} key={el.id} className='w-full text-center hover:bg-gray-500 p-1  text-left' value={el.name} aria-label={el.name} onClick={() => handleSelectPlayerClick(el.id)}/>
-                <button className="w-6 text-left font-semibold p-1 bg-red-500 rounded" onClick={() => handleDeletePlayerClick(el.id)}>
-                  -
-                </button>
+              <div key={el.id} className="flex flex-row items-center gap-1 ml-3 pl-1 border-l border-line">
+                <ListButton className='grow py-0.5' aria-label={el.name} onClick={() => handleSelectPlayerClick(el.id)}>{el.name}</ListButton>
+                <button type='button' className="w-5 text-xs text-muted hover:text-bad cursor-pointer" title={`delete ${el.name}`} onClick={() => handleDeletePlayerClick(el.id)}>×</button>
               </div>
             )
           }

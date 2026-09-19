@@ -17,10 +17,10 @@ import {
   skillTermGetters, Term, sumTerms,
   getForce,
 } from "./skills";
-import { termsDigest } from "./terms";
+import { termsDigest, termsView, TermsView } from "./terms";
 
-export { skillTermGetters, characteristicTermGetters, sumTerms, termsDigest }
-export type { Term }
+export { skillTermGetters, characteristicTermGetters, sumTerms, termsDigest, termsView }
+export type { Term, TermsView }
 
 export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {
   strike: makeTrainableValueLens("strike", getStrike),

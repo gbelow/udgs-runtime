@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useAbilityLens } from '../hooks/useAbilityLens'
+import { Button, Panel, Row } from './ui'
 
 // The abilities a character has learned, one row per family. A click on the
 // name unfolds every stage's text (learned stages highlighted); the button
@@ -10,47 +11,43 @@ export function AbilityPanel(){
   const [open, setOpen] = useState<string | null>(null)
 
   return(
-    <div className='flex flex-col w-84 md:w-full gap-1'>
-      <span className='font-bold text-center'>Abilities</span>
+    <Panel title='Abilities'>
       {
         learned.length === 0 ?
-        <span className='text-xs text-gray-400 text-center'>none learned</span> :
+        <span className='text-xs text-muted'>none learned</span> :
         learned.map((row) => (
-          <div key={row.family} className='flex flex-col border rounded p-1 text-left text-sm'>
-            <div className='flex flex-row gap-2 items-center'>
-              <button type='button' aria-label={`${row.family} details`} className='text-left grow hover:bg-gray-500'
+          <div key={row.family} className='flex flex-col gap-1'>
+            <Row>
+              <button type='button' aria-label={`${row.family} details`} className='text-left grow text-sm cursor-pointer hover:text-accent'
                 onClick={() => setOpen(open === row.family ? null : row.family)}>
-                <span className='font-bold'>{row.family}</span>
-                {row.progress ? <span className='text-xs text-gray-400'> {row.progress}</span> : null}
-                <span className='text-xs text-gray-400'> · {row.usage}</span>
+                <span>{row.family}</span>
+                {row.progress ? <span className='text-xs text-muted'> {row.progress}</span> : null}
+                <span className='text-xs text-muted'> · {row.usage}</span>
               </button>
               {
                 row.use ?
-                <input type='button' aria-label={`use ${row.use.name}`} value={`use · ${row.use.price}`} disabled={!row.use.affordable}
-                  className='border border-green-400 text-green-300 rounded px-1 text-xs disabled:opacity-40'
-                  onClick={() => use(row.use!.key)} />
+                <Button size='xs' variant='good' aria-label={`use ${row.use.name}`} disabled={!row.use.affordable}
+                  onClick={() => use(row.use!.key)}>use · {row.use.price}</Button>
                 : null
               }
               {
                 row.toggle ?
-                <input type='button' aria-label={`toggle ${row.family}`} value={row.active ? 'on' : 'off'}
-                  className={'border rounded px-1 text-xs ' + (row.active ? 'bg-green-300 text-black' : '')}
-                  onClick={() => toggle(row.toggle!.key)} />
+                <Button size='xs' variant={row.active ? 'good' : 'default'} className={row.active ? 'bg-good/15' : ''} aria-label={`toggle ${row.family}`}
+                  onClick={() => toggle(row.toggle!.key)}>{row.active ? 'on' : 'off'}</Button>
                 : null
               }
               {
                 row.top ?
-                <input type='button' aria-label={`forget ${row.top.name}`} value={row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}
-                  className='border rounded px-1 text-xs' onClick={() => forget(row.top!.key)} />
+                <Button size='xs' variant='ghost' aria-label={`forget ${row.top.name}`} onClick={() => forget(row.top!.key)}>{row.stages.length > 1 ? `− ${row.top.name}` : '− forget'}</Button>
                 : null
               }
-            </div>
+            </Row>
             {
               open === row.family ?
-              <div className='flex flex-col gap-1 px-1 pt-1 text-xs'>
+              <div className='flex flex-col gap-1 px-2 pb-1 text-xs'>
                 {row.stages.map((stage) => (
-                  <div key={stage.key} className={stage.learned ? 'text-green-300' : 'text-gray-500'}>
-                    <span className='font-bold'>{stage.name}</span> — {stage.description || 'nothing new at this level'}
+                  <div key={stage.key} className={stage.learned ? '' : 'text-muted'}>
+                    <span className={stage.learned ? 'text-good' : ''}>{stage.name}</span> — {stage.description || 'nothing new at this level'}
                   </div>
                 ))}
               </div>
@@ -59,6 +56,6 @@ export function AbilityPanel(){
           </div>
         ))
       }
-    </div>
+    </Panel>
   )
 }

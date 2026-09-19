@@ -1,6 +1,7 @@
 'use client'
 import { ReactNode } from 'react'
 import { emptyValue, Field, FieldType } from '../../forms/schemaFields'
+import { inputClass } from '../ui'
 
 // Renders any described schema as a form: scalars as inputs, enums as
 // selects, objects as fieldsets, arrays as lists with add/remove, a
@@ -18,8 +19,8 @@ export type Overrides = Record<string, FieldOverride>
 
 type ValueProps = { type: FieldType; value: unknown; onChange: (v: unknown) => void; path: string; overrides: Overrides; parent: Record<string, unknown> }
 
-const input = 'bg-transparent border border-gray-600 rounded px-1 text-sm w-full'
-const button = 'border border-gray-500 rounded px-1 text-xs hover:bg-gray-600'
+const input = `${inputClass} text-sm w-full`
+const button = 'border border-line rounded px-1 text-xs hover:bg-raised disabled:opacity-40 cursor-pointer'
 
 function join(path: string, name: string): string {
   return path ? `${path}.${name}` : name
@@ -50,7 +51,7 @@ function Unsettable({ type, value, onChange, path, overrides, parent }: ValuePro
       <input type='checkbox' aria-label={`${path} set`} checked={isSet(value)} onChange={(e) => onChange(e.target.checked ? emptyValue(type.innerSchema) : absent)} />
       {isSet(value) ?
         <div className='grow'><Value type={type.inner} value={value} onChange={onChange} path={path} overrides={overrides} parent={parent} /></div>
-        : <span className='text-xs text-gray-500'>none</span>}
+        : <span className='text-xs text-muted'>none</span>}
     </div>
   )
 }
@@ -67,7 +68,7 @@ function EnumSet({ options, value, onChange, path }: { options: string[]; value:
   return (
     <div className='flex flex-row flex-wrap gap-x-3 gap-y-1'>
       {options.map((option) => (
-        <label key={option} className='flex flex-row gap-1 items-center text-sm text-gray-200'>
+        <label key={option} className='flex flex-row gap-1 items-center text-sm text-fg'>
           <input type='checkbox' aria-label={`${path} ${option}`} checked={picked.has(option)} onChange={(e) => toggle(option, e.target.checked)} />
           {option}
         </label>
@@ -85,7 +86,7 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
     case 'boolean':
       return <input type='checkbox' checked={Boolean(value)} onChange={(e) => onChange(e.target.checked)} />
     case 'literal':
-      return <span className='text-sm text-gray-400'>{type.value}</span>
+      return <span className='text-sm text-muted'>{type.value}</span>
     case 'enum':
       return (
         <select className={input} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
@@ -114,10 +115,10 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
       return (
         <div className='flex flex-col gap-2'>
           {items.map((item, i) => cards ? (
-            <div key={i} className='flex flex-col gap-1 border border-gray-600 rounded bg-gray-800/40 p-2'>
+            <div key={i} className='flex flex-col gap-1 border border-line rounded bg-raised/40 p-2'>
               <div className='flex flex-row items-center'>
-                <span className='text-xs font-mono text-gray-400'>#{i + 1}</span>
-                <span className='text-xs text-gray-300 pl-2'>{caption(item)}</span>
+                <span className='text-xs font-mono text-muted'>#{i + 1}</span>
+                <span className='text-xs text-fg pl-2'>{caption(item)}</span>
                 <span className='grow' />
                 {removeButton(i)}
               </div>
@@ -154,7 +155,7 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
       )
     }
     case 'unknown':
-      return <span className='text-xs text-red-400'>unsupported field</span>
+      return <span className='text-xs text-bad'>unsupported field</span>
   }
 }
 
@@ -182,13 +183,13 @@ function Fields({ fields, value, onChange, path, overrides }: { fields: Field[];
     <div className='flex flex-col gap-1'>
       {row.length > 0 && (
         <div className='flex flex-row flex-wrap gap-2'>
-          {row.map(({ field, widget }) => <label key={field.name} className='flex flex-col text-xs text-gray-400 min-w-16'>{field.name}{widget}</label>)}
+          {row.map(({ field, widget }) => <label key={field.name} className='flex flex-col text-xs text-muted min-w-16'>{field.name}{widget}</label>)}
         </div>
       )}
       {blocks.map(({ field, widget }) => (
-        <div key={field.name} className='flex flex-col text-xs text-gray-400'>
+        <div key={field.name} className='flex flex-col text-xs text-muted'>
           <span>{field.name}</span>
-          {isRecord(field.type) ? <div className='border-l border-gray-700 pl-2 py-1'>{widget}</div> : widget}
+          {isRecord(field.type) ? <div className='border-l border-line pl-2 py-1'>{widget}</div> : widget}
         </div>
       ))}
     </div>

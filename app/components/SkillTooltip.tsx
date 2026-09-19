@@ -1,17 +1,13 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useLayoutEffect, useRef, useState } from 'react'
 import type { Term } from '../domain/character/lenses'
 
-// True when an affliction-sourced term is actively reducing the value.
-// Used to color-code skills that are currently penalized by afflictions.
-const AFFLICTION_LABELS = new Set(['affliction', 'immobile'])
-export function isAfflicted(terms: Term[]): boolean {
-  return terms.some((t) => AFFLICTION_LABELS.has(t.label) && t.value < 0)
-}
+const EDGE = 8
 
-// Hover tooltip showing the per-term breakdown of a derived skill value.
-// Tailwind-only, no JS state: the `group`/`group-hover:` pair toggles visibility.
+// Hover tooltip showing the per-term breakdown of a derived value. It opens
+// centred above the tile, then slides sideways just enough to stay inside the
+// viewport, and drops below the tile when there is no room above.
 // Zero-value terms are hidden to keep the breakdown readable.
 export function SkillTooltip({ terms, total, children }: {
   terms: Term[]
@@ -19,28 +15,40 @@ export function SkillTooltip({ terms, total, children }: {
   children: ReactNode
 }) {
   const visible = terms.filter((t) => t.value !== 0)
+  const [open, setOpen] = useState(false)
+  const [shift, setShift] = useState({ x: 0, below: false })
+  const tip = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !tip.current) return
+    const r = tip.current.getBoundingClientRect()
+    const x = r.left < EDGE ? EDGE - r.left : r.right > window.innerWidth - EDGE ? window.innerWidth - EDGE - r.right : 0
+    setShift({ x, below: r.top < EDGE })
+  }, [open])
 
   return (
-    <div className="group relative">
+    <div className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => { setOpen(false); setShift({ x: 0, below: false }) }}>
       {children}
-      <div
-        className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-1
-                   hidden group-hover:block whitespace-nowrap bg-gray-900 border
-                   border-gray-600 rounded p-2 text-xs shadow-lg"
+      {open ?
+      <div ref={tip} role="tooltip"
+        style={{ transform: `translateX(calc(-50% + ${shift.x}px))` }}
+        className={`absolute z-50 left-1/2 ${shift.below ? 'top-full mt-1' : 'bottom-full mb-1'}
+                    whitespace-nowrap bg-raised border border-line rounded p-2 text-xs shadow-lg shadow-black/40 text-left`}
       >
         {visible.map((t, i) => (
           <div key={i} className="flex justify-between gap-3">
-            <span className="text-gray-300">{t.label}</span>
-            <span className={t.value >= 0 ? 'text-green-400' : 'text-red-400'}>
+            <span className="text-muted">{t.label}</span>
+            <span className={`font-mono ${t.value >= 0 ? 'text-good' : 'text-bad'}`}>
               {t.value >= 0 ? `+${t.value}` : t.value}
             </span>
           </div>
         ))}
-        <div className="border-t border-gray-700 mt-1 pt-1 flex justify-between gap-3 font-bold">
+        <div className="border-t border-line mt-1 pt-1 flex justify-between gap-3 font-medium">
           <span>total</span>
-          <span>{total}</span>
+          <span className="font-mono">{total}</span>
         </div>
       </div>
+      : null}
     </div>
   )
 }

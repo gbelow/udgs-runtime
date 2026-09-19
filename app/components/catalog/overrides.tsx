@@ -1,5 +1,6 @@
 'use client'
 import { Overrides } from './SchemaForm'
+import { inputClass } from '../ui'
 import { CatalogName } from '../../forms/catalogs'
 import { ABILITY_KEYS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
@@ -7,7 +8,7 @@ import { BULK_NAMES, HEAVY_MAX_DEGREE, knowledges_list } from '../../domain/list
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 
-const input = 'bg-transparent border border-gray-600 rounded px-1 text-sm w-full'
+const input = `${inputClass} text-sm w-full`
 
 // The few fields whose widget the schema alone cannot pick: long text, and
 // names that point into another catalog and want its keys offered.

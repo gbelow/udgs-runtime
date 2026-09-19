@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useWeaponLens } from "../hooks/useWeaponLens";
 import type { AttackVariant } from "../domain/character/lenses/gear";
+import { Button, Panel } from "./ui";
+
+const th = 'font-medium px-1 pb-1 border-b border-line'
 
 export function WeaponPanel(){
   const { panels, attack } = useWeaponLens()
@@ -11,7 +14,7 @@ export function WeaponPanel(){
 
   const AttackButtons = ({variants, weaponName} : {variants: AttackVariant[], weaponName: string }) =>{
     return(
-      <>
+      <span className='flex flex-row flex-wrap gap-1'>
         {
           variants.map(el => {
             const handleClick = () => {
@@ -20,62 +23,63 @@ export function WeaponPanel(){
                 setLastAtk(result)
               }
             }
-            return <input className="bg-gray-500 border rounded px-1" type='button' key={el.name} value={`${el.name} ${el.blunt}/${el.cut}`} title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`} onClick={handleClick} />
+            return <Button size='xs' key={el.name} title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`} onClick={handleClick}>{el.name} <span className='font-mono'>{el.blunt}/{el.cut}</span></Button>
           })
         }
-      </>
+      </span>
     )
   }
 
   return(
-    <div className='flex flex-col justify-center w-84 md:w-full'>
-      <span className="pb-1"> Weapon: {lastAtk.weapon} /  type: {lastAtk.type} / ROLL: {lastAtk.atk}  </span>
+    <Panel title='Weapons' meta={lastAtk.weapon ? <>last attack · {lastAtk.weapon} {lastAtk.type} · <span className='font-mono text-fg'>{lastAtk.atk}</span></> : null}>
       {
         panels.map((panel) => (
-          <div key={panel.key} className='flex flex-col justify-center border rounded p-1'>
-            <div className='flex flex-row gap-3' >
-              <span>Weapon: {panel.name} </span>
-              <span>Size: {panel.scale}{!panel.wieldable ? ' (too large to wield)' : panel.oversize ? ' (oversize: +1 AP, STR-5)' : ''}</span>
-              {panel.shield && <span>{panel.shield.body ? 'Body shield' : 'Shield'} · Cover +{panel.shield.cover}</span>}
-              <span className='text-xs text-gray-400'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
+          <div key={panel.key} className='flex flex-col gap-1'>
+            <div className='flex flex-row flex-wrap gap-x-3 gap-y-0.5 items-baseline text-xs'>
+              <span className='text-sm'>{panel.name}</span>
+              <span className='text-muted'>size {panel.scale}{!panel.wieldable ? <span className='text-bad'> · too large to wield</span> : panel.oversize ? <span className='text-bad'> · oversize: +1 AP, STR−5</span> : ''}</span>
+              {panel.shield && <span className='text-muted'>{panel.shield.body ? 'body shield' : 'shield'} · cover +{panel.shield.cover}</span>}
+              <span className='text-muted'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>
-            <table className='md:w-full text-center text-xs'>
-              <thead>
-                <tr>
-                  <td>attack</td>
-                  <td>hands</td>
-                  <td>RES</td>
-                  <td>blunt</td>
-                  <td>cutting</td>
-                  <td>AP</td>
-                  <td>reach</td>
-                  <td>DEF</td>
-                  <td>properties</td>
-                  <td>attacks</td>
-                </tr>
-              </thead>
-              <tbody>
-                {
-                  panel.rows.map((row, index) =>
-                    <tr key={panel.name+index.toString()} className={row.usable && !row.needsFocus ? '' : 'text-gray-500'}>
-                      <td className='text-left'>{row.name}</td>
-                      <td>{row.handed}</td>
-                      <td>{row.RES}</td>
-                      <td>{row.blunt}</td>
-                      <td>{row.cut}</td>
-                      <td>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
-                      <td>{row.range}</td>
-                      <td>{row.block ?? '-'}</td>
-                      <td>{row.properties.join(', ')}</td>
-                      <td>{row.needsFocus ? <span className='text-xs'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponName={panel.name} />}</td>
-                    </tr>
-                  )
-                }
-              </tbody>
-            </table>
+            <div className='overflow-x-auto'>
+              <table className='w-full text-xs'>
+                <thead>
+                  <tr className='text-[10px] uppercase tracking-wider text-muted text-left'>
+                    <th className={th}>attack</th>
+                    <th className={th}>hands</th>
+                    <th className={`${th} text-right`}>RES</th>
+                    <th className={`${th} text-right`}>blunt</th>
+                    <th className={`${th} text-right`}>cut</th>
+                    <th className={`${th} text-right`}>AP</th>
+                    <th className={th}>reach</th>
+                    <th className={`${th} text-right`}>DEF</th>
+                    <th className={th}>properties</th>
+                    <th className={th}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {
+                    panel.rows.map((row, index) =>
+                      <tr key={panel.name+index.toString()} className={`hover:bg-raised ${row.usable && !row.needsFocus ? '' : 'text-muted'}`}>
+                        <td className='px-1 py-0.5'>{row.name}</td>
+                        <td className='px-1 py-0.5'>{row.handed}</td>
+                        <td className='px-1 py-0.5 text-right font-mono'>{row.RES}</td>
+                        <td className='px-1 py-0.5 text-right font-mono'>{row.blunt}</td>
+                        <td className='px-1 py-0.5 text-right font-mono'>{row.cut}</td>
+                        <td className='px-1 py-0.5 text-right font-mono'>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
+                        <td className='px-1 py-0.5'>{row.range}</td>
+                        <td className='px-1 py-0.5 text-right font-mono'>{row.block ?? '–'}</td>
+                        <td className='px-1 py-0.5 text-muted'>{row.properties.join(', ')}</td>
+                        <td className='px-1 py-0.5'>{row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponName={panel.name} />}</td>
+                      </tr>
+                    )
+                  }
+                </tbody>
+              </table>
+            </div>
           </div>
         ))
       }
-    </div>
+    </Panel>
   )
 }
