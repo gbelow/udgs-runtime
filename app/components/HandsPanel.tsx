@@ -18,7 +18,7 @@ export function HandsPanel(){
           <span>hold in</span>
           {panel.canHold[1] ? <input type='button' value='one hand' aria-label='hold in one hand' onClick={() => hold(1)} className='border border-green-400 rounded px-1' /> : null}
           {panel.canHold[2] ? <input type='button' value='two hands' aria-label='hold in two hands' onClick={() => hold(2)} className='border border-green-400 rounded px-1' /> : null}
-          {!panel.canHold[1] && !panel.canHold[2] ? <span className='text-gray-500'>no free hand</span> : null}
+          {!panel.canHold[1] && !panel.canHold[2] ? <span className='text-gray-500'>no free hand</span> : panel.lamingHold ? <span className='text-red-400'>lames</span> : null}
         </div>
         : null
       }
@@ -35,7 +35,7 @@ export function HandsPanel(){
           return (
             <div key={item.id} className={'flex flex-row flex-wrap gap-2 items-center border rounded px-1 ' + (putting ? 'border-green-400' : '')}>
               <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}</span>
-              <span className='text-gray-400'>size {item.scale} · {item.bulkName} · {item.grip}h</span>
+              <span className='text-gray-400'>size {item.scale} · {item.bulkName} · {item.grip}h{item.laming ? <span className='text-red-400'> · lame</span> : null}</span>
               {item.canGrip[1] ? <input type='button' value='1h' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)} className='border rounded px-1' /> : null}
               {item.canGrip[2] ? <input type='button' value='2h' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)} className='border rounded px-1' /> : null}
               {item.wear ? <input type='button' value={item.wear.cost === null ? 'wear' : `wear (${item.wear.cost} AP)`} aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)} className={'border rounded px-1 ' + (item.wear.wearable ? '' : 'text-gray-600 border-gray-600')} /> : null}

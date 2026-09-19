@@ -1,5 +1,5 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { getWearView, getWearCost, getDoffCost } from '../lenses/armor'
+import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../lenses/armor'
 import { getHeldItem } from '../../item/lenses/hands'
 import { FREE, isCharged } from '../../item/lenses/costs'
 import { canFitItem } from '../../item/lenses/containers'
@@ -44,6 +44,24 @@ export function wearFromHands(itemId: string): CharacterUpdater {
       held: worn.held.filter((held) => held.id !== itemId),
       hands: worn.hands.map((hand) => (hand.itemId === itemId ? { ...hand, itemId: '' } : hand)),
     }
+  }
+}
+
+// An item that is nowhere yet — stamped from the catalog — goes on. On the
+// sheet it goes over whatever was worn, which is gone, for nothing: this is
+// how a character is dressed. In play it is donned at the don price, and only
+// over nothing; the view has already refused anything else.
+export function equipArmor(item: Item): CharacterUpdater {
+  return (c: Character) => {
+    const view = getEquipView(c, item)
+    if (!view) {
+      throw new Error(`"${item.name || item.refId}" is not armor`)
+    }
+    if (!view.wearable) {
+      throw new Error(`"${item.name || item.refId}" cannot be worn: ${view.why}`)
+    }
+    const paid = pay(c, getDonCost(c, item) ?? FREE)
+    return paid ? { ...paid, worn: duplicateItem(item, { amount: 1 }) } : c
   }
 }
 

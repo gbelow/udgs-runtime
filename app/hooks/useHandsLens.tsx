@@ -6,7 +6,7 @@ import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
-const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: null };
+const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: null, lamingHold: false };
 
 // The hands and what they hold, in one shape gated on a digest of itself (cf.
 // useContainerLens). The pending catalog item is an input — the panel says

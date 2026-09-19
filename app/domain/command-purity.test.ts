@@ -78,6 +78,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
     const suit = gambeson()
     return characterCommands.wearFromHands(suit.id)(itemCommands.holdItem(suit)(bareAndRested(c)))
   },
+  equipArmor: (c) => characterCommands.equipArmor(gambeson())(bareAndRested(c)),
   doffArmor: characterCommands.doffArmor(null),
   putGauntlets: characterCommands.putGauntlets,
   putHelm: characterCommands.putHelm,

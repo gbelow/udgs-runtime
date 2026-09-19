@@ -5,7 +5,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands'
 import { useItemLens } from '../hooks/useItemLens'
 
 export function ArmorPanel(){
-  const { panel: armor, drop } = useArmorLens()
+  const { panel: armor, equipView, equip, drop } = useArmorLens()
   const { pending, selectWorn, clear } = useItemLens()
   // combat.tex "Damage Tiers" — thresholds, IL and wound chance all come from
   // the domain; this component only lays the table out.
@@ -29,7 +29,14 @@ export function ArmorPanel(){
             }
             {armor.worn.canDoff ? <input type='button' value='drop' aria-label='drop armor' onClick={drop} className='border rounded px-1 text-xs' /> : null}
           </> :
-          <span className='text-xs text-gray-400'>wear armor from a container or the hands</span>
+          <span className='text-xs text-gray-400'>wear armor from a container, the hands or the catalog</span>
+        }
+        {
+          equipView ?
+          equipView.wearable ?
+          <input type='button' value={equipView.cost === null ? 'equip' : `don (${equipView.cost} AP)`} aria-label='equip pending armor' onClick={equip} className='border border-green-400 text-green-300 rounded px-1 text-xs ml-auto' /> :
+          <span className='text-xs text-gray-500 ml-auto'>{equipView.why}</span>
+          : null
         }
       </div>
       <ArmorAddons />

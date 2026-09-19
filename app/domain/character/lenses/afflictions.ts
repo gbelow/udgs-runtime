@@ -2,6 +2,7 @@ import { AfflictionKey, CampaignCharacter, Character, Skills } from '../../types
 import { AFFLICTIONS, AFFLICTION_CATEGORIES, AfflictionCategory, AfflictionDef, SkillPenaltyTable } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
 import { isLamedByBurden } from '../../item/lenses/containers'
+import { isLamedByHeld } from '../../item/lenses/hands'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
 // character's own state forces on them. survival.tex states each resource's
@@ -37,8 +38,9 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   } else if (rss.exhaustion >= 8) afflictions.add('exhausted')
   else if (rss.exhaustion >= 4) afflictions.add('tired')
 
-  // gear.tex "Containers and burden": a container 3 over the character's size makes them lame.
-  if (isLamedByBurden(character)) afflictions.add('lame')
+  // gear.tex "Containers and burden": a container 3 over the character's size
+  // makes them lame; gear.tex "Hands": so does holding more than 1 bulk over it.
+  if (isLamedByBurden(character) || isLamedByHeld(character)) afflictions.add('lame')
 
   return worstOfEachGroup(dropSupersededGroups([...afflictions]))
 }

@@ -71,6 +71,19 @@ export function getWearView(c: Character, from: SlotKind | null, item: Item): We
   return { wearable: true, cost: cost.AP, why: '' }
 }
 
+// Whether an item that is nowhere yet — a catalog pick — could be put straight
+// on. On the sheet only the fit is asked: it replaces whatever is worn and
+// costs nothing, the way holding a catalog pick does. On the clock it is a don
+// like any other (gear.tex "Donning and Doffing armor"): over nothing, at the
+// don price, with no slot to draw from.
+export function getEquipView(c: Character, item: Item): WearView | null {
+  if (isCharged(c)) return getWearView(c, null, item)
+  if (!isArmorItem(item)) return null
+  const scale = getItemScale(item)
+  if (scale !== getSize(c)) return { wearable: false, cost: null, why: `made for size ${scale}` }
+  return { wearable: true, cost: null, why: '' }
+}
+
 export type ArmorPanelView = {
   name: string
   // The worn item, or null when the creature wears only its own hide.

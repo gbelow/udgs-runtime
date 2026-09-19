@@ -30,10 +30,19 @@ export function getFreeHoldingHands(c: Character): Hand[] {
 }
 
 // gear.tex "Hands": "can carry an item up to one bulk higher than the
-// character's size". Holding is about bulk; whether a held weapon can be
-// fought with is about its size (isWieldable).
+// character's size without penalty. Carrying something up to 3 bulk higher is
+// possible, but makes the character lame." Holding is about bulk; whether a
+// held weapon can be fought with is about its size (isWieldable).
 export function canBeHeld(c: Character, item: Item): boolean {
-  return item.bulk <= getSize(c) + 1
+  return item.bulk <= getSize(c) + 3
+}
+
+export function isLamingHold(c: Character, item: Item): boolean {
+  return item.bulk > getSize(c) + 1
+}
+
+export function isLamedByHeld(c: Character): boolean {
+  return c.held.some((item) => isLamingHold(c, item))
 }
 
 export function canHoldWith(c: Character, item: Item, grip: Grip): boolean {
@@ -91,6 +100,8 @@ export type HeldItemView = {
   bulkName: string
   scale: number
   grip: number
+  // gear.tex "Hands": more than one bulk over the holder's size lames them.
+  laming: boolean
   // Whether the stack could be regripped to that many hands. Moving between
   // one and two hands costs nothing (gear.tex "Small/One/Two hands").
   canGrip: Record<Grip, boolean>
@@ -102,8 +113,10 @@ export type HandsPanelView = {
   hands: HandView[]
   held: HeldItemView[]
   freeHolding: number
-  // For the item being placed, whether the hands could take it as is.
+  // For the item being placed, whether the hands could take it as is, and
+  // whether taking it would lame the holder.
   canHold: Record<Grip, boolean> | null
+  lamingHold: boolean
 }
 
 export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
@@ -128,12 +141,14 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         bulkName: getBulkName(item.bulk),
         scale: getItemScale(item),
         grip,
+        laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
         wear: getWearView(c, null, item),
       }
     }),
     freeHolding,
     canHold: pending ? { 1: canHoldWith(c, pending, 1), 2: canHoldWith(c, pending, 2) } : null,
+    lamingHold: pending ? isLamingHold(c, pending) : false,
   }
 }
 
