@@ -70,7 +70,7 @@ export function ActionPanel(){
             <SectionLabel>{open.target} answers</SectionLabel>
             <Button size='xs' variant={open.reaction === null ? 'primary' : 'default'} className={open.reaction === null ? 'bg-accent/15' : ''} onClick={withdraw}>take it (SD)</Button>
             {view.options.map((o) =>
-              <OptionButton key={o.label} option={o} active={open.reaction?.label === o.label} onClick={() => react(o.draft)} />)}
+              <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(o.draft)} />)}
           </div>
           <Test open={open} />
           <div><Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></div>
@@ -175,7 +175,7 @@ function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
       {outcome.bleed ? <span>bleed +<span className='font-mono'>{outcome.bleed}</span></span> : null}
       {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.hand !== null ? ` (hand ${outcome.wound.hand + 1})` : ''}{outcome.wound.heal !== null ? ` · heals at ${outcome.wound.heal} IL` : ' · no heal'}</span> : null}
       {outcome.afflictions.map((a) => <span key={a} className='text-bad'>{a}</span>)}
-      {outcome.interruption !== 'none' ? <span>{outcome.interruption} −<span className='font-mono'>{outcome.apLoss}</span> AP</span> : null}
+      {outcome.interruption !== 'none' ? <span>{outcome.interruption}{outcome.apLoss ? <> −<span className='font-mono'>{outcome.apLoss}</span> AP</> : null}</span> : null}
       {outcome.dead ? <span className='font-medium text-bad'>dead</span> : null}
     </div>
   )

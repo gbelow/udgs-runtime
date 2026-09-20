@@ -55,20 +55,23 @@ export const MAX_TIER = 5
 // combat.tex "Success Overflow" and "Localized damage" (the hand switch): what
 // a hit's HOP can buy. `cost` is a number of HOP or the target's deflection;
 // `property` is the weapon property that allows the effect (gear.tex "Weapons
-// Properties"), null where any weapon may. Smash is free and open to any
-// weapon; its only gate is that the blunt damage reaches T1, which is read
-// off the outcome.
+// Properties"), null where any weapon may. Smash is open to any weapon and
+// has no gate but its price: its own extra damage may be what makes the
+// blow T1, so the stun it upgrades is read off the outcome, not asked for
+// up front.
 export const HOP_EFFECTS = {
   extraCut:   { cost: 1,            property: 'bladed' },
   bypass:     { cost: 'deflection', property: 'precise' },
   penetrating:{ cost: 'deflection', property: 'penetrating' },
-  smash:      { cost: 0,            property: null },
+  smash:      { cost: 'deflection', property: null },
   handSwitch: { cost: 3,            property: null },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
 
-// combat.tex "Additional effects": what an interruption and a stun cost in AP.
-export const INTERRUPTION_AP = 2
-export const STUN_AP = 4
+// combat.tex "Interruption", "Stun": an interruption costs nothing beyond
+// the action it cuts short; a stun is an interruption "in which the target
+// also loses 2 AP", and happens on its own at T3+ blunt.
+export const STUN_AP = 2
+export const STUN_TIER = 3
 
 // combat.tex "Wounds" table. A wound is a permanent effect the character
 // carries in `active` until healed: `heal` is the IL wound to heal it away
@@ -81,12 +84,12 @@ export const WOUNDS = {
   amputatedHand: { name: 'amputated hand', location: 'hand',  tier: 4, heal: null, affliction: null,       amputation: true,  smash: false },
   brokenLeg:     { name: 'broken leg',     location: 'leg',   tier: 3, heal: 20,   affliction: 'lame',     amputation: false, smash: false },
   amputatedLeg:  { name: 'amputated leg',  location: 'leg',   tier: 5, heal: null, affliction: 'lame',     amputation: true,  smash: false },
-  shocked:       { name: 'shocked',        location: 'chest', tier: 4, heal: 5,    affliction: 'immobile', amputation: false, smash: true },
+  shocked:       { name: 'shocked',        location: 'chest', tier: 3, heal: 5,    affliction: 'immobile', amputation: false, smash: true },
 } as const satisfies Record<string, { name: string; location: (typeof HIT_LOCATIONS)[number]; tier: number; heal: number | null; affliction: AfflictionKey | null; amputation: boolean; smash: boolean }>
 export type WoundKey = keyof typeof WOUNDS
-// combat.tex "Head": T3 blunt, cutting or electric, or any stun, is
-// unconsciousness; T4 is death.
-export const HEAD = { unconscious: 3, death: 4 } as const
+// combat.tex "Head": "Getting stunned in the head causes unconsciousness";
+// "Tier 4 damage causes instant death".
+export const HEAD = { death: 4 } as const
 
 // combat.tex "Afflictions". Penalties are stored as positive magnitudes and
 // negated where they are consumed, matching the gear catalogs.

@@ -1,7 +1,7 @@
 import type { AfflictionKey, Armor, Character } from '../../types'
 import type { Action, CombatState, HOPPurchase, StrikeAction, StrikeFacts } from '../types'
 import { HOP_PURCHASES } from '../../lists'
-import { HEAD, HOP_EFFECTS, INTERRUPTION_AP, LOCATIONS, MAX_TIER, STUN_AP, WOUNDS, WoundKey, injuryMap } from '../../tables'
+import { HEAD, HOP_EFFECTS, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor } from '../../character/lenses/armor'
 import { getBlockValue } from '../../character/lenses/gear'
 import { getDM } from '../../character/lenses/helpers'
@@ -51,7 +51,7 @@ export function getStrikeFacts(state: CombatState, root: StrikeAction): StrikeFa
   if (!variant || !row) return null
   const bought = (p: HOPPurchase) => root.spent[p] ?? 0
   return {
-    blunt: variant.blunt,
+    blunt: variant.blunt + bought('smash') * Math.floor(2 * getDM(attacker)),
     cut: variant.cut + bought('extraCut') * Math.floor(1 * getDM(attacker)),
     hardness: getHardness(row.atk.material),
     force: getForce(attacker),
@@ -109,8 +109,6 @@ export function getHOPOptions(state: CombatState, root: StrikeAction): HOPOption
   const remaining = getHOPRemaining(root, target)
   const armor = getArmor(target)
   const { defense, shield } = getDefense(state, root)
-  const facts = getStrikeFacts(state, root)
-  const bluntTier = facts ? getOutcome({ ...facts, smash: false }, target).tiers.blunt : null
 
   return HOP_PURCHASES.map((purchase) => {
     const { property } = HOP_EFFECTS[purchase]
@@ -125,8 +123,6 @@ export function getHOPOptions(state: CombatState, root: StrikeAction): HOPOption
     if (purchase === 'penetrating' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
-    // combat.tex "Smash": "if the damage is at least T1" — the blunt damage.
-    if (purchase === 'smash' && (bluntTier ?? -1) < 1) return closed('blunt damage below T1')
     if (cost > remaining) return closed('not enough HOP')
     return { purchase, label: HOP_LABELS[purchase], cost, bought, available: true, reason: null }
   })
@@ -146,7 +142,8 @@ export type Outcome = {
   armor: number
   // null: below the armor, no injury
   tier: number | null
-  // each type measured against its own armor value, before the choice
+  // each type measured against its own armor value, before the choice; the
+  // blunt one drives the blunt effects whichever type is applied
   tiers: { blunt: number | null; cut: number | null }
   // the tier the body takes after the location's cap
   bodyTier: number | null
@@ -155,7 +152,8 @@ export type Outcome = {
   // combat.tex "Wounds": the wound the tier causes, and the hand it takes
   wound: { key: WoundKey; name: string; heal: number | null; hand: number | null } | null
   afflictions: AfflictionKey[]
-  // combat.tex "Interruption", "Stun": the AP the target loses, and to which
+  // combat.tex "Interruption", "Stun": what cuts the target's action short,
+  // and the AP a stun takes on top
   interruption: 'none' | 'interrupted' | 'stunned'
   apLoss: number
   dead: boolean
@@ -202,10 +200,12 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
 }
 
 // combat.tex "Physical attacks": "If the weapon is not capable of cutting its
-// target, the damage is blunt, otherwise, use the most advantageous of the
-// two" — the greater damage once each is measured against its own armor
-// value. "What cuts?": harder than the target; combat.tex "Penetrating" buys
-// the same hardness. "Armor Bypass" adds half the armor value to the damage.
+// target, the damage is blunt, otherwise, use the largest damage of the two,
+// but apply the additional effects of both" — the greater damage once each
+// is measured against its own armor value causes the injury; the blunt tier
+// causes the blunt effects regardless. "What cuts?": harder than the target;
+// combat.tex "Penetrating" buys the same hardness. "Armor Bypass" adds half
+// the armor value to the damage.
 export function getOutcome(facts: StrikeFacts, target: Character): Outcome {
   const armor = armorAt(target, facts)
   const TGH = getTGH(target)
@@ -237,7 +237,7 @@ export function getOutcome(facts: StrikeFacts, target: Character): Outcome {
     bodyTier,
     IL: piercing ? Math.floor(row.IL / 2) : row.IL,
     bleed: row.bleed,
-    ...effectsOf(facts, target, best.type, best.tier, tiers.blunt ?? -1, piercing),
+    ...effectsOf(facts, target, best.tier, tiers.blunt ?? -1, piercing),
   }
 }
 
@@ -254,39 +254,37 @@ function woundedHand(facts: StrikeFacts, target: Character): number {
 }
 
 // combat.tex "Additional effects", "Localized damage", "Wounds": what the
-// tier does beyond IL. Interruption on T1+ blunt; stun when smash was bought
-// and the blunt damage is T1+; the location's wound at its tier, the worst
-// one the tier reaches (Shocked needs blunt and a smash); the head knocks
-// out at T3 or on any stun and kills at T4. An interruption is a minimum
-// spend on this action, so a defender who already paid for a reaction loses
-// only what is left of the minimum.
-function effectsOf(facts: StrikeFacts, target: Character, type: DamageType, tier: number, bluntTier: number, piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
-  const stunned = facts.smash && bluntTier >= 1
-  const interrupted = type === 'blunt' && tier >= 1
+// tier does beyond IL. Interruption on T1+ blunt; stun on T3+ blunt, or when
+// smash upgrades the interruption; the location's wound at its tier, the
+// worst one the tier reaches (Shocked is measured on the blunt tier and
+// needs a smash); the head knocks out on a stun and kills at T4. A stun's AP
+// comes off whatever the target has, on top of what the reaction cost.
+function effectsOf(facts: StrikeFacts, target: Character, tier: number, bluntTier: number, piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
+  const interrupted = bluntTier >= 1
+  const stunned = bluntTier >= STUN_TIER || (facts.smash && interrupted)
   const afflictions = new Set<AfflictionKey>()
   let dead = false
 
   const reached = (Object.keys(WOUNDS) as WoundKey[])
     .map((key) => ({ key, ...WOUNDS[key] }))
-    .filter((w) => w.location === facts.location && tier >= w.tier)
+    .filter((w) => w.location === facts.location)
+    .filter((w) => (w.smash ? facts.smash && bluntTier >= w.tier : tier >= w.tier))
     .filter((w) => !(piercing && w.amputation))
-    .filter((w) => !w.smash || (type === 'blunt' && facts.smash))
   const worst = reached[reached.length - 1]
   const wound: Outcome['wound'] = worst
     ? { key: worst.key, name: worst.name, heal: worst.heal, hand: worst.location === 'hand' ? woundedHand(facts, target) : null }
     : null
   if (worst?.affliction) afflictions.add(worst.affliction)
   if (facts.location === 'head') {
-    if (tier >= HEAD.unconscious || stunned) afflictions.add('unconscious')
+    if (stunned) afflictions.add('unconscious')
     if (tier >= HEAD.death) dead = true
   }
 
-  const minimum = stunned ? STUN_AP : interrupted ? INTERRUPTION_AP : 0
   return {
     wound,
     afflictions: [...afflictions],
     interruption: stunned ? 'stunned' : interrupted ? 'interrupted' : 'none',
-    apLoss: Math.max(0, minimum - facts.defenseAP),
+    apLoss: stunned ? STUN_AP : 0,
     dead,
   }
 }

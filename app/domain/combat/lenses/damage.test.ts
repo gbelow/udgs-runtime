@@ -3,7 +3,7 @@ import { CombatStateSchema, StrikeFactsSchema, type CombatState, type StrikeFact
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
-import { LOCATIONS, STUN_AP, injuryMap } from '../../tables'
+import { LOCATIONS, injuryMap } from '../../tables'
 import { getOutcome, getOutcomePreview } from './damage'
 import { getOpenAction } from './action'
 import { declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
@@ -51,13 +51,18 @@ describe('the degree', () => {
   })
 })
 
-describe('interruption', () => {
-  // An interruption or stun is a minimum spend on the action: a defender who
-  // already paid at least that much for their reaction loses nothing more.
-  it('takes nothing from a defender who already spent the minimum', () => {
+describe('additional effects', () => {
+  // combat.tex "Physical attacks": "use the largest damage of the two, but
+  // apply the additional effects of both" — what the blunt component does
+  // beyond the injury is the same whatever the cutting component is.
+  it("are the blunt component's whichever type causes the injury", () => {
     for (const blunt of damages) {
-      const outcome = getOutcome(facts({ blunt, smash: true, defense: 'evade', defenseAP: STUN_AP }), target)
-      expect(outcome.apLoss).toBe(0)
+      const alone = getOutcome(facts({ blunt, smash: true }), target)
+      for (const cut of damages) {
+        const both = getOutcome(facts({ blunt, cut, smash: true }), target)
+        expect(both.interruption).toBe(alone.interruption)
+        expect(both.apLoss).toBe(alone.apLoss)
+      }
     }
   })
 })
@@ -99,6 +104,6 @@ describe('the preview', () => {
     const after = resolveAction()(s)
     expect(after.characters.def.injuries.injuryLevel - s.characters.def.injuries.injuryLevel).toBe(preview.IL)
     expect(after.characters.def.injuries.bleed - s.characters.def.injuries.bleed).toBe(preview.bleed)
-    expect(after.characters.def.resources.AP - s.characters.def.resources.AP).toBe(-preview.apLoss)
+    expect(s.characters.def.resources.AP - after.characters.def.resources.AP).toBe(preview.apLoss)
   })
 })

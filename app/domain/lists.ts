@@ -84,8 +84,7 @@ export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 export const ITEM_TYPES = ['weapon', 'armor', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
 
 // gear.tex "Weapons Properties" — the vocabulary of an attack row's
-// properties cell, in the book's order, then the spelling its own tables add
-// ("smash", defined among combat.tex's additional effects). One spelling per
+// properties cell, in the book's order, then the spelling its own tables add. One spelling per
 // rule: the tables' "sweep" and "hooked" are the proplist's "sweeping" and
 // "hook". The parameterized entries are the attack's own fields rather than
 // members here: "STR x" is `STRreq`, and "Heavy I/II/III" is `heavy`, a

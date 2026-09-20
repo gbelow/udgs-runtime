@@ -82,8 +82,7 @@ export const StrikeFactsSchema = z.object({
   location: HitLocationSchema.default('chest'),
   degree: DegreeSchema.default('miss'),
   defense: DefenseKindSchema.default('none'),
-  // combat.tex "Interruption": the AP the defender already spent on the
-  // reaction, which an interruption's minimum counts
+  // the AP the defender spent on the reaction
   defenseAP: num.default(0),
   // what the defender blocked or intercepted with, by the target's own
   // wielded key: names the hand a wound lands on

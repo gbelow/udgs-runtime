@@ -198,6 +198,8 @@ export type ActionOption = {
   reason: string | null
   // the open action this option answers, for a reaction; null for an action
   reactionTo: string | null
+  // a reaction the character has already declared
+  chosen: boolean
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
@@ -235,10 +237,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       available: strikes.length > 0,
       reason: strikes.length > 0 ? null : 'no melee weapon in hand',
       reactionTo: null,
+      chosen: false,
     }]
   }
 
   if (open.status !== 'declared' || open.targetId !== characterId) return []
+  const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
+  const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
   return (Object.keys(ACTIONS) as ActionKind[])
     .filter((kind) => isReaction(kind) && reactsTo(kind, open.kind))
@@ -247,15 +252,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       const cost = price ? getActionCost(c, price) : { AP: 0, STA: 0 }
       const gate = defenseGate(c, kind, cost)
       if (kind === 'block' || kind === 'intercept') {
-        return defRows(c).map((row) => ({
-          label: `${ACTIONS[kind].label} with ${row.weapon.name}`,
-          draft: { kind, weaponKey: row.wielded.key, attack: row.atk.name },
-          cost,
-          ...gate,
-          reactionTo: open.id,
-        }))
+        return defRows(c).map((row) => {
+          const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
+          return { label: `${ACTIONS[kind].label} with ${row.weapon.name}`, draft, cost, ...gate, reactionTo: open.id, chosen: chosen(draft) }
+        })
       }
-      return [{ label: ACTIONS[kind].label, draft: { kind }, cost, ...gate, reactionTo: open.id }]
+      const draft = { kind }
+      return [{ label: ACTIONS[kind].label, draft, cost, ...gate, reactionTo: open.id, chosen: chosen(draft) }]
     })
 }
 
