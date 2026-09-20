@@ -1,5 +1,6 @@
 import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS } from './lists'
-import type { AfflictionKey, WeaponProperty } from './types'
+import type { AfflictionKey, MeleeRange, Shape, WeaponProperty } from './types'
+import type { Coord } from './combat/types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -39,6 +40,39 @@ export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 // creating.tex "Reach Multiplier (RM)": multiplies the range of all weapons.
 export const RMArr = [0.5, 1, 1, 1.5, 1.5, 2, 2.5]
+
+// creating.tex "Size and Space Occupation": "A creature of size 3 in human
+// form occupies 1 ... hexagon. For every 2 size categories ... a hexagonal
+// grid will occupy 3 spaces ..., then 7." Indexed by size - 1; the sizes
+// between two steps keep the lower step's count.
+export const FOOTPRINT_CELLS = [1, 1, 1, 1, 3, 3, 7] as const
+export type FootprintCells = (typeof FOOTPRINT_CELLS)[number]
+
+// The cells each shape covers at each count, as offsets from the anchor
+// cell in orientation 0 (facing `geometry.ts` direction 0); the placement's
+// orientation turns them. The 3-cell blob is the book's token "in the middle
+// of 3"; a line is a creature that is long rather than wide.
+export const FOOTPRINTS: Record<Shape, Record<FootprintCells, readonly Coord[]>> = {
+  blob: {
+    1: [{ q: 0, r: 0 }],
+    3: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }],
+    7: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 1, r: -1 }, { q: 0, r: -1 }, { q: -1, r: 0 }, { q: -1, r: 1 }, { q: 0, r: 1 }],
+  },
+  line: {
+    1: [{ q: 0, r: 0 }],
+    3: [{ q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }],
+    7: [{ q: -3, r: 0 }, { q: -2, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }],
+  },
+}
+
+// gear.tex "Short, Long I/II": "Short-range attacks ... have a range of 1m x
+// RM. Long-range attacks have an extended range of 1m x RM per level." The
+// metres before the RM.
+export const REACH: Record<MeleeRange, number> = {
+  short: 1,
+  'long I': 2,
+  'long II': 3,
+}
 
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.

@@ -1,4 +1,4 @@
-import type { AttackKind, AttackType, HeavyRange, Range, WeaponAttack, WeaponProperty } from './types'
+import type { AttackKind, AttackType, HeavyRange, MeleeRange, Range, WeaponAttack, WeaponProperty } from './types'
 import { MELEE_RANGES, SHOT_RANGES, WEAPON_PROPERTIES } from './lists'
 
 export function hasProperty(properties: readonly WeaponProperty[], property: WeaponProperty): boolean {
@@ -43,8 +43,12 @@ export function getAttackPropertyLabels(atk: WeaponAttack): string[] {
 // or a throw (combat.tex "Throw", "Shoot"), so an attack's range decides what
 // kind of attack it is.
 export function getAttackKind(range: Range): AttackKind {
-  if ((MELEE_RANGES as readonly string[]).includes(range)) return 'melee'
+  if (isMeleeRange(range)) return 'melee'
   return (SHOT_RANGES as readonly string[]).includes(range) ? 'shoot' : 'throw'
+}
+
+export function isMeleeRange(range: Range): range is MeleeRange {
+  return (MELEE_RANGES as readonly string[]).includes(range)
 }
 
 // Which skill the attack is rolled with: strike for melee, accuracy for both

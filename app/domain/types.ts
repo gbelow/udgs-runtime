@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, RANGES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, MELEE_RANGES, RANGES, SHAPES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 
 const num = z.number()
@@ -151,6 +151,7 @@ export type Handed = z.infer<typeof HandedSchema>
 
 export const RangeSchema = z.enum(RANGES)
 export type Range = z.infer<typeof RangeSchema>
+export type MeleeRange = (typeof MELEE_RANGES)[number]
 
 export const WeaponPropertySchema = z.enum(WEAPON_PROPERTIES)
 export type WeaponProperty = z.infer<typeof WeaponPropertySchema>
@@ -617,6 +618,9 @@ export const CampaignValuesSchema = z.object({
 
 export type CampaignValues = z.infer<typeof CampaignValuesSchema>
 
+export const ShapeSchema = z.enum(SHAPES)
+export type Shape = z.infer<typeof ShapeSchema>
+
 const CharacterValues = {
   id: z.string().default(() => crypto.randomUUID()),
   name: z.string().default(''),
@@ -624,6 +628,9 @@ const CharacterValues = {
   trainables: TrainablesSchema.partial().default({}).transform(v => TrainablesSchema.parse(v)),
   knowledges: KnowledgesSchema,
   size: z.number().default(3),
+  // creating.tex "Size and Space Occupation": how the cells the size grants
+  // are laid out on the grid
+  shape: ShapeSchema.default('blob'),
   TGH: z.number().default(0),
   senses: SensesSchema.partial().default({}).transform(v => SensesSchema.parse(v)),
   movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),

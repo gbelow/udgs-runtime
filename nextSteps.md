@@ -41,20 +41,24 @@
 - damage as an effect
 - add tex generator from catalogue
 
-## attacks
-- apply SOPs
-- show detailed damage breakdown
-- select target
-- damage as an effect
+# grapple
+- add actions
 
-## resolutions
-- targeting
+# grid
+- make grid
+
+# system of reactions
+- what triggers
+
 
 # morale test
 -add it
 
+## simulation
+- build ai strategies
+
+
 ## compiling to book
-- finish caalogue issue
 - add insertable variables to descriptions
 - compile abilities/spells/items into tex
 

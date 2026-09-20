@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema, PendingActionSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema, PendingActionSchema, ShapeSchema } from './types'
 import { getSTA } from './character/lenses/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -129,6 +129,7 @@ const CharacterIngestValues = {
   trainables: z.record(z.string(), z.any()).optional(),
   knowledges: z.record(z.string(), z.any()).optional(),
   size: z.number().optional(),
+  shape: ShapeSchema.optional(),
   TGH: z.number().optional(),
   movement: z.record(z.string(), safeNumber).optional(),
 

@@ -133,6 +133,58 @@ export type ActionDraft = {
   [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
 }[ActionKind]
 
+// ---------------------------------------------------------------------------
+// The board
+
+// A hex cell in axial coordinates; one cell is one metre (combat.tex
+// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
+// "Movement" moves in whole spaces). The geometry that reads these is in
+// `geometry.ts`.
+export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
+export type Coord = z.infer<typeof CoordSchema>
+
+// Where a character stands. `cell` is the anchor of its footprint and
+// `orientation` one of the six hex rotations the footprint may take
+// (creating.tex "Size and Space Occupation"); which cells that covers is the
+// footprint lens's to say. `focus` is combat.tex "Flanking": the one opponent
+// the character is facing and may react to. It is a fact of the fight, not of
+// the character, so it lives here and not on the character record.
+export const PlacementSchema = z.object({
+  cell: CoordSchema.default({ q: 0, r: 0 }),
+  orientation: z.number().int().min(0).max(5).default(0),
+  elevation: num.default(0), // metres; combat.tex "High Ground"
+  focus: str.nullable().default(null),
+}).strip()
+export type Placement = z.infer<typeof PlacementSchema>
+
+// combat.tex "Positioning and Visibility": what a cell does to what crosses
+// it. A blocking cell is cover and, unless transparent, breaks vision;
+// difficult terrain asks for a Balance test (combat.tex "Balance"); the
+// visibility is what the terrain grants whoever stands in it.
+export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
+export type Visibility = z.infer<typeof VisibilitySchema>
+
+export const TerrainCellSchema = z.object({
+  blocking: z.boolean().default(false),
+  transparent: z.boolean().default(false),
+  difficult: z.boolean().default(false),
+  liquid: z.boolean().default(false),
+  elevation: num.default(0),
+  visibility: VisibilitySchema.default('good'),
+}).strip()
+export type TerrainCell = z.infer<typeof TerrainCellSchema>
+
+// The spatial facts of a fight, in game units. The real grid is a VTT's; this
+// is what the domain needs of it to judge distance, reach, cover and where a
+// move may end. `placements` is keyed by character id, `terrain` by the cell
+// key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
+// open ground.
+export const BoardSchema = z.object({
+  placements: z.record(z.string(), PlacementSchema).default({}),
+  terrain: z.record(z.string(), TerrainCellSchema).default({}),
+}).strip()
+export type Board = z.infer<typeof BoardSchema>
+
 // The shape of a fight. This lives in the domain — not in the Zustand store —
 // so the combat commands can be pure `(state) => state` updaters with no
 // dependency on the state layer. The store composes this with its actions.
@@ -150,6 +202,9 @@ export const CombatStateSchema = z.object({
   // included: the open one is the last root still short of resolved, and the
   // rest is the fight's history.
   actions: z.array(ActionSchema).default([]),
+  // Null is a fight with no grid: every positional gate passes, and the
+  // fight is played as it was before there was a board.
+  board: BoardSchema.nullable().default(null),
 }).strip()
 
 export type CombatState = z.infer<typeof CombatStateSchema>

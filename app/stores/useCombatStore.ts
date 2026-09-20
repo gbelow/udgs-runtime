@@ -31,6 +31,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   round: 0,
   inTurnCharacter: '',
   actions: [],
+  board: null,
 
   updateCombatState: (updater) => {
     set( updater)

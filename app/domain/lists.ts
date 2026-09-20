@@ -151,6 +151,11 @@ export const HOP_PURCHASES = ['extraCut', 'bypass', 'penetrating', 'smash', 'han
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
 
+// creating.tex "Size and Space Occupation": "Other creatures may have
+// different shapes." The shapes a footprint can take; the cells each one
+// covers at each size are in `tables.ts`.
+export const SHAPES = ['blob', 'line'] as const
+
 // gear.tex "Short, Long I/II": the reaches of a melee attack. Anything else
 // in a Range column is a ranged attack, and combat.tex "Throw"/"Shoot" split
 // those in two: a throw's range comes from STR ("9m" is the Net's own figure,
