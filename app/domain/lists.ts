@@ -21,16 +21,21 @@ export const knowledges_list = [
   'animal handling',
 ]
 
-// abilities.tex "SPI" — the eight convictions, by name.
-export const CONVICTIONS = {
-  adaptation: { id: 'adaptation', name: 'Adaptation' },
-  domination: { id: 'domination', name: 'Domination' },
-  stoicism: { id: 'stoicism', name: 'Stoicism' },
+// creating.tex "Convictions" — "A character must adopt one worldview
+// conviction and one temperament conviction"; which is which is the heading of
+// each conviction in abilities.tex.
+export const TEMPERAMENT_CONVICTIONS = {
   fatalism: { id: 'fatalism', name: 'Fatalism' },
   ferocity: { id: 'ferocity', name: 'Ferocity' },
   guardian: { id: 'guardian', name: 'Guardian' },
   hedonism: { id: 'hedonism', name: 'Hedonism' },
-  providentialism: { id: 'providentialism', name: 'Providencialism' },
+}
+
+export const WORLDVIEW_CONVICTIONS = {
+  adaptation: { id: 'adaptation', name: 'Adaptation' },
+  domination: { id: 'domination', name: 'Domination' },
+  stoicism: { id: 'stoicism', name: 'Stoicism' },
+  providentialism: { id: 'providentialism', name: 'Providentialism' },
 }
 
 export const surgeKinds = ['movement', 'combat', 'reaction', 'focus'] as const

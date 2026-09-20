@@ -97,8 +97,8 @@ export const ProficienciesSchema = z.object({
   ranged: trainable('proficiency', 0, 'Ranged'),
   awareness: trainable('proficiency', 0, 'Awareness'),
   sorcery: trainable('proficiency', 0, 'Sorcery'),
-  conviction1: trainable('proficiency', 0, 'Conviction 1'),
-  conviction2: trainable('proficiency', 0, 'Conviction 2'),
+  conviction1: trainable('proficiency', 0, 'Temperament'),
+  conviction2: trainable('proficiency', 0, 'Worldview'),
   devotion: trainable('proficiency', 0, 'Devotion'),
   charisma: trainable('proficiency', 0, 'Charisma'),
 }).strip()

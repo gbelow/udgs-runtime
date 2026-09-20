@@ -20,7 +20,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
-import { CONVICTIONS } from '../domain/lists';
+import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../domain/lists';
 
 const MOVES: { name: keyof Movement, title: string }[] = [
   { name: 'basic', title: 'basic · 1AP' },
@@ -121,8 +121,8 @@ export function CharacterCreator() {
           <SectionLabel>Trainables</SectionLabel>
           <Tiles>
             {TRAINABLES.map((s) => <StatDial key={s} stat={s} title={s} />)}
-            <ConvictionDial trainableName={'conviction1'} fallbackTitle={'conviction 1'} />
-            <ConvictionDial trainableName={'conviction2'} fallbackTitle={'conviction 2'} />
+            <ConvictionDial trainableName={'conviction1'} fallbackTitle={'temperament'} options={TEMPERAMENT_CONVICTIONS} />
+            <ConvictionDial trainableName={'conviction2'} fallbackTitle={'worldview'} options={WORLDVIEW_CONVICTIONS} />
           </Tiles>
         </div>
 
@@ -234,7 +234,7 @@ function StatDial ({stat, title}:{stat: keyof Characteristics, title: string}){
   )
 }
 
-function ConvictionDial ({trainableName, fallbackTitle}:{trainableName: 'conviction1' | 'conviction2', fallbackTitle: string}){
+function ConvictionDial ({trainableName, fallbackTitle, options}:{trainableName: 'conviction1' | 'conviction2', fallbackTitle: string, options: Record<string, { id: string, name: string }>}){
   const [value, setValue] = useCharacteristicLens(trainableName)
   const [name, setName] = useTrainableNameLens(trainableName)
 
@@ -242,7 +242,7 @@ function ConvictionDial ({trainableName, fallbackTitle}:{trainableName: 'convict
     <div className='flex flex-col gap-px w-24 rounded border border-line bg-surface px-1 py-1 text-center'>
       <select className={`${inputClass} bg-surface text-[10px] py-0 w-full`} title={fallbackTitle} value={name} onChange={(e) => setName(e.target.value)}>
         <option value=''>{fallbackTitle}</option>
-        {Object.values(CONVICTIONS).map(conviction => (
+        {Object.values(options).map(conviction => (
           <option key={conviction.id} value={conviction.name}>{conviction.name}</option>
         ))}
       </select>

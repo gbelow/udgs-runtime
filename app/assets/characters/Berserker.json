@@ -225,14 +225,14 @@
     },
     "conviction1": {
       "value": 0,
-      "name": "Ferocity",
+      "name": "Fatalism",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
     },
     "conviction2": {
       "value": 0,
-      "name": "Fatalism",
+      "name": "Domination",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
@@ -312,6 +312,17 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
   "worn": {
     "id": "e1ecf5db-fda0-4d58-963a-1235b0fc9307",
     "name": "Brigandine",

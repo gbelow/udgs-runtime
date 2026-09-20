@@ -23,14 +23,9 @@
 - list senses and bonus
 - decide interface
 
-## items editor
-- weapons/armor customization
-
 ## weapons/armor
 - add customization options to weapons
 - add customization options to armors
-- think about resLayer
-- armor properties must be 
 
 ## hands
 - item requirements must be in hand
@@ -39,11 +34,6 @@
 
 ## add abilities 
 - add tex generator from catalogue
-
-## skills
-- open skill explanation on click
-- clickable skill options
-- 
 
 ## spells
 - add spell enahncements details
