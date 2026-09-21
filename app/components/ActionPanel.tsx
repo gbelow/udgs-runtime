@@ -11,8 +11,7 @@ import { SkillTooltip } from './SkillTooltip'
 const STEP_LABEL = {
   declare: 'declare',
   target: 'pick a target on the roster',
-  react: 'the target answers',
-  commit: 'commit',
+  react: 'reactions',
   spend: 'spend the overflow',
   confirm: 'apply',
 } as const
@@ -54,8 +53,8 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
           <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
+          {open.walked && open.walked.stop !== 'end' ? <span className='text-bad'>stops after {open.walked.cells} ({open.walked.stop})</span> : null}
           {open.path.length === 0 ? <span>pick a path on the board</span> : null}
-          <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>go</Button>
         </div>
       ) : null}
 
@@ -82,14 +81,24 @@ export function ActionPanel(){
 
       {step === 'react' ? (
         <div className='flex flex-col gap-1'>
-          <div className='flex flex-row flex-wrap gap-1 items-center'>
-            <SectionLabel>{open.target} answers</SectionLabel>
-            <Button size='xs' variant={open.reaction === null ? 'primary' : 'default'} className={open.reaction === null ? 'bg-accent/15' : ''} onClick={withdraw}>take it (SD)</Button>
-            {view.options.map((o) =>
-              <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(o.draft)} />)}
+          {view.reactors.map((r) => {
+            const answered = r.options.some((o) => o.chosen)
+            return (
+              <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
+                <SectionLabel>{r.name}</SectionLabel>
+                <Button size='xs' variant={answered ? 'default' : 'primary'} className={answered ? '' : 'bg-accent/15'} onClick={() => withdraw(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
+                {r.options.map((o) =>
+                  <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
+              </div>
+            )
+          })}
+          {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
+          {view.die ? <Test open={open} /> : null}
+          <div>
+            {view.die
+              ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
+              : <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>go</Button>}
           </div>
-          <Test open={open} />
-          <div><Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button></div>
         </div>
       ) : null}
 
@@ -103,9 +112,10 @@ export function ActionPanel(){
               <span className={`font-medium ${open.roll.degree === 'miss' ? 'text-bad' : open.roll.degree === 'hit' ? 'text-good' : ''}`}>{open.roll.degree}</span>
               {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
             </div>
-          ) : (
-            <div className='text-xs text-muted'>{open.movement} · cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></div>
-          )}
+          ) : null}
+          {open.walked ? (
+            <div className='text-xs text-muted'>{open.movement} · walks <span className='font-mono'>{open.walked.cells}</span> of <span className='font-mono'>{open.path.length}</span>{open.walked.stop !== 'end' ? <span className='text-bad'> · {open.walked.stop}</span> : null} <Cost cost={open.cost} /></div>
+          ) : null}
           {step === 'spend' ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>overflow</SectionLabel>
@@ -137,8 +147,9 @@ function Declaration({ open, strikes, onStrike }: { open: OpenActionView, strike
   if (!open.attack) return null
   return (
     <div className='text-xs text-muted'>
+      {open.spawned ? <span className='text-bad'>opportunity · </span> : null}
       {open.attack} {open.variant} <Cost cost={open.cost} />
-      {open.reaction ? <> · {open.reaction.label} <Cost cost={open.reaction.cost} /></> : null}
+      {open.reactions.map((r) => <span key={`${r.actor}:${r.label}`}> · {r.actor} {r.label} <Cost cost={r.cost} /></span>)}
     </div>
   )
 }

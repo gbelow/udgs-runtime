@@ -3,6 +3,7 @@ import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
 import { getOutcome, Outcome } from './lenses/damage'
 import { getMoveDestination } from './lenses/move'
+import { getReactionsTo } from './lenses/action'
 
 // The two moments an action touches a character: `roll`, when the die is
 // thrown and the price leaves the actor in the same step, and `resolve`, when
@@ -23,10 +24,17 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         if (c.id !== action.actorId || !action.cost) return c
         return payCost({ ...action.cost, exhaustion: 0, IL: 0, ET: 0 })(c)
       case 'resolve':
+        // combat.tex "Balance": a move on difficult terrain at a speed the
+        // test did not clear ends in a fall
+        if (action.kind === 'move') return c.id === action.actorId && action.facts?.fell ? fallProne(c) : c
         if (action.kind !== 'strike' || c.id !== action.targetId || !action.facts) return c
         return takeOutcome(getOutcome(action.facts, c))(c)
     }
   }
+}
+
+function fallProne(c: CampaignCharacter): CampaignCharacter {
+  return { ...c, afflictions: [...new Set([...c.afflictions, 'prone' as const])] }
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
@@ -63,9 +71,18 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
 // handed the state it is part of.
 export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
   return (board: Board) => {
-    if (phase !== 'resolve' || action.kind !== 'move') return board
-    const destination = getMoveDestination(state, action)
-    if (!destination) return board
-    return { ...board, placements: { ...board.placements, [action.actorId]: destination } }
+    if (phase !== 'resolve') return board
+    if (action.kind === 'move') {
+      const destination = action.facts ? getMoveDestination(state, action, action.facts.path) : null
+      if (!destination) return board
+      return { ...board, placements: { ...board.placements, [action.actorId]: destination } }
+    }
+    if (action.kind === 'strike') {
+      // combat.tex "Evasive Jump": the defender lands where the jump said
+      const jump = getReactionsTo(state, action.id).find((r) => r.kind === 'evasiveJump')
+      if (!jump || jump.kind !== 'evasiveJump' || !jump.to) return board
+      return { ...board, placements: { ...board.placements, [jump.actorId]: jump.to } }
+    }
+    return board
   }
 }

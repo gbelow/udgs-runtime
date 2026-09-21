@@ -5,9 +5,9 @@ import { HIT_LOCATIONS, HOP_PURCHASES } from '../lists'
 const num = z.number()
 const str = z.string()
 
-// play.tex "Degrees of success", as an attack sees them: there is no critical
-// on an attack, everything past a hit is HOP (play.tex "Hit Overflow Point").
-export const DEGREES = ['miss', 'graze', 'hit'] as const
+// play.tex "Degrees of success". An attack never lands the critical: past a
+// hit it is HOP (play.tex "Hit Overflow Point"); a skill test does.
+export const DEGREES = ['miss', 'graze', 'hit', 'critical'] as const
 export const DegreeSchema = z.enum(DEGREES)
 export type Degree = z.infer<typeof DegreeSchema>
 
@@ -32,6 +32,69 @@ export const ActionCostSchema = z.object({
   STA: num.default(0),
 }).strip()
 
+// ---------------------------------------------------------------------------
+// The board
+
+// A hex cell in axial coordinates; one cell is one metre (combat.tex
+// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
+// "Movement" moves in whole spaces). The geometry that reads these is in
+// `geometry.ts`.
+export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
+export type Coord = z.infer<typeof CoordSchema>
+
+// Where a character stands. `cell` is the anchor of its footprint and
+// `orientation` one of the six hex rotations the footprint may take
+// (creating.tex "Size and Space Occupation"); which cells that covers is the
+// footprint lens's to say. `focus` is who the character is looking at, for
+// line of sight (combat.tex "Visibility"); it decides nothing yet. It is a
+// fact of the fight, not of the character, so it lives here and not on the
+// character record.
+export const PlacementSchema = z.object({
+  cell: CoordSchema.default({ q: 0, r: 0 }),
+  orientation: z.number().int().min(0).max(5).default(0),
+  elevation: num.default(0), // metres; combat.tex "High Ground"
+  focus: str.nullable().default(null),
+}).strip()
+export type Placement = z.infer<typeof PlacementSchema>
+
+// combat.tex "Positioning and Visibility": what a cell does to what crosses
+// it. A blocking cell is cover and, unless transparent, breaks vision;
+// difficult terrain asks for a Balance test (combat.tex "Balance"); the
+// visibility is what the terrain grants whoever stands in it.
+export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
+export type Visibility = z.infer<typeof VisibilitySchema>
+
+export const TerrainCellSchema = z.object({
+  blocking: z.boolean().default(false),
+  transparent: z.boolean().default(false),
+  difficult: z.boolean().default(false),
+  liquid: z.boolean().default(false),
+  elevation: num.default(0),
+  visibility: VisibilitySchema.default('good'),
+  // combat.tex "Balance": the DL of the difficult terrain test, "based on how
+  // slippery, unstable, long, and narrow the path is" — the table's call
+  DL: num.default(5),
+}).strip()
+export type TerrainCell = z.infer<typeof TerrainCellSchema>
+
+// The spatial facts of a fight, in game units. The real grid is a VTT's; this
+// is what the domain needs of it to judge distance, reach, cover and where a
+// move may end. `placements` is keyed by character id, `terrain` by the cell
+// key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
+// open ground.
+export const BoardSchema = z.object({
+  placements: z.record(z.string(), PlacementSchema).default({}),
+  terrain: z.record(z.string(), TerrainCellSchema).default({}),
+  // where and how far the board is drawn; the rules do not care, the
+  // simulation tool does. A VTT puts the origin at its scene's centre.
+  origin: CoordSchema.default({ q: 0, r: 0 }),
+  radius: num.int().min(1).default(6),
+}).strip()
+export type Board = z.infer<typeof BoardSchema>
+
+// ---------------------------------------------------------------------------
+// Actions
+
 // An action is data: what a character is attempting, against whom, what was
 // declared before the die, and what the die said. Nothing here is a
 // procedure — the character reducer reads an action and applies the part of
@@ -49,6 +112,9 @@ const ActionBase = {
   // The action this one answers (combat.tex "Reactions"); null for an action
   // taken on the actor's own initiative.
   reactionTo: str.nullable().default(null),
+  // The reaction whose resolution opened this action — an opportunity attack
+  // is declared as a reaction and fought as a strike of its own.
+  spawnedBy: str.nullable().default(null),
   status: z.enum(['declared', 'rolled', 'resolved']).default('declared'),
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
@@ -103,71 +169,31 @@ export const StrikeActionSchema = z.object({
   ...WeaponRowRef,
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
+  // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
+  // it's the SD"
+  opportunity: z.boolean().default(false),
   facts: StrikeFactsSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
-export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump') }).strip()
+// An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
+// away from the attack"); null on a fight without a board.
+export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
 export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef }).strip()
 export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
 
-// ---------------------------------------------------------------------------
-// The board
+// Where a move actually ended and why: the path as walked, cut short by a
+// turn at a run, by a reaction, or by a fall on difficult terrain.
+export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'fall'])
+export type MoveStop = z.infer<typeof MoveStopSchema>
 
-// A hex cell in axial coordinates; one cell is one metre (combat.tex
-// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
-// "Movement" moves in whole spaces). The geometry that reads these is in
-// `geometry.ts`.
-export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
-export type Coord = z.infer<typeof CoordSchema>
-
-// Where a character stands. `cell` is the anchor of its footprint and
-// `orientation` one of the six hex rotations the footprint may take
-// (creating.tex "Size and Space Occupation"); which cells that covers is the
-// footprint lens's to say. `focus` is who the character is looking at, for
-// line of sight (combat.tex "Visibility"); it decides nothing yet. It is a
-// fact of the fight, not of the character, so it lives here and not on the
-// character record.
-export const PlacementSchema = z.object({
-  cell: CoordSchema.default({ q: 0, r: 0 }),
-  orientation: z.number().int().min(0).max(5).default(0),
-  elevation: num.default(0), // metres; combat.tex "High Ground"
-  focus: str.nullable().default(null),
+export const MoveFactsSchema = z.object({
+  path: z.array(CoordSchema).default([]),
+  stop: MoveStopSchema.default('end'),
+  fell: z.boolean().default(false),
 }).strip()
-export type Placement = z.infer<typeof PlacementSchema>
-
-// combat.tex "Positioning and Visibility": what a cell does to what crosses
-// it. A blocking cell is cover and, unless transparent, breaks vision;
-// difficult terrain asks for a Balance test (combat.tex "Balance"); the
-// visibility is what the terrain grants whoever stands in it.
-export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
-export type Visibility = z.infer<typeof VisibilitySchema>
-
-export const TerrainCellSchema = z.object({
-  blocking: z.boolean().default(false),
-  transparent: z.boolean().default(false),
-  difficult: z.boolean().default(false),
-  liquid: z.boolean().default(false),
-  elevation: num.default(0),
-  visibility: VisibilitySchema.default('good'),
-}).strip()
-export type TerrainCell = z.infer<typeof TerrainCellSchema>
-
-// The spatial facts of a fight, in game units. The real grid is a VTT's; this
-// is what the domain needs of it to judge distance, reach, cover and where a
-// move may end. `placements` is keyed by character id, `terrain` by the cell
-// key `geometry.ts` makes of a Coord, and a cell absent from `terrain` is
-// open ground.
-export const BoardSchema = z.object({
-  placements: z.record(z.string(), PlacementSchema).default({}),
-  terrain: z.record(z.string(), TerrainCellSchema).default({}),
-  // where and how far the board is drawn; the rules do not care, the
-  // simulation tool does. A VTT puts the origin at its scene's centre.
-  origin: CoordSchema.default({ q: 0, r: 0 }),
-  radius: num.int().min(1).default(6),
-}).strip()
-export type Board = z.infer<typeof BoardSchema>
+export type MoveFacts = z.infer<typeof MoveFactsSchema>
 
 // combat.tex "Movement": a move is a path of anchor cells, each a step from
 // the last, taken at one kind of movement, ending in any orientation (null
@@ -179,7 +205,22 @@ export const MoveActionSchema = z.object({
   movement: MovementKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
   orientation: z.number().int().min(0).max(5).nullable().default(null),
+  // the most it may cost, for a follow (combat.tex "Follow": "cannot cost
+  // more AP than" the move it answers); null is no cap
+  budget: ActionCostSchema.nullable().default(null),
+  facts: MoveFactsSchema.nullable().default(null),
 }).strip()
+
+// combat.tex "Opportunity Attack" and "Flanking": declared as a reaction to
+// a strike (by a flanker) or a move (by whoever the mover comes at); when
+// the root resolves it opens a strike of its own. `at` is the path step of a
+// move at which it fired, and where the mover is stopped.
+export const OpportunityAttackActionSchema = z.object({ ...ActionBase, kind: z.literal('opportunityAttack'), at: num.nullable().default(null) }).strip()
+
+// combat.tex "Follow": a reaction to a move by someone in melee range; when
+// the root resolves it opens a move of the follower's own, capped at what
+// the triggering move cost.
+export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('follow') }).strip()
 
 export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
@@ -187,6 +228,8 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   EvasiveJumpActionSchema,
   BlockActionSchema,
   InterceptActionSchema,
+  OpportunityAttackActionSchema,
+  FollowActionSchema,
   MoveActionSchema,
 ])
 

@@ -83,6 +83,13 @@
       "talent": "",
       "type": "skill"
     },
+    "force": {
+      "value": 0,
+      "name": "Force",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
     "swim": {
       "value": 2,
       "name": "Swim",
@@ -247,6 +254,7 @@
   },
   "knowledges": {},
   "size": 3,
+  "shape": "blob",
   "TGH": 0,
   "senses": {
     "vision": {
@@ -297,8 +305,19 @@
   },
   "hasGauntlets": 1,
   "hasHelm": 1,
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
   "worn": {
-    "id": "d3527701-3067-4b4f-b9c4-d03b23a3e2db",
+    "id": "3957a3f4-7f33-4a28-b4e4-7ad6159386be",
     "name": "Full Armor",
     "description": "",
     "type": "armor",
@@ -306,123 +325,33 @@
     "bulk": 5,
     "refId": "FullArmor"
   },
-  "weapons": {
-    "Halberd": {
-      "name": "Halberd",
-      "burdenPenalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 6,
-          "cut": 24,
-          "STRmod": 0,
-          "heavyMod": 0.5,
-          "range": "long I",
-          "RES": 20,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "braced, piercing, penetrating, heavy I",
-          "props": {
-            "heavy": {
-              "min": 0,
-              "max": 1
-            },
-            "braced": true,
-            "hook": false,
-            "fast": false,
-            "recognized": [
-              "piercing",
-              "penetrating"
-            ],
-            "unknown": []
-          }
-        },
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 0,
-          "cut": 0,
-          "STRmod": 1,
-          "heavyMod": 0,
-          "range": "long I",
-          "RES": 30,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "hook",
-          "props": {
-            "heavy": null,
-            "braced": false,
-            "hook": true,
-            "fast": false,
-            "recognized": [],
-            "unknown": []
-          }
-        },
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 0,
-          "cut": 0,
-          "STRmod": 1,
-          "heavyMod": 0,
-          "range": "short",
-          "RES": 20,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "DEF, shaft, grapple",
-          "props": {
-            "heavy": null,
-            "braced": false,
-            "hook": false,
-            "fast": false,
-            "recognized": [
-              "DEF",
-              "shaft",
-              "grapple"
-            ],
-            "unknown": []
-          }
-        },
-        {
-          "type": "melee",
-          "handed": "two",
-          "blunt": 12,
-          "cut": 20,
-          "STRmod": 0,
-          "heavyMod": 1.5,
-          "range": "long I",
-          "RES": 30,
-          "RESmod": 0,
-          "AP": 3,
-          "reload": 0,
-          "deflection": 0,
-          "properties": "heavy I-III, bladed",
-          "props": {
-            "heavy": {
-              "min": 1,
-              "max": 3
-            },
-            "braced": false,
-            "hook": false,
-            "fast": false,
-            "recognized": [
-              "bladed"
-            ],
-            "unknown": []
-          }
-        }
-      ]
+  "hands": [
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "3db6ed4a-2384-4de0-8552-fb998af79fe8"
+    },
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "3db6ed4a-2384-4de0-8552-fb998af79fe8"
     }
-  },
+  ],
+  "held": [
+    {
+      "id": "3db6ed4a-2384-4de0-8552-fb998af79fe8",
+      "name": "Halberd",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 3,
+      "refId": "Halberd"
+    }
+  ],
   "containers": {},
   "abilities": [],
+  "spells": {},
   "notes": ""
 }

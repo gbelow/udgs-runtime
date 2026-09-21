@@ -11,7 +11,9 @@ export type ActionDef = {
   type: 'action' | 'reaction'
   price: PricedAction | null
   reactsTo: readonly ActionKind[]
-  // whether a die commits the action; one without is committed by paying
+  // whether a die commits the action; one without is committed by paying.
+  // A move is the exception the lens `needsDie` makes: difficult terrain
+  // puts a Balance test on it.
   die: boolean
 }
 
@@ -26,6 +28,10 @@ export const ACTIONS = {
   evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
   block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false },
   intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false },
+  // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
+  // action each opens when the root resolves
+  opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false },
+  follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
 } as const satisfies Record<ActionKind, ActionDef>
 
 export function isReaction(kind: ActionKind): boolean {

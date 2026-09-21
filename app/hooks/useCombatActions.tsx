@@ -13,7 +13,6 @@ import {
   spendHOP,
   withdrawReaction,
 } from "../domain/combat/commands/action";
-import { getOpenAction } from "../domain/combat/lenses/action";
 import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
 import { useCombatStore } from "../stores/useCombatStore";
 
@@ -34,22 +33,14 @@ export function useCombatActions() {
   };
   const amend = (fields: Partial<ActionDraft>) => update(amendAction(fields));
   const target = (id: string) => update(setTarget(id));
-  // The reactor is the open action's target, read as of the click.
-  const reactorId = () => getOpenAction(useCombatStore.getState())?.targetId ?? null;
-  const react = (draft: ActionDraft) => {
-    const id = reactorId();
-    if (id) update(declareReaction(id, draft, newId));
-  };
-  const withdraw = () => {
-    const id = reactorId();
-    if (id) update(withdrawReaction(id));
-  };
+  const react = (reactorId: string, draft: ActionDraft) => update(declareReaction(reactorId, draft, newId));
+  const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
   const roll = () => update(rollAction(rollFull(Math.random)));
   const commit = () => update(commitAction());
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
-  const resolve = () => update(resolveAction());
+  const resolve = () => update(resolveAction(newId));
 
   return { view, declare, amend, target, react, withdraw, cancel, roll, commit, spend, refund, resolve } as const;
 }

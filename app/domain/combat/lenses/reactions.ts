@@ -1,0 +1,77 @@
+import type { Action, ActionKind, CombatState, MoveAction, StrikeAction } from '../types'
+import { ACTIONS, reactsTo } from '../actionCatalog'
+import { getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
+import { getRunPath } from './move'
+import { setDistance } from '../geometry'
+
+// combat.tex "Reactions": "actions that can be performed on another
+// character's turn but must be triggered by something." What an action,
+// once fully declared, triggers in everyone else: who may answer it, with
+// which reaction, and — for a move — at which step of the path. The
+// commands load these when the action is committed to and refuse any
+// reaction not on the list.
+
+export type Trigger = {
+  characterId: string
+  kind: ActionKind
+  // the step of a move's path (counted from 1) at which the trigger fires;
+  // null for a trigger that is not about a step
+  at: number | null
+}
+
+export function getTriggers(state: CombatState, root: Action): Trigger[] {
+  switch (root.kind) {
+    case 'strike': return strikeTriggers(state, root)
+    case 'move': return moveTriggers(state, root)
+    default: return []
+  }
+}
+
+export function getTriggersFor(state: CombatState, root: Action, characterId: string): Trigger[] {
+  return getTriggers(state, root).filter((t) => t.characterId === characterId)
+}
+
+// combat.tex "Defend": the target may answer with any of the four defenses.
+// combat.tex "Flanking": everyone flanking the attacker gets an opportunity
+// attack.
+function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
+  if (!root.targetId) return []
+  const defenses = (Object.keys(ACTIONS) as ActionKind[])
+    .filter((kind) => ACTIONS[kind].type === 'reaction' && kind !== 'opportunityAttack' && reactsTo(kind, 'strike'))
+    .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
+  const flankers = getFlankers(state, root.actorId, root.targetId)
+    .filter((id) => getMeleeRange(state.characters[id]) > 0)
+    .map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
+  return [...defenses, ...flankers]
+}
+
+// combat.tex "Opportunity Attack": triggered by "moving towards a melee
+// weapon while within its attack range" — the first step at which the mover
+// is within someone's melee range and closer than the step before.
+// combat.tex "Follow": "as a reaction to any movement except running,
+// follow another character who is already within melee range."
+function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
+  const mover = state.characters[root.actorId]
+  const from = state.board?.placements[root.actorId]
+  if (!mover || !from || !state.board) return []
+  const path = getRunPath(state, root)
+  const triggers: Trigger[] = []
+  for (const id of Object.keys(state.characters)) {
+    if (id === root.actorId) continue
+    const other = getPlacedFootprint(state, id)
+    if (!other) continue
+    const range = getMeleeRange(state.characters[id])
+    let previous = setDistance(getFootprint(mover, from), other)
+    if (range > 0 && previous <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
+    if (range === 0) continue
+    for (const [i, cell] of path.entries()) {
+      const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
+      if (distance <= range && distance < previous) {
+        triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
+        break
+      }
+      previous = distance
+    }
+  }
+  return triggers
+}

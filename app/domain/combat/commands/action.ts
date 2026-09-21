@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CombatState, type HOPPurchase } from '../types'
-import { ACTIONS, isReaction } from '../actionCatalog'
+import { ActionSchema, type Action, type ActionDraft, type CombatState, type Degree, type HOPPurchase } from '../types'
+import { isReaction } from '../actionCatalog'
 import {
   findOption,
   getAttackTerms,
@@ -11,9 +11,12 @@ import {
   getTargetIds,
   isDeclarationComplete,
   isPiercingStrike,
+  needsDie,
   scoreAttack,
 } from '../lenses/action'
 import { getHOPOptions, getStrikeFacts } from '../lenses/damage'
+import { getBalanceDL, getBalanceTestTerms, getMoveCost, getMoveFacts } from '../lenses/move'
+import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
 import { ActionCost } from '../../character/lenses/actionCosts'
@@ -80,12 +83,13 @@ export function setTarget(targetId: string): Updater {
   }
 }
 
-// The target's answer to the open action (combat.tex "Reactions"), declared
-// before the die. A defender has one answer at a time: a new one replaces it.
+// A reaction to the open action (combat.tex "Reactions"), declared before
+// the die by anyone the action triggers something in. A character has one
+// answer at a time: a new one replaces it.
 export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || open.targetId !== actorId) return state
+    if (!open || open.status !== 'declared' || open.actorId === actorId) return state
     if (!findOption(state, actorId, draft)?.available) return state
     const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: open.actorId, reactionTo: open.id })
     return {
@@ -119,33 +123,51 @@ export function cancelAction(): Updater {
 // stand, scores the die against the DL the declarations add up to, and takes
 // every price — all in one update, so no state exists in which the die is
 // known and the cost is not paid. Refused, and nothing happens, when a
-// declaration is incomplete or someone cannot pay what they declared.
+// declaration is incomplete or someone cannot pay what they declared. A
+// strike is scored against the target's defense; a move across difficult
+// terrain is a Balance test against the ground (combat.tex "Balance"), and
+// pays for the path as the test leaves it.
 export function rollAction(die: number): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || open.targetId === null || !ACTIONS[open.kind].die) return state
+    if (!open || open.status !== 'declared' || !needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if (!getTargetIds(state, open).includes(open.targetId)) return state
+    if (open.kind === 'strike' && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+
+    const test = open.kind === 'strike'
+      ? (() => {
+          const DL = getDL(state, open)
+          const score = die + sumTerms(getAttackTerms(actor, open))
+          return { DL, score, ...scoreAttack(score, DL, isPiercingStrike(actor, open)) }
+        })()
+      : open.kind === 'move'
+        ? (() => {
+            const DL = getBalanceDL(state, open)
+            const score = die + sumTerms(getBalanceTestTerms(actor))
+            return { DL, score, degree: scoreTest(score, DL), HOP: 0 }
+          })()
+        : null
+    if (!test) return state
+    const withRoll: Action = { ...open, roll: { die, ...test } }
 
     const priced: Action[] = []
-    for (const a of [open, ...getReactionsTo(state, open.id)]) {
+    for (const a of [withRoll, ...getReactionsTo(state, open.id)]) {
       const cost = priceFor(state, a)
       if (!cost) return state
       priced.push({ ...a, cost })
     }
 
-    const DL = getDL(state, open)
-    const score = die + (open.kind === 'strike' ? sumTerms(getAttackTerms(actor, open)) : 0)
-    const { degree, HOP } = scoreAttack(score, DL, open.kind === 'strike' && isPiercingStrike(actor, open))
-
-    const rolled = priced.map((a): Action =>
-      a.id === open.id
-        ? { ...a, status: 'rolled', roll: { die, DL, score, degree, HOP } }
-        : { ...a, status: 'resolved' },
-    )
+    const rolled = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
     return applyPhase(replaceActions(state, rolled), rolled, 'roll')
   }
+}
+
+// play.tex "Degrees of success": over the DL by 10 is a critical, by 5 a
+// hit, by 0 a graze, less a miss.
+function scoreTest(score: number, DL: number): Degree {
+  const over = score - DL
+  return over >= 10 ? 'critical' : over >= 5 ? 'hit' : over >= 0 ? 'graze' : 'miss'
 }
 
 // The commit of an action with no die (combat.tex "Movement": a move is
@@ -155,21 +177,28 @@ export function rollAction(die: number): Updater {
 export function commitAction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || ACTIONS[open.kind].die) return state
+    if (!open || open.status !== 'declared' || needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    const cost = priceFor(state, open)
-    if (!cost) return state
-    const committed: Action = { ...open, status: 'rolled', cost }
-    return applyPhase(replaceActions(state, [committed]), [committed], 'roll')
+    const priced: Action[] = []
+    for (const a of [open, ...getReactionsTo(state, open.id)]) {
+      const cost = priceFor(state, a)
+      if (!cost) return state
+      priced.push({ ...a, cost })
+    }
+    const committed = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
+    return applyPhase(replaceActions(state, committed), committed, 'roll')
   }
 }
 
-// What the action costs its actor now, or null if they cannot pay it.
+// What the action costs its actor now, or null if they cannot pay it. A
+// move pays for the path as it will be walked, cut wherever it will stop.
 function priceFor(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
-  const cost = getDeclaredCost(c, action)
+  const cost = action.kind === 'move'
+    ? getMoveCost(c, action.movement, getMoveFacts(state, action).path.length)
+    : getDeclaredCost(c, action)
   if (!cost || c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
   return cost
 }
@@ -202,13 +231,37 @@ export function refundHOP(purchase: HOPPurchase): Updater {
 // Lands the rolled action on everyone it concerns and closes it. A strike
 // has its attacker's side written down first, so the record says what
 // landed and the target's reducer needs nothing but the action.
-export function resolveAction(): Updater {
+export function resolveAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'rolled') return state
     const resolved: Action = open.kind === 'strike'
       ? { ...open, status: 'resolved', facts: getStrikeFacts(state, open) }
-      : { ...open, status: 'resolved' }
-    return applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
+      : open.kind === 'move'
+        ? { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
+        : { ...open, status: 'resolved' }
+    const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
+    return { ...landed, actions: [...landed.actions, ...spawn(landed, resolved, newId)] }
   }
+}
+
+// combat.tex "Opportunity Attack", "Follow": the actions the resolved one's
+// reactions open, in the order they were declared. An opportunity attack
+// "can be voided if the target gets out of range", so one whose mover ended
+// beyond the reactor's reach opens nothing.
+function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
+  return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
+    switch (reaction.kind) {
+      case 'opportunityAttack': {
+        const reactor = state.characters[reaction.actorId]
+        const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
+        if (!reactor || (distance !== null && distance > getMeleeRange(reactor))) return []
+        return [ActionSchema.parse({ kind: 'strike', id: newId(), actorId: reaction.actorId, targetId: root.actorId, opportunity: true, spawnedBy: reaction.id })]
+      }
+      case 'follow':
+        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.cost, spawnedBy: reaction.id })]
+      default:
+        return []
+    }
+  })
 }

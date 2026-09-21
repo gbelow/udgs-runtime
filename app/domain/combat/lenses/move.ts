@@ -1,9 +1,11 @@
 import type { CampaignCharacter, Character, MovementKind } from '../../types'
-import type { CombatState, Coord, MoveAction, Placement } from '../types'
+import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS } from '../../lists'
 import { ActionCost } from '../../character/lenses/actionCosts'
 import { getAfflictions } from '../../character/lenses/afflictions'
+import { getBalanceTerms } from '../../character/lenses/skills'
+import { Term } from '../../character/lenses/terms'
 import {
   getBasicMovement,
   getCarefulMovement,
@@ -13,7 +15,7 @@ import {
   getSwimMovement,
 } from '../../character/lenses/movement'
 import { getSize } from '../../character/lenses/misc'
-import { coordKey, distance, neighbors, sameCell } from '../geometry'
+import { coordKey, directionTo, distance, neighbors, sameCell } from '../geometry'
 import { getFootprint, getOccupancy } from './board'
 
 // How a character crosses the board: what each kind of movement costs it,
@@ -129,6 +131,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const ground = readGround(state, action.actorId)
   if (!c || !from || !ground || action.path.length === 0) return false
   if (!getMovementOptions(state, c).find((o) => o.kind === action.movement)?.available) return false
+  if (action.budget && !withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
 
   let cursor = from.cell
   for (const [i, cell] of action.path.entries()) {
@@ -144,13 +147,118 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   return true
 }
 
-// Where the move ends: the last cell of the path, the orientation it named,
-// the elevation of the ground there — the board's terrain says how high a
-// cell is, so a placement carried in from a VTT is re-read off it on the
-// first move.
-export function getMoveDestination(state: CombatState, action: MoveAction): Placement | null {
+function withinBudget(cost: ActionCost, budget: ActionCost): boolean {
+  return cost.AP <= budget.AP && cost.STA <= budget.STA
+}
+
+// ---------------------------------------------------------------------------
+// Where the move actually ends
+
+// combat.tex "running": "can continue running ... as long as no turns of 90
+// degrees or more are made per running block". Within a block (one running
+// speed of cells) the heading may stray one hex step (60 degrees) from the
+// block's first step; the path is cut where it would turn harder, and the
+// runner stops there. The table's ruling: turning while running stops the
+// move, and the path may still be drawn past it.
+export function getRunPath(state: CombatState, action: MoveAction): Coord[] {
+  const c = state.characters[action.actorId]
   const from = state.board?.placements[action.actorId]
-  const cell = action.path[action.path.length - 1]
+  if (!c || !from || action.movement !== 'run') return action.path
+  const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
+  let cursor = from.cell
+  let heading = 0
+  for (const [i, cell] of action.path.entries()) {
+    const direction = directionTo(cursor, cell)
+    if (i % block === 0) heading = direction
+    else if (Math.min((direction - heading + 6) % 6, (heading - direction + 6) % 6) > 1) return action.path.slice(0, i)
+    cursor = cell
+  }
+  return action.path
+}
+
+// combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
+// move whose path enters a difficult cell is committed by a die.
+export function needsBalanceTest(state: CombatState, action: MoveAction): boolean {
+  return firstDifficultStep(state, action) !== null
+}
+
+function firstDifficultStep(state: CombatState, action: MoveAction): number | null {
+  const c = state.characters[action.actorId]
+  const from = state.board?.placements[action.actorId]
+  const board = state.board
+  if (!c || !from || !board) return null
+  const i = getRunPath(state, action).findIndex((cell) =>
+    getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
+  )
+  return i === -1 ? null : i + 1
+}
+
+export function getBalanceTestTerms(c: Character): Term[] {
+  return getBalanceTerms(c)
+}
+
+// The DL of the first difficult cell the move enters.
+export function getBalanceDL(state: CombatState, action: MoveAction): number {
+  const c = state.characters[action.actorId]
+  const from = state.board?.placements[action.actorId]
+  const board = state.board
+  const step = firstDifficultStep(state, action)
+  if (!c || !from || !board || step === null) return 0
+  const cell = getRunPath(state, action)[step - 1]
+  const DLs = getFootprint(c, { ...from, cell })
+    .map((f) => board.terrain[coordKey(f)])
+    .filter((t) => t?.difficult)
+    .map((t) => t.DL)
+  return Math.max(0, ...DLs)
+}
+
+// combat.tex "Balance" — "Difficult terrain": "On a critical, all movement is
+// inconsequential. On a success, only moving at a normal speed is safe, but
+// not jumping or running. On a graze, moving at a careful speed is safe. On
+// a miss, only crawling is allowed."
+export function isSafeOnDifficultTerrain(kind: MovementKind, degree: Degree): boolean {
+  switch (degree) {
+    case 'critical': return true
+    case 'hit': return kind !== 'run' && kind !== 'jump'
+    case 'graze': return kind === 'careful' || kind === 'crawl' || kind === 'swim'
+    case 'miss': return kind === 'crawl'
+  }
+}
+
+// The path as it will be walked and why it ends where it does: a run cut at
+// a turn, a reaction that stops the mover at the step it fired on (the
+// table's ruling: movement stops at the first point a reaction triggers), a
+// fall at the first difficult cell the test did not clear — whichever comes
+// first. The reactions read are the declared ones, so this is final once the
+// action is committed.
+export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
+  const run = getRunPath(state, action)
+  let path = run
+  let stop: MoveFacts['stop'] = run.length < action.path.length ? 'turn' : 'end'
+  const at = state.actions
+    .filter((a) => a.reactionTo === action.id && a.kind === 'opportunityAttack')
+    .map((a) => (a.kind === 'opportunityAttack' ? a.at : null))
+    .filter((n): n is number => n !== null)
+  if (at.length > 0 && Math.min(...at) < path.length) {
+    path = path.slice(0, Math.min(...at))
+    stop = 'reaction'
+  }
+  const difficult = firstDifficultStep(state, action)
+  const fell = difficult !== null && difficult <= path.length && action.roll !== null && !isSafeOnDifficultTerrain(action.movement, action.roll.degree)
+  if (fell) {
+    path = path.slice(0, difficult)
+    stop = 'fall'
+  }
+  return { path, stop, fell }
+}
+
+// Where the move ends: the last cell of the path as walked, the orientation
+// it named, the elevation of the ground there — the board's terrain says how
+// high a cell is, so a placement carried in from a VTT is re-read off it on
+// the first move.
+export function getMoveDestination(state: CombatState, action: MoveAction, path: Coord[]): Placement | null {
+  const from = state.board?.placements[action.actorId]
+  const cell = path[path.length - 1]
   if (!from || !cell) return null
   return {
     ...from,

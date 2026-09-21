@@ -53,10 +53,14 @@ describe('a fight without a board is a fight where every positional gate passes'
     expect(getDLTerms(bare, getOpenAction(bare)!)).toEqual(getDLTerms(placed, getOpenAction(placed)!))
   })
 
+  // A reaction may come as one option per way of doing it (a jump per
+  // landing cell), so what is compared is how open the kind is, not how
+  // many ways it offers.
   const reactions = (Object.keys(ACTIONS) as ActionKind[]).filter(isReaction)
   it.each(reactions)('leaves "%s" as open as it is on open ground', (kind) => {
     const [bare, placed] = [declared(null), declared(open)]
-    const pick = (s: CombatState) => getAvailableActions(s, 'def').filter((o) => o.draft.kind === kind).map((o) => [o.available, o.reason])
+    const pick = (s: CombatState) =>
+      [...new Set(getAvailableActions(s, 'def').filter((o) => o.draft.kind === kind).map((o) => `${o.available}:${o.reason}`))].sort()
     expect(pick(bare)).toEqual(pick(placed))
   })
 })
