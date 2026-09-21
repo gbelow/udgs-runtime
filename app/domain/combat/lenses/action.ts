@@ -11,6 +11,7 @@ import { getAfflictions } from '../../character/lenses/afflictions'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
+import { hasJumpSpace, isHighGround, isInReach } from './board'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
@@ -154,17 +155,19 @@ export function getAttackTerms(c: CampaignCharacter, action: StrikeAction): Term
 // Defend if they react, "otherwise, they use the SD" (creating.tex "Standard
 // Deflection"). An evasive jump "gives +AGI/3 on the skill test"; "Blocking
 // with a shield adds its cover to defend".
+// combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
+// against each other" — on the SD as much as on an active defense.
 export function getDLTerms(state: CombatState, root: Action): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === defender.id)
-  if (!reaction) return [{ label: 'SD', value: getSD(defender) }]
-  const terms: Term[] = [{ label: 'defend', value: getDefend(defender) }]
-  if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 3) })
-  if (reaction.kind === 'block') {
+  const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }]
+  if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 3) })
+  if (reaction?.kind === 'block') {
     const row = findWeaponRow(defender, reaction.weaponKey, reaction.attack)
     if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
   }
+  if (root.kind === 'strike' && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   return terms
 }
 
@@ -203,10 +206,12 @@ export type ActionOption = {
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
-// block attacks, only intercept."
-function defenseGate(defender: CampaignCharacter, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
+// block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
+// there is space to jump."
+function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
+  if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }
 }
 
@@ -250,7 +255,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     .flatMap((kind): ActionOption[] => {
       const price = ACTIONS[kind].price
       const cost = price ? getActionCost(c, price) : { AP: 0, STA: 0 }
-      const gate = defenseGate(c, kind, cost)
+      const gate = defenseGate(state, c, open, kind, cost)
       if (kind === 'block' || kind === 'intercept') {
         return defRows(c).map((row) => {
           const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
@@ -277,7 +282,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (open.status === 'rolled') return open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   const actor = state.characters[open.actorId]
   if (!actor || !isDeclarationComplete(actor, open)) return 'declare'
-  if (open.targetId === null) return 'target'
+  if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'react'
 }
 
@@ -306,7 +311,10 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
   return 'none'
 }
 
-// Who can be aimed at: everyone in the fight but the actor.
+// Who can be aimed at: everyone in the fight but the actor, and for a strike
+// only those its reach covers from where the actor stands. A target the
+// declaration has since put out of reach (a change of location on the high
+// ground) drops off this list and has to be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
-  return Object.keys(state.characters).filter((id) => id !== root.actorId)
+  return Object.keys(state.characters).filter((id) => id !== root.actorId && (root.kind !== 'strike' || isInReach(state, root, id)))
 }

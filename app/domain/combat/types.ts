@@ -146,9 +146,10 @@ export type Coord = z.infer<typeof CoordSchema>
 // Where a character stands. `cell` is the anchor of its footprint and
 // `orientation` one of the six hex rotations the footprint may take
 // (creating.tex "Size and Space Occupation"); which cells that covers is the
-// footprint lens's to say. `focus` is combat.tex "Flanking": the one opponent
-// the character is facing and may react to. It is a fact of the fight, not of
-// the character, so it lives here and not on the character record.
+// footprint lens's to say. `focus` is who the character is looking at, for
+// line of sight (combat.tex "Visibility"); it decides nothing yet. It is a
+// fact of the fight, not of the character, so it lives here and not on the
+// character record.
 export const PlacementSchema = z.object({
   cell: CoordSchema.default({ q: 0, r: 0 }),
   orientation: z.number().int().min(0).max(5).default(0),

@@ -8,6 +8,7 @@ import {
   getDL,
   getOpenAction,
   getReactionsTo,
+  getTargetIds,
   isDeclarationComplete,
   isPiercingStrike,
   scoreAttack,
@@ -66,7 +67,7 @@ export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'declared') return state
-    if (targetId === open.actorId || !state.characters[targetId]) return state
+    if (!getTargetIds(state, open).includes(targetId)) return state
     return {
       ...state,
       actions: state.actions
@@ -122,6 +123,7 @@ export function rollAction(die: number): Updater {
     if (!open || open.status !== 'declared' || open.targetId === null) return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(actor, open)) return state
+    if (!getTargetIds(state, open).includes(open.targetId)) return state
 
     const priced: Action[] = []
     for (const a of [open, ...getReactionsTo(state, open.id)]) {
