@@ -213,10 +213,12 @@ export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('bloc
 export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
 
 // combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
-// test alone; where it lets the evader move, the move is opened after the
-// shot. A guard names the shield it is made with, and may be made by the
-// target or by someone adjacent standing nearer the shooter.
-export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion') }).strip()
+// test; where it lets the evader move, the move is opened after the shot,
+// unless the evader declared they `stay` where they are (abilities.tex
+// "Precise Reflexes": "uses reflexes without moving"). A guard names the
+// DEF row it is made with, and may be made by the target or by someone
+// adjacent standing nearer the shooter.
+export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion'), stay: z.boolean().default(false) }).strip()
 export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a

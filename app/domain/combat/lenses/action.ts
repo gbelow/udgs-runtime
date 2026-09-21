@@ -107,10 +107,13 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'move':
       return isPathLegal(state, action)
     case 'block':
-    case 'intercept':
-    case 'guard': {
+    case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
-      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (action.kind !== 'guard' || row.weapon.shield !== undefined)
+      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row)
+    }
+    case 'guard': {
+      const root = action.reactionTo ? getAction(state, action.reactionTo) : null
+      return root !== null && guardRows(state, c, root).some((row) => row.wielded.key === action.weaponKey && row.atk.name === action.attack)
     }
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
@@ -203,10 +206,18 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
   if (action.kind === 'move') return action.path.length > 0 ? getMovePrice(c, action, action.path.length) : null
+  if (action.kind === 'evasion') return getEvasionCost(c, action.stay)
   // a reaction with no price of its own (an opportunity attack, a follow)
   // pays through the action it opens
   const price = ACTIONS[action.kind].price
   return price ? getActionCost(c, price) : { AP: 0, STA: 0 }
+}
+
+// combat.tex "Evasion": "spend 2 AP to react"; abilities.tex "Precise
+// Reflexes": "If the character uses reflexes without moving, reflexes only
+// cost 1 AP."
+function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
+  return stay && c.abilities.includes('precise-reflexes') ? { AP: 1, STA: 0 } : getActionCost(c, 'reflex')
 }
 
 // ---------------------------------------------------------------------------
@@ -228,12 +239,30 @@ export function getAttackTerms(c: CampaignCharacter, action: AttackAction): Term
   ]
 }
 
-// combat.tex "Reflex": the reaction a shot is met with — the target's own,
-// or failing that a guard made for them by someone adjacent (combat.tex
-// "Guard": "block ranged attacks against themselves or adjacent characters").
+// combat.tex "Reflex": what one reaction to a shot puts up against it — the
+// reactor's reflexes (combat.tex "Accuracy": "against the opponent's
+// reflexes"), and for a guard the shield's cover ("Guard": "Shield Cover is
+// added to guard as a bonus").
+function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
+  const reactor = state.characters[reaction.actorId]
+  if (!reactor) return []
+  const terms: Term[] = [{ label: 'reflex', value: getReflex(reactor) }]
+  if (reaction.kind === 'guard') {
+    const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
+    if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
+  }
+  return terms
+}
+
+// The reaction a shot is met with: the target's own, or a guard made for
+// them by someone adjacent (combat.tex "Guard": "block ranged attacks
+// against themselves or adjacent characters"). A shot has to beat every one
+// of them (the table's ruling), so the one it is scored against — and the
+// one whose defense the damage meets — is whichever puts up the most.
 export function getShotDefense(state: CombatState, root: Action): Action | null {
-  const reactions = getReactionsTo(state, root.id)
-  return reactions.find((r) => r.actorId === root.targetId) ?? reactions.find((r) => r.kind === 'guard') ?? null
+  return getReactionsTo(state, root.id)
+    .filter((r) => r.kind === 'evasion' || r.kind === 'guard')
+    .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
 }
 
 // combat.tex "Defend": the DL a strike is scored against is the defender's
@@ -250,14 +279,7 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   if (!defender) return []
   if (root.kind === 'shoot') {
     const reaction = getShotDefense(state, root)
-    const reactor = reaction ? state.characters[reaction.actorId] : undefined
-    if (!reaction || !reactor) return [{ label: 'SD', value: getSD(defender) }]
-    const terms: Term[] = [{ label: 'reflex', value: getReflex(reactor) }]
-    if (reaction.kind === 'guard') {
-      const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
-      if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
-    }
-    return terms
+    return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
   }
   const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === defender.id)
   const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }]
@@ -328,9 +350,15 @@ function defRows(c: Character): WeaponRow[] {
   )
 }
 
-// combat.tex "Guard": "If using a shield" — a DEF row of a shield.
-function shieldRows(c: Character): WeaponRow[] {
-  return defRows(c).filter((row) => row.weapon.shield !== undefined)
+// combat.tex "Guard": "If using a shield"; gear.tex "Slow, Fast": a fast
+// projectile "can only be blocked with a shield", a slow one may be guarded
+// with any DEF row (the table's ruling). What the shot was fired with says
+// which; nothing declared, a shield.
+function guardRows(state: CombatState, c: Character, root: Action): WeaponRow[] {
+  const shooter = state.characters[root.actorId]
+  const shot = root.kind === 'shoot' && shooter ? findWeaponRow(shooter, root.weaponKey, root.attack) : null
+  const slow = shot !== null && hasProperty(shot.atk.properties, 'slow')
+  return defRows(c).filter((row) => slow || row.weapon.shield !== undefined)
 }
 
 // Everything the character may declare right now: their own actions while no
@@ -394,7 +422,14 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'intercept':
         return defRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
       case 'guard':
-        return shieldRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+        return guardRows(state, c, open).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+      // combat.tex "Evasion" lets the evader move after the shot; one who
+      // stays put gives that up, for Precise Reflexes' price if they have it
+      case 'evasion':
+        return [
+          option(ACTIONS[kind].label, { kind }),
+          option(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, getEvasionCost(c, true)),
+        ]
       // where an evasive jump lands is picked on the board, not here
       case 'evasiveJump':
         return [option(ACTIONS[kind].label, { kind })]
@@ -477,6 +512,7 @@ function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
     return option.weaponKey === d.weaponKey && option.attack === d.attack
   }
   if (option.kind === 'opportunityAttack') return (option.at ?? null) === ((draft as { at?: number | null }).at ?? null)
+  if (option.kind === 'evasion') return (option.stay ?? false) === ((draft as { stay?: boolean }).stay ?? false)
   return true
 }
 

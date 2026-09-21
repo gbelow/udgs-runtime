@@ -103,14 +103,17 @@ export function commitAction(): Updater {
 }
 
 // The reactor's way out of an action their reaction opened, while it is
-// still only declared: the action and the reaction go, as if never declared,
-// and a move waiting on that opportunity attack is handed on to the next.
+// still only declared: the action goes, and a move waiting on that
+// opportunity attack is handed on to the next. An opportunity attack goes
+// with its strike, as if never declared, or the move would open it again; a
+// reaction that was paid for (a follow, an evasion) stays on the record.
 export function withdrawSpawnedAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'declared' || !open.spawnedBy) return state
     const reaction = getAction(state, open.spawnedBy)
-    const withdrawn = { ...state, actions: state.actions.filter((a) => a.id !== open.id && a.id !== open.spawnedBy) }
+    const dropped = reaction?.kind === 'opportunityAttack' ? [open.id, reaction.id] : [open.id]
+    const withdrawn = { ...state, actions: state.actions.filter((a) => !dropped.includes(a.id)) }
     const root = reaction?.reactionTo ? getAction(withdrawn, reaction.reactionTo) : null
     return root?.kind === 'move' && root.status === 'rolled' ? advanceMove(withdrawn, root, newId) : withdrawn
   }
@@ -364,7 +367,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
       // the AP the reflex already paid; a miss leaves how far to the surge,
       // and so to the evader.
       case 'evasion': {
-        if (root.kind !== 'shoot' || root.interruption !== 'none') return []
+        if (root.kind !== 'shoot' || root.interruption !== 'none' || reaction.stay) return []
         const AP = reaction.cost?.AP ?? 0
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP, spawnedBy: reaction.id })]
       }

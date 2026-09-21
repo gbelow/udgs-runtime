@@ -1,7 +1,6 @@
 import type { Action, ActionKind, CombatState, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
-import { getWieldedWeapons } from '../../item/lenses/hands'
 import { getRunPath } from './move'
 import { setDistance } from '../geometry'
 
@@ -49,9 +48,10 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
 }
 
 // combat.tex "Reflex": the target may answer a shot with evasion or guard.
-// combat.tex "Guard": someone with a shield may "block ranged attacks
-// against ... adjacent characters, as long as they are closer to the
-// projectile source than the adjacent character".
+// combat.tex "Guard": someone may "block ranged attacks against ...
+// adjacent characters, as long as they are closer to the projectile source
+// than the adjacent character". What they may guard with is the option's
+// to say, as it is for the target.
 function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
   if (!root.targetId) return []
   const own = (Object.keys(ACTIONS) as ActionKind[])
@@ -59,7 +59,7 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const toTarget = getDistanceBetween(state, root.actorId, root.targetId)
   const guards = getAdjacentIds(state, root.targetId)
-    .filter((id) => id !== root.actorId && getWieldedWeapons(state.characters[id]).some((w) => w.weapon.shield))
+    .filter((id) => id !== root.actorId)
     .filter((id) => {
       const toGuard = getDistanceBetween(state, root.actorId, id)
       return toGuard !== null && toTarget !== null && toGuard < toTarget

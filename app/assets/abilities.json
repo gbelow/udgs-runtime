@@ -1009,9 +1009,9 @@
   "precise-reflexes": {
     "family": "Precise Reflexes",
     "section": "Ranged Combat",
-    "activation": "active",
+    "activation": "passive",
     "cost": {
-      "AP": 1,
+      "AP": 0,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,

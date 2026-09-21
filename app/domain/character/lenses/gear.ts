@@ -4,7 +4,7 @@ import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getHardness } from "../../item/lenses/items";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize, getTGH } from "./misc";
-import { RMArr, SHOTS, ShotKind, dmgArr, injuryMap } from "../../tables";
+import { BOWS, RMArr, SHOTS, ShotKind, dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
 import { getArmor } from "./armor";
@@ -81,10 +81,18 @@ export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character)
   return { blunt: atk.blunt + bonus, cut: atk.cut + bonus }
 }
 
-// combat.tex "Shoot": "Requires Focus surge to use." A throw does not. On the
-// sheet there is no surge to have used, so nothing is withheld there.
+// combat.tex "Focus surge": "this surge is required to use ranged attacks" —
+// a shot or a throw. On the sheet there is no surge to have used, so nothing
+// is withheld there.
 export function needsFocus(atk: WeaponAttack, c: Character): boolean {
-  return getAttackKind(atk.range) === 'shoot' && isCampaignCharacter(c) && c.usedSurge !== 'focus'
+  return getAttackKind(atk.range) !== 'melee' && isCampaignCharacter(c) && c.usedSurge !== 'focus'
+}
+
+// abilities.tex "Archer": "Bows require training to be used effectively.
+// Characters without proper training spend an extra 3 AP for each shot and
+// cannot snipe or quick shot."
+function isUntrainedBow(weapon: Weapon, c: Character): boolean {
+  return (BOWS as readonly string[]).includes(weapon.name) && !c.abilities.includes('archer')
 }
 
 // Read-side projection of one row of a weapon's attack table. Every number is
@@ -217,7 +225,8 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     // Multiplier"), and every variation is a delta on the normal attack
     // (combat.tex "Strike"), so they all start from its damage, not the row's.
     const STRxDM = getWieldSTR(weapon, c) * getDM(c)
-    const AP = atk.AP + getAPSurcharge(weapon, c)
+    const untrained = kind === 'shoot' && isUntrainedBow(weapon, c)
+    const AP = atk.AP + getAPSurcharge(weapon, c) + (untrained ? 3 : 0)
     const { blunt, cut } = getStrikeDamage(atk, weapon, c)
     // combat.tex "Heavy Attack": "Bonus applies to blunt damage and cutting damage."
     const plus = (bonus: number): Damage => ({ blunt: blunt + bonus, cut: cut + bonus })
@@ -265,7 +274,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     if (has('hook')) attacks.push(hook)
     // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
     // use quick shot unless STR is +3 points higher than the requirement."
-    if (kind === 'shoot') {
+    if (kind === 'shoot' && !untrained) {
       if (atk.STRreq === undefined || getSTR(c) >= atk.STRreq + 3) attacks.push(quickShot)
       attacks.push(snipe)
     }

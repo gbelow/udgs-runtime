@@ -49,7 +49,7 @@ export function ActionPanel(){
       actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
       {declared && open.spawned ? (
-        <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>skip the {open.label}</Button></div>
+        <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button></div>
       ) : null}
 
       <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />

@@ -329,6 +329,11 @@ export const SHOTS = {
 
 export type ShotKind = keyof typeof SHOTS
 
+// gear.tex "Ranged Weapons", abilities.tex "Archer": the bows, the shooting
+// weapons that "require training to be used effectively" — the Archer
+// ability. Crossbows and arbalests are not among them.
+export const BOWS = ['Short Bow', 'Long Bow', 'Heavy Bow'] as const
+
 // combat.tex "Localized damage", the humanoid locations: the penalty to the
 // attack test for aiming there, stored as a positive magnitude, and the
 // highest injury tier the body takes from a hit there (`null` when the book
