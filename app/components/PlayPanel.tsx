@@ -7,6 +7,7 @@ import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { ActionPanel } from './ActionPanel';
+import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
 import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
@@ -124,6 +125,7 @@ export function PlayPanel(){
             <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
           </div>
           <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
+            <BoardPanel />
             <AfflictionsPannel />
             <ArmorPanel />
             <HandsPanel />

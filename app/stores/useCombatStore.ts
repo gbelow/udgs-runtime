@@ -75,6 +75,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   removeCharacter: (id) =>
     set((s) => {
       const { [id]: _, ...rest } = s.characters
-      return { characters: rest }
+      const { [id]: _placement, ...placements } = s.board?.placements ?? {}
+      return { characters: rest, board: s.board ? { ...s.board, placements } : null }
     })
 }))

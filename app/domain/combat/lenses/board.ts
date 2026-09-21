@@ -195,7 +195,7 @@ export function hasJumpSpace(state: CombatState, defenderId: string, attackerId:
 // Angles
 
 // Axial to the plane, pointy-top hexes of unit spacing.
-function toPlane(c: Coord): { x: number; y: number } {
+export function toPlane(c: Coord): { x: number; y: number } {
   return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
 }
 

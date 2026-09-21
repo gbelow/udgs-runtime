@@ -156,6 +156,10 @@ export const HANDS = ['one', 'two'] as const
 // is there too but moves nobody, and mounted movement is the mount's.
 export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim'] as const
 
+// What the simulated board's terrain can be painted with: the cell flags of
+// combat.tex "Positioning and Visibility" and "Balance", one at a time.
+export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'raise', 'lower', 'clear'] as const
+
 // creating.tex "Size and Space Occupation": "Other creatures may have
 // different shapes." The shapes a footprint can take; the cells each one
 // covers at each size are in `tables.ts`.

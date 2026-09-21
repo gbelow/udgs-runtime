@@ -9,7 +9,7 @@ import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
 const STEP_LABEL = {
-  declare: 'declare the attack',
+  declare: 'declare',
   target: 'pick a target on the roster',
   react: 'the target answers',
   commit: 'commit',
@@ -76,7 +76,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>target</SectionLabel>
           {view.targets.map((t) => <Button key={t.id} size='xs' onClick={() => target(t.id)}>{t.name}</Button>)}
-          {view.targets.length === 0 ? <span className='text-xs text-muted'>nobody else in the fight</span> : null}
+          {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
         </div>
       ) : null}
 

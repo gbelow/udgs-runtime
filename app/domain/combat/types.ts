@@ -162,6 +162,9 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
+  // how far from the origin the board is drawn; the rules do not care, the
+  // simulation tool does
+  radius: num.int().min(1).default(6),
 }).strip()
 export type Board = z.infer<typeof BoardSchema>
 

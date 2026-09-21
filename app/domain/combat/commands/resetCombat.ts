@@ -5,6 +5,7 @@ export function resetCombat(state: CombatState): CombatState {
   return ({
     ...state,
     characters: {},
-    round: 0
+    round: 0,
+    board: state.board ? { ...state.board, placements: {} } : null,
   })
 }

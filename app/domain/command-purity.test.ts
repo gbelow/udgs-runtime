@@ -5,13 +5,14 @@ import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
 import * as startTurnModule from './combat/commands/startTurn'
 import * as actionsModule from './combat/commands/action'
+import * as boardModule from './combat/commands/board'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { makeCampaignCharacter } from './factories'
 import { ArmorSchema, ContainerSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -133,6 +134,12 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(20)(s)))),
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
   commitAction: (s) => combatCommands.commitAction()(deepFreeze(declaredMove(s))),
+  createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
+  placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(combatCommands.cancelAction()(s))),
+  turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(combatCommands.cancelAction()(s))),
+  paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(combatCommands.cancelAction()(s))),
+  pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 })(deepFreeze(declaredMove(s))),
+  turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
 }
 
 // The strike cancelled and a one-cell move declared in its place, on a

@@ -208,3 +208,29 @@ export function getReachableCells(state: CombatState, actorId: string, kind: Mov
 export function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
   return cells.find((r) => sameCell(r.cell, cell)) ?? null
 }
+
+// Whether a footprint may be put down here outside of any move: off
+// blocking cells and free of everyone within a size. What a placement by
+// hand has to respect.
+export function canStandAt(state: CombatState, id: string, placement: Placement): boolean {
+  const c = state.characters[id]
+  const ground = readGround(state, id)
+  if (!c || !ground) return false
+  const footprint = getFootprint(c, placement)
+  return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)
+}
+
+// The path a click on a cell turns the declared one into: the cell taken
+// back if it is the path's end, one more step if it is next to the end,
+// the shortest way there if it is reachable at all, and nothing otherwise.
+export function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
+  const from = state.board?.placements[action.actorId]
+  if (!from) return null
+  const end = action.path[action.path.length - 1] ?? from.cell
+  if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)
+  const reachable = getReachableCells(state, action.actorId, action.movement)
+  const there = findReachable(reachable, cell)
+  if (!there) return null
+  if (distance(end, cell) === 1 && there.steps > action.path.length) return [...action.path, cell]
+  return there.path
+}

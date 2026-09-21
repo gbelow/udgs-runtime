@@ -55,6 +55,8 @@ export type ActionPanelView = {
   strikes: StrikeOption[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
+  // why the target list is empty, when it is
+  noTargets: string | null
   canRoll: boolean
   // for a move being declared: the kinds of movement open to the actor and
   // every cell the declared kind can reach
@@ -67,7 +69,7 @@ export type ActionPanelView = {
   outcome: Outcome | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], strikes: [], locations: [], targets: [], canRoll: false, moves: [], reachable: [], canCommit: false, hop: { remaining: 0, options: [] }, outcome: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], strikes: [], locations: [], targets: [], noTargets: null, canRoll: false, moves: [], reachable: [], canCommit: false, hop: { remaining: 0, options: [] }, outcome: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -108,9 +110,12 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       roll: open.roll,
     },
     options: step === 'react' && open.targetId ? getAvailableActions(state, open.targetId) : [],
-    strikes: step === 'declare' && actor ? getStrikeOptions(actor) : [],
+    strikes: strike && step === 'declare' && actor ? getStrikeOptions(actor) : [],
     locations: strike ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
+    noTargets: step === 'target' && getTargetIds(state, open).length === 0
+      ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
+      : null,
     canRoll: step === 'react' && !!actor && isDeclarationComplete(state, actor, open),
     moves: move && actor ? getMovementOptions(state, actor) : [],
     reachable: move ? getReachableCells(state, move.actorId, move.movement) : [],
