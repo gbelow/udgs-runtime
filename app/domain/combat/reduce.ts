@@ -1,7 +1,8 @@
 import type { CampaignCharacter } from '../types'
-import type { Action } from './types'
+import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
 import { getOutcome, Outcome } from './lenses/damage'
+import { getMoveDestination } from './lenses/move'
 
 // The two moments an action touches a character: `roll`, when the die is
 // thrown and the price leaves the actor in the same step, and `resolve`, when
@@ -53,5 +54,18 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
       },
       resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
     }
+  }
+}
+
+// The one place an action changes the board, the same way: it reads the
+// action and applies the part that moves anyone. Where a move ends was
+// worked out from the fight as it stood at the resolve, so the board is
+// handed the state it is part of.
+export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
+  return (board: Board) => {
+    if (phase !== 'resolve' || action.kind !== 'move') return board
+    const destination = getMoveDestination(state, action)
+    if (!destination) return board
+    return { ...board, placements: { ...board.placements, [action.actorId]: destination } }
   }
 }

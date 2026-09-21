@@ -1,5 +1,5 @@
 import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS } from './lists'
-import type { AfflictionKey, MeleeRange, Shape, WeaponProperty } from './types'
+import type { AfflictionKey, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -63,6 +63,20 @@ export const FOOTPRINTS: Record<Shape, Record<FootprintCells, readonly Coord[]>>
     3: [{ q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }],
     7: [{ q: -3, r: 0 }, { q: -2, r: 0 }, { q: -1, r: 0 }, { q: 0, r: 0 }, { q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }],
   },
+}
+
+// combat.tex "Movement Costs and Speeds": what one block of each movement
+// costs; how far a block goes is the character's speed for it (the
+// `movement` lenses), so the table here is only the price column. Running
+// "can run a partial amount smaller than its running speed, but AP cost is
+// the same", and a jump cannot be interrupted, so both are bought whole.
+export const MOVEMENT_BLOCK_COST: Record<MovementKind, { AP: number; STA: number }> = {
+  careful: { AP: 1, STA: 0 },
+  basic:   { AP: 1, STA: 0 },
+  run:     { AP: 2, STA: 0 },
+  jump:    { AP: 2, STA: 1 },
+  crawl:   { AP: 1, STA: 0 },
+  swim:    { AP: 1, STA: 0 },
 }
 
 // gear.tex "Short, Long I/II": "Short-range attacks ... have a range of 1m x

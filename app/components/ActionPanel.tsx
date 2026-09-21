@@ -1,6 +1,7 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
 import type { ActionOption, StrikeOption } from '../domain/combat/lenses/action'
+import type { MovementOption } from '../domain/combat/lenses/move'
 import type { OpenActionView } from '../domain/combat/lenses/actionPanel'
 import type { HOPOption, Outcome } from '../domain/combat/lenses/damage'
 import type { ActionCost } from '../domain/character/lenses/actionCosts'
@@ -11,6 +12,7 @@ const STEP_LABEL = {
   declare: 'declare the attack',
   target: 'pick a target on the roster',
   react: 'the target answers',
+  commit: 'commit',
   spend: 'spend the overflow',
   confirm: 'apply',
 } as const
@@ -19,7 +21,7 @@ const STEP_LABEL = {
 // nothing is open, then one step at a time — the declaration, the target,
 // the defender's answer and the die, the result — until it is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, withdraw, cancel, roll, spend, refund, resolve } = useCombatActions()
+  const { view, declare, amend, target, react, withdraw, cancel, roll, commit, spend, refund, resolve } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -42,6 +44,20 @@ export function ActionPanel(){
       actions={canCancel ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
       <Declaration open={open} strikes={view.strikes} onStrike={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
+
+      {view.moves.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>movement</SectionLabel>
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [] })} />)}
+        </div>
+      ) : null}
+      {view.moves.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
+          <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
+          {open.path.length === 0 ? <span>pick a path on the board</span> : null}
+          <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>go</Button>
+        </div>
+      ) : null}
 
       {view.locations.length > 0 && !rolled ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -77,15 +93,19 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {rolled && open.roll ? (
+      {rolled ? (
         <div className='flex flex-col gap-1'>
-          <Test open={open} />
-          <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
-            <span>die <span className='font-mono'>{open.roll.die}</span></span>
-            <span>score <span className='font-mono'>{open.roll.score}</span> vs <span className='font-mono'>{open.roll.DL}</span></span>
-            <span className={`font-medium ${open.roll.degree === 'miss' ? 'text-bad' : open.roll.degree === 'hit' ? 'text-good' : ''}`}>{open.roll.degree}</span>
-            {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
-          </div>
+          {open.roll ? <Test open={open} /> : null}
+          {open.roll ? (
+            <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
+              <span>die <span className='font-mono'>{open.roll.die}</span></span>
+              <span>score <span className='font-mono'>{open.roll.score}</span> vs <span className='font-mono'>{open.roll.DL}</span></span>
+              <span className={`font-medium ${open.roll.degree === 'miss' ? 'text-bad' : open.roll.degree === 'hit' ? 'text-good' : ''}`}>{open.roll.degree}</span>
+              {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
+            </div>
+          ) : (
+            <div className='text-xs text-muted'>{open.movement} · cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></div>
+          )}
           {step === 'spend' ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>overflow</SectionLabel>
@@ -133,6 +153,15 @@ function Test({ open }: { open: OpenActionView }){
         <span>vs DL <span className='font-mono text-fg'>{open.DL.total}</span></span>
       </SkillTooltip>
     </div>
+  )
+}
+
+function MovementButton({ option, active, onClick }: { option: MovementOption, active: boolean, onClick: () => void }){
+  return (
+    <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+      disabled={!option.available} title={option.reason ?? `${option.speed} m per block`} onClick={onClick}>
+      {option.kind} <Cost cost={option.block} />
+    </Button>
   )
 }
 

@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import { ActionSchema, type Action, type ActionDraft, type CombatState, type HOPPurchase } from '../types'
-import { isReaction } from '../actionCatalog'
+import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   findOption,
   getAttackTerms,
@@ -14,7 +14,7 @@ import {
   scoreAttack,
 } from '../lenses/action'
 import { getHOPOptions, getStrikeFacts } from '../lenses/damage'
-import { reduceCharacter, type Phase } from '../reduce'
+import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
 import { ActionCost } from '../../character/lenses/actionCosts'
 
@@ -35,7 +35,10 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 }
 
 function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
-  return actions.reduce((s, action) => mapCharacters(s, reduceCharacter(action, phase)), state)
+  return actions.reduce((s, action) => {
+    const next = mapCharacters(s, reduceCharacter(action, phase))
+    return next.board ? { ...next, board: reduceBoard(next, action, phase)(next.board) } : next
+  }, state)
 }
 
 // Opens an action for a character. One at a time: nothing can be declared
@@ -120,9 +123,9 @@ export function cancelAction(): Updater {
 export function rollAction(die: number): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || open.targetId === null) return state
+    if (!open || open.status !== 'declared' || open.targetId === null || !ACTIONS[open.kind].die) return state
     const actor = state.characters[open.actorId]
-    if (!actor || !isDeclarationComplete(actor, open)) return state
+    if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (!getTargetIds(state, open).includes(open.targetId)) return state
 
     const priced: Action[] = []
@@ -142,6 +145,23 @@ export function rollAction(die: number): Updater {
         : { ...a, status: 'resolved' },
     )
     return applyPhase(replaceActions(state, rolled), rolled, 'roll')
+  }
+}
+
+// The commit of an action with no die (combat.tex "Movement": a move is
+// bought, not rolled). Prices it off its actor as they stand and takes the
+// price, in one update; refused when the declaration is incomplete or the
+// actor cannot pay.
+export function commitAction(): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.status !== 'declared' || ACTIONS[open.kind].die) return state
+    const actor = state.characters[open.actorId]
+    if (!actor || !isDeclarationComplete(state, actor, open)) return state
+    const cost = priceFor(state, open)
+    if (!cost) return state
+    const committed: Action = { ...open, status: 'rolled', cost }
+    return applyPhase(replaceActions(state, [committed]), [committed], 'roll')
   }
 }
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, WeaponPropertySchema } from '../types'
+import { CampaignCharacterSchema, MovementKindSchema, WeaponPropertySchema } from '../types'
 import { HIT_LOCATIONS, HOP_PURCHASES } from '../lists'
 
 const num = z.number()
@@ -112,27 +112,6 @@ export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal
 export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef }).strip()
 export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
 
-export const ActionSchema = z.discriminatedUnion('kind', [
-  StrikeActionSchema,
-  EvadeActionSchema,
-  EvasiveJumpActionSchema,
-  BlockActionSchema,
-  InterceptActionSchema,
-])
-
-export type Action = z.infer<typeof ActionSchema>
-export type ActionKind = Action['kind']
-export type StrikeAction = z.infer<typeof StrikeActionSchema>
-export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
-
-// The declaration a click makes: an action minus everything the commands fill
-// in (identity, status, the roll, the facts). What is left is the kind and its
-// own declared fields, each optional so a bare kind can be declared and
-// completed step by step.
-export type ActionDraft = {
-  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
-}[ActionKind]
-
 // ---------------------------------------------------------------------------
 // The board
 
@@ -185,6 +164,41 @@ export const BoardSchema = z.object({
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
 }).strip()
 export type Board = z.infer<typeof BoardSchema>
+
+// combat.tex "Movement": a move is a path of anchor cells, each a step from
+// the last, taken at one kind of movement, ending in any orientation (null
+// keeps the current one). It has no target and no die: it is committed by
+// paying for it.
+export const MoveActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('move'),
+  movement: MovementKindSchema.default('basic'),
+  path: z.array(CoordSchema).default([]),
+  orientation: z.number().int().min(0).max(5).nullable().default(null),
+}).strip()
+
+export const ActionSchema = z.discriminatedUnion('kind', [
+  StrikeActionSchema,
+  EvadeActionSchema,
+  EvasiveJumpActionSchema,
+  BlockActionSchema,
+  InterceptActionSchema,
+  MoveActionSchema,
+])
+
+export type Action = z.infer<typeof ActionSchema>
+export type ActionKind = Action['kind']
+export type StrikeAction = z.infer<typeof StrikeActionSchema>
+export type MoveAction = z.infer<typeof MoveActionSchema>
+export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
+
+// The declaration a click makes: an action minus everything the commands fill
+// in (identity, status, the roll, the facts). What is left is the kind and its
+// own declared fields, each optional so a bare kind can be declared and
+// completed step by step.
+export type ActionDraft = {
+  [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
+}[ActionKind]
 
 // The shape of a fight. This lives in the domain — not in the Zustand store —
 // so the combat commands can be pure `(state) => state` updaters with no

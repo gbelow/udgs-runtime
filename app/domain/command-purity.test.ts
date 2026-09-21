@@ -132,6 +132,15 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(20)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(20)(s)))),
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
+  commitAction: (s) => combatCommands.commitAction()(deepFreeze(declaredMove(s))),
+}
+
+// The strike cancelled and a one-cell move declared in its place, on a
+// frozen state a few commands along.
+function declaredMove(s: CombatState): CombatState {
+  const cleared = deepFreeze(combatCommands.cancelAction()(s))
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(cleared))
+  return combatCommands.amendAction({ movement: 'crawl', path: [{ q: 1, r: 0 }] })(declared)
 }
 
 function combatSubject(): CombatState {
@@ -140,7 +149,10 @@ function combatSubject(): CombatState {
   const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
-    ...CombatStateSchema.parse({ actions: [strike, evade] }),
+    ...CombatStateSchema.parse({
+      actions: [strike, evade],
+      board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 0, r: 1 } } }, terrain: { '2,0': { blocking: true } } },
+    }),
     characters: { a, b },
     activeCharacterId: 'a',
     round: 3,

@@ -151,6 +151,11 @@ export const HOP_PURCHASES = ['extraCut', 'bypass', 'penetrating', 'smash', 'han
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
 
+// combat.tex "Movement": the ways a character crosses the grid under its own
+// power, in the order of the "Movement Costs and Speeds" table. Standing up
+// is there too but moves nobody, and mounted movement is the mount's.
+export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim'] as const
+
 // creating.tex "Size and Space Occupation": "Other creatures may have
 // different shapes." The shapes a footprint can take; the cells each one
 // covers at each size are in `tables.ts`.

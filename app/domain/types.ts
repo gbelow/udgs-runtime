@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, MELEE_RANGES, RANGES, SHAPES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, RANGES, SHAPES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
 
 const num = z.number()
@@ -620,6 +620,9 @@ export type CampaignValues = z.infer<typeof CampaignValuesSchema>
 
 export const ShapeSchema = z.enum(SHAPES)
 export type Shape = z.infer<typeof ShapeSchema>
+
+export const MovementKindSchema = z.enum(MOVEMENT_KINDS)
+export type MovementKind = z.infer<typeof MovementKindSchema>
 
 const CharacterValues = {
   id: z.string().default(() => crypto.randomUUID()),

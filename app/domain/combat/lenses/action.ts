@@ -12,6 +12,7 @@ import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { hasJumpSpace, isHighGround, isInReach } from './board'
+import { getMoveCost, isPathLegal } from './move'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
@@ -62,10 +63,12 @@ export function getStrikeVariant(c: Character, action: StrikeAction): AttackVari
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike a variation of a row in hand, a block
 // or intercept a DEF row (gear.tex "DEF").
-export function isDeclarationComplete(c: Character, action: Action): boolean {
+export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
       return getStrikeVariant(c, action) !== null
+    case 'move':
+      return isPathLegal(state, action)
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
@@ -133,6 +136,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     const variant = getStrikeVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
+  if (action.kind === 'move') return action.path.length > 0 ? getMoveCost(c, action.movement, action.path.length) : null
   const price = ACTIONS[action.kind].price
   return price ? getActionCost(c, price) : null
 }
@@ -235,15 +239,27 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 
   if (!open) {
     const strikes = getStrikeOptions(c)
-    return [{
-      label: ACTIONS.strike.label,
-      draft: { kind: 'strike' },
-      cost: null,
-      available: strikes.length > 0,
-      reason: strikes.length > 0 ? null : 'no melee weapon in hand',
-      reactionTo: null,
-      chosen: false,
-    }]
+    const placed = state.board?.placements[c.id] !== undefined
+    return [
+      {
+        label: ACTIONS.strike.label,
+        draft: { kind: 'strike' },
+        cost: null,
+        available: strikes.length > 0,
+        reason: strikes.length > 0 ? null : 'no melee weapon in hand',
+        reactionTo: null,
+        chosen: false,
+      },
+      {
+        label: ACTIONS.move.label,
+        draft: { kind: 'move' },
+        cost: null,
+        available: placed,
+        reason: placed ? null : 'not on the board',
+        reactionTo: null,
+        chosen: false,
+      },
+    ]
   }
 
   if (open.status !== 'declared' || open.targetId !== characterId) return []
@@ -274,14 +290,17 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 // the die may be thrown from it, with no reaction meaning SD. `spend` is a
 // hit with HOP to spend before it is applied; the purchases are optional, so
 // it is confirmed from there too.
-export type ActionStep = 'declare' | 'target' | 'react' | 'spend' | 'confirm'
+export type ActionStep = 'declare' | 'target' | 'react' | 'commit' | 'spend' | 'confirm'
 
+// `commit` is the moment of an action with no die (`ACTIONS[kind].die`): it
+// is complete, and paying for it is what commits it.
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
   if (open.status === 'rolled') return open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   const actor = state.characters[open.actorId]
-  if (!actor || !isDeclarationComplete(actor, open)) return 'declare'
+  if (!actor || !isDeclarationComplete(state, actor, open)) return 'declare'
+  if (!ACTIONS[open.kind].die) return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'react'
 }
@@ -316,5 +335,6 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
 // declaration has since put out of reach (a change of location on the high
 // ground) drops off this list and has to be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
+  if (root.kind === 'move') return []
   return Object.keys(state.characters).filter((id) => id !== root.actorId && (root.kind !== 'strike' || isInReach(state, root, id)))
 }

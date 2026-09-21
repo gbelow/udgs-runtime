@@ -11,17 +11,21 @@ export type ActionDef = {
   type: 'action' | 'reaction'
   price: PricedAction | null
   reactsTo: readonly ActionKind[]
+  // whether a die commits the action; one without is committed by paying
+  die: boolean
 }
 
 export const ACTIONS = {
   // combat.tex "Strike"
-  strike:      { label: 'strike',       type: 'action',   price: null,          reactsTo: [] },
+  strike:      { label: 'strike',       type: 'action',   price: null,          reactsTo: [],         die: true },
+  // combat.tex "Movement"
+  move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
   // Jump, Intercept, and Block."
-  evade:       { label: 'evade',        type: 'reaction', price: 'evade',       reactsTo: ['strike'] },
-  evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'] },
-  block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'] },
-  intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'] },
+  evade:       { label: 'evade',        type: 'reaction', price: 'evade',       reactsTo: ['strike'], die: false },
+  evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
+  block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false },
+  intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false },
 } as const satisfies Record<ActionKind, ActionDef>
 
 export function isReaction(kind: ActionKind): boolean {
