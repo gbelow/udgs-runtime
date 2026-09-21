@@ -24,6 +24,11 @@ export const ActionRollSchema = z.object({
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
 
+// combat.tex "Interruption", "Stun": what a blow does to the action its
+// target was in the middle of; a stun is an interruption that also costs AP.
+export const InterruptionSchema = z.enum(['none', 'interrupted', 'stunned'])
+export type Interruption = z.infer<typeof InterruptionSchema>
+
 export const HOPPurchaseSchema = z.enum(HOP_PURCHASES)
 export type HOPPurchase = z.infer<typeof HOPPurchaseSchema>
 
@@ -100,9 +105,11 @@ export type Board = z.infer<typeof BoardSchema>
 // procedure — the character reducer reads an action and applies the part of
 // it that concerns that character. It is stored, so it is a schema.
 //
-// `status` is the three-phase clock the commands enforce: declared (free to
-// edit or cancel), rolled (the die is thrown and the price is paid, in the
-// same step, with no way back), resolved (the consequences have landed).
+// `status` is the clock the commands enforce: declared (free to edit or
+// cancel), committed (the declaration is locked and its triggers loaded, so
+// everyone else may answer it; still free to cancel), rolled (the die is
+// thrown and the price is paid, in the same step, with no way back),
+// resolved (the consequences have landed).
 // `cost` is written at the roll, off the actor as they were then, so the
 // record says what was paid without a lens having to recompute it later.
 const ActionBase = {
@@ -115,7 +122,7 @@ const ActionBase = {
   // The reaction whose resolution opened this action — an opportunity attack
   // is declared as a reaction and fought as a strike of its own.
   spawnedBy: str.nullable().default(null),
-  status: z.enum(['declared', 'rolled', 'resolved']).default('declared'),
+  status: z.enum(['declared', 'committed', 'rolled', 'resolved']).default('declared'),
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought
@@ -173,6 +180,9 @@ export const StrikeActionSchema = z.object({
   // it's the SD"
   opportunity: z.boolean().default(false),
   facts: StrikeFactsSchema.nullable().default(null),
+  // what landing did to the target's action, written at the resolve: a move
+  // an opportunity attack interrupted is cut short by it
+  interruption: InterruptionSchema.default('none'),
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
@@ -184,8 +194,10 @@ export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('bloc
 export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a
-// turn at a run, by a reaction, or by a fall on difficult terrain.
-export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'fall'])
+// turn at a run, by a reaction that interrupted it, by the mover's own jump
+// away from one (a movement of its own, which takes over), or by a fall on
+// difficult terrain.
+export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 export const MoveFactsSchema = z.object({
@@ -208,14 +220,29 @@ export const MoveActionSchema = z.object({
   // the most it may cost, for a follow (combat.tex "Follow": "cannot cost
   // more AP than" the move it answers); null is no cap
   budget: ActionCostSchema.nullable().default(null),
+  // where the mover set out from, written at the commit: the path is read
+  // from here even once an opportunity attack has the mover standing part
+  // of the way along it
+  from: PlacementSchema.nullable().default(null),
   facts: MoveFactsSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Opportunity Attack" and "Flanking": declared as a reaction to
-// a strike (by a flanker) or a move (by whoever the mover comes at); when
-// the root resolves it opens a strike of its own. `at` is the path step of a
-// move at which it fired, and where the mover is stopped.
-export const OpportunityAttackActionSchema = z.object({ ...ActionBase, kind: z.literal('opportunityAttack'), at: num.nullable().default(null) }).strip()
+// a strike (by a flanker) or a move (by whoever the mover comes at), and
+// opens a strike of its own — after the strike it answers resolves, or
+// before the move it answers does ("The attack occurs before the effect of
+// the triggering action"). The strike is declared here, in full, before the
+// root is paid for: what it opens is already committed. `at` is the path
+// step of a move at which it fired; the mover stands one space short of
+// that stretch while it is fought, and stays there if it interrupts.
+export const OpportunityAttackActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('opportunityAttack'),
+  at: num.nullable().default(null),
+  ...WeaponRowRef,
+  variant: str.default(''),
+  location: HitLocationSchema.default('chest'),
+}).strip()
 
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
 // the root resolves it opens a move of the follower's own, capped at what

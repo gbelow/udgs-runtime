@@ -116,45 +116,70 @@ const NOT_UPDATERS = new Set<string>()
 
 const newId = () => 'issued'
 
-// The subject holds a strike declared by `a` at `b`, with `b`'s evade in
+// The subject holds a strike committed by `a` at `b`, with `b`'s evade in
 // answer, so every phase has something to act on; the commands that need the
 // fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound,
   resetCombat: combatCommands.resetCombat,
   startTurn: combatCommands.startTurn,
-  declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(combatCommands.cancelAction()(s))),
-  amendAction: combatCommands.amendAction({ location: 'head' }),
-  setTarget: combatCommands.setTarget('b'),
+  declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(cleared(s))),
+  amendAction: (s) => combatCommands.amendAction({ location: 'head' })(deepFreeze(declaredStrike(s))),
+  setTarget: (s) => combatCommands.setTarget('b')(deepFreeze(declaredStrike(s))),
+  commitAction: (s) => combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declaredStrike(s)))),
+  amendReaction: combatCommands.amendReaction('b', { location: 'head' }),
+  withdrawSpawnedAction: (s) => combatCommands.withdrawSpawnedAction(newId)(deepFreeze(spawnedFollow(s))),
   declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
   withdrawReaction: combatCommands.withdrawReaction('b'),
-  cancelAction: combatCommands.cancelAction(),
+  withdrawLastReaction: combatCommands.withdrawLastReaction(),
+  cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
   rollAction: combatCommands.rollAction(7),
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(20)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(20)(s)))),
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
-  commitAction: (s) => combatCommands.commitAction()(deepFreeze(declaredMove(s))),
+  payAction: (s) => combatCommands.payAction()(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
-  importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(combatCommands.cancelAction()(s))),
-  placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(combatCommands.cancelAction()(s))),
-  turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(combatCommands.cancelAction()(s))),
-  paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(combatCommands.cancelAction()(s))),
+  importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
+  placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
+  turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
+  paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 })(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
+}
+
+// The subject with its committed strike and the evade struck off, for the
+// commands that need nothing open.
+function cleared(s: CombatState): CombatState {
+  return { ...s, actions: [] }
+}
+
+// The one-cell move committed, followed by `b` from the next cell, and paid
+// for, which opens the follow as a move of `b`'s own, on a frozen state each
+// step along.
+function spawnedFollow(s: CombatState): CombatState {
+  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(declaredMove(s))))
+  const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
+  return combatCommands.payAction(newId)(followed)
+}
+
+// The committed strike cancelled and a fresh one declared in its place, on a
+// frozen state a couple of commands along, for the commands that only run
+// before the commit.
+function declaredStrike(s: CombatState): CombatState {
+  return combatCommands.declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(deepFreeze(cleared(s)))
 }
 
 // The strike cancelled and a one-cell move declared in its place, on a
 // frozen state a few commands along.
 function declaredMove(s: CombatState): CombatState {
-  const cleared = deepFreeze(combatCommands.cancelAction()(s))
-  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(cleared))
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.amendAction({ movement: 'crawl', path: [{ q: 1, r: 0 }] })(declared)
 }
 
 function combatSubject(): CombatState {
   const a = { ...characterSubject(), id: 'a', fightName: 'a' }
   const b = { ...characterSubject(), id: 'b', fightName: 'b' }
-  const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }
+  const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', status: 'committed' }
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
     ...CombatStateSchema.parse({

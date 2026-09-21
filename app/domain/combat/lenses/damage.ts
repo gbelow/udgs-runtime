@@ -1,5 +1,5 @@
 import type { AfflictionKey, Armor, Character } from '../../types'
-import type { Action, CombatState, HOPPurchase, StrikeAction, StrikeFacts } from '../types'
+import type { Action, CombatState, HOPPurchase, Interruption, StrikeAction, StrikeFacts } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HEAD, HOP_EFFECTS, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor } from '../../character/lenses/armor'
@@ -154,7 +154,7 @@ export type Outcome = {
   afflictions: AfflictionKey[]
   // combat.tex "Interruption", "Stun": what cuts the target's action short,
   // and the AP a stun takes on top
-  interruption: 'none' | 'interrupted' | 'stunned'
+  interruption: Interruption
   apLoss: number
   dead: boolean
 }

@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character, MovementKind } from '../../types'
-import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement, StrikeAction } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS } from '../../lists'
 import { ActionCost } from '../../character/lenses/actionCosts'
@@ -15,12 +15,18 @@ import {
   getSwimMovement,
 } from '../../character/lenses/movement'
 import { getSize } from '../../character/lenses/misc'
-import { coordKey, directionTo, distance, neighbors, sameCell } from '../geometry'
-import { getFootprint, getOccupancy } from './board'
+import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
+import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
 // one it can walk, and where it could get to.
+
+// Where the move sets out from: the placement the commit wrote down, or
+// while it is still being declared, where the actor stands.
+export function getMoveOrigin(state: CombatState, action: MoveAction): Placement | undefined {
+  return action.from ?? state.board?.placements[action.actorId]
+}
 
 // ---------------------------------------------------------------------------
 // Price
@@ -127,7 +133,7 @@ function canRest(state: CombatState, c: Character, footprint: Coord[], ground: G
 // come to rest.
 export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const c = state.characters[action.actorId]
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   const ground = readGround(state, action.actorId)
   if (!c || !from || !ground || action.path.length === 0) return false
   if (!getMovementOptions(state, c).find((o) => o.kind === action.movement)?.available) return false
@@ -162,7 +168,7 @@ function withinBudget(cost: ActionCost, budget: ActionCost): boolean {
 // move, and the path may still be drawn past it.
 export function getRunPath(state: CombatState, action: MoveAction): Coord[] {
   const c = state.characters[action.actorId]
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   if (!c || !from || action.movement !== 'run') return action.path
   const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
   let cursor = from.cell
@@ -170,10 +176,44 @@ export function getRunPath(state: CombatState, action: MoveAction): Coord[] {
   for (const [i, cell] of action.path.entries()) {
     const direction = directionTo(cursor, cell)
     if (i % block === 0) heading = direction
-    else if (Math.min((direction - heading + 6) % 6, (heading - direction + 6) % 6) > 1) return action.path.slice(0, i)
+    else if (!isWithinRunTurn(heading, direction)) return action.path.slice(0, i)
     cursor = cell
   }
   return action.path
+}
+
+function isWithinRunTurn(heading: number, direction: number): boolean {
+  return Math.min((direction - heading + 6) % 6, (heading - direction + 6) % 6) <= 1
+}
+
+// The heading a runner is held to after `steps` cells of the path: that of
+// the running block those steps are in, or null at the start of a block,
+// where the next step sets a new one, and for any movement but a run.
+function getRunHeading(state: CombatState, action: MoveAction, steps: number): number | null {
+  const c = state.characters[action.actorId]
+  const from = getMoveOrigin(state, action)
+  if (!c || !from || action.movement !== 'run') return null
+  const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
+  if (steps % block === 0) return null
+  let cursor = from.cell
+  let heading = 0
+  for (const [i, cell] of action.path.slice(0, steps).entries()) {
+    if (i % block === 0) heading = directionTo(cursor, cell)
+    cursor = cell
+  }
+  return heading
+}
+
+// Whether a displacement keeps within a hex step of the heading: a
+// non-negative combination of the two directions either side of it, which
+// between them span everything up to 60 degrees off.
+function isWithinCone(offset: Coord, heading: number): boolean {
+  const u = DIRECTIONS[(heading + 5) % 6]
+  const v = DIRECTIONS[(heading + 1) % 6]
+  const det = u.q * v.r - u.r * v.q
+  const a = (offset.q * v.r - offset.r * v.q) / det
+  const b = (u.q * offset.r - u.r * offset.q) / det
+  return a >= 0 && b >= 0
 }
 
 // combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
@@ -184,7 +224,7 @@ export function needsBalanceTest(state: CombatState, action: MoveAction): boolea
 
 function firstDifficultStep(state: CombatState, action: MoveAction): number | null {
   const c = state.characters[action.actorId]
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   const board = state.board
   if (!c || !from || !board) return null
   const i = getRunPath(state, action).findIndex((cell) =>
@@ -200,7 +240,7 @@ export function getBalanceTestTerms(c: Character): Term[] {
 // The DL of the first difficult cell the move enters.
 export function getBalanceDL(state: CombatState, action: MoveAction): number {
   const c = state.characters[action.actorId]
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   const board = state.board
   const step = firstDifficultStep(state, action)
   if (!c || !from || !board || step === null) return 0
@@ -225,23 +265,48 @@ export function isSafeOnDifficultTerrain(kind: MovementKind, degree: Degree): bo
   }
 }
 
+// combat.tex "Opportunity Attack": the ones declared against the move, in
+// the order the mover comes to them, each with the strike it opened if it
+// has.
+export function getOpportunityAttacks(state: CombatState, action: MoveAction): { reaction: ActionOf<'opportunityAttack'>; strike: StrikeAction | null }[] {
+  return state.actions
+    .flatMap((r) => (r.reactionTo === action.id && r.kind === 'opportunityAttack' && r.at !== null ? [r] : []))
+    .sort((a, b) => a.at! - b.at!)
+    .map((reaction) => {
+      const strike = state.actions.find((a) => a.spawnedBy === reaction.id)
+      return { reaction, strike: strike?.kind === 'strike' ? strike : null }
+    })
+}
+
+// Where an opportunity attack fought against the move took it over, if one
+// has: one space short of the stretch that triggered it, the table's
+// ruling. combat.tex "Interruption": "Movement is cancelled, except running
+// and jumping." combat.tex "Evasive Jump": a mover who jumps away from the
+// attack has made a movement of their own, and it takes over from the one
+// declared, whatever the speed.
+export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' } | null {
+  const stoppable = action.movement !== 'run' && action.movement !== 'jump'
+  for (const { reaction, strike } of getOpportunityAttacks(state, action)) {
+    if (strike?.status !== 'resolved') continue
+    const jumped = state.actions.some((a) => a.reactionTo === strike.id && a.kind === 'evasiveJump' && a.actorId === action.actorId)
+    if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
+    if (stoppable && strike.interruption !== 'none') return { step: reaction.at! - 1, stop: 'reaction' }
+  }
+  return null
+}
+
 // The path as it will be walked and why it ends where it does: a run cut at
-// a turn, a reaction that stops the mover at the step it fired on (the
-// table's ruling: movement stops at the first point a reaction triggers), a
-// fall at the first difficult cell the test did not clear — whichever comes
-// first. The reactions read are the declared ones, so this is final once the
-// action is committed.
+// a turn, an opportunity attack that interrupted the mover or that they
+// jumped away from, a fall at the first difficult cell the test did not
+// clear — whichever comes first.
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
   const run = getRunPath(state, action)
   let path = run
   let stop: MoveFacts['stop'] = run.length < action.path.length ? 'turn' : 'end'
-  const at = state.actions
-    .filter((a) => a.reactionTo === action.id && a.kind === 'opportunityAttack')
-    .map((a) => (a.kind === 'opportunityAttack' ? a.at : null))
-    .filter((n): n is number => n !== null)
-  if (at.length > 0 && Math.min(...at) < path.length) {
-    path = path.slice(0, Math.min(...at))
-    stop = 'reaction'
+  const override = getMoveOverride(state, action)
+  if (override !== null && override.step < path.length) {
+    path = path.slice(0, override.step)
+    stop = override.stop
   }
   const difficult = firstDifficultStep(state, action)
   const fell = difficult !== null && difficult <= path.length && action.roll !== null && !isSafeOnDifficultTerrain(action.movement, action.roll.degree)
@@ -252,12 +317,22 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
   return { path, stop, fell }
 }
 
+// Where the mover stands part of the way along the move: the anchor at that
+// step, as oriented when they set out. Null at step 0, where they have not
+// left the origin.
+export function getMoveWaypoint(state: CombatState, action: MoveAction, steps: number): Placement | null {
+  const from = getMoveOrigin(state, action)
+  const cell = action.path[steps - 1]
+  if (!from || !cell || steps <= 0) return null
+  return { ...from, cell, elevation: state.board?.terrain[coordKey(cell)]?.elevation ?? 0 }
+}
+
 // Where the move ends: the last cell of the path as walked, the orientation
 // it named, the elevation of the ground there — the board's terrain says how
 // high a cell is, so a placement carried in from a VTT is re-read off it on
 // the first move.
 export function getMoveDestination(state: CombatState, action: MoveAction, path: Coord[]): Placement | null {
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   const cell = path[path.length - 1]
   if (!from || !cell) return null
   return {
@@ -266,6 +341,74 @@ export function getMoveDestination(state: CombatState, action: MoveAction, path:
     orientation: action.orientation ?? from.orientation,
     elevation: state.board?.terrain[coordKey(cell)]?.elevation ?? 0,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Jumping clear
+
+// The move the character is in the middle of, if an opportunity attack has
+// them stood part of the way along one.
+function getMoveUnderway(state: CombatState, id: string): MoveAction | null {
+  const move = state.actions.find((a) => a.kind === 'move' && a.actorId === id && a.reactionTo === null && a.status === 'rolled')
+  return move?.kind === 'move' ? move : null
+}
+
+// How far along the move underway the character has walked: the step of the
+// path they stand on, or 0 at its origin.
+function getStepsWalked(state: CombatState, action: MoveAction): number {
+  const here = state.board?.placements[action.actorId]?.cell
+  const i = here ? action.path.findIndex((cell) => sameCell(cell, here)) : -1
+  return i + 1
+}
+
+// combat.tex "Movement" — "jumping": "Movement cannot be voluntarily
+// interrupted in the middle of a jump." A character hit part of the way
+// through a jump cannot jump clear of the attack.
+export function isMidJump(state: CombatState, id: string): boolean {
+  return getMoveUnderway(state, id)?.movement === 'jump'
+}
+
+// combat.tex "Evasive Jump": "This can only be used if there is space to
+// jump. The jump must move away or sideways from the attack and uses the
+// movement speed of jumping backwards" — half the jump ("Movement": "If
+// performed backwards, the horizontal distance is halved"), in whole cells.
+// Every other anchor within that many cells, in any orientation, whose
+// footprint stands on free ground and ends no closer to the attacker than it
+// began: away or sideways, never towards. A runner hit mid-block is still
+// running ("running": no turns of 90 degrees or more per running block), so
+// their jump keeps within a hex step of the block's heading; one hit
+// mid-jump cannot jump at all.
+export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
+  const board = state.board
+  const defender = state.characters[defenderId]
+  const from = board?.placements[defenderId]
+  const attacker = getPlacedFootprint(state, attackerId)
+  if (!board || !defender || !from || !attacker || isMidJump(state, defenderId)) return []
+  const underway = getMoveUnderway(state, defenderId)
+  const heading = underway ? getRunHeading(state, underway, getStepsWalked(state, underway)) : null
+  const before = setDistance(getFootprint(defender, from), attacker)
+  const taken = new Set(
+    Object.entries(getOccupancy(board, state.characters))
+      .filter(([, ids]) => ids.some((id) => id !== defenderId))
+      .map(([key]) => key),
+  )
+  const free = (cell: Coord) => !taken.has(coordKey(cell)) && !board.terrain[coordKey(cell)]?.blocking
+  const hop = Math.floor(getJumpMovement(defender) / 2)
+  const placements: Placement[] = []
+  for (const cell of disk(from.cell, hop)) {
+    if (sameCell(cell, from.cell) || (heading !== null && !isWithinCone(subtract(cell, from.cell), heading))) continue
+    for (let orientation = 0; orientation < 6; orientation++) {
+      const to = { ...from, cell, orientation }
+      const footprint = getFootprint(defender, to)
+      if (footprint.every(free) && setDistance(footprint, attacker) >= before) placements.push(to)
+    }
+  }
+  return placements
+}
+
+export function hasJumpSpace(state: CombatState, defenderId: string, attackerId: string): boolean {
+  if (!state.board?.placements[defenderId] || !state.board.placements[attackerId]) return true
+  return getEvasiveJumpPlacements(state, defenderId, attackerId).length > 0
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +475,7 @@ export function canStandAt(state: CombatState, id: string, placement: Placement)
 // back if it is the path's end, one more step if it is next to the end,
 // the shortest way there if it is reachable at all, and nothing otherwise.
 export function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
-  const from = state.board?.placements[action.actorId]
+  const from = getMoveOrigin(state, action)
   if (!from) return null
   const end = action.path[action.path.length - 1] ?? from.cell
   if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)

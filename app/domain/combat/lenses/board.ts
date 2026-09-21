@@ -2,10 +2,9 @@ import type { Character, MeleeRange, Weapon } from '../../types'
 import type { Board, CombatState, Coord, Placement, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/lenses/misc'
-import { getJumpMovement } from '../../character/lenses/movement'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/lenses/hands'
-import { add, coordKey, disk, rotate, setDistance } from '../geometry'
+import { add, coordKey, rotate, setDistance } from '../geometry'
 
 // The board lenses read the spatial facts of a fight off `state.board`.
 // Every lens that answers for a fight answers null, or "passes", when the
@@ -150,45 +149,6 @@ export function getFlankers(state: CombatState, attackerId: string, targetId: st
     if (!footprint || setDistance(footprint, attacker) > getMeleeRange(other)) return false
     return angularGap(toTarget, angleBetween(center, centroid(footprint))) > Math.PI / 2 + 1e-9
   })
-}
-
-// ---------------------------------------------------------------------------
-// Jumping clear
-
-// combat.tex "Evasive Jump": "This can only be used if there is space to
-// jump. The jump must move away or sideways from the attack and uses the
-// movement speed of jumping backwards" — half the jump ("Movement": "If
-// performed backwards, the horizontal distance is halved"), in whole cells.
-// Every anchor within that many cells, in any orientation, whose footprint
-// stands on free ground and ends farther from the attacker than it began.
-export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
-  const board = state.board
-  const defender = state.characters[defenderId]
-  const from = board?.placements[defenderId]
-  const attacker = getPlacedFootprint(state, attackerId)
-  if (!board || !defender || !from || !attacker) return []
-  const before = setDistance(getFootprint(defender, from), attacker)
-  const taken = new Set(
-    Object.entries(getOccupancy(board, state.characters))
-      .filter(([, ids]) => ids.some((id) => id !== defenderId))
-      .map(([key]) => key),
-  )
-  const free = (cell: Coord) => !taken.has(coordKey(cell)) && !board.terrain[coordKey(cell)]?.blocking
-  const hop = Math.floor(getJumpMovement(defender) / 2)
-  const placements: Placement[] = []
-  for (const cell of disk(from.cell, hop)) {
-    for (let orientation = 0; orientation < 6; orientation++) {
-      const to = { ...from, cell, orientation }
-      const footprint = getFootprint(defender, to)
-      if (footprint.every(free) && setDistance(footprint, attacker) > before) placements.push(to)
-    }
-  }
-  return placements
-}
-
-export function hasJumpSpace(state: CombatState, defenderId: string, attackerId: string): boolean {
-  if (!state.board?.placements[defenderId] || !state.board.placements[attackerId]) return true
-  return getEvasiveJumpPlacements(state, defenderId, attackerId).length > 0
 }
 
 // ---------------------------------------------------------------------------

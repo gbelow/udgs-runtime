@@ -2,8 +2,8 @@ import type { CombatState, Coord } from '../types'
 import type { ActionCost } from '../../character/lenses/actionCosts'
 import { coordKey, disk, sameCell } from '../geometry'
 import { getFootprint, getOccupancy, toPlane } from './board'
-import { getNextStep, getOpenAction, getRole, getTargetIds, Role } from './action'
-import { getReachableCells } from './move'
+import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from './action'
+import { getEvasiveJumpPlacements, getReachableCells } from './move'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -23,9 +23,14 @@ export type BoardCellView = {
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
-  // this cell's place on the declared path, counted from 1; null off it
+  // this cell's place on the path of the move in play, counted from 1; null
+  // off it
   pathStep: number | null
   isDestination: boolean
+  // where the target of the open strike could land an evasive jump, and the
+  // landing it has picked
+  jump: boolean
+  isJumpTo: boolean
 }
 
 export type BoardTokenView = {
@@ -43,7 +48,7 @@ export type BoardTokenView = {
 }
 
 // What a click on a cell does right now.
-export type BoardMode = 'idle' | 'path' | 'locked'
+export type BoardMode = 'idle' | 'path' | 'jump' | 'locked'
 
 export type BoardView = {
   present: boolean
@@ -63,6 +68,14 @@ export type BoardView = {
 
 const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], unplaced: [], mode: 'locked', move: null }
 
+// The move in play, whatever its phase: declared, committed, waiting on an
+// opportunity attack fought against it, or waiting to resolve. Its path
+// stays drawn throughout.
+function getPendingMove(state: CombatState) {
+  const move = state.actions.find((a) => a.kind === 'move' && a.reactionTo === null && a.status !== 'resolved')
+  return move?.kind === 'move' ? move : null
+}
+
 const HEX = Array.from({ length: 6 }, (_, i) => {
   const angle = (Math.PI / 180) * (60 * i - 30)
   return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
@@ -74,13 +87,21 @@ export function getBoardView(state: CombatState): BoardView {
 
   const open = getOpenAction(state)
   const step = getNextStep(state)
+  const pending = getPendingMove(state)
   const move = open?.kind === 'move' && open.status === 'declared' ? open : null
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
   const reachable = move ? getReachableCells(state, move.actorId, move.movement) : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
-  const pathByKey = new Map((move?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
-  const destination = move?.path[move.path.length - 1] ?? null
+  const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
+  const destination = pending?.path[pending.path.length - 1] ?? null
+
+  // the landings open to the target of a committed strike, while the jump
+  // is still theirs to declare
+  const jumper = open?.kind === 'strike' && open.status === 'committed' && open.targetId && findOption(state, open.targetId, { kind: 'evasiveJump' })?.available ? open.targetId : null
+  const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
+  const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
+  const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
 
   // The drawn extent: the disk of the board's radius, plus anything placed
   // or painted beyond it.
@@ -109,6 +130,8 @@ export function getBoardView(state: CombatState): BoardView {
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
       isDestination: destination !== null && sameCell(destination, cell),
+      jump: landings.has(key),
+      isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
     }
   })
 
@@ -148,7 +171,7 @@ export function getBoardView(state: CombatState): BoardView {
     cells,
     tokens,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: c.fightName ?? '' })),
-    mode: move ? 'path' : open ? 'locked' : 'idle',
+    mode: move ? 'path' : landings.size > 0 ? 'jump' : open ? 'locked' : 'idle',
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,

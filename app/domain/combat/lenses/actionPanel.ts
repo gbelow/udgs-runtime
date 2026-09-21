@@ -6,6 +6,7 @@ import {
   ActionOption,
   ActionStep,
   ReactorOptions,
+  areReactionsComplete,
   getReactors,
   needsDie,
   LocationOption,
@@ -20,7 +21,6 @@ import {
   getReactionsTo,
   getStrikeOptions,
   getTargetIds,
-  isDeclarationComplete,
 } from './action'
 import { ActionCost } from '../../character/lenses/actionCosts'
 import { HOPOption, Outcome, getHOPOptions, getHOPRemaining, getOutcomePreview } from './damage'
@@ -68,21 +68,28 @@ export type ActionPanelView = {
   targets: { id: string; name: string }[]
   // why the target list is empty, when it is
   noTargets: string | null
-  // whether the open action is closed by a die or by paying
+  // at `commit`: whether the declaration can be locked
+  canCommit: boolean
+  // whether the open action is closed by a die or by paying, and at `react`
+  // whether that close is open
   die: boolean
   canRoll: boolean
+  canPay: boolean
+  // an evasive jump is declared but has not picked its landing yet
+  jumpPending: boolean
+  // at `react`: a reaction has been declared and can be taken back
+  canBack: boolean
   // for a move being declared: the kinds of movement open to the actor and
   // every cell the declared kind can reach
   moves: MovementOption[]
   reachable: ReachableCell[]
-  canCommit: boolean
   // once rolled: what the hit's overflow can buy, and what the strike does
   // to the target as it stands
   hop: { remaining: number; options: HOPOption[] }
   outcome: Outcome | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], strikes: [], locations: [], targets: [], noTargets: null, die: false, canRoll: false, moves: [], reachable: [], canCommit: false, hop: { remaining: 0, options: [] }, outcome: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], strikes: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcome: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -102,7 +109,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const strike = open.kind === 'strike' ? open : null
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
   const die = needsDie(state, open)
-  const complete = !!actor && isDeclarationComplete(state, actor, open)
+  const affordable = !!actor && canPay(actor, getDeclaredCost(actor, open))
   const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
 
   return {
@@ -139,11 +146,14 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
+    canCommit: step === 'commit' && affordable,
     die,
-    canRoll: step === 'react' && die && complete,
+    canRoll: step === 'react' && die && areReactionsComplete(state, open),
+    canPay: step === 'react' && !die && affordable && areReactionsComplete(state, open),
+    jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
+    canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor) : [],
     reachable: move ? getReachableCells(state, move.actorId, move.movement) : [],
-    canCommit: step === 'react' && !die && complete && !!actor && canPay(actor, getDeclaredCost(actor, open)),
     hop: strike && target && strike.status === 'rolled'
       ? { remaining: getHOPRemaining(strike, target), options: getHOPOptions(state, strike) }
       : { remaining: 0, options: [] },

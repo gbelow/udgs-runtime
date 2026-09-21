@@ -10,6 +10,7 @@ import { Button, Panel, SectionLabel, TextInput } from './ui'
 const MODE_LABEL = {
   idle: 'click a cell to place the active character',
   path: 'click cells to walk the move',
+  jump: 'click a cell to jump there',
   locked: 'an action is open',
 } as const
 
@@ -39,7 +40,7 @@ export function BoardPanel(){
 
   const painting = brush !== null
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump'}
       actions={<Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>}>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -100,13 +101,14 @@ const TERRAIN_GLYPH = {
 } as const
 
 function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClick: () => void }){
-  const fill = cell.pathStep !== null ? 'fill-accent/40' : cell.reachable ? 'fill-good/15' : TERRAIN_FILL[cell.terrain]
-  const stroke = cell.isDestination ? 'stroke-accent' : 'stroke-line'
+  const fill = cell.isJumpTo ? 'fill-good/40' : cell.pathStep !== null ? 'fill-accent/40' : cell.reachable || cell.jump ? 'fill-good/15' : TERRAIN_FILL[cell.terrain]
+  const stroke = cell.isDestination || cell.isJumpTo ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
     cell.terrain !== 'open' ? cell.terrain : null,
     cell.elevation ? `${cell.elevation} m` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
+    cell.jump ? 'evasive jump' : null,
   ].filter((s) => s !== null).join(' · ')
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' onClick={onClick}>

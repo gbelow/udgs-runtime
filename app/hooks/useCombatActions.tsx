@@ -2,16 +2,20 @@ import { rollFull } from "../domain/combat/dice";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/lenses/actionPanel";
 import {
   amendAction,
+  amendReaction,
   cancelAction,
   commitAction,
   declareAction,
   declareReaction,
+  payAction,
   refundHOP,
   resolveAction,
   rollAction,
   setTarget,
   spendHOP,
+  withdrawLastReaction,
   withdrawReaction,
+  withdrawSpawnedAction,
 } from "../domain/combat/commands/action";
 import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -34,13 +38,17 @@ export function useCombatActions() {
   const amend = (fields: Partial<ActionDraft>) => update(amendAction(fields));
   const target = (id: string) => update(setTarget(id));
   const react = (reactorId: string, draft: ActionDraft) => update(declareReaction(reactorId, draft, newId));
+  const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => update(amendReaction(reactorId, fields));
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
-  const roll = () => update(rollAction(rollFull(Math.random)));
+  const roll = () => update(rollAction(rollFull(Math.random), newId));
   const commit = () => update(commitAction());
+  const back = () => update(withdrawLastReaction());
+  const skip = () => update(withdrawSpawnedAction(newId));
+  const pay = () => update(payAction(newId));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const resolve = () => update(resolveAction(newId));
 
-  return { view, declare, amend, target, react, withdraw, cancel, roll, commit, spend, refund, resolve } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve } as const;
 }

@@ -6,7 +6,7 @@ import { HIT_LOCATIONS } from '../../lists'
 import { LOCATIONS, injuryMap } from '../../tables'
 import { getOutcome, getOutcomePreview } from './damage'
 import { getOpenAction } from './action'
-import { declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 const target = makeCampaignCharacter({})
 
@@ -96,6 +96,7 @@ describe('the preview', () => {
     let s = combat(fighter('atk'), fighter('def'))
     s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, () => `a${++n}`)(s)
     s = setTarget('def')(s)
+    s = commitAction()(s)
     s = rollAction(30)(s)
     const open = getOpenAction(s)!
     const preview = getOutcomePreview(s, open)!

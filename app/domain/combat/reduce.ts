@@ -73,6 +73,8 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
   return (board: Board) => {
     if (phase !== 'resolve') return board
     if (action.kind === 'move') {
+      // a jump away from an opportunity attack put the mover where it landed
+      if (action.facts?.stop === 'jump') return board
       const destination = action.facts ? getMoveDestination(state, action, action.facts.path) : null
       if (!destination) return board
       return { ...board, placements: { ...board.placements, [action.actorId]: destination } }

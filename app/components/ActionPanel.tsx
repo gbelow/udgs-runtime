@@ -1,16 +1,18 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { ActionOption, StrikeOption } from '../domain/combat/lenses/action'
+import type { ActionOption, ReactorOptions, StrikeOption } from '../domain/combat/lenses/action'
 import type { MovementOption } from '../domain/combat/lenses/move'
 import type { OpenActionView } from '../domain/combat/lenses/actionPanel'
 import type { HOPOption, Outcome } from '../domain/combat/lenses/damage'
 import type { ActionCost } from '../domain/character/lenses/actionCosts'
+import type { HitLocation } from '../domain/combat/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
 const STEP_LABEL = {
   declare: 'declare',
   target: 'pick a target on the roster',
+  commit: 'commit',
   react: 'reactions',
   spend: 'spend the overflow',
   confirm: 'apply',
@@ -18,9 +20,10 @@ const STEP_LABEL = {
 
 // The action being played out: what the active character can do while
 // nothing is open, then one step at a time — the declaration, the target,
-// the defender's answer and the die, the result — until it is resolved.
+// the actor's commitment, the reactions and the die, the result — until it
+// is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, withdraw, cancel, roll, commit, spend, refund, resolve } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -35,12 +38,19 @@ export function ActionPanel(){
   }
 
   const rolled = step === 'spend' || step === 'confirm'
-  const canCancel = !rolled
+  const locked = step === 'react' || rolled
+  // before the commit the action is free to drop; one a reaction opened is
+  // withdrawn along with the reaction instead
+  const declared = !locked
   return (
     <Panel title={<>{open.actor} · {open.label}{open.target ? <> → {open.target}</> : null}</>}
       meta={step ? STEP_LABEL[step] : null}
       pending={step === 'react'}
-      actions={canCancel ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
+      actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
+
+      {declared && open.spawned ? (
+        <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>skip the {open.label}</Button></div>
+      ) : null}
 
       <Declaration open={open} strikes={view.strikes} onStrike={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
@@ -58,7 +68,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {view.locations.length > 0 && !rolled ? (
+      {view.locations.length > 0 && !locked ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
           {view.locations.map((l) =>
@@ -79,10 +89,17 @@ export function ActionPanel(){
         </div>
       ) : null}
 
+      {step === 'commit' ? (
+        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>commit</Button></div>
+      ) : null}
+
       {step === 'react' ? (
         <div className='flex flex-col gap-1'>
           {view.reactors.map((r) => {
             const answered = r.options.some((o) => o.chosen)
+            if (r.strike) {
+              return <ReactorStrike key={r.id} reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} />
+            }
             return (
               <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
                 <SectionLabel>{r.name}</SectionLabel>
@@ -93,11 +110,13 @@ export function ActionPanel(){
             )
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
+          {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
           {view.die ? <Test open={open} /> : null}
-          <div>
+          <div className='flex flex-row gap-1'>
             {view.die
               ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
-              : <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>go</Button>}
+              : <Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button>}
+            <Button variant='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
           </div>
         </div>
       ) : null}
@@ -150,6 +169,46 @@ function Declaration({ open, strikes, onStrike }: { open: OpenActionView, strike
       {open.spawned ? <span className='text-bad'>opportunity · </span> : null}
       {open.attack} {open.variant} <Cost cost={open.cost} />
       {open.reactions.map((r) => <span key={`${r.actor}:${r.label}`}> · {r.actor} {r.label} <Cost cost={r.cost} /></span>)}
+    </div>
+  )
+}
+
+// A reactor who has chosen an opportunity attack declares the strike it
+// opens here — the row and where it aims. The panel's back takes the choice
+// itself back.
+function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation }) => void }){
+  const strike = reactor.strike!
+  const chosen = reactor.options.find((o) => o.chosen)
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>{reactor.name}</SectionLabel>
+        <span className='text-xs'>{chosen?.label ?? 'opportunity attack'}</span>
+      </div>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>attack</SectionLabel>
+        {strike.options.map((s) => {
+          const active = s.attack === strike.attack && s.variant === strike.variant
+          return (
+            <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+              title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}`}
+              onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
+              {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />
+            </Button>
+          )
+        })}
+      </div>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>aim</SectionLabel>
+        {strike.locations.map((l) =>
+          <Button key={l.location} size='xs' variant={l.location === strike.location ? 'primary' : 'default'}
+            className={l.location === strike.location ? 'bg-accent/15' : ''}
+            title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
+            onClick={() => onAmend({ location: l.location })}>
+            {l.location}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
+          </Button>)}
+      </div>
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? 'that attack cannot reach from there' : 'pick the attack'}</span> : null}
     </div>
   )
 }

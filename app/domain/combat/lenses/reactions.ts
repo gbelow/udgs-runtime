@@ -6,10 +6,11 @@ import { setDistance } from '../geometry'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
-// once fully declared, triggers in everyone else: who may answer it, with
+// once committed to, triggers in everyone else: who may answer it, with
 // which reaction, and — for a move — at which step of the path. The
-// commands load these when the action is committed to and refuse any
-// reaction not on the list.
+// declaration is locked at the commit, so reading these off the action is
+// the same as loading them then; the commands refuse any reaction not on
+// the list.
 
 export type Trigger = {
   characterId: string
@@ -46,8 +47,9 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee
-// weapon while within its attack range" — the first step at which the mover
-// is within someone's melee range and closer than the step before.
+// weapon while within its attack range" — the first step taken from a cell
+// already within someone's melee range to one closer to them. Stepping into
+// range is not yet moving towards the weapon while within it.
 // combat.tex "Follow": "as a reaction to any movement except running,
 // follow another character who is already within melee range."
 function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
@@ -66,7 +68,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (range === 0) continue
     for (const [i, cell] of path.entries()) {
       const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
-      if (distance <= range && distance < previous) {
+      if (previous <= range && distance < previous) {
         triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
         break
       }

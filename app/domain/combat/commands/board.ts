@@ -1,9 +1,10 @@
 import type { TerrainBrush } from '../../types'
 import { BoardSchema, TerrainCellSchema, type Coord, type CombatState } from '../types'
 import { makeBoard } from '../factories'
-import { coordKey } from '../geometry'
+import { coordKey, sameCell } from '../geometry'
 import { getOpenAction } from '../lenses/action'
-import { canStandAt, pickPathCell } from '../lenses/move'
+import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../lenses/move'
+import { declareReaction } from './action'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -74,14 +75,24 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
   }
 }
 
-// A click on a cell while a move is being declared: edits its path.
-export function pickCell(cell: Coord): Updater {
+// A click on a cell while an action is open: edits the path of a move being
+// declared, or, against a committed strike, names where the target's
+// evasive jump lands (combat.tex "Evasive Jump") — declaring the jump if it
+// has not been.
+export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.kind !== 'move' || open.status !== 'declared') return state
-    const path = pickPathCell(state, open, cell)
-    if (!path) return state
-    return { ...state, actions: state.actions.map((a) => (a.id === open.id ? { ...a, path } : a)) }
+    if (!open) return state
+    if (open.kind === 'move' && open.status === 'declared') {
+      const path = pickPathCell(state, open, cell)
+      if (!path) return state
+      return { ...state, actions: state.actions.map((a) => (a.id === open.id ? { ...a, path } : a)) }
+    }
+    if (open.kind === 'strike' && open.status === 'committed' && open.targetId) {
+      const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
+      return to ? declareReaction(open.targetId, { kind: 'evasiveJump', to }, newId)(state) : state
+    }
+    return state
   }
 }
 

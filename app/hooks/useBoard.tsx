@@ -9,8 +9,9 @@ import { useCombatStore } from "../stores/useCombatStore";
 // like the action panel; every write is a combat command dispatched blindly.
 // A click on a cell is the one place the hook chooses a command, and it
 // chooses by what the view says the click means: painting if a brush is in
-// hand, a path edit while a move is being declared, otherwise a placement
-// of the active character by hand.
+// hand, a path edit while a move is being declared, the landing of an
+// evasive jump while one may be declared, otherwise a placement of the
+// active character by hand.
 export function useBoard() {
   useCombatStore(getBoardViewDigest);
   const view: BoardView = getBoardView(useCombatStore.getState());
@@ -20,7 +21,7 @@ export function useBoard() {
   const create = (radius: number) => update(createBoard(radius));
   const clickCell = (cell: Coord, brush: TerrainBrush | null) => {
     if (brush) return update(paintTerrain(cell, brush));
-    if (view.mode === 'path') return update(pickCell(cell));
+    if (view.mode === 'path' || view.mode === 'jump') return update(pickCell(cell, () => crypto.randomUUID()));
     const activeId = useCombatStore.getState().activeCharacterId;
     if (view.mode === 'idle' && activeId) update(placeCharacter(activeId, cell));
   };

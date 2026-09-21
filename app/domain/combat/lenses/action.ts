@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
-import type { Action, ActionDraft, ActionKind, CombatState, Degree, HitLocation, StrikeAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type CombatState, type Degree, type HitLocation, type StrikeAction } from '../types'
 import { ACTIONS } from '../actionCatalog'
 import { LOCATIONS } from '../../tables'
 import { HIT_LOCATIONS } from '../../lists'
@@ -11,20 +11,21 @@ import { getAfflictions } from '../../character/lenses/afflictions'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
-import { getEvasiveJumpPlacements, hasJumpSpace, isHighGround, isInReach } from './board'
-import { getMoveCost, isPathLegal, needsBalanceTest } from './move'
+import { isHighGround, isInReach } from './board'
+import { getMoveCost, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
 import { getTriggersFor } from './reactions'
-import { sameCell } from '../geometry'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
 
 // The action being played out: the first root not yet resolved. Nothing can
 // be declared while one is open, so there is only ever one — except for the
-// actions a resolution opens (an opportunity attack, a follow), which queue
-// up behind it in the order their reactions were declared.
+// actions a reaction opens (an opportunity attack, a follow), which are
+// played out ahead of whatever they were opened against: an opportunity
+// attack on a mover is fought while the move waits to resolve.
 export function getOpenAction(state: CombatState): Action | null {
-  return state.actions.find((a) => a.reactionTo === null && a.status !== 'resolved') ?? null
+  const roots = state.actions.filter((a) => a.reactionTo === null && a.status !== 'resolved')
+  return roots.find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
 }
 
 // Whether the action is committed by a die: a strike always, a move when it
@@ -67,9 +68,28 @@ export function getStrikeVariant(c: Character, action: StrikeAction): AttackVari
   return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).find((v) => v.name === action.variant) ?? null
 }
 
+// The strike an opportunity attack opens, as declared on the reaction:
+// committed already, since the reaction was, and aimed at whoever it
+// answers.
+export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
+  const { weaponKey, attack, variant, location } = reaction
+  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
+}
+
+// The fight as it will stand when the opportunity attack is fought: against
+// a move, with the mover walked one space short of the stretch that fired
+// it. Reach is judged from there.
+export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
+  const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  if (root?.kind !== 'move' || reaction.at === null || !state.board) return state
+  const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
+  return waypoint ? { ...state, board: { ...state.board, placements: { ...state.board.placements, [root.actorId]: waypoint } } } : state
+}
+
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike a variation of a row in hand, a block
-// or intercept a DEF row (gear.tex "DEF").
+// or intercept a DEF row (gear.tex "DEF"), an opportunity attack a strike
+// that reaches its target from where it will be fought.
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
@@ -83,11 +103,23 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     }
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
+    case 'opportunityAttack': {
+      const strike = getOpportunityStrike(action, '')
+      return getStrikeVariant(c, strike) !== null && isInReach(getOpportunityState(state, action), strike, action.targetId ?? '')
+    }
     case 'evade':
-    case 'opportunityAttack':
     case 'follow':
       return true
   }
+}
+
+// Whether every reaction declared against the action has said all it must:
+// an evasive jump has picked where it lands.
+export function areReactionsComplete(state: CombatState, root: Action): boolean {
+  return getReactionsTo(state, root.id).every((r) => {
+    const c = state.characters[r.actorId]
+    return !!c && isDeclarationComplete(state, c, r)
+  })
 }
 
 // Every strike the character could declare: each usable melee row of each
@@ -226,10 +258,12 @@ export type ActionOption = {
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
 // block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
-// there is space to jump."
+// there is space to jump"; "jumping": a jump "cannot be voluntarily
+// interrupted in the middle".
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
+  if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }
 }
@@ -244,9 +278,10 @@ function defRows(c: Character): WeaponRow[] {
 }
 
 // Everything the character may declare right now: their own actions while no
-// action is open, and their reactions while an open action is aimed at them
-// and still waiting for its die. A reaction's options are one per thing it
-// can be done with, so a block names the weapon it blocks with.
+// action is open, and their reactions while a committed action triggers
+// something in them and is still waiting for its die. A reaction's options
+// are one per thing it can be done with, so a block names the weapon it
+// blocks with.
 export function getAvailableActions(state: CombatState, characterId: string): ActionOption[] {
   const c = state.characters[characterId]
   if (!c) return []
@@ -277,7 +312,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     ]
   }
 
-  if (open.status !== 'declared' || open.actorId === characterId) return []
+  if (open.status !== 'committed' || open.actorId === characterId) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
@@ -292,55 +327,73 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'block':
       case 'intercept':
         return defRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
-      case 'evasiveJump': {
-        // one option per cell it could land on; the orientation is the first
-        // that fits there
-        const landings = getEvasiveJumpPlacements(state, characterId, open.actorId)
-          .filter((to, i, all) => all.findIndex((o) => sameCell(o.cell, to.cell)) === i)
-        if (landings.length === 0) return [option(ACTIONS[kind].label, { kind })]
-        return landings.map((to) => option(`${ACTIONS[kind].label} to ${to.cell.q},${to.cell.r}`, { kind, to }))
+      // where an evasive jump lands is picked on the board, not here
+      case 'evasiveJump':
+        return [option(ACTIONS[kind].label, { kind })]
+      // combat.tex "Opportunity Attack": "The attack requires the normal AP
+      // cost" — it is open only to someone who can pay for a strike
+      case 'opportunityAttack': {
+        const strikes = getStrikeOptions(c)
+        const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
+        const label = trigger.at !== null ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
+        return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
       }
-      case 'opportunityAttack':
-        return [option(trigger.at !== null ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label, { kind, at: trigger.at }, null)]
-      case 'follow':
-        return [option(ACTIONS[kind].label, { kind }, null)]
+      // combat.tex "Follow": a move of the follower's own, so it is open only
+      // to someone who can pay for one
+      case 'follow': {
+        const reason = getMovementOptions(state, c).some((m) => m.available && canAfford(c, m.block)) ? null : 'cannot afford a move'
+        return [{ ...option(ACTIONS[kind].label, { kind }, null), available: reason === null, reason }]
+      }
       default:
         return [option(ACTIONS[kind].label, { kind })]
     }
   })
 }
 
-// Everyone with a reaction to the open action, each with their options.
-export type ReactorOptions = { id: string; name: string; options: ActionOption[] }
+// Everyone with a reaction to the open action, each with their options —
+// and, for one who has chosen an opportunity attack, the strike it opens
+// still to be declared: its rows and where it aims.
+export type ReactorOptions = {
+  id: string
+  name: string
+  options: ActionOption[]
+  strike: { options: StrikeOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
+}
 
 export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
   return Object.values(state.characters)
     .filter((c) => c.id !== open.actorId)
-    .map((c) => ({ id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id) }))
+    .map((c) => {
+      const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
+      const strike = declared?.kind === 'opportunityAttack'
+        ? { options: getStrikeOptions(c), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
+        : null
+      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike }
+    })
     .filter((r) => r.options.length > 0)
 }
 
 // ---------------------------------------------------------------------------
 // Where the open action stands
 
-// The one thing the table is waiting on. `react` is the defender's moment —
-// the die may be thrown from it, with no reaction meaning SD. `spend` is a
-// hit with HOP to spend before it is applied; the purchases are optional, so
-// it is confirmed from there too.
-export type ActionStep = 'declare' | 'target' | 'react' | 'spend' | 'confirm'
+// The one thing the table is waiting on. `commit` is the actor's moment: the
+// declaration is complete and waits to be locked. `react` is everyone
+// else's — the action is committed, its triggers loaded, and the die may be
+// thrown from it, with no reaction meaning SD. `spend` is a hit with HOP to
+// spend before it is applied; the purchases are optional, so it is confirmed
+// from there too.
+export type ActionStep = 'declare' | 'target' | 'commit' | 'react' | 'spend' | 'confirm'
 
-// `react` is the moment the action is committed to: fully declared, its
-// triggers loaded, everyone else free to answer; the die (or the payment,
-// for an action without one) closes it.
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
   if (open.status === 'rolled') return open.kind === 'strike' && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+  if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]
   if (!actor || !isDeclarationComplete(state, actor, open)) return 'declare'
-  if (open.kind === 'move') return 'react'
+  if (open.kind === 'move') return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
-  return 'react'
+  return 'commit'
 }
 
 // The option a draft would take, so a command can refuse exactly what the
@@ -354,10 +407,6 @@ function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
   if (option.kind === 'block' || option.kind === 'intercept') {
     const d = draft as { weaponKey?: string; attack?: string }
     return option.weaponKey === d.weaponKey && option.attack === d.attack
-  }
-  if (option.kind === 'evasiveJump') {
-    const d = draft as { to?: { cell: { q: number; r: number } } | null }
-    return (option.to ?? null) === null ? (d.to ?? null) === null : d.to != null && sameCell(option.to!.cell, d.to.cell)
   }
   if (option.kind === 'opportunityAttack') return (option.at ?? null) === ((draft as { at?: number | null }).at ?? null)
   return true
