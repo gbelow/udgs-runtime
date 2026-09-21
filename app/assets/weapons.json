@@ -123,7 +123,7 @@
       {
         "name": "throw",
         "handed": "one",
-        "range": "STR",
+        "range": "10m",
         "material": "metal",
         "RES": 15,
         "blunt": 4,
@@ -350,7 +350,7 @@
       {
         "name": "throw",
         "handed": "one",
-        "range": "2xSTR",
+        "range": "10m",
         "material": "metal",
         "RES": 20,
         "blunt": 1,
@@ -764,17 +764,17 @@
       {
         "name": "throw",
         "handed": "two",
-        "range": "9m",
+        "range": "long II",
         "material": "fiber",
         "RES": 15,
         "blunt": 0,
         "cut": 0,
-        "AP": 4,
+        "AP": 5,
         "reload": 10,
         "properties": [
           "grapple I",
-          "slow",
-          "reload"
+          "reload",
+          "explosion"
         ]
       }
     ]
@@ -786,7 +786,7 @@
       {
         "name": "throw",
         "handed": "two",
-        "range": "STR",
+        "range": "10m",
         "material": "metal",
         "RES": 10,
         "blunt": 6,
@@ -807,14 +807,15 @@
       {
         "name": "throw",
         "handed": "one",
-        "range": "2xSTR",
+        "range": "30m",
         "material": "metal",
         "RES": 20,
         "blunt": 0,
         "cut": 0,
         "AP": 3,
         "properties": [
-          "slow"
+          "slow",
+          "explosion"
         ]
       }
     ]
@@ -826,7 +827,7 @@
       {
         "name": "shoot",
         "handed": "two",
-        "range": "100m",
+        "range": "shooting",
         "material": "metal",
         "RES": 10,
         "blunt": 6,
@@ -847,7 +848,7 @@
       {
         "name": "shoot",
         "handed": "two",
-        "range": "150m",
+        "range": "shooting",
         "material": "metal",
         "RES": 10,
         "blunt": 8,
@@ -869,7 +870,7 @@
       {
         "name": "shoot",
         "handed": "two",
-        "range": "200m",
+        "range": "shooting",
         "material": "metal",
         "RES": 10,
         "blunt": 10,
@@ -891,7 +892,7 @@
       {
         "name": "shoot",
         "handed": "two",
-        "range": "150m",
+        "range": "shooting",
         "material": "metal",
         "RES": 10,
         "blunt": 8,
@@ -914,7 +915,7 @@
       {
         "name": "shoot",
         "handed": "two",
-        "range": "200m",
+        "range": "shooting",
         "material": "metal",
         "RES": 10,
         "blunt": 10,

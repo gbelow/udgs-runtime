@@ -1,4 +1,4 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS } from './lists'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, SHOT_RANGES } from './lists'
 import type { AfflictionKey, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
@@ -328,6 +328,14 @@ export const SHOTS = {
 } as const satisfies Record<string, { variant: string; reach: number | null }>
 
 export type ShotKind = keyof typeof SHOTS
+
+// combat.tex "Approach": the distance tiers a shooting weapon's range names,
+// as the far edge of each in metres — "Shooting: ... around 50m to 200m",
+// "Far: ... around 200m to 500m".
+export const SHOT_RANGE_METRES: Record<(typeof SHOT_RANGES)[number], number> = {
+  shooting: 200,
+  far: 500,
+}
 
 // gear.tex "Ranged Weapons", abilities.tex "Archer": the bows, the shooting
 // weapons that "require training to be used effectively" — the Archer

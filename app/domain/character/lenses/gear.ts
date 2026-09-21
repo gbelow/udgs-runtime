@@ -8,7 +8,7 @@ import { BOWS, RMArr, SHOTS, ShotKind, dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
 import { getArmor } from "./armor";
-import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, getPrintedRange, hasProperty } from "../../weaponProperties";
+import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, getRangeMetres, hasProperty } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { isCampaignCharacter } from "../../utils";
 
@@ -200,7 +200,7 @@ export function getShotKind(variant: string): ShotKind | null {
 // range at its scale (creating.tex "Reach Multiplier (RM): multiplies the
 // range of all weapons").
 export function getShotReach(kind: ShotKind, atk: WeaponAttack, weapon: Weapon, c: Character): number {
-  const weaponRange = (getPrintedRange(atk.range) ?? 0) * RMArr[weapon.scale - 1]
+  const weaponRange = (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1]
   return Math.min(weaponRange, (SHOTS[kind].reach ?? weaponRange) + getBuffBonus(c, `reach:${kind}`))
 }
 

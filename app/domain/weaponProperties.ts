@@ -1,5 +1,6 @@
 import type { AttackKind, AttackType, HeavyRange, MeleeRange, Range, WeaponAttack, WeaponProperty } from './types'
 import { MELEE_RANGES, SHOT_RANGES, WEAPON_PROPERTIES } from './lists'
+import { SHOT_RANGE_METRES } from './tables'
 
 export function hasProperty(properties: readonly WeaponProperty[], property: WeaponProperty): boolean {
   return properties.includes(property)
@@ -47,11 +48,13 @@ export function getAttackKind(range: Range): AttackKind {
   return (SHOT_RANGES as readonly string[]).includes(range) ? 'shoot' : 'throw'
 }
 
-// The metres a ranged row prints ("100m"), or null where the range is not a
-// figure of its own: a throw's comes from STR (combat.tex "Throw").
-export function getPrintedRange(range: Range): number | null {
+// The metres a ranged row's range covers: a throw's own figure ("10m"), or
+// the far edge of the tier a shot names (combat.tex "Approach"); null for a
+// melee reach, which is in cells (gear.tex "Short, Long I/II").
+export function getRangeMetres(range: Range): number | null {
+  if (isMeleeRange(range)) return null
   const match = /^(\d+)m$/.exec(range)
-  return match ? Number(match[1]) : null
+  return match ? Number(match[1]) : SHOT_RANGE_METRES[range as (typeof SHOT_RANGES)[number]]
 }
 
 export function isMeleeRange(range: Range): range is MeleeRange {
