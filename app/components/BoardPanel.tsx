@@ -1,10 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
+import { useVttLink } from '../hooks/useVttLink'
 import type { BoardCellView, BoardTokenView } from '../domain/combat/lenses/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { TERRAIN_BRUSHES } from '../domain/lists'
-import { Button, Panel, SectionLabel } from './ui'
+import { Button, Panel, SectionLabel, TextInput } from './ui'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character',
@@ -59,7 +60,28 @@ export function BoardPanel(){
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
       </svg>
+
+      <LinkRow />
     </Panel>
+  )
+}
+
+// The board's way in and out: a fight id names a mailbox a VTT module reads
+// and writes; the clipboard carries the same snapshot by hand.
+function LinkRow(){
+  const { fight, setFight, auto, setAuto, push, pull, copy, paste } = useVttLink()
+  const linked = fight.length > 0
+  return (
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>link</SectionLabel>
+      <TextInput aria-label='fight id' placeholder='fight id' value={fight} onChange={(e) => setFight(e.target.value.trim())} className='w-28' />
+      <Button size='xs' disabled={!linked} onClick={push}>push</Button>
+      <Button size='xs' disabled={!linked} onClick={pull}>pull</Button>
+      <Button size='xs' disabled={!linked} variant={auto ? 'primary' : 'default'} className={auto ? 'bg-accent/15' : ''} onClick={() => setAuto(!auto)}>auto</Button>
+      <span className='mx-1 text-line'>|</span>
+      <Button size='xs' onClick={copy}>copy</Button>
+      <Button size='xs' onClick={paste}>paste</Button>
+    </div>
   )
 }
 

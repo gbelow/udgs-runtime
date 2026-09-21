@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type Board } from './types'
+import { BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type Board } from './types'
 import { parseCoordKey } from './geometry'
 
 // A board arrives from outside — a VTT snapshot, a saved fight — and is read
@@ -10,6 +10,8 @@ import { parseCoordKey } from './geometry'
 const BoardIngestSchema = z.object({
   placements: z.record(z.string(), z.unknown()).optional(),
   terrain: z.record(z.string(), z.unknown()).optional(),
+  origin: z.unknown().optional(),
+  radius: z.unknown().optional(),
 }).strip()
 
 function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.ZodType<T>, keepKey: (key: string) => boolean): Record<string, T> {
@@ -26,8 +28,12 @@ function readEntries<T>(record: Record<string, unknown> | undefined, schema: z.Z
 export function makeBoard(raw: unknown): Board {
   const parsed = BoardIngestSchema.safeParse(raw)
   if (!parsed.success) return BoardSchema.parse({})
+  const origin = CoordSchema.safeParse(parsed.data.origin)
+  const radius = BoardSchema.shape.radius.safeParse(parsed.data.radius)
   return BoardSchema.parse({
     placements: readEntries(parsed.data.placements, PlacementSchema, () => true),
     terrain: readEntries(parsed.data.terrain, TerrainCellSchema, (key) => parseCoordKey(key) !== null),
+    ...(origin.success ? { origin: origin.data } : {}),
+    ...(radius.success ? { radius: radius.data } : {}),
   })
 }

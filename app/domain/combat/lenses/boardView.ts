@@ -84,7 +84,7 @@ export function getBoardView(state: CombatState): BoardView {
 
   // The drawn extent: the disk of the board's radius, plus anything placed
   // or painted beyond it.
-  const extent = new Map(disk({ q: 0, r: 0 }, board.radius).map((c) => [coordKey(c), c]))
+  const extent = new Map(disk(board.origin, board.radius).map((c) => [coordKey(c), c]))
   for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy)]) {
     if (!extent.has(key)) {
       const [q, r] = key.split(',').map(Number)

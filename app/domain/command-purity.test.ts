@@ -135,6 +135,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
   commitAction: (s) => combatCommands.commitAction()(deepFreeze(declaredMove(s))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
+  importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(combatCommands.cancelAction()(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(combatCommands.cancelAction()(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(combatCommands.cancelAction()(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(combatCommands.cancelAction()(s))),

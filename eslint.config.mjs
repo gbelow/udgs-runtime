@@ -35,9 +35,9 @@ const eslintConfig = [
       "no-restricted-imports": ["error", {
         patterns: [
           {
-            group: ["**/stores/*", "**/stores/**", "**/actions", "**/actions/**", "react", "react-dom", "zustand", "zustand/**"],
+            group: ["**/stores/*", "**/stores/**", "**/actions", "**/actions/**", "**/vtt/*", "**/vtt/**", "react", "react-dom", "zustand", "zustand/**"],
             message:
-              "The domain layer is pure and React-free. Data flows domain -> stores -> hooks -> UI, so the domain must define its own types and never import from app/stores, app/actions or React. If a store needs a shape, declare it in the domain and have the store import it; persistence calls the domain, never the other way round.",
+              "The domain layer is pure and React-free. Data flows domain -> stores -> hooks -> UI, so the domain must define its own types and never import from app/stores, app/actions, app/vtt or React. If a store needs a shape, declare it in the domain and have the store import it; persistence and VTT adapters call the domain, never the other way round.",
           },
         ],
       }],

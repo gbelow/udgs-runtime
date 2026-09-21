@@ -1,0 +1,9 @@
+{
+  "id": "chargenfallow-bridge",
+  "title": "chargenfallow bridge",
+  "description": "Sends the scene's hex grid, walls and tokens to a chargenfallow fight and moves tokens where the fight resolves them.",
+  "version": "0.1.0",
+  "authors": [{ "name": "gbelow" }],
+  "compatibility": { "minimum": "12", "verified": "12" },
+  "esmodules": ["scripts/bridge.js"]
+}

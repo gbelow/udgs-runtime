@@ -4,6 +4,8 @@ import { Character } from './domain/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
+import { readMailbox, writeMailbox } from './vtt/mailbox'
+import type { BoardSnapshot } from './vtt/snapshot'
 import fs from "fs/promises";
 import path from "path";
 
@@ -218,5 +220,25 @@ export async function deleteCatalogEntry(catalog: string, key: string): Promise<
   } catch (err) {
     console.error(`Error writing ${spec.file}:`, err);
     return { ok: false, error: `Failed to delete from ${spec.label}.` };
+  }
+}
+
+// The VTT mailbox, from the app's side: what the board panel pushes and
+// pulls. The route handler under app/api/vtt is the same mailbox from the
+// VTT's side.
+export async function publishBoard(fight: string, snapshot: BoardSnapshot): Promise<ActionResult> {
+  try {
+    const stored = await writeMailbox(fight, snapshot)
+    return stored ? { ok: true, data: undefined } : { ok: false, error: 'Fight id must be letters, digits, - or _.' }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not reach the mailbox.' }
+  }
+}
+
+export async function fetchBoard(fight: string): Promise<ActionResult<unknown | null>> {
+  try {
+    return { ok: true, data: await readMailbox(fight) }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not reach the mailbox.' }
   }
 }

@@ -20,6 +20,9 @@ const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'terrain that is not a map', raw: { terrain: 3 } },
   { label: 'terrain keyed by something that is not a cell', raw: { terrain: { wall: { blocking: true }, '1,x': { blocking: true }, '1,2,3': {} } } },
   { label: 'a cell with an unknown visibility', raw: { terrain: { '0,0': { visibility: 'dim' } } } },
+  { label: 'an origin that is not a cell', raw: { origin: 'middle' } },
+  { label: 'a radius that is not a whole number', raw: { radius: 2.5 } },
+  { label: 'a radius of nothing', raw: { radius: 0 } },
 ]
 
 const populated = () =>
@@ -32,6 +35,8 @@ const populated = () =>
       '0,0': { blocking: true },
       '1,-1': { difficult: true, elevation: 1 },
     },
+    origin: { q: 4, r: -2 },
+    radius: 9,
   })
 
 describe('board ingestion is total', () => {

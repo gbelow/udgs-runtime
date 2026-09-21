@@ -33,6 +33,7 @@ describe('a fight without a board is a fight where every positional gate passes'
       def: { cell: { q: 1, r: 0 }, orientation: 0, elevation: 0, focus: null },
     },
     terrain: {},
+    origin: { q: 0, r: 0 },
     radius: 6,
   }
 

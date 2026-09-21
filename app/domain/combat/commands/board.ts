@@ -1,5 +1,6 @@
 import type { TerrainBrush } from '../../types'
 import { BoardSchema, TerrainCellSchema, type Coord, type CombatState } from '../types'
+import { makeBoard } from '../factories'
 import { coordKey } from '../geometry'
 import { getOpenAction } from '../lenses/action'
 import { canStandAt, pickPathCell } from '../lenses/move'
@@ -13,6 +14,13 @@ type Updater = (state: CombatState) => CombatState
 // A fresh, empty board of the given radius, everyone unplaced.
 export function createBoard(radius: number): Updater {
   return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ radius }) })
+}
+
+// Takes a board in from outside — a VTT's snapshot, a saved one — through the
+// same best-effort reading every board gets, replacing whatever was there.
+// Refused while an action is open, for the same reason painting is.
+export function importBoard(raw: unknown): Updater {
+  return (state) => (getOpenAction(state) ? state : { ...state, board: makeBoard(raw) })
 }
 
 // Puts a character down where the table says, as they are oriented, at the

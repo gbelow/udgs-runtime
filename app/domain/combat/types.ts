@@ -162,8 +162,9 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
-  // how far from the origin the board is drawn; the rules do not care, the
-  // simulation tool does
+  // where and how far the board is drawn; the rules do not care, the
+  // simulation tool does. A VTT puts the origin at its scene's centre.
+  origin: CoordSchema.default({ q: 0, r: 0 }),
   radius: num.int().min(1).default(6),
 }).strip()
 export type Board = z.infer<typeof BoardSchema>
