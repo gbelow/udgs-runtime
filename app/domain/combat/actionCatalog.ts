@@ -13,7 +13,8 @@ export type ActionDef = {
   reactsTo: readonly ActionKind[]
   // whether a die commits the action; one without is committed by paying.
   // A move is the exception the lens `needsDie` makes: difficult terrain
-  // puts a Balance test on it.
+  // puts a Balance test on it. On a reaction, whether it is a test of its
+  // own, thrown with the root's die.
   die: boolean
 }
 
@@ -22,6 +23,9 @@ export const ACTIONS = {
   strike:      { label: 'strike',       type: 'action',   price: null,          reactsTo: [],         die: true },
   // combat.tex "Accuracy", "Shoot"
   shoot:       { label: 'shoot',        type: 'action',   price: null,          reactsTo: [],         die: true },
+  // combat.tex "Explosions": no test of the attacker's — "the DL of the
+  // explosion is equal to the shooting skill", and it is the reactors who roll
+  explosion:   { label: 'explosion',    type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
@@ -33,6 +37,9 @@ export const ACTIONS = {
   // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
   evasion:     { label: 'evasion',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false },
   guard:       { label: 'guard',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false },
+  // combat.tex "Avoiding an Explosion": "Spend 3 AP and make a reflex skill
+  // test against the DL of the explosion"
+  avoidExplosion: { label: 'avoid explosion', type: 'reaction', price: 'avoidExplosion', reactsTo: ['explosion'], die: true },
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false },

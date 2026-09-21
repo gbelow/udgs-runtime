@@ -167,6 +167,16 @@ export const HeavyRangeSchema = z.object({
 }).strip()
 export type HeavyRange = z.infer<typeof HeavyRangeSchema>
 
+// gear.tex "Explosion"; combat.tex "Explosions", "Sprays": the ground an
+// exploding attack covers, in metres at the weapon's own scale — a disk
+// about the point it lands on, or a cone from the attacker of a length and
+// an opening angle (spells.tex "Flamethrower": "spray, 4m xRM, 60 degrees").
+export const AreaSchema = z.discriminatedUnion('shape', [
+  z.object({ shape: z.literal('explosion'), radius: num.default(1) }).strip(),
+  z.object({ shape: z.literal('spray'), length: num.default(1), angle: num.default(60) }).strip(),
+])
+export type Area = z.infer<typeof AreaSchema>
+
 // One row of a gear.tex weapon table. Whether it is melee or ranged is not
 // stored, its range says (see getAttackType); nor is its block value, which
 // gear.tex "DEF" derives from the wielder's STR and the row's hands.
@@ -190,6 +200,9 @@ export const WeaponAttackSchema = z.object({
   STRreq: num.optional(),
   // gear.tex "Heavy I/II/III": the degrees offered, absent when the row has none.
   heavy: HeavyRangeSchema.optional(),
+  // gear.tex "Explosion": how far the explosion reaches; only a row with the
+  // property explodes, and only one with an area has anywhere to.
+  area: AreaSchema.optional(),
 
   properties: z.array(WeaponPropertySchema).default([]),
 }).strip()

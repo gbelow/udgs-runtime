@@ -33,6 +33,7 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()
@@ -133,11 +134,12 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
-  rollAction: combatCommands.rollAction(7),
-  spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(20)(s))),
-  refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(20)(s)))),
-  resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(7)(s))),
+  rollAction: combatCommands.rollAction(() => 7),
+  spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20)(s))),
+  refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20)(s)))),
+  resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(() => 7)(s))),
   payAction: (s) => combatCommands.payAction()(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
+  aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
@@ -160,6 +162,14 @@ function spawnedFollow(s: CombatState): CombatState {
   const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(declaredMove(s))))
   const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
   return combatCommands.payAction(newId)(followed)
+}
+
+// A grenade of `a`'s, thrown past the wall with nobody avoiding it and
+// waiting to go off, on a frozen state a few commands along.
+function rolledExplosion(s: CombatState): CombatState {
+  const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) as CampaignCharacter } })
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'explosion', weaponKey: grenadeItem.id, attack: 'throw', variant: 'basic', center: { q: 0, r: 3 } }, newId)(armed))
+  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
 }
 
 // The committed strike cancelled and a fresh one declared in its place, on a

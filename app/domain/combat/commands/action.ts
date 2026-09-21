@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CombatState, type Degree, type HOPPurchase, type MoveAction } from '../types'
-import { isReaction } from '../actionCatalog'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Degree, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
+import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
   findOption,
@@ -9,7 +9,9 @@ import {
   getOpportunityStrike,
   getDeclaredCost,
   getDL,
+  getNextStep,
   getOpenAction,
+  getReactionTestTerms,
   getReactionsTo,
   getTargetIds,
   isDeclarationComplete,
@@ -17,7 +19,8 @@ import {
   needsDie,
   scoreAttack,
 } from '../lenses/action'
-import { getAttackFacts, getHOPOptions, getOutcome } from '../lenses/damage'
+import { getAttackFacts, getExplosionFacts, getHOPOptions, getOutcome } from '../lenses/damage'
+import { getExplosionArea } from '../lenses/explosion'
 import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
 import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
@@ -179,15 +182,19 @@ export function cancelAction(): Updater {
   }
 }
 
-// The die. Prices the committed action and its reactions off their actors
-// as they stand, scores the die against the DL the declarations add up to,
-// and takes every price — all in one update, so no state exists in which the
-// die is known and the cost is not paid. Refused, and nothing happens, when
-// a reaction has not said all it must or someone cannot pay what they
-// declared. A strike or a shot is scored against the target's defense; a
-// move across difficult terrain is a Balance test against the ground
-// (combat.tex "Balance"), and pays for the path as the test leaves it.
-export function rollAction(die: number, newId: () => string = () => `${Date.now()}`): Updater {
+// The dice. Prices the committed action and its reactions off their actors
+// as they stand, scores each die against the DL the declarations add up to,
+// and takes every price — all in one update, so no state exists in which a
+// die is known and the cost is not paid. `dice` is thrown once for the root
+// if it is a test, then once per reaction that is a test of its own, in the
+// order they were declared. Refused, and nothing happens, when a reaction
+// has not said all it must or someone cannot pay what they declared. A
+// strike or a shot is scored against the target's defense; a move across
+// difficult terrain is a Balance test against the ground (combat.tex
+// "Balance"), and pays for the path as the test leaves it; an explosion has
+// no test of its own, and each reflex made against it is scored against its
+// DL (combat.tex "Avoiding an Explosion").
+export function rollAction(dice: () => number, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'committed' || !needsDie(state, open)) return state
@@ -196,25 +203,28 @@ export function rollAction(die: number, newId: () => string = () => `${Date.now(
 
     const test = open.kind === 'strike' || open.kind === 'shoot'
       ? (() => {
+          const die = dice()
           const DL = getDL(state, open)
           const score = die + sumTerms(getAttackTerms(actor, open))
-          return { DL, score, ...scoreAttack(score, DL, isPiercingAttack(actor, open)) }
+          return { die, DL, score, ...scoreAttack(score, DL, isPiercingAttack(actor, open)) }
         })()
       : open.kind === 'move'
         ? (() => {
+            const die = dice()
             const DL = getBalanceDL(state, open)
             const score = die + sumTerms(getBalanceTestTerms(actor))
-            return { DL, score, degree: scoreTest(score, DL), HOP: 0 }
+            return { die, DL, score, degree: scoreTest(score, DL), HOP: 0 }
           })()
         : null
-    if (!test) return state
-    const withRoll: Action = { ...open, roll: { die, ...test } }
+    if (!test && ACTIONS[open.kind].die) return state
+    const withRoll: Action = test ? { ...open, roll: test } : open
 
     const priced: Action[] = []
     for (const a of [withRoll, ...getReactionsTo(state, open.id)]) {
       const cost = priceFor(state, a)
       if (!cost) return state
-      priced.push({ ...a, cost })
+      const roll = a.id !== open.id && ACTIONS[a.kind].die ? reactionTest(state, open, a, dice()) : a.roll
+      priced.push({ ...a, cost, roll })
     }
 
     const rolled = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
@@ -227,6 +237,13 @@ export function rollAction(die: number, newId: () => string = () => `${Date.now(
 function scoreTest(score: number, DL: number): Degree {
   const over = score - DL
   return over >= 10 ? 'critical' : over >= 5 ? 'hit' : over >= 0 ? 'graze' : 'miss'
+}
+
+// A reaction that is a test of its own, scored against the root's DL.
+function reactionTest(state: CombatState, root: Action, reaction: Action, die: number): ActionRoll {
+  const DL = getDL(state, root)
+  const score = die + sumTerms(getReactionTestTerms(state, reaction))
+  return { die, DL, score, degree: scoreTest(score, DL), HOP: 0 }
 }
 
 // The die's counterpart for a committed action with none (combat.tex
@@ -250,10 +267,33 @@ export function payAction(newId: () => string = () => `${Date.now()}`): Updater 
 }
 
 // What follows the payment: a move with opportunity attacks declared against
-// it has the first of them opened before it resolves.
+// it has the first of them opened before it resolves; an explosion has
+// whoever's reflexes cleared it moving out of the way before it goes off.
 function afterPaying(state: CombatState, id: string, newId: () => string): CombatState {
   const paid = getAction(state, id)
-  return paid?.kind === 'move' ? advanceMove(state, paid, newId) : state
+  if (paid?.kind === 'move') return advanceMove(state, paid, newId)
+  if (paid?.kind === 'explosion') return { ...state, actions: [...state.actions, ...escapesBefore(state, paid, newId)] }
+  return state
+}
+
+// combat.tex "Avoiding an Explosion": "On a critical, the character can run
+// by spending one extra STA. On a hit, they can spend an extra STA to jump
+// in any direction before the explosion occurs." The moves that opens, one
+// per reactor whose test came to that, played out ahead of the blast; the
+// reaction's AP buys the move, as an evasion's does, and the run's extra
+// STA is on top, the jump's the jump's own (combat.tex "Movement Costs and
+// Speeds" prices a jump in STA already).
+function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => string): Action[] {
+  return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
+    if (reaction.kind !== 'avoidExplosion' || !reaction.roll) return []
+    const AP = reaction.cost?.AP ?? 0
+    const base = { kind: 'move', id: newId(), actorId: reaction.actorId, budget: AP, prepaid: AP, spawnedBy: reaction.id }
+    switch (reaction.roll.degree) {
+      case 'critical': return [ActionSchema.parse({ ...base, movement: 'run', movements: ['run'], surcharge: { AP: 0, STA: 1 } })]
+      case 'hit': return [ActionSchema.parse({ ...base, movement: 'jump', movements: ['jump'] })]
+      default: return []
+    }
+  })
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
@@ -310,21 +350,37 @@ export function refundHOP(purchase: HOPPurchase): Updater {
   }
 }
 
+// Points a rolled spray where the attacker chooses, now that the reactions
+// have moved (combat.tex "Sprays": "The attacker can choose the exact
+// direction of the cone after the movement").
+export function aimExplosion(direction: number): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'explosion' || open.status !== 'rolled') return state
+    if (getExplosionArea(state, open)?.shape !== 'spray' || !Number.isInteger(direction) || direction < 0 || direction > 5) return state
+    return replaceActions(state, [{ ...open, direction }])
+  }
+}
+
 // Lands the rolled action on everyone it concerns and closes it. A strike
 // or a shot has its attacker's side written down first, so the record says
 // what landed and the target's reducer needs nothing but the action; what
 // it did to the target's own action is written beside it, for the move it
-// may have cut short or the one an evasion may open.
+// may have cut short or the one an evasion may open. An explosion writes
+// down what reaches everyone in its area as the board stands, once every
+// escape has been played out and it is pointed where it goes off.
 export function resolveAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'rolled') return state
+    if (!open || open.status !== 'rolled' || getNextStep(state) === 'aim') return state
     const resolved: Action = open.kind === 'strike' || open.kind === 'shoot'
       ? (() => {
           const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
           return { ...open, status: 'resolved' as const, facts, interruption: facts && target ? getOutcome(facts, target).interruption : 'none' as const }
         })()
+      : open.kind === 'explosion'
+        ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
       : open.kind === 'move'
         ? { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
         : { ...open, status: 'resolved' }
@@ -370,6 +426,17 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         if (root.kind !== 'shoot' || root.interruption !== 'none' || reaction.stay) return []
         const AP = reaction.cost?.AP ?? 0
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP, spawnedBy: reaction.id })]
+      }
+      // combat.tex "Avoiding an Explosion": "On a graze or miss, they can
+      // move 2 AP after the explosion" — bought with the AP the reflex
+      // paid, and not at all by one the blast interrupted (combat.tex
+      // "Interruption": "Movement is cancelled")
+      case 'avoidExplosion': {
+        if (root.kind !== 'explosion' || !reaction.roll || (reaction.roll.degree !== 'graze' && reaction.roll.degree !== 'miss')) return []
+        const facts = root.facts?.[reaction.actorId]
+        const reactor = state.characters[reaction.actorId]
+        if (facts && reactor && getOutcome(facts, reactor).interruption !== 'none') return []
+        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: 2, prepaid: reaction.cost?.AP ?? 0, spawnedBy: reaction.id })]
       }
       default:
         return []

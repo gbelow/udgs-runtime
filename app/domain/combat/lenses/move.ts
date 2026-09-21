@@ -58,10 +58,12 @@ export function getMoveCost(c: Character, kind: MovementKind, cells: number): Ac
 
 // What the move as declared costs its actor, less what the reaction that
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
-// move and does not need to be spent again, but any STA cost must be paid").
+// move and does not need to be spent again, but any STA cost must be paid"),
+// plus what that reaction asks on top (combat.tex "Avoiding an Explosion":
+// "can run by spending one extra STA").
 export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
   const cost = getMoveCost(c, action.movement, cells)
-  return { AP: Math.max(0, cost.AP - action.prepaid), STA: cost.STA }
+  return { AP: Math.max(0, cost.AP - action.prepaid) + action.surcharge.AP, STA: cost.STA + action.surcharge.STA }
 }
 
 // ---------------------------------------------------------------------------
@@ -83,21 +85,26 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // combat.tex "Movement": crawling "is the only usable movement speed while
 // prone", swimming "the only usable movement speed while swimming", running
 // "can only be initiated during a movement surge" (combat.tex "Action
-// surge": the surge allows "running until the end of the turn").
-export function getMovementOptions(state: CombatState, c: CampaignCharacter): MovementOption[] {
+// surge": the surge allows "running until the end of the turn"). A move a
+// reaction opened may name the kinds it grants instead, a run among them
+// without the surge (combat.tex "Avoiding an Explosion": on a critical "the
+// character can run").
+export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = getAfflictions(c).includes('prone')
   const swimming = isInLiquid(state, c)
+  const granted = action?.movements ?? null
   return MOVEMENT_KINDS.map((kind) => {
-    const gate = movementGate(kind, prone, swimming, c.usedSurge === 'movement')
+    const gate = movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
 }
 
-function movementGate(kind: MovementKind, prone: boolean, swimming: boolean, surged: boolean): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, swimming: boolean, surged: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
+  if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
   if (prone && kind !== 'crawl') return { available: false, reason: 'prone' }
-  if (kind === 'run' && !surged) return { available: false, reason: 'needs a movement surge' }
+  if (kind === 'run' && granted === null && !surged) return { available: false, reason: 'needs a movement surge' }
   return { available: true, reason: null }
 }
 
@@ -144,7 +151,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const from = getMoveOrigin(state, action)
   const ground = readGround(state, action.actorId)
   if (!c || !from || !ground || action.path.length === 0) return false
-  if (!getMovementOptions(state, c).find((o) => o.kind === action.movement)?.available) return false
+  if (!getMovementOptions(state, c, action).find((o) => o.kind === action.movement)?.available) return false
   if (!withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
 
   let cursor = from.cell
@@ -435,7 +442,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   const from = state.board?.placements[actorId]
   const ground = readGround(state, actorId)
   if (!c || !from || !ground) return []
-  if (!getMovementOptions(state, c).find((o) => o.kind === kind)?.available) return []
+  if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
   const affordable = (steps: number) => {
     const price = getMovePrice(c, action, steps)

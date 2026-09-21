@@ -139,8 +139,8 @@ const WeaponRowRef = {
 
 // combat.tex "Defend", "Reflex": how the target met the attack, none being
 // the SD — the four melee defenses against a strike, evasion and guard
-// against a shot.
-export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard'])
+// against a shot, the reflex test against an explosion.
+export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard', 'avoidExplosion'])
 export type DefenseKind = z.infer<typeof DefenseKindSchema>
 
 // The attacker's side of a strike or a shot, final: everything the target
@@ -204,6 +204,26 @@ export const ShootActionSchema = z.object({
   interruption: InterruptionSchema.default('none'),
 }).strip()
 
+// combat.tex "Explosions", "Sprays"; gear.tex "Explosion": a ranged attack
+// with an area, made with an exploding row. It is aimed at ground, not at a
+// character: a disk at the `center` it lands on, picked before the commit;
+// a cone from the attacker in a `direction` picked once the reactions have
+// moved ("The attacker can choose the exact direction of the cone after the
+// movement"). Whoever stands in the area when it resolves is in `facts`,
+// each with the attack as it reaches their zone.
+export const ExplosionFactsSchema = z.record(z.string(), StrikeFactsSchema)
+export type ExplosionFacts = z.infer<typeof ExplosionFactsSchema>
+
+export const ExplosionActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('explosion'),
+  ...WeaponRowRef,
+  variant: str.default(''),
+  center: CoordSchema.nullable().default(null),
+  direction: z.number().int().min(0).max(5).nullable().default(null),
+  facts: ExplosionFactsSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
@@ -220,6 +240,12 @@ export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('
 // adjacent standing nearer the shooter.
 export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion'), stay: z.boolean().default(false) }).strip()
 export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef }).strip()
+
+// combat.tex "Avoiding an Explosion": the reaction to an explosion, a reflex
+// test of the reactor's own against the explosion's DL. The die is on the
+// reaction's `roll`, thrown with the root's; what its degree lets the
+// reactor do is a move opened before or after the blast.
+export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.literal('avoidExplosion') }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a
 // turn at a run, by a reaction that interrupted it, by the mover's own jump
@@ -253,6 +279,14 @@ export const MoveActionSchema = z.object({
   // "Evasion": the reflex's AP "is used to move and does not need to be
   // spent again, but any STA cost must be paid")
   prepaid: num.default(0),
+  // the kinds of movement the reaction that opened it allows, whatever the
+  // mover could otherwise make (combat.tex "Avoiding an Explosion": on a
+  // critical "the character can run", on a hit "jump in any direction");
+  // null is the mover's usual choice
+  movements: z.array(MovementKindSchema).nullable().default(null),
+  // what the reaction asks on top of the path (combat.tex "Avoiding an
+  // Explosion": "can run by spending one extra STA")
+  surcharge: ActionCostSchema.default({ AP: 0, STA: 0 }),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it
@@ -285,8 +319,10 @@ export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('fol
 export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
   ShootActionSchema,
+  ExplosionActionSchema,
   EvasionActionSchema,
   GuardActionSchema,
+  AvoidExplosionActionSchema,
   EvadeActionSchema,
   EvasiveJumpActionSchema,
   BlockActionSchema,
@@ -303,6 +339,9 @@ export type ShootAction = z.infer<typeof ShootActionSchema>
 // The two weapon attacks: what is rolled against a defense and lands as an
 // injury, declared as a weapon row, a variation and a location.
 export type AttackAction = StrikeAction | ShootAction
+export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
+// Everything made with a weapon row: the two attacks and an explosion.
+export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 

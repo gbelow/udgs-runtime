@@ -70,7 +70,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   it('the roll pays every declared price in the same state', () => {
     const before = declared(attack)
     expect(getReactionsTo(before, getOpenAction(before)!.id)).toHaveLength(1)
-    const after = rollAction(5)(before)
+    const after = rollAction(() => 5)(before)
     const open = getOpenAction(after)
     expect(open?.roll).not.toBeNull()
 
@@ -86,7 +86,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   // Once the die is thrown there is no way back: the action can only be
   // played out, and nothing is refunded by trying.
   it('a rolled action cannot be cancelled', () => {
-    const rolled = rollAction(5)(declared(attack))
+    const rolled = rollAction(() => 5)(declared(attack))
     expect(cancelAction()(rolled)).toEqual(rolled)
     expect(getOpenAction(resolveAction()(rolled))).toBeNull()
   })
@@ -96,7 +96,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   it('refuses the roll when someone cannot pay, and changes nothing', () => {
     const before = declared(attack)
     const broke = { ...before, characters: { ...before.characters, def: { ...before.characters.def, resources: { ...before.characters.def.resources, AP: 0 } } } }
-    expect(rollAction(5)(broke)).toEqual(broke)
+    expect(rollAction(() => 5)(broke)).toEqual(broke)
   })
 })
 

@@ -250,7 +250,11 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
     const reach = (shot: ShotKind) => (kind === 'shoot' ? getShotReach(shot, atk, weapon, c) : null)
-    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: reach('shoot') }
+    // combat.tex "Throw": a throw carries the row's own figure, at the
+    // weapon's scale ("Throwable weapons gain range based on STR" names no
+    // formula, so none is applied).
+    const thrown = kind === 'throw' ? (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1] : reach('shoot')
+    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: thrown }
     // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
     const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)), reach: null }
     const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut, reach: null }

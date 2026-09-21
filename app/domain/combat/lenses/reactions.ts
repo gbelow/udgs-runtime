@@ -1,6 +1,7 @@
-import type { Action, ActionKind, CombatState, MoveAction, ShootAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CombatState, ExplosionAction, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
+import { getThreatenedIds } from './explosion'
 import { getRunPath } from './move'
 import { setDistance } from '../geometry'
 
@@ -24,6 +25,7 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
   switch (root.kind) {
     case 'strike': return strikeTriggers(state, root)
     case 'shoot': return shootTriggers(state, root)
+    case 'explosion': return explosionTriggers(state, root)
     case 'move': return moveTriggers(state, root)
     default: return []
   }
@@ -66,6 +68,17 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
     })
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
   return [...own, ...guards]
+}
+
+// combat.tex "Explosions": "defended against with a reflex test"; "Sprays":
+// "target all characters in range, which their reflex saves to escape".
+// Everyone the explosion as declared may reach — a spray not yet aimed
+// threatens its whole range — may avoid it; the attacker, though they may
+// stand in their own blast, answers nothing of their own.
+function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
+  return getThreatenedIds(state, root)
+    .filter((id) => id !== root.actorId)
+    .map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee

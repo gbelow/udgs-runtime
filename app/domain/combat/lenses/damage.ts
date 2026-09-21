@@ -1,5 +1,5 @@
 import type { AfflictionKey, Armor, Character } from '../../types'
-import type { Action, AttackAction, CombatState, HOPPurchase, Interruption, StrikeFacts } from '../types'
+import type { Action, AttackAction, CombatState, ExplosionAction, ExplosionFacts, HOPPurchase, Interruption, StrikeFacts } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HEAD, HOP_EFFECTS, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor } from '../../character/lenses/armor'
@@ -11,6 +11,7 @@ import { getHardness } from '../../item/lenses/items'
 import { getWieldedWeapons } from '../../item/lenses/hands'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { getAffected } from './explosion'
 
 // ---------------------------------------------------------------------------
 // The attacker's side
@@ -65,6 +66,37 @@ export function getAttackFacts(state: CombatState, root: AttackAction): StrikeFa
     penetrating: bought('penetrating') > 0,
     smash: bought('smash') > 0,
   }
+}
+
+// combat.tex "Explosions"; gear.tex "Explosion": "Being caught in the
+// explosion applies the weapon's damage" — the row's damage as it reaches
+// each character in the area, at the degree of the zone they stand in when
+// it goes off, met by nothing but the reflex test they may have made. (The
+// book's +5/−5 on the DL of an explosion's effects, and the grapple a net
+// applies, have no effect modelled yet.)
+export function getExplosionFacts(state: CombatState, root: ExplosionAction): ExplosionFacts | null {
+  const attacker = state.characters[root.actorId]
+  if (!attacker) return null
+  const variant = getAttackVariant(attacker, root)
+  const row = findWeaponRow(attacker, root.weaponKey, root.attack)
+  if (!variant || !row) return null
+  return Object.fromEntries(getAffected(state, root).map(({ id, degree }) => {
+    const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === id)
+    const facts: StrikeFacts = {
+      blunt: variant.blunt,
+      cut: variant.cut,
+      hardness: getHardness(row.atk.material),
+      force: getForce(attacker),
+      properties: row.atk.properties,
+      location: 'chest',
+      degree,
+      ...(reaction ? { ...UNDEFENDED, defense: 'avoidExplosion' as const, defenseAP: reaction.cost?.AP ?? 0 } : UNDEFENDED),
+      bypass: false,
+      penetrating: false,
+      smash: false,
+    }
+    return [id, facts]
+  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -171,8 +203,11 @@ const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, t
 // combat.tex "Accuracy", "Reflex": a shot the same — "Grazes deal 50%
 // damage and misses do nothing"; a guard is a block ("On graze, the attack
 // damage is reduced by the block value. On a miss, by 1.5x as much").
+// combat.tex "Explosions": "200% on a critical" — the one attack whose
+// degree can be the critical, the zone at its centre.
 function afterDefense(facts: StrikeFacts, target: Character, damage: number): { damage: number; stopped: boolean } {
   if (facts.degree === 'hit') return { damage, stopped: false }
+  if (facts.degree === 'critical') return { damage: 2 * damage, stopped: false }
   switch (facts.defense) {
     case 'block':
     case 'guard':
@@ -295,11 +330,20 @@ function effectsOf(facts: StrikeFacts, target: Character, tier: number, bluntTie
   }
 }
 
-// The outcome of the open attack as it would land now: the same function
-// the resolution applies, so the preview and the result cannot differ.
-export function getOutcomePreview(state: CombatState, root: Action): Outcome | null {
-  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return null
+// The outcome of the open action on everyone it lands on, as it would land
+// now: the same function the resolution applies, so the preview and the
+// result cannot differ. One entry for the target of a strike or a shot; one
+// per character in an explosion's area.
+export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
+  if (root.kind === 'explosion') {
+    const facts = root.facts ?? getExplosionFacts(state, root)
+    return Object.entries(facts ?? {}).flatMap(([id, f]) => {
+      const target = state.characters[id]
+      return target ? [{ id, outcome: getOutcome(f, target) }] : []
+    })
+  }
+  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return []
   const target = state.characters[root.targetId]
   const facts = root.facts ?? getAttackFacts(state, root)
-  return target && facts ? getOutcome(facts, target) : null
+  return target && facts ? [{ id: root.targetId, outcome: getOutcome(facts, target) }] : []
 }

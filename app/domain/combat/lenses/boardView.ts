@@ -1,8 +1,9 @@
-import type { CombatState, Coord } from '../types'
+import type { CombatState, Coord, Degree } from '../types'
 import type { ActionCost } from '../../character/lenses/actionCosts'
 import { coordKey, disk, sameCell } from '../geometry'
 import { getFootprint, getOccupancy, toPlane } from './board'
 import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from './action'
+import { getExplosionCenters, getExplosionZones, getThreatenedCells } from './explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from './move'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -31,6 +32,12 @@ export type BoardCellView = {
   // landing it has picked
   jump: boolean
   isJumpTo: boolean
+  // the explosion in play: where it may be aimed, where it is aimed, what
+  // it may still reach, and the degree of effect where it goes off
+  center: boolean
+  isCenter: boolean
+  threatened: boolean
+  zone: Degree | null
 }
 
 export type BoardTokenView = {
@@ -48,7 +55,7 @@ export type BoardTokenView = {
 }
 
 // What a click on a cell does right now.
-export type BoardMode = 'idle' | 'path' | 'jump' | 'locked'
+export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 
 export type BoardView = {
   present: boolean
@@ -74,6 +81,13 @@ const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '
 function getPendingMove(state: CombatState) {
   const move = state.actions.find((a) => a.kind === 'move' && a.reactionTo === null && a.status !== 'resolved')
   return move?.kind === 'move' ? move : null
+}
+
+// The explosion in play, whatever its phase: its area stays drawn while
+// the escapes it opened are walked and until it resolves.
+function getPendingExplosion(state: CombatState) {
+  const explosion = state.actions.find((a) => a.kind === 'explosion' && a.reactionTo === null && a.status !== 'resolved')
+  return explosion?.kind === 'explosion' ? explosion : null
 }
 
 const HEX = Array.from({ length: 6 }, (_, i) => {
@@ -103,10 +117,18 @@ export function getBoardView(state: CombatState): BoardView {
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
 
-  // The drawn extent: the disk of the board's radius, plus anything placed
-  // or painted beyond it.
+  // the explosion in play: the centres it may be aimed at while it is being
+  // declared, what it threatens, and its zones once it is pointed
+  const explosion = getPendingExplosion(state)
+  const aiming = open?.kind === 'explosion' && step === 'aim'
+  const centers = new Set(explosion && aiming && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
+  const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
+  const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])
+
+  // The drawn extent: the disk of the board's radius, plus anything placed,
+  // painted or threatened beyond it.
   const extent = new Map(disk(board.origin, board.radius).map((c) => [coordKey(c), c]))
-  for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy)]) {
+  for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy), ...threatened]) {
     if (!extent.has(key)) {
       const [q, r] = key.split(',').map(Number)
       extent.set(key, { q, r })
@@ -132,6 +154,10 @@ export function getBoardView(state: CombatState): BoardView {
       isDestination: destination !== null && sameCell(destination, cell),
       jump: landings.has(key),
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
+      center: centers.has(key),
+      isCenter: explosion?.center !== null && explosion?.center !== undefined && sameCell(explosion.center, cell),
+      threatened: threatened.has(key),
+      zone: zones.get(key) ?? null,
     }
   })
 
@@ -171,7 +197,7 @@ export function getBoardView(state: CombatState): BoardView {
     cells,
     tokens,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: c.fightName ?? '' })),
-    mode: move ? 'path' : landings.size > 0 ? 'jump' : open ? 'locked' : 'idle',
+    mode: move ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,

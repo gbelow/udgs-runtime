@@ -12,6 +12,7 @@ import { SkillTooltip } from './SkillTooltip'
 const STEP_LABEL = {
   declare: 'declare',
   target: 'pick a target on the roster',
+  aim: 'aim on the board',
   commit: 'commit',
   react: 'reactions',
   spend: 'spend the overflow',
@@ -89,6 +90,10 @@ export function ActionPanel(){
         </div>
       ) : null}
 
+      {step === 'aim' && open.area ? (
+        <div className='text-xs text-muted'>{open.area.shape === 'spray' ? 'click a cell on the board to point the spray' : 'click the cell on the board where it lands'}</div>
+      ) : null}
+
       {step === 'commit' ? (
         <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>commit</Button></div>
       ) : null}
@@ -111,7 +116,7 @@ export function ActionPanel(){
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
-          {view.die ? <Test open={open} /> : null}
+          {view.die || open.area ? <Test open={open} /> : null}
           <div className='flex flex-row gap-1'>
             {view.die
               ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
@@ -141,7 +146,16 @@ export function ActionPanel(){
               {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onBuy={() => spend(o.purchase)} onRefund={() => refund(o.purchase)} />)}
             </div>
           ) : null}
-          {view.outcome ? <OutcomeLine outcome={view.outcome} target={open.target ?? ''} /> : null}
+          {open.reactions.filter((r) => r.roll).map((r) => (
+            <div key={`${r.actor}:${r.label}`} className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
+              <span>{r.actor} {r.label}</span>
+              <span>die <span className='font-mono'>{r.roll!.die}</span></span>
+              <span>score <span className='font-mono'>{r.roll!.score}</span> vs <span className='font-mono'>{r.roll!.DL}</span></span>
+              <span className={`font-medium ${r.roll!.degree === 'miss' ? 'text-bad' : r.roll!.degree === 'hit' || r.roll!.degree === 'critical' ? 'text-good' : ''}`}>{r.roll!.degree}</span>
+            </div>
+          ))}
+          {view.outcomes.map(({ target, outcome }) => <OutcomeLine key={target} outcome={outcome} target={target} />)}
+          {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div><Button variant='primary' aria-label='resolve action' onClick={resolve}>done</Button></div>
         </div>
       ) : null}
@@ -213,12 +227,16 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
   )
 }
 
+// The test as it stands. An explosion has no attacker's side: its DL is
+// what the reactors' reflexes are rolled against.
 function Test({ open }: { open: OpenActionView }){
   return (
     <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
-      <SkillTooltip terms={open.score.terms} total={open.score.total}>
-        <span>attack <span className='font-mono text-fg'>{open.score.total}</span></span>
-      </SkillTooltip>
+      {open.score.terms.length > 0 ? (
+        <SkillTooltip terms={open.score.terms} total={open.score.total}>
+          <span>attack <span className='font-mono text-fg'>{open.score.total}</span></span>
+        </SkillTooltip>
+      ) : null}
       <SkillTooltip terms={open.DL.terms} total={open.DL.total}>
         <span>vs DL <span className='font-mono text-fg'>{open.DL.total}</span></span>
       </SkillTooltip>

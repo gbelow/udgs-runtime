@@ -41,7 +41,7 @@ export function useCombatActions() {
   const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => update(amendReaction(reactorId, fields));
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
-  const roll = () => update(rollAction(rollFull(Math.random), newId));
+  const roll = () => update(rollAction(() => rollFull(Math.random), newId));
   const commit = () => update(commitAction());
   const back = () => update(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));

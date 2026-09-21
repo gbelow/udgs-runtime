@@ -775,7 +775,11 @@
           "grapple I",
           "reload",
           "explosion"
-        ]
+        ],
+        "area": {
+          "shape": "explosion",
+          "radius": 1
+        }
       }
     ]
   },
@@ -810,13 +814,17 @@
         "range": "30m",
         "material": "metal",
         "RES": 20,
-        "blunt": 0,
+        "blunt": 20,
         "cut": 0,
         "AP": 3,
         "properties": [
           "slow",
           "explosion"
-        ]
+        ],
+        "area": {
+          "shape": "explosion",
+          "radius": 2
+        }
       }
     ]
   },

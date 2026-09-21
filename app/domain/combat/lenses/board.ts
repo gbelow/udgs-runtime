@@ -1,5 +1,5 @@
 import type { Character, MeleeRange, Weapon } from '../../types'
-import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction } from '../types'
+import type { Board, CombatState, Coord, ExplosionAction, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/lenses/misc'
 import { getAttacksList } from '../../character/lenses/gear'
@@ -125,25 +125,30 @@ export function isInReach(state: CombatState, action: StrikeAction, targetId: st
 // combat.tex "Cover": "A character has cover if the shortest path from the
 // origin of the ... projectile to a destination passes through a space
 // containing a blocking object. Cover blocks vision unless it is
-// transparent." Whether some cell of one footprint sees some cell of the
-// other: a straight line between them crossing no opaque blocking cell.
-// True on a fight without a board.
+// transparent." Whether some cell of one set sees some cell of the other: a
+// straight line between them crossing no opaque blocking cell.
+export function seesAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): boolean {
+  const opaque = (cell: Coord) => {
+    const terrain = board.terrain[coordKey(cell)]
+    return !!terrain?.blocking && !terrain.transparent
+  }
+  return from.some((a) => to.some((b) => !line(a, b).slice(1, -1).some(opaque)))
+}
+
+// Whether some cell of one character's footprint sees some cell of the
+// other's. True on a fight without a board.
 export function hasLineOfSight(state: CombatState, a: string, b: string): boolean {
   const board = state.board
   const fa = getPlacedFootprint(state, a)
   const fb = getPlacedFootprint(state, b)
   if (!board || !fa || !fb) return true
-  const opaque = (cell: Coord) => {
-    const terrain = board.terrain[coordKey(cell)]
-    return !!terrain?.blocking && !terrain.transparent
-  }
-  return fa.some((from) => fb.some((to) => !line(from, to).slice(1, -1).some(opaque)))
+  return seesAcross(board, fa, fb)
 }
 
 // The metres the shot as declared carries: the variation's reach for this
-// shooter and weapon (combat.tex "Shoot", "Quick Shot", "Snipe"). Null while
-// the row or the variation is not declared.
-export function getShotReachOf(state: CombatState, action: ShootAction): number | null {
+// shooter and weapon (combat.tex "Shoot", "Quick Shot", "Snipe"; "Throw").
+// Null while the row or the variation is not declared.
+export function getShotReachOf(state: CombatState, action: ShootAction | ExplosionAction): number | null {
   const shooter = state.characters[action.actorId]
   const wielded = shooter ? getWieldedWeapons(shooter).find((w) => w.key === action.weaponKey) : undefined
   const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
@@ -201,7 +206,7 @@ export function toPlane(c: Coord): { x: number; y: number } {
   return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
 }
 
-function centroid(cells: readonly Coord[]): { x: number; y: number } {
+export function centroid(cells: readonly Coord[]): { x: number; y: number } {
   const points = cells.map(toPlane)
   return {
     x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
@@ -209,13 +214,13 @@ function centroid(cells: readonly Coord[]): { x: number; y: number } {
   }
 }
 
-function angleBetween(from: { x: number; y: number }, to: { x: number; y: number }): number {
+export function angleBetween(from: { x: number; y: number }, to: { x: number; y: number }): number {
   const angle = Math.atan2(to.y - from.y, to.x - from.x)
   return angle < 0 ? angle + 2 * Math.PI : angle
 }
 
 // The smaller turn between two directions.
-function angularGap(a: number, b: number): number {
+export function angularGap(a: number, b: number): number {
   const gap = Math.abs(a - b) % (2 * Math.PI)
   return Math.min(gap, 2 * Math.PI - gap)
 }

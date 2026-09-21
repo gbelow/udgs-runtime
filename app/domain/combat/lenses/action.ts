@@ -1,5 +1,5 @@
 import type { AttackKind, CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CombatState, type Degree, type HitLocation, type StrikeAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CombatState, type Degree, type HitLocation, type StrikeAction, type WeaponAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { LOCATIONS } from '../../tables'
 import { HIT_LOCATIONS } from '../../lists'
@@ -14,6 +14,7 @@ import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isHighGround, isInReach, isInShotRange } from './board'
 import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { getAffected, getExplosionArea, getExplosionDLTerms, isAimed } from './explosion'
 import { getTriggersFor } from './reactions'
 
 // ---------------------------------------------------------------------------
@@ -29,11 +30,13 @@ export function getOpenAction(state: CombatState): Action | null {
   return roots.find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
 }
 
-// Whether the action is committed by a die: a strike always, a move when it
-// crosses difficult terrain (combat.tex "Balance").
+// Whether the action is closed by a die: a strike always, a move when it
+// crosses difficult terrain (combat.tex "Balance"), an explosion when a
+// reaction declared against it is a test of its own (combat.tex "Avoiding
+// an Explosion").
 export function needsDie(state: CombatState, action: Action): boolean {
   if (action.kind === 'move') return needsBalanceTest(state, action)
-  return ACTIONS[action.kind].die
+  return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }
 
 export function getReactionsTo(state: CombatState, id: string): Action[] {
@@ -62,17 +65,33 @@ function isRowUsable(c: Character, row: WeaponRow): boolean {
   return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
 }
 
-// The kind of weapon row each attack is made with: a strike a melee row
-// (combat.tex "Strike"), a shot a shooting one (combat.tex "Shoot").
-const ROW_KIND: Record<AttackAction['kind'], AttackKind> = { strike: 'melee', shoot: 'shoot' }
+// gear.tex "Explosion": a row that "resolves like an explosion" — it has
+// the property and somewhere to reach.
+function explodes(atk: WeaponAttack): boolean {
+  return hasProperty(atk.properties, 'explosion') && atk.area !== undefined
+}
+
+// The kind of weapon row each action is made with: a strike a melee row
+// (combat.tex "Strike"), a shot a shooting one (combat.tex "Shoot"), an
+// explosion any ranged row that explodes (combat.tex "Explosions": "If the
+// explosion comes from a projectile") — and a row that explodes is fired as
+// nothing else.
+function rowFits(atk: WeaponAttack, kind: WeaponAction['kind']): boolean {
+  const rowKind: AttackKind = getAttackKind(atk.range)
+  switch (kind) {
+    case 'strike': return rowKind === 'melee'
+    case 'shoot': return rowKind === 'shoot' && !explodes(atk)
+    case 'explosion': return rowKind !== 'melee' && explodes(atk)
+  }
+}
 
 // The variation an attack declared, priced against the attacker as they
 // stand; null while it names no row of the attack's kind the attacker can
-// fire.
-export function getAttackVariant(c: Character, action: AttackAction): AttackVariant | null {
+// fire. combat.tex "Focus surge": "required to use ranged attacks".
+export function getAttackVariant(c: Character, action: WeaponAction): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  if (!row || !isRowUsable(c, row) || getAttackKind(row.atk.range) !== ROW_KIND[action.kind]) return null
-  if (action.kind === 'shoot' && needsFocus(row.atk, c)) return null
+  if (!row || !isRowUsable(c, row) || !rowFits(row.atk, action.kind)) return null
+  if (action.kind !== 'strike' && needsFocus(row.atk, c)) return null
   return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).find((v) => v.name === action.variant) ?? null
 }
 
@@ -96,14 +115,17 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike or a shot a variation of a row in
-// hand, a block or intercept a DEF row (gear.tex "DEF"), a guard a shield
-// (combat.tex "Guard": "If using a shield"), an opportunity attack a strike
-// that reaches its target from where it will be fought.
+// hand, an explosion one aimed where it can land, a block or intercept a DEF
+// row (gear.tex "DEF"), a guard a shield (combat.tex "Guard": "If using a
+// shield"), an opportunity attack a strike that reaches its target from
+// where it will be fought.
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
     case 'shoot':
       return getAttackVariant(c, action) !== null
+    case 'explosion':
+      return getAttackVariant(c, action) !== null && isAimed(state, action)
     case 'move':
       return isPathLegal(state, action)
     case 'block':
@@ -123,6 +145,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     }
     case 'evade':
     case 'evasion':
+    case 'avoidExplosion':
     case 'follow':
       return true
   }
@@ -154,12 +177,12 @@ export type AttackOption = {
   reach: number | null
 }
 
-export function getAttackOptions(c: Character, kind: AttackAction['kind']): AttackOption[] {
+export function getAttackOptions(c: Character, kind: WeaponAction['kind']): AttackOption[] {
   return getWieldedWeapons(c).flatMap((wielded) =>
     wielded.weapon.attacks.flatMap((atk) => {
       const row = { wielded, weapon: wielded.weapon, atk }
-      if (!isRowUsable(c, row) || getAttackKind(atk.range) !== ROW_KIND[kind]) return []
-      if (kind === 'shoot' && needsFocus(atk, c)) return []
+      if (!isRowUsable(c, row) || !rowFits(atk, kind)) return []
+      if (kind !== 'strike' && needsFocus(atk, c)) return []
       return getAttacksList({ atk, weapon: wielded.weapon })(c).map((v) => ({
         weaponKey: wielded.key,
         weapon: wielded.weapon.name,
@@ -177,10 +200,10 @@ export function getAttackOptions(c: Character, kind: AttackAction['kind']): Atta
 }
 
 // combat.tex "Focus surge": "required to use ranged attacks" — whether the
-// character holds a shooting row that only the surge is keeping closed.
-function hasUnfocusedShot(c: CampaignCharacter): boolean {
+// character holds a row of the kind that only the surge is keeping closed.
+function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
   return getWieldedWeapons(c).some((wielded) =>
-    wielded.weapon.attacks.some((atk) => isRowUsable(c, { wielded, weapon: wielded.weapon, atk }) && getAttackKind(atk.range) === 'shoot' && needsFocus(atk, c)))
+    wielded.weapon.attacks.some((atk) => isRowUsable(c, { wielded, weapon: wielded.weapon, atk }) && rowFits(atk, kind) && needsFocus(atk, c)))
 }
 
 export type LocationOption = { location: HitLocation; penalty: number }
@@ -201,7 +224,7 @@ function canAfford(c: CampaignCharacter, cost: ActionCost): boolean {
 // What an action costs its actor, as declared; null while the declaration is
 // too incomplete to price.
 export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCost | null {
-  if (action.kind === 'strike' || action.kind === 'shoot') {
+  if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion') {
     const variant = getAttackVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
@@ -237,6 +260,15 @@ export function getAttackTerms(c: CampaignCharacter, action: AttackAction): Term
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     { label: action.location, value: -LOCATIONS[action.location].penalty },
   ]
+}
+
+// combat.tex "Avoiding an Explosion": "make a reflex skill test against the
+// DL of the explosion" — what a reaction that is a test of its own is
+// rolled with.
+export function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
+  const reactor = state.characters[reaction.actorId]
+  if (!reactor || reaction.kind !== 'avoidExplosion') return []
+  return [{ label: 'reflex', value: getReflex(reactor) }]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -275,6 +307,7 @@ export function getShotDefense(state: CombatState, root: Action): Action | null 
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
 export function getDLTerms(state: CombatState, root: Action): Term[] {
+  if (root.kind === 'explosion') return getExplosionDLTerms(state, root)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   if (root.kind === 'shoot') {
@@ -374,6 +407,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!open) {
     const strikes = getAttackOptions(c, 'strike')
     const shots = getAttackOptions(c, 'shoot')
+    const explosions = getAttackOptions(c, 'explosion')
     const placed = state.board?.placements[c.id] !== undefined
     return [
       {
@@ -390,7 +424,17 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         draft: { kind: 'shoot' },
         cost: null,
         available: shots.length > 0,
-        reason: shots.length > 0 ? null : hasUnfocusedShot(c) ? 'needs a focus surge' : 'no shooting weapon in hand',
+        reason: shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand',
+        reactionTo: null,
+        chosen: false,
+      },
+      // an explosion is aimed at ground, so it needs a board to land on
+      {
+        label: ACTIONS.explosion.label,
+        draft: { kind: 'explosion' },
+        cost: null,
+        available: explosions.length > 0 && placed,
+        reason: explosions.length > 0 ? (placed ? null : 'not on the board') : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge' : 'no exploding weapon in hand',
         reactionTo: null,
         chosen: false,
       },
@@ -484,16 +528,23 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
 // else's — the action is committed, its triggers loaded, and the die may be
 // thrown from it, with no reaction meaning SD. `spend` is a hit with HOP to
 // spend before it is applied; the purchases are optional, so it is confirmed
-// from there too.
-export type ActionStep = 'declare' | 'target' | 'commit' | 'react' | 'spend' | 'confirm'
+// from there too. `aim` is an explosion waiting to be pointed at the board:
+// a disk's centre before the commit, a spray's direction once the reactions
+// have moved (combat.tex "Sprays").
+export type ActionStep = 'declare' | 'target' | 'aim' | 'commit' | 'react' | 'spend' | 'confirm'
 
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
-  if (open.status === 'rolled') return (open.kind === 'strike' || open.kind === 'shoot') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+  if (open.status === 'rolled') {
+    if (open.kind === 'explosion') return getExplosionArea(state, open)?.shape === 'spray' && open.direction === null ? 'aim' : 'confirm'
+    return (open.kind === 'strike' || open.kind === 'shoot') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+  }
   if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]
-  if (!actor || !isDeclarationComplete(state, actor, open)) return 'declare'
+  if (!actor) return 'declare'
+  if (open.kind === 'explosion') return getAttackVariant(actor, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
+  if (!isDeclarationComplete(state, actor, open)) return 'declare'
   if (open.kind === 'move') return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'commit'
@@ -523,6 +574,7 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
   if (root.actorId === characterId) return 'actor'
   if (getReactionsTo(state, root.id).some((r) => r.actorId === characterId)) return 'reactor'
   if (root.targetId === characterId) return 'target'
+  if (root.kind === 'explosion' && getAffected(state, root).some((a) => a.id === characterId)) return 'target'
   return 'none'
 }
 
@@ -533,7 +585,7 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
 // ground, a change from snipe to quick shot) drops off this list and has to
 // be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
-  if (root.kind === 'move') return []
+  if (root.kind === 'move' || root.kind === 'explosion') return []
   return Object.keys(state.characters).filter((id) =>
     id !== root.actorId
     && (root.kind !== 'strike' || isInReach(state, root, id))

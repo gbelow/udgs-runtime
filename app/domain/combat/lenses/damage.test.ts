@@ -4,7 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
 import { LOCATIONS, injuryMap } from '../../tables'
-import { getOutcome, getOutcomePreview } from './damage'
+import { getOutcome, getOutcomePreviews } from './damage'
 import { getOpenAction } from './action'
 import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
@@ -97,9 +97,9 @@ describe('the preview', () => {
     s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, () => `a${++n}`)(s)
     s = setTarget('def')(s)
     s = commitAction()(s)
-    s = rollAction(30)(s)
+    s = rollAction(() => 30)(s)
     const open = getOpenAction(s)!
-    const preview = getOutcomePreview(s, open)!
+    const preview = getOutcomePreviews(s, open)[0].outcome
     expect(preview.tier).not.toBeNull()
 
     const after = resolveAction()(s)

@@ -11,6 +11,7 @@ const MODE_LABEL = {
   idle: 'click a cell to place the active character',
   path: 'click cells to walk the move',
   jump: 'click a cell to jump there',
+  aim: 'click a cell to aim the explosion',
   locked: 'an action is open',
 } as const
 
@@ -40,7 +41,7 @@ export function BoardPanel(){
 
   const painting = brush !== null
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       actions={<Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>}>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -100,15 +101,29 @@ const TERRAIN_GLYPH = {
   rough: '∴',
 } as const
 
+const ZONE_FILL = {
+  critical: 'fill-bad/60',
+  hit: 'fill-bad/35',
+  graze: 'fill-bad/15',
+  miss: 'fill-bad/5',
+} as const
+
 function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClick: () => void }){
-  const fill = cell.isJumpTo ? 'fill-good/40' : cell.pathStep !== null ? 'fill-accent/40' : cell.reachable || cell.jump ? 'fill-good/15' : TERRAIN_FILL[cell.terrain]
-  const stroke = cell.isDestination || cell.isJumpTo ? 'stroke-accent' : 'stroke-line'
+  const fill = cell.isJumpTo ? 'fill-good/40'
+    : cell.pathStep !== null ? 'fill-accent/40'
+    : cell.zone ? ZONE_FILL[cell.zone]
+    : cell.reachable || cell.jump || cell.center ? 'fill-good/15'
+    : cell.threatened ? 'fill-bad/10'
+    : TERRAIN_FILL[cell.terrain]
+  const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
     cell.terrain !== 'open' ? cell.terrain : null,
     cell.elevation ? `${cell.elevation} m` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,
+    cell.center ? 'aim here' : null,
+    cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
   ].filter((s) => s !== null).join(' · ')
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' onClick={onClick}>
