@@ -1,5 +1,5 @@
 import type { AfflictionKey, Armor, Character } from '../../types'
-import type { Action, CombatState, HOPPurchase, Interruption, StrikeAction, StrikeFacts } from '../types'
+import type { Action, AttackAction, CombatState, HOPPurchase, Interruption, StrikeFacts } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HEAD, HOP_EFFECTS, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor } from '../../character/lenses/armor'
@@ -10,7 +10,7 @@ import { getForce } from '../../character/lenses/skills'
 import { getHardness } from '../../item/lenses/items'
 import { getWieldedWeapons } from '../../item/lenses/hands'
 import { hasProperty } from '../../weaponProperties'
-import { findWeaponRow, getReactionsTo, getStrikeVariant } from './action'
+import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
 
 // ---------------------------------------------------------------------------
 // The attacker's side
@@ -18,35 +18,37 @@ import { findWeaponRow, getReactionsTo, getStrikeVariant } from './action'
 type Defense = Pick<StrikeFacts, 'defense' | 'defenseAP' | 'defenseWeaponKey' | 'block' | 'shield'>
 const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '', block: 0, shield: false }
 
-// What the defender met the strike with, what it cost them, and what the
-// object absorbs.
-function getDefense(state: CombatState, root: StrikeAction): Defense {
+// What the attack was met with, what it cost the one who met it, and what
+// the object absorbs. A strike is met by its target alone; a shot by its
+// target or by an adjacent guard, whose shield it is that absorbs.
+function getDefense(state: CombatState, root: AttackAction): Defense {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
-  const reaction = defender ? getReactionsTo(state, root.id).find((r) => r.actorId === defender.id) : undefined
-  if (!defender || !reaction) return UNDEFENDED
+  const reaction = root.kind === 'shoot' ? getShotDefense(state, root) : defender ? getReactionsTo(state, root.id).find((r) => r.actorId === defender.id) : undefined
+  const reactor = reaction ? state.characters[reaction.actorId] : undefined
+  if (!defender || !reaction || !reactor) return UNDEFENDED
   const defenseAP = reaction.cost?.AP ?? 0
-  if (reaction.kind === 'block' || reaction.kind === 'intercept') {
-    const row = findWeaponRow(defender, reaction.weaponKey, reaction.attack)
+  if (reaction.kind === 'block' || reaction.kind === 'intercept' || reaction.kind === 'guard') {
+    const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
     return {
       defense: reaction.kind,
       defenseAP,
       defenseWeaponKey: reaction.weaponKey,
-      block: row ? getBlockValue(row.atk, row.weapon, defender) ?? 0 : 0,
+      block: row ? getBlockValue(row.atk, row.weapon, reactor) ?? 0 : 0,
       shield: row?.weapon.shield !== undefined,
     }
   }
-  if (reaction.kind === 'evade' || reaction.kind === 'evasiveJump') return { ...UNDEFENDED, defense: reaction.kind, defenseAP }
+  if (reaction.kind === 'evade' || reaction.kind === 'evasiveJump' || reaction.kind === 'evasion') return { ...UNDEFENDED, defense: reaction.kind, defenseAP }
   return UNDEFENDED
 }
 
-// The strike as the attacker delivers it, once the die is known and the HOP
+// The attack as the attacker delivers it, once the die is known and the HOP
 // are spent: the variation's damage plus the extra cut bought (combat.tex
 // "Extra cut": "+1 x DM per HOP"), the effects bought, where it lands (the
 // hand switch moves it — combat.tex "Hand"), and what it met.
-export function getStrikeFacts(state: CombatState, root: StrikeAction): StrikeFacts | null {
+export function getAttackFacts(state: CombatState, root: AttackAction): StrikeFacts | null {
   const attacker = state.characters[root.actorId]
   if (!attacker || !root.roll) return null
-  const variant = getStrikeVariant(attacker, root)
+  const variant = getAttackVariant(attacker, root)
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
   const bought = (p: HOPPurchase) => root.spent[p] ?? 0
@@ -90,18 +92,18 @@ function priceOf(purchase: HOPPurchase, target: Character): number {
   return cost === 'deflection' ? getArmor(target).deflection : cost
 }
 
-export function getHOPSpent(root: StrikeAction, target: Character): number {
+export function getHOPSpent(root: AttackAction, target: Character): number {
   return HOP_PURCHASES.reduce((sum, p) => sum + (root.spent[p] ?? 0) * priceOf(p, target), 0)
 }
 
-export function getHOPRemaining(root: StrikeAction, target: Character): number {
+export function getHOPRemaining(root: AttackAction, target: Character): number {
   return (root.roll?.HOP ?? 0) - getHOPSpent(root, target)
 }
 
 // combat.tex "Success Overflow": what the hit's overflow can still buy, each
 // priced against the target and gated by the weapon (gear.tex "Weapons
 // Properties") and by what the effect needs to mean anything.
-export function getHOPOptions(state: CombatState, root: StrikeAction): HOPOption[] {
+export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption[] {
   const attacker = state.characters[root.actorId]
   const target = root.targetId ? state.characters[root.targetId] : undefined
   const row = attacker ? findWeaponRow(attacker, root.weaponKey, root.attack) : null
@@ -166,10 +168,14 @@ const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, t
 // and a miss nothing; a block takes its value off a graze and one and a half
 // times that off a miss; an intercept stops the blow outright unless the
 // attacker's Force outdoes the defender's by 5 on a graze or 8 on a miss.
+// combat.tex "Accuracy", "Reflex": a shot the same — "Grazes deal 50%
+// damage and misses do nothing"; a guard is a block ("On graze, the attack
+// damage is reduced by the block value. On a miss, by 1.5x as much").
 function afterDefense(facts: StrikeFacts, target: Character, damage: number): { damage: number; stopped: boolean } {
   if (facts.degree === 'hit') return { damage, stopped: false }
   switch (facts.defense) {
     case 'block':
+    case 'guard':
       return { damage: Math.max(0, damage - (facts.degree === 'graze' ? facts.block : Math.floor(1.5 * facts.block))), stopped: false }
     case 'intercept': {
       const margin = facts.degree === 'graze' ? 5 : 8
@@ -289,11 +295,11 @@ function effectsOf(facts: StrikeFacts, target: Character, tier: number, bluntTie
   }
 }
 
-// The outcome of the open strike as it would land now: the same function the
-// resolution applies, so the preview and the result cannot differ.
+// The outcome of the open attack as it would land now: the same function
+// the resolution applies, so the preview and the result cannot differ.
 export function getOutcomePreview(state: CombatState, root: Action): Outcome | null {
-  if (root.kind !== 'strike' || !root.targetId) return null
+  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return null
   const target = state.characters[root.targetId]
-  const facts = root.facts ?? getStrikeFacts(state, root)
+  const facts = root.facts ?? getAttackFacts(state, root)
   return target && facts ? getOutcome(facts, target) : null
 }

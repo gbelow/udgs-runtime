@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
-import { ACTION_COSTS, AFFLICTIONS, ActionKind } from './tables'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -369,8 +369,9 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // Everything a buff can land on, as `<group>:<key>`. The list is derived from
 // the schemas so a key added to a group is a valid target the same day; the
 // getter behind each group is what actually reads the bonus (skills add it as
-// a term, movement and senses add it to the stored value, surges to AP, and
-// `ap:`/`sta:` move the price of an action in ACTION_COSTS).
+// a term, movement and senses add it to the stored value, surges to AP,
+// `ap:`/`sta:` move the price of an action in ACTION_COSTS, `reach:` the
+// metres a way of shooting covers and `hit:` its test).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -382,6 +383,8 @@ export const BUFF_TARGETS = [
   ...prefixed('surge', SurgeKindSchema.options),
   ...prefixed('ap', Object.keys(ACTION_COSTS) as ActionKind[]),
   ...prefixed('sta', Object.keys(ACTION_COSTS) as ActionKind[]),
+  ...prefixed('reach', Object.keys(SHOTS) as ShotKind[]),
+  ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])

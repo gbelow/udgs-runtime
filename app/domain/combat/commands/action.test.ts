@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, type Action, type ActionKind, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import type { CampaignCharacter } from '../../types'
+import { ItemSchema, type CampaignCharacter } from '../../types'
+import { holdItem, regripItem } from '../../item/commands/hands'
 import { ACTIONS } from '../actionCatalog'
 import { getAvailableActions, getOpenAction, getReactionsTo } from '../lenses/action'
 import { reduceCharacter } from '../reduce'
@@ -19,38 +20,56 @@ function combat(...characters: CampaignCharacter[]): CombatState {
 let n = 0
 const newId = () => `a${++n}`
 
-// A strike committed at every step short of the die, with the defender's
+// A shooter with a bow in both hands and the focus surge spent (combat.tex
+// "Focus surge": "required to use ranged attacks").
+function archer(id: string): CampaignCharacter {
+  const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
+  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id))) as CampaignCharacter), usedSurge: 'focus' }
+}
+
+// The two weapon attacks, each aimed at a defender who answers it: the
+// attacker, the declaration and the reaction that goes with it.
+const attacks = [
+  { kind: 'strike', attacker: fighter, draft: { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, reaction: { kind: 'evade' } },
+  { kind: 'shoot', attacker: archer, draft: { kind: 'shoot', weaponKey: '', attack: 'shoot', variant: 'basic' }, reaction: { kind: 'evasion' } },
+] as const
+
+function aimed(attack: (typeof attacks)[number]): CombatState {
+  const atk = attack.attacker('atk')
+  const weaponKey = attack.draft.weaponKey || atk.held[0].id
+  let s = combat(atk, fighter('def'))
+  s = declareAction('atk', { ...attack.draft, weaponKey }, newId)(s)
+  return setTarget('def')(s)
+}
+
+// An attack committed at every step short of the die, with the defender's
 // reaction in place: the last state the table can still walk away from.
-function declared(): CombatState {
-  let s = combat(fighter('atk'), fighter('def'))
-  s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(s)
-  s = setTarget('def')(s)
-  s = commitAction()(s)
-  s = declareReaction('def', { kind: 'evade' }, newId)(s)
+function declared(attack: (typeof attacks)[number]): CombatState {
+  let s = commitAction()(aimed(attack))
+  s = declareReaction('def', attack.reaction, newId)(s)
   return s
 }
 
-describe('the three phases', () => {
+describe.each(attacks)('the three phases of a $kind', (attack) => {
   // Nothing is paid before the die: walking away from a declared action
   // leaves every character as they were. The commit is the table's word: from
   // it the action is played out, and cancelling is refused.
   it('cancelling a declared action leaves every character untouched, and a committed one cannot be', () => {
-    let before = combat(fighter('atk'), fighter('def'))
-    before = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(before)
-    before = setTarget('def')(before)
+    const before = aimed(attack)
     const after = cancelAction()(before)
     expect(after.characters).toEqual(before.characters)
     expect(getOpenAction(after)).toBeNull()
     expect(after.actions).toHaveLength(0)
 
-    const committed = declared()
+    const committed = declared(attack)
     expect(cancelAction()(committed)).toEqual(committed)
   })
 
   // The roll and the payment are one step: in the state where the die is
   // known, every price it committed has already left its payer.
   it('the roll pays every declared price in the same state', () => {
-    const before = declared()
+    const before = declared(attack)
+    expect(getReactionsTo(before, getOpenAction(before)!.id)).toHaveLength(1)
     const after = rollAction(5)(before)
     const open = getOpenAction(after)
     expect(open?.roll).not.toBeNull()
@@ -67,7 +86,7 @@ describe('the three phases', () => {
   // Once the die is thrown there is no way back: the action can only be
   // played out, and nothing is refunded by trying.
   it('a rolled action cannot be cancelled', () => {
-    const rolled = rollAction(5)(declared())
+    const rolled = rollAction(5)(declared(attack))
     expect(cancelAction()(rolled)).toEqual(rolled)
     expect(getOpenAction(resolveAction()(rolled))).toBeNull()
   })
@@ -75,7 +94,7 @@ describe('the three phases', () => {
   // A price that cannot be paid stops the die: the state is left exactly as
   // declared rather than rolled and half paid.
   it('refuses the roll when someone cannot pay, and changes nothing', () => {
-    const before = declared()
+    const before = declared(attack)
     const broke = { ...before, characters: { ...before.characters, def: { ...before.characters.def, resources: { ...before.characters.def.resources, AP: 0 } } } }
     expect(rollAction(5)(broke)).toEqual(broke)
   })
@@ -109,15 +128,14 @@ describe('what can be declared', () => {
 
   // The command refuses exactly what the list shows as closed: an option the
   // list does not offer, or offers as unavailable, declares nothing.
-  it('declares only what the list offers as available', () => {
-    const s = combat(fighter('atk'), fighter('def'))
-    const opened = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(s)
-    const aimed = commitAction()(setTarget('def')(opened))
-    expect(declareReaction('atk', { kind: 'evade' }, newId)(aimed)).toEqual(aimed)
-    expect(declareReaction('def', { kind: 'block', weaponKey: 'no-such', attack: 'x' }, newId)(aimed)).toEqual(aimed)
-    for (const option of getAvailableActions(aimed, 'def')) {
-      const next = declareReaction('def', option.draft, newId)(aimed)
-      expect(next !== aimed).toBe(option.available)
+  it.each(attacks)('declares only what the list offers as available against a $kind', (attack) => {
+    const committed = commitAction()(aimed(attack))
+    expect(declareReaction('atk', attack.reaction, newId)(committed)).toEqual(committed)
+    expect(declareReaction('def', { kind: 'block', weaponKey: 'no-such', attack: 'x' }, newId)(committed)).toEqual(committed)
+    expect(getAvailableActions(committed, 'def').length).toBeGreaterThan(0)
+    for (const option of getAvailableActions(committed, 'def')) {
+      const next = declareReaction('def', option.draft, newId)(committed)
+      expect(next !== committed).toBe(option.available)
     }
   })
 })

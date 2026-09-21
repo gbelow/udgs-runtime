@@ -137,15 +137,18 @@ const WeaponRowRef = {
   attack: str.default(''),
 }
 
-// combat.tex "Defend": how the target met the attack, none being the SD.
-export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept'])
+// combat.tex "Defend", "Reflex": how the target met the attack, none being
+// the SD — the four melee defenses against a strike, evasion and guard
+// against a shot.
+export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard'])
 export type DefenseKind = z.infer<typeof DefenseKindSchema>
 
-// The attacker's side of a strike, final: everything the target needs to
-// turn the attack into an injury without looking back at the attacker. It is
-// written when the strike resolves, once the HOP are spent, and the target's
-// reducer reads only this. The defense is on it because what a block or an
-// intercept does to the damage is the attacker's number to carry.
+// The attacker's side of a strike or a shot, final: everything the target
+// needs to turn the attack into an injury without looking back at the
+// attacker. It is written when the attack resolves, once the HOP are spent,
+// and the target's reducer reads only this. The defense is on it because
+// what a block or an intercept does to the damage is the attacker's number
+// to carry.
 export const StrikeFactsSchema = z.object({
   blunt: num.default(0),
   cut: num.default(0),
@@ -185,6 +188,22 @@ export const StrikeActionSchema = z.object({
   interruption: InterruptionSchema.default('none'),
 }).strip()
 
+// combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
+// directed at a target ... against the opponent's reflexes or their SD". The
+// way of shooting (combat.tex "Shoot", "Snipe", "Quick Shot") is the
+// variation, declared before the roll along with the location.
+export const ShootActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('shoot'),
+  ...WeaponRowRef,
+  variant: str.default(''),
+  location: HitLocationSchema.default('chest'),
+  facts: StrikeFactsSchema.nullable().default(null),
+  // what landing did to the target's action, written at the resolve: an
+  // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
+  interruption: InterruptionSchema.default('none'),
+}).strip()
+
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
@@ -192,6 +211,13 @@ export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evad
 export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
 export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef }).strip()
 export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
+
+// combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
+// test alone; where it lets the evader move, the move is opened after the
+// shot. A guard names the shield it is made with, and may be made by the
+// target or by someone adjacent standing nearer the shooter.
+export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion') }).strip()
+export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a
 // turn at a run, by a reaction that interrupted it, by the mover's own jump
@@ -217,9 +243,14 @@ export const MoveActionSchema = z.object({
   movement: MovementKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
   orientation: z.number().int().min(0).max(5).nullable().default(null),
-  // the most it may cost, for a follow (combat.tex "Follow": "cannot cost
-  // more AP than" the move it answers); null is no cap
-  budget: ActionCostSchema.nullable().default(null),
+  // the most AP it may cost, for a move a reaction opened (combat.tex
+  // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
+  // "use up to 2 AP to move"); null is no cap
+  budget: num.nullable().default(null),
+  // the AP the reaction that opened it already paid towards it (combat.tex
+  // "Evasion": the reflex's AP "is used to move and does not need to be
+  // spent again, but any STA cost must be paid")
+  prepaid: num.default(0),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it
@@ -251,6 +282,9 @@ export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('fol
 
 export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
+  ShootActionSchema,
+  EvasionActionSchema,
+  GuardActionSchema,
   EvadeActionSchema,
   EvasiveJumpActionSchema,
   BlockActionSchema,
@@ -263,6 +297,10 @@ export const ActionSchema = z.discriminatedUnion('kind', [
 export type Action = z.infer<typeof ActionSchema>
 export type ActionKind = Action['kind']
 export type StrikeAction = z.infer<typeof StrikeActionSchema>
+export type ShootAction = z.infer<typeof ShootActionSchema>
+// The two weapon attacks: what is rolled against a defense and lands as an
+// injury, declared as a weapon row, a variation and a location.
+export type AttackAction = StrikeAction | ShootAction
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 

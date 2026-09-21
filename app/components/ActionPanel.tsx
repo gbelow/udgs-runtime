@@ -1,6 +1,6 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { ActionOption, ReactorOptions, StrikeOption } from '../domain/combat/lenses/action'
+import type { ActionOption, ReactorOptions, AttackOption } from '../domain/combat/lenses/action'
 import type { MovementOption } from '../domain/combat/lenses/move'
 import type { OpenActionView } from '../domain/combat/lenses/actionPanel'
 import type { HOPOption, Outcome } from '../domain/combat/lenses/damage'
@@ -52,7 +52,7 @@ export function ActionPanel(){
         <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>skip the {open.label}</Button></div>
       ) : null}
 
-      <Declaration open={open} strikes={view.strikes} onStrike={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
+      <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -149,16 +149,16 @@ export function ActionPanel(){
   )
 }
 
-function Declaration({ open, strikes, onStrike }: { open: OpenActionView, strikes: StrikeOption[], onStrike: (s: StrikeOption) => void }){
-  if (strikes.length > 0) {
+function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attacks: AttackOption[], onAttack: (s: AttackOption) => void }){
+  if (attacks.length > 0) {
     return (
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>
-        {strikes.map((s) =>
+        {attacks.map((s) =>
           <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs'
-            title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}`}
-            onClick={() => onStrike(s)}>
-            {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />
+            title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}${s.reach !== null ? ` · ${s.reach}m` : ''}`}
+            onClick={() => onAttack(s)}>
+            {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.reach !== null ? <span className='ml-1 font-mono text-muted'>{s.reach}m</span> : null}
           </Button>)}
       </div>
     )

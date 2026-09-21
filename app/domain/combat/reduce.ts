@@ -27,7 +27,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall
         if (action.kind === 'move') return c.id === action.actorId && action.facts?.fell ? fallProne(c) : c
-        if (action.kind !== 'strike' || c.id !== action.targetId || !action.facts) return c
+        if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
         return takeOutcome(getOutcome(action.facts, c))(c)
     }
   }

@@ -1,10 +1,11 @@
 import type { Character, MeleeRange, Weapon } from '../../types'
-import type { Board, CombatState, Coord, Placement, StrikeAction } from '../types'
+import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/lenses/misc'
+import { getAttacksList } from '../../character/lenses/gear'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/lenses/hands'
-import { add, coordKey, rotate, setDistance } from '../geometry'
+import { add, coordKey, line, rotate, setDistance } from '../geometry'
 
 // The board lenses read the spatial facts of a fight off `state.board`.
 // Every lens that answers for a fight answers null, or "passes", when the
@@ -116,6 +117,47 @@ export function isInReach(state: CombatState, action: StrikeAction, targetId: st
   if (distance === null) return true
   const reach = getStrikeReach(state, { ...action, targetId })
   return reach === null || distance <= reach
+}
+
+// ---------------------------------------------------------------------------
+// Shots
+
+// combat.tex "Cover": "A character has cover if the shortest path from the
+// origin of the ... projectile to a destination passes through a space
+// containing a blocking object. Cover blocks vision unless it is
+// transparent." Whether some cell of one footprint sees some cell of the
+// other: a straight line between them crossing no opaque blocking cell.
+// True on a fight without a board.
+export function hasLineOfSight(state: CombatState, a: string, b: string): boolean {
+  const board = state.board
+  const fa = getPlacedFootprint(state, a)
+  const fb = getPlacedFootprint(state, b)
+  if (!board || !fa || !fb) return true
+  const opaque = (cell: Coord) => {
+    const terrain = board.terrain[coordKey(cell)]
+    return !!terrain?.blocking && !terrain.transparent
+  }
+  return fa.some((from) => fb.some((to) => !line(from, to).slice(1, -1).some(opaque)))
+}
+
+// The metres the shot as declared carries: the variation's reach for this
+// shooter and weapon (combat.tex "Shoot", "Quick Shot", "Snipe"). Null while
+// the row or the variation is not declared.
+export function getShotReachOf(state: CombatState, action: ShootAction): number | null {
+  const shooter = state.characters[action.actorId]
+  const wielded = shooter ? getWieldedWeapons(shooter).find((w) => w.key === action.weaponKey) : undefined
+  const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
+  if (!shooter || !wielded || !atk) return null
+  return getAttacksList({ atk, weapon: wielded.weapon })(shooter).find((v) => v.name === action.variant)?.reach ?? null
+}
+
+// Whether the shot can land on the target from where its actor stands: the
+// target within the shot's reach and in sight.
+export function isInShotRange(state: CombatState, action: ShootAction, targetId: string): boolean {
+  const distance = getDistanceBetween(state, action.actorId, targetId)
+  if (distance === null) return true
+  const reach = getShotReachOf(state, action)
+  return (reach === null || distance <= reach) && hasLineOfSight(state, action.actorId, targetId)
 }
 
 // ---------------------------------------------------------------------------

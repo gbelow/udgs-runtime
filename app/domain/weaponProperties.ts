@@ -47,6 +47,13 @@ export function getAttackKind(range: Range): AttackKind {
   return (SHOT_RANGES as readonly string[]).includes(range) ? 'shoot' : 'throw'
 }
 
+// The metres a ranged row prints ("100m"), or null where the range is not a
+// figure of its own: a throw's comes from STR (combat.tex "Throw").
+export function getPrintedRange(range: Range): number | null {
+  const match = /^(\d+)m$/.exec(range)
+  return match ? Number(match[1]) : null
+}
+
 export function isMeleeRange(range: Range): range is MeleeRange {
   return (MELEE_RANGES as readonly string[]).includes(range)
 }

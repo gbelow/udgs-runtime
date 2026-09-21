@@ -43,10 +43,6 @@
 
 # grapple
 - add actions
-
-# grid
-- make grid
-
 # system of reactions
 - what triggers
 
@@ -79,5 +75,7 @@
 ## add performance report to break me
 
 ## issues
+bleed does not trigger at the end of the round
+flee, braced attack, hooked attack.
 
 add guard against healing when hunger and thirst are too high

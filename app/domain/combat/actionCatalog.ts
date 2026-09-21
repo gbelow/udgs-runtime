@@ -20,6 +20,8 @@ export type ActionDef = {
 export const ACTIONS = {
   // combat.tex "Strike"
   strike:      { label: 'strike',       type: 'action',   price: null,          reactsTo: [],         die: true },
+  // combat.tex "Accuracy", "Shoot"
+  shoot:       { label: 'shoot',        type: 'action',   price: null,          reactsTo: [],         die: true },
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
@@ -28,6 +30,9 @@ export const ACTIONS = {
   evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
   block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false },
   intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false },
+  // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
+  evasion:     { label: 'evasion',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false },
+  guard:       { label: 'guard',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false },
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false },

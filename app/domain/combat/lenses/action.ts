@@ -1,18 +1,19 @@
-import type { CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type CombatState, type Degree, type HitLocation, type StrikeAction } from '../types'
-import { ACTIONS } from '../actionCatalog'
+import type { AttackKind, CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CombatState, type Degree, type HitLocation, type StrikeAction } from '../types'
+import { ACTIONS, reactsTo } from '../actionCatalog'
 import { LOCATIONS } from '../../tables'
 import { HIT_LOCATIONS } from '../../lists'
 import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/lenses/hands'
-import { AttackVariant, getAttacksList, isWieldable } from '../../character/lenses/gear'
-import { getDefend, getSD, getStrike } from '../../character/lenses/skills'
+import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/lenses/gear'
+import { getAccuracy, getDefend, getReflex, getSD, getStrike } from '../../character/lenses/skills'
 import { getAGI } from '../../character/lenses/characteristics'
 import { getAfflictions } from '../../character/lenses/afflictions'
+import { getBuffBonus } from '../../character/lenses/effects'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
-import { isHighGround, isInReach } from './board'
-import { getMoveCost, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { isHighGround, isInReach, isInShotRange } from './board'
+import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
 import { getTriggersFor } from './reactions'
 
 // ---------------------------------------------------------------------------
@@ -61,10 +62,17 @@ function isRowUsable(c: Character, row: WeaponRow): boolean {
   return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
 }
 
-// The variation a strike declared, priced against the striker as they stand.
-export function getStrikeVariant(c: Character, action: StrikeAction): AttackVariant | null {
+// The kind of weapon row each attack is made with: a strike a melee row
+// (combat.tex "Strike"), a shot a shooting one (combat.tex "Shoot").
+const ROW_KIND: Record<AttackAction['kind'], AttackKind> = { strike: 'melee', shoot: 'shoot' }
+
+// The variation an attack declared, priced against the attacker as they
+// stand; null while it names no row of the attack's kind the attacker can
+// fire.
+export function getAttackVariant(c: Character, action: AttackAction): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  if (!row || !isRowUsable(c, row) || getAttackKind(row.atk.range) !== 'melee') return null
+  if (!row || !isRowUsable(c, row) || getAttackKind(row.atk.range) !== ROW_KIND[action.kind]) return null
+  if (action.kind === 'shoot' && needsFocus(row.atk, c)) return null
   return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).find((v) => v.name === action.variant) ?? null
 }
 
@@ -87,27 +95,31 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 }
 
 // Whether everything the action needs declared has been, and names things
-// its actor can actually use: a strike a variation of a row in hand, a block
-// or intercept a DEF row (gear.tex "DEF"), an opportunity attack a strike
+// its actor can actually use: a strike or a shot a variation of a row in
+// hand, a block or intercept a DEF row (gear.tex "DEF"), a guard a shield
+// (combat.tex "Guard": "If using a shield"), an opportunity attack a strike
 // that reaches its target from where it will be fought.
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
-      return getStrikeVariant(c, action) !== null
+    case 'shoot':
+      return getAttackVariant(c, action) !== null
     case 'move':
       return isPathLegal(state, action)
     case 'block':
-    case 'intercept': {
+    case 'intercept':
+    case 'guard': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
-      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row)
+      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (action.kind !== 'guard' || row.weapon.shield !== undefined)
     }
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
     case 'opportunityAttack': {
       const strike = getOpportunityStrike(action, '')
-      return getStrikeVariant(c, strike) !== null && isInReach(getOpportunityState(state, action), strike, action.targetId ?? '')
+      return getAttackVariant(c, strike) !== null && isInReach(getOpportunityState(state, action), strike, action.targetId ?? '')
     }
     case 'evade':
+    case 'evasion':
     case 'follow':
       return true
   }
@@ -122,9 +134,10 @@ export function areReactionsComplete(state: CombatState, root: Action): boolean 
   })
 }
 
-// Every strike the character could declare: each usable melee row of each
-// wielded weapon, at each of its variations. The panel renders these as-is.
-export type StrikeOption = {
+// Every attack of the kind the character could declare: each usable row of
+// that kind of each wielded weapon, at each of its variations. The panel
+// renders these as-is.
+export type AttackOption = {
   weaponKey: string
   weapon: string
   attack: string
@@ -134,13 +147,16 @@ export type StrikeOption = {
   penalty: number
   blunt: number
   cut: number
+  // metres, for a shot; null for a strike
+  reach: number | null
 }
 
-export function getStrikeOptions(c: Character): StrikeOption[] {
+export function getAttackOptions(c: Character, kind: AttackAction['kind']): AttackOption[] {
   return getWieldedWeapons(c).flatMap((wielded) =>
     wielded.weapon.attacks.flatMap((atk) => {
       const row = { wielded, weapon: wielded.weapon, atk }
-      if (!isRowUsable(c, row) || getAttackKind(atk.range) !== 'melee') return []
+      if (!isRowUsable(c, row) || getAttackKind(atk.range) !== ROW_KIND[kind]) return []
+      if (kind === 'shoot' && needsFocus(atk, c)) return []
       return getAttacksList({ atk, weapon: wielded.weapon })(c).map((v) => ({
         weaponKey: wielded.key,
         weapon: wielded.weapon.name,
@@ -151,9 +167,17 @@ export function getStrikeOptions(c: Character): StrikeOption[] {
         penalty: v.penalty,
         blunt: v.blunt,
         cut: v.cut,
+        reach: v.reach,
       }))
     }),
   )
+}
+
+// combat.tex "Focus surge": "required to use ranged attacks" — whether the
+// character holds a shooting row that only the surge is keeping closed.
+function hasUnfocusedShot(c: CampaignCharacter): boolean {
+  return getWieldedWeapons(c).some((wielded) =>
+    wielded.weapon.attacks.some((atk) => isRowUsable(c, { wielded, weapon: wielded.weapon, atk }) && getAttackKind(atk.range) === 'shoot' && needsFocus(atk, c)))
 }
 
 export type LocationOption = { location: HitLocation; penalty: number }
@@ -174,11 +198,11 @@ function canAfford(c: CampaignCharacter, cost: ActionCost): boolean {
 // What an action costs its actor, as declared; null while the declaration is
 // too incomplete to price.
 export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCost | null {
-  if (action.kind === 'strike') {
-    const variant = getStrikeVariant(c, action)
+  if (action.kind === 'strike' || action.kind === 'shoot') {
+    const variant = getAttackVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
-  if (action.kind === 'move') return action.path.length > 0 ? getMoveCost(c, action.movement, action.path.length) : null
+  if (action.kind === 'move') return action.path.length > 0 ? getMovePrice(c, action, action.path.length) : null
   // a reaction with no price of its own (an opportunity attack, a follow)
   // pays through the action it opens
   const price = ACTIONS[action.kind].price
@@ -190,13 +214,26 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
 
 // combat.tex "Strike": strike, less the variation's penalty (combat.tex
 // "Heavy Attack") and the location's (combat.tex "Localized damage").
-export function getAttackTerms(c: CampaignCharacter, action: StrikeAction): Term[] {
-  const variant = getStrikeVariant(c, action)
+// combat.tex "Accuracy": a shot is the Accuracy test instead, and the way of
+// shooting may carry a bonus of its own (abilities.tex "Elite Sniper":
+// "Snipe gets +1|2|3 to hit").
+export function getAttackTerms(c: CampaignCharacter, action: AttackAction): Term[] {
+  const variant = getAttackVariant(c, action)
+  const shot = action.kind === 'shoot' ? getShotKind(action.variant) : null
   return [
-    { label: 'strike', value: getStrike(c) },
+    action.kind === 'strike' ? { label: 'strike', value: getStrike(c) } : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
+    ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     { label: action.location, value: -LOCATIONS[action.location].penalty },
   ]
+}
+
+// combat.tex "Reflex": the reaction a shot is met with — the target's own,
+// or failing that a guard made for them by someone adjacent (combat.tex
+// "Guard": "block ranged attacks against themselves or adjacent characters").
+export function getShotDefense(state: CombatState, root: Action): Action | null {
+  const reactions = getReactionsTo(state, root.id)
+  return reactions.find((r) => r.actorId === root.targetId) ?? reactions.find((r) => r.kind === 'guard') ?? null
 }
 
 // combat.tex "Defend": the DL a strike is scored against is the defender's
@@ -205,9 +242,23 @@ export function getAttackTerms(c: CampaignCharacter, action: StrikeAction): Term
 // with a shield adds its cover to defend".
 // combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
 // against each other" — on the SD as much as on an active defense.
+// combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
+// or their SD, should they choose not to react"; "Guard": "Shield Cover is
+// added to guard as a bonus", the guard's own reflexes when it is an ally's.
 export function getDLTerms(state: CombatState, root: Action): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
+  if (root.kind === 'shoot') {
+    const reaction = getShotDefense(state, root)
+    const reactor = reaction ? state.characters[reaction.actorId] : undefined
+    if (!reaction || !reactor) return [{ label: 'SD', value: getSD(defender) }]
+    const terms: Term[] = [{ label: 'reflex', value: getReflex(reactor) }]
+    if (reaction.kind === 'guard') {
+      const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
+      if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
+    }
+    return terms
+  }
   const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === defender.id)
   const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }]
   if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 3) })
@@ -236,7 +287,7 @@ export function scoreAttack(score: number, DL: number, piercing: boolean): { deg
   return { degree: 'miss', HOP: 0 }
 }
 
-export function isPiercingStrike(c: Character, action: StrikeAction): boolean {
+export function isPiercingAttack(c: Character, action: AttackAction): boolean {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   return row ? hasProperty(row.atk.properties, 'piercing') : false
 }
@@ -262,7 +313,7 @@ export type ActionOption = {
 // interrupted in the middle".
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
-  if (kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }
@@ -277,6 +328,11 @@ function defRows(c: Character): WeaponRow[] {
   )
 }
 
+// combat.tex "Guard": "If using a shield" — a DEF row of a shield.
+function shieldRows(c: Character): WeaponRow[] {
+  return defRows(c).filter((row) => row.weapon.shield !== undefined)
+}
+
 // Everything the character may declare right now: their own actions while no
 // action is open, and their reactions while a committed action triggers
 // something in them and is still waiting for its die. A reaction's options
@@ -288,7 +344,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   const open = getOpenAction(state)
 
   if (!open) {
-    const strikes = getStrikeOptions(c)
+    const strikes = getAttackOptions(c, 'strike')
+    const shots = getAttackOptions(c, 'shoot')
     const placed = state.board?.placements[c.id] !== undefined
     return [
       {
@@ -297,6 +354,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         cost: null,
         available: strikes.length > 0,
         reason: strikes.length > 0 ? null : 'no melee weapon in hand',
+        reactionTo: null,
+        chosen: false,
+      },
+      {
+        label: ACTIONS.shoot.label,
+        draft: { kind: 'shoot' },
+        cost: null,
+        available: shots.length > 0,
+        reason: shots.length > 0 ? null : hasUnfocusedShot(c) ? 'needs a focus surge' : 'no shooting weapon in hand',
         reactionTo: null,
         chosen: false,
       },
@@ -327,13 +393,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'block':
       case 'intercept':
         return defRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+      case 'guard':
+        return shieldRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
       // where an evasive jump lands is picked on the board, not here
       case 'evasiveJump':
         return [option(ACTIONS[kind].label, { kind })]
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike
       case 'opportunityAttack': {
-        const strikes = getStrikeOptions(c)
+        const strikes = getAttackOptions(c, 'strike')
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
         const label = trigger.at !== null ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
         return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
@@ -357,7 +425,7 @@ export type ReactorOptions = {
   id: string
   name: string
   options: ActionOption[]
-  strike: { options: StrikeOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
+  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
 }
 
 export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
@@ -366,7 +434,7 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
       const strike = declared?.kind === 'opportunityAttack'
-        ? { options: getStrikeOptions(c), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
+        ? { options: getAttackOptions(c, 'strike'), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
         : null
       return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike }
     })
@@ -387,7 +455,7 @@ export type ActionStep = 'declare' | 'target' | 'commit' | 'react' | 'spend' | '
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
-  if (open.status === 'rolled') return open.kind === 'strike' && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+  if (open.status === 'rolled') return (open.kind === 'strike' || open.kind === 'shoot') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]
   if (!actor || !isDeclarationComplete(state, actor, open)) return 'declare'
@@ -404,7 +472,7 @@ export function findOption(state: CombatState, characterId: string, draft: Actio
 
 function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
   if (option.kind !== draft.kind) return false
-  if (option.kind === 'block' || option.kind === 'intercept') {
+  if (option.kind === 'block' || option.kind === 'intercept' || option.kind === 'guard') {
     const d = draft as { weaponKey?: string; attack?: string }
     return option.weaponKey === d.weaponKey && option.attack === d.attack
   }
@@ -423,10 +491,15 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
 }
 
 // Who can be aimed at: everyone in the fight but the actor, and for a strike
-// only those its reach covers from where the actor stands. A target the
+// only those its reach covers from where the actor stands, for a shot only
+// those the way of shooting carries to and that are in sight. A target the
 // declaration has since put out of reach (a change of location on the high
-// ground) drops off this list and has to be aimed at again.
+// ground, a change from snipe to quick shot) drops off this list and has to
+// be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
   if (root.kind === 'move') return []
-  return Object.keys(state.characters).filter((id) => id !== root.actorId && (root.kind !== 'strike' || isInReach(state, root, id)))
+  return Object.keys(state.characters).filter((id) =>
+    id !== root.actorId
+    && (root.kind !== 'strike' || isInReach(state, root, id))
+    && (root.kind !== 'shoot' || isInShotRange(state, root, id)))
 }

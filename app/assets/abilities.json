@@ -641,7 +641,18 @@
           ]
         ],
         "description": "Snipe gets +1 to hit. From level II, snipe costs 1 AP less.",
-        "effect": []
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "hit:snipe",
+              "operation": "+",
+              "value": 1
+            }
+          }
+        ]
       },
       {
         "XPcost": 6,
@@ -665,6 +676,16 @@
         ],
         "description": "Snipe gets +2 to hit. From level II, snipe costs 1 AP less.",
         "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "hit:snipe",
+              "operation": "+",
+              "value": 1
+            }
+          },
           {
             "name": "",
             "trigger": "instant",
@@ -698,7 +719,18 @@
           ]
         ],
         "description": "Snipe gets +3 to hit. From level II, snipe costs 1 AP less.",
-        "effect": []
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "hit:snipe",
+              "operation": "+",
+              "value": 1
+            }
+          }
+        ]
       }
     ]
   },
@@ -736,7 +768,18 @@
           ]
         ],
         "description": "Increases distance for shoot to 50m.",
-        "effect": []
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "reach:shoot",
+              "operation": "+",
+              "value": 20
+            }
+          }
+        ]
       },
       {
         "XPcost": 6,
@@ -759,7 +802,18 @@
           ]
         ],
         "description": "Increases distance for quick shots to 30m.",
-        "effect": []
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "reach:quickShot",
+              "operation": "+",
+              "value": 20
+            }
+          }
+        ]
       },
       {
         "XPcost": 6,

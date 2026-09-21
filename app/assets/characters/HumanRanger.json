@@ -330,16 +330,26 @@
       "name": "hand",
       "naturalWeapon": "Unarmed",
       "canHold": true,
-      "itemId": ""
+      "itemId": "95c1a3ef-9685-424b-bf66-9683b7ce279c"
     },
     {
       "name": "hand",
       "naturalWeapon": "Unarmed",
       "canHold": true,
-      "itemId": ""
+      "itemId": "95c1a3ef-9685-424b-bf66-9683b7ce279c"
     }
   ],
-  "held": [],
+  "held": [
+    {
+      "id": "95c1a3ef-9685-424b-bf66-9683b7ce279c",
+      "name": "Short Bow",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 2,
+      "refId": "Short Bow"
+    }
+  ],
   "containers": {
     "Belt": {
       "name": "Belt",

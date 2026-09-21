@@ -4,11 +4,12 @@ import { getWieldedWeapons, isAttackUsable } from "../../item/lenses/hands";
 import { getHardness } from "../../item/lenses/items";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize, getTGH } from "./misc";
-import { dmgArr, injuryMap } from "../../tables";
+import { RMArr, SHOTS, ShotKind, dmgArr, injuryMap } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getDM } from "./helpers";
 import { getArmor } from "./armor";
-import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, hasProperty } from "../../weaponProperties";
+import { getAttackKind, getAttackPropertyLabels, getAttackType, getHeavyRange, getPrintedRange, hasProperty } from "../../weaponProperties";
+import { getBuffBonus } from "./effects";
 import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
@@ -174,6 +175,25 @@ export type AttackVariant = {
   penalty: number
   blunt: number
   cut: number
+  // how far a shot carries, in metres; null for anything but a shot, whose
+  // reach is the row's own (gear.tex "Short, Long I/II")
+  reach: number | null
+}
+
+// The way of shooting a variation of a shoot row is, by the name the list
+// gives it; null for a variation that is not one.
+export function getShotKind(variant: string): ShotKind | null {
+  return (Object.keys(SHOTS) as ShotKind[]).find((kind) => SHOTS[kind].variant === variant) ?? null
+}
+
+// combat.tex "Shoot", "Quick Shot", "Snipe": the metres the way of shooting
+// covers, moved by the shooter's abilities (abilities.tex "Quick Shooter":
+// "Increases distance for shoot to 50m"), never past the weapon's own
+// range at its scale (creating.tex "Reach Multiplier (RM): multiplies the
+// range of all weapons").
+export function getShotReach(kind: ShotKind, atk: WeaponAttack, weapon: Weapon, c: Character): number {
+  const weaponRange = (getPrintedRange(atk.range) ?? 0) * RMArr[weapon.scale - 1]
+  return Math.min(weaponRange, (SHOTS[kind].reach ?? weaponRange) + getBuffBonus(c, `reach:${kind}`))
 }
 
 // combat.tex "Heavy Attack". Degree n adds n/2 x STR x DM to damage; the
@@ -212,6 +232,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
         STA: cost.STA,
         penalty,
         ...plus(Math.floor(STRmul * STRxDM)),
+        reach: null,
       }
     }
 
@@ -219,13 +240,14 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     const bracedCost = getActionCost(c, 'braced')
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
-    const basic: AttackVariant = { name: 'basic', type, AP, STA: 0, penalty: 0, blunt, cut }
+    const reach = (shot: ShotKind) => (kind === 'shoot' ? getShotReach(shot, atk, weapon, c) : null)
+    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: reach('shoot') }
     // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
-    const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)) }
-    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut }
+    const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)), reach: null }
+    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut, reach: null }
     // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
-    const quickShot: AttackVariant = { name: 'quick', type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut }
-    const snipe: AttackVariant = { name: 'snipe', type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut }
+    const quickShot: AttackVariant = { name: SHOTS.quickShot.variant, type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut, reach: reach('quickShot') }
+    const snipe: AttackVariant = { name: SHOTS.snipe.variant, type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut, reach: reach('snipe') }
 
     const attacks: AttackVariant[] = []
 
@@ -324,7 +346,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.rows
           .map((r) =>
             [r.name, r.kind, r.handed, r.usable, r.needsFocus, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
-             r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}`).join('~')]
+             r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}/${v.reach}`).join('~')]
               .join(','),
           )
           .join(';'),

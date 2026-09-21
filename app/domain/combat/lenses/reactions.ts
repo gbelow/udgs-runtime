@@ -1,6 +1,7 @@
-import type { Action, ActionKind, CombatState, MoveAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CombatState, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
-import { getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
+import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
+import { getWieldedWeapons } from '../../item/lenses/hands'
 import { getRunPath } from './move'
 import { setDistance } from '../geometry'
 
@@ -23,6 +24,7 @@ export type Trigger = {
 export function getTriggers(state: CombatState, root: Action): Trigger[] {
   switch (root.kind) {
     case 'strike': return strikeTriggers(state, root)
+    case 'shoot': return shootTriggers(state, root)
     case 'move': return moveTriggers(state, root)
     default: return []
   }
@@ -44,6 +46,26 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
     .filter((id) => getMeleeRange(state.characters[id]) > 0)
     .map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
   return [...defenses, ...flankers]
+}
+
+// combat.tex "Reflex": the target may answer a shot with evasion or guard.
+// combat.tex "Guard": someone with a shield may "block ranged attacks
+// against ... adjacent characters, as long as they are closer to the
+// projectile source than the adjacent character".
+function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
+  if (!root.targetId) return []
+  const own = (Object.keys(ACTIONS) as ActionKind[])
+    .filter((kind) => ACTIONS[kind].type === 'reaction' && reactsTo(kind, 'shoot'))
+    .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
+  const toTarget = getDistanceBetween(state, root.actorId, root.targetId)
+  const guards = getAdjacentIds(state, root.targetId)
+    .filter((id) => id !== root.actorId && getWieldedWeapons(state.characters[id]).some((w) => w.weapon.shield))
+    .filter((id) => {
+      const toGuard = getDistanceBetween(state, root.actorId, id)
+      return toGuard !== null && toTarget !== null && toGuard < toTarget
+    })
+    .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
+  return [...own, ...guards]
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee

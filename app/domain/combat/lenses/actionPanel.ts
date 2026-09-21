@@ -10,7 +10,8 @@ import {
   getReactors,
   needsDie,
   LocationOption,
-  StrikeOption,
+  AttackOption,
+  getAttackOptions,
   getAttackTerms,
   getAvailableActions,
   getDLTerms,
@@ -19,7 +20,6 @@ import {
   getNextStep,
   getOpenAction,
   getReactionsTo,
-  getStrikeOptions,
   getTargetIds,
 } from './action'
 import { ActionCost } from '../../character/lenses/actionCosts'
@@ -34,7 +34,7 @@ export type OpenActionView = {
   actor: string
   target: string | null
   targetId: string | null
-  // the declaration a strike has made so far
+  // the declaration a strike or a shot has made so far
   weapon: string
   attack: string
   variant: string
@@ -63,7 +63,8 @@ export type ActionPanelView = {
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
-  strikes: StrikeOption[]
+  // at `declare`: the rows and variations an attack can be made with
+  attacks: AttackOption[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
   // why the target list is empty, when it is
@@ -89,7 +90,7 @@ export type ActionPanelView = {
   outcome: Outcome | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], strikes: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcome: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcome: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -106,7 +107,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const actor = state.characters[open.actorId]
   const target = open.targetId ? state.characters[open.targetId] : undefined
   const reactions = getReactionsTo(state, open.id)
-  const strike = open.kind === 'strike' ? open : null
+  const attack = open.kind === 'strike' || open.kind === 'shoot' ? open : null
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
   const die = needsDie(state, open)
   const affordable = !!actor && canPay(actor, getDeclaredCost(actor, open))
@@ -120,10 +121,10 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       actor: actor?.fightName ?? '',
       target: target?.fightName ?? null,
       targetId: open.targetId,
-      weapon: strike?.weaponKey ?? '',
-      attack: strike?.attack ?? '',
-      variant: strike?.variant ?? '',
-      location: strike?.location ?? 'chest',
+      weapon: attack?.weaponKey ?? '',
+      attack: attack?.attack ?? '',
+      variant: attack?.variant ?? '',
+      location: attack?.location ?? 'chest',
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -134,14 +135,14 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         label: ACTIONS[r.kind].label,
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
       })),
-      score: breakdown(strike && actor ? getAttackTerms(actor, strike) : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
-      DL: breakdown(strike ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
+      score: breakdown(attack && actor ? getAttackTerms(actor, attack) : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
+      DL: breakdown(attack ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
       roll: open.roll,
     },
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    strikes: strike && step === 'declare' && actor ? getStrikeOptions(actor) : [],
-    locations: strike ? getLocationOptions() : [],
+    attacks: attack && step === 'declare' && actor ? getAttackOptions(actor, attack.kind) : [],
+    locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
@@ -153,9 +154,9 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor) : [],
-    reachable: move ? getReachableCells(state, move.actorId, move.movement) : [],
-    hop: strike && target && strike.status === 'rolled'
-      ? { remaining: getHOPRemaining(strike, target), options: getHOPOptions(state, strike) }
+    reachable: move ? getReachableCells(state, move) : [],
+    hop: attack && target && attack.status === 'rolled'
+      ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
     outcome: open.status === 'rolled' ? getOutcomePreview(state, open) : null,
   }

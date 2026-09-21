@@ -13,12 +13,12 @@ import {
   getReactionsTo,
   getTargetIds,
   isDeclarationComplete,
-  isPiercingStrike,
+  isPiercingAttack,
   needsDie,
   scoreAttack,
 } from '../lenses/action'
-import { getHOPOptions, getOutcome, getStrikeFacts } from '../lenses/damage'
-import { getBalanceDL, getBalanceTestTerms, getMoveCost, getMoveFacts, getMoveOverride, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
+import { getAttackFacts, getHOPOptions, getOutcome } from '../lenses/damage'
+import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
 import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
@@ -93,7 +93,7 @@ export function commitAction(): Updater {
     if (!open || open.status !== 'declared') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if (open.kind === 'strike' && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if ((open.kind === 'strike' || open.kind === 'shoot') && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!priceFor(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
@@ -181,9 +181,9 @@ export function cancelAction(): Updater {
 // and takes every price — all in one update, so no state exists in which the
 // die is known and the cost is not paid. Refused, and nothing happens, when
 // a reaction has not said all it must or someone cannot pay what they
-// declared. A strike is scored against the target's defense; a move across
-// difficult terrain is a Balance test against the ground (combat.tex
-// "Balance"), and pays for the path as the test leaves it.
+// declared. A strike or a shot is scored against the target's defense; a
+// move across difficult terrain is a Balance test against the ground
+// (combat.tex "Balance"), and pays for the path as the test leaves it.
 export function rollAction(die: number, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
@@ -191,11 +191,11 @@ export function rollAction(die: number, newId: () => string = () => `${Date.now(
     const actor = state.characters[open.actorId]
     if (!actor || !areReactionsComplete(state, open)) return state
 
-    const test = open.kind === 'strike'
+    const test = open.kind === 'strike' || open.kind === 'shoot'
       ? (() => {
           const DL = getDL(state, open)
           const score = die + sumTerms(getAttackTerms(actor, open))
-          return { DL, score, ...scoreAttack(score, DL, isPiercingStrike(actor, open)) }
+          return { DL, score, ...scoreAttack(score, DL, isPiercingAttack(actor, open)) }
         })()
       : open.kind === 'move'
         ? (() => {
@@ -276,7 +276,7 @@ function priceFor(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
   const cost = action.kind === 'move'
-    ? getMoveCost(c, action.movement, getMoveFacts(state, action).path.length)
+    ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getDeclaredCost(c, action)
   if (!cost || c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
   return cost
@@ -288,7 +288,7 @@ function priceFor(state: CombatState, action: Action): ActionCost | null {
 export function spendHOP(purchase: HOPPurchase): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.kind !== 'strike' || open.status !== 'rolled') return state
+    if (!open || (open.kind !== 'strike' && open.kind !== 'shoot') || open.status !== 'rolled') return state
     if (!getHOPOptions(state, open).find((o) => o.purchase === purchase)?.available) return state
     return replaceActions(state, [{ ...open, spent: { ...open.spent, [purchase]: (open.spent[purchase] ?? 0) + 1 } }])
   }
@@ -299,7 +299,7 @@ export function spendHOP(purchase: HOPPurchase): Updater {
 export function refundHOP(purchase: HOPPurchase): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.kind !== 'strike' || open.status !== 'rolled') return state
+    if (!open || (open.kind !== 'strike' && open.kind !== 'shoot') || open.status !== 'rolled') return state
     const bought = open.spent[purchase] ?? 0
     if (bought === 0) return state
     const { [purchase]: _, ...rest } = open.spent
@@ -308,17 +308,17 @@ export function refundHOP(purchase: HOPPurchase): Updater {
 }
 
 // Lands the rolled action on everyone it concerns and closes it. A strike
-// has its attacker's side written down first, so the record says what
-// landed and the target's reducer needs nothing but the action; what it did
-// to the target's own action is written beside it, for the move it may have
-// cut short.
+// or a shot has its attacker's side written down first, so the record says
+// what landed and the target's reducer needs nothing but the action; what
+// it did to the target's own action is written beside it, for the move it
+// may have cut short or the one an evasion may open.
 export function resolveAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'rolled') return state
-    const resolved: Action = open.kind === 'strike'
+    const resolved: Action = open.kind === 'strike' || open.kind === 'shoot'
       ? (() => {
-          const facts = getStrikeFacts(state, open)
+          const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
           return { ...open, status: 'resolved' as const, facts, interruption: facts && target ? getOutcome(facts, target).interruption : 'none' as const }
         })()
@@ -339,11 +339,12 @@ function afterLanding(state: CombatState, resolved: Action, newId: () => string)
   return reaction?.kind === 'opportunityAttack' && root?.kind === 'move' && root.status === 'rolled' ? advanceMove(state, root, newId) : state
 }
 
-// combat.tex "Flanking", "Follow": the actions the resolved one's reactions
-// open, in the order they were declared. A flanker's opportunity attack "can
-// be voided if the target gets out of range", so one whose target ended
-// beyond the reactor's reach opens nothing. An opportunity attack against a
-// move was opened before the move resolved and is not opened again.
+// combat.tex "Flanking", "Follow", "Evasion": the actions the resolved one's
+// reactions open, in the order they were declared. A flanker's opportunity
+// attack "can be voided if the target gets out of range", so one whose
+// target ended beyond the reactor's reach opens nothing. An opportunity
+// attack against a move was opened before the move resolved and is not
+// opened again.
 function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
   return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     switch (reaction.kind) {
@@ -355,7 +356,18 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         return [getOpportunityStrike(reaction, newId())]
       }
       case 'follow':
-        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.cost, spawnedBy: reaction.id })]
+        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.cost?.AP ?? null, spawnedBy: reaction.id })]
+      // combat.tex "Evasion": on a hit, "take the attack normally and then
+      // use up to 2 AP to move if not interrupted"; on a graze, "jump to try
+      // to gain cover"; on a miss, "spend their movement surge immediately
+      // to escape or do the same as in the graze". The move is bought with
+      // the AP the reflex already paid; a miss leaves how far to the surge,
+      // and so to the evader.
+      case 'evasion': {
+        if (root.kind !== 'shoot' || root.interruption !== 'none') return []
+        const AP = reaction.cost?.AP ?? 0
+        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP, spawnedBy: reaction.id })]
+      }
       default:
         return []
     }

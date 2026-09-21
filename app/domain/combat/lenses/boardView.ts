@@ -91,7 +91,7 @@ export function getBoardView(state: CombatState): BoardView {
   const move = open?.kind === 'move' && open.status === 'declared' ? open : null
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
-  const reachable = move ? getReachableCells(state, move.actorId, move.movement) : []
+  const reachable = move ? getReachableCells(state, move) : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
   const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
   const destination = pending?.path[pending.path.length - 1] ?? null

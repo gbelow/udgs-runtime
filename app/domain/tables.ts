@@ -315,6 +315,20 @@ export const ACTION_COSTS = {
 
 export type ActionKind = keyof typeof ACTION_COSTS
 
+// combat.tex "Shoot", "Quick Shot", "Snipe": the ways a shooting weapon is
+// fired, each named by the variation the attack list gives it and how far it
+// reaches in metres before the shooter's abilities move it — null is as far
+// as the weapon itself. "Quick Shot ... can only be used within 10m of the
+// target"; "Shoot is only allowed against targets within 30m"; Snipe "allows
+// shooting targets at any distance".
+export const SHOTS = {
+  shoot:     { variant: 'basic', reach: 30 },
+  quickShot: { variant: 'quick', reach: 10 },
+  snipe:     { variant: 'snipe', reach: null },
+} as const satisfies Record<string, { variant: string; reach: number | null }>
+
+export type ShotKind = keyof typeof SHOTS
+
 // combat.tex "Localized damage", the humanoid locations: the penalty to the
 // attack test for aiming there, stored as a positive magnitude, and the
 // highest injury tier the body takes from a hit there (`null` when the book

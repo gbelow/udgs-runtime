@@ -56,6 +56,14 @@ export function getMoveCost(c: Character, kind: MovementKind, cells: number): Ac
   return { AP: blocks * block.AP, STA: blocks * block.STA }
 }
 
+// What the move as declared costs its actor, less what the reaction that
+// opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
+// move and does not need to be spent again, but any STA cost must be paid").
+export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
+  const cost = getMoveCost(c, action.movement, cells)
+  return { AP: Math.max(0, cost.AP - action.prepaid), STA: cost.STA }
+}
+
 // ---------------------------------------------------------------------------
 // Which kinds
 
@@ -137,7 +145,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const ground = readGround(state, action.actorId)
   if (!c || !from || !ground || action.path.length === 0) return false
   if (!getMovementOptions(state, c).find((o) => o.kind === action.movement)?.available) return false
-  if (action.budget && !withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
+  if (!withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
 
   let cursor = from.cell
   for (const [i, cell] of action.path.entries()) {
@@ -153,8 +161,8 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   return true
 }
 
-function withinBudget(cost: ActionCost, budget: ActionCost): boolean {
-  return cost.AP <= budget.AP && cost.STA <= budget.STA
+function withinBudget(cost: ActionCost, budget: number | null): boolean {
+  return budget === null || cost.AP <= budget
 }
 
 // ---------------------------------------------------------------------------
@@ -416,19 +424,23 @@ export function hasJumpSpace(state: CombatState, defenderId: string, attackerId:
 
 export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[] }
 
-// Every anchor the character can walk to at the kind of movement and pay
-// for as they stand, with the shortest path there: a breadth-first walk over
-// cells its footprint (as oriented now) may cross, stopping where the price
-// outruns what it has. Cells it may cross but not rest on are walked
-// through and left out.
-export function getReachableCells(state: CombatState, actorId: string, kind: MovementKind): ReachableCell[] {
+// Every anchor the character can walk to at the move's kind of movement
+// and pay for as they stand, with the shortest path there: a breadth-first
+// walk over cells its footprint (as oriented now) may cross, stopping where
+// the price outruns what it has or the move's cap. Cells it may cross but
+// not rest on are walked through and left out.
+export function getReachableCells(state: CombatState, action: MoveAction): ReachableCell[] {
+  const { actorId, movement: kind } = action
   const c = state.characters[actorId]
   const from = state.board?.placements[actorId]
   const ground = readGround(state, actorId)
   if (!c || !from || !ground) return []
   if (!getMovementOptions(state, c).find((o) => o.kind === kind)?.available) return []
 
-  const affordable = (cost: ActionCost) => cost.AP <= c.resources.AP && cost.STA <= c.resources.STA
+  const affordable = (steps: number) => {
+    const price = getMovePrice(c, action, steps)
+    return price.AP <= c.resources.AP && price.STA <= c.resources.STA && withinBudget(getMoveCost(c, kind, steps), action.budget)
+  }
   const crossable = (cell: Coord) => {
     const footprint = getFootprint(c, { ...from, cell })
     return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim')
@@ -438,8 +450,8 @@ export function getReachableCells(state: CombatState, actorId: string, kind: Mov
   const reachable: ReachableCell[] = []
   let frontier: { cell: Coord; path: Coord[] }[] = [{ cell: from.cell, path: [] }]
   for (let steps = 1; frontier.length > 0; steps++) {
-    const cost = getMoveCost(c, kind, steps)
-    if (!affordable(cost)) break
+    if (!affordable(steps)) break
+    const cost = getMovePrice(c, action, steps)
     const next: typeof frontier = []
     for (const { cell, path } of frontier) {
       for (const n of neighbors(cell)) {
@@ -479,7 +491,7 @@ export function pickPathCell(state: CombatState, action: MoveAction, cell: Coord
   if (!from) return null
   const end = action.path[action.path.length - 1] ?? from.cell
   if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)
-  const reachable = getReachableCells(state, action.actorId, action.movement)
+  const reachable = getReachableCells(state, action)
   const there = findReachable(reachable, cell)
   if (!there) return null
   if (distance(end, cell) === 1 && there.steps > action.path.length) return [...action.path, cell]
