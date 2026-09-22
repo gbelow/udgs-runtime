@@ -3,17 +3,17 @@ import { ActionSchema, type Action, type ActionDraft, type ActionKind, type Acti
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
-import { canCastSpell, getCastingDL, getSpellSkill } from '../../character/lenses/spells'
-import { getEffectRange, getTargetEffects } from '../../character/lenses/production'
+import { canCastSpell, getCastingDL, getSpellSkill } from '../../character/rules/spells'
+import { getEffectRange, getTargetEffects } from '../../character/rules/production'
 import { HIT_LOCATIONS } from '../../lists'
 import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/lenses/hands'
-import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/lenses/gear'
-import { getAccuracy, getDefend, getReflex, getSD, getStrike } from '../../character/lenses/skills'
-import { getAGI } from '../../character/lenses/characteristics'
-import { getAfflictions } from '../../character/lenses/afflictions'
-import { getBuffBonus } from '../../character/lenses/effects'
-import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
-import { Term, sumTerms } from '../../character/lenses/terms'
+import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/rules/gear'
+import { getAccuracy, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getAGI } from '../../character/rules/characteristics'
+import { getAfflictions } from '../../character/rules/afflictions'
+import { getBuffBonus } from '../../character/rules/effects'
+import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
+import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
@@ -610,29 +610,6 @@ export function getImprovementOptions(root: CastAction): ImprovementOption[] {
     times: root.improved[name] ?? 0,
     available: SPELL_MODIFICATIONS[name].SOP <= remaining,
   }))
-}
-
-// Everyone with a reaction to the open action, each with their options —
-// and, for one who has chosen an opportunity attack, the strike it opens
-// still to be declared: its rows and where it aims.
-export type ReactorOptions = {
-  id: string
-  name: string
-  options: ActionOption[]
-  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
-}
-
-export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
-  return Object.values(state.characters)
-    .filter((c) => c.id !== open.actorId)
-    .map((c) => {
-      const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
-      const strike = declared?.kind === 'opportunityAttack'
-        ? { options: getAttackOptions(c, 'strike'), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
-        : null
-      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike }
-    })
-    .filter((r) => r.options.length > 0)
 }
 
 // ---------------------------------------------------------------------------

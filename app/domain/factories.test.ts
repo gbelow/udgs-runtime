@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCharacter, makeCampaignCharacter } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
-import { getSTA } from './character/lenses/characteristics'
+import { getSTA } from './character/rules/characteristics'
 import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema } from './types'
 import armorsCatalog from '../assets/armors.json'
 

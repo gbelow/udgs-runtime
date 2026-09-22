@@ -1,7 +1,7 @@
-import { getSTARegen } from "../lenses/characteristics"
-import { getActionCost } from "../lenses/actionCosts"
+import { getSTARegen } from "../rules/characteristics"
+import { getActionCost } from "../rules/actionCosts"
 import { CampaignCharacter } from "../../types"
-import { getAfflictions } from "../lenses/afflictions"
+import { getAfflictions } from "../rules/afflictions"
 
 export function restCharacter(c: CampaignCharacter): CampaignCharacter
  {

@@ -1,7 +1,7 @@
 import type { Character, Skills } from '../../types'
 import { isCampaignCharacter } from '../../utils'
-import { skillTermGetters } from './skills'
-import { Term, sumTerms } from './terms'
+import { skillTermGetters } from '../rules/skills'
+import { Term, sumTerms } from '../rules/terms'
 
 // A delivery waiting on the character's die, as the panel reads it: what
 // it is, the test it leaves them, and what they roll it with.

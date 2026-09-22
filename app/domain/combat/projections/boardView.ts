@@ -1,10 +1,10 @@
 import type { CombatState, Coord, Degree } from '../types'
-import type { ActionCost } from '../../character/lenses/actionCosts'
+import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, sameCell } from '../geometry'
-import { getFootprint, getOccupancy, toPlane } from './board'
-import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from './action'
-import { getExplosionCenters, getExplosionZones, getThreatenedCells } from './explosion'
-import { getEvasiveJumpPlacements, getReachableCells } from './move'
+import { getFootprint, getOccupancy, toPlane } from '../rules/board'
+import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from '../rules/action'
+import { getExplosionCenters, getExplosionZones, getThreatenedCells } from '../rules/explosion'
+import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells

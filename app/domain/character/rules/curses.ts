@@ -1,8 +1,6 @@
-import type { AfflictionKey, Character, Skills } from '../../types'
+import type { AfflictionKey, Character } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
-import { skillTermGetters } from './skills'
-import { Term, sumTerms } from './terms'
 
 // spells.tex "Curse": the curses the character carries, read as permissively
 // as the wounds — an entry whose spell the catalog no longer has is skipped.
@@ -20,28 +18,4 @@ export function getCurses(c: Character): CarriedCurse[] {
 export function getCurseAfflictions(c: Character): AfflictionKey[] {
   return getCurses(c).flatMap(({ key }) =>
     isSpellKey(key) ? SPELLS[key].effects.flatMap((e) => (e.duration === 'locked' && e.type === 'affliction' ? [e.effect.key] : [])) : [])
-}
-
-// A carried curse as the panel reads it: the spell, and the test that
-// beats it.
-export type CurseRow = {
-  key: string
-  name: string
-  roll: keyof Skills | null
-  DL: number
-  terms: Term[]
-  total: number
-}
-
-export function getCurseRows(c: Character): CurseRow[] {
-  return getCurses(c).map(({ key, DL }) => {
-    const spell = isSpellKey(key) ? SPELLS[key] : null
-    const roll = spell?.effects.find((e) => e.duration === 'locked' && e.resist)?.resist?.roll ?? null
-    const terms = roll ? skillTermGetters[roll](c) : []
-    return { key, name: spell?.name ?? key, roll, DL, terms, total: sumTerms(terms) }
-  })
-}
-
-export function getCurseDigest(rows: CurseRow[]): string {
-  return rows.map((r) => `${r.key}/${r.roll}/${r.DL}/${r.total}`).join('|')
 }

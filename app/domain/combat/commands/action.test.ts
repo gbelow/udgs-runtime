@@ -4,7 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
 import { ACTIONS } from '../actionCatalog'
-import { getAvailableActions, getOpenAction, getReactionsTo } from '../lenses/action'
+import { getAvailableActions, getOpenAction, getReactionsTo } from '../rules/action'
 import { reduceCharacter } from '../reduce'
 import { cancelAction, commitAction, declareAction, declareReaction, resolveAction, rollAction, setTarget } from './action'
 

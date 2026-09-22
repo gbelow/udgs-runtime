@@ -1,7 +1,7 @@
 import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Material, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
-import { scaleArmor, scaleWeapon } from '../../character/lenses/helpers'
+import { scaleArmor, scaleWeapon } from '../../character/rules/helpers'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'

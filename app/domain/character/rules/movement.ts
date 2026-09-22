@@ -1,24 +1,9 @@
-import { Character, Lens } from "../../types";
+import { Character } from "../../types";
 // combat.tex "Afflictions" excludes movement speeds from the injury penalty,
 // so every speed below reads the unpenalized AGI base (gear burden still
 // applies — gear.tex puts that penalty on the attribute itself).
 import { getAGIBase } from "./characteristics";
 import { getBuffBonus } from "./effects";
-
-export function makeMovementLens<T extends Character>(
-  moveName: keyof Character['movement'],
-  getter: (c: T) => number,
-  setter?: (c: T, value: number) => T
-): Lens<T, number> {
-  return {
-    get: getter,
-    set: setter ?? ((subject: T, value: number): T => {
-      const calculated = getter(subject) - subject.movement[moveName]
-      const updated = {...subject, movement: {...subject.movement, [moveName]: value - calculated}}
-      return updated as T;
-    })
-  };
-}
 
 // The stored value from character.movement plus whatever abilities add to it.
 export function getRaw (c: Character, key: keyof Character["movement"]) {

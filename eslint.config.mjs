@@ -45,10 +45,11 @@ const eslintConfig = [
   },
 
   // 2. Components must not reach into the rule-bearing halves of the domain, nor
-  //    into the state layer. Lenses and commands ARE the game rules, and so is
-  //    every constant in tables.ts; a component that imports one is one step
-  //    away from reimplementing it inline (which is how the armor tier table,
-  //    the STA regen formula and the weapon STR-mod duplicate all got into JSX).
+  //    into the state layer. Rules, lenses, projections and commands ARE the
+  //    game rules, and so is every constant in tables.ts; a component that
+  //    imports one is one step away from reimplementing it inline (which is how
+  //    the armor tier table, the STA regen formula and the weapon STR-mod
+  //    duplicate all got into JSX).
   //    Stores are barred for the other half of the same flow: domain -> stores
   //    -> hooks -> UI only holds if the UI enters at the hook. Inert modules —
   //    types, lists, factories, utils, dice — stay allowed.
@@ -59,14 +60,18 @@ const eslintConfig = [
         patterns: [
           {
             group: [
+              "**/domain/*/rules",
+              "**/domain/*/rules/**",
               "**/domain/*/lenses",
               "**/domain/*/lenses/**",
+              "**/domain/*/projections",
+              "**/domain/*/projections/**",
               "**/domain/*/commands",
               "**/domain/*/commands/**",
             ],
             allowTypeImports: true,
             message:
-              "Components render domain projections; they do not import lenses or commands. Add a getter to a lens or a command in app/domain, expose it through a hook in app/hooks, and call the hook. (Type-only imports are fine: use `import type`.)",
+              "Components render domain projections; they do not import rules, lenses, projections or commands. Add the getter or command in app/domain, expose it through a hook in app/hooks, and call the hook. (Type-only imports are fine: use `import type`.)",
           },
           {
             group: ["**/domain/tables"],

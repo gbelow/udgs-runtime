@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, Item, SlotKind } from '../../types'
 import { getItemWeapon } from './items'
-import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
+import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { isCampaignCharacter } from '../../utils'
 import { hasProperty } from '../../weaponProperties'
 

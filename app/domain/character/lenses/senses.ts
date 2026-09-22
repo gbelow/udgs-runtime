@@ -1,6 +1,6 @@
 import { Character, Lens, Sense, Senses } from "../../types";
 import { composeLens, makeInvertingSetter, makePropLens } from "./factories";
-import { getBuffBonus } from "./effects";
+import { getBuffBonus } from "../rules/effects";
 
 export const sensesLens: Lens<Character, Senses> = makePropLens<Character, "senses">("senses");
 

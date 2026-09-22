@@ -1,4 +1,4 @@
-import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/lenses/activeCharacter";
+import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { useCombatStore } from "../stores/useCombatStore";
 

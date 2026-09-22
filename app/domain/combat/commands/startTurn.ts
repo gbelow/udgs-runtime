@@ -1,4 +1,4 @@
-import { getActiveCharacter } from '../lenses/activeCharacter'
+import { getActiveCharacter } from '../rules/activeCharacter'
 import { CombatState } from '../types'
 
 export function startTurn(

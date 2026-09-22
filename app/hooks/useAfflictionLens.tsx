@@ -1,5 +1,6 @@
 import { addAffliction } from "../domain/character/commands";
-import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows, getAfflictions } from "../domain/character/lenses/afflictions";
+import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows } from "../domain/character/lenses/afflictions";
+import { getAfflictions } from "../domain/character/rules/afflictions";
 import { AfflictionKey, Character } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";

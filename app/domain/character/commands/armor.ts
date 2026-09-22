@@ -1,5 +1,5 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../lenses/armor'
+import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../rules/armor'
 import { getHeldItem } from '../../item/lenses/hands'
 import { FREE, isCharged } from '../../item/lenses/costs'
 import { canFitItem } from '../../item/lenses/containers'

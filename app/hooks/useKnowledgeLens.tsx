@@ -1,6 +1,7 @@
 import { addKnowledge, removeKnowledge } from "../domain/character/commands";
-import { getMentalAfflictionPenalty } from "../domain/character/lenses/afflictions";
-import { getAvailableKnowledges, getKnowledgeTerms, getKnowledgeValues, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
+import { getMentalAfflictionPenalty } from "../domain/character/rules/afflictions";
+import { getAvailableKnowledges, knowledgesLens, makeKnowledgeLens } from "../domain/character/lenses/knowledge";
+import { getKnowledgeTerms, getKnowledgeValues } from "../domain/character/rules/knowledge";
 import { Term, termsDigest, termsView } from "../domain/character/lenses";
 import { Character, Knowledges } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";

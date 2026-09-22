@@ -1,8 +1,8 @@
 import { Character, Container, ContainerKind, ContainerSchema, Item, SlotKind, SlotKindSchema } from '../../types'
 import { getBulkName, isSameItem } from './items'
 import { getDrawView, getHeldItem, getStoreCost, isCharged } from './hands'
-import { getWearView, WearView } from '../../character/lenses/armor'
-import { getSize } from '../../character/lenses/misc'
+import { getWearView, WearView } from '../../character/rules/armor'
+import { getSize } from '../../character/rules/misc'
 import containersCatalog from '../../../assets/containers.json'
 
 export function getSlotBulk(container: Container, slot: SlotKind): number {

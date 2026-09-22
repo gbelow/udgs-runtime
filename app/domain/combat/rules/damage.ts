@@ -1,16 +1,15 @@
 import type { Character, Damage, DamageKind, Delivery } from '../../types'
-import type { Action, AttackAction, CombatState, HOPPurchase } from '../types'
+import type { AttackAction, CombatState, HOPPurchase } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
-import { getArmor } from '../../character/lenses/armor'
-import { Outcome, getOutcome } from '../../character/lenses/damage'
-import { getBlockValue } from '../../character/lenses/gear'
-import { getDM } from '../../character/lenses/helpers'
-import { getForce } from '../../character/lenses/skills'
+import { getArmor } from '../../character/rules/armor'
+import { Outcome, getOutcome } from '../../character/rules/damage'
+import { getBlockValue } from '../../character/rules/gear'
+import { getDM } from '../../character/rules/helpers'
+import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/lenses/items'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
-import { getExplosionFacts } from './explosion'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -161,26 +160,4 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
 // other effect or one with no degree yet.
 export function outcomeOf(delivery: Delivery, target: Character): Outcome | null {
   return delivery.effect.type === 'damage' && delivery.degree !== null ? getOutcome(delivery.effect.effect, delivery.degree, target) : null
-}
-
-// The outcome of the open action on everyone it lands on, as it would land
-// now: the same function the resolution applies, so the preview and the
-// result cannot differ. One entry for the target of a strike or a shot; one
-// per character in an explosion's area.
-export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
-  if (root.kind === 'explosion') {
-    const facts = root.facts ?? getExplosionFacts(state, root)
-    return Object.entries(facts).flatMap(([id, deliveries]) => {
-      const target = state.characters[id]
-      return deliveries.flatMap((d) => {
-        const outcome = target ? outcomeOf(d, target) : null
-        return outcome ? [{ id, outcome }] : []
-      })
-    })
-  }
-  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return []
-  const target = state.characters[root.targetId]
-  const facts = root.facts ?? getAttackFacts(state, root)
-  const outcome = target && facts ? outcomeOf(facts, target) : null
-  return outcome ? [{ id: root.targetId, outcome }] : []
 }

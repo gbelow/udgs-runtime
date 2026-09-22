@@ -1,5 +1,5 @@
 import { rollFull } from "../domain/combat/dice";
-import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/lenses/actionPanel";
+import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/projections/actionPanel";
 import {
   amendAction,
   amendReaction,

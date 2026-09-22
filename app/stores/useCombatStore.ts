@@ -2,7 +2,7 @@
 import { create } from 'zustand'
 import { CampaignCharacter } from '../domain/types'
 import { CombatState } from '../domain/combat/types'
-import { getActiveCharacter } from '../domain/combat/lenses/activeCharacter'
+import { getActiveCharacter } from '../domain/combat/rules/activeCharacter'
 import { makeCampaignCharacter } from '../domain/factories'
 import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
 

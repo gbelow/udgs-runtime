@@ -1,4 +1,4 @@
-import { getInjuryStage, isDead } from "../domain/character/lenses/afflictions";
+import { getInjuryStage, isDead } from "../domain/character/rules/afflictions";
 import { composeLens, makePropLens } from "../domain/character/lenses/factories";
 import { CampaignCharacter, CampaignValuesSchema, Character, Injuries } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";

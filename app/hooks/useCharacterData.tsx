@@ -1,5 +1,6 @@
-import { getSTARegen } from "../domain/character/lenses/characteristics";
-import { getSurgeAvailability, getSurgeOptions, getUsedSurge, SurgeOption } from "../domain/character/lenses/surge";
+import { getSTARegen } from "../domain/character/rules/characteristics";
+import { getSurgeAvailability, getSurgeOptions, SurgeOption } from "../domain/character/lenses/surge";
+import { getUsedSurge } from "../domain/character/rules/surge";
 import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterDerived, useActiveCharacterSelector } from "./useActiveCharacterSelector";

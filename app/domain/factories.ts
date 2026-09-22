@@ -1,6 +1,6 @@
 import z from 'zod'
 import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema, PendingActionSchema, ShapeSchema } from './types'
-import { getSTA } from './character/lenses/characteristics'
+import { getSTA } from './character/rules/characteristics'
 import { isBaseCharacter } from './utils'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,

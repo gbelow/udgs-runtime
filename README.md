@@ -127,7 +127,7 @@ app/
 
 The domain layer is authoritative, so most changes start there and flow outward. Data moves in one direction:
 
-`JSON templates (app/**/*.json)` → `Zod schemas (app/domain/types.ts)` → `factories (app/domain/factories.ts)` → `lenses + commands (app/domain/**)` → `stores/hooks` → `components`
+`JSON templates (app/**/*.json)` → `Zod schemas (app/domain/types.ts)` → `factories (app/domain/factories.ts)` → `rules + lenses/projections + commands (app/domain/**)` → `stores/hooks` → `components`
 
 When implementing a feature or fix:
 
@@ -139,7 +139,7 @@ When implementing a feature or fix:
 
 Heuristics:
 
-- Derived value or rule → a **lens** getter in `app/domain/character/lenses/**`, registered in `lenses/index.ts`.
+- Derived value or rule → a getter in `app/domain/character/rules/**` (or `combat/rules/**`); a stat the sheet edits also gets a **lens** registered in `lenses/index.ts`; a shape the UI renders is a view getter in `character/lenses/**` or a projection in `combat/projections/**`.
 - User-triggered state change → a pure **command** in `app/domain/**/commands/**` returning a new aggregate.
 - Reading / writing → server actions (`app/actions.ts`) or `redis.ts`; treat persistence as I/O, not rule evaluation.
 
@@ -155,7 +155,7 @@ Non-negotiable constraints:
   Two ESLint rules enforce the boundary mechanically (`eslint.config.mjs`), so this is a build failure rather than a code-review habit:
 
   - `app/domain/**` may not import from `app/stores/**`, React, or Zustand — the domain defines its own types and the store imports them, never the reverse.
-  - `app/components/**` may not import from `**/domain/*/lenses/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/combat/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
+  - `app/components/**` may not import from `**/domain/*/rules/**`, `**/domain/*/lenses/**`, `**/domain/*/projections/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/combat/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
 
 ## Minimal Feature Context
 

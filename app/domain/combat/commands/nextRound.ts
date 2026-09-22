@@ -3,7 +3,7 @@ import { expireUsedAbilities } from '../../character/commands/abilities'
 import { applyTrigger } from '../../character/commands/effects'
 import { suffocate } from '../../character/commands/bleed'
 import { CombatState } from '../types'
-import { getPlacedFootprint } from '../lenses/board'
+import { getPlacedFootprint } from '../rules/board'
 import { coordKey } from '../geometry'
 
 // combat.tex "Gas": "anyone that starts the round inside a suffocating gas

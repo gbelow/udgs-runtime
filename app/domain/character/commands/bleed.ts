@@ -1,5 +1,5 @@
 import { CampaignCharacter } from "../../types"
-import { getAfflictions } from "../lenses/afflictions"
+import { getAfflictions } from "../rules/afflictions"
 
 
 export function bleed( amount: number): (c: CampaignCharacter) => CampaignCharacter {

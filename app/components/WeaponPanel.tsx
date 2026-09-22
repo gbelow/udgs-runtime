@@ -2,7 +2,7 @@
 
 import { useWeaponLens } from "../hooks/useWeaponLens";
 import { useCombatActions } from "../hooks/useCombatActions";
-import type { AttackVariant } from "../domain/character/lenses/gear";
+import type { AttackVariant } from "../domain/character/rules/gear";
 import type { AttackKind } from "../domain/types";
 import { Button, Panel } from "./ui";
 

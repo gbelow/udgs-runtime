@@ -1,6 +1,6 @@
 import type { Coord } from "../domain/combat/types";
 import type { TerrainBrush } from "../domain/types";
-import { BoardView, getBoardView, getBoardViewDigest } from "../domain/combat/lenses/boardView";
+import { BoardView, getBoardView, getBoardViewDigest } from "../domain/combat/projections/boardView";
 import { setTarget } from "../domain/combat/commands/action";
 import { createBoard, paintTerrain, pickCell, placeCharacter, turnCharacter, turnMove } from "../domain/combat/commands/board";
 import { useCombatStore } from "../stores/useCombatStore";

@@ -36,9 +36,6 @@
 - add tex generator from catalogue
 
 ## spells
-- add spell enahncements details
-- tests - results
-- damage as an effect
 - add tex generator from catalogue
 
 # grapple
@@ -77,5 +74,5 @@
 ## issues
 bleed does not trigger at the end of the round
 flee, braced attack, hooked attack.
-
+flamethrower - sustain doesn t work. spray must allow retargeting.
 add guard against healing when hunger and thirst are too high

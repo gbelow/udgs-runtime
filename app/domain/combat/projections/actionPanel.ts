@@ -1,19 +1,17 @@
-import type { ActionRoll, CombatState, Coord, HitLocation } from '../types'
+import type { Action, ActionRoll, CastAction, CombatState, Coord, HitLocation, MoveStop } from '../types'
 import type { Area, CampaignCharacter, MovementKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
-import { Term, sumTerms } from '../../character/lenses/terms'
+import { Term, sumTerms } from '../../character/rules/terms'
 import {
   ActionOption,
   ActionStep,
   ImprovementOption,
   ChargeOption,
   getChargeOptions,
-  ReactorOptions,
   SpellOption,
   areReactionsComplete,
   getCastTerms,
   getImprovementOptions,
-  getReactors,
   getSOPRemaining,
   getSpellOptions,
   needsDie,
@@ -29,14 +27,47 @@ import {
   getOpenAction,
   getReactionsTo,
   getTargetIds,
-} from './action'
-import { DeliveryView, getCastDeliveries } from './cast'
-import { ActionCost } from '../../character/lenses/actionCosts'
-import { HOPOption, getHOPOptions, getHOPRemaining, getOutcomePreviews } from './damage'
-import type { Outcome } from '../../character/lenses/damage'
-import { getExplosionAreas, isSpray } from './explosion'
-import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from './move'
-import type { MoveStop } from '../types'
+  isDeclarationComplete,
+} from '../rules/action'
+import { getCastFacts } from '../rules/cast'
+import { ActionCost } from '../../character/rules/actionCosts'
+import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
+import { getOutcomePreviews } from './outcomes'
+import type { Outcome } from '../../character/rules/damage'
+import { getExplosionAreas, isSpray } from '../rules/explosion'
+import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
+
+// Everyone with a reaction to the open action, each with their options —
+// and, for one who has chosen an opportunity attack, the strike it opens
+// still to be declared: its rows and where it aims.
+export type ReactorOptions = {
+  id: string
+  name: string
+  options: ActionOption[]
+  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
+}
+
+export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
+  return Object.values(state.characters)
+    .filter((c) => c.id !== open.actorId)
+    .map((c) => {
+      const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
+      const strike = declared?.kind === 'opportunityAttack'
+        ? { options: getAttackOptions(c, 'strike'), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
+        : null
+      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike }
+    })
+    .filter((r) => r.options.length > 0)
+}
+
+// The deliveries a cast will make as it stands, for the panel: who takes
+// what, and the test it leaves them.
+export type DeliveryView = { id: string; name: string; kind: string; test: { roll: string; DL: number } | null }
+
+export function getCastDeliveries(state: CombatState, root: CastAction): DeliveryView[] {
+  return Object.entries(root.facts ?? getCastFacts(state, root)).flatMap(([id, deliveries]) =>
+    deliveries.map((d) => ({ id, name: d.effect.name, kind: d.effect.type, test: d.test ? { roll: d.test.roll, DL: d.test.DL } : null })))
+}
 
 // The open action as the panel reads it, every field final.
 export type OpenActionView = {

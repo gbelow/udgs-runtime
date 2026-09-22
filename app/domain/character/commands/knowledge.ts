@@ -1,5 +1,6 @@
 import { Character, CharacterUpdater } from '../../types'
-import { emptyKnowledge, knowledgesLens, makeKnowledgeEntryLens } from '../lenses/knowledge'
+import { emptyKnowledge } from '../rules/knowledge'
+import { knowledgesLens, makeKnowledgeEntryLens } from '../lenses/knowledge'
 
 export function removeKnowledge(name: string): CharacterUpdater {
   return (character: Character) => {

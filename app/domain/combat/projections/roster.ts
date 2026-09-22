@@ -1,13 +1,6 @@
-import type { CampaignCharacter, SurgeKind } from '../../types'
+import type { SurgeKind } from '../../types'
 import type { CombatState } from '../types'
-import { Role, getNextStep, getOpenAction, getRole, getTargetIds } from './action'
-
-// Read-side: which character is active is a pure function of combat state.
-// The domain owns this so combat commands never need to import CombatStore.
-export function getActiveCharacter(state: CombatState): CampaignCharacter | null {
-  if (!state.activeCharacterId) return null
-  return state.characters[state.activeCharacterId] ?? null
-}
+import { Role, getNextStep, getOpenAction, getRole, getTargetIds } from '../rules/action'
 
 export type CombatRosterEntry = {
   id: string

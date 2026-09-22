@@ -2,19 +2,12 @@ import type { CampaignCharacter, Character, MovementKind } from '../../types'
 import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement, StrikeAction } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS } from '../../lists'
-import { ActionCost } from '../../character/lenses/actionCosts'
-import { getAfflictions } from '../../character/lenses/afflictions'
-import { getBalanceTerms } from '../../character/lenses/skills'
-import { Term } from '../../character/lenses/terms'
-import {
-  getBasicMovement,
-  getCarefulMovement,
-  getCrawlMovement,
-  getJumpMovement,
-  getRunMovement,
-  getSwimMovement,
-} from '../../character/lenses/movement'
-import { getSize } from '../../character/lenses/misc'
+import { ActionCost } from '../../character/rules/actionCosts'
+import { getAfflictions } from '../../character/rules/afflictions'
+import { getBalanceTerms } from '../../character/rules/skills'
+import { Term } from '../../character/rules/terms'
+import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getSwimMovement } from '../../character/rules/movement'
+import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 

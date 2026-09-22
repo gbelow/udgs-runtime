@@ -1,10 +1,10 @@
 import { CampaignCharacter, Character } from "../../types"
 import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
-import { canLearnAbility } from "../lenses/abilities"
-import { effectsOn, isAbilityActive, lingers } from "../lenses/effects"
+import { canLearnAbility } from "../rules/abilities"
+import { effectsOn, isAbilityActive, lingers } from "../rules/effects"
 import { applyEffects } from "./effects"
-import { canAfford } from "../lenses/cost"
+import { canAfford } from "../rules/cost"
 import { payCost } from "./cost"
 
 export function learnAbility(key: AbilityKey): (c: Character) => Character {

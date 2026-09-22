@@ -1,5 +1,5 @@
 import { CampaignCharacter, Effect, Trigger } from "../../types"
-import { effectsDue } from "../lenses/effects"
+import { effectsDue } from "../rules/effects"
 import { deliver } from "./deliver"
 
 // The effects a catalog entry lists, applied as they fall due: each is

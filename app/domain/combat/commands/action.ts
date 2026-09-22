@@ -21,19 +21,19 @@ import {
   isPiercingAttack,
   needsDie,
   scoreAttack,
-} from '../lenses/action'
-import { getAttackFacts, getHOPOptions, outcomeOf } from '../lenses/damage'
-import { getExplosionFacts, isSpray } from '../lenses/explosion'
-import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
-import { getDistanceBetween, getMeleeRange } from '../lenses/board'
+} from '../rules/action'
+import { getAttackFacts, getHOPOptions, outcomeOf } from '../rules/damage'
+import { getExplosionFacts, isSpray } from '../rules/explosion'
+import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
+import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
-import { sumTerms } from '../../character/lenses/terms'
-import { scoreTest } from '../../character/lenses/test'
-import { getSOP, isHit } from '../../character/lenses/spells'
-import { getCastFacts } from '../lenses/cast'
+import { sumTerms } from '../../character/rules/terms'
+import { scoreTest } from '../../character/rules/test'
+import { getSOP, isHit } from '../../character/rules/spells'
+import { getCastFacts } from '../rules/cast'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
-import { ActionCost } from '../../character/lenses/actionCosts'
+import { ActionCost } from '../../character/rules/actionCosts'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then

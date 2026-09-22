@@ -1,23 +1,13 @@
 import { Character, Characteristics, Lens, Movement, Senses, Skills } from "../../types";
-import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConviction2, getDevotion, getDEX, getINT, getMelee, getRanged, getSorcery, getSPI, getSTA, getSTR, characteristicTermGetters } from "./characteristics";
+import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConviction2, getDevotion, getDEX, getINT, getMelee, getRanged, getSorcery, getSPI, getSTA, getSTR, characteristicTermGetters } from "../rules/characteristics";
 import { makeInvertingLens, makeTrainableValueLens } from "./factories";
-import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "./magic";
-import { getSize, getTGH } from "./misc";
-import { getBasicMovement, getCarefulMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement, makeMovementLens } from "./movement";
+import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "../rules/magic";
+import { getSize, getTGH } from "../rules/misc";
+import { getBasicMovement, getCarefulMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
+import { makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSenseRangePenaltyLens } from "./senses";
-import {
-  getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD,
-  getBalance, getClimb, getSwim, getPrestidigitation, getHealth,
-  getExplore, getWill,
-  getStealth,
-  getPersuasion,
-  getInsight,
-  getDeception,
-  getDetection,
-  skillTermGetters, Term, sumTerms,
-  getForce,
-} from "./skills";
-import { termsDigest, termsView, TermsView } from "./terms";
+import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce, skillTermGetters } from "../rules/skills";
+import { Term, sumTerms, termsDigest, termsView, TermsView } from "../rules/terms";
 
 export { skillTermGetters, characteristicTermGetters, sumTerms, termsDigest, termsView }
 export type { Term, TermsView }

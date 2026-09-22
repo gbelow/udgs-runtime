@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { DamageSchema, ItemSchema, type CampaignCharacter, type Damage, type Degree } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
 import { LOCATIONS, injuryMap } from '../../tables'
-import { getOutcome } from '../../character/lenses/damage'
-import { getOutcomePreviews } from './damage'
-import { getOpenAction } from './action'
-import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { getOutcome } from '../../character/rules/damage'
 
 const target = makeCampaignCharacter({})
 
@@ -80,36 +76,5 @@ describe('hand wounds', () => {
     const blocker = { ...target, hands: [target.hands[0], { ...target.hands[1], itemId: dagger.id }], held: [dagger] }
     const outcome = blow({ blunt: 200, location: 'hand', defense: 'block', defenseWeaponKey: dagger.id }, blocker)
     expect(outcome.wound?.hand).toBe(1)
-  })
-})
-
-function fighter(id: string): CampaignCharacter {
-  const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, resources: { ...base.resources, AP: 8, STA: 6 } }
-}
-
-function combat(...characters: CampaignCharacter[]): CombatState {
-  return { ...CombatStateSchema.parse({}), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
-}
-
-// The preview shown before "done" is computed by the same function the
-// resolution applies; the target's sheet has to move by exactly what was
-// shown.
-describe('the preview', () => {
-  it('is what the target takes', () => {
-    let n = 0
-    let s = combat(fighter('atk'), fighter('def'))
-    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, () => `a${++n}`)(s)
-    s = setTarget('def')(s)
-    s = commitAction()(s)
-    s = rollAction(() => 30)(s)
-    const open = getOpenAction(s)!
-    const preview = getOutcomePreviews(s, open)[0].outcome
-    expect(preview.tier).not.toBeNull()
-
-    const after = resolveAction()(s)
-    expect(after.characters.def.injuries.injuryLevel - s.characters.def.injuries.injuryLevel).toBe(preview.IL)
-    expect(after.characters.def.injuries.bleed - s.characters.def.injuries.bleed).toBe(preview.bleed)
-    expect(s.characters.def.resources.AP - after.characters.def.resources.AP).toBe(preview.apLoss)
   })
 })

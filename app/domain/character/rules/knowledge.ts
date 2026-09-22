@@ -1,27 +1,15 @@
-import { Character, Knowledges, Lens, Trainable, TrainableSchema } from '../../types'
+import { Character, Trainable, TrainableSchema } from '../../types'
 import { getMentalAfflictionPenalty } from './afflictions'
-import { knowledges_list } from '../../lists'
-import { composeLens, makeInvertingSetter, makePropLens } from './factories'
 import { Term, sumTerms } from './terms'
 
 export function emptyKnowledge(name: string): Trainable {
   return TrainableSchema.parse({ name, type: 'knowledge' })
 }
 
-export const knowledgesLens: Lens<Character, Knowledges> = makePropLens<Character, 'knowledges'>('knowledges')
-
-// Unlike makePropLens<Trainables, keyof Trainables>, this hop can't assume the
-// key exists — `knowledges` starts at {} and only gains entries as they're
-// set — so it defaults to an empty Trainable instead of reading `undefined`.
-function knowledgeEntryLens(name: string): Lens<Knowledges, Trainable> {
-  return {
-    get: (knowledges) => knowledges[name] ?? emptyKnowledge(name),
-    set: (knowledges, value) => ({ ...knowledges, [name]: value }),
-  }
-}
-
-export function makeKnowledgeEntryLens(name: string): Lens<Character, Trainable> {
-  return composeLens(knowledgesLens, knowledgeEntryLens(name))
+// `knowledges` starts at {} and only gains entries as they're set, so a name
+// not yet held reads as an empty Trainable instead of `undefined`.
+function getKnowledgeEntry(c: Character, name: string): Trainable {
+  return c.knowledges[name] ?? emptyKnowledge(name)
 }
 
 // combat.tex "Afflictions": mental penalties affect "all Knowledges". The
@@ -29,7 +17,7 @@ export function makeKnowledgeEntryLens(name: string): Lens<Character, Trainable>
 // the penalty so writing a knowledge level still changes the stored base.
 export function getKnowledgeTerms(name: string): (c: Character) => Term[] {
   return (c: Character) => [
-    { label: name, value: makeKnowledgeEntryLens(name).get(c).value },
+    { label: name, value: getKnowledgeEntry(c, name).value },
     { label: 'affliction', value: -getMentalAfflictionPenalty(c) },
   ]
 }
@@ -44,23 +32,6 @@ export function getKnowledge(name: string): (c: Character) => number {
 // read without reaching back for the character.
 export function getKnowledgeValues(c: Character): Record<string, number> {
   return Object.fromEntries(
-    Object.keys(knowledgesLens.get(c)).map((name) => [name, getKnowledge(name)(c)]),
+    Object.keys(c.knowledges).map((name) => [name, getKnowledge(name)(c)]),
   )
-}
-
-export function makeKnowledgeLens(name: string): Lens<Character, number> {
-  const baseLens = composeLens(makeKnowledgeEntryLens(name), makePropLens<Trainable, 'value'>('value'))
-  const getter = getKnowledge(name)
-  return {
-    get: getter,
-    set: makeInvertingSetter(getter, baseLens.get, baseLens.set),
-  }
-}
-
-// The formal areas the character has not trained yet — what an "add knowledge"
-// picker can still offer. Custom names are always allowed, so this is the
-// default list minus what is already held, not a closed set.
-export function getAvailableKnowledges(c: Character): string[] {
-  const held = knowledgesLens.get(c)
-  return knowledges_list.filter((name) => !(name in held))
 }

@@ -1,7 +1,7 @@
 import { CampaignCharacter, SurgeKind } from "../../types"
 import { SURGES } from "../../tables"
 import { bleed } from "./bleed"
-import { canSurge, getSurgeAP } from "../lenses/surge"
+import { canSurge, getSurgeAP } from "../rules/surge"
 
 // combat.tex "Action surge": a character is entitled to one surge per round, so
 // a character that already used one this round cannot surge again, whichever

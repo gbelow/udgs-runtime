@@ -2,9 +2,9 @@ import type { TerrainBrush } from '../../types'
 import { BoardSchema, TerrainCellSchema, type Coord, type CombatState } from '../types'
 import { makeBoard } from '../factories'
 import { coordKey, directionTo, sameCell } from '../geometry'
-import { getOpenAction } from '../lenses/action'
-import { getExplosionCenters } from '../lenses/explosion'
-import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../lenses/move'
+import { getOpenAction } from '../rules/action'
+import { getExplosionCenters } from '../rules/explosion'
+import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../rules/move'
 import { aimExplosion, amendAction, declareReaction } from './action'
 
 // The simulation tool's own commands: what the table does to the board by

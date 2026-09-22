@@ -1,10 +1,10 @@
 import type { AfflictionKey, CampaignCharacter, Condition, Degree, Delivery } from '../../types'
 import { AFFLICTIONS, WOUNDS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
-import { getCurses } from '../lenses/curses'
-import { Outcome, getOutcome } from '../lenses/damage'
+import { getCurses } from '../rules/curses'
+import { Outcome, getOutcome } from '../rules/damage'
 import { skillLenses } from '../lenses'
-import { scoreTest } from '../lenses/test'
+import { scoreTest } from '../rules/test'
 import { payCost } from './cost'
 
 // The one place a delivered effect changes a character. A delivery whose
