@@ -1,4 +1,4 @@
-import type { Character, Damage, Delivery } from '../../types'
+import type { Character, Damage, DamageKind, Delivery } from '../../types'
 import type { Action, AttackAction, CombatState, ExplosionAction, ExplosionFacts, HOPPurchase } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
@@ -45,35 +45,50 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
 
 // A damage effect on its way, at a degree already decided by the producer.
 function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {
-  return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, when: null, then: [] }
+  return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, test: null, when: null, then: [] }
+}
+
+function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
+  return { ...damage, damage: damage.damage.map((d) => (d.kind === kind ? { ...d, value: d.value + value } : d)) }
+}
+
+// combat.tex "Success Overflow", "Hand": what each purchase does to the
+// damage on its way, bought `times` over. "Extra cut: Increases cutting
+// damage by 1xDM per HOP"; "Smash: ... add 2 xDM extra damage and upgrades
+// an interrupt to a stun"; the rest mark the damage for the target's side
+// to read — the bypass against their armor, the cut against equal hardness,
+// the switch to the hand.
+const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, attacker: Character) => Damage> = {
+  extraCut: (d, times, a) => addTo(d, 'cut', times * Math.floor(1 * getDM(a))),
+  smash: (d, times, a) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(a))), smash: true }),
+  bypass: (d) => ({ ...d, bypass: true }),
+  penetrating: (d) => ({ ...d, penetrating: true }),
+  handSwitch: (d) => ({ ...d, location: 'hand' }),
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP
-// are spent: the variation's damage plus the extra cut bought (combat.tex
-// "Extra cut": "+1 x DM per HOP"), the effects bought, where it lands (the
-// hand switch moves it — combat.tex "Hand"), what it met, and the degree
-// the test came to.
+// are spent: the variation's damage as the row and the variation make it,
+// where it was aimed, what it met — then each purchase bought, applied in
+// turn — and the degree the test came to.
 export function getAttackFacts(state: CombatState, root: AttackAction): Delivery | null {
   const attacker = state.characters[root.actorId]
   if (!attacker || !root.roll) return null
   const variant = getAttackVariant(attacker, root)
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
-  const bought = (p: HOPPurchase) => root.spent[p] ?? 0
-  return delivering(`${row.weapon.name} ${row.atk.name}`, {
-    damage: [
-      { kind: 'blunt', value: variant.blunt + bought('smash') * Math.floor(2 * getDM(attacker)) },
-      { kind: 'cut', value: variant.cut + bought('extraCut') * Math.floor(1 * getDM(attacker)) },
-    ],
+  const base: Damage = {
+    damage: [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }],
     hardness: getHardness(row.atk.material),
     force: getForce(attacker),
     properties: row.atk.properties,
-    location: bought('handSwitch') > 0 ? 'hand' : root.location,
+    location: root.location,
     ...getDefense(state, root),
-    bypass: bought('bypass') > 0,
-    penetrating: bought('penetrating') > 0,
-    smash: bought('smash') > 0,
-  }, root.roll.degree)
+    bypass: false,
+    penetrating: false,
+    smash: false,
+  }
+  const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, attacker) : d), base)
+  return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
 }
 
 // combat.tex "Explosions"; gear.tex "Explosion": "Being caught in the

@@ -143,7 +143,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
     IL: halved ? Math.floor(row.IL / 2) : row.IL,
     // combat.tex "Bleed": "is caused by blunt and cutting damage"
     bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed : 0,
-    ...effectsOf(facts, target, best.tier, Math.max(tiers.blunt ?? -1, tiers.electric ?? -1), piercing),
+    ...effectsOf(facts, target, best.tier, tiers, piercing),
   }
 }
 
@@ -166,11 +166,18 @@ function woundedHand(facts: Damage, target: Character): number {
 // the worst one the tier reaches (Shocked is measured on the blunt tier and
 // needs a smash); the head knocks out on a stun and kills at T4. A stun's AP
 // comes off whatever the target has, on top of what the reaction cost.
-function effectsOf(facts: Damage, target: Character, tier: number, bluntTier: number, piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
+// combat.tex "Burn, radiant": "Dealing Tier 0 injury or higher leaves the
+// target burning"; "Corrosive": "Tiers 0 to I of damage leaves the target
+// corroding at that tier of damage".
+function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcome['tiers'], piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
+  const bluntTier = Math.max(tiers.blunt ?? -1, tiers.electric ?? -1)
   const interrupted = bluntTier >= 1
   const stunned = bluntTier >= STUN_TIER || (facts.smash && interrupted)
   const afflictions = new Set<AfflictionKey>()
   let dead = false
+  if (Math.max(tiers.burn ?? -1, tiers.radiant ?? -1) >= 0) afflictions.add('burning')
+  if (tiers.corrosive === 0) afflictions.add('corroding0')
+  if (tiers.corrosive === 1) afflictions.add('corroding1')
 
   const reached = (Object.keys(WOUNDS) as WoundKey[])
     .map((key) => ({ key, ...WOUNDS[key] }))

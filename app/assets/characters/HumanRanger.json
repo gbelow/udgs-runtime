@@ -384,7 +384,9 @@
       "burden": 3
     }
   },
-  "abilities": [],
+  "abilities": [
+    "archer"
+  ],
   "spells": {},
   "notes": ""
 }

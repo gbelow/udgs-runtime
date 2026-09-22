@@ -1,28 +1,48 @@
-import type { CampaignCharacter, Condition, Delivery } from '../../types'
+import type { AfflictionKey, CampaignCharacter, Condition, Degree, Delivery } from '../../types'
+import { AFFLICTIONS, WOUNDS } from '../../tables'
 import { Outcome, getOutcome } from '../lenses/damage'
+import { skillLenses } from '../lenses'
+import { scoreTest } from '../lenses/test'
 import { payCost } from './cost'
 
 // The one place a delivered effect changes a character. A delivery whose
 // degree is known lands now: the effect is applied, and what its landing
 // came to is held against the gate of each follow-up, which is then
-// delivered in turn. One whose degree is still the target's to decide waits
-// in `pending` for their test. Buffs and suppressions are never applied:
-// they are read off the catalogs for as long as their source is in effect.
+// delivered in turn. One that leaves a test to the target waits in
+// `pending` for their die; one with neither lands at full strength. Buffs
+// and suppressions are never applied: they are read off the catalogs for
+// as long as their source is in effect.
 export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    if (delivery.degree === null) return { ...c, pending: [...c.pending, delivery] }
+    if (delivery.degree === null && delivery.test !== null) return { ...c, pending: [...c.pending, delivery] }
+    const degree = delivery.degree ?? 'hit'
     const { effect } = delivery
     switch (effect.type) {
       case 'cost':
-        return follow(delivery, null)(payCost(effect.effect)(c))
+        return follow(delivery, degree, null)(payCost(effect.effect)(c))
       case 'damage': {
-        const outcome = getOutcome(effect.effect, delivery.degree, c)
-        return follow(delivery, outcome)(takeOutcome(outcome)(c))
+        const outcome = getOutcome(effect.effect, degree, c)
+        return follow(delivery, degree, outcome)(takeOutcome(outcome)(c))
       }
+      case 'affliction':
+        return follow(delivery, degree, null)(inflict([effect.effect.key])(c))
       case 'buff':
       case 'suppression':
-        return follow(delivery, null)(c)
+        return follow(delivery, degree, null)(c)
     }
+  }
+}
+
+// The target's die on a pending delivery: their skill against the DL the
+// producer set, and the effect lands at the degree that comes of it if the
+// test lets it, or not at all. Either way the wait is over.
+export function resolvePending(index: number, die: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    const delivery = c.pending[index]
+    if (!delivery?.test) return c
+    const degree = scoreTest(die + skillLenses[delivery.test.roll].get(c), delivery.test.DL)
+    const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
+    return delivery.test.on.includes(degree) ? deliver({ ...delivery, degree, test: null })(rest) : rest
   }
 }
 
@@ -34,8 +54,24 @@ function passes(when: Condition | null, outcome: Outcome | null): boolean {
   return true
 }
 
-function follow(delivery: Delivery, outcome: Outcome | null): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => delivery.then.filter((next) => passes(next.when, outcome)).reduce((acc, next) => deliver(next)(acc), c)
+// A follow-up that decides nothing for itself lands as hard as its parent.
+function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) =>
+    delivery.then
+      .filter((next) => passes(next.when, outcome))
+      .reduce((acc, next) => deliver(next.degree === null && next.test === null ? { ...next, degree } : next)(acc), c)
+}
+
+// combat.tex "Afflictions": one of a group at a time, the one put on last
+// standing in for whatever of the group was carried. A key already carried
+// is not carried twice.
+function inflict(keys: AfflictionKey[]): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) =>
+    keys.reduce((acc, key) => {
+      const { group } = AFFLICTIONS[key]
+      const rest = group ? acc.afflictions.filter((k) => AFFLICTIONS[k].group !== group) : acc.afflictions
+      return { ...acc, afflictions: rest.includes(key) ? rest : [...rest, key] }
+    }, c)
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
@@ -43,7 +79,8 @@ function follow(delivery: Delivery, outcome: Outcome | null): (c: CampaignCharac
 // character carries in `active` until it is healed, and a death from the
 // head puts the level at the threshold that is death. A wound already
 // carried is not carried twice, and its affliction is read off it rather
-// than stored; only unconsciousness, which no wound carries, is written.
+// than stored; what the damage inflicts beyond the wound — unconsciousness,
+// a burning — is written.
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { wound } = outcome
@@ -52,16 +89,16 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
       ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(wound.hand !== null ? { hand: wound.hand } : {}) }]
       : c.active
     const injuryLevel = c.injuries.injuryLevel + outcome.IL
-    return {
+    const wounded = wound ? WOUNDS[wound.key].affliction ?? null : null
+    return inflict(outcome.afflictions.filter((a) => a !== wounded))({
       ...c,
       active,
-      afflictions: [...new Set([...c.afflictions, ...outcome.afflictions.filter((a) => a === 'unconscious')])],
       injuries: {
         ...c.injuries,
         injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
         bleed: c.injuries.bleed + outcome.bleed,
       },
       resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
-    }
+    })
   }
 }

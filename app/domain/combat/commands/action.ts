@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Degree, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
@@ -25,6 +25,7 @@ import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMo
 import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
+import { scoreTest } from '../../character/lenses/test'
 import { ActionCost } from '../../character/lenses/actionCosts'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -230,13 +231,6 @@ export function rollAction(dice: () => number, newId: () => string = () => `${Da
     const rolled = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
     return afterPaying(applyPhase(replaceActions(state, rolled), rolled, 'roll'), open.id, newId)
   }
-}
-
-// play.tex "Degrees of success": over the DL by 10 is a critical, by 5 a
-// hit, by 0 a graze, less a miss.
-function scoreTest(score: number, DL: number): Degree {
-  const over = score - DL
-  return over >= 10 ? 'critical' : over >= 5 ? 'hit' : over >= 0 ? 'graze' : 'miss'
 }
 
 // A reaction that is a test of its own, scored against the root's DL.

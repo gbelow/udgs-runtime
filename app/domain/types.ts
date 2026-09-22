@@ -76,6 +76,7 @@ export const SkillsSchema = z.object({
   insight: trainable('skill', 0, 'Insight'),
 }).strip()
 export type Skills = z.infer<typeof SkillsSchema>
+export const SkillKeySchema = z.enum(Object.keys(SkillsSchema.shape) as [keyof Skills, ...(keyof Skills)[]])
 
 export const AttributesSchema = z.object({
   STR: trainable('attribute', 10, 'Strength'),
@@ -488,11 +489,19 @@ const EffectBase = {
   trigger: TriggerSchema.default('instant'),
 }
 
+// combat.tex "Afflictions": a condition put on the character — poison, a
+// blindness, a burning. It joins the afflictions the character carries, the
+// worst of its group winning, as the affliction rules say.
+export const AfflictionEffectSchema = z.object({
+  key: AfflictionKeySchema,
+}).strip()
+
 export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('damage'), effect: DamageSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
@@ -506,21 +515,34 @@ export const ConditionSchema = z.object({
 }).strip()
 export type Condition = z.infer<typeof ConditionSchema>
 
+// The test a delivered effect leaves to its target (play.tex "Skill test"):
+// the skill they roll, the DL the producer set, and the degrees at which the
+// effect still lands — a poison that takes hold "on a graze or miss" of a
+// health test. A delivery with no test lands at the degree it came with.
+export const DeliveryTestSchema = z.object({
+  roll: SkillKeySchema,
+  DL: num.default(0),
+  on: z.array(DegreeSchema).default(['miss', 'graze']),
+}).strip()
+export type DeliveryTest = z.infer<typeof DeliveryTestSchema>
+
 // An effect on its way to a character. `degree` is how hard it lands — set
 // by the producer when its own test or the zone decided it, left null for
-// the target to decide by a test of their own. `when` gates it on what its
-// parent came to, and `then` is what its own landing produces next: an
+// the target to decide by the `test` of their own. `when` gates it on what
+// its parent came to, and `then` is what its own landing produces next: an
 // attack is a damage delivery, a poisoned blade a damage delivery whose
 // `then` carries the poison, gated on the cut reaching T0.
 export type Delivery = {
   effect: Effect
   degree: Degree | null
+  test: DeliveryTest | null
   when: Condition | null
   then: Delivery[]
 }
 export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.object({
   effect: EffectSchema,
   degree: DegreeSchema.nullable().default(null),
+  test: DeliveryTestSchema.nullable().default(null),
   when: ConditionSchema.nullable().default(null),
   then: z.array(DeliverySchema).default([]),
 }).strip()) as unknown as z.ZodType<Delivery, Delivery>

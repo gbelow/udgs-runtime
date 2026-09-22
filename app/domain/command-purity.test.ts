@@ -53,6 +53,7 @@ function characterSubject(): CampaignCharacter {
     usedSurge: 'focus',
     pendingAction: { kind: 'spell', key: 'sleep', score: 12, SOP: 7, spent: {} },
     afflictions: ['prone'],
+    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5, on: ['miss', 'graze'] }, when: null, then: [] }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
@@ -97,7 +98,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
-  deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', when: null, then: [] }),
+  resolvePending: characterCommands.resolvePending(0, 3),
+  deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [] }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
 

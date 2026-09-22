@@ -21,6 +21,7 @@ import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
+import { usePendingLens } from '../hooks/usePendingLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
@@ -126,6 +127,7 @@ export function PlayPanel(){
           </div>
           <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
             <BoardPanel />
+            <PendingPanel />
             <AfflictionsPannel />
             <ArmorPanel />
             <HandsPanel />
@@ -268,6 +270,28 @@ function SimpleKnowledge({name}: {name: string}){
 function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}){
   const [value] = useMovementLens(moveName)
   return <StatTile label={title} value={value} className='w-22' />
+}
+
+// Effects delivered to the character that wait on a test of their own:
+// each rolled here, landing or not as the die says.
+function PendingPanel(){
+  const { rows, roll } = usePendingLens()
+  if (rows.length === 0) return null
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <SectionLabel>pending</SectionLabel>
+      {rows.map((r) => (
+        <div key={r.index} className='flex flex-row flex-wrap gap-x-3 items-center'>
+          <span>{r.name || r.kind}</span>
+          <SkillTooltip terms={r.terms} total={r.total}>
+            <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
+          </SkillTooltip>
+          <span className='text-muted'>lands on {r.on.join(', ')}</span>
+          <Button size='xs' variant='primary' aria-label={`roll ${r.name || r.kind}`} onClick={() => roll(r.index)}>roll</Button>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 function AfflictionsPannel(){
