@@ -1,7 +1,8 @@
 import { CampaignCharacter } from '../../types'
 import { expireUsedAbilities } from '../../character/commands/abilities'
 import { applyTrigger } from '../../character/commands/effects'
-import { suffocate } from '../../character/commands/bleed'
+import { suffocate, bleed } from '../../character/commands/bleed'
+import { isDead } from '../../character/rules/afflictions'
 import { CombatState } from '../types'
 import { getPlacedFootprint } from '../rules/board'
 import { coordKey } from '../geometry'
@@ -27,10 +28,18 @@ export function nextRound(
   const updatedCharacters: Record<string, CampaignCharacter> = {}
 
   for (const [id, character] of Object.entries(state.characters)) {
+    // A dead character has nothing left to pay or bleed out further — no
+    // upkeep, no gas, no bleed clock still running on a corpse.
+    if (isDead(character)) {
+      updatedCharacters[id] = character
+      continue
+    }
+
     // Everything due at the round change lands now — the upkeep of what is
     // held on or was fired this round — and so does not being able to
-    // breathe; a fired ability is then spent
-    let updatedCharacter = suffocate(expireUsedAbilities(applyTrigger('end_round')(breathe(state, character))))
+    // breathe; a fired ability is then spent. combat.tex "Bleed": +1 IL per
+    // bleed intensity at the end of every round in combat.
+    let updatedCharacter = bleed(1)(suffocate(expireUsedAbilities(applyTrigger('end_round')(breathe(state, character)))))
 
     // Clear the surge used last round and the roll left unresolved in it
     updatedCharacter = {

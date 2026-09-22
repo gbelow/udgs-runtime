@@ -26,7 +26,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -133,6 +133,7 @@ export function ActionPanel(){
               <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
                 <SectionLabel>{r.name}</SectionLabel>
                 <Button size='xs' variant={answered ? 'default' : 'primary'} className={answered ? '' : 'bg-accent/15'} onClick={() => withdraw(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
+                {r.concentrating ? <Button size='xs' variant='bad' aria-label='cancel spell' title='give up concentration to defend actively' onClick={() => cancelSpell(r.id)}>cancel spell</Button> : null}
                 {r.options.map((o) =>
                   <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
               </div>

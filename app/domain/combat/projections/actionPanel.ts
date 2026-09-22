@@ -25,6 +25,7 @@ import {
   getOpenAction,
   getReactionsTo,
   getTargetIds,
+  isConcentrating,
   isDeclarationComplete,
 } from '../rules/action'
 import { getCastFacts } from '../rules/cast'
@@ -43,6 +44,9 @@ export type ReactorOptions = {
   name: string
   options: ActionOption[]
   strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
+  // spells.tex "Concentration": still theirs to give up, to answer with
+  // anything but the SD (`cancelCast`)
+  concentrating: boolean
 }
 
 export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
@@ -53,7 +57,7 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
       const strike = declared?.kind === 'opportunityAttack'
         ? { options: getAttackOptions(c, 'strike'), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
         : null
-      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike }
+      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, concentrating: isConcentrating(state, open, c.id) }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -231,7 +235,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
     outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: state.characters[id]?.fightName ?? '', outcome })) : [],
-    SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(cast) } : { remaining: 0, options: [] },
+    SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
     deliveries: cast && cast.status === 'rolled'
       ? getCastDeliveries(state, cast).map((d: DeliveryView) => ({ target: state.characters[d.id]?.fightName ?? '', name: d.name, kind: d.kind, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null }))
       : [],

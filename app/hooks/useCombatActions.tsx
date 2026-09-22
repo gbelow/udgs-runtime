@@ -4,6 +4,7 @@ import {
   amendAction,
   amendReaction,
   cancelAction,
+  cancelCast,
   commitAction,
   declareAction,
   declareReaction,
@@ -44,6 +45,7 @@ export function useCombatActions() {
   const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => update(amendReaction(reactorId, fields));
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
+  const cancelSpell = (actorId: string) => update(cancelCast(actorId));
   const roll = () => update(rollAction(() => rollFull(Math.random), newId));
   const commit = () => update(commitAction());
   const back = () => update(withdrawLastReaction());
@@ -55,5 +57,5 @@ export function useCombatActions() {
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } as const;
 }

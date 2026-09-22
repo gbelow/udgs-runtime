@@ -46,10 +46,13 @@ function bare(c: Character, effect: SpellEffect, improved: Improvements): Effect
   const { name, trigger, type } = effect
   switch (type) {
     case 'damage': {
+      // combat.tex "Intercept": force is compared against whoever met the
+      // blow, which only means something for a single target — an area
+      // effect's blast carries its own authored force, not the producer's.
       return { name, trigger, type, effect: DamageSchema.parse({
         ...effect.effect,
         ...scaleDamage(c, effect.effect.damage, effect.scaled, improved),
-        force: getForce(c),
+        force: effect.target === 'area' ? effect.effect.force : getForce(c),
       }) }
     }
     case 'affliction': return { name, trigger, type, effect: effect.effect }

@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
@@ -30,7 +30,7 @@ import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/rules/terms'
 import { scoreTest } from '../../character/rules/test'
 import { getSOP, isHit } from '../../character/rules/spells'
-import { getCastFacts } from '../rules/cast'
+import { getCastFacts, getCastOpportunityAttacks, isCastCancelled } from '../rules/cast'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -278,14 +278,42 @@ export function payAction(newId: () => string = () => `${Date.now()}`): Updater 
   }
 }
 
-// What follows the payment: a move with opportunity attacks declared against
-// it has the first of them opened before it resolves; an explosion has
-// whoever's reflexes cleared it moving out of the way before it goes off.
+// What follows the payment: a move or a cast with opportunity attacks
+// declared against it has the first of them opened before it resolves; an
+// explosion has whoever's reflexes cleared it moving out of the way before
+// it goes off.
 function afterPaying(state: CombatState, id: string, newId: () => string): CombatState {
   const paid = getAction(state, id)
   if (paid?.kind === 'move') return advanceMove(state, paid, newId)
+  if (paid?.kind === 'cast') return advanceCast(state, paid, newId)
   if (paid?.kind === 'explosion') return { ...state, actions: [...state.actions, ...escapesBefore(state, paid, newId)] }
   return state
+}
+
+// combat.tex "Opportunity Attack": "The attack occurs before the effect of
+// the triggering action" — a cast's is spawned as each threatener's turn to
+// swing comes up, exactly as a move's, but never halted early: nothing
+// about casting keeps a later threatener from reaching the caster the way a
+// mover outrunning a stretch of path does, so every reaction declared
+// against it gets its attack (combat.tex "Flanking": "resolved in order").
+function advanceCast(state: CombatState, cast: CastAction, newId: () => string): CombatState {
+  const next = getCastOpportunityAttacks(state, cast).find(({ strike }) => strike === null)
+  return next ? { ...state, actions: [...state.actions, getOpportunityStrike(next.reaction, newId())] } : state
+}
+
+// spells.tex "Concentration": gives up the cast an opportunity attack was
+// drawn against, so its caster can answer with anything but the SD. Only
+// the caster, and only against an opportunity attack their own casting
+// triggered.
+export function cancelCast(actorId: string): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'strike' || open.status !== 'committed' || !open.opportunity) return state
+    const reaction = open.spawnedBy ? getAction(state, open.spawnedBy) : null
+    const cast = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
+    if (!cast || cast.kind !== 'cast' || cast.actorId !== actorId || cast.cancelled) return state
+    return replaceActions(state, [{ ...cast, cancelled: true }])
+  }
 }
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
@@ -383,7 +411,7 @@ export function improveSpell(name: SpellModification): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
-    if (!getImprovementOptions(open).find((o) => o.name === name)?.available) return state
+    if (!getImprovementOptions(state, open).find((o) => o.name === name)?.available) return state
     return replaceActions(state, [{ ...open, improved: { ...open.improved, [name]: (open.improved[name] ?? 0) + 1 } }])
   }
 }
@@ -431,25 +459,33 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
   }
 }
 
-// An opportunity attack fought against a mover, once it has landed, hands
-// the move back: on to the next one, or to its end.
+// An opportunity attack fought against a mover or a caster, once it has
+// landed, hands the root back: on to its next threatener, or to its end.
 function afterLanding(state: CombatState, resolved: Action, newId: () => string): CombatState {
   const reaction = resolved.spawnedBy ? getAction(state, resolved.spawnedBy) : null
   const root = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
-  return reaction?.kind === 'opportunityAttack' && root?.kind === 'move' && root.status === 'rolled' ? advanceMove(state, root, newId) : state
+  if (reaction?.kind !== 'opportunityAttack' || root?.status !== 'rolled') return state
+  if (root.kind === 'move') return advanceMove(state, root, newId)
+  if (root.kind === 'cast') return advanceCast(state, root, newId)
+  return state
 }
 
 // combat.tex "Flanking", "Follow", "Evasion": the actions the resolved one's
 // reactions open, in the order they were declared. A flanker's opportunity
 // attack "can be voided if the target gets out of range", so one whose
 // target ended beyond the reactor's reach opens nothing. An opportunity
-// attack against a move was opened before the move resolved and is not
-// opened again. A cast that hit with an area to it opens that area as an
+// attack against a move or a cast was opened before the root resolved (see
+// `advanceMove`, `advanceCast`) and is not opened again here. A cast that
+// hit with an area to it opens that area as an
 // explosion of the caster's, aimed and played out on its own (combat.tex
 // "Explosions"; the caster's part is done).
 function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
   const opened = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     switch (reaction.kind) {
+      // combat.tex "Flanking": opened here, after the strike it answers has
+      // landed. A move's or a cast's own opportunity attacks are opened
+      // earlier (`advanceMove`, `advanceCast`) and are already spawned by
+      // the time their root gets here.
       case 'opportunityAttack': {
         if (root.kind !== 'strike') return []
         const reactor = state.characters[reaction.actorId]
@@ -485,7 +521,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         return []
     }
   })
-  if (root.kind === 'cast' && root.roll?.degree === 'hit' && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
+  if (root.kind === 'cast' && root.roll?.degree === 'hit' && !isCastCancelled(state, root) && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
     opened.push(ActionSchema.parse({ kind: 'explosion', id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
   }
   return opened

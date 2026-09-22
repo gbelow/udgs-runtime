@@ -159,6 +159,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "area",
@@ -224,6 +225,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "area",
@@ -328,10 +330,11 @@
           "damage": [
             {
               "kind": "burn",
-              "value": 20
+              "value": 15
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "area",
@@ -524,6 +527,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",
@@ -589,6 +593,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",
@@ -734,6 +739,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",
@@ -2503,6 +2509,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",
@@ -2571,6 +2578,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",
@@ -2686,6 +2694,7 @@
             }
           ],
           "hardness": 0,
+          "force": 0,
           "properties": []
         },
         "target": "target",

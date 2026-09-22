@@ -225,14 +225,14 @@
     },
     "conviction1": {
       "value": 0,
-      "name": "Temperament",
+      "name": "Hedonism",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
     },
     "conviction2": {
       "value": 0,
-      "name": "Worldview",
+      "name": "Stoicism",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
@@ -256,6 +256,13 @@
     "linguistics": {
       "value": 2,
       "name": "linguistics",
+      "XP": 0,
+      "talent": "",
+      "type": "knowledge"
+    },
+    "alchemy": {
+      "value": 3,
+      "name": "alchemy",
       "XP": 0,
       "talent": "",
       "type": "knowledge"
@@ -345,7 +352,7 @@
       "name": "hand",
       "naturalWeapon": "Unarmed",
       "canHold": true,
-      "itemId": "ed1f0702-869f-489c-af13-02d0dbf26c01"
+      "itemId": "9b11f7ac-5477-48be-95cb-c659129b917b"
     }
   ],
   "held": [
@@ -360,13 +367,13 @@
       "charge": null
     },
     {
-      "id": "ed1f0702-869f-489c-af13-02d0dbf26c01",
-      "name": "Grenade",
-      "description": "",
-      "type": "weapon",
+      "id": "9b11f7ac-5477-48be-95cb-c659129b917b",
+      "name": "Flamethrower",
+      "description": "A stick mounted with a fire stone to apply pressure to the flames, deals 15 base burn damage.",
+      "type": "magical",
       "amount": 1,
-      "bulk": 1,
-      "refId": "Grenade",
+      "bulk": 2,
+      "refId": "",
       "charge": null
     }
   ],
@@ -400,7 +407,18 @@
         "quick": {
           "numSlots": 8,
           "slotBulk": 1,
-          "items": []
+          "items": [
+            {
+              "id": "fc7e82ab-41d2-47b0-99b6-f07d596880a5",
+              "name": "Grenade",
+              "description": "",
+              "type": "weapon",
+              "amount": 4,
+              "bulk": 1,
+              "refId": "Grenade",
+              "charge": null
+            }
+          ]
         },
         "medium": {
           "numSlots": 0,

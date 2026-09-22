@@ -91,7 +91,6 @@ export function PlayPanel(){
               <SectionLabel>Injury</SectionLabel>
               <div className='flex flex-row flex-wrap gap-3 items-end'>
                 <InjuryControl type='potion' />
-                <DamageControl />
                 <InjuryControl type='injuryLevel' />
                 <InjuryControl type='bleed' />
                 <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
@@ -152,20 +151,6 @@ function DamageButton({amount}: {amount: number}){
   }
 
   return <Button size='xs' variant='bad' className='font-mono w-8' aria-label={`cause${amount}Injury`} onClick={dealDamage}>{amount}</Button>
-}
-
-function DamageControl(){
-  return(
-    <div className='flex flex-col items-center gap-1'>
-      <span className='text-[10px] text-muted'>cause injury</span>
-      <div className='grid grid-cols-2 gap-1'>
-        <DamageButton amount={5} />
-        <DamageButton amount={10} />
-        <DamageButton amount={20} />
-        <DamageButton amount={30} />
-      </div>
-    </div>
-  )
 }
 
 const INJURY_TITLES = { injuryLevel: 'injury level', bleed: 'bleed', potion: 'potion' } as const

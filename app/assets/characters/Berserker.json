@@ -262,6 +262,7 @@
     }
   },
   "size": 3,
+  "shape": "blob",
   "TGH": 0,
   "senses": {
     "vision": {
@@ -330,64 +331,68 @@
     "type": "armor",
     "amount": 1,
     "bulk": 5,
-    "refId": "Brigandine"
+    "refId": "Brigandine",
+    "charge": null
   },
   "hands": [
     {
       "name": "hand",
       "naturalWeapon": "Unarmed",
       "canHold": true,
-      "itemId": "1f23135e-8a21-4f1f-9d1d-e387bd3ae01d"
+      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183"
     },
     {
       "name": "hand",
       "naturalWeapon": "Unarmed",
       "canHold": true,
-      "itemId": "894278e9-4b36-47ae-a5fe-2f0bbb6d8068"
+      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183"
     }
   ],
   "held": [
     {
-      "id": "1f23135e-8a21-4f1f-9d1d-e387bd3ae01d",
-      "name": "Wooden Shield",
+      "id": "b030cde0-1569-4ed9-87d7-6d9aae424183",
+      "name": "Bardiche",
       "description": "",
       "type": "weapon",
       "amount": 1,
       "bulk": 3,
-      "refId": "Wooden Shield"
-    },
-    {
-      "id": "894278e9-4b36-47ae-a5fe-2f0bbb6d8068",
-      "name": "Battle Axe",
-      "description": "",
-      "type": "weapon",
-      "amount": 1,
-      "bulk": 2,
-      "refId": "Battle Axe"
+      "refId": "Bardiche",
+      "charge": null
     }
   ],
   "containers": {
-    "Backpack": {
-      "name": "Backpack",
-      "kind": "backpack",
+    "Belt": {
+      "name": "Belt",
+      "kind": "belt",
       "slots": {
         "quick": {
-          "numSlots": 0,
-          "slotBulk": 1,
-          "items": []
+          "numSlots": 4,
+          "slotBulk": 2,
+          "items": [
+            {
+              "id": "1631b710-5b1c-4f3e-9ddb-e2a635b34cad",
+              "name": "Short Sword",
+              "description": "",
+              "type": "weapon",
+              "amount": 1,
+              "bulk": 2,
+              "refId": "Short Sword",
+              "charge": null
+            }
+          ]
         },
         "medium": {
-          "numSlots": 12,
+          "numSlots": 0,
           "slotBulk": 2,
           "items": []
         },
         "large": {
-          "numSlots": 2,
+          "numSlots": 0,
           "slotBulk": 3,
           "items": []
         }
       },
-      "burden": 4
+      "burden": 3
     }
   },
   "abilities": [],

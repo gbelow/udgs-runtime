@@ -209,6 +209,11 @@ export const CastActionSchema = z.object({
   quicken: z.boolean().default(false),
   // improvement -> times bought
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
+  // spells.tex "Concentration": given up to answer an opportunity attack it
+  // drew with an active defense instead of the SD, or lost outright once one
+  // of them interrupts — either way nothing the cast would have produced
+  // lands, though the AP/STA already spent stays spent.
+  cancelled: z.boolean().default(false),
   facts: z.record(z.string(), z.array(DeliverySchema)).nullable().default(null),
 }).strip()
 
@@ -283,13 +288,15 @@ export const MoveActionSchema = z.object({
 }).strip()
 
 // combat.tex "Opportunity Attack" and "Flanking": declared as a reaction to
-// a strike (by a flanker) or a move (by whoever the mover comes at), and
-// opens a strike of its own — after the strike it answers resolves, or
-// before the move it answers does ("The attack occurs before the effect of
-// the triggering action"). The strike is declared here, in full, before the
-// root is paid for: what it opens is already committed. `at` is the path
-// step of a move at which it fired; the mover stands one space short of
-// that stretch while it is fought, and stays there if it interrupts.
+// a strike (by a flanker), a move (by whoever the mover comes at), or a
+// cast (by anyone who threatens the caster — spells.tex "Concentration"
+// makes casting a triggering action), and opens a strike of its own — after
+// the strike it answers resolves, or before the move or the cast it answers
+// does ("The attack occurs before the effect of the triggering action"). The
+// strike is declared here, in full, before the root is paid for: what it
+// opens is already committed. `at` is the path step of a move at which it
+// fired; the mover stands one space short of that stretch while it is
+// fought, and stays there if it interrupts.
 export const OpportunityAttackActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('opportunityAttack'),

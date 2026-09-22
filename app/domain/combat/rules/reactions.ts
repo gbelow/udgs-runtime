@@ -1,6 +1,6 @@
-import type { Action, ActionKind, CombatState, ExplosionAction, MoveAction, ShootAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CastAction, CombatState, ExplosionAction, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
-import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
+import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { setDistance } from '../geometry'
@@ -27,6 +27,7 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
     case 'shoot': return shootTriggers(state, root)
     case 'explosion': return explosionTriggers(state, root)
     case 'move': return moveTriggers(state, root)
+    case 'cast': return castTriggers(state, root)
     default: return []
   }
 }
@@ -79,6 +80,17 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
   if (!isAvoidable(root)) return []
   return getThreatenedIds(state, root).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
+}
+
+// combat.tex "Opportunity Attack": "anything that costs 3 AP or more during
+// a focus surge" triggers it; spells.tex "Casting spells": "Spells require
+// using a focus surge to be cast in combat scenes." spells.tex "Quicken
+// Spell": "+4 DL to allow it to be cast during any surge and not cause
+// opportunity attacks" — the one way to cast without drawing one. Anyone who
+// threatens the caster in melee gets the reaction.
+function castTriggers(state: CombatState, root: CastAction): Trigger[] {
+  if (root.quicken) return []
+  return getMeleeThreateners(state, root.actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee

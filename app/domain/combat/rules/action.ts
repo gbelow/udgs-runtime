@@ -20,6 +20,7 @@ import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRa
 import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
+import { isCastCancelled } from './cast'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
@@ -395,8 +396,23 @@ export type ActionOption = {
 // block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
 // there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle".
+// spells.tex "Concentration": "No other action or reaction can be performed
+// while concentrating" — while an opportunity attack against `defenderId`
+// answers a still-live cast of their own, that is the cast they would have
+// to give up (`cancelCast`) to perform it.
+function getConcentratingCast(state: CombatState, root: Action, defenderId: string): CastAction | null {
+  const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+  const cast = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
+  return reaction?.kind === 'opportunityAttack' && cast?.kind === 'cast' && cast.actorId === defenderId && !cast.cancelled ? cast : null
+}
+
+export function isConcentrating(state: CombatState, root: Action, defenderId: string): boolean {
+  return getConcentratingCast(state, root, defenderId) !== null
+}
+
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
+  if (reactsTo(kind, 'strike') && getConcentratingCast(state, root, defender.id)) return { available: false, reason: 'cancel the spell to defend actively' }
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
@@ -610,8 +626,10 @@ export function getSOPRemaining(root: CastAction): number {
   return (root.roll?.HOP ?? 0) - (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).reduce((sum, m) => sum + (root.improved[m] ?? 0) * SPELL_MODIFICATIONS[m].SOP, 0)
 }
 
-export function getImprovementOptions(root: CastAction): ImprovementOption[] {
-  if (!root.roll || root.roll.degree !== 'hit') return []
+// spells.tex "Concentration": nothing left to spend overflow on once the
+// cast is cancelled — it produces nothing regardless of what is bought.
+export function getImprovementOptions(state: CombatState, root: CastAction): ImprovementOption[] {
+  if (!root.roll || root.roll.degree !== 'hit' || isCastCancelled(state, root)) return []
   const remaining = getSOPRemaining(root)
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => ({
     name,
@@ -640,6 +658,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (!open) return null
   if (open.status === 'rolled') {
     if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
+    if (open.kind === 'cast' && isCastCancelled(state, open)) return 'confirm'
     return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }
   if (open.status === 'committed') return 'react'

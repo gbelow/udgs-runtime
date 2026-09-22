@@ -712,8 +712,11 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
   // authored damage is what the spell throws — its kinds and what it can
-  // cut — the rest of a delivery's damage is the producer's to write
-  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true }) }).strip(),
+  // cut — the rest of a delivery's damage is the producer's to write, except
+  // `force` on an area effect: combat.tex "Intercept" compares force to
+  // whoever met the blow, and an explosion's blast is its own, not whoever
+  // set it off
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }) }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
 ])

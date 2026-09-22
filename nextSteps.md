@@ -8,10 +8,6 @@
 - conviction requirements not firing
 - convictions must be one worldview and one temperament
 
-## magic
-- interface: toggleable?
-- spell cast range number, not string. same with other distance measures. effect can be amplified, cast can be extended
-
 ## XP tracking
 - spells - intuitive requires XP track
 - add half learned abilities - XP track
@@ -28,9 +24,12 @@
 - add customization options to armors
 
 ## hands
-- item requirements must be in hand
 - auto track spending charges
 - localized damage
+
+# terrain
+- items on the ground, containers in terrain
+- 
 
 ## add abilities 
 - add tex generator from catalogue
@@ -38,11 +37,22 @@
 ## spells
 - add tex generator from catalogue
 
-# grapple
+## grapple
 - add actions
-# system of reactions
-- what triggers
 
+## cunning
+- starting combat
+- require start turn to act
+- feint
+- 
+
+# movement
+- climbing
+- falling
+- balance tests
+- swimming tests
+- jumping over things
+- trample, drag and drop
 
 # morale test
 -add it
@@ -58,6 +68,16 @@
 ## exploration
 - exploration turn apply wear
 - rest value calculated automatically
+- exploration actions - rest, sleep, search, travel
+
+## out of combat in map
+- how track time
+- when triggers/poison apply
+
+## chase
+- how track triggers
+- simultaneous double grid
+- 
 
 ## saving assets to redis
 - getting chars per user
@@ -68,11 +88,14 @@
 
 ## improve interface - make it pretty
 - in ui-design-patterns.md
-
-## add performance report to break me
+- must show effects
 
 ## issues
-bleed does not trigger at the end of the round
-flee, braced attack, hooked attack.
-flamethrower - sustain doesn t work. spray must allow retargeting.
-add guard against healing when hunger and thirst are too high
+flee, braced attack, hooked attack. must trigger after attack roll
+flamethrower - sustain doesn t work. spray must leave effect. start of next turn auto recast.
+amplify is doing nothing, nor any other enhancements
+arrows are not spent nor can be selected right now. quiver must be defined.
+flamethrower needs charges - transform into weapon
+wound and wound healing is undefined - possession healing neither
+select items to charge + do not stack items in quick slots
+blast scaling - scale to scale of the item. 1 amplify is allowed over item size.
