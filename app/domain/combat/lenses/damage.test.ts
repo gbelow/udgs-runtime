@@ -1,17 +1,22 @@
 import { describe, it, expect } from 'vitest'
-import { CombatStateSchema, StrikeFactsSchema, type CombatState, type StrikeFacts } from '../types'
+import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import { ItemSchema, type CampaignCharacter } from '../../types'
+import { DamageSchema, ItemSchema, type CampaignCharacter, type Damage, type Degree } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
 import { LOCATIONS, injuryMap } from '../../tables'
-import { getOutcome, getOutcomePreviews } from './damage'
+import { getOutcome } from '../../character/lenses/damage'
+import { getOutcomePreviews } from './damage'
 import { getOpenAction } from './action'
 import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 const target = makeCampaignCharacter({})
 
-function facts(overrides: Partial<StrikeFacts>): StrikeFacts {
-  return StrikeFactsSchema.parse({ degree: 'hit', hardness: 4, ...overrides })
+type Blow = Partial<Omit<Damage, 'damage'>> & { blunt?: number; cut?: number; degree?: Degree }
+
+// A blow's damage as delivered, hard enough to cut, at the degree given —
+// a hit unless said otherwise.
+function blow({ blunt = 0, cut = 0, degree = 'hit', ...overrides }: Blow, target: CampaignCharacter) {
+  return getOutcome(DamageSchema.parse({ damage: [{ kind: 'blunt', value: blunt }, { kind: 'cut', value: cut }], hardness: 4, ...overrides }), degree, target)
 }
 
 const damages = Array.from({ length: 60 }, (_, i) => i * 3)
@@ -23,7 +28,7 @@ describe('localized damage', () => {
   it.each(HIT_LOCATIONS)('caps what the body takes from a hit to the %s', (location) => {
     const cap = LOCATIONS[location].maxTier
     for (const blunt of damages) {
-      const outcome = getOutcome(facts({ blunt, location }), target)
+      const outcome = blow({ blunt, location }, target)
       if (cap !== null) expect(outcome.IL).toBeLessThanOrEqual(injuryMap[`T${cap}`].IL)
       else if (outcome.tier !== null) expect(outcome.IL).toBe(injuryMap[`T${outcome.tier}`].IL)
     }
@@ -32,7 +37,7 @@ describe('localized damage', () => {
   // gear.tex "Piercing": "cannot amputate".
   it.each(HIT_LOCATIONS)('a piercing blow to the %s never amputates', (location) => {
     for (const cut of damages) {
-      const outcome = getOutcome(facts({ cut, location, properties: ['piercing'] }), target)
+      const outcome = blow({ cut, location, properties: ['piercing'] }, target)
       expect(outcome.wound?.name.startsWith('amputated') ?? false).toBe(false)
     }
   })
@@ -43,7 +48,7 @@ describe('the degree', () => {
   // leaves the attack with 0. Whatever the damage, nothing lands.
   it.each(['none', 'evade', 'evasiveJump'] as const)('a miss against %s does nothing', (defense) => {
     for (const blunt of damages) {
-      const outcome = getOutcome(facts({ blunt, cut: blunt, degree: 'miss', defense }), target)
+      const outcome = blow({ blunt, cut: blunt, degree: 'miss', defense }, target)
       expect(outcome.IL + outcome.bleed + outcome.apLoss + outcome.afflictions.length).toBe(0)
       expect(outcome.wound).toBeNull()
       expect(outcome.dead).toBe(false)
@@ -57,9 +62,9 @@ describe('additional effects', () => {
   // beyond the injury is the same whatever the cutting component is.
   it("are the blunt component's whichever type causes the injury", () => {
     for (const blunt of damages) {
-      const alone = getOutcome(facts({ blunt, smash: true }), target)
+      const alone = blow({ blunt, smash: true }, target)
       for (const cut of damages) {
-        const both = getOutcome(facts({ blunt, cut, smash: true }), target)
+        const both = blow({ blunt, cut, smash: true }, target)
         expect(both.interruption).toBe(alone.interruption)
         expect(both.apLoss).toBe(alone.apLoss)
       }
@@ -73,7 +78,7 @@ describe('hand wounds', () => {
   it('land on the hand holding the blocking item', () => {
     const dagger = ItemSchema.parse({ id: 'd1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
     const blocker = { ...target, hands: [target.hands[0], { ...target.hands[1], itemId: dagger.id }], held: [dagger] }
-    const outcome = getOutcome(facts({ blunt: 200, location: 'hand', defense: 'block', defenseWeaponKey: dagger.id }), blocker)
+    const outcome = blow({ blunt: 200, location: 'hand', defense: 'block', defenseWeaponKey: dagger.id }, blocker)
     expect(outcome.wound?.hand).toBe(1)
   })
 })

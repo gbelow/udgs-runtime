@@ -23,7 +23,8 @@ import {
   getTargetIds,
 } from './action'
 import { ActionCost } from '../../character/lenses/actionCosts'
-import { HOPOption, Outcome, getHOPOptions, getHOPRemaining, getOutcomePreviews } from './damage'
+import { HOPOption, getHOPOptions, getHOPRemaining, getOutcomePreviews } from './damage'
+import type { Outcome } from '../../character/lenses/damage'
 import { getExplosionArea } from './explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from './move'
 import type { MoveStop } from '../types'

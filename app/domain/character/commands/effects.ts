@@ -1,23 +1,13 @@
 import { CampaignCharacter, Effect, Trigger } from "../../types"
 import { effectsDue } from "../lenses/effects"
-import { payCost } from "./cost"
+import { deliver } from "./deliver"
 
-// The effect processor: the one place that knows how an effect changes the
-// character when its trigger fires. Only mutating kinds do anything here — a
-// cost is a drain taken as-is, with no affordability check, so it can leave
-// a pool negative. Buffs and suppressions are never applied: they are read
-// off the catalogs by the lenses for as long as their source is in effect.
+// The effects a catalog entry lists, applied as they fall due: each is
+// delivered at full strength, with nothing to test — a cost is a drain
+// taken as-is, with no affordability check, so it can leave a pool negative.
 export function applyEffects(effects: Effect[]): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) =>
-    effects.reduce((acc, effect) => {
-      switch (effect.type) {
-        case 'cost': return payCost(effect.effect)(acc)
-        case 'buff':
-        case 'suppression':
-        case 'flash':
-          return acc
-      }
-    }, c)
+    effects.reduce((acc, effect) => deliver({ effect, degree: 'hit', when: null, then: [] })(acc), c)
 }
 
 // Runs the processor over everything in effect that falls due on a trigger:

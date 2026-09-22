@@ -19,7 +19,7 @@ import {
   needsDie,
   scoreAttack,
 } from '../lenses/action'
-import { getAttackFacts, getExplosionFacts, getHOPOptions, getOutcome } from '../lenses/damage'
+import { getAttackFacts, getExplosionFacts, getHOPOptions, outcomeOf } from '../lenses/damage'
 import { getExplosionArea } from '../lenses/explosion'
 import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
 import { getDistanceBetween, getMeleeRange } from '../lenses/board'
@@ -377,7 +377,8 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
       ? (() => {
           const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
-          return { ...open, status: 'resolved' as const, facts, interruption: facts && target ? getOutcome(facts, target).interruption : 'none' as const }
+          const outcome = facts && target ? outcomeOf(facts, target) : null
+          return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none' }
         })()
       : open.kind === 'explosion'
         ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
@@ -435,7 +436,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         if (root.kind !== 'explosion' || !reaction.roll || (reaction.roll.degree !== 'graze' && reaction.roll.degree !== 'miss')) return []
         const facts = root.facts?.[reaction.actorId]
         const reactor = state.characters[reaction.actorId]
-        if (facts && reactor && getOutcome(facts, reactor).interruption !== 'none') return []
+        if (facts && reactor && (outcomeOf(facts, reactor)?.interruption ?? 'none') !== 'none') return []
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: 2, prepaid: reaction.cost?.AP ?? 0, spawnedBy: reaction.id })]
       }
       default:

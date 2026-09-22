@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -417,16 +417,72 @@ export const SuppressionSchema = z.object({
 
 export type Suppression = z.infer<typeof SuppressionSchema>
 
-export const FlashSchema = z.object({
-  message: str.default(''),
-  color: str.default(''),
-}).strip()
-
-export type Flash = z.infer<typeof FlashSchema>
-
 export const TriggerSchema = z.enum(['instant', 'end_round', 'toggle'])
 export type Trigger = z.infer<typeof TriggerSchema>
 
+// play.tex "Degrees of success". An attack never lands the critical: past a
+// hit it is HOP (play.tex "Hit Overflow Point"); a skill test does, and so
+// does the centre of an explosion (combat.tex "Explosions").
+export const DEGREES = ['miss', 'graze', 'hit', 'critical'] as const
+export const DegreeSchema = z.enum(DEGREES)
+export type Degree = z.infer<typeof DegreeSchema>
+
+export const HitLocationSchema = z.enum(HIT_LOCATIONS)
+export type HitLocation = z.infer<typeof HitLocationSchema>
+
+// combat.tex "Interruption", "Stun": what a blow does to the action its
+// target was in the middle of; a stun is an interruption that also costs AP.
+export const InterruptionSchema = z.enum(['none', 'interrupted', 'stunned'])
+export type Interruption = z.infer<typeof InterruptionSchema>
+
+// combat.tex "Defend", "Reflex": how the target met the attack, none being
+// the SD — the four melee defenses against a strike, evasion and guard
+// against a shot, the reflex test against an explosion.
+export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard', 'avoidExplosion'])
+export type DefenseKind = z.infer<typeof DefenseKindSchema>
+
+// combat.tex "Types of damage": the six kinds, each defended by its own
+// armor value (blunt by protection, cutting by RES, the rest by INS).
+export const DamageKindSchema = z.enum(['blunt', 'cut', 'burn', 'electric', 'radiant', 'corrosive'])
+export type DamageKind = z.infer<typeof DamageKindSchema>
+
+// Damage as it reaches a character, final: every number resolved by whoever
+// produced it, so the target turns it into an injury with nothing but its
+// own armor and toughness. combat.tex "Physical attacks": a weapon carries
+// "blunt and cutting damage components"; a spell or a fire carries one kind.
+// The rest is what an attack brings with it — what it was met with (the
+// defense is here because what a block or an intercept does to the damage is
+// the producer's number to carry), where it lands, what the overflow bought.
+export const DamageComponentSchema = z.object({
+  kind: DamageKindSchema.default('blunt'),
+  value: num.default(0),
+}).strip()
+export type DamageComponent = z.infer<typeof DamageComponentSchema>
+
+export const DamageSchema = z.object({
+  damage: z.array(DamageComponentSchema).default([]),
+  hardness: num.default(0),
+  force: num.default(0),
+  properties: z.array(WeaponPropertySchema).default([]),
+  location: HitLocationSchema.default('chest'),
+  defense: DefenseKindSchema.default('none'),
+  // the AP the defender spent on the reaction
+  defenseAP: num.default(0),
+  // what the defender blocked or intercepted with, by the target's own
+  // wielded key: names the hand a wound lands on
+  defenseWeaponKey: str.default(''),
+  block: num.default(0), // gear.tex "DEF": what the blocking object absorbs
+  shield: z.boolean().default(false),
+  bypass: z.boolean().default(false),
+  penetrating: z.boolean().default(false),
+  smash: z.boolean().default(false),
+}).strip()
+export type Damage = z.infer<typeof DamageSchema>
+
+// What one entity does to a character — a spell, an ability, an attack, a
+// fire, a charge in an item all speak this. The character processes an
+// effect when its trigger fires and applies it; nothing here says who made
+// it or how it was aimed, that is the producer's business.
 const EffectBase = {
   name: str.default(''),
   trigger: TriggerSchema.default('instant'),
@@ -436,11 +492,38 @@ export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
-  z.object({ ...EffectBase, type: z.literal('flash'), effect: FlashSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('damage'), effect: DamageSchema }).strip(),
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
 export type EffectInput = z.input<typeof EffectSchema>
+
+// What an effect has to have come to before a follow-up lands: the injury
+// tier its parent caused (combat.tex "Cutting damage": poison "when damage
+// is at least T0").
+export const ConditionSchema = z.object({
+  minTier: num.nullable().default(null),
+}).strip()
+export type Condition = z.infer<typeof ConditionSchema>
+
+// An effect on its way to a character. `degree` is how hard it lands — set
+// by the producer when its own test or the zone decided it, left null for
+// the target to decide by a test of their own. `when` gates it on what its
+// parent came to, and `then` is what its own landing produces next: an
+// attack is a damage delivery, a poisoned blade a damage delivery whose
+// `then` carries the poison, gated on the cut reaching T0.
+export type Delivery = {
+  effect: Effect
+  degree: Degree | null
+  when: Condition | null
+  then: Delivery[]
+}
+export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.object({
+  effect: EffectSchema,
+  degree: DegreeSchema.nullable().default(null),
+  when: ConditionSchema.nullable().default(null),
+  then: z.array(DeliverySchema).default([]),
+}).strip()) as unknown as z.ZodType<Delivery, Delivery>
 
 // Something switched on and held: a toggle ability, a held spell, or a
 // wound carried until it is healed. The character keeps only the reference;
@@ -528,11 +611,6 @@ export const AbilitySchema = z.object({
 export type AbilityInput = z.input<typeof AbilitySchema>
 
 export type Ability = z.infer<typeof AbilitySchema>
-
-// combat.tex "Types of damage"; weapons still carry blunt and cut as columns
-// of their own, this is the shared vocabulary everything else names a kind by.
-export const DamageKindSchema = z.enum(['blunt', 'cut', 'burn', 'electric', 'radiant', 'corrosive'])
-export type DamageKind = z.infer<typeof DamageKindSchema>
 
 // spells.tex "Types of Spells": how a spell lives once cast. A sustained spell
 // is a toggle whose cost comes due again at every round change; a curse holds
@@ -626,6 +704,9 @@ const CampaignValues = {
   usedSurge: SurgeKindSchema.nullable().default(null),
   active: z.array(ActiveEntrySchema).default([]),
   pendingAction: PendingActionSchema.nullable().default(null),
+  // effects delivered and not yet applied: each waits on the target's own
+  // test for its degree
+  pending: z.array(DeliverySchema).default([]),
 }
 
 export const CampaignValuesSchema = z.object({

@@ -1,18 +1,12 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, MovementKindSchema, WeaponPropertySchema } from '../types'
-import { HIT_LOCATIONS, HOP_PURCHASES } from '../lists'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MovementKindSchema } from '../types'
+import { HOP_PURCHASES } from '../lists'
+
+export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema } from '../types'
+export type { Degree, HitLocation, DefenseKind, Interruption } from '../types'
 
 const num = z.number()
 const str = z.string()
-
-// play.tex "Degrees of success". An attack never lands the critical: past a
-// hit it is HOP (play.tex "Hit Overflow Point"); a skill test does.
-export const DEGREES = ['miss', 'graze', 'hit', 'critical'] as const
-export const DegreeSchema = z.enum(DEGREES)
-export type Degree = z.infer<typeof DegreeSchema>
-
-export const HitLocationSchema = z.enum(HIT_LOCATIONS)
-export type HitLocation = z.infer<typeof HitLocationSchema>
 
 // What the die came to and what it meant, written once and never revised.
 export const ActionRollSchema = z.object({
@@ -23,11 +17,6 @@ export const ActionRollSchema = z.object({
   HOP: num.default(0),
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
-
-// combat.tex "Interruption", "Stun": what a blow does to the action its
-// target was in the middle of; a stun is an interruption that also costs AP.
-export const InterruptionSchema = z.enum(['none', 'interrupted', 'stunned'])
-export type Interruption = z.infer<typeof InterruptionSchema>
 
 export const HOPPurchaseSchema = z.enum(HOP_PURCHASES)
 export type HOPPurchase = z.infer<typeof HOPPurchaseSchema>
@@ -137,42 +126,10 @@ const WeaponRowRef = {
   attack: str.default(''),
 }
 
-// combat.tex "Defend", "Reflex": how the target met the attack, none being
-// the SD — the four melee defenses against a strike, evasion and guard
-// against a shot, the reflex test against an explosion.
-export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard', 'avoidExplosion'])
-export type DefenseKind = z.infer<typeof DefenseKindSchema>
-
-// The attacker's side of a strike or a shot, final: everything the target
-// needs to turn the attack into an injury without looking back at the
-// attacker. It is written when the attack resolves, once the HOP are spent,
-// and the target's reducer reads only this. The defense is on it because
-// what a block or an intercept does to the damage is the attacker's number
-// to carry.
-export const StrikeFactsSchema = z.object({
-  blunt: num.default(0),
-  cut: num.default(0),
-  hardness: num.default(0),
-  force: num.default(0),
-  properties: z.array(WeaponPropertySchema).default([]),
-  location: HitLocationSchema.default('chest'),
-  degree: DegreeSchema.default('miss'),
-  defense: DefenseKindSchema.default('none'),
-  // the AP the defender spent on the reaction
-  defenseAP: num.default(0),
-  // what the defender blocked or intercepted with, by the target's own
-  // wielded key: names the hand a wound lands on
-  defenseWeaponKey: str.default(''),
-  block: num.default(0), // gear.tex "DEF": what the blocking object absorbs
-  shield: z.boolean().default(false),
-  bypass: z.boolean().default(false),
-  penetrating: z.boolean().default(false),
-  smash: z.boolean().default(false),
-}).strip()
-export type StrikeFacts = z.infer<typeof StrikeFactsSchema>
-
-// combat.tex "Strike": a melee weapon attack; the variation and the location
-// are declared before the roll (combat.tex "Melee Combat", "Localized damage").
+// The attacker's side of a strike or a shot, final: what the attack
+// delivers to its target, written when the attack resolves, once the HOP are
+// spent, with the degree the test came to. The target's reducer reads only
+// this.
 export const StrikeActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('strike'),
@@ -182,7 +139,7 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
-  facts: StrikeFactsSchema.nullable().default(null),
+  facts: DeliverySchema.nullable().default(null),
   // what landing did to the target's action, written at the resolve: a move
   // an opportunity attack interrupted is cut short by it
   interruption: InterruptionSchema.default('none'),
@@ -198,7 +155,7 @@ export const ShootActionSchema = z.object({
   ...WeaponRowRef,
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
-  facts: StrikeFactsSchema.nullable().default(null),
+  facts: DeliverySchema.nullable().default(null),
   // what landing did to the target's action, written at the resolve: an
   // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
   interruption: InterruptionSchema.default('none'),
@@ -210,8 +167,8 @@ export const ShootActionSchema = z.object({
 // a cone from the attacker in a `direction` picked once the reactions have
 // moved ("The attacker can choose the exact direction of the cone after the
 // movement"). Whoever stands in the area when it resolves is in `facts`,
-// each with the attack as it reaches their zone.
-export const ExplosionFactsSchema = z.record(z.string(), StrikeFactsSchema)
+// each with what reaches them at their zone's degree.
+export const ExplosionFactsSchema = z.record(z.string(), DeliverySchema)
 export type ExplosionFacts = z.infer<typeof ExplosionFactsSchema>
 
 export const ExplosionActionSchema = z.object({

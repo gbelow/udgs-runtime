@@ -1,10 +1,10 @@
 import type { CampaignCharacter } from '../types'
 import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
+import { deliver } from '../character/commands/deliver'
 import { throwItem } from '../item/commands/hands'
 import { getWieldedWeapons } from '../item/lenses/hands'
 import { getAttackKind } from '../weaponProperties'
-import { getOutcome, Outcome } from './lenses/damage'
 import { getMoveDestination } from './lenses/move'
 import { getReactionsTo } from './lenses/action'
 
@@ -18,8 +18,8 @@ export type Phase = 'roll' | 'resolve'
 // part, so a fight can run every character through it and the ones an action
 // does not concern come out untouched. Everything it needs is on the action:
 // what had to be looked up across two characters was written there by the
-// command that made the transition; the target turns the attacker's facts
-// into an injury with nothing but its own armor and toughness.
+// command that made the transition; what the action delivers is handed to
+// the character's own effect processor, which needs nothing but the record.
 export function reduceCharacter(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     switch (phase) {
@@ -35,11 +35,11 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // hands
         if (action.kind === 'explosion') {
           const facts = action.facts?.[c.id]
-          const hit = facts ? takeOutcome(getOutcome(facts, c))(c) : c
+          const hit = facts ? deliver(facts)(c) : c
           return c.id === action.actorId ? releaseThrown(hit, action.weaponKey, action.attack) : hit
         }
         if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
-        return takeOutcome(getOutcome(action.facts, c))(c)
+        return deliver(action.facts)(c)
     }
   }
 }
@@ -55,34 +55,6 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
 
 function fallProne(c: CampaignCharacter): CampaignCharacter {
   return { ...c, afflictions: [...new Set([...c.afflictions, 'prone' as const])] }
-}
-
-// combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
-// lands on the level, the bleed on its intensity, the wound joins what the
-// character carries in `active` until it is healed, and a death from the
-// head puts the level at the threshold that is death. A wound already
-// carried is not carried twice, and its affliction is read off it rather
-// than stored; only unconsciousness, which no wound carries, is written.
-function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
-    const { wound } = outcome
-    const carried = wound && c.active.some((e) => e.kind === 'wound' && e.key === wound.key && (e.hand ?? null) === wound.hand)
-    const active = wound && !carried
-      ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(wound.hand !== null ? { hand: wound.hand } : {}) }]
-      : c.active
-    const injuryLevel = c.injuries.injuryLevel + outcome.IL
-    return {
-      ...c,
-      active,
-      afflictions: [...new Set([...c.afflictions, ...outcome.afflictions.filter((a) => a === 'unconscious')])],
-      injuries: {
-        ...c.injuries,
-        injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
-        bleed: c.injuries.bleed + outcome.bleed,
-      },
-      resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
-    }
-  }
 }
 
 // The one place an action changes the board, the same way: it reads the

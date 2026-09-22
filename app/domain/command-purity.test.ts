@@ -8,7 +8,7 @@ import * as actionsModule from './combat/commands/action'
 import * as boardModule from './combat/commands/board'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { makeCampaignCharacter } from './factories'
-import { ArmorSchema, ContainerSchema, ItemSchema } from './types'
+import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
@@ -97,6 +97,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
+  deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', when: null, then: [] }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
 
