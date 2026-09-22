@@ -8,8 +8,6 @@ import { getBlockValue } from '../../character/rules/gear'
 import { getDM } from '../../character/rules/helpers'
 import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
-import { produceSpellEffect } from '../../character/rules/production'
-import { SPELLS, isSpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
 
@@ -101,18 +99,13 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
 export function getChargedItem(c: Character, action: AttackAction): Item | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   const item = row ? c.held.find((i) => i.id === row.wielded.itemId) : undefined
-  return item?.charge && isSpellKey(item.charge) ? item : null
+  return item?.charge ? item : null
 }
 
 function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] {
-  const item = getChargedItem(c, action)
-  if (!item || !isSpellKey(item.charge!)) return []
-  return SPELLS[item.charge!].effects
-    .filter((e) => e.type === 'damage' && e.area === null)
-    .flatMap((e) => {
-      const produced = produceSpellEffect(c, e).effect
-      return produced.type === 'damage' ? produced.effect.damage : []
-    })
+  const charge = getChargedItem(c, action)?.charge
+  if (!charge) return []
+  return charge.effects.flatMap((e) => (e.type === 'damage' && e.area === null ? e.effect.damage : []))
 }
 
 // ---------------------------------------------------------------------------

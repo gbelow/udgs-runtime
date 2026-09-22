@@ -79,7 +79,7 @@ export function getLastReport(state: CombatState): ActionReport | null {
 function getChargeNote(state: CombatState, root: Action): { target: string; text: string }[] {
   if (root.kind !== 'cast' || root.roll?.degree !== 'hit' || !isSpellKey(root.key) || SPELLS[root.key].type !== 'charged') return []
   const caster = state.characters[root.actorId]
-  const item = caster?.held.find((i) => i.charge === root.key)
+  const item = caster?.held.find((i) => i.charge?.key === root.key)
   return item ? [{ target: caster.fightName ?? '', text: `charged into ${item.name}` }] : []
 }
 

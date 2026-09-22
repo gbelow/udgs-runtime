@@ -33,7 +33,7 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
-const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1, charge: 'shock-explosive' })
+const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1, charge: { key: 'shock-explosive', effects: [] } })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()

@@ -47,7 +47,7 @@ export type ReactorOptions = {
 
 export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
   return Object.values(state.characters)
-    .filter((c) => c.id !== open.actorId)
+    .filter((c) => c.id !== open.actorId || open.kind === 'explosion')
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
       const strike = declared?.kind === 'opportunityAttack'

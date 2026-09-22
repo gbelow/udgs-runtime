@@ -1,7 +1,6 @@
 import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
 import { DEGREES, type CombatState, type Coord, type Degree, type ExplosionAction, type ExplosionFacts } from '../types'
-import { getRM } from '../../character/rules/helpers'
-import { produceSpellEffect } from '../../character/rules/production'
+import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
@@ -34,17 +33,15 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
     const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
     if (!wielded || !atk || !hasProperty(atk.properties, 'explosion')) return null
     const item = producer.held.find((i) => i.id === wielded.itemId)
-    const charge = item?.charge && isSpellKey(item.charge) ? SPELLS[item.charge].effects : null
-    const effects = areaEffects(charge ?? atk.payload)
+    const effects = areaEffects(item?.charge ? item.charge.effects : produceEffects(producer, atk.payload))
     return effects.length > 0 ? { effects, producer } : null
   }
   if (action.source === 'detonate') {
-    const held = getChargedItem(state, action.itemId)
-    const charge = held?.item.charge
-    const effects = charge && isSpellKey(charge) ? areaEffects(SPELLS[charge].effects) : []
+    const charge = getChargedItem(state, action.itemId)?.item.charge
+    const effects = charge ? areaEffects(charge.effects) : []
     return effects.length > 0 ? { effects, producer } : null
   }
-  const effects = isSpellKey(action.key) ? areaEffects(SPELLS[action.key].effects) : []
+  const effects = isSpellKey(action.key) ? areaEffects(produceEffects(producer, SPELLS[action.key].effects)) : []
   return effects.length > 0 ? { effects, producer } : null
 }
 
@@ -69,8 +66,8 @@ export function getChargeOptions(state: CombatState): ChargeOption[] {
     const cell = state.board?.placements[holder.id]?.cell
     if (!cell) return []
     return holder.held.flatMap((item): ChargeOption[] => {
-      const key = item.charge
-      if (!key || !isSpellKey(key) || !SPELLS[key].effects.some((e) => e.target === 'area' && e.area !== null)) return []
+      const key = item.charge?.key
+      if (!key || !isSpellKey(key) || !item.charge?.effects.some((e) => e.target === 'area' && e.area !== null)) return []
       return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: holder.fightName ?? '', cell }]
     })
   })
@@ -83,22 +80,14 @@ export function hasExplosionPayload(c: CampaignCharacter, weaponKey: string, att
   const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
   if (!wielded || !atk) return false
   const item = c.held.find((i) => i.id === wielded.itemId)
-  return (item?.charge !== null && item?.charge !== undefined && isSpellKey(item.charge)) || atk.payload.some((e) => e.target === 'area' && e.area !== null)
+  return (item?.charge ?? null) !== null || atk.payload.some((e) => e.target === 'area' && e.area !== null)
 }
 
-// creating.tex "Reach Multiplier": "xRM" — an area at the producer's size.
-function scaled(area: Area, RM: number): Area {
-  return area.shape === 'explosion'
-    ? { shape: 'explosion', radius: Math.floor(area.radius * RM) }
-    : { shape: 'spray', length: Math.floor(area.length * RM), angle: area.angle }
-}
-
-// The areas the payload covers, one per effect that has one, in cells.
+// The areas the payload covers, one per effect that has one, in cells —
+// already at the size of whoever produced it.
 export function getExplosionAreas(state: CombatState, action: ExplosionAction): Area[] {
   const payload = getExplosionPayload(state, action)
-  if (!payload) return []
-  const RM = getRM(payload.producer)
-  return payload.effects.flatMap((e) => (e.area ? [scaled(e.area, RM)] : []))
+  return payload ? payload.effects.flatMap((e) => (e.area ? [e.area] : [])) : []
 }
 
 // Whether any of it is a spray, which is aimed by direction once the
@@ -217,12 +206,11 @@ export function getAffected(state: CombatState, action: ExplosionAction): { id: 
 export function getExplosionFacts(state: CombatState, action: ExplosionAction): ExplosionFacts {
   const payload = getExplosionPayload(state, action)
   if (!payload) return {}
-  const RM = getRM(payload.producer)
   const facts: ExplosionFacts = {}
   for (const id of Object.keys(state.characters)) {
     const deliveries = payload.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
-      const degree = getZoneOf(state, action, id, scaled(e.area, RM))
+      const degree = getZoneOf(state, action, id, e.area)
       return degree ? [{ ...produceSpellEffect(payload.producer, e), degree, test: null }] : []
     })
     if (deliveries.length > 0) facts[id] = deliveries
@@ -235,10 +223,9 @@ export function getExplosionFacts(state: CombatState, action: ExplosionAction): 
 export function getTerrainPaint(state: CombatState, action: ExplosionAction): { cell: Coord; patch: TerrainPatch }[] {
   const payload = getExplosionPayload(state, action)
   if (!payload) return []
-  const RM = getRM(payload.producer)
   return payload.effects.flatMap((e) => {
     if (e.type !== 'terrain' || !e.area) return []
-    return getAreaZones(state, action, scaled(e.area, RM)).flatMap((z) => (z.degree === 'miss' ? [] : [{ cell: z.cell, patch: e.effect[z.degree] }]))
+    return getAreaZones(state, action, e.area).flatMap((z) => (z.degree === 'miss' ? [] : [{ cell: z.cell, patch: e.effect[z.degree] }]))
   })
 }
 

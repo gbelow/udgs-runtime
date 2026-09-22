@@ -66,7 +66,7 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
         wear: getWearView(c, null, item),
-        charge: item.charge && isSpellKey(item.charge) ? SPELLS[item.charge].name : '',
+        charge: item.charge && isSpellKey(item.charge.key) ? SPELLS[item.charge.key].name : '',
       }
     }),
     freeHolding,

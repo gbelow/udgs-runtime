@@ -136,7 +136,8 @@ export function withdrawSpawnedAction(newId: () => string = () => `${Date.now()}
 export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed' || open.actorId === actorId) return state
+    if (!open || open.status !== 'committed') return state
+    if (open.actorId === actorId && open.kind !== 'explosion') return state
     if (!findOption(state, actorId, draft)?.available) return state
     const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: open.actorId, reactionTo: open.id })
     return {
@@ -289,11 +290,13 @@ function afterPaying(state: CombatState, id: string, newId: () => string): Comba
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
 // by spending one extra STA. On a hit, they can spend an extra STA to jump
-// in any direction before the explosion occurs." The moves that opens, one
-// per reactor whose test came to that, played out ahead of the blast; the
-// reaction's AP buys the move, as an evasion's does, and the run's extra
-// STA is on top, the jump's the jump's own (combat.tex "Movement Costs and
-// Speeds" prices a jump in STA already).
+// in any direction before the explosion occurs. On a graze, they can move 1
+// AP before the explosion." The moves that opens, one per reactor whose
+// test came to that, played out ahead of the blast; the reaction's AP buys
+// the move, as an evasion's does, and the run's extra STA is on top, the
+// jump's the jump's own (combat.tex "Movement Costs and Speeds" prices a
+// jump in STA already). A miss moves after it instead, and is opened when
+// the blast has landed.
 function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => string): Action[] {
   return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     if (reaction.kind !== 'avoidExplosion' || !reaction.roll) return []
@@ -302,6 +305,7 @@ function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => s
     switch (reaction.roll.degree) {
       case 'critical': return [ActionSchema.parse({ ...base, movement: 'run', movements: ['run'], surcharge: { AP: 0, STA: 1 } })]
       case 'hit': return [ActionSchema.parse({ ...base, movement: 'jump', movements: ['jump'] })]
+      case 'graze': return [ActionSchema.parse({ ...base, budget: 1 })]
       default: return []
     }
   })
@@ -466,12 +470,12 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         const AP = reaction.cost?.AP ?? 0
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP, spawnedBy: reaction.id })]
       }
-      // combat.tex "Avoiding an Explosion": "On a graze or miss, they can
-      // move 2 AP after the explosion" — bought with the AP the reflex
-      // paid, and not at all by one the blast interrupted (combat.tex
-      // "Interruption": "Movement is cancelled")
+      // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP
+      // after the explosion" — bought with the AP the reflex paid, and not
+      // at all by one the blast interrupted (combat.tex "Interruption":
+      // "Movement is cancelled"). A graze moved before it.
       case 'avoidExplosion': {
-        if (root.kind !== 'explosion' || !reaction.roll || (reaction.roll.degree !== 'graze' && reaction.roll.degree !== 'miss')) return []
+        if (root.kind !== 'explosion' || reaction.roll?.degree !== 'miss') return []
         const facts = root.facts?.[reaction.actorId] ?? []
         const reactor = state.characters[reaction.actorId]
         if (reactor && facts.some((d) => (outcomeOf(d, reactor)?.interruption ?? 'none') !== 'none')) return []

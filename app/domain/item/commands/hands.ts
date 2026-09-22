@@ -5,7 +5,8 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
 import { getSpellFocus } from '../../character/rules/spells'
-import { isSpellKey } from '../../spells'
+import { SPELLS, isSpellKey } from '../../spells'
+import { Improvements, produceEffects } from '../../character/rules/production'
 
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
@@ -131,10 +132,12 @@ export function dropItem(itemId: string): CharacterUpdater {
 // object being the gear the spell is cast on (spells.tex "Requirements"),
 // held in the caster's own hand. Nothing in hand to take it, nothing
 // happens; what a hand already carries is charged over.
-export function chargeItem(key: string): CharacterUpdater {
+export function chargeItem(key: string, improved: Improvements = {}): CharacterUpdater {
   return (c: Character) => {
     const item = isSpellKey(key) ? getSpellFocus(c, key) : null
-    return item ? { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge: key } : i)) } : c
+    if (!item || !isSpellKey(key)) return c
+    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, improved) }
+    return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
   }
 }
 

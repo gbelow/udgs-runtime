@@ -26,12 +26,14 @@ import { getTriggersFor } from './reactions'
 
 // The action being played out: the first root not yet resolved. Nothing can
 // be declared while one is open, so there is only ever one — except for the
-// actions a reaction opens (an opportunity attack, a follow), which are
-// played out ahead of whatever they were opened against: an opportunity
-// attack on a mover is fought while the move waits to resolve.
+// actions a reaction opens (an opportunity attack, a follow, an escape from
+// a blast), which are played out ahead of whatever they were opened
+// against: an opportunity attack on a mover is fought while the move waits
+// to resolve. They stack, so the one opened last goes first — an explosion
+// a cast opened waits for the escapes its own reactions opened.
 export function getOpenAction(state: CombatState): Action | null {
   const roots = state.actions.filter((a) => a.reactionTo === null && a.status !== 'resolved')
-  return roots.find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
+  return [...roots].reverse().find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
 }
 
 // Whether the action is closed by a die: a strike always, a move when it
@@ -499,7 +501,9 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     ]
   }
 
-  if (open.status !== 'committed' || open.actorId === characterId) return []
+  // the actor answers nothing of their own — except a blast, which reaches
+  // them where they stand like anyone else (combat.tex "Explosions")
+  if (open.status !== 'committed' || (open.actorId === characterId && open.kind !== 'explosion')) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 

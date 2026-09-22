@@ -59,7 +59,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
-          return spell.type === 'charged' ? chargeItem(action.key)(delivered) as CampaignCharacter : delivered
+          return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) as CampaignCharacter : delivered
         }
         if (action.kind !== 'strike' && action.kind !== 'shoot') return c
         // spells.tex "Charged": the charge goes off with the blow that

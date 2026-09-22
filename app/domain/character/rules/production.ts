@@ -1,6 +1,6 @@
-import { DamageSchema, type Character, type Delivery, type Effect, type Spell, type SpellEffect } from '../../types'
+import { DamageSchema, type Area, type Character, type DamageComponent, type Delivery, type Effect, type Spell, type SpellEffect } from '../../types'
 import type { SpellModification } from '../../tables'
-import { getDM } from './helpers'
+import { getDM, getRM } from './helpers'
 import { getForce } from './skills'
 import { resolveDL } from './spells'
 
@@ -11,17 +11,44 @@ import { resolveDL } from './spells'
 
 export type Improvements = Partial<Record<SpellModification, number>>
 
+// creating.tex "Reach Multiplier": "xRM" — an area at the producer's size.
+function scaleArea(area: Area, RM: number): Area {
+  return area.shape === 'explosion'
+    ? { shape: 'explosion', radius: Math.floor(area.radius * RM) }
+    : { shape: 'spray', length: Math.floor(area.length * RM), angle: area.angle }
+}
+
+// spells.tex "Relationship between Size and Sorcery": "Any spell that has
+// DM, SM, RM or VM marked in it is scaled to character size" — the effects
+// as this caster makes them, with every number their size decides already
+// worked out and nothing left for anyone else to scale. What a charge
+// carries into an object (spells.tex "Charged"), since whoever releases it
+// is not who made it, and what a payload covers when it goes off.
+export function produceEffects(c: Character, effects: SpellEffect[], improved: Improvements = {}): SpellEffect[] {
+  const RM = getRM(c)
+  return effects.map((e): SpellEffect => ({
+    ...e,
+    ...(e.type === 'damage' ? { effect: scaleDamage(c, e.effect.damage, e.scaled, improved) } : {}),
+    area: e.area ? scaleArea(e.area, RM) : null,
+    scaled: false,
+  }) as SpellEffect)
+}
+
+// "xDM": scaled by the caster's size; spells.tex "Amplify": "multiply an
+// effect marked DM ... once more", per purchase.
+function scaleDamage(c: Character, damage: DamageComponent[], scaled: boolean, improved: Improvements): { damage: DamageComponent[] } {
+  const scale = scaled ? Math.pow(getDM(c), 1 + (improved.amplify ?? 0)) : 1
+  return { damage: damage.map((d) => ({ ...d, value: Math.floor(d.value * scale) })) }
+}
+
 // The effect stripped of its reach: what is delivered.
 function bare(c: Character, effect: SpellEffect, improved: Improvements): Effect {
   const { name, trigger, type } = effect
   switch (type) {
     case 'damage': {
-      // "xDM": scaled by the caster's size; spells.tex "Amplify": "multiply
-      // an effect marked DM ... once more", per purchase
-      const scale = effect.scaled ? Math.pow(getDM(c), 1 + (improved.amplify ?? 0)) : 1
       return { name, trigger, type, effect: DamageSchema.parse({
         ...effect.effect,
-        damage: effect.effect.damage.map((d) => ({ ...d, value: Math.floor(d.value * scale) })),
+        ...scaleDamage(c, effect.effect.damage, effect.scaled, improved),
         force: getForce(c),
       }) }
     }

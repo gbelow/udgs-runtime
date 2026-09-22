@@ -73,13 +73,12 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 // combat.tex "Explosions": "defended against with a reflex test"; "Sprays":
 // "target all characters in range, which their reflex saves to escape".
 // Everyone the explosion as declared may reach — a spray not yet aimed
-// threatens its whole range — may avoid it; the attacker, though they may
-// stand in their own blast, answers nothing of their own.
+// threatens its whole range — may avoid it, the one who set it off as much
+// as anyone: a bomb is no respecter of the hand that threw it, and whoever
+// stands in the area is a target of it.
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
   if (!isAvoidable(root)) return []
-  return getThreatenedIds(state, root)
-    .filter((id) => id !== root.actorId)
-    .map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
+  return getThreatenedIds(state, root).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee

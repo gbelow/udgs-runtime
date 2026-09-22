@@ -238,6 +238,12 @@ export type Weapon = z.infer<typeof WeaponSchema>
 export const ItemTypeSchema = z.enum(ITEM_TYPES)
 export type ItemType = z.infer<typeof ItemTypeSchema>
 
+export const ChargeSchema = z.object({
+  key: str.default(''),
+  effects: z.array(z.lazy(() => SpellEffectSchema)).default([]),
+}).strip()
+export type Charge = z.infer<typeof ChargeSchema>
+
 export const ItemSchema = z.object({
   id: str.default(() => crypto.randomUUID()),
   name: str.default(''), // with no refId, this + description is all that says what the item is
@@ -248,8 +254,11 @@ export const ItemSchema = z.object({
   amount: num.default(1),
   bulk: num.default(1), // 0 tiny · 1 small · 2 medium · 3 large · 4+ numeric
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object
-  // spells.tex "Charged": the spell loaded into the item, waiting to go off
-  charge: str.nullable().default(null),
+  // spells.tex "Charged": what is loaded into the item, waiting to go off —
+  // which spell it is, and its effects as the caster produced them. Whoever
+  // releases the charge is not who made it, so the numbers the caster's
+  // size and skill decided are carried here rather than looked up again.
+  charge: ChargeSchema.nullable().default(null),
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
