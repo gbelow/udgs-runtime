@@ -1,6 +1,9 @@
 import type { CampaignCharacter } from '../types'
 import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
+import { throwItem } from '../item/commands/hands'
+import { getWieldedWeapons } from '../item/lenses/hands'
+import { getAttackKind } from '../weaponProperties'
 import { getOutcome, Outcome } from './lenses/damage'
 import { getMoveDestination } from './lenses/move'
 import { getReactionsTo } from './lenses/action'
@@ -28,15 +31,26 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // test did not clear ends in a fall
         if (action.kind === 'move') return c.id === action.actorId && action.facts?.fell ? fallProne(c) : c
         // combat.tex "Explosions": everyone in the area takes it, the
-        // attacker as much as anyone
+        // attacker as much as anyone — and what they threw is out of their
+        // hands
         if (action.kind === 'explosion') {
           const facts = action.facts?.[c.id]
-          return facts ? takeOutcome(getOutcome(facts, c))(c) : c
+          const hit = facts ? takeOutcome(getOutcome(facts, c))(c) : c
+          return c.id === action.actorId ? releaseThrown(hit, action.weaponKey, action.attack) : hit
         }
         if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
         return takeOutcome(getOutcome(action.facts, c))(c)
     }
   }
+}
+
+// combat.tex "Throw": a thrown row is made by letting go of the weapon; a
+// natural weapon or a shooting one stays where it is.
+function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string): CampaignCharacter {
+  const wielded = getWieldedWeapons(c).find((w) => w.key === weaponKey)
+  const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
+  if (!wielded || wielded.natural || !atk || getAttackKind(atk.range) !== 'throw') return c
+  return throwItem(wielded.itemId)(c) as CampaignCharacter
 }
 
 function fallProne(c: CampaignCharacter): CampaignCharacter {

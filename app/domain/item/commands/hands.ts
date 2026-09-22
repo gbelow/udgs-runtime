@@ -124,3 +124,15 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
 export function dropItem(itemId: string): CharacterUpdater {
   return (c: Character) => (getHeldItem(c, itemId) ? release(c, itemId) : c)
 }
+
+// combat.tex "Throw": what is thrown leaves the hand. One unit goes from the
+// stack; the last one takes the stack with it. There is no floor yet, so it
+// lands nowhere.
+export function throwItem(itemId: string): CharacterUpdater {
+  return (c: Character) => {
+    const item = getHeldItem(c, itemId)
+    if (!item) return c
+    if (item.amount <= 1) return release(c, itemId)
+    return { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, amount: i.amount - 1 } : i)) }
+  }
+}

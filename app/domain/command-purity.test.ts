@@ -111,6 +111,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   drawItem: (c) => itemCommands.drawItem('belt', c.containers.belt.slots.quick.items[0].id)(c),
   storeItem: itemCommands.storeItem(daggerItem.id, 'belt', 'quick'),
   dropItem: itemCommands.dropItem(daggerItem.id),
+  throwItem: itemCommands.throwItem(daggerItem.id),
 }
 
 const NOT_UPDATERS = new Set<string>()
