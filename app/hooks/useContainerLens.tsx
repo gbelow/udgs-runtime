@@ -1,13 +1,13 @@
 import { useShallow } from "zustand/shallow";
 import { equipContainer, unequipContainer } from "../domain/item/commands";
+import { getCatalogContainer } from "../domain/item/rules/containers";
 import {
   BurdenView,
   ContainerPanelView,
   getBurden,
-  getCatalogContainer,
   getContainerCatalogPanels,
   getContainerPanels,
-} from "../domain/item/lenses";
+} from "../domain/item/projections/containers";
 import { Character } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";

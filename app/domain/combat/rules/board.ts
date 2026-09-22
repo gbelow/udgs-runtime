@@ -4,7 +4,7 @@ import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/misc'
 import { getAttacksList } from '../../character/rules/gear'
 import { isMeleeRange } from '../../weaponProperties'
-import { getWieldedWeapons } from '../../item/lenses/hands'
+import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, coordKey, line, rotate, setDistance } from '../geometry'
 
 // The board lenses read the spatial facts of a fight off `state.board`.

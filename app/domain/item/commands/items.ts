@@ -1,5 +1,5 @@
 import { Character, CharacterUpdater, Item, SlotGroup, SlotKind } from '../../types'
-import { canFitItem, stackInto } from '../lenses/containers'
+import { canFitItem, stackInto } from '../rules/containers'
 
 export function duplicateItem(item: Item, overrides: Partial<Pick<Item, 'amount'>> = {}): Item {
   return { ...item, id: crypto.randomUUID(), ...overrides }

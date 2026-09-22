@@ -1,6 +1,6 @@
 import type { AttackKind, AttackType, Character, Handed, Material, Range, Weapon, WeaponAttack } from '../../types'
-import { getWieldedWeapons, isAttackUsable } from '../../item/lenses/hands'
-import { getHardness } from '../../item/lenses/items'
+import { getWieldedWeapons, isAttackUsable } from '../../item/rules/hands'
+import { getHardness } from '../../item/rules/items'
 import { injuryMap } from '../../tables'
 import { getAttackKind, getAttackPropertyLabels, getAttackType, hasProperty } from '../../weaponProperties'
 import { getActionCost } from '../rules/actionCosts'

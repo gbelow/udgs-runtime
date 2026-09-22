@@ -3,7 +3,7 @@ import { doffArmor, equipArmor } from "../domain/character/commands";
 import { ArmorPanelView, getArmorPanel } from "../domain/character/lenses/armor";
 import { getEquipView, WearView } from "../domain/character/rules/armor";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
-import { getHardness } from "../domain/item/lenses";
+import { getHardness } from "../domain/item/rules/items";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";

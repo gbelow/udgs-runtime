@@ -1,6 +1,6 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty } from "../../types";
-import { getBurdenPenalty } from "../../item/lenses/containers";
-import { getWieldedWeapons } from "../../item/lenses/hands";
+import { getBurdenPenalty } from "../../item/rules/containers";
+import { getWieldedWeapons } from "../../item/rules/hands";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize } from "./misc";
 import { BOWS, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";

@@ -25,11 +25,11 @@ Data flows in one direction: **Domain (pure) → Zustand stores (non-authoritati
 
 ### Domain layer (`app/domain/`) — the heart of the project
 
-Pure, synchronous, deterministic, zero React dependencies. Each half of the domain (`character/`, `combat/`) is split into three kinds of pure function, and the folder name says which kind a file holds:
+Pure, synchronous, deterministic, zero React dependencies. Each part of the domain (`character/`, `combat/`, `item/`) is split into three kinds of pure function, and the folder name says which kind a file holds:
 
 - **Rules** (`rules/`) answer "what does the book say about this state?": term and DL getters, outcome resolution, path legality, line of sight, affliction and wound tables, what may be declared. These are the functions that cite a `.tex` line. Rules import nothing from the two folders below.
 - **Commands** (`commands/`) are the write side — the buttons a player can press: pure updaters `(character) => character` or `(state) => state`, often curried, that call rules to decide what happens.
-- The read-for-UI side differs by half. Under `character/` it is **lenses** (`lenses/`): invertible `{get, set}` pairs over a character, where `set` inverts through the modifiers so the stored *base* value changes, never the derived value, plus the view getters (`getWeaponPanels`, `getArmorPanel`, `getSpellSheetRows`…) that shape the character for a screen. Registries are aggregated in `lenses/index.ts` (`skillLenses`, `characteristicLenses`, `movementLenses`), keyed by the corresponding type. Under `combat/` it is **projections** (`projections/`): combat state arranged for a screen — the action panel, board view, roster, outcome previews — with nothing to invert.
+- The read-for-UI side differs by part. Under `character/` it is **lenses** (`lenses/`): invertible `{get, set}` pairs over a character, where `set` inverts through the modifiers so the stored *base* value changes, never the derived value, plus the view getters (`getWeaponPanels`, `getArmorPanel`, `getSpellSheetRows`…) that shape the character for a screen. Registries are aggregated in `lenses/index.ts` (`skillLenses`, `characteristicLenses`, `movementLenses`), keyed by the corresponding type. Under `combat/` and `item/` it is **projections** (`projections/`): state arranged for a screen — the action panel, board view, roster, outcome previews, the hands and container panels, the catalog rows — with nothing to invert. Neither has a lens: nothing there has a `set`.
 
 A file that mixes a rule with its view is split, not filed under whichever half is bigger.
 

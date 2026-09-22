@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { addItemToContainer, removeItemFromContainer, drawItem, storeItem } from "../domain/item/commands";
 import { doffArmor, wearFromContainer } from "../domain/character/commands";
-import { GEAR_SIZE, getCatalogItem, getHeldItem, getItemCatalogRows, ItemCatalogRow } from "../domain/item/lenses";
+import { GEAR_SIZE, getCatalogItem } from "../domain/item/rules/items";
+import { getHeldItem } from "../domain/item/rules/hands";
+import { getItemCatalogRows, ItemCatalogRow } from "../domain/item/projections/items";
 import { getSize } from "../domain/character/rules/misc";
 import { Item, SlotKind } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";

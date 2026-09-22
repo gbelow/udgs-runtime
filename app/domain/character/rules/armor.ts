@@ -1,6 +1,6 @@
 import { Armor, Character, Item, SlotKind } from '../../types'
-import { GEAR_SIZE, getItemArmor, getItemScale } from '../../item/lenses/items'
-import { getDrawCost, getStoreCost, isCharged } from '../../item/lenses/costs'
+import { GEAR_SIZE, getItemArmor, getItemScale } from '../../item/rules/items'
+import { getDrawCost, getStoreCost, isCharged } from '../../item/rules/costs'
 import { ActionCost, getActionCost } from './actionCosts'
 import { getSize } from './misc'
 

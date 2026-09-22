@@ -1,4 +1,4 @@
-import { Armor, ArmorSchema, Item, ItemSchema, ItemType, Material, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Item, ItemSchema, Material, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
 import { scaleArmor, scaleWeapon } from '../../character/rules/helpers'
@@ -34,32 +34,13 @@ function getTemplate(item: Pick<Item, 'type' | 'refId' | 'name'>): Item | undefi
     : templates.find((t) => t.type === item.type && !t.refId && t.name === item.name)
 }
 
-function scaleItem(item: Item, scale: number): Item {
+export function scaleItem(item: Item, scale: number): Item {
   return { ...item, bulk: item.bulk + scale - GEAR_SIZE }
 }
 
 export function getItemScale(item: Item): number {
   const template = getTemplate(item)
   return template ? GEAR_SIZE + item.bulk - template.bulk : GEAR_SIZE
-}
-
-export type ItemCatalogRow = {
-  key: string
-  name: string
-  type: ItemType
-  bulk: number
-  bulkName: string
-}
-
-// The catalog as rows to pick from, grouped the way the book lists them:
-// weapons, armor, then everything else, each in catalog order — at the bulk
-// each would have once stamped at `scale`.
-export function getItemCatalogRows(scale = GEAR_SIZE): ItemCatalogRow[] {
-  return Object.entries(itemsCatalog as Record<string, unknown>)
-    .map(([key, raw]) => {
-      const item = scaleItem(ItemSchema.parse(raw), scale)
-      return { key, name: item.name || key, type: item.type, bulk: item.bulk, bulkName: getBulkName(item.bulk) }
-    })
 }
 
 // A catalog entry is a template: stamping it yields an item with its own id

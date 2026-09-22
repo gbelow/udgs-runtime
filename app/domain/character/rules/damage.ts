@@ -3,8 +3,8 @@ import { HEAD, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injury
 import { getArmor } from './armor'
 import { getTGH } from './misc'
 import { getForce } from './skills'
-import { getHardness } from '../../item/lenses/items'
-import { getWieldedWeapons } from '../../item/lenses/hands'
+import { getHardness } from '../../item/rules/items'
+import { getWieldedWeapons } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
 
 // What damage does to this character: the one place the injury rules are

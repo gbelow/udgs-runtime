@@ -1,6 +1,8 @@
 import { holdItem, regripItem, dropItem } from "../domain/item/commands";
 import { wearFromHands } from "../domain/character/commands";
-import { getCatalogItem, getHandsPanel, Grip, HandsPanelView } from "../domain/item/lenses";
+import { getCatalogItem } from "../domain/item/rules/items";
+import { Grip } from "../domain/item/rules/hands";
+import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";

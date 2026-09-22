@@ -1,7 +1,7 @@
 'use client'
 import { useContainerLens } from '../hooks/useContainerLens'
 import { useItemLens } from '../hooks/useItemLens'
-import type { ContainerSlotView } from '../domain/item/lenses'
+import type { ContainerSlotView } from '../domain/item/projections/containers'
 import { Button, Panel } from './ui'
 
 export function ContainerPanel(){

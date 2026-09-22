@@ -1,6 +1,6 @@
 import type { ArmorProperty, Character, Material } from '../../types'
-import { getHardness, getItemScale } from '../../item/lenses/items'
-import { isCharged } from '../../item/lenses/costs'
+import { getHardness, getItemScale } from '../../item/rules/items'
+import { isCharged } from '../../item/rules/costs'
 import { armorFits, getArmor, getDoffCost } from '../rules/armor'
 
 export type ArmorPanelView = {

@@ -1,10 +1,10 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { canBeHeld, getDrawCost, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../lenses/hands'
-import { canFitItem } from '../lenses/containers'
+import { canBeHeld, getDrawCost, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
+import { canFitItem } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
-import { getItemWeapon } from '../lenses/items'
+import { getItemWeapon } from '../rules/items'
 import { hasProperty } from '../../weaponProperties'
 
 // A character in play pays the price or the move does not happen; on the sheet

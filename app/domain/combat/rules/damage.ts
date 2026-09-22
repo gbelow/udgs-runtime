@@ -7,7 +7,7 @@ import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue } from '../../character/rules/gear'
 import { getDM } from '../../character/rules/helpers'
 import { getForce } from '../../character/rules/skills'
-import { getHardness } from '../../item/lenses/items'
+import { getHardness } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
 

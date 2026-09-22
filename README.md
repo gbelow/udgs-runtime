@@ -139,7 +139,7 @@ When implementing a feature or fix:
 
 Heuristics:
 
-- Derived value or rule → a getter in `app/domain/character/rules/**` (or `combat/rules/**`); a stat the sheet edits also gets a **lens** registered in `lenses/index.ts`; a shape the UI renders is a view getter in `character/lenses/**` or a projection in `combat/projections/**`.
+- Derived value or rule → a getter in `app/domain/character/rules/**` (or `combat/rules/**`); a stat the sheet edits also gets a **lens** registered in `lenses/index.ts`; a shape the UI renders is a view getter in `character/lenses/**` or a projection in `combat/projections/**` / `item/projections/**`.
 - User-triggered state change → a pure **command** in `app/domain/**/commands/**` returning a new aggregate.
 - Reading / writing → server actions (`app/actions.ts`) or `redis.ts`; treat persistence as I/O, not rule evaluation.
 

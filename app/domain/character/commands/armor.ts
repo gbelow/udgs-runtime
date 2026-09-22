@@ -1,8 +1,8 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../rules/armor'
-import { getHeldItem } from '../../item/lenses/hands'
-import { FREE, isCharged } from '../../item/lenses/costs'
-import { canFitItem } from '../../item/lenses/containers'
+import { getHeldItem } from '../../item/rules/hands'
+import { FREE, isCharged } from '../../item/rules/costs'
+import { canFitItem } from '../../item/rules/containers'
 import { findInContainer, pay } from '../../item/commands/hands'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from '../../item/commands/items'
 

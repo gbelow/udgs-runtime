@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useItemLens } from '../hooks/useItemLens';
-import type { ItemCatalogRow } from '../domain/item/lenses';
+import type { ItemCatalogRow } from '../domain/item/projections/items';
 import { Button, ListButton, NumberInput, SectionLabel, TextInput } from './ui';
 
 export function ItemSelector(){

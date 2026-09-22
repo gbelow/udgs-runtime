@@ -7,8 +7,8 @@ import type { ActionKind } from '../types'
 import { getAvailableActions, getDLTerms, getOpenAction, getTargetIds } from './action'
 import { getStrikeReach } from './board'
 import { declareAction, setTarget } from '../commands/action'
-import { getCatalogItem, getItemScale } from '../../item/lenses/items'
-import { getWieldedWeapons } from '../../item/lenses/hands'
+import { getCatalogItem, getItemScale } from '../../item/rules/items'
+import { getWieldedWeapons } from '../../item/rules/hands'
 
 function fighter(id: string, extra: Record<string, unknown> = {}): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id, ...extra })

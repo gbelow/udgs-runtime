@@ -1,8 +1,8 @@
 import { AfflictionKey, CampaignCharacter, Character, Skills } from '../../types'
 import { AFFLICTIONS, AfflictionDef, SkillPenaltyTable } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
-import { isLamedByBurden } from '../../item/lenses/containers'
-import { isLamedByHeld } from '../../item/lenses/hands'
+import { isLamedByBurden } from '../../item/rules/containers'
+import { isLamedByHeld } from '../../item/rules/hands'
 import { getWoundAfflictions } from './wounds'
 import { getCurseAfflictions } from './curses'
 
