@@ -3,6 +3,7 @@ import { useCombatActions } from '../hooks/useCombatActions'
 import type { ActionOption, AttackOption, SpellOption, ImprovementOption } from '../domain/combat/rules/action'
 import type { MovementOption } from '../domain/combat/rules/move'
 import type { OpenActionView, ReactorOptions } from '../domain/combat/projections/actionPanel'
+import type { ActionReport } from '../domain/combat/projections/outcomes'
 import type { HOPOption } from '../domain/combat/rules/damage'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
@@ -35,6 +36,7 @@ export function ActionPanel(){
           {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
           {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
         </div>
+        {view.report ? <Report report={view.report} /> : null}
       </Panel>
     )
   }
@@ -67,7 +69,12 @@ export function ActionPanel(){
       {view.charges.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>charge</SectionLabel>
-          {view.charges.map((c) => <Button key={c.key} size='xs' onClick={() => amend({ key: c.key })}>{c.name}</Button>)}
+          {view.charges.map((c) => (
+            <Button key={c.itemId} size='xs' variant={c.itemId === open.itemId ? 'primary' : 'default'} className={c.itemId === open.itemId ? 'bg-accent/15' : ''}
+              onClick={() => amend({ itemId: c.itemId, key: c.key, center: c.cell })}>
+              {c.name} <span className='text-muted'>in {c.item} · {c.holder}</span>
+            </Button>
+          ))}
         </div>
       ) : null}
       {open.source && open.source !== 'thrown' ? <div className='text-xs text-muted'>{open.source === 'cast' ? 'from the spell' : 'set off — no test'}</div> : null}
@@ -107,8 +114,8 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {step === 'aim' && open.area ? (
-        <div className='text-xs text-muted'>{open.area.shape === 'spray' ? 'click a cell on the board to point the spray' : 'click the cell on the board where it lands'}</div>
+      {open.area?.aimable ? (
+        <div className='text-xs text-muted'>{open.area.shape === 'spray' ? 'click a cell on the board to point the spray' : 'click the cell on the board where it lands'}{open.area.aimed ? ' — or elsewhere to move it' : ''}</div>
       ) : null}
 
       {step === 'commit' ? (
@@ -276,7 +283,7 @@ function Test({ open }: { open: OpenActionView }){
 function SpellButton({ option, onCast, onQuicken }: { option: SpellOption, onCast: () => void, onQuicken: () => void }){
   return (
     <span className='inline-flex items-stretch'>
-      <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.castable ? undefined : 'needs a focus surge'} onClick={onCast}>
+      <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.reason ?? undefined} onClick={onCast}>
         {option.name} <span className='font-mono text-muted'>DL {option.DL ?? '?'}</span> <Cost cost={option.cost} />
       </Button>
       {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title='quicken: +4 DL, no surge' onClick={onQuicken}>quicken</Button> : null}
@@ -331,6 +338,24 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOption, onBuy: () =
       </Button>
       {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
     </span>
+  )
+}
+
+// What the action just played out came to, once it is closed: what it was,
+// what it rolled, and what it landed on whom — the last thing the table
+// saw, kept where the next declaration is made.
+function Report({ report }: { report: ActionReport }){
+  return (
+    <div className='flex flex-col gap-1 pt-2 mt-2 border-t border-line'>
+      <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
+        <SectionLabel>last</SectionLabel>
+        <span className='text-sm'>{report.actor} · {report.label}</span>
+        {report.roll ? <span className='text-xs text-muted'>d10 <span className='font-mono text-fg'>{report.roll.die}</span> · <span className='font-mono text-fg'>{report.roll.score}</span> vs <span className='font-mono text-fg'>{report.roll.DL}</span> · {report.roll.degree}</span> : null}
+      </div>
+      {report.outcomes.map((o, i) => <OutcomeLine key={i} outcome={o.outcome} target={o.target} />)}
+      {report.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
+      {report.outcomes.length === 0 && report.notes.length === 0 ? <span className='text-xs text-muted'>nothing landed</span> : null}
+    </div>
   )
 }
 

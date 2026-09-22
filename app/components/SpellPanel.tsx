@@ -34,7 +34,7 @@ export function SpellPanel(){
                 row.active ?
                 <Button size='xs' variant='good' className='bg-good/15' aria-label={`release ${row.name}`} onClick={() => cast(row.key)}>release</Button>
                 : <>
-                  <Button size='xs' variant='good' aria-label={`cast ${row.name}`} disabled={!row.canCast} onClick={() => cast(row.key)}>cast · {row.price}</Button>
+                  <Button size='xs' variant='good' aria-label={`cast ${row.name}`} disabled={!row.canCast} title={row.missing ? `needs ${row.missing}` : undefined} onClick={() => cast(row.key)}>cast · {row.price}</Button>
                   <Button size='xs' variant='primary' aria-label={`quicken ${row.name}`} disabled={!row.canQuicken} onClick={() => cast(row.key, true)}>quicken · DL {row.quickenedDL ?? '?'}</Button>
                 </>
               }

@@ -433,6 +433,10 @@
     "flamethrower": {
       "method": "wizard",
       "practice": 0
+    },
+    "sleep": {
+      "method": "wizard",
+      "practice": 0
     }
   },
   "notes": ""

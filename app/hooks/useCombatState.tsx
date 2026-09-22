@@ -1,5 +1,6 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
+import { getOpenAction } from "../domain/combat/rules/action";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // Fight-level primitives. Both go through the store selector, so a change to a
@@ -7,8 +8,11 @@ import { useCombatStore } from "../stores/useCombatStore";
 export function useCombatState() {
   const round = useCombatStore((s) => s.round);
   const hasActiveCharacter = useCombatStore((s) => !!s.activeCharacterId);
+  // An action being played out holds the fight: whoever it names must stay
+  // in it until it resolves.
+  const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
 
-  return { round, hasActiveCharacter } as const;
+  return { round, hasActiveCharacter, hasOpenAction } as const;
 }
 
 export function useCombatRoster(): {

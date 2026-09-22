@@ -731,7 +731,11 @@ export const SpellSchema = z.object({
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // paid before the roll
   costText: str.default(''), // the book's cost field verbatim, for materials and charges the domain does not track
   knowledge: z.array(SpellKnowledgeRequirementSchema).default([]),
-  requirements: str.default(''), // gear, abilities, other spells — free text, not enforced
+  // spells.tex "Requirements": what the spell cannot be had or cast without
+  // — gear the caster must have on them, the knowledge and the spells it is
+  // learned from. Every outer item is needed, any inner alternative
+  // satisfies it, as an ability's are.
+  requirements: z.array(z.array(RequirementSchema)).default([]),
   DL: num.nullable().default(null), // casting DL; null while the book leaves it undecided
   castRange: str.default(''),
   castArea: str.default(''),

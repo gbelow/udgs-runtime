@@ -1,4 +1,4 @@
-import { Character, Spell, SpellMethod } from '../../types'
+import { Character, Item, Requirement, Spell, SpellMethod } from '../../types'
 import { SPELLS, SpellKey } from '../../spells'
 import { HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
@@ -7,6 +7,7 @@ import { getAccuracy, getStrike } from './skills'
 import { getSM } from './helpers'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
+import { getCarriedItems, isGear } from '../../item/rules/items'
 import { isCampaignCharacter } from '../../utils'
 
 // spells.tex "Learning spells".
@@ -81,12 +82,48 @@ export function getSOP(score: number, DL: number): number {
   return Math.max(0, score - (DL + HIT_MARGIN))
 }
 
+// spells.tex "Requirements": "Some spells may even be impossible to cast if
+// the minimum conditions are not met." The gear a spell names is the part
+// the domain can see — it has to be on the caster, in a hand or carried;
+// what the rest of the list asks is what it takes to learn the spell, and a
+// condition is the table's to judge.
+export function getGearRequirements(key: SpellKey): Requirement[][] {
+  return SPELLS[key].requirements.map((item) => item.filter((alt) => alt.kind === 'gear')).filter((item) => item.length > 0)
+}
+
+// The gear a spell is cast with, in the caster's own hands: what a charge
+// is loaded into (spells.tex "Charged"). Null when they are holding none of
+// what it asks for.
+export function getSpellFocus(c: Character, key: SpellKey): Item | null {
+  for (const item of getGearRequirements(key).flat()) {
+    const held = c.held.find((i) => isGear(i, item.name))
+    if (held) return held
+  }
+  return null
+}
+
+export function hasSpellGear(c: Character, key: SpellKey): boolean {
+  const carried = getCarriedItems(c)
+  return getGearRequirements(key).every((item) => item.some((alt) => carried.some((i) => isGear(i, alt.name)) !== alt.not))
+}
+
+// What the caster is missing of what the spell asks for, in the book's
+// words, for the button that will not press.
+export function getMissingGear(c: Character, key: SpellKey): string {
+  const carried = getCarriedItems(c)
+  return getGearRequirements(key)
+    .filter((item) => !item.some((alt) => carried.some((i) => isGear(i, alt.name)) !== alt.not))
+    .map((item) => item.map((alt) => alt.name).join(' or '))
+    .join(', ')
+}
+
 // "Spells require using a focus surge to be cast in combat scenes." — unless
 // quickened.
 export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boolean {
   if (!isCampaignCharacter(c) || !(key in c.spells)) return false
   const spell = SPELLS[key]
   if (spell.DL === null || !canAfford(c, spell.cost)) return false
+  if (!hasSpellGear(c, key)) return false
   return quicken || c.usedSurge === 'focus'
 }
 

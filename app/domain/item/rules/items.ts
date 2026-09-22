@@ -1,4 +1,4 @@
-import { Armor, ArmorSchema, Item, ItemSchema, Material, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Character, Item, ItemSchema, Material, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
 import { scaleArmor, scaleWeapon } from '../../character/rules/helpers'
@@ -80,4 +80,21 @@ export function getItemArmor(item: Item): Armor | undefined {
   if (item.type !== 'armor' || !item.refId) return undefined
   const raw = (armorsCatalog as Record<string, unknown>)[item.refId]
   return raw ? scaleArmor(ArmorSchema.parse(raw), getItemScale(item)) : undefined
+}
+
+// spells.tex "Requirements": whether this is the piece of gear something
+// asks for, by the name the book calls it — a better version of the same
+// thing answers to it too ("Superior Electrite" is electrite), and an item
+// stamped from a catalog row answers to that row's key.
+export function isGear(item: Item, name: string): boolean {
+  const asked = name.trim().toLowerCase()
+  const own = item.name.trim().toLowerCase()
+  return own === asked || own.endsWith(` ${asked}`) || item.refId.trim().toLowerCase() === asked
+}
+
+// Everything the character has on them: what is in their hands, what they
+// wear, and what their containers carry.
+export function getCarriedItems(c: Character): Item[] {
+  const stowed = Object.values(c.containers).flatMap((container) => Object.values(container.slots).flatMap((slot) => slot.items))
+  return [...c.held, ...(c.worn ? [c.worn] : []), ...stowed]
 }

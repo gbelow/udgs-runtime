@@ -48,7 +48,7 @@ export function PlayPanel(){
   const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
-  const { round, hasActiveCharacter: isThereActiveCharacter } = useCombatState()
+  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction } = useCombatState()
   const { notes, fightName } = useActiveCharacterData()
 
   const [dice10, setDice10] = useState(1)
@@ -94,7 +94,7 @@ export function PlayPanel(){
                 <DamageControl />
                 <InjuryControl type='injuryLevel' />
                 <InjuryControl type='bleed' />
-                <Button variant='bad' active={isCharacterDead} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+                <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
               </div>
             </div>
 

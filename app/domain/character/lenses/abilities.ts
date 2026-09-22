@@ -1,6 +1,6 @@
-import type { Character, Cost, Requirement } from '../../types'
+import { requirementsLabel } from './requirements'
+import type { Character, Cost } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
-import { SPELLS, SpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 import { canLearnAbility, getAbilityXPCost } from '../rules/abilities'
 import { canAfford } from '../rules/cost'
@@ -45,19 +45,6 @@ function learningPrice(c: Character, key: AbilityKey): string {
   if (karma) return `${karma} Karma`
   const xp = getAbilityXPCost(key)(c)
   return xp ? `${xp} XP` : ''
-}
-
-function requirementLabel(req: Requirement): string {
-  const name = req.kind === 'ability' ? ABILITIES[req.name as AbilityKey].name
-    : req.kind === 'spell' ? SPELLS[req.name as SpellKey].name
-    : req.kind === 'trainable' ? `${req.name} ${req.level}`
-    : req.kind === 'attribute' ? `${req.name} ${req.op} ${req.level}`
-    : req.name
-  return req.not ? `not ${name}` : name
-}
-
-function requirementsLabel(requirements: Requirement[][]): string {
-  return requirements.map((item) => item.map(requirementLabel).join(' or ')).join(' · ')
 }
 
 // How the ability is held, in the words the book used for its Usage field:

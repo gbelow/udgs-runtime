@@ -1,4 +1,4 @@
-import type { Character, Damage, DamageKind, Delivery } from '../../types'
+import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item } from '../../types'
 import type { AttackAction, CombatState, HOPPurchase } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
@@ -8,6 +8,8 @@ import { getBlockValue } from '../../character/rules/gear'
 import { getDM } from '../../character/rules/helpers'
 import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
+import { produceSpellEffect } from '../../character/rules/production'
+import { SPELLS, isSpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
 
@@ -76,7 +78,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
   const base: Damage = {
-    damage: [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }],
+    damage: [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)],
     hardness: getHardness(row.atk.material),
     force: getForce(attacker),
     properties: row.atk.properties,
@@ -88,6 +90,29 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, attacker) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
+}
+
+// spells.tex "Charged", Taser: "discharges on the first object it comes into
+// contact with, adding its damage to the attack" — the charge in the item
+// the blow is made with rides on it, and each kind it carries is measured
+// against its own armor value where it lands (combat.tex "Physical
+// attacks"). The charge is scaled by whoever swings it: what it was made
+// with is not written into the item.
+export function getChargedItem(c: Character, action: AttackAction): Item | null {
+  const row = findWeaponRow(c, action.weaponKey, action.attack)
+  const item = row ? c.held.find((i) => i.id === row.wielded.itemId) : undefined
+  return item?.charge && isSpellKey(item.charge) ? item : null
+}
+
+function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] {
+  const item = getChargedItem(c, action)
+  if (!item || !isSpellKey(item.charge!)) return []
+  return SPELLS[item.charge!].effects
+    .filter((e) => e.type === 'damage' && e.area === null)
+    .flatMap((e) => {
+      const produced = produceSpellEffect(c, e).effect
+      return produced.type === 'damage' ? produced.effect.damage : []
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -1,9 +1,10 @@
+import { requirementsLabel } from './requirements'
 import type { Area, Character, Spell, SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN, SPELL_MODIFICATIONS, SpellModification } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
 import { getDM } from '../rules/helpers'
-import { ResolvedTest, canCastSpell, canLearnSpell, getCastingDL, getMiracleSkill, getSpellSkill, isHit, resolveDL, resolveTest } from '../rules/spells'
+import { ResolvedTest, canCastSpell, canLearnSpell, getCastingDL, getMiracleSkill, getMissingGear, getSpellSkill, isHit, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
 function knowledgeLabel(spell: Spell): string {
@@ -45,7 +46,7 @@ export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
       knowledge: knowledgeLabel(spell),
       DL: spell.DL,
       costText: spell.costText,
-      requirements: spell.requirements,
+      requirements: requirementsLabel(spell.requirements),
       description: spell.description,
       enhance: spell.enhance,
       learned: key in c.spells,
@@ -90,6 +91,7 @@ export type SpellSheetRow = {
   enhance: string
   canCast: boolean // with the focus surge and the price met (or the spell is held and a click ends it)
   canQuicken: boolean // castable at +4 DL without the surge
+  missing: string // spells.tex "Requirements": the gear the caster does not have on them
   active: boolean // a sustained spell currently held
 }
 
@@ -184,6 +186,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         description: spell.description,
         enhance: spell.enhance,
         canCast,
+        missing: getMissingGear(c, key),
         canQuicken,
         active,
       }

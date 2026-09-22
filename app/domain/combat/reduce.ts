@@ -2,12 +2,12 @@ import type { CampaignCharacter } from '../types'
 import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
 import { deliver } from '../character/commands/deliver'
-import { chargeItem } from '../item/commands/hands'
-import { throwItem } from '../item/commands/hands'
+import { chargeItem, consumeItem, dischargeItem } from '../item/commands/hands'
 import { getWieldedWeapons } from '../item/rules/hands'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './rules/move'
 import { getReactionsTo } from './rules/action'
+import { getChargedItem } from './rules/damage'
 import { getTerrainPaint } from './rules/explosion'
 import { coordKey } from './geometry'
 import { SPELLS, isSpellKey } from '../spells'
@@ -43,7 +43,11 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // hands
         if (action.kind === 'explosion') {
           const hit = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
-          return c.id === action.actorId && action.source === 'thrown' ? releaseThrown(hit, action.weaponKey, action.attack) : hit
+          // what went off is gone: the thrower's row left their hand, and
+          // the object a charge was set off in was destroyed by it
+          if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(hit, action.weaponKey, action.attack)
+          if (action.source === 'detonate' && hit.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(hit) as CampaignCharacter
+          return hit
         }
         // spells.tex "Sustained": a cast that hit is taken hold of by its
         // caster, its upkeep due at the round change
@@ -57,7 +61,17 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key)(delivered) as CampaignCharacter : delivered
         }
-        if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
+        if (action.kind !== 'strike' && action.kind !== 'shoot') return c
+        // spells.tex "Charged": the charge goes off with the blow that
+        // lands — "discharges on the first object it comes into contact
+        // with" — and leaves the object empty. A row that pierces has no
+        // graze to land on (combat.tex "Piercing"), so it goes off or it
+        // does not.
+        if (c.id === action.actorId) {
+          const charged = getChargedItem(c, action)
+          return charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
+        }
+        if (c.id !== action.targetId || !action.facts) return c
         return deliver(action.facts)(c)
     }
   }
@@ -69,7 +83,7 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
   const wielded = getWieldedWeapons(c).find((w) => w.key === weaponKey)
   const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
   if (!wielded || wielded.natural || !atk || getAttackKind(atk.range) !== 'throw') return c
-  return throwItem(wielded.itemId)(c) as CampaignCharacter
+  return consumeItem(wielded.itemId)(c) as CampaignCharacter
 }
 
 function fallProne(c: CampaignCharacter): CampaignCharacter {

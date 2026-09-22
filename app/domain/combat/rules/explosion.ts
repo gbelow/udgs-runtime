@@ -1,4 +1,4 @@
-import type { Area, CampaignCharacter, Delivery, SpellEffect, TerrainPatch } from '../../types'
+import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
 import { DEGREES, type CombatState, type Coord, type Degree, type ExplosionAction, type ExplosionFacts } from '../types'
 import { getRM } from '../../character/rules/helpers'
 import { produceSpellEffect } from '../../character/rules/production'
@@ -6,7 +6,7 @@ import { getAccuracy } from '../../character/rules/skills'
 import { resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
 import { getWieldedWeapons } from '../../item/rules/hands'
-import { SPELLS, isSpellKey } from '../../spells'
+import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
 import { DIRECTIONS, add, coordKey, disk, distance, ring, sameCell, setDistance } from '../geometry'
 import { angleBetween, angularGap, getPlacedFootprint, getShotReachOf, seesAcross, toPlane } from './board'
@@ -38,8 +38,42 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
     const effects = areaEffects(charge ?? atk.payload)
     return effects.length > 0 ? { effects, producer } : null
   }
+  if (action.source === 'detonate') {
+    const held = getChargedItem(state, action.itemId)
+    const charge = held?.item.charge
+    const effects = charge && isSpellKey(charge) ? areaEffects(SPELLS[charge].effects) : []
+    return effects.length > 0 ? { effects, producer } : null
+  }
   const effects = isSpellKey(action.key) ? areaEffects(SPELLS[action.key].effects) : []
   return effects.length > 0 ? { effects, producer } : null
+}
+
+// spells.tex "Charged": a charge waits in an object, and every object in
+// the fight is in somebody's hands — nothing can be left on the ground yet.
+// Who holds the one named, and what it is.
+export function getChargedItem(state: CombatState, itemId: string): { holder: CampaignCharacter; item: Item } | null {
+  if (!itemId) return null
+  for (const holder of Object.values(state.characters)) {
+    const item = holder.held.find((i) => i.id === itemId)
+    if (item) return { holder, item }
+  }
+  return null
+}
+
+// Every charge in the fight that can be set off from where it lies: one
+// with an area to it, in the hands of someone standing on the board.
+export type ChargeOption = { itemId: string; key: SpellKey; name: string; item: string; holder: string; cell: Coord }
+
+export function getChargeOptions(state: CombatState): ChargeOption[] {
+  return Object.values(state.characters).flatMap((holder) => {
+    const cell = state.board?.placements[holder.id]?.cell
+    if (!cell) return []
+    return holder.held.flatMap((item): ChargeOption[] => {
+      const key = item.charge
+      if (!key || !isSpellKey(key) || !SPELLS[key].effects.some((e) => e.target === 'area' && e.area !== null)) return []
+      return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: holder.fightName ?? '', cell }]
+    })
+  })
 }
 
 // Whether a thrown row has anything to go off with: a charge in the item,
@@ -232,8 +266,9 @@ export function isAvoidable(action: ExplosionAction): boolean {
 // Where a disk explosion may be aimed. Thrown: any cell within the row's
 // reach of the attacker's footprint that some cell of it sees (combat.tex
 // "Cover"), off blocking ground. Cast: within the effects' range of the
-// caster, in sight. Set off: anywhere on the ground. Nowhere for a spray,
-// which is aimed by direction.
+// caster, in sight. Set off: where the charged object is, which is where
+// whoever holds it stands. Nowhere for a spray, which is aimed by
+// direction.
 export function getExplosionCenters(state: CombatState, action: ExplosionAction): Coord[] {
   const board = state.board
   const from = board?.placements[action.actorId]
@@ -241,12 +276,24 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
   const payload = getExplosionPayload(state, action)
   if (!board || !from || !footprint || !payload || isSpray(state, action) || getExplosionAreas(state, action).length === 0) return []
   const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
-  if (action.source === 'detonate') return disk(board.origin, board.radius).filter(open)
+  if (action.source === 'detonate') {
+    const held = getChargedItem(state, action.itemId)
+    return held ? (getPlacedFootprint(state, held.holder.id) ?? []) : []
+  }
   const reach = action.source === 'thrown'
     ? getShotReachOf(state, action)
     : Math.min(...payload.effects.map((e) => e.range ?? 1))
   if (reach === null) return []
   return disk(from.cell, reach).filter((cell) => setDistance([cell], footprint) <= reach && open(cell) && seesAcross(board, footprint, [cell]))
+}
+
+// Whether the explosion is still its actor's to point, and can be pointed
+// somewhere else: a disk until they commit to it, a spray until the blast
+// is confirmed (combat.tex "Sprays": "The attacker can choose the exact
+// direction of the cone after the movement").
+export function isAimable(state: CombatState, action: ExplosionAction): boolean {
+  if (getExplosionAreas(state, action).length === 0) return false
+  return action.status === 'declared' || (action.status === 'rolled' && isSpray(state, action))
 }
 
 // Whether the explosion as declared is aimed: a disk at a centre it may be

@@ -7,6 +7,7 @@ import { SPELL_KEYS } from '../../domain/spells'
 import { BULK_NAMES, HEAVY_MAX_DEGREE, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
+import items from '../../assets/items.json'
 
 const input = `${inputClass} text-sm w-full`
 
@@ -31,11 +32,13 @@ function suggesting(options: (parent: Record<string, unknown>) => readonly strin
   }
 }
 
-// A requirement's name is a key into whichever catalog its kind points at;
-// gear, trainables and conditions stay free words.
+// A requirement's name is a key into whichever catalog its kind points at —
+// spells.tex "Requirements": a gear item is the one the character has to
+// have on them, so the item list is offered; trainables and conditions stay
+// free words.
 const requirementName = suggesting((parent) => {
   const kind = String(parent.kind ?? '')
-  return kind === 'ability' ? ABILITY_KEYS : kind === 'spell' ? SPELL_KEYS : []
+  return kind === 'ability' ? ABILITY_KEYS : kind === 'spell' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : []
 })
 
 // An item's refId resolves in the catalog its type names.
@@ -98,6 +101,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   },
   spells: {
     'knowledge.name': suggesting(() => knowledges_list),
+    'requirements.name': requirementName,
     description: textarea,
     enhance: textarea,
     'outcomes.miss': textarea,

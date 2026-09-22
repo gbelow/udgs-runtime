@@ -3,7 +3,7 @@ import { ActionSchema, type Action, type ActionDraft, type ActionKind, type Acti
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
-import { canCastSpell, getCastingDL, getSpellSkill } from '../../character/rules/spells'
+import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill } from '../../character/rules/spells'
 import { getEffectRange, getTargetEffects } from '../../character/rules/production'
 import { HIT_LOCATIONS } from '../../lists'
 import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/rules/hands'
@@ -18,7 +18,7 @@ import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
 import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
-import { getAffected, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
+import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
 
 // ---------------------------------------------------------------------------
@@ -132,7 +132,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // set off, a charged spell with something to go off is named
     case 'explosion':
       return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
-        && (action.source === 'thrown' || (isSpellKey(action.key) && (action.source === 'cast' || SPELLS[action.key].type === 'charged')))
+        && (action.source !== 'cast' || isSpellKey(action.key))
+        && (action.source !== 'detonate' || getChargedItem(state, action.itemId) !== null)
         && getExplosionPayload(state, action) !== null && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
@@ -472,8 +473,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         label: 'set off a charge',
         draft: { kind: 'explosion', source: 'detonate' },
         cost: null,
-        available: placed && getChargeOptions().length > 0,
-        reason: placed ? (getChargeOptions().length > 0 ? null : 'no charge to set off') : 'not on the board',
+        available: placed && getChargeOptions(state).length > 0,
+        reason: placed ? (getChargeOptions(state).length > 0 ? null : 'nothing is charged') : 'not on the board',
         reactionTo: null,
         chosen: false,
       },
@@ -556,8 +557,22 @@ export type SpellOption = {
   cost: ActionCost
   castable: boolean
   quickenable: boolean
+  // why it cannot be cast, when it cannot
+  reason: string | null
   // whether it aims at someone
   targeted: boolean
+}
+
+// spells.tex "Requirements", "Casting spells": what stands between the
+// caster and the spell, the missing gear first — it is the one the caster
+// can do something about from here.
+function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
+  const spell = SPELLS[key]
+  const missing = getMissingGear(c, key)
+  if (missing) return `needs ${missing}`
+  if (!canAfford(c, { AP: spell.cost.AP, STA: spell.cost.STA })) return 'cannot pay for it'
+  if (spell.DL === null) return 'no casting DL'
+  return canCastSpell(c, key, false) ? null : 'needs a focus surge'
 }
 
 export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
@@ -571,19 +586,10 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: canCastSpell(c, key, false),
       quickenable: canCastSpell(c, key, true),
-      targeted: getTargetEffects(spell).length > 0,
+      reason: reasonAgainst(c, key),
+      targeted: spell.type !== 'charged' && getTargetEffects(spell).length > 0,
     }
   })
-}
-
-// spells.tex "Charged": the spells a charge can be of — what can be set
-// off on the ground.
-export type ChargeOption = { key: SpellKey; name: string }
-
-export function getChargeOptions(): ChargeOption[] {
-  return (Object.keys(SPELLS) as SpellKey[])
-    .filter((key) => SPELLS[key].type === 'charged' && SPELLS[key].effects.some((e) => e.target === 'area' && e.area !== null))
-    .map((key) => ({ key, name: SPELLS[key].name }))
 }
 
 // spells.tex "Spell Improvements": what the cast's overflow can still buy,
@@ -689,9 +695,10 @@ export function getTargetIds(state: CombatState, root: Action): string[] {
 }
 
 // Whether the spell as declared aims at someone: it has an effect for one
-// target.
+// target, and is not cast on an object (spells.tex "Charged": what it does
+// waits in the object, and is aimed when the charge is released).
 export function isTargeted(root: CastAction): boolean {
-  return isSpellKey(root.key) && getTargetEffects(SPELLS[root.key]).length > 0
+  return isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && getTargetEffects(SPELLS[root.key]).length > 0
 }
 
 // Whether every targeted effect of the spell reaches the target from where

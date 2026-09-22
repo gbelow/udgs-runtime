@@ -177,8 +177,9 @@ export type ExplosionFacts = z.infer<typeof ExplosionFactsSchema>
 // against the thrower's Accuracy; cast, against what the spell's effects
 // say; set off — a charge or a trap going off where nobody could react —
 // there is none (the table's ruling: the test was spotting it). `key` is
-// the spell whose effects go off, for a cast or a detonation; a thrown
-// item's is the charge it carries.
+// the spell whose effects go off for a cast; a thrown item's and a
+// detonation's is the charge the object carries, and `itemId` names that
+// object — a charge is set off in something, wherever that something is.
 export const ExplosionActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('explosion'),
@@ -186,6 +187,7 @@ export const ExplosionActionSchema = z.object({
   ...WeaponRowRef,
   variant: str.default(''),
   key: str.default(''),
+  itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
   direction: z.number().int().min(0).max(5).nullable().default(null),
   facts: ExplosionFactsSchema.nullable().default(null),

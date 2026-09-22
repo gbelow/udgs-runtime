@@ -852,7 +852,7 @@
         "range": "30m",
         "material": "metal",
         "RES": 20,
-        "blunt": 20,
+        "blunt": 0,
         "cut": 0,
         "AP": 3,
         "properties": [

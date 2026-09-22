@@ -3,7 +3,7 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, sameCell } from '../geometry'
 import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from '../rules/action'
-import { getExplosionCenters, getExplosionZones, getThreatenedCells } from '../rules/explosion'
+import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -117,11 +117,14 @@ export function getBoardView(state: CombatState): BoardView {
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
 
-  // the explosion in play: the centres it may be aimed at while it is being
-  // declared, what it threatens, and its zones once it is pointed
+  // the explosion in play: the centres it may be aimed at, what it
+  // threatens, and its zones once it is pointed. It stays aimable for as
+  // long as it can be re-aimed — a disk until its actor commits, a spray
+  // until the blast is confirmed (combat.tex "Sprays": the direction is
+  // chosen after the movement).
   const explosion = getPendingExplosion(state)
-  const aiming = open?.kind === 'explosion' && step === 'aim'
-  const centers = new Set(explosion && aiming && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
+  const aiming = explosion !== null && isAimable(state, explosion)
+  const centers = new Set(explosion && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
   const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
   const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])
 

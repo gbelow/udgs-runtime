@@ -6,8 +6,6 @@ import {
   ActionOption,
   ActionStep,
   ImprovementOption,
-  ChargeOption,
-  getChargeOptions,
   SpellOption,
   areReactionsComplete,
   getCastTerms,
@@ -32,9 +30,9 @@ import {
 import { getCastFacts } from '../rules/cast'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
-import { getOutcomePreviews } from './outcomes'
+import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
-import { getExplosionAreas, isSpray } from '../rules/explosion'
+import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
 
 // Everyone with a reaction to the open action, each with their options —
@@ -81,10 +79,12 @@ export type OpenActionView = {
   attack: string
   variant: string
   location: HitLocation
-  // an explosion's area, and whether it is pointed where it goes off yet
-  area: { shape: Area['shape']; aimed: boolean } | null
-  // where the explosion comes from
+  // an explosion's area, whether it is pointed where it goes off yet, and
+  // whether it can still be pointed somewhere else
+  area: { shape: Area['shape']; aimed: boolean; aimable: boolean } | null
+  // where the explosion comes from, and the charged object it is set off in
   source: 'thrown' | 'cast' | 'detonate' | null
+  itemId: string
   // the declaration a cast has made so far
   spell: string
   quicken: boolean
@@ -144,9 +144,11 @@ export type ActionPanelView = {
   // deliver to whom
   SOP: { remaining: number; options: ImprovementOption[] }
   deliveries: { target: string; name: string; kind: string; test: string | null }[]
+  // with nothing open: what the last action played out came to
+  report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [] }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -157,7 +159,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
 
   if (!open) {
-    return { ...EMPTY, options: active ? getAvailableActions(state, active.id) : [] }
+    return { ...EMPTY, options: active ? getAvailableActions(state, active.id) : [], report: getLastReport(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -186,8 +188,9 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       attack: weaponAction?.attack ?? '',
       variant: weaponAction?.variant ?? '',
       location: attack?.location ?? 'chest',
-      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null } : null,
+      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null, aimable: isAimable(state, explosion!) } : null,
       source: explosion?.source ?? null,
+      itemId: explosion?.itemId ?? '',
       spell: cast && actor ? getSpellOptions(actor).find((s) => s.key === cast.key)?.name ?? '' : '',
       quicken: cast?.quicken ?? false,
       movement: open.kind === 'move' ? open.movement : 'basic',
@@ -205,11 +208,12 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       DL: breakdown(attack || explosion || cast ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
       roll: open.roll,
     },
+    report: null,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown') ? getAttackOptions(actor, weaponAction.kind) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
-    charges: explosion?.source === 'detonate' && step === 'declare' ? getChargeOptions() : [],
+    charges: explosion?.source === 'detonate' && step !== 'react' && explosion.status === 'declared' ? getChargeOptions(state) : [],
     locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0

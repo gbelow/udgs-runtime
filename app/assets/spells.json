@@ -17,7 +17,17 @@
         "level": 2
       }
     ],
-    "requirements": "grenade",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Grenade",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -47,7 +57,17 @@
         "level": 3
       }
     ],
-    "requirements": "grenade",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Grenade",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -106,7 +126,17 @@
         "level": 3
       }
     ],
-    "requirements": "grenade",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Grenade",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -125,7 +155,7 @@
           "damage": [
             {
               "kind": "blunt",
-              "value": 20
+              "value": 15
             }
           ],
           "hardness": 0,
@@ -161,7 +191,17 @@
         "level": 3
       }
     ],
-    "requirements": "grenade",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Grenade",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -216,7 +256,17 @@
         "level": 1
       }
     ],
-    "requirements": "Alchemy 2",
+    "requirements": [
+      [
+        {
+          "kind": "trainable",
+          "name": "Alchemy",
+          "level": 2,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -246,7 +296,17 @@
         "level": 3
       }
     ],
-    "requirements": "Flamethrower",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Flamethrower",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "touch",
     "castArea": "",
@@ -308,7 +368,17 @@
         "level": 1
       }
     ],
-    "requirements": "Condenser",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Condenser",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -338,7 +408,17 @@
         "level": 3
       }
     ],
-    "requirements": "living steel",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "living steel",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -368,7 +448,17 @@
         "level": 3
       }
     ],
-    "requirements": "living steel weapon",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "living steel weapon",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -398,7 +488,17 @@
         "level": 4
       }
     ],
-    "requirements": "electrite",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Electrite",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 8,
     "castRange": "",
     "castArea": "",
@@ -456,7 +556,17 @@
         "level": 1
       }
     ],
-    "requirements": "electrite",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Electrite",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -508,7 +618,17 @@
         "level": 1
       }
     ],
-    "requirements": "stone",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "stone",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -538,7 +658,17 @@
         "level": 3
       }
     ],
-    "requirements": "Alchemical Prism",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Alchemical Prism",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "touch",
     "castArea": "1m radius",
@@ -568,7 +698,17 @@
         "level": 4
       }
     ],
-    "requirements": "Alchemical Prism",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Alchemical Prism",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 7,
     "castRange": "",
     "castArea": "",
@@ -626,7 +766,17 @@
         "level": 1
       }
     ],
-    "requirements": "alchemical torch",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Alchemical Torch",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "5m xRM light radius",
@@ -656,7 +806,17 @@
         "level": 2
       }
     ],
-    "requirements": "alchemical torch",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Alchemical Torch",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "self",
     "castArea": "6m radius cone at 180 degrees",
@@ -686,7 +846,17 @@
         "level": 2
       }
     ],
-    "requirements": "alchemical torch",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Alchemical Torch",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "touch",
     "castArea": "10m radius",
@@ -716,7 +886,17 @@
         "level": 3
       }
     ],
-    "requirements": "Soul stone",
+    "requirements": [
+      [
+        {
+          "kind": "gear",
+          "name": "Soul Stone",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "melee, target",
     "castArea": "",
@@ -746,7 +926,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
@@ -784,7 +964,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
@@ -814,7 +994,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -870,7 +1050,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -908,7 +1088,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -946,7 +1126,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -979,7 +1159,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -1012,7 +1192,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -1045,7 +1225,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -1078,7 +1258,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "10m",
     "castArea": "",
@@ -1111,7 +1291,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
@@ -1144,7 +1324,17 @@
         "level": 5
       }
     ],
-    "requirements": "Suggestion",
+    "requirements": [
+      [
+        {
+          "kind": "spell",
+          "name": "suggestion",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 7,
     "castRange": "15m",
     "castArea": "",
@@ -1182,7 +1372,17 @@
         "level": 4
       }
     ],
-    "requirements": "Central Intelligence",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Central Intelligence",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
@@ -1212,7 +1412,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
@@ -1250,7 +1450,7 @@
         "level": 5
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
@@ -1292,7 +1492,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
@@ -1334,7 +1534,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
@@ -1372,7 +1572,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
@@ -1410,7 +1610,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "20m",
     "castArea": "",
@@ -1448,7 +1648,17 @@
         "level": 3
       }
     ],
-    "requirements": "Synesthesia I",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Synesthesia I",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "100m",
     "castArea": "",
@@ -1478,7 +1688,26 @@
         "level": 3
       }
     ],
-    "requirements": "Synesthesia I, Spiritual Walk",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Synesthesia I",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ],
+      [
+        {
+          "kind": "spell",
+          "name": "spiritual-walk",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "self",
     "castArea": "",
@@ -1508,7 +1737,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "melee",
     "castArea": "",
@@ -1546,7 +1775,7 @@
         "level": 5
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 7,
     "castRange": "15m",
     "castArea": "",
@@ -1584,7 +1813,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 7,
     "castRange": "touch",
     "castArea": "",
@@ -1614,7 +1843,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "melee, target",
     "castArea": "",
@@ -1647,7 +1876,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "melee, target",
     "castArea": "",
@@ -1677,7 +1906,7 @@
         "level": 5
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 7,
     "castRange": "melee, target",
     "castArea": "",
@@ -1707,7 +1936,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 2,
     "castRange": "melee, target",
     "castArea": "",
@@ -1737,7 +1966,17 @@
         "level": 3
       }
     ],
-    "requirements": "Medicine 4",
+    "requirements": [
+      [
+        {
+          "kind": "trainable",
+          "name": "Medicine",
+          "level": 4,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
@@ -1771,7 +2010,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 10,
     "castRange": "melee, target",
     "castArea": "",
@@ -1801,7 +2040,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "touch",
     "castArea": "",
@@ -1831,7 +2070,7 @@
         "level": 1
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -1861,7 +2100,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
@@ -1895,7 +2134,17 @@
         "level": 2
       }
     ],
-    "requirements": "Animated body",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Animated body",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "melee",
     "castArea": "",
@@ -1929,7 +2178,17 @@
         "level": 3
       }
     ],
-    "requirements": "Fresh body",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Fresh body",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 8,
     "castRange": "melee",
     "castArea": "",
@@ -1959,7 +2218,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "target",
     "castArea": "",
@@ -1989,7 +2248,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -2019,7 +2278,17 @@
         "level": 2
       }
     ],
-    "requirements": "Amplified Pheromones",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Amplified Pheromones",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "0m",
     "castArea": "radius of 6m",
@@ -2049,7 +2318,17 @@
         "level": 3
       }
     ],
-    "requirements": "Amplified Pheromones",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Amplified Pheromones",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 3,
     "castRange": "0",
     "castArea": "3m xRM",
@@ -2079,7 +2358,17 @@
         "level": 2
       }
     ],
-    "requirements": "dead animal",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "dead animal",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
@@ -2109,7 +2398,26 @@
         "level": 6
       }
     ],
-    "requirements": "living sample, preserved corpse",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "living sample",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ],
+      [
+        {
+          "kind": "condition",
+          "name": "preserved corpse",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 10,
     "castRange": "melee",
     "castArea": "",
@@ -2139,7 +2447,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "5km",
     "castArea": "",
@@ -2169,7 +2477,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "directly from 100m xRM",
     "castArea": "",
@@ -2227,7 +2535,17 @@
         "level": 5
       }
     ],
-    "requirements": "Thunderstorm",
+    "requirements": [
+      [
+        {
+          "kind": "condition",
+          "name": "Thunderstorm",
+          "level": 0,
+          "op": ">=",
+          "not": false
+        }
+      ]
+    ],
     "DL": 10,
     "castRange": "100m",
     "castArea": "15m radius on the ground",
@@ -2285,7 +2603,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "15m",
     "castArea": "area of 15 spaces",
@@ -2315,7 +2633,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "15m",
     "castArea": "radius of 50m",
@@ -2345,7 +2663,7 @@
         "level": 4
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "100m",
     "castArea": "radius of 45m",
@@ -2397,7 +2715,7 @@
         "level": 3
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 3,
     "castRange": "100m",
     "castArea": "radius of 5m",
@@ -2427,7 +2745,7 @@
         "level": 2
       }
     ],
-    "requirements": "",
+    "requirements": [],
     "DL": 5,
     "castRange": "self",
     "castArea": "radius of 9m, length of 30m",

@@ -59,11 +59,12 @@ function armorValue(armor: Armor, kind: DamageKind): number {
 // combat.tex "Accuracy", "Reflex": a shot the same — "Grazes deal 50%
 // damage and misses do nothing"; a guard is a block ("On graze, the attack
 // damage is reduced by the block value. On a miss, by 1.5x as much").
-// combat.tex "Explosions": "200% on a critical" — the one attack whose
-// degree can be the critical, the zone at its centre.
+// combat.tex "Explosions": "The damage from explosions is 150% on a
+// critical" — the one attack whose degree can be the critical, the zone at
+// its centre.
 function afterDefense(facts: Damage, degree: Degree, target: Character, damage: number): { damage: number; stopped: boolean } {
   if (degree === 'hit') return { damage, stopped: false }
-  if (degree === 'critical') return { damage: 2 * damage, stopped: false }
+  if (degree === 'critical') return { damage: Math.floor(1.5 * damage), stopped: false }
   switch (facts.defense) {
     case 'block':
     case 'guard':

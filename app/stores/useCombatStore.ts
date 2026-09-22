@@ -3,6 +3,7 @@ import { create } from 'zustand'
 import { CampaignCharacter } from '../domain/types'
 import { CombatState } from '../domain/combat/types'
 import { getActiveCharacter } from '../domain/combat/rules/activeCharacter'
+import { getOpenAction } from '../domain/combat/rules/action'
 import { makeCampaignCharacter } from '../domain/factories'
 import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
 
@@ -74,6 +75,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   removeCharacter: (id) =>
     set((s) => {
+      if (getOpenAction(s)) return s
       const { [id]: _, ...rest } = s.characters
       const { [id]: _placement, ...placements } = s.board?.placements ?? {}
       return { characters: rest, board: s.board ? { ...s.board, placements } : null }

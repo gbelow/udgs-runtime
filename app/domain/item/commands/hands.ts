@@ -4,8 +4,8 @@ import { canFitItem } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
-import { getItemWeapon } from '../rules/items'
-import { hasProperty } from '../../weaponProperties'
+import { getSpellFocus } from '../../character/rules/spells'
+import { isSpellKey } from '../../spells'
 
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
@@ -127,25 +127,33 @@ export function dropItem(itemId: string): CharacterUpdater {
   return (c: Character) => (getHeldItem(c, itemId) ? release(c, itemId) : c)
 }
 
-// spells.tex "Charged": "activates an object that stays charged" — the spell
-// is loaded into the first held item that can carry a charge (a row with
-// gear.tex "Explosion") and does not yet. Nothing to load it into, nothing
-// happens.
+// spells.tex "Charged": "activates an object that stays charged" — the
+// object being the gear the spell is cast on (spells.tex "Requirements"),
+// held in the caster's own hand. Nothing in hand to take it, nothing
+// happens; what a hand already carries is charged over.
 export function chargeItem(key: string): CharacterUpdater {
   return (c: Character) => {
-    const item = c.held.find((i) => i.charge === null && (getItemWeapon(i)?.attacks.some((a) => hasProperty(a.properties, 'explosion')) ?? false))
+    const item = isSpellKey(key) ? getSpellFocus(c, key) : null
     return item ? { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge: key } : i)) } : c
   }
 }
 
-// combat.tex "Throw": what is thrown leaves the hand. One unit goes from the
-// stack; the last one takes the stack with it. There is no floor yet, so it
-// lands nowhere.
-export function throwItem(itemId: string): CharacterUpdater {
+// spells.tex "Charged": the charge is released and the object that held it
+// is empty. What it did is the blow's, not the item's.
+export function dischargeItem(itemId: string): CharacterUpdater {
+  return (c: Character) => (getHeldItem(c, itemId)?.charge ? { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, charge: null } : i)) } : c)
+}
+
+// combat.tex "Throw": what is thrown leaves the hand, and one unit of a held
+// stack is gone — thrown, or gone off where it stood. The last one takes the
+// stack with it; there is no floor yet, so it lands nowhere. The charge went
+// with that unit (spells.tex "Charged": the spell activates one object), so
+// what is left of the stack carries none.
+export function consumeItem(itemId: string): CharacterUpdater {
   return (c: Character) => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
     if (item.amount <= 1) return release(c, itemId)
-    return { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, amount: i.amount - 1 } : i)) }
+    return { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, amount: i.amount - 1, charge: null } : i)) }
   }
 }
