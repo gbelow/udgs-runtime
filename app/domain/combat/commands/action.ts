@@ -22,8 +22,8 @@ import {
   needsDie,
   scoreAttack,
 } from '../lenses/action'
-import { getAttackFacts, getExplosionFacts, getHOPOptions, outcomeOf } from '../lenses/damage'
-import { getExplosionArea } from '../lenses/explosion'
+import { getAttackFacts, getHOPOptions, outcomeOf } from '../lenses/damage'
+import { getExplosionFacts, isSpray } from '../lenses/explosion'
 import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../lenses/move'
 import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
@@ -31,6 +31,7 @@ import { sumTerms } from '../../character/lenses/terms'
 import { scoreTest } from '../../character/lenses/test'
 import { getSOP, isHit } from '../../character/lenses/spells'
 import { getCastFacts } from '../lenses/cast'
+import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/lenses/actionCosts'
 
@@ -367,7 +368,7 @@ export function aimExplosion(direction: number): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'explosion' || open.status !== 'rolled') return state
-    if (getExplosionArea(state, open)?.shape !== 'spray' || !Number.isInteger(direction) || direction < 0 || direction > 5) return state
+    if (!isSpray(state, open) || !Number.isInteger(direction) || direction < 0 || direction > 5) return state
     return replaceActions(state, [{ ...open, direction }])
   }
 }
@@ -439,9 +440,11 @@ function afterLanding(state: CombatState, resolved: Action, newId: () => string)
 // attack "can be voided if the target gets out of range", so one whose
 // target ended beyond the reactor's reach opens nothing. An opportunity
 // attack against a move was opened before the move resolved and is not
-// opened again.
+// opened again. A cast that hit with an area to it opens that area as an
+// explosion of the caster's, aimed and played out on its own (combat.tex
+// "Explosions"; the caster's part is done).
 function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
-  return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
+  const opened = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     switch (reaction.kind) {
       case 'opportunityAttack': {
         if (root.kind !== 'strike') return []
@@ -469,13 +472,17 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
       // "Interruption": "Movement is cancelled")
       case 'avoidExplosion': {
         if (root.kind !== 'explosion' || !reaction.roll || (reaction.roll.degree !== 'graze' && reaction.roll.degree !== 'miss')) return []
-        const facts = root.facts?.[reaction.actorId]
+        const facts = root.facts?.[reaction.actorId] ?? []
         const reactor = state.characters[reaction.actorId]
-        if (facts && reactor && (outcomeOf(facts, reactor)?.interruption ?? 'none') !== 'none') return []
+        if (reactor && facts.some((d) => (outcomeOf(d, reactor)?.interruption ?? 'none') !== 'none')) return []
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: 2, prepaid: reaction.cost?.AP ?? 0, spawnedBy: reaction.id })]
       }
       default:
         return []
     }
   })
+  if (root.kind === 'cast' && root.roll?.degree === 'hit' && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
+    opened.push(ActionSchema.parse({ kind: 'explosion', id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
+  }
+  return opened
 }

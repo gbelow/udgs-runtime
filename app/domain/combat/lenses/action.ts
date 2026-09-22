@@ -18,7 +18,7 @@ import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
 import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
-import { getAffected, getExplosionArea, getExplosionDLTerms, isAimed } from './explosion'
+import { getAffected, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
 
 // ---------------------------------------------------------------------------
@@ -70,9 +70,9 @@ function isRowUsable(c: Character, row: WeaponRow): boolean {
 }
 
 // gear.tex "Explosion": a row that "resolves like an explosion" — it has
-// the property and somewhere to reach.
+// the property. Whether it has anything to go off with is the charge's.
 function explodes(atk: WeaponAttack): boolean {
-  return hasProperty(atk.properties, 'explosion') && atk.area !== undefined
+  return hasProperty(atk.properties, 'explosion')
 }
 
 // The kind of weapon row each action is made with: a strike a melee row
@@ -128,8 +128,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'strike':
     case 'shoot':
       return getAttackVariant(c, action) !== null
+    // thrown, the row is declared and can be fired; cast, the spell was;
+    // set off, a charged spell with something to go off is named
     case 'explosion':
-      return getAttackVariant(c, action) !== null && isAimed(state, action)
+      return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
+        && (action.source === 'thrown' || (isSpellKey(action.key) && (action.source === 'cast' || SPELLS[action.key].type === 'charged')))
+        && getExplosionPayload(state, action) !== null && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
     case 'move':
@@ -230,6 +234,9 @@ function canAfford(c: CampaignCharacter, cost: ActionCost): boolean {
 // What an action costs its actor, as declared; null while the declaration is
 // too incomplete to price.
 export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCost | null {
+  // a cast's explosion was paid for by the cast; a charge set off costs
+  // whoever sets it off nothing
+  if (action.kind === 'explosion' && action.source !== 'thrown') return { AP: 0, STA: 0 }
   if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion') {
     const variant = getAttackVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
@@ -426,7 +433,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!open) {
     const strikes = getAttackOptions(c, 'strike')
     const shots = getAttackOptions(c, 'shoot')
-    const explosions = getAttackOptions(c, 'explosion')
+    const explosions = getAttackOptions(c, 'explosion').filter((o) => hasExplosionPayload(c, o.weaponKey, o.attack))
     const spells = getSpellOptions(c)
     const placed = state.board?.placements[c.id] !== undefined
     return [
@@ -451,10 +458,22 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       // an explosion is aimed at ground, so it needs a board to land on
       {
         label: ACTIONS.explosion.label,
-        draft: { kind: 'explosion' },
+        draft: { kind: 'explosion', source: 'thrown' },
         cost: null,
         available: explosions.length > 0 && placed,
-        reason: explosions.length > 0 ? (placed ? null : 'not on the board') : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge' : 'no exploding weapon in hand',
+        reason: explosions.length > 0 ? (placed ? null : 'not on the board') : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge' : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it' : 'no exploding weapon in hand',
+        reactionTo: null,
+        chosen: false,
+      },
+      // combat.tex "Explosions": "If the explosion occurs before being
+      // perceived, no test can be made" — a charge or a trap set off by the
+      // table, from wherever the active character stands
+      {
+        label: 'set off a charge',
+        draft: { kind: 'explosion', source: 'detonate' },
+        cost: null,
+        available: placed && getChargeOptions().length > 0,
+        reason: placed ? (getChargeOptions().length > 0 ? null : 'no charge to set off') : 'not on the board',
         reactionTo: null,
         chosen: false,
       },
@@ -557,6 +576,16 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
   })
 }
 
+// spells.tex "Charged": the spells a charge can be of — what can be set
+// off on the ground.
+export type ChargeOption = { key: SpellKey; name: string }
+
+export function getChargeOptions(): ChargeOption[] {
+  return (Object.keys(SPELLS) as SpellKey[])
+    .filter((key) => SPELLS[key].type === 'charged' && SPELLS[key].effects.some((e) => e.target === 'area' && e.area !== null))
+    .map((key) => ({ key, name: SPELLS[key].name }))
+}
+
 // spells.tex "Spell Improvements": what the cast's overflow can still buy,
 // each priced in SOP.
 export type ImprovementOption = {
@@ -623,13 +652,13 @@ export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
   if (open.status === 'rolled') {
-    if (open.kind === 'explosion') return getExplosionArea(state, open)?.shape === 'spray' && open.direction === null ? 'aim' : 'confirm'
+    if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
     return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }
   if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]
   if (!actor) return 'declare'
-  if (open.kind === 'explosion') return getAttackVariant(actor, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
+  if (open.kind === 'explosion') return getExplosionPayload(state, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
   if (open.kind === 'move') return 'commit'
   if (open.kind === 'cast' && !isTargeted(open)) return 'commit'
@@ -650,6 +679,7 @@ function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
     return option.weaponKey === d.weaponKey && option.attack === d.attack
   }
   if (option.kind === 'opportunityAttack') return (option.at ?? null) === ((draft as { at?: number | null }).at ?? null)
+  if (option.kind === 'explosion') return (option.source ?? 'thrown') === ((draft as { source?: string }).source ?? 'thrown')
   if (option.kind === 'evasion') return (option.stay ?? false) === ((draft as { stay?: boolean }).stay ?? false)
   return true
 }

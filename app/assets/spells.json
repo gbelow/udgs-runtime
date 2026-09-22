@@ -57,7 +57,36 @@
     "enhance": "",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Smoke Explosive",
+        "trigger": "instant",
+        "type": "terrain",
+        "effect": {
+          "critical": {
+            "visibility": "zero",
+            "suffocating": true
+          },
+          "hit": {
+            "visibility": "zero",
+            "suffocating": true
+          },
+          "graze": {
+            "visibility": "bad",
+            "suffocating": false
+          }
+        },
+        "target": "area",
+        "range": null,
+        "area": {
+          "shape": "explosion",
+          "radius": 5
+        },
+        "scaled": false,
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "shock-explosive": {
     "name": "Shock Explosive",
@@ -803,7 +832,25 @@
       "hit": "",
       "crit": ""
     },
-    "effects": []
+    "effects": [
+      {
+        "name": "Sleep",
+        "trigger": "instant",
+        "type": "affliction",
+        "effect": {
+          "key": "unconscious"
+        },
+        "target": "target",
+        "range": 15,
+        "area": null,
+        "scaled": false,
+        "resist": {
+          "dl": "Charisma",
+          "roll": "will"
+        },
+        "duration": "locked"
+      }
+    ]
   },
   "soothe": {
     "name": "Soothe",

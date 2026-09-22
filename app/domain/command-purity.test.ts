@@ -33,7 +33,7 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
-const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1, charge: 'shock-explosive' })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()
@@ -53,7 +53,7 @@ function characterSubject(): CampaignCharacter {
     usedSurge: 'focus',
     pendingAction: { kind: 'spell', key: 'sleep', score: 12, SOP: 7, spent: {} },
     afflictions: ['prone'],
-    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [] }],
+    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
@@ -99,7 +99,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
   resolvePending: characterCommands.resolvePending(0, 3),
-  deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [] }),
+  resistCurse: (c) => characterCommands.resistCurse('sleep', 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
+  deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
 
@@ -114,6 +115,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   drawItem: (c) => itemCommands.drawItem('belt', c.containers.belt.slots.quick.items[0].id)(c),
   storeItem: itemCommands.storeItem(daggerItem.id, 'belt', 'quick'),
   dropItem: itemCommands.dropItem(daggerItem.id),
+  chargeItem: (c) => itemCommands.chargeItem('shock-explosive')(itemCommands.holdItem(ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 }))(c)),
   throwItem: itemCommands.throwItem(daggerItem.id),
 }
 
@@ -170,8 +172,8 @@ function spawnedFollow(s: CombatState): CombatState {
   return combatCommands.payAction(newId)(followed)
 }
 
-// A grenade of `a`'s, thrown past the wall with nobody avoiding it and
-// waiting to go off, on a frozen state a few commands along.
+// A charged grenade of `a`'s, thrown past the wall with nobody avoiding it
+// and waiting to go off, on a frozen state a few commands along.
 function rolledExplosion(s: CombatState): CombatState {
   const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) as CampaignCharacter } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'explosion', weaponKey: grenadeItem.id, attack: 'throw', variant: 'basic', center: { q: 0, r: 3 } }, newId)(armed))

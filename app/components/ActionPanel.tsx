@@ -64,6 +64,14 @@ export function ActionPanel(){
       ) : null}
       {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
 
+      {view.charges.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>charge</SectionLabel>
+          {view.charges.map((c) => <Button key={c.key} size='xs' onClick={() => amend({ key: c.key })}>{c.name}</Button>)}
+        </div>
+      ) : null}
+      {open.source && open.source !== 'thrown' ? <div className='text-xs text-muted'>{open.source === 'cast' ? 'from the spell' : 'set off — no test'}</div> : null}
+
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>

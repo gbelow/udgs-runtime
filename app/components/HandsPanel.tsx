@@ -32,7 +32,7 @@ export function HandsPanel(){
           const putting = pending?.source === 'hand' && pending.itemId === item.id
           return (
             <Row key={item.id} pending={putting}>
-              <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}</span>
+              <span>{item.name}{item.amount > 1 ? ` ×${item.amount}` : ''}{item.charge ? <span className='text-accent'> · charged: {item.charge}</span> : null}</span>
               <span className='text-muted'>size {item.scale} · {item.bulkName} · {item.grip}h{item.laming ? <span className='text-bad'> · lame</span> : null}</span>
               {item.canGrip[1] ? <Button size='xs' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)}>1h</Button> : null}
               {item.canGrip[2] ? <Button size='xs' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)}>2h</Button> : null}

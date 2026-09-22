@@ -6,6 +6,8 @@ import {
   ActionOption,
   ActionStep,
   ImprovementOption,
+  ChargeOption,
+  getChargeOptions,
   ReactorOptions,
   SpellOption,
   areReactionsComplete,
@@ -32,7 +34,7 @@ import { DeliveryView, getCastDeliveries } from './cast'
 import { ActionCost } from '../../character/lenses/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining, getOutcomePreviews } from './damage'
 import type { Outcome } from '../../character/lenses/damage'
-import { getExplosionArea } from './explosion'
+import { getExplosionAreas, isSpray } from './explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from './move'
 import type { MoveStop } from '../types'
 
@@ -50,6 +52,8 @@ export type OpenActionView = {
   location: HitLocation
   // an explosion's area, and whether it is pointed where it goes off yet
   area: { shape: Area['shape']; aimed: boolean } | null
+  // where the explosion comes from
+  source: 'thrown' | 'cast' | 'detonate' | null
   // the declaration a cast has made so far
   spell: string
   quicken: boolean
@@ -77,10 +81,11 @@ export type ActionPanelView = {
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
-  // at `declare`: the rows and variations an attack can be made with, or
-  // the spells a cast can be of
+  // at `declare`: the rows and variations an attack can be made with, the
+  // spells a cast can be of, or the charges that can be set off
   attacks: AttackOption[]
   spells: SpellOption[]
+  charges: ChargeOption[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
   // why the target list is empty, when it is
@@ -110,7 +115,7 @@ export type ActionPanelView = {
   deliveries: { target: string; name: string; kind: string; test: string | null }[]
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [] }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -131,7 +136,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
   const weaponAction = attack ?? explosion
-  const area = explosion ? getExplosionArea(state, explosion) : null
+  const areas = explosion ? getExplosionAreas(state, explosion) : []
+  const area = areas.length > 0 ? (isSpray(state, explosion!) ? { shape: 'spray' as const } : { shape: 'explosion' as const }) : null
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
   const die = needsDie(state, open)
   const affordable = !!actor && canPay(actor, getDeclaredCost(actor, open))
@@ -150,6 +156,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       variant: weaponAction?.variant ?? '',
       location: attack?.location ?? 'chest',
       area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null } : null,
+      source: explosion?.source ?? null,
       spell: cast && actor ? getSpellOptions(actor).find((s) => s.key === cast.key)?.name ?? '' : '',
       quicken: cast?.quicken ?? false,
       movement: open.kind === 'move' ? open.movement : 'basic',
@@ -169,8 +176,9 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     },
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    attacks: weaponAction && step === 'declare' && actor ? getAttackOptions(actor, weaponAction.kind) : [],
+    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown') ? getAttackOptions(actor, weaponAction.kind) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
+    charges: explosion?.source === 'detonate' && step === 'declare' ? getChargeOptions() : [],
     locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0

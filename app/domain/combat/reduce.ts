@@ -2,12 +2,16 @@ import type { CampaignCharacter } from '../types'
 import type { Action, Board, CombatState } from './types'
 import { payCost } from '../character/commands/cost'
 import { deliver } from '../character/commands/deliver'
+import { chargeItem } from '../item/commands/hands'
 import { throwItem } from '../item/commands/hands'
 import { getWieldedWeapons } from '../item/lenses/hands'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './lenses/move'
 import { getReactionsTo } from './lenses/action'
+import { getTerrainPaint } from './lenses/explosion'
+import { coordKey } from './geometry'
 import { SPELLS, isSpellKey } from '../spells'
+import { TerrainCellSchema } from './types'
 
 // The two moments an action touches a character: `roll`, when the die is
 // thrown and the price leaves the actor in the same step, and `resolve`, when
@@ -38,18 +42,20 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // attacker as much as anyone — and what they threw is out of their
         // hands
         if (action.kind === 'explosion') {
-          const facts = action.facts?.[c.id]
-          const hit = facts ? deliver(facts)(c) : c
-          return c.id === action.actorId ? releaseThrown(hit, action.weaponKey, action.attack) : hit
+          const hit = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
+          return c.id === action.actorId && action.source === 'thrown' ? releaseThrown(hit, action.weaponKey, action.attack) : hit
         }
         // spells.tex "Sustained": a cast that hit is taken hold of by its
         // caster, its upkeep due at the round change
         if (action.kind === 'cast') {
           const delivered = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
-          const holds = c.id === action.actorId && isSpellKey(action.key) && SPELLS[action.key].type === 'sustained' && action.roll?.degree === 'hit'
-          return holds && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)
-            ? { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
-            : delivered
+          if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit') return delivered
+          const spell = SPELLS[action.key]
+          if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
+            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
+          }
+          // spells.tex "Charged": "activates an object that stays charged"
+          return spell.type === 'charged' ? chargeItem(action.key)(delivered) as CampaignCharacter : delivered
         }
         if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
         return deliver(action.facts)(c)
@@ -89,6 +95,16 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       const jump = getReactionsTo(state, action.id).find((r) => r.kind === 'evasiveJump')
       if (!jump || jump.kind !== 'evasiveJump' || !jump.to) return board
       return { ...board, placements: { ...board.placements, [jump.actorId]: jump.to } }
+    }
+    // combat.tex "Gas": what the explosion leaves on the ground, by zone
+    if (action.kind === 'explosion') {
+      const terrain = { ...board.terrain }
+      for (const { cell, patch } of getTerrainPaint(state, action)) {
+        const key = coordKey(cell)
+        const was = terrain[key] ?? TerrainCellSchema.parse({})
+        terrain[key] = { ...was, visibility: patch.visibility ?? was.visibility, suffocating: was.suffocating || patch.suffocating }
+      }
+      return { ...board, terrain }
     }
     return board
   }

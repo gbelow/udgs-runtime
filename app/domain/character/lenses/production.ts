@@ -26,15 +26,18 @@ function bare(c: Character, effect: SpellEffect, improved: Improvements): Effect
       }) }
     }
     case 'affliction': return { name, trigger, type, effect: effect.effect }
+    case 'terrain': return { name, trigger, type, effect: effect.effect }
     case 'cost': return { name, trigger, type, effect: effect.effect }
     case 'buff': return { name, trigger, type, effect: effect.effect }
     case 'suppression': return { name, trigger, type, effect: effect.effect }
   }
 }
 
-export function produceSpellEffect(c: Character, effect: SpellEffect, improved: Improvements = {}): Delivery {
+// `locks` names the spell a locked effect is carried under (spells.tex
+// "Curse"), so the target can read it off the catalog and beat it.
+export function produceSpellEffect(c: Character, effect: SpellEffect, improved: Improvements = {}, key: string | null = null): Delivery {
   const test = effect.resist ? { roll: effect.resist.roll, DL: resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0 } : null
-  return { effect: bare(c, effect, improved), degree: test ? null : 'hit', test, when: null, then: [] }
+  return { effect: bare(c, effect, improved), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
 }
 
 // spells.tex "Extend Spell": "casting range +100%, then +200%, +300%" — the

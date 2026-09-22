@@ -12,10 +12,10 @@ export function getCastFacts(state: CombatState, root: CastAction): Record<strin
   if (!caster || root.roll?.degree !== 'hit' || !isSpellKey(root.key)) return {}
   const spell = SPELLS[root.key]
   const facts: Record<string, Delivery[]> = {}
-  const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, root.improved))
+  const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, root.improved, root.key))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId]) {
-    const theirs = getTargetEffects(spell).map((e) => produceSpellEffect(caster, e, root.improved))
+    const theirs = getTargetEffects(spell).map((e) => produceSpellEffect(caster, e, root.improved, root.key))
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
   return facts

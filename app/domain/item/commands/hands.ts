@@ -4,6 +4,8 @@ import { canFitItem } from '../lenses/containers'
 import { ActionCost } from '../../character/lenses/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
+import { getItemWeapon } from '../lenses/items'
+import { hasProperty } from '../../weaponProperties'
 
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
@@ -123,6 +125,17 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
 // There is no floor yet, so the stack is gone.
 export function dropItem(itemId: string): CharacterUpdater {
   return (c: Character) => (getHeldItem(c, itemId) ? release(c, itemId) : c)
+}
+
+// spells.tex "Charged": "activates an object that stays charged" — the spell
+// is loaded into the first held item that can carry a charge (a row with
+// gear.tex "Explosion") and does not yet. Nothing to load it into, nothing
+// happens.
+export function chargeItem(key: string): CharacterUpdater {
+  return (c: Character) => {
+    const item = c.held.find((i) => i.charge === null && (getItemWeapon(i)?.attacks.some((a) => hasProperty(a.properties, 'explosion')) ?? false))
+    return item ? { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge: key } : i)) } : c
+  }
 }
 
 // combat.tex "Throw": what is thrown leaves the hand. One unit goes from the

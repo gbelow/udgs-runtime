@@ -7,7 +7,7 @@ import { deliver } from "./deliver"
 // taken as-is, with no affordability check, so it can leave a pool negative.
 export function applyEffects(effects: Effect[]): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) =>
-    effects.reduce((acc, effect) => deliver({ effect, degree: 'hit', test: null, when: null, then: [] })(acc), c)
+    effects.reduce((acc, effect) => deliver({ effect, degree: 'hit', test: null, when: null, then: [], locks: null })(acc), c)
 }
 
 // Runs the processor over everything in effect that falls due on a trigger:

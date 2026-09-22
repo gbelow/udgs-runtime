@@ -331,7 +331,8 @@
     "type": "armor",
     "amount": 1,
     "bulk": 3,
-    "refId": "ChainShirt"
+    "refId": "ChainShirt",
+    "charge": null
   },
   "hands": [
     {
@@ -355,7 +356,8 @@
       "type": "weapon",
       "amount": 1,
       "bulk": 3,
-      "refId": "Wooden Shield"
+      "refId": "Wooden Shield",
+      "charge": null
     },
     {
       "id": "ed1f0702-869f-489c-af13-02d0dbf26c01",
@@ -364,7 +366,8 @@
       "type": "weapon",
       "amount": 1,
       "bulk": 1,
-      "refId": "Grenade"
+      "refId": "Grenade",
+      "charge": null
     }
   ],
   "containers": {
@@ -424,6 +427,10 @@
       "practice": 0
     },
     "shock-explosive": {
+      "method": "wizard",
+      "practice": 0
+    },
+    "flamethrower": {
       "method": "wizard",
       "practice": 0
     }

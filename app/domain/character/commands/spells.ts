@@ -1,4 +1,4 @@
-import { Character, SpellMethod } from "../../types"
+import { CampaignCharacter, Character, SpellMethod } from "../../types"
 import { SPELLS, SpellKey } from "../../spells"
 import { SPELL_MODIFICATIONS, SpellModification } from "../../tables"
 import { isCampaignCharacter } from "../../utils"
@@ -7,6 +7,7 @@ import { isSpellActive } from "../lenses/effects"
 import { deliver } from "./deliver"
 import { getSelfEffects, produceSpellEffect } from "../lenses/production"
 import { payCost } from "./cost"
+import { chargeItem } from "../../item/commands/hands"
 
 export function learnSpell(key: SpellKey, method: SpellMethod): (c: Character) => Character {
   return (c: Character) => {
@@ -63,10 +64,12 @@ export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Cha
     const paid = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(c, e))
       .reduce((acc, delivery) => deliver(delivery)(acc), payCost(spell.cost)(c))
     const hit = isHit(score, DL)
+    // spells.tex "Charged": a charged spell that hit is loaded into an item
+    const charged = spell.type === 'charged' && hit ? chargeItem(key)(paid) as CampaignCharacter : paid
     return {
-      ...paid,
+      ...charged,
       pendingAction: { kind: 'spell', key, score, SOP, spent: {} },
-      active: spell.type === 'sustained' && hit ? [...paid.active, { kind: 'spell', key }] : paid.active,
+      active: spell.type === 'sustained' && hit ? [...charged.active, { kind: 'spell', key }] : charged.active,
     }
   }
 }

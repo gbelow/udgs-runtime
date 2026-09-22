@@ -1,3 +1,4 @@
+import { SPELLS, isSpellKey } from '../../spells'
 import { Character, Hand, Handed, Item, SlotKind, Weapon } from '../../types'
 import { getBulkName, getCatalogWeapon, getItemScale, getItemWeapon } from './items'
 import { getDrawCost, isCharged } from './costs'
@@ -114,6 +115,8 @@ export type HeldItemView = {
   canGrip: Record<Grip, boolean>
   // For an armor item, whether it could be put on from here; null otherwise.
   wear: WearView | null
+  // spells.tex "Charged": the spell loaded into it, by name; '' for none
+  charge: string
 }
 
 export type HandsPanelView = {
@@ -151,6 +154,7 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
         wear: getWearView(c, null, item),
+        charge: item.charge && isSpellKey(item.charge) ? SPELLS[item.charge].name : '',
       }
     }),
     freeHolding,

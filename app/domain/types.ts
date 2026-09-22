@@ -201,9 +201,10 @@ export const WeaponAttackSchema = z.object({
   STRreq: num.optional(),
   // gear.tex "Heavy I/II/III": the degrees offered, absent when the row has none.
   heavy: HeavyRangeSchema.optional(),
-  // gear.tex "Explosion": how far the explosion reaches; only a row with the
-  // property explodes, and only one with an area has anywhere to.
-  area: AreaSchema.optional(),
+  // gear.tex "Explosion": what a mundane explosive does when it goes off,
+  // in the shape a charged spell would give it; a row with the property and
+  // nothing here explodes only once something is charged into it.
+  payload: z.array(z.lazy(() => SpellEffectSchema)).default([]),
 
   properties: z.array(WeaponPropertySchema).default([]),
 }).strip()
@@ -247,6 +248,8 @@ export const ItemSchema = z.object({
   amount: num.default(1),
   bulk: num.default(1), // 0 tiny · 1 small · 2 medium · 3 large · 4+ numeric
   refId: str.default(''), // key into the type's catalog; empty means this item is pure flavor, no linked object
+  // spells.tex "Charged": the spell loaded into the item, waiting to go off
+  charge: str.nullable().default(null),
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
@@ -496,12 +499,33 @@ export const AfflictionEffectSchema = z.object({
   key: AfflictionKeySchema,
 }).strip()
 
+// combat.tex "Visibility": what the ground does to whoever stands in it.
+export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
+export type Visibility = z.infer<typeof VisibilitySchema>
+
+// combat.tex "Gas": what an area does to the ground it covers, by zone —
+// black smoke "affects visibility and also cause suffocation". A patch says
+// what it sets; null leaves the cell's visibility as it was.
+export const TerrainPatchSchema = z.object({
+  visibility: VisibilitySchema.nullable().default(null),
+  suffocating: z.boolean().default(false),
+}).strip()
+export type TerrainPatch = z.infer<typeof TerrainPatchSchema>
+
+const NO_PATCH = { visibility: null, suffocating: false }
+export const TerrainEffectSchema = z.object({
+  critical: TerrainPatchSchema.default(NO_PATCH),
+  hit: TerrainPatchSchema.default(NO_PATCH),
+  graze: TerrainPatchSchema.default(NO_PATCH),
+}).strip()
+
 export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('damage'), effect: DamageSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
@@ -532,12 +556,16 @@ export type DeliveryTest = z.infer<typeof DeliveryTestSchema>
 // its parent came to, and `then` is what its own landing produces next: an
 // attack is a damage delivery, a poisoned blade a damage delivery whose
 // `then` carries the poison, gated on the cut reaching T0.
+// `locks` names the catalog entry a lasting effect comes from (spells.tex
+// "Curse"): once it lands it is not applied but carried, read off the
+// catalog for as long as it is, until the target beats it.
 export type Delivery = {
   effect: Effect
   degree: Degree | null
   test: DeliveryTest | null
   when: Condition | null
   then: Delivery[]
+  locks: string | null
 }
 export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.object({
   effect: EffectSchema,
@@ -545,16 +573,21 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
   test: DeliveryTestSchema.nullable().default(null),
   when: ConditionSchema.nullable().default(null),
   then: z.array(DeliverySchema).default([]),
+  locks: str.nullable().default(null),
 }).strip()) as unknown as z.ZodType<Delivery, Delivery>
 
 // Something switched on and held: a toggle ability, a held spell, or a
-// wound carried until it is healed. The character keeps only the reference;
-// the effects are read off the owning catalog, so nothing copied into state
-// can go stale. A wound to a hand names the hand (its index) it disables.
+// wound carried until it is healed, a curse carried until it is beaten. The
+// character keeps only the reference; the effects are read off the owning
+// catalog, so nothing copied into state can go stale. A wound to a hand
+// names the hand (its index) it disables; a curse keeps the DL the test to
+// beat it is rolled against (spells.tex "Curse": "until the target shrugs
+// it off").
 export const ActiveEntrySchema = z.object({
-  kind: z.enum(['ability', 'spell', 'wound']),
+  kind: z.enum(['ability', 'spell', 'wound', 'curse']),
   key: str,
   hand: num.optional(),
+  DL: num.optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>
@@ -673,6 +706,7 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   // cut — the rest of a delivery's damage is the producer's to write
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true }) }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
 ])
 export type SpellEffect = z.infer<typeof SpellEffectSchema>
 

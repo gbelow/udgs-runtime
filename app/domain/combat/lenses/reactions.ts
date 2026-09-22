@@ -1,7 +1,7 @@
 import type { Action, ActionKind, CombatState, ExplosionAction, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getPlacedFootprint } from './board'
-import { getThreatenedIds } from './explosion'
+import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { setDistance } from '../geometry'
 
@@ -76,6 +76,7 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 // threatens its whole range — may avoid it; the attacker, though they may
 // stand in their own blast, answers nothing of their own.
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
+  if (!isAvoidable(root)) return []
   return getThreatenedIds(state, root)
     .filter((id) => id !== root.actorId)
     .map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))

@@ -18,7 +18,8 @@
           "DEF",
           "hook",
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "punch",
@@ -35,7 +36,8 @@
         },
         "properties": [
           "draw"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -55,7 +57,8 @@
         "properties": [
           "grapple II",
           "hook"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -76,7 +79,8 @@
           "grapple I",
           "DEF",
           "hook"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "punch",
@@ -91,7 +95,8 @@
           "min": 0,
           "max": 1
         },
-        "properties": []
+        "properties": [],
+        "payload": []
       }
     ]
   },
@@ -118,7 +123,8 @@
           "bladed",
           "precise",
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "throw",
@@ -133,7 +139,8 @@
           "precise",
           "slow",
           "draw"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -156,7 +163,8 @@
         },
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -182,7 +190,8 @@
           "penetrating",
           "precise",
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "parry",
@@ -196,7 +205,8 @@
         "properties": [
           "DEF",
           "draw"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -215,7 +225,8 @@
         "AP": 3,
         "properties": [
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "entangle",
@@ -228,7 +239,8 @@
         "AP": 3,
         "properties": [
           "grapple I"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -250,7 +262,8 @@
           "bladed",
           "precise",
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "cut",
@@ -270,7 +283,8 @@
           "DEF",
           "bladed",
           "draw"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -292,7 +306,8 @@
           "penetrating",
           "precise",
           "draw"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "parry",
@@ -305,7 +320,8 @@
         "AP": 3,
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -330,7 +346,8 @@
           "braced",
           "piercing",
           "penetrating"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -345,7 +362,8 @@
           "grapple I",
           "shaft",
           "DEF"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "throw",
@@ -363,7 +381,8 @@
         "properties": [
           "piercing",
           "slow"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -384,7 +403,8 @@
           "min": 1,
           "max": 2
         },
-        "properties": []
+        "properties": [],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -398,7 +418,8 @@
         "properties": [
           "shaft",
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -421,7 +442,8 @@
         },
         "properties": [
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "parry",
@@ -434,7 +456,8 @@
         "AP": 3,
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -459,7 +482,8 @@
           "sweeping",
           "DEF",
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "half-sword thrust",
@@ -478,7 +502,8 @@
           "piercing",
           "penetrating",
           "precise"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "thrust",
@@ -492,7 +517,8 @@
         "properties": [
           "piercing",
           "penetrating"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -517,7 +543,8 @@
           "braced",
           "piercing",
           "penetrating"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -530,7 +557,8 @@
         "AP": 3,
         "properties": [
           "shaft"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -555,7 +583,8 @@
           "braced",
           "piercing",
           "penetrating"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "hook",
@@ -569,7 +598,8 @@
         "properties": [
           "hook",
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -584,7 +614,8 @@
           "grapple I",
           "shaft",
           "DEF"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "axe head",
@@ -601,7 +632,8 @@
         },
         "properties": [
           "bladed"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -626,7 +658,8 @@
           "braced",
           "piercing",
           "penetrating"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "hook",
@@ -640,7 +673,8 @@
         "properties": [
           "hook",
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -655,7 +689,8 @@
           "grapple I",
           "shaft",
           "DEF"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "hammer",
@@ -670,7 +705,8 @@
           "min": 2,
           "max": 3
         },
-        "properties": []
+        "properties": [],
+        "payload": []
       }
     ]
   },
@@ -694,7 +730,8 @@
         "properties": [
           "sweeping",
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "shaft",
@@ -709,7 +746,8 @@
           "grapple I",
           "shaft",
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -734,7 +772,8 @@
           "sweeping",
           "DEF",
           "bladed"
-        ]
+        ],
+        "payload": []
       },
       {
         "name": "thrust",
@@ -753,7 +792,8 @@
           "braced",
           "piercing",
           "bladed"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -776,10 +816,7 @@
           "reload",
           "explosion"
         ],
-        "area": {
-          "shape": "explosion",
-          "radius": 1
-        }
+        "payload": []
       }
     ]
   },
@@ -800,7 +837,8 @@
         "properties": [
           "hook",
           "slow"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -821,10 +859,7 @@
           "slow",
           "explosion"
         ],
-        "area": {
-          "shape": "explosion",
-          "radius": 2
-        }
+        "payload": []
       }
     ]
   },
@@ -845,7 +880,8 @@
           "piercing",
           "precise",
           "fast"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -867,7 +903,8 @@
           "piercing",
           "precise",
           "fast"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -889,7 +926,8 @@
           "piercing",
           "precise",
           "fast"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -912,7 +950,8 @@
           "precise",
           "fast",
           "reload"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -935,7 +974,8 @@
           "precise",
           "fast",
           "reload"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -964,7 +1004,8 @@
         },
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -993,7 +1034,8 @@
         },
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   },
@@ -1022,7 +1064,8 @@
         },
         "properties": [
           "DEF"
-        ]
+        ],
+        "payload": []
       }
     ]
   }

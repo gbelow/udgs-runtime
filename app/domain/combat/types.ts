@@ -1,10 +1,10 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MovementKindSchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 
-export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema } from '../types'
-export type { Degree, HitLocation, DefenseKind, Interruption } from '../types'
+export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema, VisibilitySchema } from '../types'
+export type { Degree, HitLocation, DefenseKind, Interruption, Visibility } from '../types'
 
 const num = z.number()
 const str = z.string()
@@ -55,10 +55,9 @@ export type Placement = z.infer<typeof PlacementSchema>
 // combat.tex "Positioning and Visibility": what a cell does to what crosses
 // it. A blocking cell is cover and, unless transparent, breaks vision;
 // difficult terrain asks for a Balance test (combat.tex "Balance"); the
-// visibility is what the terrain grants whoever stands in it.
-export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
-export type Visibility = z.infer<typeof VisibilitySchema>
-
+// visibility is what the terrain grants whoever stands in it; a suffocating
+// cell is gas (combat.tex "Gas": "anyone that starts the round inside a
+// suffocating gas is suffocating").
 export const TerrainCellSchema = z.object({
   blocking: z.boolean().default(false),
   transparent: z.boolean().default(false),
@@ -66,6 +65,7 @@ export const TerrainCellSchema = z.object({
   liquid: z.boolean().default(false),
   elevation: num.default(0),
   visibility: VisibilitySchema.default('good'),
+  suffocating: z.boolean().default(false),
   // combat.tex "Balance": the DL of the difficult terrain test, "based on how
   // slippery, unstable, long, and narrow the path is" — the table's call
   DL: num.default(5),
@@ -168,15 +168,24 @@ export const ShootActionSchema = z.object({
 // a cone from the attacker in a `direction` picked once the reactions have
 // moved ("The attacker can choose the exact direction of the cone after the
 // movement"). Whoever stands in the area when it resolves is in `facts`,
-// each with what reaches them at their zone's degree.
-export const ExplosionFactsSchema = z.record(z.string(), DeliverySchema)
+// each with what reaches them at their zone's degree, one delivery per
+// effect of the payload that reaches them.
+export const ExplosionFactsSchema = z.record(z.string(), z.array(DeliverySchema))
 export type ExplosionFacts = z.infer<typeof ExplosionFactsSchema>
 
+// Where an explosion comes from decides its test: thrown, the reflex is
+// against the thrower's Accuracy; cast, against what the spell's effects
+// say; set off — a charge or a trap going off where nobody could react —
+// there is none (the table's ruling: the test was spotting it). `key` is
+// the spell whose effects go off, for a cast or a detonation; a thrown
+// item's is the charge it carries.
 export const ExplosionActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('explosion'),
+  source: z.enum(['thrown', 'cast', 'detonate']).default('thrown'),
   ...WeaponRowRef,
   variant: str.default(''),
+  key: str.default(''),
   center: CoordSchema.nullable().default(null),
   direction: z.number().int().min(0).max(5).nullable().default(null),
   facts: ExplosionFactsSchema.nullable().default(null),

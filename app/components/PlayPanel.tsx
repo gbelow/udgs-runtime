@@ -21,7 +21,7 @@ import { useResourceLens } from '../hooks/useResourceLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
-import { usePendingLens } from '../hooks/usePendingLens';
+import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
@@ -128,6 +128,7 @@ export function PlayPanel(){
           <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
             <BoardPanel />
             <PendingPanel />
+            <CursePanel />
             <AfflictionsPannel />
             <ArmorPanel />
             <HandsPanel />
@@ -287,6 +288,31 @@ function PendingPanel(){
             <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
           </SkillTooltip>
           <Button size='xs' variant='primary' aria-label={`roll ${r.name || r.kind}`} onClick={() => roll(r.index)}>roll</Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// spells.tex "Curse": what the character carries until they beat it, each
+// with the test that does.
+function CursePanel(){
+  const { rows, resist } = useCurseLens()
+  if (rows.length === 0) return null
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <SectionLabel>cursed</SectionLabel>
+      {rows.map((r) => (
+        <div key={r.key} className='flex flex-row flex-wrap gap-x-3 items-center'>
+          <span>{r.name}</span>
+          {r.roll ? (
+            <>
+              <SkillTooltip terms={r.terms} total={r.total}>
+                <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
+              </SkillTooltip>
+              <Button size='xs' variant='primary' aria-label={`resist ${r.name}`} onClick={() => resist(r.key)}>resist</Button>
+            </>
+          ) : <span className='text-muted'>no test beats it</span>}
         </div>
       ))}
     </div>

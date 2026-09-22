@@ -1,5 +1,5 @@
 import type { Character, Damage, DamageKind, Delivery } from '../../types'
-import type { Action, AttackAction, CombatState, ExplosionAction, ExplosionFacts, HOPPurchase } from '../types'
+import type { Action, AttackAction, CombatState, HOPPurchase } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor } from '../../character/lenses/armor'
@@ -10,7 +10,7 @@ import { getForce } from '../../character/lenses/skills'
 import { getHardness } from '../../item/lenses/items'
 import { hasProperty } from '../../weaponProperties'
 import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
-import { getAffected } from './explosion'
+import { getExplosionFacts } from './explosion'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -45,7 +45,7 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
 
 // A damage effect on its way, at a degree already decided by the producer.
 function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {
-  return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, test: null, when: null, then: [] }
+  return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, test: null, when: null, then: [], locks: null }
 }
 
 function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
@@ -89,34 +89,6 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, attacker) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
-}
-
-// combat.tex "Explosions"; gear.tex "Explosion": "Being caught in the
-// explosion applies the weapon's damage" — the row's damage as it reaches
-// each character in the area, at the degree of the zone they stand in when
-// it goes off, met by nothing but the reflex test they may have made. (The
-// book's +5/−5 on the DL of an explosion's effects, and the grapple a net
-// applies, have no effect modelled yet.)
-export function getExplosionFacts(state: CombatState, root: ExplosionAction): ExplosionFacts | null {
-  const attacker = state.characters[root.actorId]
-  if (!attacker) return null
-  const variant = getAttackVariant(attacker, root)
-  const row = findWeaponRow(attacker, root.weaponKey, root.attack)
-  if (!variant || !row) return null
-  return Object.fromEntries(getAffected(state, root).map(({ id, degree }) => {
-    const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === id)
-    return [id, delivering(`${row.weapon.name} ${row.atk.name}`, {
-      damage: [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }],
-      hardness: getHardness(row.atk.material),
-      force: getForce(attacker),
-      properties: row.atk.properties,
-      location: 'chest',
-      ...(reaction ? { ...UNDEFENDED, defense: 'avoidExplosion' as const, defenseAP: reaction.cost?.AP ?? 0 } : UNDEFENDED),
-      bypass: false,
-      penetrating: false,
-      smash: false,
-    }, degree)]
-  }))
 }
 
 // ---------------------------------------------------------------------------
@@ -198,10 +170,12 @@ export function outcomeOf(delivery: Delivery, target: Character): Outcome | null
 export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
   if (root.kind === 'explosion') {
     const facts = root.facts ?? getExplosionFacts(state, root)
-    return Object.entries(facts ?? {}).flatMap(([id, f]) => {
+    return Object.entries(facts).flatMap(([id, deliveries]) => {
       const target = state.characters[id]
-      const outcome = target ? outcomeOf(f, target) : null
-      return outcome ? [{ id, outcome }] : []
+      return deliveries.flatMap((d) => {
+        const outcome = target ? outcomeOf(d, target) : null
+        return outcome ? [{ id, outcome }] : []
+      })
     })
   }
   if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return []

@@ -38,6 +38,7 @@ type Def = {
   discriminator?: string
   checks?: { _zod: { def: { check: string; minimum?: number } } }[]
   defaultValue?: unknown
+  getter?: () => z.ZodType
 }
 
 function def(schema: z.ZodType): Def {
@@ -55,6 +56,8 @@ function unwrap(schema: z.ZodType): z.ZodType {
     const d = def(s)
     if ((d.type === 'default' || d.type === 'prefault' || d.type === 'catch') && d.innerType) s = d.innerType
     else if (d.type === 'pipe' && d.in) s = d.in
+    // a schema declared ahead of its definition reads the same as the definition
+    else if (d.type === 'lazy' && d.getter) s = d.getter()
     else return s
   }
 }
