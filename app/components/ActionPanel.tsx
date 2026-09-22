@@ -1,6 +1,6 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { ActionOption, ReactorOptions, AttackOption } from '../domain/combat/lenses/action'
+import type { ActionOption, ReactorOptions, AttackOption, SpellOption, ImprovementOption } from '../domain/combat/lenses/action'
 import type { MovementOption } from '../domain/combat/lenses/move'
 import type { OpenActionView } from '../domain/combat/lenses/actionPanel'
 import type { HOPOption } from '../domain/combat/lenses/damage'
@@ -25,7 +25,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -55,6 +55,14 @@ export function ActionPanel(){
       ) : null}
 
       <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
+
+      {view.spells.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>spell</SectionLabel>
+          {view.spells.map((s) => <SpellButton key={s.key} option={s} onCast={() => amend({ key: s.key, quicken: false })} onQuicken={() => amend({ key: s.key, quicken: true })} />)}
+        </div>
+      ) : null}
+      {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
 
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -141,12 +149,22 @@ export function ActionPanel(){
           {open.walked ? (
             <div className='text-xs text-muted'>{open.movement} · walks <span className='font-mono'>{open.walked.cells}</span> of <span className='font-mono'>{open.path.length}</span>{open.walked.stop !== 'end' ? <span className='text-bad'> · {open.walked.stop}</span> : null} <Cost cost={open.cost} /></div>
           ) : null}
-          {step === 'spend' ? (
+          {step === 'spend' && view.hop.options.length > 0 ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>overflow</SectionLabel>
               {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onBuy={() => spend(o.purchase)} onRefund={() => refund(o.purchase)} />)}
             </div>
           ) : null}
+          {step === 'spend' && view.SOP.options.length > 0 ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>SOP <span className='font-mono'>{view.SOP.remaining}</span></SectionLabel>
+              {view.SOP.options.map((o) => <ImprovementButton key={o.name} option={o} onBuy={() => improve(o.name)} onRefund={() => unimprove(o.name)} />)}
+            </div>
+          ) : null}
+          {view.deliveries.map((d, i) => (
+            <div key={i} className='text-sm'>{d.target}: {d.name || d.kind} {d.test ? <span className='text-muted'>· rolls {d.test}</span> : null}</div>
+          ))}
+          {open.spell && open.roll?.degree !== 'hit' ? <div className='text-sm text-muted'>the spell fails</div> : null}
           {open.reactions.filter((r) => r.roll).map((r) => (
             <div key={`${r.actor}:${r.label}`} className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
               <span>{r.actor} {r.label}</span>
@@ -242,6 +260,35 @@ function Test({ open }: { open: OpenActionView }){
         <span>vs DL <span className='font-mono text-fg'>{open.DL.total}</span></span>
       </SkillTooltip>
     </div>
+  )
+}
+
+// A spell to cast, on the focus surge or quickened at +4 DL without it
+// (spells.tex "Quicken Spell").
+function SpellButton({ option, onCast, onQuicken }: { option: SpellOption, onCast: () => void, onQuicken: () => void }){
+  return (
+    <span className='inline-flex items-stretch'>
+      <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.castable ? undefined : 'needs a focus surge'} onClick={onCast}>
+        {option.name} <span className='font-mono text-muted'>DL {option.DL ?? '?'}</span> <Cost cost={option.cost} />
+      </Button>
+      {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title='quicken: +4 DL, no surge' onClick={onQuicken}>quicken</Button> : null}
+    </span>
+  )
+}
+
+// spells.tex "Spell Improvements": bought out of the cast's SOP, and taken
+// back while nothing has been produced yet.
+function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOption, onBuy: () => void, onRefund: () => void }){
+  const bought = option.times > 0
+  return (
+    <span className='inline-flex items-stretch'>
+      <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
+        disabled={!option.available} title={option.text} onClick={onBuy}>
+        {option.name} <span className='font-mono text-muted'>{option.SOP}</span>
+        {bought ? <span className='ml-1 font-mono'>×{option.times}</span> : null}
+      </Button>
+      {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.name}`} onClick={onRefund}>−</Button> : null}
+    </span>
   )
 }
 

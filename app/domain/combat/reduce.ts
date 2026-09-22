@@ -7,6 +7,7 @@ import { getWieldedWeapons } from '../item/lenses/hands'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './lenses/move'
 import { getReactionsTo } from './lenses/action'
+import { SPELLS, isSpellKey } from '../spells'
 
 // The two moments an action touches a character: `roll`, when the die is
 // thrown and the price leaves the actor in the same step, and `resolve`, when
@@ -25,6 +26,9 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
     switch (phase) {
       case 'roll':
         if (c.id !== action.actorId || !action.cost) return c
+        // a spell's price is the whole of what it asks (spells.tex "Casting
+        // spells"), not only the AP and STA the fight prices
+        if (action.kind === 'cast' && isSpellKey(action.key)) return payCost(SPELLS[action.key].cost)(c)
         return payCost({ ...action.cost, exhaustion: 0, IL: 0, ET: 0 })(c)
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
@@ -37,6 +41,15 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           const facts = action.facts?.[c.id]
           const hit = facts ? deliver(facts)(c) : c
           return c.id === action.actorId ? releaseThrown(hit, action.weaponKey, action.attack) : hit
+        }
+        // spells.tex "Sustained": a cast that hit is taken hold of by its
+        // caster, its upkeep due at the round change
+        if (action.kind === 'cast') {
+          const delivered = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
+          const holds = c.id === action.actorId && isSpellKey(action.key) && SPELLS[action.key].type === 'sustained' && action.roll?.degree === 'hit'
+          return holds && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)
+            ? { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
+            : delivered
         }
         if ((action.kind !== 'strike' && action.kind !== 'shoot') || c.id !== action.targetId || !action.facts) return c
         return deliver(action.facts)(c)

@@ -5,9 +5,15 @@ import { Term, sumTerms } from '../../character/lenses/terms'
 import {
   ActionOption,
   ActionStep,
+  ImprovementOption,
   ReactorOptions,
+  SpellOption,
   areReactionsComplete,
+  getCastTerms,
+  getImprovementOptions,
   getReactors,
+  getSOPRemaining,
+  getSpellOptions,
   needsDie,
   LocationOption,
   AttackOption,
@@ -22,6 +28,7 @@ import {
   getReactionsTo,
   getTargetIds,
 } from './action'
+import { DeliveryView, getCastDeliveries } from './cast'
 import { ActionCost } from '../../character/lenses/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining, getOutcomePreviews } from './damage'
 import type { Outcome } from '../../character/lenses/damage'
@@ -43,6 +50,9 @@ export type OpenActionView = {
   location: HitLocation
   // an explosion's area, and whether it is pointed where it goes off yet
   area: { shape: Area['shape']; aimed: boolean } | null
+  // the declaration a cast has made so far
+  spell: string
+  quicken: boolean
   // the declaration a move has made so far
   movement: MovementKind
   path: Coord[]
@@ -67,8 +77,10 @@ export type ActionPanelView = {
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
-  // at `declare`: the rows and variations an attack can be made with
+  // at `declare`: the rows and variations an attack can be made with, or
+  // the spells a cast can be of
   attacks: AttackOption[]
+  spells: SpellOption[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
   // why the target list is empty, when it is
@@ -92,9 +104,13 @@ export type ActionPanelView = {
   // to everyone it lands on as they stand
   hop: { remaining: number; options: HOPOption[] }
   outcomes: { target: string; outcome: Outcome }[]
+  // once a cast is rolled: what its overflow can buy, and what it will
+  // deliver to whom
+  SOP: { remaining: number; options: ImprovementOption[] }
+  deliveries: { target: string; name: string; kind: string; test: string | null }[]
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [] }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -113,6 +129,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const reactions = getReactionsTo(state, open.id)
   const attack = open.kind === 'strike' || open.kind === 'shoot' ? open : null
   const explosion = open.kind === 'explosion' ? open : null
+  const cast = open.kind === 'cast' ? open : null
   const weaponAction = attack ?? explosion
   const area = explosion ? getExplosionArea(state, explosion) : null
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
@@ -133,6 +150,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       variant: weaponAction?.variant ?? '',
       location: attack?.location ?? 'chest',
       area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null } : null,
+      spell: cast && actor ? getSpellOptions(actor).find((s) => s.key === cast.key)?.name ?? '' : '',
+      quicken: cast?.quicken ?? false,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -144,13 +163,14 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
         roll: r.roll,
       })),
-      score: breakdown(attack && actor ? getAttackTerms(actor, attack) : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
-      DL: breakdown(attack || explosion ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
+      score: breakdown(attack && actor ? getAttackTerms(actor, attack) : cast && actor ? getCastTerms(actor, cast) : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
+      DL: breakdown(attack || explosion || cast ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
       roll: open.roll,
     },
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: weaponAction && step === 'declare' && actor ? getAttackOptions(actor, weaponAction.kind) : [],
+    spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
     locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
@@ -168,6 +188,10 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
     outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: state.characters[id]?.fightName ?? '', outcome })) : [],
+    SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(cast) } : { remaining: 0, options: [] },
+    deliveries: cast && cast.status === 'rolled'
+      ? getCastDeliveries(state, cast).map((d: DeliveryView) => ({ target: state.characters[d.id]?.fightName ?? '', name: d.name, kind: d.kind, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null }))
+      : [],
   }
 }
 

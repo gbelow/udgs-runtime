@@ -6,7 +6,10 @@ import {
   findOption,
   getAction,
   getAttackTerms,
+  getCastTerms,
+  getImprovementOptions,
   getOpportunityStrike,
+  isTargeted,
   getDeclaredCost,
   getDL,
   getNextStep,
@@ -26,6 +29,9 @@ import { getDistanceBetween, getMeleeRange } from '../lenses/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
 import { sumTerms } from '../../character/lenses/terms'
 import { scoreTest } from '../../character/lenses/test'
+import { getSOP, isHit } from '../../character/lenses/spells'
+import { getCastFacts } from '../lenses/cast'
+import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/lenses/actionCosts'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -97,7 +103,7 @@ export function commitAction(): Updater {
     if (!open || open.status !== 'declared') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if ((open.kind === 'strike' || open.kind === 'shoot') && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if ((open.kind === 'strike' || open.kind === 'shoot' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!priceFor(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
@@ -215,6 +221,16 @@ export function rollAction(dice: () => number, newId: () => string = () => `${Da
             const DL = getBalanceDL(state, open)
             const score = die + sumTerms(getBalanceTestTerms(actor))
             return { die, DL, score, degree: scoreTest(score, DL), HOP: 0 }
+          })()
+      // spells.tex "Casting spells": "In case of failure, it fails and the AP
+      // and STA are lost"; "Any points above a hit against the DL are
+      // converted into SOPs"
+      : open.kind === 'cast'
+        ? (() => {
+            const die = dice()
+            const DL = getDL(state, open)
+            const score = die + sumTerms(getCastTerms(actor, open))
+            return { die, DL, score, degree: isHit(score, DL) ? 'hit' as const : 'miss' as const, HOP: getSOP(score, DL) }
           })()
         : null
     if (!test && ACTIONS[open.kind].die) return state
@@ -356,6 +372,29 @@ export function aimExplosion(direction: number): Updater {
   }
 }
 
+// spells.tex "Spell Improvements": buys one improvement out of the cast's
+// SOPs, only what the option list offers as open.
+export function improveSpell(name: SpellModification): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
+    if (!getImprovementOptions(open).find((o) => o.name === name)?.available) return state
+    return replaceActions(state, [{ ...open, improved: { ...open.improved, [name]: (open.improved[name] ?? 0) + 1 } }])
+  }
+}
+
+// Takes one improvement back, while nothing has been produced yet.
+export function refundImprovement(name: SpellModification): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
+    const bought = open.improved[name] ?? 0
+    if (bought === 0) return state
+    const { [name]: _, ...rest } = open.improved
+    return replaceActions(state, [{ ...open, improved: bought > 1 ? { ...rest, [name]: bought - 1 } : rest }])
+  }
+}
+
 // Lands the rolled action on everyone it concerns and closes it. A strike
 // or a shot has its attacker's side written down first, so the record says
 // what landed and the target's reducer needs nothing but the action; what
@@ -376,6 +415,8 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
         })()
       : open.kind === 'explosion'
         ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
+      : open.kind === 'cast'
+        ? { ...open, status: 'resolved', facts: getCastFacts(state, open) }
       : open.kind === 'move'
         ? { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
         : { ...open, status: 'resolved' }

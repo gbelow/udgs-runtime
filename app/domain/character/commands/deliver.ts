@@ -33,16 +33,27 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
   }
 }
 
+// combat.tex "Evasion": a reflex test against what is coming turns the
+// target's degree against it — "On a graze ... only takes half damage", on
+// a miss the whole of it, on a hit or better none.
+export function resisted(degree: Degree): Degree {
+  switch (degree) {
+    case 'miss': return 'hit'
+    case 'graze': return 'graze'
+    default: return 'miss'
+  }
+}
+
 // The target's die on a pending delivery: their skill against the DL the
-// producer set, and the effect lands at the degree that comes of it if the
-// test lets it, or not at all. Either way the wait is over.
+// producer set, and the effect lands at the degree their result turns into,
+// or not at all. Either way the wait is over.
 export function resolvePending(index: number, die: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const delivery = c.pending[index]
     if (!delivery?.test) return c
-    const degree = scoreTest(die + skillLenses[delivery.test.roll].get(c), delivery.test.DL)
+    const degree = resisted(scoreTest(die + skillLenses[delivery.test.roll].get(c), delivery.test.DL))
     const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
-    return delivery.test.on.includes(degree) ? deliver({ ...delivery, degree, test: null })(rest) : rest
+    return degree === 'miss' ? rest : deliver({ ...delivery, degree, test: null })(rest)
   }
 }
 

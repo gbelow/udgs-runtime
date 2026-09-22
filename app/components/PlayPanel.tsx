@@ -286,7 +286,6 @@ function PendingPanel(){
           <SkillTooltip terms={r.terms} total={r.total}>
             <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
           </SkillTooltip>
-          <span className='text-muted'>lands on {r.on.join(', ')}</span>
           <Button size='xs' variant='primary' aria-label={`roll ${r.name || r.kind}`} onClick={() => roll(r.index)}>roll</Button>
         </div>
       ))}

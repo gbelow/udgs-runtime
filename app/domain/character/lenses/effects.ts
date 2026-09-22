@@ -67,7 +67,10 @@ export function getContributingEffects(character: Character): Effect[] {
     .filter((a) => a.activation === 'passive')
     .flatMap((a) => a.effect)
   const active = getActiveAbilityKeys(character).flatMap((key) => ABILITIES[key].effect)
-  const held = getActiveSpellKeys(character).flatMap((key) => SPELLS[key].effect)
+  // a held spell contributes what it keeps doing to the caster — a buff, an
+  // upkeep; what it did to anyone was delivered when it was cast
+  const held = getActiveSpellKeys(character).flatMap((key) =>
+    SPELLS[key].effects.flatMap((e): Effect[] => (e.target === 'self' && e.type !== 'damage' ? [{ name: e.name, trigger: e.trigger, type: e.type, effect: e.effect } as Effect] : [])))
   return [...passive, ...active, ...held]
 }
 

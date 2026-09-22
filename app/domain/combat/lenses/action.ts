@@ -1,7 +1,10 @@
 import type { AttackKind, CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CombatState, type Degree, type HitLocation, type StrikeAction, type WeaponAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CastAction, type CombatState, type Degree, type HitLocation, type StrikeAction, type WeaponAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
-import { LOCATIONS } from '../../tables'
+import { LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
+import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
+import { canCastSpell, getCastingDL, getSpellSkill } from '../../character/lenses/spells'
+import { getEffectRange, getTargetEffects } from '../../character/lenses/production'
 import { HIT_LOCATIONS } from '../../lists'
 import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/lenses/hands'
 import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/lenses/gear'
@@ -12,7 +15,8 @@ import { getBuffBonus } from '../../character/lenses/effects'
 import { ActionCost, getActionCost } from '../../character/lenses/actionCosts'
 import { Term, sumTerms } from '../../character/lenses/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
-import { isHighGround, isInReach, isInShotRange } from './board'
+import { isCampaignCharacter } from '../../utils'
+import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
 import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
 import { getAffected, getExplosionArea, getExplosionDLTerms, isAimed } from './explosion'
 import { getTriggersFor } from './reactions'
@@ -126,6 +130,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       return getAttackVariant(c, action) !== null
     case 'explosion':
       return getAttackVariant(c, action) !== null && isAimed(state, action)
+    case 'cast':
+      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
     case 'move':
       return isPathLegal(state, action)
     case 'block':
@@ -229,6 +235,9 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
   if (action.kind === 'move') return action.path.length > 0 ? getMovePrice(c, action, action.path.length) : null
+  // spells.tex "Casting spells": the spell's own price; what it asks beyond
+  // AP and STA is paid the same, off the sheet
+  if (action.kind === 'cast') return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
   if (action.kind === 'evasion') return getEvasionCost(c, action.stay)
   // a reaction with no price of its own (an opportunity attack, a follow)
   // pays through the action it opens
@@ -306,8 +315,18 @@ export function getShotDefense(state: CombatState, root: Action): Action | null 
 // combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
+// spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
+// Increases spell DL by 4".
+export function getCastTerms(c: CampaignCharacter, action: CastAction): Term[] {
+  return isSpellKey(action.key) ? [{ label: SPELLS[action.key].name, value: getSpellSkill(c, action.key) }] : []
+}
+
 export function getDLTerms(state: CombatState, root: Action): Term[] {
   if (root.kind === 'explosion') return getExplosionDLTerms(state, root)
+  if (root.kind === 'cast') {
+    if (!isSpellKey(root.key)) return []
+    return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
+  }
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   if (root.kind === 'shoot') {
@@ -408,6 +427,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     const strikes = getAttackOptions(c, 'strike')
     const shots = getAttackOptions(c, 'shoot')
     const explosions = getAttackOptions(c, 'explosion')
+    const spells = getSpellOptions(c)
     const placed = state.board?.placements[c.id] !== undefined
     return [
       {
@@ -444,6 +464,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         cost: null,
         available: placed,
         reason: placed ? null : 'not on the board',
+        reactionTo: null,
+        chosen: false,
+      },
+      {
+        label: ACTIONS.cast.label,
+        draft: { kind: 'cast' },
+        cost: null,
+        available: spells.some((s) => s.castable || s.quickenable),
+        reason: spells.some((s) => s.castable || s.quickenable) ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned',
         reactionTo: null,
         chosen: false,
       },
@@ -497,6 +526,63 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   })
 }
 
+// The spells the character could declare a cast of: each learned spell,
+// with whether it can be cast on the focus surge or quickened without it
+// (spells.tex "Quicken Spell").
+export type SpellOption = {
+  key: SpellKey
+  name: string
+  DL: number | null
+  quickenedDL: number | null
+  cost: ActionCost
+  castable: boolean
+  quickenable: boolean
+  // whether it aims at someone
+  targeted: boolean
+}
+
+export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
+  return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
+    const spell = SPELLS[key]
+    return {
+      key,
+      name: spell.name,
+      DL: spell.DL,
+      quickenedDL: getCastingDL(spell, true),
+      cost: { AP: spell.cost.AP, STA: spell.cost.STA },
+      castable: canCastSpell(c, key, false),
+      quickenable: canCastSpell(c, key, true),
+      targeted: getTargetEffects(spell).length > 0,
+    }
+  })
+}
+
+// spells.tex "Spell Improvements": what the cast's overflow can still buy,
+// each priced in SOP.
+export type ImprovementOption = {
+  name: SpellModification
+  SOP: number
+  text: string
+  times: number
+  available: boolean
+}
+
+export function getSOPRemaining(root: CastAction): number {
+  return (root.roll?.HOP ?? 0) - (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).reduce((sum, m) => sum + (root.improved[m] ?? 0) * SPELL_MODIFICATIONS[m].SOP, 0)
+}
+
+export function getImprovementOptions(root: CastAction): ImprovementOption[] {
+  if (!root.roll || root.roll.degree !== 'hit') return []
+  const remaining = getSOPRemaining(root)
+  return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => ({
+    name,
+    SOP: SPELL_MODIFICATIONS[name].SOP,
+    text: SPELL_MODIFICATIONS[name].text,
+    times: root.improved[name] ?? 0,
+    available: SPELL_MODIFICATIONS[name].SOP <= remaining,
+  }))
+}
+
 // Everyone with a reaction to the open action, each with their options —
 // and, for one who has chosen an opportunity attack, the strike it opens
 // still to be declared: its rows and where it aims.
@@ -538,7 +624,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (!open) return null
   if (open.status === 'rolled') {
     if (open.kind === 'explosion') return getExplosionArea(state, open)?.shape === 'spray' && open.direction === null ? 'aim' : 'confirm'
-    return (open.kind === 'strike' || open.kind === 'shoot') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+    return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }
   if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]
@@ -546,6 +632,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (open.kind === 'explosion') return getAttackVariant(actor, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
   if (open.kind === 'move') return 'commit'
+  if (open.kind === 'cast' && !isTargeted(open)) return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'commit'
 }
@@ -586,8 +673,25 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
 // be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
   if (root.kind === 'move' || root.kind === 'explosion') return []
+  if (root.kind === 'cast' && !isTargeted(root)) return []
   return Object.keys(state.characters).filter((id) =>
     id !== root.actorId
     && (root.kind !== 'strike' || isInReach(state, root, id))
-    && (root.kind !== 'shoot' || isInShotRange(state, root, id)))
+    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
+    && (root.kind !== 'cast' || isInCastRange(state, root, id)))
+}
+
+// Whether the spell as declared aims at someone: it has an effect for one
+// target.
+export function isTargeted(root: CastAction): boolean {
+  return isSpellKey(root.key) && getTargetEffects(SPELLS[root.key]).length > 0
+}
+
+// Whether every targeted effect of the spell reaches the target from where
+// the caster stands, at the range bought (spells.tex "Extend Spell"), in
+// sight; touch reaches an adjacent target. True on a fight without a board.
+function isInCastRange(state: CombatState, root: CastAction, targetId: string): boolean {
+  const distance = getDistanceBetween(state, root.actorId, targetId)
+  if (distance === null || !isSpellKey(root.key)) return true
+  return getTargetEffects(SPELLS[root.key]).every((e) => distance <= (getEffectRange(e, root.improved) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
 }

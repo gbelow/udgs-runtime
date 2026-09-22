@@ -168,7 +168,7 @@ function woundedHand(facts: Damage, target: Character): number {
 // comes off whatever the target has, on top of what the reaction cost.
 // combat.tex "Burn, radiant": "Dealing Tier 0 injury or higher leaves the
 // target burning"; "Corrosive": "Tiers 0 to I of damage leaves the target
-// corroding at that tier of damage".
+// corroding at that tier of damage" — and past T1, still at that (the table's ruling).
 function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcome['tiers'], piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
   const bluntTier = Math.max(tiers.blunt ?? -1, tiers.electric ?? -1)
   const interrupted = bluntTier >= 1
@@ -177,7 +177,7 @@ function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcom
   let dead = false
   if (Math.max(tiers.burn ?? -1, tiers.radiant ?? -1) >= 0) afflictions.add('burning')
   if (tiers.corrosive === 0) afflictions.add('corroding0')
-  if (tiers.corrosive === 1) afflictions.add('corroding1')
+  if ((tiers.corrosive ?? -1) >= 1) afflictions.add('corroding1')
 
   const reached = (Object.keys(WOUNDS) as WoundKey[])
     .map((key) => ({ key, ...WOUNDS[key] }))

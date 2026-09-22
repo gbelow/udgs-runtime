@@ -53,7 +53,7 @@ function characterSubject(): CampaignCharacter {
     usedSurge: 'focus',
     pendingAction: { kind: 'spell', key: 'sleep', score: 12, SOP: 7, spent: {} },
     afflictions: ['prone'],
-    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5, on: ['miss', 'graze'] }, when: null, then: [] }],
+    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [] }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
     resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
@@ -144,6 +144,8 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(() => 7)(s))),
   payAction: (s) => combatCommands.payAction()(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
+  improveSpell: (s) => combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))),
+  refundImprovement: (s) => combatCommands.refundImprovement('extend')(deepFreeze(combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
@@ -174,6 +176,13 @@ function rolledExplosion(s: CombatState): CombatState {
   const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) as CampaignCharacter } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'explosion', weaponKey: grenadeItem.id, attack: 'throw', variant: 'basic', center: { q: 0, r: 3 } }, newId)(armed))
   return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
+}
+
+// A cast of `a`'s sleep, rolled high enough to have SOP to spend, on a
+// frozen state a few commands along.
+function rolledCast(s: CombatState): CombatState {
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
+  return combatCommands.rollAction(() => 30, newId)(deepFreeze(combatCommands.commitAction()(declared)))
 }
 
 // The committed strike cancelled and a fresh one declared in its place, on a

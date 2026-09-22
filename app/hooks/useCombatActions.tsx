@@ -7,7 +7,9 @@ import {
   commitAction,
   declareAction,
   declareReaction,
+  improveSpell,
   payAction,
+  refundImprovement,
   refundHOP,
   resolveAction,
   rollAction,
@@ -18,6 +20,7 @@ import {
   withdrawSpawnedAction,
 } from "../domain/combat/commands/action";
 import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
+import type { SpellModification } from "../domain/tables";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The action being played out, and the clicks that move it along. The view
@@ -49,6 +52,8 @@ export function useCombatActions() {
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const resolve = () => update(resolveAction(newId));
+  const improve = (name: SpellModification) => update(improveSpell(name));
+  const unimprove = (name: SpellModification) => update(refundImprovement(name));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } as const;
 }

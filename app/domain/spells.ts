@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Spell, SpellSchema } from './types'
+import { Spell, SpellEffectSchema, SpellSchema } from './types'
 import catalog from '../assets/spells.json'
 
 // spells.tex — the spell catalog, kept in app/assets/spells.json keyed by the
@@ -17,7 +17,7 @@ export const SPELLS: Record<SpellKey, Spell> = Object.fromEntries(
   (Object.keys(parsed) as SpellKey[]).map((key) => {
     const spell = parsed[key]
     if (spell.type !== 'sustained') return [key, spell]
-    return [key, { ...spell, effect: [...spell.effect, { name: 'upkeep', type: 'cost', trigger: 'end_round', effect: spell.cost }] }]
+    return [key, { ...spell, effects: [...spell.effects, SpellEffectSchema.parse({ name: 'upkeep', type: 'cost', trigger: 'end_round', effect: spell.cost, target: 'self', duration: 'held' })] }]
   }),
 ) as Record<SpellKey, Spell>
 

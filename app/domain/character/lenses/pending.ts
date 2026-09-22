@@ -1,4 +1,4 @@
-import type { Character, Degree, Skills } from '../../types'
+import type { Character, Skills } from '../../types'
 import { isCampaignCharacter } from '../../utils'
 import { skillTermGetters } from './skills'
 import { Term, sumTerms } from './terms'
@@ -11,7 +11,6 @@ export type PendingRow = {
   kind: string
   roll: keyof Skills
   DL: number
-  on: Degree[]
   terms: Term[]
   total: number
 }
@@ -21,10 +20,10 @@ export function getPendingRows(c: Character): PendingRow[] {
   return c.pending.flatMap((d, index) => {
     if (!d.test) return []
     const terms = skillTermGetters[d.test.roll](c)
-    return [{ index, name: d.effect.name, kind: d.effect.type, roll: d.test.roll, DL: d.test.DL, on: d.test.on, terms, total: sumTerms(terms) }]
+    return [{ index, name: d.effect.name, kind: d.effect.type, roll: d.test.roll, DL: d.test.DL, terms, total: sumTerms(terms) }]
   })
 }
 
 export function getPendingDigest(rows: PendingRow[]): string {
-  return rows.map((r) => `${r.index}/${r.name}/${r.kind}/${r.roll}/${r.DL}/${r.on.join('')}/${r.total}`).join('|')
+  return rows.map((r) => `${r.index}/${r.name}/${r.kind}/${r.roll}/${r.DL}/${r.total}`).join('|')
 }

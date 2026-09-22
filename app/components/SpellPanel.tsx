@@ -68,7 +68,11 @@ export function SpellPanel(){
                   <span><span className='text-muted'>target rolls</span> {row.test.roll} vs {row.test.value ?? ''}{row.test.extra ? `${row.test.value !== null ? ' + ' : ''}${row.test.extra}` : ''}</span>
                   : null
                 }
-                {row.damage ? <span><span className='text-muted'>damage</span> {row.damage}</span> : null}
+                {row.effects.map((e, i) => (
+                  <span key={i}><span className='text-muted'>{e.kind}</span> {e.text} <span className='text-muted'>→ {e.target}{e.range ? ` · ${e.range}` : ''}</span>
+                    {e.test ? <span> · <span className='text-muted'>target rolls</span> {e.test.roll} vs {e.test.value ?? ''}{e.test.extra ? `${e.test.value !== null ? ' + ' : ''}${e.test.extra}` : ''}</span> : null}
+                  </span>
+                ))}
                 {row.outcomes.map((o) => <span key={o.degree}><span className='text-muted'>{o.degree}</span> {o.text}</span>)}
                 <span>{row.description}</span>
                 {row.enhance ? <span><span className='text-muted'>enhance</span> {row.enhance}</span> : null}

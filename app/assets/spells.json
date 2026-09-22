@@ -21,16 +21,13 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Detonates an alchemical grenade that is already charged, causing it to deal its damage and effects.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "smoke-explosive": {
     "name": "Smoke Explosive",
@@ -54,16 +51,13 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "explosion, 5m xRM",
     "duration": "none",
     "durationETs": 0,
     "description": "Loads explosives with the effect of producing smoke when activated, upon contact with fire or on impact. The grenade produces black fog.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "shock-explosive": {
     "name": "Shock Explosive",
@@ -87,20 +81,38 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "explosion, 3m xRM",
     "duration": "none",
     "durationETs": 0,
     "description": "Loads explosives with alchemical energy to explode when activated, upon contact with fire or on impact.",
     "enhance": "",
-    "damage": {
-      "value": 20,
-      "scaled": true,
-      "kind": "blunt"
-    },
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Shock Explosive",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "blunt",
+              "value": 20
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "area",
+        "range": null,
+        "area": {
+          "shape": "explosion",
+          "radius": 3
+        },
+        "scaled": true,
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "incendiary-explosive": {
     "name": "Incendiary Explosive",
@@ -124,20 +136,38 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "explosion, 3m xRM",
     "duration": "none",
     "durationETs": 0,
     "description": "Transforms the explosive into a sticky substance that ignites upon contact with fire and burns until extinguished.",
     "enhance": "",
-    "damage": {
-      "value": 10,
-      "scaled": true,
-      "kind": "burn"
-    },
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Incendiary Explosive",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "burn",
+              "value": 10
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "area",
+        "range": null,
+        "area": {
+          "shape": "explosion",
+          "radius": 3
+        },
+        "scaled": true,
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "extinguish-flames": {
     "name": "Extinguish Flames",
@@ -161,16 +191,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Extinguishes the flames of 1 x RM space.",
     "enhance": "Enhancing increases the amount of spaces by 1.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "flamethrower": {
     "name": "Flamethrower",
@@ -194,23 +221,45 @@
     "DL": 3,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "spray, 4m xRM, 60 degrees",
     "duration": "none",
     "durationETs": 0,
     "description": "Creates flames from a flamethrower as a spray explosion in front of the caster. The flamethrower can be sustained, dealing damage to anyone entering the area. The damage is applied only once, based on the position that causes the most damage.",
     "enhance": "",
-    "damage": {
-      "value": 20,
-      "scaled": true,
-      "kind": "burn"
-    },
     "test": {
       "dl": "Accuracy",
       "roll": "reflex"
     },
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Flamethrower",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "burn",
+              "value": 20
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "area",
+        "range": null,
+        "area": {
+          "shape": "spray",
+          "length": 4,
+          "angle": 60
+        },
+        "scaled": true,
+        "resist": {
+          "dl": "Accuracy",
+          "roll": "reflex"
+        },
+        "duration": "held"
+      }
+    ]
   },
   "extract-water": {
     "name": "Extract Water",
@@ -234,16 +283,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Extracts moisture from the air and directs it to a location, which can be a container. The amount of water extracted is 1L at a hit and another 1L for every point over it. Increase or decrease DL based on available humidity.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "repair-metal": {
     "name": "Repair Metal",
@@ -267,16 +313,13 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Repairs cracks in metals. Works like a cold weld, removing negative conditions from equipment.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "metal-sharpening": {
     "name": "Metal Sharpening",
@@ -300,16 +343,13 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Performs a sharpening action on a weapon.",
     "enhance": "Enhancing gives a crit on the sharpening.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "sustained-lightning": {
     "name": "Sustained Lightning",
@@ -333,23 +373,41 @@
     "DL": 8,
     "castRange": "",
     "castArea": "",
-    "effectRange": "9mxRM",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "The caster attempts to create a sustained electric arc between themselves and a target. Once the spell hits, it ends if the target leaves the spell's range or touches the caster, in which case the arc short-circuits, causing damage to both and ending the spell.",
     "enhance": "",
-    "damage": {
-      "value": 25,
-      "scaled": true,
-      "kind": "electric"
-    },
     "test": {
       "dl": "Accuracy",
       "roll": "reflex"
     },
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Sustained Lightning",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "electric",
+              "value": 25
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": null,
+        "area": null,
+        "scaled": true,
+        "resist": {
+          "dl": "Accuracy",
+          "roll": "reflex"
+        },
+        "duration": "held"
+      }
+    ]
   },
   "taser": {
     "name": "Taser",
@@ -373,20 +431,35 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Charges an object of electrite with electricity that discharges on the first object it comes into contact with, adding its damage to the attack.",
     "enhance": "",
-    "damage": {
-      "value": 15,
-      "scaled": true,
-      "kind": "electric"
-    },
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Taser",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "electric",
+              "value": 15
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": null,
+        "area": null,
+        "scaled": true,
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "recharge-stone": {
     "name": "Recharge Stone",
@@ -410,16 +483,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Recharges a stone. Recharges 0/5/10/20 charges.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "darken": {
     "name": "Darken",
@@ -443,16 +513,13 @@
     "DL": 3,
     "castRange": "touch",
     "castArea": "1m radius",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Absorbs all light entering an area, making it difficult for those outside to see what is inside. Makes anyone inside invisible to those outside, who only see a large black circle.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "lasers": {
     "name": "Lasers",
@@ -476,23 +543,41 @@
     "DL": 7,
     "castRange": "",
     "castArea": "",
-    "effectRange": "200m xRM",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Converges the rays of light from a large light source into a single point at a distance. The laser is considered a projectile.",
     "enhance": "",
-    "damage": {
-      "value": 15,
-      "scaled": true,
-      "kind": "radiant"
-    },
     "test": {
       "dl": "Accuracy",
       "roll": "reflex"
     },
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Lasers",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "radiant",
+              "value": 15
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": null,
+        "area": null,
+        "scaled": true,
+        "resist": {
+          "dl": "Accuracy",
+          "roll": "reflex"
+        },
+        "duration": "held"
+      }
+    ]
   },
   "lamp": {
     "name": "Lamp",
@@ -516,16 +601,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "5m xRM light radius",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "Lights up an alchemical torch that you can touch.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "dazzling-light": {
     "name": "Dazzling Light",
@@ -549,16 +631,13 @@
     "DL": 3,
     "castRange": "self",
     "castArea": "6m radius cone at 180 degrees",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Produces a powerful flash that makes anyone within the area that tries to target the character disoriented if they use vision as active sense.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "revealing-light": {
     "name": "Revealing Light",
@@ -582,16 +661,13 @@
     "DL": 3,
     "castRange": "touch",
     "castArea": "10m radius",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "A bluish light emanates, revealing all kinds of mysteries and invisible things. Transforms anything invisible, but corporeal within the area into something visible.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "anchor-soul": {
     "name": "Anchor Soul",
@@ -615,16 +691,13 @@
     "DL": 3,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 18,
     "description": "Anchors a creature's soul to a soul stone, preventing it from disappearing. This can be done with the souls of creatures that have been dead for up to 1 ET. If the soul is still present, resurrection is possible, but the soul will extinguish in 3 days without a body.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "alter-memories": {
     "name": "Alter Memories",
@@ -648,13 +721,10 @@
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Touches the mind of a confused person and sees the memories of the things the person is talking about. Anything said by the caster to the person will be remembered as truth.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -665,7 +735,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "disintegrate-mind": {
     "name": "Disintegrate Mind",
@@ -689,16 +759,13 @@
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Destroys a creature's mind permanently. Resets SPI to 0 and resets all convictions to 0. This can be done by clerics of Iskar even without having learned this ability, but the target's consent is required.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "sleep": {
     "name": "Sleep",
@@ -722,13 +789,10 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Causes someone who is tired or exhausted to fall asleep. This is only usable in social or stealth scenes.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -739,7 +803,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "soothe": {
     "name": "Soothe",
@@ -763,13 +827,10 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "A psychic attempt to soothe a target's emotions and make them less suspicious. The effect lasts until the target hits or crits in a social action or until it becomes enraged or afraid.",
     "enhance": "",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "insight"
@@ -780,7 +841,7 @@
       "hit": "notices the spell",
       "crit": "notices the spell"
     },
-    "effect": []
+    "effects": []
   },
   "charm": {
     "name": "Charm",
@@ -804,13 +865,10 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "A psychic attempt to distract someone with their own thoughts.",
     "enhance": "",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "insight"
@@ -821,7 +879,7 @@
       "hit": "notices the spell",
       "crit": "notices the spell"
     },
-    "effect": []
+    "effects": []
   },
   "pacify": {
     "name": "Pacify",
@@ -845,19 +903,16 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Allows the target to remake a morale test and get rid of afraid and enraged.",
     "enhance": "",
-    "damage": null,
     "test": {
       "dl": "morale aggravators",
       "roll": "will + Charisma"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "frighten": {
     "name": "Frighten",
@@ -881,19 +936,16 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "A psychic intimidate that triggers an immediate morale test.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma + morale aggravators",
       "roll": "will"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "offend": {
     "name": "Offend",
@@ -917,19 +969,16 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "A psychic taunt that triggers an immediate morale test that makes the target enraged.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma + morale aggravators",
       "roll": "will"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "suggestion": {
     "name": "Suggestion",
@@ -953,19 +1002,16 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Tells a creature that can hear and understand the words and is confused, enraged, or afraid to do something, which triggers an immediate morale test. The limit actions triggered can be either the target's natural one or violent when enraged, coward when afraid and all to confused. The exact action being suggested must match the available limit actions.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma + morale aggravators",
       "roll": "will"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "overwhelming-terror": {
     "name": "Overwhelming Terror",
@@ -989,19 +1035,16 @@
     "DL": 3,
     "castRange": "10m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Intimidates and forces an immediate morale test on all targets within range of active synesthesia or under the effect of telepathic link. They are compelled to run away from the caster on a limit stress action.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma + morale aggravators",
       "roll": "will"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "provocative-mockery": {
     "name": "Provocative Mockery",
@@ -1025,19 +1068,16 @@
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Taunts and forces an immediate morale test on all targets within range of active synesthesia or under the effect of telepathic link. They are compelled to attack the caster on a limit stress action.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma + morale aggravators",
       "roll": "will"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "command": {
     "name": "Command",
@@ -1061,13 +1101,10 @@
     "DL": 7,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Gives a simple command to a confused target. They remain Dominated until they complete the task, become unconscious, or hit or crit on a will test to break free from the domination. It is not possible to change the task without using Command again, but it is possible to specify it.",
     "enhance": "",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1078,7 +1115,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "psychoactive-assistance": {
     "name": "Psychoactive Assistance",
@@ -1102,16 +1139,13 @@
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Focuses on a creature with whom they share a telepathic link. The caster can make an insight or will test to resist or remove a mental status effect or psychic ability on behalf of anyone connected by a telepathic link.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "psychosis": {
     "name": "Psychosis",
@@ -1135,13 +1169,10 @@
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Causes confusion in a target that is connected by telepathic link or possessed.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1152,7 +1183,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "mental-paralysis": {
     "name": "Mental Paralysis",
@@ -1176,13 +1207,10 @@
     "DL": 5,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Completely paralyzes the mind of a confused creature, rendering them immobile and fallen (unless held up by something) until they hit or crit the will test.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1193,7 +1221,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "pain": {
     "name": "Pain",
@@ -1221,13 +1249,10 @@
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Causes a great sensation of pain to everyone connected by telepathic link.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1238,7 +1263,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "visual-interference": {
     "name": "Visual Interference",
@@ -1266,13 +1291,10 @@
     "DL": 3,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Causes blindness in a target connected by telepathic link. They redo the will test every round while the spell is sustained.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1283,7 +1305,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "spiritual-strike": {
     "name": "Spiritual Strike",
@@ -1307,13 +1329,10 @@
     "DL": 0,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Launches part of your soul violently at an enemy, including incorporeal ones.",
     "enhance": "",
-    "damage": null,
     "test": {
       "dl": "SPI + 3xSM",
       "roll": "SPI + 3xSM"
@@ -1324,7 +1343,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "telepathic-link": {
     "name": "Telepathic Link",
@@ -1348,13 +1367,10 @@
     "DL": 0,
     "castRange": "20m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Creates a telepathic link with a nearby creature, or with anyone who allows the link. The caster can speak directly to the mind of their target during the duration of the spell. The link is broken by a will test against the original DL or until the maximum distance is exceeded. It is possible to cast the spell again to affect multiple targets at the same time. Telepathic link allows casting spells that depend on it while concentrating. These spells are made against all targets affected by link simultaneously. Each simultaneous link increases the difficulty of spellcasting test by 3.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1365,7 +1381,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "spiritual-walk": {
     "name": "Spiritual Walk",
@@ -1389,16 +1405,13 @@
     "DL": 3,
     "castRange": "100m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Exits the body in spirit form, leaving it unconscious. This form has 8 AP of its own and travels in any direction with a movement speed of 6m. It is invisible and immune to any type of damage and can cast spells normally. The spirit's line of sight is equal to the basic version of the Synesthesia ability.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "ghost": {
     "name": "Ghost",
@@ -1422,16 +1435,13 @@
     "DL": 5,
     "castRange": "self",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Generates a ghost that behaves like the spiritual walk but has limited energy. The ghost receives x STA and disappears if STA reaches 0. All memories of the ghost are lost if it does not return to the original body. The ghost loses 2 STA per turn or 1 STA if the spell is perfected.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "possession": {
     "name": "Possession",
@@ -1455,13 +1465,10 @@
     "DL": 5,
     "castRange": "melee",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Attempts to enter and possess another body during the spiritual walk or as a ghost. This is only possible if the body is confused, unconscious, or if the target allows the possession. The target is Dominated for the duration and is vulnerable to spells that require connection by telepathic link. Each time the possessed makes a will test against them, the possessor must spend 1 STA to resist. The body and the ghost occupy the same space and can act independetly. Possession ends when the possessor's STA reaches 0 or the possessed hits or crits on a will test.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1472,7 +1479,7 @@
       "hit": "",
       "crit": ""
     },
-    "effect": []
+    "effects": []
   },
   "torment": {
     "name": "Torment",
@@ -1496,13 +1503,10 @@
     "DL": 7,
     "castRange": "15m",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Infects an unconscious target within range with a terrible and extremely realistic dream, which keeps the victim asleep. They can attempt to wake up every ET. The victim does not heal from this sleep and receives 2 exhaustion for each ET they remain asleep.",
     "enhance": "increases DL by 2.",
-    "damage": null,
     "test": {
       "dl": "Charisma",
       "roll": "will"
@@ -1513,7 +1517,7 @@
       "hit": "wakes",
       "crit": "wakes"
     },
-    "effect": []
+    "effects": []
   },
   "healing-food": {
     "name": "Healing Food",
@@ -1537,16 +1541,13 @@
     "DL": 7,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Modifies food to behave like a potion, giving half of its nutritional value as IL healing in the next rest. Can be used while cooking.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "immune-modulation": {
     "name": "Immune modulation",
@@ -1570,19 +1571,16 @@
     "DL": 3,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Attempts to manipulate the body of a living being to metabolize poison. Allows a redo of the health test to resist poison.",
     "enhance": "+2 for each enhancement.",
-    "damage": null,
     "test": {
       "dl": "poison DL",
       "roll": "health + Sorcery"
     },
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "defibrillate": {
     "name": "Defibrillate",
@@ -1606,16 +1604,13 @@
     "DL": 0,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Wakes an unconscious target.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "reattach-limb": {
     "name": "Reattach Limb",
@@ -1639,16 +1634,13 @@
     "DL": 7,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Reattaches a limb to a body, adding a wound that requires 20 IL to be healed and function perfectly again.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "clotting-touch": {
     "name": "Clotting Touch",
@@ -1672,16 +1664,13 @@
     "DL": 2,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Clots 1 point of bleeding in a target that can be touched.",
     "enhance": "Enhancing increases the amount of bleeding healed by 1.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "regenerate": {
     "name": "Regenerate",
@@ -1705,16 +1694,13 @@
     "DL": 5,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Actively manipulates the functions of a target's body to accelerate healing. Removes 4 IL or heals a wound by 4. The patient can rest during this time.",
     "enhance": "Enhancing the spell increases the healing by 1 per enhancement.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "revitalize": {
     "name": "Revitalize",
@@ -1742,16 +1728,13 @@
     "DL": 10,
     "castRange": "melee, target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Performs a ritual to revive a creature within reach of the body, as long as the body is in a condition to be alive and there is a sample of the soul nearby. The body is revived with all its wounds and IL damage. IL defaults to 49 if it were 50 or higher.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "enhanced-sleep": {
     "name": "Enhanced Sleep",
@@ -1775,16 +1758,13 @@
     "DL": 3,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "Blesses the sleep up to 10 creatures for 4 hours, allowing everyone except the caster to receive +2 to the health skill for resting and to complete it in 1 ET.",
     "enhance": "Enhancing increases health by +1.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "preserve-corpse": {
     "name": "Preserve Corpse",
@@ -1808,16 +1788,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 6,
     "description": "Prevents decomposition from affecting a corpse or part of it for a full day.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "remodel-face": {
     "name": "Remodel face",
@@ -1841,16 +1818,13 @@
     "DL": 5,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Change your face. On a crit, looks exactly like someone else. On a hit, can choose to gain the mutation Beautiful or Ugly. On a graze, become ugly. On a miss, become ugly and irrecognizable.",
     "enhance": "Enhancing allows doing it on someone else.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "command-dead": {
     "name": "Command Dead",
@@ -1878,16 +1852,13 @@
     "DL": 3,
     "castRange": "melee",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Commands animated dead. The command is free and the corpse will attempt do it to the best of its ability.",
     "enhance": "Can be enhanced, to control 1 additional corpse per enhancement.",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "animate-dead": {
     "name": "Animate Dead",
@@ -1915,16 +1886,13 @@
     "DL": 8,
     "castRange": "melee",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 6,
     "description": "Animates a corpse with a soul fragment. It can only move and attack or grapple enemies. The corpse retains its strength, size, and resilience. If out of combat, it is possible to attempt to speak with the undead. If the brain and vocal cords are intact, it can answer some questions.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "tree-house": {
     "name": "Tree House",
@@ -1948,16 +1916,13 @@
     "DL": 5,
     "castRange": "target",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Grows trees and shapes them to have enough hollow space inside to serve as a room. The effect of the spell is permanent, but it takes the cost duration of the spell to shape the trees. The internal space is equal to 6 cubic meters xRM.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "accelerate-blooming": {
     "name": "Accelerate Blooming",
@@ -1981,16 +1946,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "The plant will go through its seasonal stages very quickly, draining nutrients and water from the soil and bearing fruit if possible. The yield depends on the plant.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "defoliate": {
     "name": "Defoliate",
@@ -2014,16 +1976,13 @@
     "DL": 3,
     "castRange": "0m",
     "castArea": "radius of 6m",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Causes all deciduous trees in the area to lose their leaves within 1 round. The leaves are flammable.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "insect-pheromone": {
     "name": "Insect Pheromone",
@@ -2047,16 +2006,13 @@
     "DL": 3,
     "castRange": "0",
     "castArea": "3m xRM",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Secretes pheromone, which can be stored. Causes nearby insects to swarm anyone that gets in contact with it and sting them. The effects depend on the insects that are present and how long they will take to arrive. In combat, it works if there are insects within 50m, they arrive in the next round.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "stimulate-secretion": {
     "name": "Stimulate Secretion",
@@ -2080,16 +2036,13 @@
     "DL": 0,
     "castRange": "touch",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Forces a dead venomous animal to secrete venom. The venom produced is sufficient for 10 applications and the effect depends on the corpse used.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "clone": {
     "name": "Clone",
@@ -2113,16 +2066,13 @@
     "DL": 10,
     "castRange": "melee",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "permanent",
     "durationETs": 0,
     "description": "Converts the genes of a part of the body of a preserved corpse to match those of another creature of the same species. A living sample of the model must be present.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "aurora": {
     "name": "Aurora",
@@ -2146,16 +2096,13 @@
     "DL": 5,
     "castRange": "5km",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "Draws or writes a simple and blurred message in the sky that can be seen at night within the spell's range.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "call-lightning": {
     "name": "Call Lightning",
@@ -2179,23 +2126,41 @@
     "DL": 5,
     "castRange": "directly from 100m xRM",
     "castArea": "",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Summons a lightning bolt to a specific target within the electrical storm as a projectile.",
     "enhance": "",
-    "damage": {
-      "value": 20,
-      "scaled": true,
-      "kind": "electric"
-    },
     "test": {
       "dl": "Accuracy",
       "roll": "reflex"
     },
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Call Lightning",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "electric",
+              "value": 20
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": 100,
+        "area": null,
+        "scaled": true,
+        "resist": {
+          "dl": "Accuracy",
+          "roll": "reflex"
+        },
+        "duration": "instant"
+      }
+    ]
   },
   "storm-of-lightning": {
     "name": "Storm of Lightning",
@@ -2219,23 +2184,41 @@
     "DL": 10,
     "castRange": "100m",
     "castArea": "15m radius on the ground",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "Focuses lightning from a thunderstorm into a small area. Every beginning of round, a lightning falls on anyone in the area.",
     "enhance": "",
-    "damage": {
-      "value": 20,
-      "scaled": true,
-      "kind": "electric"
-    },
     "test": {
       "dl": "7",
       "roll": "reflex"
     },
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Storm of Lightning",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "electric",
+              "value": 20
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": 100,
+        "area": null,
+        "scaled": true,
+        "resist": {
+          "dl": "7",
+          "roll": "reflex"
+        },
+        "duration": "instant"
+      }
+    ]
   },
   "freeze-water": {
     "name": "Freeze Water",
@@ -2259,16 +2242,13 @@
     "DL": 3,
     "castRange": "15m",
     "castArea": "area of 15 spaces",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "Freezes water in an area after one round. A puddle becomes slippery, turning into difficult terrain with a balance DL of 12. A layer of ice 10 cm thick is created on a water surface, but additional layers can be added if there is enough water. The temperature of the ice increases due to its freezing, causing it to start melting immediately.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "create-fog": {
     "name": "Create Fog",
@@ -2292,16 +2272,13 @@
     "DL": 3,
     "castRange": "15m",
     "castArea": "radius of 50m",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Condenses water in the air over a large area, creating a thick fog that hinders visibility. The fog stays until blown away or the combat ends.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "rain": {
     "name": "Rain",
@@ -2325,20 +2302,35 @@
     "DL": 5,
     "castRange": "100m",
     "castArea": "radius of 45m",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "ET",
     "durationETs": 1,
     "description": "If there are enough clouds, converts them to a location and makes it rain there, soaking everything. Crits can cause hail to fall, dealing damage every round.",
     "enhance": "",
-    "damage": {
-      "value": 10,
-      "scaled": false,
-      "kind": "cut"
-    },
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": [
+      {
+        "name": "Rain",
+        "trigger": "instant",
+        "type": "damage",
+        "effect": {
+          "damage": [
+            {
+              "kind": "cut",
+              "value": 10
+            }
+          ],
+          "hardness": 0,
+          "properties": []
+        },
+        "target": "target",
+        "range": 100,
+        "area": null,
+        "scaled": false,
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "landslide": {
     "name": "Landslide",
@@ -2362,16 +2354,13 @@
     "DL": 3,
     "castRange": "100m",
     "castArea": "radius of 5m",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Heats and cools a solid, causing expansion and contraction in adjacent planes of the solid, causing it to break. This technique works well on crystalline structures, rocks, and especially wet soil. One round later, it triggers a landslide or snow that damages anyone still in the area.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   },
   "strong-wind": {
     "name": "Strong Wind",
@@ -2395,15 +2384,12 @@
     "DL": 5,
     "castRange": "self",
     "castArea": "radius of 9m, length of 30m",
-    "effectRange": "",
-    "effectArea": "",
     "duration": "none",
     "durationETs": 0,
     "description": "Produces an entropic field that facilitates the movement of wind in one direction, causing a strong gust. Removes fog, smoke and dust.",
     "enhance": "",
-    "damage": null,
     "test": null,
     "outcomes": null,
-    "effect": []
+    "effects": []
   }
 }

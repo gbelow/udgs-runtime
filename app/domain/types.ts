@@ -516,13 +516,13 @@ export const ConditionSchema = z.object({
 export type Condition = z.infer<typeof ConditionSchema>
 
 // The test a delivered effect leaves to its target (play.tex "Skill test"):
-// the skill they roll, the DL the producer set, and the degrees at which the
-// effect still lands — a poison that takes hold "on a graze or miss" of a
-// health test. A delivery with no test lands at the degree it came with.
+// the skill they roll and the DL the producer set. Their degree is turned
+// against the effect — a miss lets it land in full, a graze at half, a hit
+// or better not at all — the way combat.tex "Evasion" reads a reflex test
+// against a shot. A delivery with no test lands at the degree it came with.
 export const DeliveryTestSchema = z.object({
   roll: SkillKeySchema,
   DL: num.default(0),
-  on: z.array(DegreeSchema).default(['miss', 'graze']),
 }).strip()
 export type DeliveryTest = z.infer<typeof DeliveryTestSchema>
 
@@ -640,13 +640,6 @@ export type Ability = z.infer<typeof AbilitySchema>
 export const SpellTypeSchema = z.enum(['instant', 'sustained', 'charged', 'curse'])
 export type SpellType = z.infer<typeof SpellTypeSchema>
 
-export const SpellDamageSchema = z.object({
-  value: num.default(0),
-  scaled: z.boolean().default(false), // xDM — scaled by the caster's size
-  kind: DamageKindSchema.default('blunt'),
-}).strip()
-export type SpellDamage = z.infer<typeof SpellDamageSchema>
-
 // `dl` is the side the caster sets (Charisma, Accuracy, a literal) and `roll`
 // is what the defender tests against it. Both are kept as the book's words;
 // resolving the DL side to a number for a given caster is a lens's job.
@@ -655,6 +648,33 @@ export const SpellTestSchema = z.object({
   roll: str.default(''),
 }).strip()
 export type SpellTest = z.infer<typeof SpellTestSchema>
+
+// What a spell does, one effect at a time, each with its own reach: who it
+// lands on (the caster, the one target, everyone in an area), how far the
+// caster can put it (metres, xRM; null is touch or self), the area it
+// covers, whether its numbers scale with the caster's DM, the test it
+// leaves the target (the DL side in the book's words, resolved for the
+// caster at production), and how long it stays — gone once applied, held
+// by the caster with its upkeep (spells.tex "Sustained"), or locked on the
+// target until something resolves it (spells.tex "Curse").
+const SpellEffectEnvelope = {
+  target: z.enum(['self', 'target', 'area']).default('target'),
+  range: num.nullable().default(null),
+  area: AreaSchema.nullable().default(null),
+  scaled: z.boolean().default(false),
+  resist: z.object({ dl: str.default(''), roll: SkillKeySchema }).strip().nullable().default(null),
+  duration: z.enum(['instant', 'held', 'locked']).default('instant'),
+}
+export const SpellEffectSchema = z.discriminatedUnion('type', [
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('cost'), effect: CostSchema }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('buff'), effect: BuffSchema }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
+  // authored damage is what the spell throws — its kinds and what it can
+  // cut — the rest of a delivery's damage is the producer's to write
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true }) }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
+])
+export type SpellEffect = z.infer<typeof SpellEffectSchema>
 
 // What the defender's degree of success on the spell's test does to them.
 export const SpellOutcomesSchema = z.object({
@@ -681,16 +701,15 @@ export const SpellSchema = z.object({
   DL: num.nullable().default(null), // casting DL; null while the book leaves it undecided
   castRange: str.default(''),
   castArea: str.default(''),
-  effectRange: str.default(''),
-  effectArea: str.default(''),
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),
   durationETs: num.default(0),
   description: str.default(''),
   enhance: str.default(''), // what one "Enhance Spell" buys, in the book's words
-  damage: SpellDamageSchema.nullable().default(null),
+  // the spell's target test as the book words it, for the effects still
+  // written as prose; an effect with mechanics carries its own `resist`
   test: SpellTestSchema.nullable().default(null),
   outcomes: SpellOutcomesSchema.nullable().default(null),
-  effect: z.array(EffectSchema).default([]), // authored: a sustained spell's upkeep lives here
+  effects: z.array(SpellEffectSchema).default([]),
 }).strip()
 export type SpellInput = z.input<typeof SpellSchema>
 export type Spell = z.infer<typeof SpellSchema>

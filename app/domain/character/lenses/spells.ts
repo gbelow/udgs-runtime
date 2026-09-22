@@ -1,4 +1,4 @@
-import { Character, Spell, SpellMethod } from '../../types'
+import { Area, Character, Spell, SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN, QUICKEN_DL, SPELL_MODIFICATIONS, SpellModification } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
@@ -113,16 +113,19 @@ function resolveTerm(c: Character, term: string): number | null {
   }
 }
 
-export function resolveTest(c: Character, spell: Spell): ResolvedTest | null {
-  if (!spell.test) return null
-  const terms = spell.test.dl.split('+').map((t) => t.trim()).filter(Boolean)
+export function resolveDL(c: Character, dl: string, roll: string): ResolvedTest {
+  const terms = dl.split('+').map((t) => t.trim()).filter(Boolean)
   const resolved = terms.map((t) => [t, resolveTerm(c, t)] as const)
   const known = resolved.filter(([, v]) => v !== null).map(([, v]) => v as number)
   return {
     value: known.length ? known.reduce((a, b) => a + b, 0) : null,
     extra: resolved.filter(([, v]) => v === null).map(([t]) => t).join(' + '),
-    roll: spell.test.roll,
+    roll,
   }
+}
+
+export function resolveTest(c: Character, spell: Spell): ResolvedTest | null {
+  return spell.test ? resolveDL(c, spell.test.dl, spell.test.roll) : null
 }
 
 function knowledgeLabel(spell: Spell): string {
@@ -200,7 +203,7 @@ export type SpellSheetRow = {
   hitAt: number | null
   pending: PendingSpellView | null
   test: ResolvedTest | null
-  damage: string // "20 blunt" already scaled by DM, "" when the spell deals none
+  effects: SpellEffectRow[]
   outcomes: { degree: string; text: string }[]
   range: string
   price: string
@@ -234,9 +237,40 @@ function rangeLabel(spell: Spell): string {
   return [
     spell.castRange && `cast ${spell.castRange}`,
     spell.castArea && `area ${spell.castArea}`,
-    spell.effectRange && `effect ${spell.effectRange}`,
-    spell.effectArea && `effect area ${spell.effectArea}`,
   ].filter(Boolean).join(' · ')
+}
+
+// One of the spell's effects as the sheet reads it: what it does, to whom,
+// how far, over what area, and the test it leaves — every number already
+// scaled for this caster.
+export type SpellEffectRow = {
+  kind: string
+  text: string
+  target: string
+  range: string
+  test: ResolvedTest | null
+}
+
+function areaLabel(area: Area | null): string {
+  if (!area) return ''
+  return area.shape === 'explosion' ? `${area.radius}m radius` : `${area.length}m spray, ${area.angle}°`
+}
+
+export function getSpellEffectRows(c: Character, spell: Spell): SpellEffectRow[] {
+  return spell.effects.map((e) => {
+    const scale = e.scaled ? getDM(c) : 1
+    const text = e.type === 'damage' ? e.effect.damage.map((d) => `${Math.floor(d.value * scale)} ${d.kind}`).join(' + ')
+      : e.type === 'affliction' ? e.effect.key
+      : e.type === 'cost' ? `${e.trigger} cost`
+      : e.type
+    return {
+      kind: e.type,
+      text,
+      target: e.target + (e.duration !== 'instant' ? ` · ${e.duration}` : ''),
+      range: [e.range !== null ? `${e.range}m` : '', areaLabel(e.area)].filter(Boolean).join(' · '),
+      test: e.resist ? resolveDL(c, e.resist.dl, e.resist.roll) : null,
+    }
+  })
 }
 
 export function getSpellSheetRows(c: Character): SpellSheetRow[] {
@@ -246,8 +280,6 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
       const spell = SPELLS[key]
       const learned = c.spells[key]
       const hitAt = spell.DL === null ? null : spell.DL + HIT_MARGIN
-      const damage = spell.damage === null ? '' :
-        `${spell.damage.scaled ? Math.floor(spell.damage.value * getDM(c)) : spell.damage.value} ${spell.damage.kind}`
       const active = isSpellActive(c, key)
       const canCast = active || canCastSpell(c, key, false)
       const canQuicken = !active && canCastSpell(c, key, true)
@@ -265,7 +297,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         hitAt,
         pending: pendingView(c, key, spell),
         test: resolveTest(c, spell),
-        damage,
+        effects: getSpellEffectRows(c, spell),
         outcomes: spell.outcomes === null ? [] :
           (['miss', 'graze', 'hit', 'crit'] as const).filter((d) => spell.outcomes![d]).map((d) => ({ degree: d, text: spell.outcomes![d] })),
         range: rangeLabel(spell),

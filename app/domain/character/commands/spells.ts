@@ -3,8 +3,9 @@ import { SPELLS, SpellKey } from "../../spells"
 import { SPELL_MODIFICATIONS, SpellModification } from "../../tables"
 import { isCampaignCharacter } from "../../utils"
 import { canCastSpell, canLearnSpell, getCastingDL, getSOP, getSpellSkill, isHit } from "../lenses/spells"
-import { effectsOn, isSpellActive } from "../lenses/effects"
-import { applyEffects } from "./effects"
+import { isSpellActive } from "../lenses/effects"
+import { deliver } from "./deliver"
+import { getSelfEffects, produceSpellEffect } from "../lenses/production"
 import { payCost } from "./cost"
 
 export function learnSpell(key: SpellKey, method: SpellMethod): (c: Character) => Character {
@@ -57,7 +58,10 @@ export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Cha
     const score = roll + getSpellSkill(c, key)
     const SOP = getSOP(score, DL)
     // the casting price, then whatever the spell lists as instant
-    const paid = applyEffects(effectsOn(spell.effect, 'instant'))(payCost(spell.cost)(c))
+    // the casting price, then what the spell does to the caster; what it
+    // does to others is produced where there are others to aim at
+    const paid = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(c, e))
+      .reduce((acc, delivery) => deliver(delivery)(acc), payCost(spell.cost)(c))
     const hit = isHit(score, DL)
     return {
       ...paid,

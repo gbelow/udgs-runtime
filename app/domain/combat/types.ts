@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MovementKindSchema } from '../types'
 import { HOP_PURCHASES } from '../lists'
+import { SPELL_MODIFICATIONS } from '../tables'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema } from '../types'
 export type { Degree, HitLocation, DefenseKind, Interruption } from '../types'
@@ -181,6 +182,25 @@ export const ExplosionActionSchema = z.object({
   facts: ExplosionFactsSchema.nullable().default(null),
 }).strip()
 
+// spells.tex "Casting spells": a spell cast in the fight. The caster's test
+// is against the spell's own DL, its overflow buys the spell's improvements
+// (spells.tex "Spell Improvements"), and what the spell produces is written
+// per character at the resolve — the caster's own effects to them, each
+// target's to the target, with the test the effect leaves them on it. From
+// there the caster is out of it.
+export const SpellModificationSchema = z.enum(Object.keys(SPELL_MODIFICATIONS) as [keyof typeof SPELL_MODIFICATIONS, ...(keyof typeof SPELL_MODIFICATIONS)[]])
+
+export const CastActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('cast'),
+  key: str.default(''),
+  // spells.tex "Quicken Spell": +4 DL to cast without the focus surge
+  quicken: z.boolean().default(false),
+  // improvement -> times bought
+  improved: z.partialRecord(SpellModificationSchema, num).default({}),
+  facts: z.record(z.string(), z.array(DeliverySchema)).nullable().default(null),
+}).strip()
+
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
@@ -277,6 +297,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
   ShootActionSchema,
   ExplosionActionSchema,
+  CastActionSchema,
   EvasionActionSchema,
   GuardActionSchema,
   AvoidExplosionActionSchema,
@@ -297,6 +318,7 @@ export type ShootAction = z.infer<typeof ShootActionSchema>
 // injury, declared as a weapon row, a variation and a location.
 export type AttackAction = StrikeAction | ShootAction
 export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
+export type CastAction = z.infer<typeof CastActionSchema>
 // Everything made with a weapon row: the two attacks and an explosion.
 export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>

@@ -26,6 +26,8 @@ export const ACTIONS = {
   // combat.tex "Explosions": no test of the attacker's — "the DL of the
   // explosion is equal to the shooting skill", and it is the reactors who roll
   explosion:   { label: 'explosion',    type: 'action',   price: null,          reactsTo: [],         die: false },
+  // spells.tex "Casting spells": the caster's test against the spell's DL
+  cast:        { label: 'cast',         type: 'action',   price: null,          reactsTo: [],         die: true },
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive

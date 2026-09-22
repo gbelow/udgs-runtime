@@ -1,0 +1,31 @@
+import type { Delivery } from '../../types'
+import type { CastAction, CombatState } from '../types'
+import { getSelfEffects, getTargetEffects, produceSpellEffect } from '../../character/lenses/production'
+import { SPELLS, isSpellKey } from '../../spells'
+
+// spells.tex "Casting spells": what the cast produces, per character — the
+// caster's own effects to the caster, the target's to the target, nothing
+// from a cast that failed. From here the caster is out of it: each delivery
+// is the one who holds it's to roll.
+export function getCastFacts(state: CombatState, root: CastAction): Record<string, Delivery[]> {
+  const caster = state.characters[root.actorId]
+  if (!caster || root.roll?.degree !== 'hit' || !isSpellKey(root.key)) return {}
+  const spell = SPELLS[root.key]
+  const facts: Record<string, Delivery[]> = {}
+  const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, root.improved))
+  if (own.length > 0) facts[root.actorId] = own
+  if (root.targetId && state.characters[root.targetId]) {
+    const theirs = getTargetEffects(spell).map((e) => produceSpellEffect(caster, e, root.improved))
+    if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
+  }
+  return facts
+}
+
+// The deliveries a cast will make as it stands, for the panel: who takes
+// what, and the test it leaves them.
+export type DeliveryView = { id: string; name: string; kind: string; test: { roll: string; DL: number } | null }
+
+export function getCastDeliveries(state: CombatState, root: CastAction): DeliveryView[] {
+  return Object.entries(root.facts ?? getCastFacts(state, root)).flatMap(([id, deliveries]) =>
+    deliveries.map((d) => ({ id, name: d.effect.name, kind: d.effect.type, test: d.test ? { roll: d.test.roll, DL: d.test.DL } : null })))
+}

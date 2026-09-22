@@ -1,63 +1,305 @@
 {
+  "tags": [
+    "humanoid",
+    "proficient"
+  ],
+  "type": "base",
   "name": "HumanPiromancer",
-  "characteristics": {
-    "size": 3,
-    "STR": 10,
-    "AGI": 12,
-    "STA": 12,
-    "CON": 1,
-    "INT": 2,
-    "SPI": 1,
-    "DEX": 1,
-    "melee": 0,
-    "ranged": 2,
-    "awareness": 0,
-    "sorcery": 0,
-    "conviction1": 0,
-    "conviction2": 0,
-    "devotion": 0,
-    "RES": 0,
-    "INS": 0,
-    "TGH": 0,
-    "detection": 2,
-    "spellcast": 2
+  "trainables": {
+    "strike": {
+      "value": 0,
+      "name": "Strike",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "defend": {
+      "value": 0,
+      "name": "Defend",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "reflex": {
+      "value": 0,
+      "name": "Reflex",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "accuracy": {
+      "value": 1,
+      "name": "Accuracy",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "grapple": {
+      "value": 0,
+      "name": "Grapple",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "SD": {
+      "value": 0,
+      "name": "SD",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "stealth": {
+      "value": 1,
+      "name": "Stealth",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "prestidigitation": {
+      "value": 1,
+      "name": "Prestidigitation",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "balance": {
+      "value": 0,
+      "name": "Balance",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "detection": {
+      "value": 0,
+      "name": "Detection",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "health": {
+      "value": 0,
+      "name": "Health",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "force": {
+      "value": 0,
+      "name": "Force",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "swim": {
+      "value": 0,
+      "name": "Swim",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "climb": {
+      "value": 0,
+      "name": "Climb",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "explore": {
+      "value": 0,
+      "name": "Explore",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "cunning": {
+      "value": 2,
+      "name": "Cunning",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "will": {
+      "value": 0,
+      "name": "Will",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "persuasion": {
+      "value": 0,
+      "name": "Persuasion",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "deception": {
+      "value": 0,
+      "name": "Deception",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "insight": {
+      "value": 0,
+      "name": "Insight",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "STR": {
+      "value": 10,
+      "name": "Strength",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "AGI": {
+      "value": 10,
+      "name": "Agility",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "STA": {
+      "value": 10,
+      "name": "Stamina",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "CON": {
+      "value": 0,
+      "name": "Constitution",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "INT": {
+      "value": 2,
+      "name": "Intelligence",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "SPI": {
+      "value": 1,
+      "name": "Spirit",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "DEX": {
+      "value": 1,
+      "name": "Dexterity",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "melee": {
+      "value": 0,
+      "name": "Melee",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "ranged": {
+      "value": 1,
+      "name": "Ranged",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "awareness": {
+      "value": 1,
+      "name": "Awareness",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "sorcery": {
+      "value": 2,
+      "name": "Sorcery",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "conviction1": {
+      "value": 0,
+      "name": "Temperament",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "conviction2": {
+      "value": 0,
+      "name": "Worldview",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "devotion": {
+      "value": 0,
+      "name": "Devotion",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "charisma": {
+      "value": 0,
+      "name": "Charisma",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    }
   },
-  "skills": {
-    "strike": 0,
-    "defend": 0,
-    "reflex": 0,
-    "accuracy": 0,
-    "grapple": 0,
-    "SD": 0,
-    "stealth": 0,
-    "prestidigitation": 0,
-    "balance": 0,
-    "detection": 0,
-    "health": 0,
-    "swim": 0,
-    "climb": 0,
-    "knowledge": 0,
-    "explore": -1,
-    "cunning": 0,
-    "will": 2,
-    "persuasion": 0,
-    "deception": 0,
-    "insight": 0,
-    "devotion": 0,
-    "combustion": 3,
-    "eletromag": 0,
-    "radiation": 0,
-    "entropy": 0,
-    "biomancy": 0,
-    "telepathy": 0,
-    "animancy": 0,
-    "strength": 0,
-    "charm": 2,
-    "stress": 1,
-    "acting": 0,
-    "sneak": 0,
-    "detect": 0,
-    "sense": 0
+  "knowledges": {
+    "linguistics": {
+      "value": 2,
+      "name": "linguistics",
+      "XP": 0,
+      "talent": "",
+      "type": "knowledge"
+    }
+  },
+  "size": 3,
+  "shape": "blob",
+  "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "active": true,
+      "rangePenalty": 2,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "hearing": {
+      "name": "Hearing",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "smell": {
+      "name": "Smell",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "touch": {
+      "name": "Touch",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": false
+    }
   },
   "movement": {
     "basic": 1,
@@ -71,8 +313,19 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
   "worn": {
-    "id": "c7b83b7b-e228-4f1e-b197-7a1eb98dbbce",
+    "id": "3a7324d8-ea1a-439e-ab4a-b83dba31fc56",
     "name": "Chain Shirt",
     "description": "",
     "type": "armor",
@@ -80,51 +333,100 @@
     "bulk": 3,
     "refId": "ChainShirt"
   },
-  "weapons": {
-    "Unarmed": {
-      "name": "Unarmed",
-      "burdenPenalty": 0,
-      "scale": 3,
-      "attacks": [
-        {
-          "type": "melee",
-          "handed": "small",
-          "impact": 0,
-          "STRmod": 0,
-          "heavyMod": 0,
-          "penMod": 0,
-          "range": "short",
-          "RES": 0,
-          "RESmod": 0.5,
-          "TGH": 0,
-          "TGHmod": 0.5,
-          "AP": 3,
-          "deflection": 0,
-          "props": "grapple, DEF, draw"
+  "hands": [
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "0bd42162-c2a6-475f-9069-196887aa12dd"
+    },
+    {
+      "name": "hand",
+      "naturalWeapon": "Unarmed",
+      "canHold": true,
+      "itemId": "ed1f0702-869f-489c-af13-02d0dbf26c01"
+    }
+  ],
+  "held": [
+    {
+      "id": "0bd42162-c2a6-475f-9069-196887aa12dd",
+      "name": "Wooden Shield",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 3,
+      "refId": "Wooden Shield"
+    },
+    {
+      "id": "ed1f0702-869f-489c-af13-02d0dbf26c01",
+      "name": "Grenade",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 1,
+      "refId": "Grenade"
+    }
+  ],
+  "containers": {
+    "Belt": {
+      "name": "Belt",
+      "kind": "belt",
+      "slots": {
+        "quick": {
+          "numSlots": 4,
+          "slotBulk": 2,
+          "items": []
         },
-        {
-          "type": "melee",
-          "handed": "small",
-          "impact": 0,
-          "STRmod": 0.5,
-          "heavyMod": 0.5,
-          "penMod": 0.2,
-          "range": "short",
-          "RES": 0,
-          "RESmod": 0.5,
-          "TGH": 0,
-          "TGHmod": 0.5,
-          "AP": 3,
-          "deflection": 0,
-          "props": "heavy I, draw"
+        "medium": {
+          "numSlots": 0,
+          "slotBulk": 2,
+          "items": []
+        },
+        "large": {
+          "numSlots": 0,
+          "slotBulk": 3,
+          "items": []
         }
-      ]
+      },
+      "burden": 3
+    },
+    "Bandolier": {
+      "name": "Bandolier",
+      "kind": "bandolier",
+      "slots": {
+        "quick": {
+          "numSlots": 8,
+          "slotBulk": 1,
+          "items": []
+        },
+        "medium": {
+          "numSlots": 0,
+          "slotBulk": 2,
+          "items": []
+        },
+        "large": {
+          "numSlots": 0,
+          "slotBulk": 3,
+          "items": []
+        }
+      },
+      "burden": 3
     }
   },
-  "containers": {},
-  "notes": "",
-  "tags": [
-    "humanoid",
-    "proficient"
-  ]
+  "abilities": [
+    "synesthesia-1",
+    "literacy",
+    "magic-theory"
+  ],
+  "spells": {
+    "taser": {
+      "method": "wizard",
+      "practice": 0
+    },
+    "shock-explosive": {
+      "method": "wizard",
+      "practice": 0
+    }
+  },
+  "notes": ""
 }
