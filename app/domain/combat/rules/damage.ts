@@ -1,16 +1,17 @@
-import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item } from '../../types'
-import type { AttackAction, CombatState, HOPPurchase } from '../types'
+import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon } from '../../types'
+import type { AttackAction, CombatState, HOPPurchase, MoveAction } from '../types'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue } from '../../character/rules/gear'
+import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { getDM } from '../../character/rules/helpers'
-import { getForce } from '../../character/rules/skills'
+import { getBalance, getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
-import { findWeaponRow, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { findWeaponRow, getAction, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { getMovementSpeed, getStepDelta, isHookedRunner } from './move'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -58,14 +59,76 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
 // an interrupt to a stun"; the rest mark the damage for the target's side
 // to read — the bypass against their armor, the cut against equal hardness,
 // the switch to the hand.
-const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, attacker: Character) => Damage> = {
-  slice: (d, times, a) => addTo(d, 'cut', times * Math.floor(1 * getDM(a))),
-  smash: (d, times, a) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(a))), smash: true }),
+type Buyer = { state: CombatState; root: AttackAction; attacker: Character; weapon: Weapon }
+
+// A bonus that adds to the physical damage, blunt and cutting alike, as the
+// heavy one does (combat.tex "Heavy Attack").
+function addPhysical(damage: Damage, value: number): Damage {
+  return addTo(addTo(damage, 'blunt', value), 'cut', value)
+}
+
+const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
+  slice: (d, times, { attacker }) => addTo(d, 'cut', times * Math.floor(1 * getDM(attacker))),
+  smash: (d, times, { attacker }) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(attacker))), smash: true }),
   bypass: (d) => ({ ...d, bypass: true }),
   bust: (d) => ({ ...d, bust: true }),
   handSwitch: (d) => ({ ...d, location: 'hand' }),
   // combat.tex "Assassinate": "It automatically applies bypass."
   assassinate: (d) => ({ ...d, bypass: true }),
+  braced: (d, _, { attacker, weapon }) => addPhysical(d, getBracedBonus(weapon, attacker)),
+  hook: (d, _, { state, root, attacker, weapon }) => addPhysical(d, getHookBonus(weapon, attacker, getHookedMotion(state, root))),
+}
+
+// ---------------------------------------------------------------------------
+// Braced and hooked strikes
+
+// The move an opportunity strike was drawn by and the step it fires on;
+// null for a strike no move opened.
+function getOpportunityStep(state: CombatState, root: AttackAction): { move: MoveAction; at: number; reactorId: string } | null {
+  const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+  const move = reaction?.kind === 'opportunityAttack' && reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  return reaction?.kind === 'opportunityAttack' && reaction.at !== null && move?.kind === 'move' ? { move, at: reaction.at, reactorId: reaction.actorId } : null
+}
+
+// combat.tex "Braced Attack": "a reaction when a target is moving towards
+// the weapon ... when movement is between two spaces within weapon range" —
+// the opportunity attack a step towards the attacker draws.
+function isBracedChance(state: CombatState, root: AttackAction): boolean {
+  const step = getOpportunityStep(state, root)
+  return step !== null && (getStepDelta(state, step.move, step.at, step.reactorId) ?? 0) < 0
+}
+
+// combat.tex "Hook Attack": "used as an action or as a reaction against
+// running targets that move away from the weapon".
+function isHookChance(state: CombatState, root: AttackAction): boolean {
+  if (root.kind !== 'strike') return false
+  if (!root.opportunity) return true
+  const step = getOpportunityStep(state, root)
+  return step !== null && isHookedRunner(state, step.move, step.at, step.reactorId)
+}
+
+// What the hooked target was doing: jumping clear of the blow, running, or
+// neither.
+function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'jumping' | null {
+  if (root.targetId && getReactionsTo(state, root.id).some((r) => r.actorId === root.targetId && r.kind === 'evasiveJump')) return 'jumping'
+  const step = getOpportunityStep(state, root)
+  return step && step.move.actorId === root.targetId && step.move.movement === 'run' ? 'running' : null
+}
+
+// combat.tex "Trip": "a comparison between the attacker's force and target's
+// balance + force. If anyone is jumping or running, the attacker gets a bonus
+// equal to the moving party's movement speed. If the attacker's value is
+// higher, the target falls and is prone. Targeting the head or legs increases
+// the attacker's value by +5." The moving party is the target; an evasive
+// jump moves at the backwards jump ("Evasive Jump").
+export function isTripped(state: CombatState, root: AttackAction): boolean {
+  const attacker = state.characters[root.actorId]
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  if (!attacker || !target || (root.spent.hook ?? 0) === 0 || root.roll?.degree !== 'hit') return false
+  const motion = getHookedMotion(state, root)
+  const speed = motion === 'running' ? getMovementSpeed(target, 'run') : motion === 'jumping' ? getMovementSpeed(target, 'jump') / 2 : 0
+  const aimed = root.location === 'head' || root.location === 'leg' ? 5 : 0
+  return getForce(attacker) + speed + aimed > getBalance(target) + getForce(target)
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP
@@ -89,7 +152,8 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
     bust: false,
     smash: false,
   }
-  const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, attacker) : d), base)
+  const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
+  const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
 }
 
@@ -133,12 +197,21 @@ const HOP_LABELS: Record<HOPPurchase, string> = {
   smash: 'smash',
   handSwitch: 'switch to hand',
   assassinate: 'assassinate',
+  braced: 'braced',
+  hook: 'hook (trip)',
 }
 
 // combat.tex "Assassinate": "This costs 1 extra AP on the normal cost of the
-// attack."
+// attack"; "Braced Attack": "an additional +2AP and +1STA on top of the
+// normal attack cost"; "Hook Attack": "On a hit, the character can spend +1
+// AP +1STA to attempt to trip their target".
 export function getHOPPrice(purchase: HOPPurchase, attacker: Character): ActionCost | null {
-  return purchase === 'assassinate' ? getActionCost(attacker, 'assassinate') : null
+  switch (purchase) {
+    case 'assassinate': return getActionCost(attacker, 'assassinate')
+    case 'braced': return getActionCost(attacker, 'braced')
+    case 'hook': return getActionCost(attacker, 'hookTrip')
+    default: return null
+  }
 }
 
 function priceOf(purchase: HOPPurchase, target: Character): number {
@@ -172,13 +245,20 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const bought = root.spent[purchase] ?? 0
     const price = getHOPPrice(purchase, attacker)
     const closed = (reason: string): HOPOption => ({ purchase, label: HOP_LABELS[purchase], cost, price, bought, available: false, reason })
-    if (purchase === 'assassinate' && root.kind !== 'strike') return closed('strikes only')
+    if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(row.atk.properties, property)) return closed(`needs ${property}`)
     if (purchase !== 'slice' && bought > 0) return closed('bought')
     // combat.tex "Assassinate": "requires a short range ... weapon attack",
     // "Can only be done against SD, not against active defense".
     if (purchase === 'assassinate' && row.atk.range !== 'short') return closed('needs short range')
     if (purchase === 'assassinate' && defense !== 'none') return closed('target defended')
+    // A braced or hook attack is declared as one (at the normal price) and
+    // bought after the hit; combat.tex "Strike": "braced and hook attack
+    // cannot be combined with anything", so no assassination under them.
+    if ((purchase === 'braced' || purchase === 'hook') && root.variant !== purchase) return closed(`declare a ${purchase} attack`)
+    if (purchase === 'assassinate' && (root.variant === 'braced' || root.variant === 'hook')) return closed(`${root.variant} attack`)
+    if (purchase === 'braced' && !isBracedChance(state, root)) return closed('target not moving towards the weapon')
+    if (purchase === 'hook' && !isHookChance(state, root)) return closed('not an action or a runner moving away')
     if ((purchase === 'bypass' && (root.spent.assassinate ?? 0) > 0) || (purchase === 'assassinate' && (root.spent.bypass ?? 0) > 0)) return closed('already bypassing')
     // combat.tex "Armor Bypass": "can only be done against rigid armor".
     if ((purchase === 'bypass' || purchase === 'assassinate') && !armor.properties.includes('rigid')) return closed('armor is not rigid')

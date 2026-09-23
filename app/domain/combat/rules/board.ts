@@ -1,9 +1,9 @@
-import type { Character, MeleeRange, Weapon } from '../../types'
+import type { Character, MeleeRange, Weapon, WeaponProperty } from '../../types'
 import type { Board, CombatState, Coord, ExplosionAction, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/misc'
 import { getAttacksList } from '../../character/rules/gear'
-import { isMeleeRange } from '../../weaponProperties'
+import { hasProperty, isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, coordKey, line, rotate, setDistance } from '../geometry'
 
@@ -168,11 +168,12 @@ export function isInShotRange(state: CombatState, action: ShootAction, targetId:
 // ---------------------------------------------------------------------------
 // Flanking
 
-// The farthest any melee row in the character's hands can strike, never
-// under a cell; 0 with nothing to strike with.
-export function getMeleeRange(c: Character): number {
+// The farthest any melee row in the character's hands can strike — or any
+// row with the property, when one is named — never under a cell; 0 with
+// nothing to strike with.
+export function getMeleeRange(c: Character, property?: WeaponProperty): number {
   return Math.max(0, ...getWieldedWeapons(c).flatMap((w) =>
-    w.weapon.attacks.flatMap((a) => (isMeleeRange(a.range) ? [Math.max(1, getReach(w.weapon, a.range))] : [])),
+    w.weapon.attacks.flatMap((a) => (isMeleeRange(a.range) && (!property || hasProperty(a.properties, property)) ? [Math.max(1, getReach(w.weapon, a.range))] : [])),
   ))
 }
 

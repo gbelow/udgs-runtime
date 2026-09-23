@@ -1,5 +1,5 @@
 import type { Action, ActionRoll, CastAction, CombatState, Coord, HitLocation, MoveStop } from '../types'
-import type { Area, CampaignCharacter, MovementKind } from '../../types'
+import type { Area, CampaignCharacter, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
 import {
@@ -17,6 +17,7 @@ import {
   LocationOption,
   AttackOption,
   getAttackOptions,
+  isVariantOpen,
   getAttackTerms,
   getAvailableActions,
   getDLTerms,
@@ -57,7 +58,7 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
       const strike = declared?.kind === 'opportunityAttack'
-        ? { options: getAttackOptions(c, 'strike'), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
+        ? { options: getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
         : null
       return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, concentrating: isConcentrating(state, open, c.id) }
     })
@@ -95,7 +96,7 @@ export type OpenActionView = {
   spell: string
   quicken: boolean
   // the declaration a move has made so far
-  movement: MovementKind
+  movement: MoveKind
   path: Coord[]
   // how far the move will actually get and why it stops there
   walked: { cells: number; stop: MoveStop } | null
@@ -220,7 +221,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     report: null,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown') ? getAttackOptions(actor, weaponAction.kind) : [],
+    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown') ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant)) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.status === 'declared' ? getChargeOptions(state) : [],
     locations: attack ? getLocationOptions() : [],

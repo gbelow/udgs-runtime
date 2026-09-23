@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -811,6 +811,13 @@ export type Shape = z.infer<typeof ShapeSchema>
 
 export const MovementKindSchema = z.enum(MOVEMENT_KINDS)
 export type MovementKind = z.infer<typeof MovementKindSchema>
+
+export const PostureSchema = z.enum(POSTURES)
+export type Posture = z.infer<typeof PostureSchema>
+
+// What a move is made at: a way of crossing cells or a change of posture.
+export const MoveKindSchema = z.enum([...MOVEMENT_KINDS, ...POSTURES])
+export type MoveKind = z.infer<typeof MoveKindSchema>
 
 export const TerrainBrushSchema = z.enum(TERRAIN_BRUSHES)
 export type TerrainBrush = z.infer<typeof TerrainBrushSchema>

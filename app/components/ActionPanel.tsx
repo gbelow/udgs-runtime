@@ -89,7 +89,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
           <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
           {open.walked && open.walked.stop !== 'end' ? <span className='text-bad'>stops after {open.walked.cells} ({open.walked.stop})</span> : null}
-          {open.path.length === 0 ? <span>pick a path on the board</span> : null}
+          {open.path.length === 0 && open.movement !== 'stand' && open.movement !== 'prone' ? <span>pick a path on the board</span> : null}
         </div>
       ) : null}
 

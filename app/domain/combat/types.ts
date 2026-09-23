@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MovementKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 
@@ -144,6 +144,9 @@ export const StrikeActionSchema = z.object({
   // what landing did to the target's action, written at the resolve: a move
   // an opportunity attack interrupted is cut short by it
   interruption: InterruptionSchema.default('none'),
+  // combat.tex "Trip": the hook's trip took the target off their feet,
+  // written at the resolve
+  tripped: z.boolean().default(false),
 }).strip()
 
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
@@ -263,7 +266,7 @@ export type MoveFacts = z.infer<typeof MoveFactsSchema>
 export const MoveActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('move'),
-  movement: MovementKindSchema.default('basic'),
+  movement: MoveKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
   orientation: z.number().int().min(0).max(5).nullable().default(null),
   // the most AP it may cost, for a move a reaction opened (combat.tex

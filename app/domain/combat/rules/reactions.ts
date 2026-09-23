@@ -99,7 +99,12 @@ function castTriggers(state: CombatState, root: CastAction): Trigger[] {
 // range is not yet moving towards the weapon while within it.
 // combat.tex "Follow": "as a reaction to any movement except running,
 // follow another character who is already within melee range."
+// combat.tex "Opportunity Attack": "standing up in melee range" is a
+// triggering action; the attack is fought before the mover is up, at step 0.
+// Going prone triggers nothing.
 function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
+  if (root.movement === 'prone') return []
+  if (root.movement === 'stand') return getMeleeThreateners(state, root.actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: 0 }))
   const mover = state.characters[root.actorId]
   const from = state.board?.placements[root.actorId]
   if (!mover || !from || !state.board) return []
@@ -113,9 +118,24 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     let previous = setDistance(getFootprint(mover, from), other)
     if (range > 0 && previous <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
     if (range === 0) continue
+    const start = previous
     for (const [i, cell] of path.entries()) {
       const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
       if (previous <= range && distance < previous) {
+        triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
+        break
+      }
+      previous = distance
+    }
+    // combat.tex "Hook Attack": "a reaction against running targets that
+    // move away from the weapon within two spaces, which are both inside its
+    // melee range"
+    const hook = getMeleeRange(state.characters[id], 'hook')
+    if (root.movement !== 'run' || hook === 0) continue
+    previous = start
+    for (const [i, cell] of path.entries()) {
+      const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
+      if (distance > previous && distance <= hook) {
         triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
         break
       }

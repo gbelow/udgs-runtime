@@ -147,7 +147,7 @@ export const HIT_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
 
 // combat.tex "Success Overflow" and the hand switch of "Localized damage":
 // what HOP can buy, in the book's order; prices and gates are in `tables.ts`.
-export const HOP_PURCHASES = ['slice', 'bypass', 'bust', 'smash', 'handSwitch', 'assassinate'] as const
+export const HOP_PURCHASES = ['slice', 'bypass', 'bust', 'smash', 'handSwitch', 'assassinate', 'braced', 'hook'] as const
 
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const
@@ -156,6 +156,11 @@ export const HANDS = ['one', 'two'] as const
 // power, in the order of the "Movement Costs and Speeds" table. Standing up
 // is there too but moves nobody, and mounted movement is the mount's.
 export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim'] as const
+
+// combat.tex "Movement": "getting up: Removes the prone condition", priced in
+// the same table ("Stand up"); and going prone, which the table leaves free.
+// Moves that change posture and cross no cells.
+export const POSTURES = ['stand', 'prone'] as const
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.

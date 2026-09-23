@@ -17,7 +17,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
-import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, getStepDelta, hasJumpSpace, isHookedRunner, isMidJump, isPathLegal, needsBalanceTest } from './move'
 import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
@@ -130,6 +130,7 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
+      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant)
     case 'shoot':
       return getAttackVariant(c, action) !== null
     // thrown, the row is declared and can be fired; cast, the spell was;
@@ -157,7 +158,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'opportunityAttack': {
       const strike = getOpportunityStrike(action, '')
       const fought = getOpportunityState(state, action)
-      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '')
+      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
     }
     case 'evade':
     case 'evasion':
@@ -165,6 +166,24 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'follow':
       return true
   }
+}
+
+// Whether the strike may be declared as this variation where it is made.
+// combat.tex "Braced Attack": "a reaction when a target is moving towards
+// the weapon or as an action in situations where the attacker is mounted
+// and running" — mounts are not modelled, so only the reaction, drawn by a
+// step towards the attacker. "Hook Attack": "an action or ... a reaction
+// against running targets that move away from the weapon" — and the
+// reaction a runner moving away draws is only ever a hook attack.
+export function isVariantOpen(state: CombatState, action: Action, variant: string): boolean {
+  if (action.kind === 'strike') return action.opportunity || variant !== 'braced'
+  if (action.kind !== 'opportunityAttack') return true
+  const root = action.reactionTo ? getAction(state, action.reactionTo) : null
+  const step = root?.kind === 'move' && action.at !== null ? { move: root, at: action.at } : null
+  const away = step !== null && isHookedRunner(state, step.move, step.at, action.actorId)
+  if (variant === 'braced') return step !== null && (getStepDelta(state, step.move, step.at, action.actorId) ?? 0) < 0
+  if (variant === 'hook') return away
+  return !away
 }
 
 // Whether every reaction declared against the action has said all it must:
@@ -355,8 +374,8 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   }
   if (root.kind === 'strike' && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
-  // it's the SD"
-  if (root.kind === 'strike' && root.opportunity && reaction) terms.push({ label: 'opportunity', value: -2 })
+  // it's the SD" — not against a braced attack (the table's ruling)
+  if (root.kind === 'strike' && root.opportunity && root.variant !== 'braced' && reaction) terms.push({ label: 'opportunity', value: -2 })
   return terms
 }
 
@@ -587,7 +606,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'opportunityAttack': {
         const strikes = getAttackOptions(c, 'strike')
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
-        const label = trigger.at !== null ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
+        const label = trigger.at ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
         return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
       }
       // combat.tex "Follow": a move of the follower's own, so it is open only

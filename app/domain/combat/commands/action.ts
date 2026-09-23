@@ -22,7 +22,7 @@ import {
 } from '../rules/action'
 import { resolveTest } from '../rules/test'
 import type { Dice } from '../dice'
-import { getAttackFacts, getHOPOptions, outcomeOf } from '../rules/damage'
+import { getAttackFacts, getHOPOptions, isTripped, outcomeOf } from '../rules/damage'
 import { getExplosionFacts, isSpray } from '../rules/explosion'
 import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
@@ -427,7 +427,7 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
           const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
           const outcome = facts && target ? outcomeOf(facts, target) : null
-          return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none' }
+          return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none', ...(open.kind === 'strike' ? { tripped: isTripped(state, open) } : {}) }
         })()
       : open.kind === 'explosion'
         ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }

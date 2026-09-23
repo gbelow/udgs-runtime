@@ -1,4 +1,4 @@
-import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty } from "../../types";
+import { AttackType, Character, Weapon, WeaponAttack } from "../../types";
 import { getBurdenPenalty } from "../../item/rules/containers";
 import { getWieldedWeapons } from "../../item/rules/hands";
 import { getSTR, getSTRBase } from "./characteristics";
@@ -48,6 +48,18 @@ export function isWieldable(weapon: Weapon, c: Character): boolean {
 // The STR that goes into this weapon's damage.
 function getWieldSTR(weapon: Weapon, c: Character): number {
   return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
+}
+
+// combat.tex "Braced Attack": "damage bonus of +1.5x STR x DM on a hit".
+export function getBracedBonus(weapon: Weapon, c: Character): number {
+  return Math.floor(1.5 * getWieldSTR(weapon, c) * getDM(c))
+}
+
+// combat.tex "Hook Attack": the trip "gets +STR/2 x DM damage if the opponent
+// attempts to perform an evasive jump and +STR x DM if they are running".
+export function getHookBonus(weapon: Weapon, c: Character, target: 'running' | 'jumping' | null): number {
+  const multiplier = target === 'running' ? 1 : target === 'jumping' ? 0.5 : 0
+  return Math.floor(multiplier * getWieldSTR(weapon, c) * getDM(c))
 }
 
 export function getAPSurcharge(weapon: Weapon, c: Character): number {
@@ -135,7 +147,6 @@ const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
   const heavyRange = getHeavyRange(atk)
-  const has = (property: WeaponProperty) => hasProperty(atk.properties, property)
   const kind = getAttackKind(atk.range)
   const type = getAttackType(atk.range)
 
@@ -165,7 +176,6 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     }
 
     // Variation prices are deltas on the row's AP (combat.tex "Strike").
-    const bracedCost = getActionCost(c, 'braced')
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
     const reach = (shot: ShotKind) => (kind === 'shoot' ? getShotReach(shot, atk, weapon, c) : null)
@@ -174,9 +184,11 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     // formula, so none is applied).
     const thrown = kind === 'throw' ? (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1] : reach('shoot')
     const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: thrown }
-    // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
-    const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)), reach: null }
-    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut, reach: null }    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
+    // combat.tex "Braced Attack", "Hook Attack": declared at the normal
+    // attack's price; what they add is bought after the hit
+    const braced: AttackVariant = { ...basic, name: 'braced', reach: null }
+    const hook: AttackVariant = { ...basic, name: 'hook', reach: null }
+    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
     const quickShot: AttackVariant = { name: SHOTS.quickShot.variant, type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut, reach: reach('quickShot') }
     const snipe: AttackVariant = { name: SHOTS.snipe.variant, type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut, reach: reach('snipe') }
 
@@ -192,8 +204,9 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
       }
     }
 
-    if (has('braced')) attacks.push(braced)
-    if (has('hook')) attacks.push(hook)    // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
+    if (hasProperty(atk.properties, 'braced')) attacks.push(braced)
+    if (hasProperty(atk.properties, 'hook')) attacks.push(hook)
+    // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
     // use quick shot unless STR is +3 points higher than the requirement."
     if (kind === 'shoot' && !untrained) {
       if (atk.STRreq === undefined || getSTR(c) >= atk.STRreq + 3) attacks.push(quickShot)

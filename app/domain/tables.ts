@@ -106,8 +106,8 @@ export const MAX_TIER = 5
 // Properties"), null where any weapon may. Smash is open to any weapon and
 // has no gate but its price: its own extra damage may be what makes the
 // blow T1, so the stun it upgrades is read off the outcome, not asked for
-// up front. combat.tex "Assassinate" costs no HOP but AP, priced in
-// ACTION_COSTS.
+// up front. combat.tex "Assassinate", "Braced Attack" and "Hook Attack" (the
+// trip) cost no HOP but AP and STA, priced in ACTION_COSTS.
 export const HOP_EFFECTS = {
   slice:       { cost: 1,            property: 'bladed' },
   bypass:      { cost: 'deflection', property: 'precise' },
@@ -115,6 +115,8 @@ export const HOP_EFFECTS = {
   smash:       { cost: 'deflection', property: null },
   handSwitch:  { cost: 3,            property: null },
   assassinate: { cost: 0,            property: 'precise' },
+  braced:      { cost: 0,            property: 'braced' },
+  hook:        { cost: 0,            property: 'hook' },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
 
 // combat.tex "Interruption", "Stun": an interruption costs nothing beyond
@@ -158,7 +160,9 @@ export const HEAD = { death: 4 } as const
 //
 // `controlable` is whether the affliction can be toggled by hand. The rungs
 // that survival.tex derives from hunger, thirst and exhaustion are not: they
-// are owned by their resource and clicking them does nothing.
+// are owned by their resource and clicking them does nothing. Neither is
+// prone: it is taken and left by moving (combat.tex "Movement": "getting up:
+// Removes the prone condition").
 //
 // `category` is the heading the affliction sits under on the sheet. It is a UI
 // grouping, distinct from the penalty categories combat.tex names.
@@ -180,7 +184,7 @@ export const AFFLICTION_CATEGORIES: AfflictionCategory[] = ['mobility', 'sensory
 
 const AFFLICTION_DEFS = {
   lame: { controlable: true, category: "mobility" },
-  prone: { controlable: true, category: "mobility" },
+  prone: { controlable: false, category: "mobility" },
   grappled: { controlable: true, category: "mobility" },
   immobile: { controlable: true, category: "mobility" },
 
@@ -282,8 +286,8 @@ export const SURGES = {
 // the full price of a standalone action or reaction.
 export const ACTION_COSTS = {
   // attack variations — combat.tex "Heavy Attack", "Sweeping Attack",
-  // "Braced Attack", "Hook Attack" (the trip rider, bought after a hit),
-  // "Assassinate" (bought after a hit), "Snipe", "Quick Shot"; gear.tex "Reload"
+  // "Braced Attack", "Hook Attack" (the trip rider), "Assassinate" — those
+  // three bought after a hit — "Snipe", "Quick Shot"; gear.tex "Reload"
   heavy1:    { AP: 1, STA: 0 },
   heavy2:    { AP: 2, STA: 1 },
   heavy3:    { AP: 3, STA: 1 },

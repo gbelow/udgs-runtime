@@ -43,7 +43,14 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall
-        if (action.kind === 'move') return c.id === action.actorId && action.facts?.fell ? fallProne(c) : c
+        // combat.tex "Movement": "getting up: Removes the prone condition" —
+        // unless an opportunity attack cancelled it ("Interruption")
+        if (action.kind === 'move') {
+          if (c.id !== action.actorId) return c
+          if (action.movement === 'stand') return action.facts?.stop === 'end' ? standUp(c) : c
+          if (action.movement === 'prone') return fallProne(c)
+          return action.facts?.fell ? fallProne(c) : c
+        }
         // combat.tex "Explosions": everyone in the area takes it, the
         // attacker as much as anyone — and what they threw is out of their
         // hands
@@ -84,7 +91,8 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           }, discharged)
         }
         if (c.id !== action.targetId || !action.facts) return c
-        return deliver(action.facts)(c)
+        // combat.tex "Trip": "the target falls and is prone"
+        return action.kind === 'strike' && action.tripped ? fallProne(deliver(action.facts)(c)) : deliver(action.facts)(c)
     }
   }
 }
@@ -100,6 +108,10 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
 
 function fallProne(c: CampaignCharacter): CampaignCharacter {
   return { ...c, afflictions: [...new Set([...c.afflictions, 'prone' as const])] }
+}
+
+function standUp(c: CampaignCharacter): CampaignCharacter {
+  return { ...c, afflictions: c.afflictions.filter((a) => a !== 'prone') }
 }
 
 // The one place an action changes the board, the same way: it reads the
