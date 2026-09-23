@@ -31,8 +31,9 @@ export const ACTIONS = {
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
-  // Jump, Intercept, and Block."
-  evade:       { label: 'evade',        type: 'reaction', price: 'evade',       reactsTo: ['strike'], die: false },
+  // Jump, Intercept, and Block." "Evade: ... This can be used to avoid
+  // being trampled" — a move whose path comes into the evader.
+  evade:       { label: 'evade',        type: 'reaction', price: 'evade',       reactsTo: ['strike', 'move'], die: false },
   evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
   block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false },
   intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false },
@@ -45,8 +46,7 @@ export const ACTIONS = {
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false },
-  follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
-} as const satisfies Record<ActionKind, ActionDef>
+  follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },} as const satisfies Record<ActionKind, ActionDef>
 
 export function isReaction(kind: ActionKind): boolean {
   return ACTIONS[kind].type === 'reaction'

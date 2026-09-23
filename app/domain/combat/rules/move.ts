@@ -10,6 +10,7 @@ import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
+import { getMoveTramples } from './trample'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -313,22 +314,25 @@ export function getOpportunityAttacks(state: CombatState, action: MoveAction): {
 // attack has made a movement of their own, and it takes over from the one
 // declared, whatever the speed.
 // combat.tex "Trip": a mover who "falls and is prone" goes no further,
-// running or not.
-export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' } | null {
+// running or not. combat.tex "Trample": "If the defender's force is equal
+// or higher, the runner is stopped" — by a braced blow's trample too.
+export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
   const stoppable = action.movement !== 'run' && action.movement !== 'jump'
   for (const { reaction, strike } of getOpportunityAttacks(state, action)) {
     if (strike?.status !== 'resolved') continue
     const jumped = state.actions.some((a) => a.reactionTo === strike.id && a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
     if ((stoppable && strike.interruption !== 'none') || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }
+    if (strike.trample?.result === 'stopped') return { step: reaction.at! - 1, stop: 'trample' }
   }
   return null
 }
 
 // The path as it will be walked and why it ends where it does: a run cut at
 // a turn, an opportunity attack that interrupted the mover or that they
-// jumped away from, a fall at the first difficult cell the test did not
-// clear — whichever comes first.
+// jumped away from, a resister who stopped them (combat.tex "Movement" —
+// "trample"), a fall at the first difficult cell the test did not clear —
+// whichever comes first. The tramples are those on the path as walked.
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
   const run = getRunPath(state, action)
   let path = run
@@ -338,13 +342,18 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, override.step)
     stop = override.stop
   }
+  const tramples = getMoveTramples(state, action, path)
+  if (tramples.stop !== null) {
+    path = path.slice(0, tramples.stop)
+    stop = 'trample'
+  }
   const difficult = firstDifficultStep(state, action)
   const fell = difficult !== null && difficult <= path.length && action.roll !== null && !isSafeOnDifficultTerrain(action.movement, action.roll.degree)
   if (fell) {
     path = path.slice(0, difficult)
     stop = 'fall'
   }
-  return { path, stop, fell }
+  return { path, stop, fell, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'stopped' ? 1 : 0)) }
 }
 
 // Where the mover stands part of the way along the move: the anchor at that

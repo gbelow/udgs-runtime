@@ -119,6 +119,20 @@ const ActionBase = {
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
 
+// combat.tex "Trample": what one Force comparison came to — the runner
+// "stopped and stunned", the opponent pushed "back one space and ...
+// stunned", or at 5 more "stunned and prone" where they stand. `id` is
+// whoever the comparison was against, `to` where the push put them (null:
+// stopped, knocked down, or nowhere to go back to, so they fall where they
+// stand — the table's ruling), `at` the path step it happened on.
+export const TrampleSchema = z.object({
+  id: str,
+  at: num.default(0),
+  result: z.enum(['stopped', 'pushed', 'knocked']),
+  to: PlacementSchema.nullable().default(null),
+}).strip()
+export type Trample = z.infer<typeof TrampleSchema>
+
 // A weapon row is named the way the hands name it: the wielded key (an item id
 // or `natural:<name>`) and the attack row's name. Empty strings are the
 // declaration still to be made.
@@ -147,6 +161,9 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Trip": the hook's trip took the target off their feet,
   // written at the resolve
   tripped: z.boolean().default(false),
+  // combat.tex "Braced Attack": "The additional damage effect also triggers
+  // a trample" — the mover against the bracer, written at the resolve
+  trample: TrampleSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
@@ -249,13 +266,14 @@ export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.lite
 // turn at a run, by a reaction that interrupted it, by the mover's own jump
 // away from one (a movement of its own, which takes over), or by a fall on
 // difficult terrain.
-export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall'])
+export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall', 'trample'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 export const MoveFactsSchema = z.object({
   path: z.array(CoordSchema).default([]),
   stop: MoveStopSchema.default('end'),
   fell: z.boolean().default(false),
+  trampled: z.array(TrampleSchema).default([]),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
 
@@ -319,7 +337,6 @@ export const OpportunityAttackActionSchema = z.object({
 // the root resolves it opens a move of the follower's own, capped at what
 // the triggering move cost.
 export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('follow') }).strip()
-
 export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
   ShootActionSchema,

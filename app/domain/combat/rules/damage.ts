@@ -1,5 +1,6 @@
 import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon } from '../../types'
-import type { AttackAction, CombatState, HOPPurchase, MoveAction } from '../types'
+import type { AttackAction, CombatState, HOPPurchase, MoveAction, Trample } from '../types'
+import { getBracedTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor } from '../../character/rules/armor'
@@ -113,6 +114,14 @@ function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'j
   if (root.targetId && getReactionsTo(state, root.id).some((r) => r.actorId === root.targetId && r.kind === 'evasiveJump')) return 'jumping'
   const step = getOpportunityStep(state, root)
   return step && step.move.actorId === root.targetId && step.move.movement === 'run' ? 'running' : null
+}
+
+// combat.tex "Braced Attack": "The additional damage effect also triggers a
+// trample" — a braced hit, against the mover it met.
+export function getStrikeTrample(state: CombatState, root: AttackAction): Trample | null {
+  if (root.kind !== 'strike' || (root.spent.braced ?? 0) === 0 || root.roll?.degree !== 'hit') return null
+  const step = getOpportunityStep(state, root)
+  return step ? getBracedTrample(state, root, step.move, step.at) : null
 }
 
 // combat.tex "Trip": "a comparison between the attacker's force and target's

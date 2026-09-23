@@ -17,7 +17,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
-import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, getStepDelta, hasJumpSpace, isHookedRunner, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, getStepDelta, hasJumpSpace, isHookedRunner, isMidJump, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
@@ -266,7 +266,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     const variant = getAttackVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
-  if (action.kind === 'move') return action.path.length > 0 ? getMovePrice(c, action, action.path.length) : null
+  if (action.kind === 'move') return action.path.length > 0 || isPosture(action.movement) ? getMovePrice(c, action, action.path.length) : null
   // spells.tex "Casting spells": the spell's own price; what it asks beyond
   // AP and STA is paid the same, off the sheet
   if (action.kind === 'cast') return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null

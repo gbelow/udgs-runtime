@@ -3,7 +3,8 @@ import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
-import { setDistance } from '../geometry'
+import { isTrampleable } from './trample'
+import { sameCell, setDistance } from '../geometry'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -114,6 +115,13 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (id === root.actorId) continue
     const other = getPlacedFootprint(state, id)
     if (!other) continue
+    // combat.tex "Movement" — "trample": whoever the path comes into gets
+    // trampled unless they get out of the way — "Evade: ... This can be used
+    // to avoid being trampled". "Trampling a prone character is an automatic
+    // success and allows free passage": nothing to evade.
+    if (isTrampleable(state, id) && path.some((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))) {
+      triggers.push({ characterId: id, kind: 'evade', at: null })
+    }
     const range = getMeleeRange(state.characters[id])
     let previous = setDistance(getFootprint(mover, from), other)
     if (range > 0 && previous <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
