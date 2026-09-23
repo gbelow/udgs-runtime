@@ -147,7 +147,7 @@ export const HIT_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
 
 // combat.tex "Success Overflow" and the hand switch of "Localized damage":
 // what HOP can buy, in the book's order; prices and gates are in `tables.ts`.
-export const HOP_PURCHASES = ['slice', 'bypass', 'bust', 'smash', 'handSwitch'] as const
+export const HOP_PURCHASES = ['slice', 'bypass', 'bust', 'smash', 'handSwitch', 'assassinate'] as const
 
 // gear.tex "One/Two hands".
 export const HANDS = ['one', 'two'] as const

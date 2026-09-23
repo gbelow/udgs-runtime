@@ -176,8 +176,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: thrown }
     // combat.tex "Braced Attack": "+1.5x STR x DM on a hit".
     const braced: AttackVariant = { name: 'braced', type, AP: AP + bracedCost.AP, STA: bracedCost.STA, penalty: 0, ...plus(Math.floor(1.5 * STRxDM)), reach: null }
-    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut, reach: null }
-    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
+    const hook: AttackVariant = { name: 'hook', type, AP, STA: 0, penalty: 0, blunt, cut, reach: null }    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
     const quickShot: AttackVariant = { name: SHOTS.quickShot.variant, type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut, reach: reach('quickShot') }
     const snipe: AttackVariant = { name: SHOTS.snipe.variant, type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut, reach: reach('snipe') }
 
@@ -194,8 +193,7 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
     }
 
     if (has('braced')) attacks.push(braced)
-    if (has('hook')) attacks.push(hook)
-    // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
+    if (has('hook')) attacks.push(hook)    // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot
     // use quick shot unless STR is +3 points higher than the requirement."
     if (kind === 'shoot' && !untrained) {
       if (atk.STRreq === undefined || getSTR(c) >= atk.STRreq + 3) attacks.push(quickShot)

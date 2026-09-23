@@ -7,7 +7,8 @@ import { getWieldedWeapons } from '../item/rules/hands'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './rules/move'
 import { getReactionsTo } from './rules/action'
-import { getChargedItem } from './rules/damage'
+import { getChargedItem, getHOPPrice } from './rules/damage'
+import { HOP_PURCHASES } from '../lists'
 import { getTerrainPaint } from './rules/explosion'
 import { coordKey } from './geometry'
 import { SPELLS, isSpellKey } from '../spells'
@@ -72,9 +73,15 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // with" — and leaves the object empty. A row that pierces has no
         // graze to land on (combat.tex "Piercing"), so it goes off or it
         // does not.
+        // A purchase with a price of its own is paid as it lands (combat.tex
+        // "Assassinate": "1 extra AP").
         if (c.id === action.actorId) {
           const charged = getChargedItem(c, action)
-          return charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
+          const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
+          return HOP_PURCHASES.reduce((acc, p) => {
+            const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
+            return price ? payCost({ ...price, exhaustion: 0, IL: 0, ET: 0 })(acc) : acc
+          }, discharged)
         }
         if (c.id !== action.targetId || !action.facts) return c
         return deliver(action.facts)(c)

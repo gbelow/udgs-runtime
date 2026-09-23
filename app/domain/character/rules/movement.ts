@@ -33,6 +33,12 @@ export function getFastSwimMovement(c: Character) {
 export function getJumpMovement(c: Character) {
   return 2 + getRaw(c, "jump");
 }
+// combat.tex "jumping": "If performed during a run, increase the base
+// calculation of the horizontal distance of a long jump to match that of
+// running."
+export function getRunningJumpMovement(c: Character) {
+  return 3 + getRaw(c, "jump");
+}
 export function getStandMovement(c: Character) {
   return 5 - Math.floor(getAGIBase(c)/ 5)+getRaw(c, "stand");
 }

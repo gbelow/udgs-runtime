@@ -156,7 +156,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
     case 'opportunityAttack': {
       const strike = getOpportunityStrike(action, '')
-      return getAttackVariant(c, strike) !== null && isInReach(getOpportunityState(state, action), strike, action.targetId ?? '')
+      const fought = getOpportunityState(state, action)
+      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '')
     }
     case 'evade':
     case 'evasion':
@@ -347,7 +348,7 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   }
   const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === defender.id)
   const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }]
-  if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 3) })
+  if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 2) })
   if (reaction?.kind === 'block') {
     const row = findWeaponRow(defender, reaction.weaponKey, reaction.attack)
     if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
@@ -472,6 +473,7 @@ function guardRows(state: CombatState, c: Character, root: Action): WeaponRow[] 
   const slow = shot !== null && hasProperty(shot.atk.properties, 'slow')
   return defRows(c).filter((row) => slow || row.weapon.shield !== undefined)
 }
+
 
 // Everything the character may declare right now: their own actions while no
 // action is open, and their reactions while a committed action triggers
@@ -746,8 +748,7 @@ export function getTargetIds(state: CombatState, root: Action): string[] {
   if (root.kind === 'cast' && !isTargeted(root)) return []
   return Object.keys(state.characters).filter((id) =>
     id !== root.actorId
-    && (root.kind !== 'strike' || isInReach(state, root, id))
-    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
+    && (root.kind !== 'strike' || isInReach(state, root, id))    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
     && (root.kind !== 'cast' || isInCastRange(state, root, id)))
 }
 

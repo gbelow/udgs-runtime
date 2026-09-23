@@ -338,6 +338,7 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOption, onBuy: () =
       <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
         disabled={!option.available} title={option.reason ?? undefined} onClick={onBuy}>
         {option.label} <span className='font-mono text-muted'>{option.cost}</span>
+        {option.price ? <Cost cost={option.price} /> : null}
         {bought ? <span className='ml-1 font-mono'>×{option.bought}</span> : null}
       </Button>
       {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}

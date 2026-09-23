@@ -5,6 +5,7 @@ import { HOP_EFFECTS } from '../../tables'
 import { getArmor } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue } from '../../character/rules/gear'
+import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { getDM } from '../../character/rules/helpers'
 import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
@@ -63,6 +64,8 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, attack
   bypass: (d) => ({ ...d, bypass: true }),
   bust: (d) => ({ ...d, bust: true }),
   handSwitch: (d) => ({ ...d, location: 'hand' }),
+  // combat.tex "Assassinate": "It automatically applies bypass."
+  assassinate: (d) => ({ ...d, bypass: true }),
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP
@@ -115,6 +118,9 @@ export type HOPOption = {
   purchase: HOPPurchase
   label: string
   cost: number
+  // what it takes from the attacker on top of the HOP, paid as the action
+  // resolves
+  price: ActionCost | null
   bought: number
   available: boolean
   reason: string | null
@@ -126,6 +132,13 @@ const HOP_LABELS: Record<HOPPurchase, string> = {
   bust: 'bust',
   smash: 'smash',
   handSwitch: 'switch to hand',
+  assassinate: 'assassinate',
+}
+
+// combat.tex "Assassinate": "This costs 1 extra AP on the normal cost of the
+// attack."
+export function getHOPPrice(purchase: HOPPurchase, attacker: Character): ActionCost | null {
+  return purchase === 'assassinate' ? getActionCost(attacker, 'assassinate') : null
 }
 
 function priceOf(purchase: HOPPurchase, target: Character): number {
@@ -157,17 +170,25 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const { property } = HOP_EFFECTS[purchase]
     const cost = priceOf(purchase, target)
     const bought = root.spent[purchase] ?? 0
-    const closed = (reason: string): HOPOption => ({ purchase, label: HOP_LABELS[purchase], cost, bought, available: false, reason })
+    const price = getHOPPrice(purchase, attacker)
+    const closed = (reason: string): HOPOption => ({ purchase, label: HOP_LABELS[purchase], cost, price, bought, available: false, reason })
+    if (purchase === 'assassinate' && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(row.atk.properties, property)) return closed(`needs ${property}`)
     if (purchase !== 'slice' && bought > 0) return closed('bought')
+    // combat.tex "Assassinate": "requires a short range ... weapon attack",
+    // "Can only be done against SD, not against active defense".
+    if (purchase === 'assassinate' && row.atk.range !== 'short') return closed('needs short range')
+    if (purchase === 'assassinate' && defense !== 'none') return closed('target defended')
+    if ((purchase === 'bypass' && (root.spent.assassinate ?? 0) > 0) || (purchase === 'assassinate' && (root.spent.bypass ?? 0) > 0)) return closed('already bypassing')
     // combat.tex "Armor Bypass": "can only be done against rigid armor".
-    if (purchase === 'bypass' && !armor.properties.includes('rigid')) return closed('armor is not rigid')
+    if ((purchase === 'bypass' || purchase === 'assassinate') && !armor.properties.includes('rigid')) return closed('armor is not rigid')
     // combat.tex "Penetrating": cutting "against objects with the same hardness".
     if (purchase === 'bust' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
-    return { purchase, label: HOP_LABELS[purchase], cost, bought, available: true, reason: null }
+    if (price && (attacker.resources.AP < price.AP || attacker.resources.STA < price.STA)) return closed('cannot afford')
+    return { purchase, label: HOP_LABELS[purchase], cost, price, bought, available: true, reason: null }
   })
 }
 

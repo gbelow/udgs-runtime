@@ -6,7 +6,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getBalanceTerms } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
-import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getSwimMovement } from '../../character/rules/movement'
+import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
@@ -378,15 +378,16 @@ export function isMidJump(state: CombatState, id: string): boolean {
 }
 
 // combat.tex "Evasive Jump": "This can only be used if there is space to
-// jump. The jump must move away or sideways from the attack and uses the
-// movement speed of jumping backwards" — half the jump ("Movement": "If
-// performed backwards, the horizontal distance is halved"), in whole cells.
-// Every other anchor within that many cells, in any orientation, whose
-// footprint stands on free ground and ends no closer to the attacker than it
-// began: away or sideways, never towards. A runner hit mid-block is still
-// running ("running": no turns of 90 degrees or more per running block), so
-// their jump keeps within a hex step of the block's heading; one hit
-// mid-jump cannot jump at all.
+// jump. The jump must place the character further from the source of the
+// attack and uses the movement speed of jumping backwards" — half the jump
+// ("Movement": "If performed backwards, the horizontal distance is halved"),
+// in whole cells. Every other anchor within that many cells, in any
+// orientation, whose footprint stands on free ground and ends at least one
+// cell further from the attacker than it began. A runner hit mid-block may
+// jump any way, but within a hex step of the block's heading the jump is a
+// forward one out of the run and reaches the running long jump ("jumping":
+// "If performed during a run ... match that of running"); the table's
+// ruling. One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
   const board = state.board
   const defender = state.characters[defenderId]
@@ -403,13 +404,15 @@ export function getEvasiveJumpPlacements(state: CombatState, defenderId: string,
   )
   const free = (cell: Coord) => !taken.has(coordKey(cell)) && !board.terrain[coordKey(cell)]?.blocking
   const hop = Math.floor(getJumpMovement(defender) / 2)
+  const leap = heading === null ? hop : Math.max(hop, Math.floor(getRunningJumpMovement(defender)))
+  const reaches = (cell: Coord) => distance(cell, from.cell) <= hop || (heading !== null && isWithinCone(subtract(cell, from.cell), heading))
   const placements: Placement[] = []
-  for (const cell of disk(from.cell, hop)) {
-    if (sameCell(cell, from.cell) || (heading !== null && !isWithinCone(subtract(cell, from.cell), heading))) continue
+  for (const cell of disk(from.cell, leap)) {
+    if (sameCell(cell, from.cell) || !reaches(cell)) continue
     for (let orientation = 0; orientation < 6; orientation++) {
       const to = { ...from, cell, orientation }
       const footprint = getFootprint(defender, to)
-      if (footprint.every(free) && setDistance(footprint, attacker) >= before) placements.push(to)
+      if (footprint.every(free) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements

@@ -106,13 +106,15 @@ export const MAX_TIER = 5
 // Properties"), null where any weapon may. Smash is open to any weapon and
 // has no gate but its price: its own extra damage may be what makes the
 // blow T1, so the stun it upgrades is read off the outcome, not asked for
-// up front.
+// up front. combat.tex "Assassinate" costs no HOP but AP, priced in
+// ACTION_COSTS.
 export const HOP_EFFECTS = {
-  slice:      { cost: 1,            property: 'bladed' },
-  bypass:     { cost: 'deflection', property: 'precise' },
-  bust:       { cost: 'deflection', property: 'penetrating' },
-  smash:      { cost: 'deflection', property: null },
-  handSwitch: { cost: 3,            property: null },
+  slice:       { cost: 1,            property: 'bladed' },
+  bypass:      { cost: 'deflection', property: 'precise' },
+  bust:        { cost: 'deflection', property: 'penetrating' },
+  smash:       { cost: 'deflection', property: null },
+  handSwitch:  { cost: 3,            property: null },
+  assassinate: { cost: 0,            property: 'precise' },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
 
 // combat.tex "Interruption", "Stun": an interruption costs nothing beyond
@@ -281,19 +283,20 @@ export const SURGES = {
 export const ACTION_COSTS = {
   // attack variations — combat.tex "Heavy Attack", "Sweeping Attack",
   // "Braced Attack", "Hook Attack" (the trip rider, bought after a hit),
-  // "Snipe", "Quick Shot"; gear.tex "Reload"
+  // "Assassinate" (bought after a hit), "Snipe", "Quick Shot"; gear.tex "Reload"
   heavy1:    { AP: 1, STA: 0 },
   heavy2:    { AP: 2, STA: 1 },
   heavy3:    { AP: 3, STA: 1 },
   sweep:     { AP: 1, STA: 0 },
   braced:    { AP: 2, STA: 1 },
   hookTrip:  { AP: 1, STA: 1 },
+  assassinate: { AP: 1, STA: 0 },
   snipe:     { AP: 2, STA: 0 },
   quickShot: { AP: -1, STA: 0 },
   reload:    { AP: 0, STA: 0 },
   // melee defenses — combat.tex "Defend"
   evade:       { AP: 2, STA: 0 },
-  evasiveJump: { AP: 2, STA: 1 },
+  evasiveJump: { AP: 3, STA: 1 },
   block:       { AP: 2, STA: 0 },
   intercept:   { AP: 3, STA: 0 },
   // ranged reactions — combat.tex "Reflex"
