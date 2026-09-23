@@ -56,7 +56,8 @@ export function getMoveCost(c: Character, kind: MovementKind, cells: number): Ac
 // "can run by spending one extra STA").
 export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
   const cost = getMoveCost(c, action.movement, cells)
-  return { AP: Math.max(0, cost.AP - action.prepaid) + action.surcharge.AP, STA: cost.STA + action.surcharge.STA }
+  const surcharge = action.surchargedMovements.includes(action.movement) ? action.surcharge : { AP: 0, STA: 0 }
+  return { AP: Math.max(0, cost.AP - action.prepaid) + surcharge.AP, STA: cost.STA + surcharge.STA }
 }
 
 // ---------------------------------------------------------------------------

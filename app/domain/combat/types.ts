@@ -274,12 +274,16 @@ export const MoveActionSchema = z.object({
   prepaid: num.default(0),
   // the kinds of movement the reaction that opened it allows, whatever the
   // mover could otherwise make (combat.tex "Avoiding an Explosion": on a
-  // critical "the character can run", on a hit "jump in any direction");
-  // null is the mover's usual choice
+  // critical "the character can run", on a hit "jump in any direction") —
+  // each degree's kinds and everything a lesser degree would have granted,
+  // so the mover is never forced into the privileged one; null is the
+  // mover's usual choice
   movements: z.array(MovementKindSchema).nullable().default(null),
-  // what the reaction asks on top of the path (combat.tex "Avoiding an
-  // Explosion": "can run by spending one extra STA")
+  // what the reaction asks on top of the path for one of `surchargedMovements`
+  // (combat.tex "Avoiding an Explosion": "can run by spending one extra
+  // STA") — nothing extra for falling back to a kind not in that list
   surcharge: ActionCostSchema.default({ AP: 0, STA: 0 }),
+  surchargedMovements: z.array(MovementKindSchema).default([]),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it

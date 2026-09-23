@@ -34,6 +34,7 @@ import { getCastFacts, getCastOpportunityAttacks, isCastCancelled } from '../rul
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
+import { MOVEMENT_KINDS } from '../../lists'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -319,20 +320,23 @@ export function cancelCast(actorId: string): Updater {
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
 // by spending one extra STA. On a hit, they can spend an extra STA to jump
 // in any direction before the explosion occurs. On a graze, they can move 1
-// AP before the explosion." The moves that opens, one per reactor whose
-// test came to that, played out ahead of the blast; the reaction's AP buys
-// the move, as an evasion's does, and the run's extra STA is on top, the
-// jump's the jump's own (combat.tex "Movement Costs and Speeds" prices a
-// jump in STA already). A miss moves after it instead, and is opened when
-// the blast has landed.
+// AP before the explosion." Each degree unlocks what a lesser one would have
+// too, so a critical can still take a graze's plain move instead of paying
+// to run — the moves that opens, one per reactor whose test came to that,
+// played out ahead of the blast; the reaction's AP buys the move, as an
+// evasion's does, and the run's extra STA is on top, the jump's the jump's
+// own (combat.tex "Movement Costs and Speeds" prices a jump in STA already).
+// A miss moves after it instead, and is opened when the blast has landed —
+// its own tier, not cascaded into these, since it happens on the far side.
 function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => string): Action[] {
   return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     if (reaction.kind !== 'avoidExplosion' || !reaction.roll) return []
     const AP = reaction.cost?.AP ?? 0
     const base = { kind: 'move', id: newId(), actorId: reaction.actorId, budget: AP, prepaid: AP, spawnedBy: reaction.id }
+    const notRun = MOVEMENT_KINDS.filter((k) => k !== 'run')
     switch (reaction.roll.degree) {
-      case 'critical': return [ActionSchema.parse({ ...base, movement: 'run', movements: ['run'], surcharge: { AP: 0, STA: 1 } })]
-      case 'hit': return [ActionSchema.parse({ ...base, movement: 'jump', movements: ['jump'] })]
+      case 'critical': return [ActionSchema.parse({ ...base, movement: 'run', movements: MOVEMENT_KINDS, surchargedMovements: ['run'], surcharge: { AP: 0, STA: 1 } })]
+      case 'hit': return [ActionSchema.parse({ ...base, movement: 'jump', movements: notRun })]
       case 'graze': return [ActionSchema.parse({ ...base, budget: 1 })]
       default: return []
     }

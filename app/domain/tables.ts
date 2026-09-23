@@ -245,7 +245,7 @@ export const HIT_MARGIN = 5
 export const SPELL_MODIFICATIONS = {
   extend:     { SOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
   enhance:    { SOP: 4, text: 'the special improvement described in the spell' },
-  amplify:    { SOP: 4, text: 'multiply an effect marked DM, SM, RM or VM once more' },
+  amplify:    { SOP: 5, text: 'multiply an effect marked DM, SM, RM or VM once more' },
   effortless: { SOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { SOP: number; text: string }>
 
