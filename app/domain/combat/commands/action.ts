@@ -1,35 +1,32 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
   findOption,
+  canSaveGraze,
   getAction,
-  getAttackTerms,
-  getCastTerms,
+  getGrazeSavedRoll,
   getImprovementOptions,
   getOpportunityStrike,
   isTargeted,
   getDeclaredCost,
-  getDL,
   getNextStep,
   getOpenAction,
-  getReactionTestTerms,
+  getReactionTest,
   getReactionsTo,
+  getRootTest,
   getTargetIds,
   isDeclarationComplete,
-  isPiercingAttack,
   needsDie,
-  scoreAttack,
 } from '../rules/action'
+import { resolveTest } from '../rules/test'
+import type { Dice } from '../dice'
 import { getAttackFacts, getHOPOptions, outcomeOf } from '../rules/damage'
 import { getExplosionFacts, isSpray } from '../rules/explosion'
-import { getBalanceDL, getBalanceTestTerms, getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
+import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
-import { sumTerms } from '../../character/rules/terms'
-import { scoreTest } from '../../character/rules/test'
-import { getSOP, isHit } from '../../character/rules/spells'
 import { getCastFacts, getCastOpportunityAttacks, isCastCancelled } from '../rules/cast'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
@@ -204,38 +201,15 @@ export function cancelAction(): Updater {
 // "Balance"), and pays for the path as the test leaves it; an explosion has
 // no test of its own, and each reflex made against it is scored against its
 // DL (combat.tex "Avoiding an Explosion").
-export function rollAction(dice: () => number, newId: () => string = () => `${Date.now()}`): Updater {
+export function rollAction(dice: Dice, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'committed' || !needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
     if (!actor || !areReactionsComplete(state, open)) return state
 
-    const test = open.kind === 'strike' || open.kind === 'shoot'
-      ? (() => {
-          const die = dice()
-          const DL = getDL(state, open)
-          const score = die + sumTerms(getAttackTerms(actor, open))
-          return { die, DL, score, ...scoreAttack(score, DL, isPiercingAttack(actor, open)) }
-        })()
-      : open.kind === 'move'
-        ? (() => {
-            const die = dice()
-            const DL = getBalanceDL(state, open)
-            const score = die + sumTerms(getBalanceTestTerms(actor))
-            return { die, DL, score, degree: scoreTest(score, DL), HOP: 0 }
-          })()
-      // spells.tex "Casting spells": "In case of failure, it fails and the AP
-      // and STA are lost"; "Any points above a hit against the DL are
-      // converted into SOPs"
-      : open.kind === 'cast'
-        ? (() => {
-            const die = dice()
-            const DL = getDL(state, open)
-            const score = die + sumTerms(getCastTerms(actor, open))
-            return { die, DL, score, degree: isHit(score, DL) ? 'hit' as const : 'miss' as const, HOP: getSOP(score, DL) }
-          })()
-        : null
+    const rootTest = getRootTest(state, open)
+    const test = rootTest ? resolveTest(rootTest, dice) : null
     if (!test && ACTIONS[open.kind].die) return state
     const withRoll: Action = test ? { ...open, roll: test } : open
 
@@ -243,20 +217,13 @@ export function rollAction(dice: () => number, newId: () => string = () => `${Da
     for (const a of [withRoll, ...getReactionsTo(state, open.id)]) {
       const cost = priceFor(state, a)
       if (!cost) return state
-      const roll = a.id !== open.id && ACTIONS[a.kind].die ? reactionTest(state, open, a, dice()) : a.roll
+      const roll = a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll
       priced.push({ ...a, cost, roll })
     }
 
     const rolled = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
     return afterPaying(applyPhase(replaceActions(state, rolled), rolled, 'roll'), open.id, newId)
   }
-}
-
-// A reaction that is a test of its own, scored against the root's DL.
-function reactionTest(state: CombatState, root: Action, reaction: Action, die: number): ActionRoll {
-  const DL = getDL(state, root)
-  const score = die + sumTerms(getReactionTestTerms(state, reaction))
-  return { die, DL, score, degree: scoreTest(score, DL), HOP: 0 }
 }
 
 // The die's counterpart for a committed action with none (combat.tex
@@ -417,6 +384,18 @@ export function improveSpell(name: SpellModification): Updater {
     if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
     if (!getImprovementOptions(state, open).find((o) => o.name === name)?.available) return state
     return replaceActions(state, [{ ...open, improved: { ...open.improved, [name]: (open.improved[name] ?? 0) + 1 } }])
+  }
+}
+
+// spells.tex "Casting spells": raises the grazed cast to the hit the +3
+// makes of it and takes the 2 AP it costs, once. Nothing to take back: the
+// price is paid as it is bought.
+export function saveGraze(): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'cast' || !open.roll || !canSaveGraze(state, open)) return state
+    const saved: Action = { ...open, grazeSaved: true, roll: getGrazeSavedRoll(open.roll) }
+    return applyPhase(replaceActions(state, [saved]), [saved], 'save')
   }
 }
 

@@ -2,7 +2,9 @@ import { CampaignCharacter, Character, SpellMethod } from "../../types"
 import { SPELLS, SpellKey } from "../../spells"
 import { SPELL_MODIFICATIONS, SpellModification } from "../../tables"
 import { isCampaignCharacter } from "../../utils"
-import { canCastSpell, canLearnSpell, getCastingDL, getSOP, getSpellSkill, isHit } from "../rules/spells"
+import { canCastSpell, canLearnSpell, getCastingDL, getSpellSkill } from "../rules/spells"
+import { resolveTest } from "../../combat/rules/test"
+import type { Dice } from "../../combat/dice"
 import { isSpellActive } from "../rules/effects"
 import { deliver } from "./deliver"
 import { getSelfEffects, produceSpellEffect } from "../rules/production"
@@ -40,13 +42,13 @@ export function practiceSpell(key: SpellKey, delta: number): (c: Character) => C
   }
 }
 
-// Casts a known spell with a die already rolled: the price is paid whatever
+// Casts a known spell: the price is paid whatever
 // the die says ("In case of failure, it fails and the AP and STA are lost"),
 // the roll plus skill is scored against the casting DL and what is left over
 // a hit becomes the pending action's SOPs. Quicken forgoes the focus surge
 // for +4 DL. A sustained spell that hit is taken hold of, so its upkeep comes
 // due at the round change; casting it again while held releases it for free.
-export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Character) => Character {
+export function castSpell(key: SpellKey, dice: Dice, quicken = false): (c: Character) => Character {
   return (c: Character) => {
     if (!isCampaignCharacter(c)) return c
     if (isSpellActive(c, key)) {
@@ -56,14 +58,13 @@ export function castSpell(key: SpellKey, roll: number, quicken = false): (c: Cha
     const spell = SPELLS[key]
     const DL = getCastingDL(spell, quicken)
     if (DL === null) return c
-    const score = roll + getSpellSkill(c, key)
-    const SOP = getSOP(score, DL)
+    const { score, degree, HOP: SOP } = resolveTest({ skill: getSpellSkill(c, key), DL, explodes: false, scale: 'overflow', grazes: !quicken }, dice)
     // the casting price, then whatever the spell lists as instant
     // the casting price, then what the spell does to the caster; what it
     // does to others is produced where there are others to aim at
     const paid = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(c, e))
       .reduce((acc, delivery) => deliver(delivery)(acc), payCost(spell.cost)(c))
-    const hit = isHit(score, DL)
+    const hit = degree === 'hit'
     // spells.tex "Charged": a charged spell that hit is loaded into an item
     const charged = spell.type === 'charged' && hit ? chargeItem(key)(paid) as CampaignCharacter : paid
     return {

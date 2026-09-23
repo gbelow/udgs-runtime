@@ -77,11 +77,6 @@ export function isHit(score: number, DL: number): boolean {
   return score >= DL + HIT_MARGIN
 }
 
-// "Any points above a hit against the DL are converted into SOPs."
-export function getSOP(score: number, DL: number): number {
-  return Math.max(0, score - (DL + HIT_MARGIN))
-}
-
 // spells.tex "Requirements": "Some spells may even be impossible to cast if
 // the minimum conditions are not met." The gear a spell names is the part
 // the domain can see — it has to be on the caster, in a hand or carried;

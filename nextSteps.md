@@ -75,20 +75,32 @@
 - when triggers/poison apply
 
 ## chase
-- how track triggers
-- simultaneous double grid
-- 
+- action decision/AP budget
+- chase roll - group roll
+- party splitting
+- tracking distances
+- stealth and detection - 
+- time tracking - poison, environmental spells
 
 ## saving assets to redis
 - getting chars per user
 - save encounter
 - items, spells, abilities
 
+## multiplayer
+- connection
+- character ownership split
+- sync gameplay
+- permissions gm/player
+- 
+
 ## explore integration with VTTs
 
 ## improve interface - make it pretty
 - in ui-design-patterns.md
 - must show effects
+- slim down right panel
+- left panel colapsible
 
 ## issues
 flee, braced attack, hooked attack. must trigger after attack roll
@@ -99,3 +111,5 @@ flamethrower needs charges - transform into weapon
 wound and wound healing is undefined - possession healing neither
 select items to charge + do not stack items in quick slots
 blast scaling - scale to scale of the item. 1 amplify is allowed over item size.
+remove exploding die - make situational the rule
+add graze saving in spells

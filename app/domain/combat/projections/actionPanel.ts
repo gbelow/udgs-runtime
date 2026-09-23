@@ -10,6 +10,7 @@ import {
   areReactionsComplete,
   getCastTerms,
   getImprovementOptions,
+  canSaveGraze,
   getSOPRemaining,
   getSpellOptions,
   needsDie,
@@ -29,6 +30,7 @@ import {
   isDeclarationComplete,
 } from '../rules/action'
 import { getCastFacts } from '../rules/cast'
+import { GRAZE_SAVE } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
@@ -147,12 +149,15 @@ export type ActionPanelView = {
   // once a cast is rolled: what its overflow can buy, and what it will
   // deliver to whom
   SOP: { remaining: number; options: ImprovementOption[] }
+  // once a cast is rolled: the price of buying its graze up to a hit, when
+  // that is open
+  grazeSave: { AP: number; STA: number } | null
   deliveries: { target: string; name: string; kind: string; test: string | null }[]
   // with nothing open: what the last action played out came to
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -236,6 +241,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       : { remaining: 0, options: [] },
     outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: state.characters[id]?.fightName ?? '', outcome })) : [],
     SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
+    grazeSave: cast && canSaveGraze(state, cast) ? { AP: GRAZE_SAVE.AP, STA: 0 } : null,
     deliveries: cast && cast.status === 'rolled'
       ? getCastDeliveries(state, cast).map((d: DeliveryView) => ({ target: state.characters[d.id]?.fightName ?? '', name: d.name, kind: d.kind, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null }))
       : [],

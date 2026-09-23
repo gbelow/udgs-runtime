@@ -12,11 +12,13 @@ import { getTerrainPaint } from './rules/explosion'
 import { coordKey } from './geometry'
 import { SPELLS, isSpellKey } from '../spells'
 import { TerrainCellSchema } from './types'
+import { GRAZE_SAVE } from '../tables'
 
-// The two moments an action touches a character: `roll`, when the die is
-// thrown and the price leaves the actor in the same step, and `resolve`, when
-// what the action did lands on whoever it was done to.
-export type Phase = 'roll' | 'resolve'
+// The moments an action touches a character: `roll`, when the die is thrown
+// and the price leaves the actor in the same step; `save`, when a graze is
+// bought up after the roll and its price leaves the actor; and `resolve`,
+// when what the action did lands on whoever it was done to.
+export type Phase = 'roll' | 'save' | 'resolve'
 
 // The one place an action changes a character. It reads the action and the
 // character's part in it — actor, target, nobody — and applies only that
@@ -34,6 +36,9 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // spells"), not only the AP and STA the fight prices
         if (action.kind === 'cast' && isSpellKey(action.key)) return payCost(SPELLS[action.key].cost)(c)
         return payCost({ ...action.cost, exhaustion: 0, IL: 0, ET: 0 })(c)
+      case 'save':
+        if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
+        return payCost({ AP: GRAZE_SAVE.AP, STA: 0, exhaustion: 0, IL: 0, ET: 0 })(c)
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall

@@ -7,6 +7,7 @@ import * as startTurnModule from './combat/commands/startTurn'
 import * as actionsModule from './combat/commands/action'
 import * as boardModule from './combat/commands/board'
 import { CombatStateSchema, type CombatState } from './combat/types'
+import { getOpenAction, getRootTest } from './combat/rules/action'
 import { makeCampaignCharacter } from './factories'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
@@ -92,14 +93,14 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   learnSpell: characterCommands.learnSpell('charm', 'intuitive'),
   forgetSpell: characterCommands.forgetSpell('sleep'),
   practiceSpell: characterCommands.practiceSpell('sleep', 1),
-  castSpell: characterCommands.castSpell('darken', 7),
+  castSpell: characterCommands.castSpell('darken', () => 7),
   applyModification: characterCommands.applyModification('extend'),
   clearPendingAction: characterCommands.clearPendingAction,
   suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
-  resolvePending: characterCommands.resolvePending(0, 3),
-  resistCurse: (c) => characterCommands.resistCurse('sleep', 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
+  resolvePending: characterCommands.resolvePending(0, () => 3),
+  resistCurse: (c) => characterCommands.resistCurse('sleep', () => 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
   deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
@@ -150,6 +151,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('extend')(deepFreeze(combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))))),
+  saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
@@ -187,6 +189,14 @@ function rolledExplosion(s: CombatState): CombatState {
 function rolledCast(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.rollAction(() => 30, newId)(deepFreeze(combatCommands.commitAction()(declared)))
+}
+
+// A's cast of sleep rolled to a graze the graze save carries to a hit.
+function grazedCast(s: CombatState): CombatState {
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
+  const committed = deepFreeze(combatCommands.commitAction()(declared))
+  const test = getRootTest(committed, getOpenAction(committed)!)!
+  return combatCommands.rollAction(() => test.DL - test.skill + 3, newId)(committed)
 }
 
 // A's cast of sleep committed with b's opportunity attack declared against

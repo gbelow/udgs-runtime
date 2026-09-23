@@ -1,4 +1,4 @@
-import { rollFull } from "../domain/combat/dice";
+import { realDice } from "../components/utils";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/projections/actionPanel";
 import {
   amendAction,
@@ -14,6 +14,7 @@ import {
   refundHOP,
   resolveAction,
   rollAction,
+  saveGraze,
   setTarget,
   spendHOP,
   withdrawLastReaction,
@@ -27,8 +28,8 @@ import { useCombatStore } from "../stores/useCombatStore";
 // The action being played out, and the clicks that move it along. The view
 // is gated on a digest of itself, as the roster is; every write is a combat
 // command dispatched blindly — the commands refuse what the phase does not
-// allow, so the hook does no checking of its own. The die is thrown here,
-// the one place entropy enters, and handed to the command already rolled.
+// allow, so the hook does no checking of its own. The dice are handed in
+// here, the one place entropy enters; the test decides how they are thrown.
 export function useCombatActions() {
   useCombatStore(getActionPanelDigest);
   const view: ActionPanelView = getActionPanel(useCombatStore.getState());
@@ -46,7 +47,7 @@ export function useCombatActions() {
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
   const cancelSpell = (actorId: string) => update(cancelCast(actorId));
-  const roll = () => update(rollAction(() => rollFull(Math.random), newId));
+  const roll = () => update(rollAction(realDice, newId));
   const commit = () => update(commitAction());
   const back = () => update(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));
@@ -56,6 +57,7 @@ export function useCombatActions() {
   const resolve = () => update(resolveAction(newId));
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
+  const grazeSave = () => update(saveGraze());
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave } as const;
 }

@@ -58,10 +58,10 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
 // to read — the bypass against their armor, the cut against equal hardness,
 // the switch to the hand.
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, attacker: Character) => Damage> = {
-  extraCut: (d, times, a) => addTo(d, 'cut', times * Math.floor(1 * getDM(a))),
+  slice: (d, times, a) => addTo(d, 'cut', times * Math.floor(1 * getDM(a))),
   smash: (d, times, a) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(a))), smash: true }),
   bypass: (d) => ({ ...d, bypass: true }),
-  penetrating: (d) => ({ ...d, penetrating: true }),
+  bust: (d) => ({ ...d, bust: true }),
   handSwitch: (d) => ({ ...d, location: 'hand' }),
 }
 
@@ -83,7 +83,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
     location: root.location,
     ...getDefense(state, root),
     bypass: false,
-    penetrating: false,
+    bust: false,
     smash: false,
   }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, attacker) : d), base)
@@ -121,9 +121,9 @@ export type HOPOption = {
 }
 
 const HOP_LABELS: Record<HOPPurchase, string> = {
-  extraCut: 'extra cut',
-  bypass: 'armor bypass',
-  penetrating: 'penetrating',
+  slice: 'slice',
+  bypass: 'bypass',
+  bust: 'bust',
   smash: 'smash',
   handSwitch: 'switch to hand',
 }
@@ -159,11 +159,11 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const bought = root.spent[purchase] ?? 0
     const closed = (reason: string): HOPOption => ({ purchase, label: HOP_LABELS[purchase], cost, bought, available: false, reason })
     if (property && !hasProperty(row.atk.properties, property)) return closed(`needs ${property}`)
-    if (purchase !== 'extraCut' && bought > 0) return closed('bought')
+    if (purchase !== 'slice' && bought > 0) return closed('bought')
     // combat.tex "Armor Bypass": "can only be done against rigid armor".
     if (purchase === 'bypass' && !armor.properties.includes('rigid')) return closed('armor is not rigid')
     // combat.tex "Penetrating": cutting "against objects with the same hardness".
-    if (purchase === 'penetrating' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
+    if (purchase === 'bust' && getHardness(row.atk.material) !== getHardness(armor.material)) return closed('hardness differs')
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')

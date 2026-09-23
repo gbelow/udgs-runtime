@@ -108,9 +108,9 @@ export const MAX_TIER = 5
 // blow T1, so the stun it upgrades is read off the outcome, not asked for
 // up front.
 export const HOP_EFFECTS = {
-  extraCut:   { cost: 1,            property: 'bladed' },
+  slice:      { cost: 1,            property: 'bladed' },
   bypass:     { cost: 'deflection', property: 'precise' },
-  penetrating:{ cost: 'deflection', property: 'penetrating' },
+  bust:       { cost: 'deflection', property: 'penetrating' },
   smash:      { cost: 'deflection', property: null },
   handSwitch: { cost: 3,            property: null },
 } as const satisfies Record<(typeof HOP_PURCHASES)[number], { cost: number | 'deflection'; property: WeaponProperty | null }>
@@ -251,7 +251,11 @@ export const SPELL_MODIFICATIONS = {
 
 // "Quicken Spell: Increases spell DL by 4 to allow it to be cast during any
 // surge and not cause opportunity attacks."
-export const QUICKEN_DL = 4
+export const QUICKEN_DL = 3
+
+// spells.tex "Casting spells": a graze in combat may "increase spell cost by
+// 2 AP to gain +3 once in the test".
+export const GRAZE_SAVE = { AP: 2, bonus: 3 } as const
 
 export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 

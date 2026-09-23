@@ -26,7 +26,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -180,6 +180,9 @@ export function ActionPanel(){
           {view.deliveries.map((d, i) => (
             <div key={i} className='text-sm'>{d.target}: {d.name || d.kind} {d.test ? <span className='text-muted'>· rolls {d.test}</span> : null}</div>
           ))}
+          {view.grazeSave ? (
+            <div><Button size='xs' aria-label='save graze' title='turn the graze into a hit' onClick={grazeSave}>save graze <Cost cost={view.grazeSave} /></Button></div>
+          ) : null}
           {open.spell && open.roll?.degree !== 'hit' ? <div className='text-sm text-muted'>the spell fails</div> : null}
           {open.reactions.filter((r) => r.roll).map((r) => (
             <div key={`${r.actor}:${r.label}`} className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>

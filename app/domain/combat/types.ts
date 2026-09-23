@@ -209,6 +209,8 @@ export const CastActionSchema = z.object({
   quicken: z.boolean().default(false),
   // improvement -> times bought
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
+  // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
+  grazeSaved: z.boolean().default(false),
   // spells.tex "Concentration": given up to answer an opportunity attack it
   // drew with an active defense instead of the SD, or lost outright once one
   // of them interrupts — either way nothing the cast would have produced

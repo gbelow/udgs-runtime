@@ -487,7 +487,7 @@ export const DamageSchema = z.object({
   block: num.default(0), // gear.tex "DEF": what the blocking object absorbs
   shield: z.boolean().default(false),
   bypass: z.boolean().default(false),
-  penetrating: z.boolean().default(false),
+  bust: z.boolean().default(false),
   smash: z.boolean().default(false),
 }).strip()
 export type Damage = z.infer<typeof DamageSchema>

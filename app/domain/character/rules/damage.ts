@@ -109,7 +109,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   const armor = armorAt(target, facts)
   const TGH = getTGH(target)
   const armorHardness = getHardness(armor.material)
-  const canCut = facts.hardness > armorHardness || (facts.penetrating && facts.hardness === armorHardness)
+  const canCut = facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
 
   const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
   const measured = facts.damage

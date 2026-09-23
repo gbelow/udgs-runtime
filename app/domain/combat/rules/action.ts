@@ -1,7 +1,7 @@
 import type { AttackKind, CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type AttackAction, type CastAction, type CombatState, type Degree, type HitLocation, type StrikeAction, type WeaponAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type ActionRoll, type AttackAction, type CastAction, type CombatState, type HitLocation, type StrikeAction, type WeaponAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
-import { LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
+import { GRAZE_SAVE, LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill } from '../../character/rules/spells'
 import { getEffectRange, getTargetEffects } from '../../character/rules/production'
@@ -17,7 +17,8 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
-import { getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, hasJumpSpace, isMidJump, isPathLegal, needsBalanceTest } from './move'
+import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
 import { isCastCancelled } from './cast'
@@ -362,14 +363,47 @@ export function getDL(state: CombatState, root: Action): number {
   return sumTerms(getDLTerms(state, root))
 }
 
-// play.tex "Degrees of success": over the DL by 5 is a hit, by 0 a graze,
-// less a miss; an attack turns the critical band into HOP instead (play.tex
-// "Hit Overflow Point"). gear.tex "Piercing": "Grazes behave like a miss."
-export function scoreAttack(score: number, DL: number, piercing: boolean): { degree: Degree; HOP: number } {
-  const over = score - DL
-  if (over >= 5) return { degree: 'hit', HOP: over - 5 }
-  if (over >= 0 && !piercing) return { degree: 'graze', HOP: 0 }
-  return { degree: 'miss', HOP: 0 }
+// The test a committed root is closed by, or null when it has none of its
+// own. A strike or a shot against the target's defense, trading the critical
+// for HOP (play.tex "Hit Overflow Point"); a move across difficult terrain a
+// Balance test against the ground (combat.tex "Balance"); a cast against the
+// spell's DL, its overflow the HOP that buy improvements, and a graze left
+// open to be saved unless it was quickened (spells.tex "Casting spells";
+// "Quicken Spell": "Grazes equal misses").
+export function getRootTest(state: CombatState, root: Action): Test | null {
+  const actor = state.characters[root.actorId]
+  if (!actor) return null
+  switch (root.kind) {
+    case 'strike':
+    case 'shoot':
+      return { skill: sumTerms(getAttackTerms(actor, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
+    case 'move':
+      return { skill: sumTerms(getBalanceTestTerms(actor)), DL: getBalanceDL(state, root), explodes: false, scale: 'degrees' }
+    case 'cast':
+      return { skill: sumTerms(getCastTerms(actor, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !root.quicken }
+    default:
+      return null
+  }
+}
+
+// A reaction that is a test of its own, scored against the root's DL.
+export function getReactionTest(state: CombatState, root: Action, reaction: Action): Test {
+  return { skill: sumTerms(getReactionTestTerms(state, reaction)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
+}
+
+// spells.tex "Casting spells": "In case of a graze in combat, there is the
+// option to increase spell cost by 2 AP to gain +3 once in the test if that
+// will turn the graze into a hit." The die stays as thrown; the roll is
+// read again with the bonus.
+export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
+  return resolveTest({ skill: roll.score - roll.die + GRAZE_SAVE.bonus, DL: roll.DL, explodes: false, scale: 'overflow', grazes: true }, () => roll.die)
+}
+
+export function canSaveGraze(state: CombatState, root: CastAction): boolean {
+  const caster = state.characters[root.actorId]
+  if (!caster || root.status !== 'rolled' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
+  if (isCastCancelled(state, root) || caster.resources.AP < GRAZE_SAVE.AP) return false
+  return getGrazeSavedRoll(root.roll).degree === 'hit'
 }
 
 export function isPiercingAttack(c: Character, action: AttackAction): boolean {

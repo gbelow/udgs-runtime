@@ -4,7 +4,8 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
 import { Outcome, getOutcome } from '../rules/damage'
 import { skillLenses } from '../lenses'
-import { scoreTest } from '../rules/test'
+import { resolveTest } from '../../combat/rules/test'
+import type { Dice } from '../../combat/dice'
 import { payCost } from './cost'
 
 // The one place a delivered effect changes a character. A delivery whose
@@ -46,13 +47,13 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
 // spells.tex "Curse": "holds until the target shrugs it off" — the test the
 // curse's effect names, rolled again against the DL it landed with; a hit
 // or better and the curse is gone.
-export function resistCurse(key: string, die: number): (c: CampaignCharacter) => CampaignCharacter {
+export function resistCurse(key: string, dice: Dice): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const curse = getCurses(c).find((e) => e.key === key)
     if (!curse || !isSpellKey(key)) return c
     const resist = SPELLS[key].effects.find((e) => e.duration === 'locked' && e.resist)?.resist
     if (!resist) return c
-    const degree = scoreTest(die + skillLenses[resist.roll].get(c), curse.DL)
+    const { degree } = resolveTest({ skill: skillLenses[resist.roll].get(c), DL: curse.DL, explodes: false, scale: 'degrees' }, dice)
     return resisted(degree) === 'miss' ? { ...c, active: c.active.filter((e) => !(e.kind === 'curse' && e.key === key)) } : c
   }
 }
@@ -71,11 +72,11 @@ export function resisted(degree: Degree): Degree {
 // The target's die on a pending delivery: their skill against the DL the
 // producer set, and the effect lands at the degree their result turns into,
 // or not at all. Either way the wait is over.
-export function resolvePending(index: number, die: number): (c: CampaignCharacter) => CampaignCharacter {
+export function resolvePending(index: number, dice: Dice): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const delivery = c.pending[index]
     if (!delivery?.test) return c
-    const degree = resisted(scoreTest(die + skillLenses[delivery.test.roll].get(c), delivery.test.DL))
+    const degree = resisted(resolveTest({ skill: skillLenses[delivery.test.roll].get(c), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree)
     const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
     return degree === 'miss' ? rest : deliver({ ...delivery, degree, test: delivery.test })(rest)
   }

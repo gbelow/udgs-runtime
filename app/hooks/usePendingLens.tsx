@@ -1,4 +1,4 @@
-import { rollFull } from "../domain/combat/dice";
+import { realDice } from "../components/utils";
 import { resistCurse, resolvePending } from "../domain/character/commands";
 import { PendingRow, getPendingDigest, getPendingRows } from "../domain/character/lenses/pending";
 import { CurseRow, getCurseDigest, getCurseRows } from "../domain/character/lenses/curses";
@@ -9,7 +9,7 @@ import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActive
 export function usePendingLens() {
   const update = useActiveCharacterUpdate();
   const rows: PendingRow[] = useActiveCharacterDerived(getPendingRows, getPendingDigest) ?? [];
-  const roll = (index: number) => update(resolvePending(index, rollFull(Math.random)));
+  const roll = (index: number) => update(resolvePending(index, realDice));
   return { rows, roll } as const;
 }
 
@@ -17,6 +17,6 @@ export function usePendingLens() {
 export function useCurseLens() {
   const update = useActiveCharacterUpdate();
   const rows: CurseRow[] = useActiveCharacterDerived(getCurseRows, getCurseDigest) ?? [];
-  const resist = (key: string) => update(resistCurse(key, rollFull(Math.random)));
+  const resist = (key: string) => update(resistCurse(key, realDice));
   return { rows, resist } as const;
 }
