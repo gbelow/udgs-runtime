@@ -1,14 +1,5 @@
-import type { Action, ActionRoll, CastAction, CombatState, Coord, GrappleManeuver, HitLocation, MoveStop } from '../types'
+import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
-// The six hex directions as arrows, for a push declared off the board.
-export function getDirectionOptions(): { index: number; arrow: string }[] {
-  const arrows = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗']
-  return DIRECTIONS.map((d, index) => {
-    const { x, y } = toPlane(d)
-    const octant = Math.round(Math.atan2(y, x) / (Math.PI / 4))
-    return { index, arrow: arrows[(octant + 8) % 8] }
-  })
-}
 import type { Area, CampaignCharacter, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -49,10 +40,8 @@ import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
-import { canGrab, findGrapple, getDisarmOptions, getDragFacts, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf } from '../rules/grapple'
+import { canGrab, findGrapple, getDisarmOptions, getDragChoices, getDragFacts, getDragOutcome, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf, needsDragAim } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
-import { DIRECTIONS } from '../geometry'
-import { toPlane } from '../rules/board'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { getGrappleNotes } from './outcomes'
 
@@ -78,8 +67,6 @@ export type ReactorOptions = {
     partner: boolean
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
-    direction: number | null
-    steps: number
   } | null
   // combat.tex "Opportunity Attack": the action of theirs the attack answers,
   // still theirs to give up to answer with anything but the SD
@@ -106,8 +93,6 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
             partner: findGrapple(state.grapples, c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
             maneuver: declared.maneuver,
-            direction: declared.direction,
-            steps: declared.steps,
           }
         : null
       return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
@@ -161,7 +146,7 @@ export type OpenActionView = {
   // once a knockdown or an immobilization has hit: whether the attacker
   // commits themselves along (null: nothing to choose)
   along: boolean | null
-  push: { aimed: boolean; steps: number } | null
+  push: PushView | null
   // a disarm's hit: what it can go for, and what it went for
   disarm: { itemId: string; name: string }[]
   item: string
@@ -176,6 +161,19 @@ export type OpenActionView = {
   score: { terms: Term[]; total: number }
   DL: { terms: Term[]; total: number }
   roll: ActionRoll | null
+}
+
+// combat.tex "Push and drag", once settled: who won, what the winner may
+// choose, what they chose and how far, whether that is pointed yet, and
+// whether it can still be changed.
+export type PushView = {
+  winner: 'attacker' | 'defender' | 'draw'
+  choices: { choice: 'push' | 'circle' | 'stay'; available: boolean }[]
+  choice: 'push' | 'circle' | 'stay' | null
+  distances: number[]
+  steps: number
+  aimed: boolean
+  open: boolean
 }
 
 export type ActionPanelView = {
@@ -252,7 +250,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const area = areas.length > 0 ? (isSpray(state, explosion!) ? { shape: 'spray' as const } : { shape: 'explosion' as const }) : null
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
   const die = needsDie(state, open)
-  const affordable = !!actor && canPay(actor, getDeclaredCost(actor, open))
+  // a settled push was paid for already; what is left is opening its attacks
+  const affordable = !!actor && (open.status !== 'committed' || canPay(actor, getDeclaredCost(actor, open)))
   const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
@@ -291,7 +290,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       floor: open.kind === 'pickUp' && open.status === 'declared' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : [],
-      push: drag ? { aimed: drag.direction !== null, steps: drag.steps } : null,
+      push: drag && drag.status === 'rolled' ? getPushView(state, drag) : null,
       grapple: settled ? getGrappleNotes(state, settled) : [],
       cost: actor ? getDeclaredCost(actor, open) : null,
       reactions: reactions.map((r) => ({
@@ -348,4 +347,18 @@ function breakdown(terms: Term[]): { terms: Term[]; total: number } {
 
 export function getActionPanelDigest(state: CombatState): string {
   return JSON.stringify(getActionPanel(state))
+}
+
+function getPushView(state: CombatState, drag: DragAction): PushView {
+  const outcome = getDragOutcome(state, drag)
+  const diff = outcome?.diff ?? 0
+  return {
+    winner: diff > 0 ? 'attacker' : diff < 0 ? 'defender' : 'draw',
+    choices: getDragChoices(state, drag),
+    choice: drag.choice,
+    distances: Array.from({ length: outcome?.push ?? 0 }, (_, i) => i + 1),
+    steps: drag.steps,
+    aimed: !needsDragAim(state, drag),
+    open: !drag.fought,
+  }
 }

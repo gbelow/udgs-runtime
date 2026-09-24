@@ -5,7 +5,7 @@ import { coordKey, directionTo, sameCell } from '../geometry'
 import { getOpenAction } from '../rules/action'
 import { getExplosionCenters } from '../rules/explosion'
 import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../rules/move'
-import { aimExplosion, amendAction, declareReaction } from './action'
+import { aimExplosion, aimPush, amendAction, declareReaction } from './action'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -80,8 +80,9 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // declared; aims an explosion being declared at the cell, or a rolled spray
 // towards it (combat.tex "Explosions", "Sprays"); or, against a committed
 // strike, names where the target's evasive jump lands (combat.tex "Evasive
-// Jump") — declaring the jump if it has not been; or points a push being
-// declared towards it (combat.tex "Push and drag").
+// Jump") — declaring the jump if it has not been; or, once a push is
+// settled, points it towards the cell or circles round to it (combat.tex
+// "Push and drag").
 export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
@@ -98,9 +99,10 @@ export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}
       const from = state.board?.placements[open.actorId]
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
     }
-    if (open.kind === 'drag' && open.status === 'declared') {
+    if (open.kind === 'drag' && open.status === 'rolled') {
+      if (open.choice === 'circle') return aimPush({ to: cell })(state)
       const from = state.board?.placements[open.actorId]
-      return from && !sameCell(from.cell, cell) ? amendAction({ direction: directionTo(from.cell, cell) })(state) : state
+      return open.choice === 'push' && from && !sameCell(from.cell, cell) ? aimPush({ direction: directionTo(from.cell, cell) })(state) : state
     }
     if (open.kind === 'strike' && open.status === 'committed' && open.targetId) {
       const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))

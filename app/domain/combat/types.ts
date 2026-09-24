@@ -134,8 +134,7 @@ const ActionBase = {
 // "stopped and stunned", the opponent pushed "back one space and ...
 // stunned", or at 5 more "stunned and prone" where they stand. `id` is
 // whoever the comparison was against, `to` where the push put them (null:
-// stopped, knocked down, or nowhere to go back to, so they fall where they
-// stand — the table's ruling), `at` the path step it happened on.
+// they did not move), `at` the path step it happened on.
 export const TrampleSchema = z.object({
   id: str,
   at: num.default(0),
@@ -186,6 +185,8 @@ export const GrappleFactsSchema = z.object({
   stand: z.array(str).default([]),
   dropped: z.object({ ownerId: str, itemId: str }).nullable().default(null),
   seized: str.nullable().default(null),
+  // combat.tex "Disarm": what the owner won back out of the grappler's hold
+  freed: z.array(str).default([]),
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   deliveries: z.record(str, z.array(DeliverySchema)).default({}),
@@ -228,6 +229,9 @@ export const StrikeActionSchema = z.object({
   // the target; what it came to is written at the resolve
   grab: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
+  // combat.tex "Catch": a grab made at a running target, "3 AP + 1STA",
+  // whose hit is a trample the catcher defends with their running speed
+  catch: z.boolean().default(false),
 }).strip()
 
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
@@ -399,8 +403,6 @@ export const OpportunityAttackActionSchema = z.object({
   // partner, what is opened is a maneuver or a push instead of a strike
   mode: z.enum(['strike', 'grapple', 'drag']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
-  direction: z.number().int().min(0).max(5).nullable().default(null),
-  steps: z.number().int().min(1).max(2).default(1),
 }).strip()
 
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
@@ -431,9 +433,14 @@ export const GrappleActionSchema = z.object({
 }).strip()
 
 // combat.tex "Push and drag": a Force comparison that moves everyone locked
-// in the grapple — the winner's way. `direction` is one of the six hex
-// directions the actor pushes in, `steps` how far they mean to ("up to
-// 1m", 2 on a difference of 5). Written at the resolve: how far it went,
+// in the grapple — the winner's way. It is declared with nothing but who;
+// once the grapple has answered and the price is paid the outcome is
+// certain, and the winning side chooses (`choice`): to push everyone along
+// `direction`, one of the six hex directions, for `steps` metres ("up to
+// 1m", 2 on a difference of 5); for the actor, to circle round to `to`
+// without displacing anyone ("Moving within the grapple area"); or to stay.
+// `fought`: the opportunity attacks the chosen way drew from third parties
+// have been opened. Written at the resolve: how far it went,
 // where each ended, who was interrupted (the side pushed, or the one that
 // lost pushing back), who let go instead of being dragged, and what each
 // who went along passively paid for the metres.
@@ -448,9 +455,13 @@ export type DragFacts = z.infer<typeof DragFactsSchema>
 export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
+  choice: z.enum(['push', 'circle', 'stay']).nullable().default(null),
   direction: z.number().int().min(0).max(5).nullable().default(null),
   steps: z.number().int().min(1).max(2).default(1),
+  to: CoordSchema.nullable().default(null),
+  fought: z.boolean().default(false),
   opportunity: z.boolean().default(false),
+  ...Cancellable,
   facts: DragFactsSchema.nullable().default(null),
 }).strip()
 
@@ -532,7 +543,7 @@ export type PickUpAction = z.infer<typeof PickUpActionSchema>
 // fought before their effect lands, and which one can cancel — a move's are
 // fought along its path instead (rules/move.ts), and a strike draws only a
 // flanker's, fought after it
-export type TriggeringAction = CastAction | ShootAction | ExplosionAction | PickUpAction | GrappleAction
+export type TriggeringAction = CastAction | ShootAction | ExplosionAction | PickUpAction | GrappleAction | DragAction
 
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, status, the roll, the facts). What is left is the kind and its

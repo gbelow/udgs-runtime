@@ -20,9 +20,9 @@ import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRa
 import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, getStepDelta, hasJumpSpace, isHookedRunner, isMidJump, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
-import { getTriggersFor } from './reactions'
+import { getTriggers, getTriggersFor } from './reactions'
 import { getCancellableRoot, isCancelled, isTriggeringAction } from './opportunity'
-import { canGrab, canStandByEscape, findGrapple, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
+import { canGrab, canStandByEscape, findGrapple, getDragPath, needsDragAim, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { getMoveCost } from './move'
 
@@ -109,28 +109,35 @@ export function getAttackVariant(c: Character, action: WeaponAction): AttackVari
 
 // The strike an opportunity attack opens, as declared on the reaction:
 // committed already, since the reaction was, and aimed at whoever it
-// answers.
-export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
+// answers — a catch, when it is a grab at a runner (combat.tex "Catch").
+export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
   const { weaponKey, attack, variant, location, grab } = reaction
-  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
+  const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  const caught = grab && root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
+  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
 // or against a grapple partner the maneuver or the push it was declared as
 // (combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
 // opportunity attacks").
-export function getOpportunityAction(reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
+export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, status: 'committed' }
   if (reaction.mode === 'grapple') return ActionSchema.parse({ ...base, kind: 'grapple', maneuver: reaction.maneuver }) as OpportunityAction
-  if (reaction.mode === 'drag') return ActionSchema.parse({ ...base, kind: 'drag', direction: reaction.direction, steps: reaction.steps }) as OpportunityAction
-  return getOpportunityStrike(reaction, id)
+  if (reaction.mode === 'drag') return ActionSchema.parse({ ...base, kind: 'drag' }) as OpportunityAction
+  return getOpportunityStrike(state, reaction, id)
 }
 
 // The fight as it will stand when the opportunity attack is fought: against
 // a move, with the mover walked one space short of the stretch that fired
-// it. Reach is judged from there.
+// it; against a push, with everyone dragged pushed as far. Reach is judged
+// from there.
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  if (root?.kind === 'drag' && reaction.at !== null && reaction.at > 1 && state.board) {
+    const before = getDragPath(state, root)?.steps[reaction.at - 2]
+    return before ? { ...state, board: { ...state.board, placements: { ...state.board.placements, ...before } } } : state
+  }
   if (root?.kind !== 'move' || reaction.at === null || !state.board) return state
   const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
   return waypoint ? { ...state, board: { ...state.board, placements: { ...state.board.placements, [root.actorId]: waypoint } } } : state
@@ -173,9 +180,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'opportunityAttack': {
       const partner = findGrapple(state.grapples, action.actorId, action.targetId ?? '') !== null
       if (action.mode === 'grapple') return partner && getManeuverTargets(state, action.actorId, action.maneuver).includes(action.targetId ?? '')
-      if (action.mode === 'drag') return partner && action.direction !== null && state.board !== null
-      const strike = getOpportunityStrike(action, '')
+      if (action.mode === 'drag') return partner && state.board !== null
+      const strike = getOpportunityStrike(state, action, '')
       const fought = getOpportunityState(state, action)
+      // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
+      const root = action.reactionTo ? getAction(state, action.reactionTo) : null
+      if (root && !action.grab && getTriggersFor(state, root, action.actorId).find((t) => t.at === action.at)?.catchOnly) return false
       return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
@@ -188,9 +198,10 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
       return !!found && canPickUp(c, found.item)
     }
-    // combat.tex "Push and drag": pushed somewhere on the board
+    // combat.tex "Push and drag": on the board; which way is the winner's
+    // to say once the grapple has answered
     case 'drag':
-      return action.direction !== null && state.board !== null
+      return state.board !== null
     case 'release':
     case 'resist':
     case 'assist':
@@ -205,11 +216,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
   }
 }
 
-// combat.tex "Catch": a running target is caught, not grabbed — and the
-// book's "Interruption" does not cancel a run or a jump either.
+// combat.tex "Catch" is against a running target; nothing lets a jumper be
+// grabbed in the air (combat.tex "jumping": a jump "cannot be voluntarily
+// interrupted in the middle").
 function isUncatchable(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
-  return root?.kind === 'move' && (root.movement === 'run' || root.movement === 'jump')
+  return root?.kind === 'move' && root.movement === 'jump'
 }
 
 // Whether the strike may be declared as this variation where it is made.
@@ -306,6 +318,9 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
   // a cast's explosion was paid for by the cast; a charge set off costs
   // whoever sets it off nothing
   if (action.kind === 'explosion' && action.source !== 'thrown') return { AP: 0, STA: 0 }
+  // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
+  // strike with a weapon with the grapple property"
+  if (action.kind === 'strike' && action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
   if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion') {
     const variant = getAttackVariant(c, action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
@@ -518,7 +533,7 @@ export type ActionOption = {
 export function getCancellableLabel(state: CombatState, root: Action, defenderId: string): string | null {
   const triggering = getCancellableRoot(state, root, defenderId)
   if (!triggering) return null
-  return triggering.kind === 'cast' ? 'spell' : triggering.kind === 'shoot' ? 'shot' : ACTIONS[triggering.kind].label
+  return triggering.kind === 'cast' ? 'spell' : triggering.kind === 'shoot' ? 'shot' : triggering.kind === 'drag' ? 'push' : ACTIONS[triggering.kind].label
 }
 
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
@@ -647,7 +662,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 
   // the actor answers nothing of their own — except a blast, which reaches
   // them where they stand like anyone else (combat.tex "Explosions")
-  if (open.status !== 'committed' || (open.actorId === characterId && open.kind !== 'explosion')) return []
+  if (!isAnswerable(state, open) || (open.actorId === characterId && open.kind !== 'explosion')) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
@@ -685,14 +700,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }))
           || (partner && (canAfford(c, getActionCost(c, 'grappleManeuver')) || canAfford(c, getActionCost(c, 'pushDrag'))))
         const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
-        const label = trigger.at ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
+        const name = trigger.catchOnly ? 'catch' : ACTIONS[kind].label
+        const label = trigger.at ? `${name} at step ${trigger.catchOnly ? trigger.at - 1 : trigger.at}` : name
         return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
       }
       // combat.tex "Push and drag": going along is paid in the basic
-      // movement of the metres, at most as far as the push means to go;
+      // movement of the metres moved, at least one to be open;
       // letting go is only for one nobody holds
       case 'carry': {
-        const most = open.kind === 'drag' ? getMoveCost(c, 'basic', open.steps) : { AP: 0, STA: 0 }
+        const most = open.kind === 'drag' ? getMoveCost(c, 'basic', 1) : { AP: 0, STA: 0 }
         return [{ ...option(ACTIONS[kind].label, { kind }, most), available: gate.available && canAfford(c, most), reason: gate.reason ?? (canAfford(c, most) ? null : 'cannot afford') }]
       }
       case 'letGo': {
@@ -837,12 +853,22 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
 // have moved (combat.tex "Sprays").
 export type ActionStep = 'declare' | 'target' | 'aim' | 'commit' | 'react' | 'spend' | 'choose' | 'confirm'
 
+// Whether reactions to the open action may still be declared: while it is
+// committed, and for a push once more, after its way is pointed and before
+// the attacks it draws from third parties are opened.
+export function isAnswerable(state: CombatState, open: Action): boolean {
+  return open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && getNextStep(state) === 'react')
+}
+
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
   if (open.status === 'rolled') {
-    if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
     if (isTriggeringAction(open) && isCancelled(state, open)) return 'confirm'
+    if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
+    // combat.tex "Push and drag": the winner points the way, then whoever
+    // it moves someone towards may answer it
+    if (open.kind === 'drag') return needsDragAim(state, open) ? 'aim' : !open.fought && getTriggers(state, open).length > 0 ? 'react' : 'confirm'
     if (open.kind === 'grapple' && needsDisarmPick(state, open)) return 'choose'
     return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }

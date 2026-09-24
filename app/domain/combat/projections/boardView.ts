@@ -5,6 +5,7 @@ import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from '../rules/action'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
+import { getCircleCells, getDragPath } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -41,6 +42,8 @@ export type BoardCellView = {
   zone: Degree | null
   // what lies on the floor here
   items: string[]
+  // where the actor of a settled push may circle round to
+  circle: boolean
 }
 
 export type BoardTokenView = {
@@ -70,6 +73,14 @@ export type BoardFloorItemView = {
   pickable: boolean
 }
 
+export type BoardGhostView = {
+  id: string
+  name: string
+  x: number
+  y: number
+  cells: { key: string; x: number; y: number }[]
+}
+
 // What a click on a cell does right now.
 export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 
@@ -83,6 +94,9 @@ export type BoardView = {
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
+  // combat.tex "Push and drag": where everyone the settled push moves will
+  // stand once it lands, drawn over the board before it does
+  ghosts: BoardGhostView[]
   // who a click on a pickable floor item picks it up for
   picker: string | null
   // characters in the fight with no place on the board yet
@@ -92,7 +106,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 // The move in play, whatever its phase: declared, committed, waiting on an
 // opportunity attack fought against it, or waiting to resolve. Its path
@@ -143,7 +157,18 @@ export function getBoardView(state: CombatState): BoardView {
   // chosen after the movement).
   const explosion = getPendingExplosion(state)
   // combat.tex "Push and drag": the way the pair is pushed is picked on the board
-  const aiming = (explosion !== null && isAimable(state, explosion)) || (open?.kind === 'drag' && open.status === 'declared')
+  // combat.tex "Push and drag": once settled, the winner points the push or
+  // picks where to circle on the board, until the third parties are fought
+  const settled = open?.kind === 'drag' && open.status === 'rolled' ? open : null
+  const pointing = settled !== null && !settled.fought && (settled.choice === 'push' || settled.choice === 'circle')
+  const aiming = (explosion !== null && isAimable(state, explosion)) || pointing
+  const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
+  const landed = settled ? getDragPath(state, settled)?.steps.at(-1) ?? {} : {}
+  const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
+    const c = state.characters[id]
+    if (!c) return []
+    return [{ id, name: c.fightName ?? '', ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
+  })
   const centers = new Set(explosion && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
   const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
   const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])
@@ -182,6 +207,7 @@ export function getBoardView(state: CombatState): BoardView {
       threatened: threatened.has(key),
       zone: zones.get(key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),
+      circle: circling.has(key),
     }
   })
 
@@ -236,6 +262,7 @@ export function getBoardView(state: CombatState): BoardView {
     cells,
     tokens,
     floor,
+    ghosts,
     picker: pickable.size > 0 ? picker : null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: c.fightName ?? '' })),
     mode: move ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',

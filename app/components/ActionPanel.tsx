@@ -2,7 +2,7 @@
 import { useCombatActions } from '../hooks/useCombatActions'
 import type { ActionOption, AttackOption, SpellOption, ImprovementOption } from '../domain/combat/rules/action'
 import type { MovementOption } from '../domain/combat/rules/move'
-import type { OpenActionView, ReactorOptions } from '../domain/combat/projections/actionPanel'
+import type { OpenActionView, PushView, ReactorOptions } from '../domain/combat/projections/actionPanel'
 import type { ActionReport } from '../domain/combat/projections/outcomes'
 import type { HOPOption } from '../domain/combat/rules/damage'
 import type { Outcome } from '../domain/character/rules/damage'
@@ -27,7 +27,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelTriggering, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, directions } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelTriggering, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, aim } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -43,7 +43,7 @@ export function ActionPanel(){
   }
 
   const rolled = step === 'spend' || step === 'choose' || step === 'confirm'
-  const locked = step === 'react' || rolled
+  const locked = step === 'react' || rolled || open.push !== null
   // before the commit the action is free to drop; one a reaction opened is
   // withdrawn along with the reaction instead
   const declared = !locked
@@ -70,18 +70,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {open.push && !locked ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>push</SectionLabel>
-          {[1, 2].map((m) =>
-            <Button key={m} size='xs' variant={open.push!.steps === m ? 'primary' : 'default'} className={open.push!.steps === m ? 'bg-accent/15' : ''}
-              title={m === 2 ? 'only on a force difference of 5 or more' : 'up to 1m'}
-              onClick={() => amend({ steps: m })}>
-              up to {m}m
-            </Button>)}
-          <span className='text-xs text-muted'>{open.push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span>
-        </div>
-      ) : null}
+      {open.push ? <PushAim push={open.push} onAim={aim} /> : null}
 
       {view.spells.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -152,7 +141,7 @@ export function ActionPanel(){
           {view.reactors.map((r) => {
             const answered = r.options.some((o) => o.chosen)
             if (r.strike) {
-              return <ReactorStrike key={r.id} reactor={r} directions={directions} onAmend={(fields) => amendReacted(r.id, fields)} />
+              return <ReactorStrike key={r.id} reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} />
             }
             return (
               <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
@@ -272,9 +261,9 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple' | 'drag'; maneuver?: GrappleManeuver; direction?: number; steps?: number }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple' | 'drag'; maneuver?: GrappleManeuver }
 
-function ReactorStrike({ reactor, directions, onAmend }: { reactor: ReactorOptions, directions: { index: number; arrow: string }[], onAmend: (fields: ReactorFields) => void }){
+function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
@@ -292,13 +281,7 @@ function ReactorStrike({ reactor, directions, onAmend }: { reactor: ReactorOptio
           {strike.maneuvers.map((m) => <Button key={m} size='xs' {...toggle(strike.maneuver === m)} onClick={() => onAmend({ maneuver: m })}>{m}</Button>)}
         </div>
       ) : null}
-      {strike.mode === 'drag' ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>push</SectionLabel>
-          {directions.map((d) => <Button key={d.index} size='xs' {...toggle(strike.direction === d.index)} onClick={() => onAmend({ direction: d.index })}>{d.arrow}</Button>)}
-          {[1, 2].map((m) => <Button key={m} size='xs' {...toggle(strike.steps === m)} onClick={() => onAmend({ steps: m })}>up to {m}m</Button>)}
-        </div>
-      ) : null}
+      {strike.mode === 'drag' ? <span className='text-xs text-muted'>which way is chosen once the push is settled</span> : null}
       {strike.mode === 'strike' ? <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>
@@ -329,9 +312,8 @@ function ReactorStrike({ reactor, directions, onAmend }: { reactor: ReactorOptio
             title='on a hit, the target is grappled' onClick={() => onAmend({ grab: !strike.grab })}>grab</Button>
         </div>
       ) : null}
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, or a runner has to be caught' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, nor a jumper in the air' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
       </> : null}
-      {strike.mode === 'drag' && strike.direction === null ? <span className='text-xs text-muted'>pick a direction</span> : null}
     </div>
   )
 }
@@ -458,4 +440,26 @@ function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
 function Cost({ cost }: { cost: ActionCost | null }){
   if (!cost) return null
   return <span className='font-mono text-muted'>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
+}
+
+const PUSH_WINNER = { attacker: 'the push wins', defender: 'pushed back', draw: 'a draw' } as const
+const PUSH_CHOICE = { push: 'push', circle: 'circle around', stay: 'stay' } as const
+
+// A settled push: who won, and the winner's way — push, circle round the
+// partner, or stay — pointed on the board.
+function PushAim({ push, onAim }: { push: PushView, onAim: (fields: { choice?: 'push' | 'circle' | 'stay'; steps?: number }) => void }){
+  const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>{PUSH_WINNER[push.winner]}</SectionLabel>
+        {push.choices.map((c) =>
+          <Button key={c.choice} size='xs' {...toggle(push.choice === c.choice)} disabled={!push.open || !c.available} onClick={() => onAim({ choice: c.choice })}>{PUSH_CHOICE[c.choice]}</Button>)}
+        {push.choice === 'push' ? push.distances.map((m) =>
+          <Button key={m} size='xs' {...toggle(push.steps === m)} disabled={!push.open} onClick={() => onAim({ steps: m })}>{m}m</Button>) : null}
+      </div>
+      {push.open && push.choice === 'push' ? <span className='text-xs text-muted'>{push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span> : null}
+      {push.open && push.choice === 'circle' ? <span className='text-xs text-muted'>{push.aimed ? 'click another marked cell to change it' : 'click a marked cell on the board to circle to'}</span> : null}
+    </div>
+  )
 }

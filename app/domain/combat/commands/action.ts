@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CombatState, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type CombatState, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
@@ -17,10 +17,12 @@ import {
   getReactionsTo,
   getRootTest,
   getTargetIds,
+  isAnswerable,
   isDeclarationComplete,
   needsDie,
 } from '../rules/action'
 import { resolveTest } from '../rules/test'
+import { getTriggersFor } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getAttackFacts, getHOPOptions, getStrikeTrample, isTripped, outcomeOf } from '../rules/damage'
 import { getExplosionFacts, isSpray } from '../rules/explosion'
@@ -29,7 +31,8 @@ import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from '../reduce'
 import { getCastFacts } from '../rules/cast'
 import { getCancellableRoot, getDrawnOpportunityAttacks, isCancelled, isTriggeringAction } from '../rules/opportunity'
-import { getDragFacts, getGrabFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
+import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
+import { sameCell } from '../geometry'
 import { getReachableFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -143,15 +146,28 @@ export function withdrawSpawnedAction(newId: () => string = () => `${Date.now()}
 export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed') return state
+    if (!open || !isAnswerable(state, open)) return state
     if (open.actorId === actorId && open.kind !== 'explosion') return state
     if (!findOption(state, actorId, draft)?.available) return state
-    const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: open.actorId, reactionTo: open.id })
-    return {
+    const trigger = getTriggersFor(state, open, actorId).find((t) => t.kind === draft.kind && t.at === ((draft as { at?: number | null }).at ?? t.at))
+    const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: trigger?.against ?? open.actorId, reactionTo: open.id })
+    return pruneReactions({
       ...state,
-      actions: [...state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId)), reaction],
-    }
+      actions: [...state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId && a.status !== 'resolved')), reaction],
+    })
   }
+}
+
+// Drops every reaction to the open action that its triggers no longer
+// offer: what a push moves someone into depends on the way it is pointed,
+// so a third party's opportunity attack goes when the way changes
+// (combat.tex "Push and drag").
+function pruneReactions(state: CombatState): CombatState {
+  const open = getOpenAction(state)
+  if (!open || !(open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && !open.fought))) return state
+  const kept = state.actions.filter((a) => a.reactionTo !== open.id || a.status === 'resolved' || getTriggersFor(state, open, a.actorId).some((t) =>
+    t.kind === a.kind && (a.kind !== 'opportunityAttack' || (t.at === a.at && (t.against ?? open.actorId) === a.targetId))))
+  return kept.length === state.actions.length ? state : { ...state, actions: kept }
 }
 
 // Fills in what the reactor's declared reaction still has to say — the
@@ -160,10 +176,10 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
 export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed') return state
-    const reaction = getReactionsTo(state, open.id).find((r) => r.actorId === actorId)
+    if (!open || !isAnswerable(state, open)) return state
+    const reaction = getReactionsTo(state, open.id).find((r) => r.actorId === actorId && r.status !== 'resolved')
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
-    return replaceActions(state, [ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })])
+    return pruneReactions(replaceActions(state, [ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })]))
   }
 }
 
@@ -172,8 +188,8 @@ export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Up
 export function withdrawReaction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed') return state
-    return { ...state, actions: state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId)) }
+    if (!open || !isAnswerable(state, open)) return state
+    return pruneReactions({ ...state, actions: state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId && a.status !== 'resolved')) })
   }
 }
 
@@ -181,8 +197,8 @@ export function withdrawReaction(actorId: string): Updater {
 export function withdrawLastReaction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed') return state
-    const last = getReactionsTo(state, open.id).at(-1)
+    if (!open || !isAnswerable(state, open)) return state
+    const last = getReactionsTo(state, open.id).filter((r) => r.status !== 'resolved').at(-1)
     return last ? withdrawReaction(last.actorId)(state) : state
   }
 }
@@ -242,6 +258,7 @@ export function rollAction(dice: Dice, newId: () => string = () => `${Date.now()
 export function payAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
+    if (open?.kind === 'drag' && open.status === 'rolled' && isAnswerable(state, open)) return fightPush(state, open, newId)
     if (!open || open.status !== 'committed' || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     const priced: Action[] = []
@@ -252,6 +269,39 @@ export function payAction(newId: () => string = () => `${Date.now()}`): Updater 
     }
     const committed = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
     return afterPaying(applyPhase(replaceActions(state, committed), committed, 'roll'), open.id, newId)
+  }
+}
+
+// combat.tex "Push and drag": the way pointed and answered, the attacks it
+// drew from third parties are opened, one after another, before it lands.
+// They were paid for by nobody yet: each opens a strike that is.
+function fightPush(state: CombatState, open: DragAction, newId: () => string): CombatState {
+  if (!areReactionsComplete(state, open)) return state
+  const live = getReactionsTo(state, open.id).filter((r) => r.status !== 'resolved')
+  const fought = replaceActions(state, [{ ...open, fought: true }, ...live.map((r): Action => ({ ...r, status: 'resolved' }))])
+  return advanceTriggering(fought, { ...open, fought: true }, newId)
+}
+
+// The winner's way for the push, once the grapple has answered: push along
+// a direction and how far, circle round to a cell, or stay. Only what the
+// outcome leaves open; third parties' answers to a way no longer taken go.
+export function aimPush(fields: { choice?: 'push' | 'circle' | 'stay'; direction?: number; steps?: number; to?: Coord }): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (!open || open.kind !== 'drag' || open.status !== 'rolled' || open.fought) return state
+    const outcome = getDragOutcome(state, open)
+    const choice = fields.choice ?? open.choice
+    if (!outcome || !choice || !getDragChoices(state, open).find((c) => c.choice === choice)?.available) return state
+    const changed = choice !== open.choice
+    const next: DragAction = {
+      ...open,
+      choice,
+      direction: choice !== 'push' ? null : fields.direction ?? (changed ? null : open.direction),
+      steps: Math.max(1, Math.min(fields.steps ?? open.steps, outcome.push || 1)),
+      to: choice !== 'circle' ? null : fields.to ?? (changed ? null : open.to),
+    }
+    if (next.to && !getCircleCells(state, next).some((c) => sameCell(c.cell, next.to!))) return state
+    return pruneReactions(replaceActions(state, [next]))
   }
 }
 
@@ -273,7 +323,7 @@ function afterPaying(state: CombatState, id: string, newId: () => string): Comba
 // reflexes cleared it moving out of the way first.
 function advanceTriggering(state: CombatState, root: TriggeringAction, newId: () => string): CombatState {
   const next = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => spawned === null)
-  if (next) return { ...state, actions: [...state.actions, getOpportunityAction(next.reaction, newId())] }
+  if (next) return { ...state, actions: [...state.actions, getOpportunityAction(state, next.reaction, newId())] }
   if (root.kind === 'explosion' && !isCancelled(state, root)) return { ...state, actions: [...state.actions, ...escapesBefore(state, root, newId)] }
   return state
 }
@@ -328,8 +378,11 @@ function advanceMove(state: CombatState, move: MoveAction, newId: () => string):
   if (getMoveOverride(state, move) !== null) return state
   const walked = getMoveFacts(state, move).path.length
   const next = getOpportunityAttacks(state, move).find(({ spawned }) => spawned === null)
-  if (!next || next.reaction.at! > walked) return state
-  const strike = getOpportunityAction(next.reaction, newId())
+  // a catch is fought where the runner already stands, so one on the last
+  // step still comes (combat.tex "Catch")
+  const catching = next?.reaction.grab && move.movement === 'run' ? 1 : 0
+  if (!next || next.reaction.at! - catching > walked) return state
+  const strike = getOpportunityAction(state, next.reaction, newId())
   const waypoint = getMoveWaypoint(state, move, next.reaction.at! - 1)
   const board = state.board && waypoint ? { ...state.board, placements: { ...state.board.placements, [move.actorId]: waypoint } } : state.board
   return { ...state, board, actions: [...state.actions, strike] }
@@ -441,7 +494,7 @@ export function refundImprovement(name: SpellModification): Updater {
 export function resolveAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'rolled' || getNextStep(state) === 'aim' || getNextStep(state) === 'choose') return state
+    if (!open || open.status !== 'rolled' || getNextStep(state) === 'aim' || getNextStep(state) === 'choose' || getNextStep(state) === 'react') return state
     const resolved: Action = isTriggeringAction(open) && isCancelled(state, open)
       ? { ...open, status: 'resolved', cancelled: true }
       : open.kind === 'strike' || open.kind === 'shoot'
@@ -452,9 +505,12 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
           if (open.kind === 'shoot') return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none' }
           // combat.tex "Initiate the Grab": "On a hit, the opponent is
           // grappled, and any movement initiated by them is stopped"
-          const grabbed = getGrabFacts(state, open)
+          // combat.tex "Catch": "If the target is stopped, the catcher can
+          // decide to grapple them without further tests"
+          const trample = getStrikeTrample(state, open)
+          const grabbed = open.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, open)
           const interruption: Interruption = grabbed && (outcome?.interruption ?? 'none') === 'none' ? 'interrupted' : outcome?.interruption ?? 'none'
-          return { ...open, status: 'resolved' as const, facts, interruption, tripped: isTripped(state, open), trample: getStrikeTrample(state, open), grabbed }
+          return { ...open, status: 'resolved' as const, facts, interruption, tripped: isTripped(state, open), trample, grabbed }
         })()
       : open.kind === 'grapple'
         ? { ...open, status: 'resolved', facts: getManeuverFacts(state, open) }
@@ -526,7 +582,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         const reactor = state.characters[reaction.actorId]
         const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
         if (!reactor || (distance !== null && distance > getMeleeRange(reactor))) return []
-        return [getOpportunityAction(reaction, newId())]
+        return [getOpportunityAction(state, reaction, newId())]
       }
       case 'follow':
         return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.cost?.AP ?? null, spawnedBy: reaction.id })]

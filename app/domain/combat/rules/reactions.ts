@@ -5,7 +5,7 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
-import { getGrappleGroup } from './grapple'
+import { getDragPath, getGrappleGroup } from './grapple'
 import { sameCell, setDistance } from '../geometry'
 
 // combat.tex "Reactions": "actions that can be performed on another
@@ -22,6 +22,11 @@ export type Trigger = {
   // the step of a move's path (counted from 1) at which the trigger fires;
   // null for a trigger that is not about a step
   at: number | null
+  // who the reaction is against, when not the root's actor: the one a push
+  // moves towards a third party
+  against?: string
+  // combat.tex "Catch": an opportunity to grab a runner and nothing else
+  catchOnly?: boolean
 }
 
 export function getTriggers(state: CombatState, root: Action): Trigger[] {
@@ -88,7 +93,8 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
 // resistance". "Push and drag": everyone dragged along answers it — resists,
-// helps, goes along, or lets go.
+// helps, goes along, or lets go — while committed; once its way is pointed,
+// the third parties it moves someone towards do.
 // combat.tex "Opportunity Attack": "standing up in melee range" triggers
 // one, an escape made to stand up as much as any — from the partner too,
 // who then answers with it instead of resisting (the table's ruling).
@@ -97,9 +103,41 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
     const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
     return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
   }
+  if (root.status !== 'committed') return root.status === 'rolled' && !root.fought ? pushTriggers(state, root) : []
   return getGrappleGroup(state.grapples, root.actorId)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
+}
+
+// combat.tex "Opportunity Attack": "moving towards a melee weapon while
+// within its attack range" — a push moves everyone dragged, and a third
+// party gets the attack against the first of them it moves closer from
+// within range, at that step, on the way the winner pointed.
+function pushTriggers(state: CombatState, root: DragAction): Trigger[] {
+  const path = getDragPath(state, root)
+  if (!path || path.steps.length === 0) return []
+  const movers = Object.keys(path.steps[0])
+  const start = (id: string) => state.board?.placements[id]
+  const triggers: Trigger[] = []
+  for (const id of Object.keys(state.characters)) {
+    const other = getPlacedFootprint(state, id)
+    const range = getMeleeRange(state.characters[id])
+    if (movers.includes(id) || !other || range === 0) continue
+    const hit = movers.flatMap((m) => {
+      const c = state.characters[m]
+      const from = start(m)
+      if (!c || !from) return []
+      let previous = setDistance(getFootprint(c, from), other)
+      for (const [i, step] of path.steps.entries()) {
+        const now = setDistance(getFootprint(c, step[m]), other)
+        if (previous <= range && now < previous) return [{ at: i + 1, against: m }]
+        previous = now
+      }
+      return []
+    }).sort((a, b) => a.at - b.at)[0]
+    if (hit) triggers.push({ characterId: id, kind: 'opportunityAttack', ...hit })
+  }
+  return triggers
 }
 
 // combat.tex "Explosions": "defended against with a reflex test"; "Sprays":
@@ -171,6 +209,16 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
         break
       }
       previous = distance
+    }
+    // combat.tex "Catch": "someone tries to initiate a grapple against a
+    // running target" — one with a grapple row may grab a runner once the
+    // run has brought them within its reach, as nobody else may; fought, as
+    // every attack on a mover is, with the mover stood where the step before
+    // `at` left them — here, the first step in reach
+    const grab = root.movement === 'run' ? Math.max(getMeleeRange(state.characters[id], 'grapple I'), getMeleeRange(state.characters[id], 'grapple II')) : 0
+    if (grab > 0) {
+      const inReach = path.findIndex((cell) => setDistance(getFootprint(mover, { ...from, cell }), other) <= grab)
+      if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
     }
     // combat.tex "Hook Attack": "a reaction against running targets that
     // move away from the weapon within two spaces, which are both inside its

@@ -11,7 +11,7 @@ import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 import { getMoveTramples } from './trample'
-import { isImmobile, isInGrapple } from './grapple'
+import { canMoveInGrapple, isImmobile, isInGrapple, isInGrappleArea } from './grapple'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -95,10 +95,12 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // surge": the surge allows "running until the end of the turn"). A move a
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
-// character can run"). combat.tex "Grapple": one in a grapple "cannot move
-// without dragging the other grappler" — they push or drag instead, and get
-// up by escaping ("Escape is also used for trying to stand up while
-// grappled"); "Immobile: Cannot move".
+// character can run"). combat.tex "Grappled": "Movement requires pushing or
+// dragging the other participants in the grapple" — unless it stays within
+// the grapple area, open to one whose Force is no more than 5 below every
+// partner's (combat.tex "Push and drag"); they get up by escaping ("Escape
+// is also used for trying to stand up while grappled"); "Immobile: Cannot
+// move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = getAfflictions(c).includes('prone')
   const swimming = isInLiquid(state, c)
@@ -107,7 +109,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const immobile = isImmobile(c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
-      : held ? { available: false, reason: 'grappled: push or drag instead' }
+      : held && !canMoveInGrapple(state, c) ? { available: false, reason: 'grappled: push or drag instead' }
       : movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
@@ -184,10 +186,14 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     const footprint = getFootprint(c, { ...from, cell, orientation })
     if (footprint.some(ground.blocked)) return false
     if (footprint.some(ground.liquid) !== (action.movement === 'swim')) return false
+    if (!isInGrappleArea(state, c.id, footprint)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }
-  return true
+  // combat.tex "Trample": the opponent "moves back one space" — not
+  // possible against a blocked cell, so neither is the path (the table's
+  // ruling)
+  return !getMoveTramples(state, action, action.path).blocked
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -502,7 +508,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   }
   const crossable = (cell: Coord) => {
     const footprint = getFootprint(c, { ...from, cell })
-    return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim')
+    return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim') && isInGrappleArea(state, c.id, footprint)
   }
 
   const seen = new Set([coordKey(from.cell)])
@@ -518,6 +524,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
         if (seen.has(key) || !crossable(n)) continue
         seen.add(key)
         const walked = [...path, n]
+        if (getMoveTramples(state, { ...action, path: walked }, walked).blocked) continue
         next.push({ cell: n, path: walked })
         if (canRest(state, c, getFootprint(c, { ...from, cell: n }), ground)) reachable.push({ cell: n, steps, cost, path: walked })
       }

@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { CombatStateSchema, type CombatState } from '../types'
+import { CombatStateSchema, type CombatState, type MoveAction } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { DEGREES, ItemSchema, type CampaignCharacter } from '../../types'
 import { GRAPPLE_MANEUVERS, MOVEMENT_KINDS } from '../../lists'
 import { holdItem } from '../../item/commands/hands'
 import { settleGrapples } from '../commands/grapple'
 import { getAvailableActions, getOpenAction, getRootTest } from './action'
-import { getMovementOptions } from './move'
+import { getMovementOptions, getReachableCells } from './move'
+import { distance } from '../geometry'
+import { skillLenses } from '../../character/lenses'
+import { getForce } from '../../character/rules/skills'
 import { chooseManeuver, commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 function fighter(id: string): CampaignCharacter {
@@ -38,13 +41,29 @@ function rollOver(s: CombatState, over: number): CombatState {
 const OVER = { critical: 10, hit: 5, graze: 0, miss: -1 } as const
 
 describe('grapple', () => {
-  // combat.tex "Grapple": "When a character is under the effect of grapple,
-  // it cannot move without dragging the other grappler"; "Escape is also used
+  // combat.tex "Grappled": "Movement requires pushing or dragging the other
+  // participants in the grapple"; "Push and drag": "Moving within the
+  // grapple area, without displacing the opponent, is possible if Force is
+  // no lower than 5 points lower than the opponent"; "Escape is also used
   // for trying to stand up while grappled".
-  it.each(['a', 'b'])('closes every movement and standing up to %s while in the grapple', (id) => {
+  it.each(['a', 'b'] as const)('lets %s move around the partner but not out of the grapple, nor stand up', (id) => {
     const s = grappling()
+    const partner = s.board!.placements[id === 'a' ? 'b' : 'a'].cell
     const moves = getMovementOptions(s, s.characters[id])
-    for (const kind of [...MOVEMENT_KINDS, 'stand'] as const) expect(moves.find((m) => m.kind === kind)?.available).toBe(false)
+    expect(moves.find((m) => m.kind === 'stand')?.available).toBe(false)
+    const move = getOpenAction(declareAction(id, { kind: 'move', movement: 'basic' }, newId)(s))
+    const reachable = getReachableCells(s, move as MoveAction)
+    expect(reachable.length).toBeGreaterThan(0)
+    for (const r of reachable) expect(distance(r.cell, partner)).toBeLessThanOrEqual(1)
+  })
+
+  it.each(['a', 'b'] as const)('closes every movement to %s when more than 5 Force below the partner', (id) => {
+    const s = grappling()
+    const other = id === 'a' ? 'b' : 'a'
+    const strong = skillLenses.force.set(s.characters[other], getForce(s.characters[id]) + 6) as CampaignCharacter
+    const weaker = { ...s, characters: { ...s.characters, [other]: strong } }
+    const moves = getMovementOptions(weaker, weaker.characters[id])
+    for (const kind of MOVEMENT_KINDS) expect(moves.find((m) => m.kind === kind)?.available).toBe(false)
   })
 
   // The table's ruling: "the grapplers must have a grapple property attack

@@ -1,7 +1,7 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
-  return action.kind === 'cast' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'pickUp' || action.kind === 'grapple'
+  return action.kind === 'cast' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'pickUp' || action.kind === 'grapple' || action.kind === 'drag'
 }
 
 // combat.tex "Opportunity Attack": each threatener the action drew gets one
@@ -21,10 +21,11 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Triggerin
 // that lands with interruption cancels it, same as its actor giving it up
 // to answer one actively (`cancelTriggeringAction`). A push that moved or
 // stopped the actor interrupted them too (combat.tex "Push and drag":
-// "interrupts them").
+// "interrupts them"). One fought against someone else — a third party's
+// against whoever a push moved at them — does not stop the actor.
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
   return action.cancelled || getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.status === 'resolved' && (
-    (spawned.kind === 'strike' && spawned.interruption !== 'none')
+    (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
     || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
 }
 

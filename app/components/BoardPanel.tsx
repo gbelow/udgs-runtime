@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
-import type { BoardCellView, BoardFloorItemView, BoardTokenView } from '../domain/combat/projections/boardView'
+import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardTokenView } from '../domain/combat/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
@@ -11,7 +11,7 @@ const MODE_LABEL = {
   idle: 'click a cell to place the active character, or an item to pick it up',
   path: 'click cells to walk the move',
   jump: 'click a cell to jump there',
-  aim: 'click a cell to aim the explosion',
+  aim: 'click a cell to aim',
   locked: 'an action is open',
 } as const
 
@@ -61,6 +61,7 @@ export function BoardPanel(){
       <svg viewBox={view.viewBox} className='w-full select-none' role='img' aria-label='board'>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
+        {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId, f.pickable)} />)}
       </svg>
 
@@ -113,7 +114,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
   const fill = cell.isJumpTo ? 'fill-good/40'
     : cell.pathStep !== null ? 'fill-accent/40'
     : cell.zone ? ZONE_FILL[cell.zone]
-    : cell.reachable || cell.jump || cell.center ? 'fill-good/15'
+    : cell.reachable || cell.jump || cell.center || cell.circle ? 'fill-good/15'
     : cell.threatened ? 'fill-bad/10'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
@@ -123,6 +124,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     cell.elevation ? `${cell.elevation} m` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,
+    cell.circle ? 'circle here' : null,
     cell.center ? 'aim here' : null,
     cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
     cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
@@ -160,6 +162,21 @@ function FloorItem({ item, onClick }: { item: BoardFloorItemView, onClick: () =>
       <title>{item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`}</title>
       <rect x={-0.16} y={-0.16} width={0.32} height={0.32} rx={0.05}
         className={item.pickable ? 'fill-accent stroke-fg hover:fill-good' : 'fill-muted stroke-line'} strokeWidth={0.04} />
+    </g>
+  )
+}
+
+// Where someone the settled push moves will stand once it lands: an outline
+// of their token, clicks passing through to the board beneath.
+function Ghost({ ghost, hex }: { ghost: BoardGhostView, hex: string }){
+  return (
+    <g className='pointer-events-none'>
+      <title>{`${ghost.name} ends here`}</title>
+      {ghost.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-accent/10 stroke-none' />)}
+      <g transform={`translate(${ghost.x} ${ghost.y})`}>
+        <circle r={0.62} className='fill-none stroke-accent' strokeWidth={0.06} strokeDasharray='0.15 0.1' />
+        <text textAnchor='middle' dominantBaseline='central' className='fill-accent' fontSize={0.45}>{ghost.name.slice(0, 2)}</text>
+      </g>
     </g>
   )
 }
