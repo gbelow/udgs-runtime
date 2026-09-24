@@ -46,7 +46,17 @@ export const ACTIONS = {
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false },
-  follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },} as const satisfies Record<ActionKind, ActionDef>
+  follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
+  // combat.tex "Grapple Maneuvers": a grapple test against the partner's
+  grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true },
+  // combat.tex "Push and drag": "a force vs force comparison", no die
+  drag:        { label: 'push or drag', type: 'action',   price: 'pushDrag',    reactsTo: [],         die: false },
+  // letting go of a partner who does not hold back costs nothing
+  release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false },
+  // combat.tex "Grapple Maneuvers", "Push and drag": the defender's 2 AP +
+  // 1 STA that spares them the -5
+  resist:      { label: 'resist',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },
+} as const satisfies Record<ActionKind, ActionDef>
 
 export function isReaction(kind: ActionKind): boolean {
   return ACTIONS[kind].type === 'reaction'

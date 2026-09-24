@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CastAction, CombatState, Coord, HitLocation, MoveStop } from '../types'
+import type { Action, ActionRoll, CastAction, CombatState, Coord, GrappleManeuver, HitLocation, MoveStop } from '../types'
 import type { Area, CampaignCharacter, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -19,6 +19,7 @@ import {
   getAttackOptions,
   isVariantOpen,
   getAttackTerms,
+  getManeuverTerms,
   getAvailableActions,
   getDLTerms,
   getDeclaredCost,
@@ -38,6 +39,8 @@ import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
+import { canGrab, getDragFacts, getDragTerms, getManeuverFacts, isGrappleRowOf } from '../rules/grapple'
+import { getGrappleNotes } from './outcomes'
 
 // Everyone with a reaction to the open action, each with their options —
 // and, for one who has chosen an opportunity attack, the strike it opens
@@ -46,7 +49,7 @@ export type ReactorOptions = {
   id: string
   name: string
   options: ActionOption[]
-  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean } | null
+  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean; grab: boolean; grabbable: boolean } | null
   // spells.tex "Concentration": still theirs to give up, to answer with
   // anything but the SD (`cancelCast`)
   concentrating: boolean
@@ -58,7 +61,16 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
       const strike = declared?.kind === 'opportunityAttack'
-        ? { options: getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)), locations: getLocationOptions(), attack: declared.attack, variant: declared.variant, location: declared.location, complete: isDeclarationComplete(state, c, declared) }
+        ? {
+            options: getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
+            locations: getLocationOptions(),
+            attack: declared.attack,
+            variant: declared.variant,
+            location: declared.location,
+            complete: isDeclarationComplete(state, c, declared),
+            grab: declared.grab,
+            grabbable: canGrab(state, declared, declared.targetId ?? ''),
+          }
         : null
       return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, concentrating: isConcentrating(state, open, c.id) }
     })
@@ -102,6 +114,16 @@ export type OpenActionView = {
   walked: { cells: number; stop: MoveStop } | null
   // an opportunity attack, or a follow: what opened it
   spawned: boolean
+  // combat.tex "Grapple": a strike made as a grab; the maneuver declared and
+  // whether a hit is to be bought by the attacker's own commitment (null
+  // where the maneuver has none); where a push goes, whether it has been
+  // pointed yet, and how far it means to
+  grab: boolean
+  maneuver: GrappleManeuver | null
+  along: boolean | null
+  push: { aimed: boolean; steps: number } | null
+  // once rolled or compared: what it does to the grapple
+  grapple: { target: string; text: string }[]
   cost: ActionCost | null
   // every reaction declared so far, by whom, and its own test once thrown
   reactions: { actor: string; label: string; cost: ActionCost | null; roll: ActionRoll | null }[]
@@ -133,6 +155,8 @@ export type ActionPanelView = {
   // whether the open action is closed by a die or by paying, and at `react`
   // whether that close is open
   die: boolean
+  // a comparison with no die (combat.tex "Push and drag"): both sides shown
+  compare: boolean
   canRoll: boolean
   canPay: boolean
   // an evasive jump is declared but has not picked its landing yet
@@ -158,7 +182,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -185,12 +209,18 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const die = needsDie(state, open)
   const affordable = !!actor && canPay(actor, getDeclaredCost(actor, open))
   const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
+  const grapple = open.kind === 'grapple' ? open : null
+  const drag = open.kind === 'drag' ? open : null
+  const dragTerms = drag ? getDragTerms(state, drag) : null
+  const settled = grapple && grapple.status === 'rolled' ? { ...grapple, facts: getManeuverFacts(state, grapple) }
+    : drag && drag.status === 'rolled' ? { ...drag, facts: getDragFacts(state, drag) }
+    : null
 
   return {
     step,
     open: {
       id: open.id,
-      label: ACTIONS[open.kind].label,
+      label: open.kind === 'strike' && open.grab ? 'grab' : grapple ? grapple.maneuver : ACTIONS[open.kind].label,
       actor: actor?.fightName ?? '',
       target: target?.fightName ?? null,
       targetId: open.targetId,
@@ -207,6 +237,11 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
       spawned: open.spawnedBy !== null,
+      grab: open.kind === 'strike' && open.grab,
+      maneuver: grapple?.maneuver ?? null,
+      along: grapple && grapple.maneuver !== 'escape' ? grapple.along : null,
+      push: drag ? { aimed: drag.direction !== null, steps: drag.steps } : null,
+      grapple: settled ? getGrappleNotes(state, settled) : [],
       cost: actor ? getDeclaredCost(actor, open) : null,
       reactions: reactions.map((r) => ({
         actor: state.characters[r.actorId]?.fightName ?? '',
@@ -214,14 +249,16 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
         roll: r.roll,
       })),
-      score: breakdown(attack && actor ? getAttackTerms(actor, attack) : cast && actor ? getCastTerms(actor, cast) : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
-      DL: breakdown(attack || explosion || cast ? getDLTerms(state, open) : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
+      score: breakdown(attack ? getAttackTerms(state, attack) : cast && actor ? getCastTerms(actor, cast) : grapple && actor ? getManeuverTerms(actor) : dragTerms ? dragTerms.attacker : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
+      DL: breakdown(attack || explosion || cast || grapple ? getDLTerms(state, open) : dragTerms ? dragTerms.defender : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
       roll: open.roll,
     },
     report: null,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown') ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant)) : [],
+    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown')
+      ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
+      : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.status === 'declared' ? getChargeOptions(state) : [],
     locations: attack ? getLocationOptions() : [],
@@ -231,6 +268,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       : null,
     canCommit: step === 'commit' && affordable,
     die,
+    compare: drag !== null,
     canRoll: step === 'react' && die && areReactionsComplete(state, open),
     canPay: step === 'react' && !die && affordable && areReactionsComplete(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),

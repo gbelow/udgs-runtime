@@ -1,10 +1,11 @@
-import type { Action, ActionRoll, CombatState } from '../types'
+import type { Action, ActionRoll, CombatState, DragFacts, GrappleFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { ACTIONS } from '../actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getAttackFacts, outcomeOf } from '../rules/damage'
 import { getExplosionFacts } from '../rules/explosion'
+import { getManeuverFacts } from '../rules/grapple'
 
 // The outcome of the open action on everyone it lands on, as it would land
 // now: the same function the resolution applies, so the preview and the
@@ -21,11 +22,43 @@ export function getOutcomePreviews(state: CombatState, root: Action): { id: stri
       })
     })
   }
+  if (root.kind === 'grapple') return deliveryOutcomes(state, (root.facts ?? getManeuverFacts(state, root))?.deliveries ?? {})
   if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return []
   const target = state.characters[root.targetId]
   const facts = root.facts ?? getAttackFacts(state, root)
   const outcome = target && facts ? outcomeOf(facts, target) : null
   return outcome ? [{ id: root.targetId, outcome }] : []
+}
+
+function deliveryOutcomes(state: CombatState, deliveries: Record<string, Delivery[]>): { id: string; outcome: Outcome }[] {
+  return Object.entries(deliveries).flatMap(([id, ds]) => {
+    const target = state.characters[id]
+    return ds.flatMap((d) => {
+      const outcome = target ? outcomeOf(d, target) : null
+      return outcome ? [{ id, outcome }] : []
+    })
+  })
+}
+
+// What an action did to a grapple, a line per character it changed:
+// grabbed, let go, knocked down, pinned, pushed.
+export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
+  const named = (id: string) => state.characters[id]?.fightName ?? ''
+  if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
+  const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' ? root.facts : null
+  if (!facts) return []
+  const lines = facts.pair.flatMap((id) => [
+    ...((facts.on[id] ?? []).length > 0 ? [{ target: named(id), text: (facts.on[id] ?? []).join(', ') }] : []),
+    ...((facts.off[id] ?? []).length > 0 ? [{ target: named(id), text: `no longer ${(facts.off[id] ?? []).join(', ')}` }] : []),
+  ])
+  if (facts.grapple === null) return [...lines, { target: facts.pair.map(named).join(' and '), text: 'apart' }]
+  if (root.kind === 'strike') return [{ target: named(facts.pair[1]), text: 'grabbed' }, ...lines]
+  return lines.length > 0 ? lines : [{ target: facts.pair.map(named).join(' and '), text: 'still grappling' }]
+}
+
+function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
+  const moved = Object.keys(facts.to)
+  return moved.length > 0 ? [{ target: moved.map(named).join(' and '), text: `moved ${facts.steps}m` }] : [{ target: '', text: 'nobody moves' }]
 }
 
 // What an action delivered, per character: a strike's single effect to its
@@ -34,6 +67,9 @@ export function getOutcomePreviews(state: CombatState, root: Action): { id: stri
 function getDeliveries(root: Action): { id: string; delivery: Delivery }[] {
   if (root.kind === 'explosion' || root.kind === 'cast') {
     return Object.entries(root.facts ?? {}).flatMap(([id, deliveries]) => deliveries.map((delivery) => ({ id, delivery })))
+  }
+  if (root.kind === 'grapple') {
+    return Object.entries(root.facts?.deliveries ?? {}).flatMap(([id, deliveries]) => deliveries.map((delivery) => ({ id, delivery })))
   }
   if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId || !root.facts) return []
   return [{ id: root.targetId, delivery: root.facts }]
@@ -70,7 +106,7 @@ export function getLastReport(state: CombatState): ActionReport | null {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
       return [{ target: named(id), text: `${delivery.effect.name}${waiting}` }]
-    }).concat(getChargeNote(state, root)),
+    }).concat(getChargeNote(state, root), getGrappleNotes(state, root)),
   }
 }
 
@@ -89,6 +125,7 @@ function getChargeNote(state: CombatState, root: Action): { target: string; text
 // The spell names a cast that delivered nothing, and the kind names the
 // rest.
 function getActionLabel(root: Action, delivered: string | undefined): string {
+  if (root.kind === 'grapple') return root.maneuver
   if (delivered) return delivered
   if ((root.kind === 'cast' || root.kind === 'explosion') && isSpellKey(root.key)) return SPELLS[root.key].name
   return ACTIONS[root.kind].label

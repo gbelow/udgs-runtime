@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../types'
-import type { Action, Board, CombatState, Trample } from './types'
+import type { Action, Board, CombatState, Grapple, GrappleFacts, Trample } from './types'
 import { payCost } from '../character/commands/cost'
 import { deliver } from '../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem } from '../item/commands/hands'
@@ -29,7 +29,8 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // command that made the transition; what the action delivers is handed to
 // the character's own effect processor, which needs nothing but the record.
 export function reduceCharacter(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
+  return (before: CampaignCharacter) => {
+    const c = phase === 'resolve' ? settleGrapple(getGrappleFacts(action), before) : before
     switch (phase) {
       case 'roll':
         if (c.id !== action.actorId || !action.cost) return c
@@ -75,6 +76,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) as CampaignCharacter : delivered
         }
+        if (action.kind === 'drag') return c
         if (action.kind !== 'strike' && action.kind !== 'shoot') return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
@@ -110,6 +112,35 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
   const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
   if (!wielded || wielded.natural || !atk || getAttackKind(atk.range) !== 'throw') return c
   return consumeItem(wielded.itemId)(c) as CampaignCharacter
+}
+
+// What a grab, a maneuver or a letting go wrote down about the grapple.
+function getGrappleFacts(action: Action): GrappleFacts | null {
+  if (action.kind === 'strike') return action.grabbed
+  if (action.kind === 'grapple' || action.kind === 'release') return action.facts
+  return null
+}
+
+// combat.tex "Grapple": the afflictions the grapple put on and took off the
+// character, and what its holds dealt them ("Grapple Maneuvers").
+function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): CampaignCharacter {
+  if (!facts) return c
+  const on = facts.on[c.id] ?? []
+  const off = facts.off[c.id] ?? []
+  const afflicted = on.length === 0 && off.length === 0 ? c : { ...c, afflictions: [...new Set([...c.afflictions.filter((a) => !(off as string[]).includes(a)), ...on])] }
+  return (facts.deliveries[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), afflicted)
+}
+
+// The one place an action changes who is in a grapple with whom: the pair's
+// grapple replaced with what the action left of it.
+export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple[]) => Grapple[] {
+  return (grapples: Grapple[]) => {
+    const facts = phase === 'resolve' ? getGrappleFacts(action) : null
+    if (!facts) return grapples
+    const [a, b] = facts.pair
+    const rest = grapples.filter((g) => !(g.members.includes(a) && g.members.includes(b)))
+    return facts.grapple ? [...rest, facts.grapple] : rest
+  }
 }
 
 function fallProne(c: CampaignCharacter): CampaignCharacter {
@@ -158,6 +189,8 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       if (!jump || jump.kind !== 'evasiveJump' || !jump.to) return { ...board, placements }
       return { ...board, placements: { ...placements, [jump.actorId]: jump.to } }
     }
+    // combat.tex "Push and drag": the pair where the push left them
+    if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas": what the explosion leaves on the ground, by zone
     if (action.kind === 'explosion') {
       const terrain = { ...board.terrain }

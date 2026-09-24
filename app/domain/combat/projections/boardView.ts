@@ -123,7 +123,8 @@ export function getBoardView(state: CombatState): BoardView {
   // until the blast is confirmed (combat.tex "Sprays": the direction is
   // chosen after the movement).
   const explosion = getPendingExplosion(state)
-  const aiming = explosion !== null && isAimable(state, explosion)
+  // combat.tex "Push and drag": the way the pair is pushed is picked on the board
+  const aiming = (explosion !== null && isAimable(state, explosion)) || (open?.kind === 'drag' && open.status === 'declared')
   const centers = new Set(explosion && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
   const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
   const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])

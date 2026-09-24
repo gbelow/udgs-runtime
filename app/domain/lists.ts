@@ -162,6 +162,14 @@ export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim
 // Moves that change posture and cross no cells.
 export const POSTURES = ['stand', 'prone'] as const
 
+// combat.tex "Grapple Maneuvers": "escape, immobilize, disarm, or knock down".
+// Disarm waits on somewhere for a dropped item to go.
+export const GRAPPLE_MANEUVERS = ['escape', 'immobilize', 'knockdown'] as const
+
+// The afflictions a grapple puts on and takes off: "grappled", and what the
+// immobilize and knockdown maneuvers leave.
+export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile', 'prone'] as const
+
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
 export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'raise', 'lower', 'clear'] as const

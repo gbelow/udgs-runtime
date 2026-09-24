@@ -33,6 +33,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   inTurnCharacter: '',
   actions: [],
   board: null,
+  grapples: [],
 
   updateCombatState: (updater) => {
     set( updater)
@@ -78,6 +79,6 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       if (getOpenAction(s)) return s
       const { [id]: _, ...rest } = s.characters
       const { [id]: _placement, ...placements } = s.board?.placements ?? {}
-      return { characters: rest, board: s.board ? { ...s.board, placements } : null }
+      return { characters: rest, board: s.board ? { ...s.board, placements } : null, grapples: s.grapples.filter((g) => !g.members.includes(id)) }
     })
 }))

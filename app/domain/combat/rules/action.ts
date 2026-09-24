@@ -5,10 +5,10 @@ import { GRAZE_SAVE, LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModif
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill } from '../../character/rules/spells'
 import { getEffectRange, getTargetEffects } from '../../character/rules/production'
-import { HIT_LOCATIONS } from '../../lists'
+import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/rules/hands'
 import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/rules/gear'
-import { getAccuracy, getDefend, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getAccuracy, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getAGI } from '../../character/rules/characteristics'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getBuffBonus } from '../../character/rules/effects'
@@ -22,6 +22,7 @@ import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
 import { isCastCancelled } from './cast'
+import { canGrab, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, hasGrappleRow, isGrappleReach, isImmobile } from './grapple'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
@@ -69,7 +70,7 @@ export function findWeaponRow(c: Character, weaponKey: string, attack: string): 
 
 // gear.tex "Size Scaling", "Small/One/Two hands": a row the character can fire
 // right now.
-function isRowUsable(c: Character, row: WeaponRow): boolean {
+export function isRowUsable(c: Character, row: WeaponRow): boolean {
   return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
 }
 
@@ -107,8 +108,8 @@ export function getAttackVariant(c: Character, action: WeaponAction): AttackVari
 // committed already, since the reaction was, and aimed at whoever it
 // answers.
 export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, location } = reaction
-  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
+  const { weaponKey, attack, variant, location, grab } = reaction
+  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
 }
 
 // The fight as it will stand when the opportunity attack is fought: against
@@ -130,7 +131,7 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant)
+      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack))
     case 'shoot':
       return getAttackVariant(c, action) !== null
     // thrown, the row is declared and can be fired; cast, the spell was;
@@ -159,13 +160,30 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const strike = getOpportunityStrike(action, '')
       const fought = getOpportunityState(state, action)
       return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
+        && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
+    // combat.tex "Grapple Maneuvers": made with a grapple row
+    case 'grapple':
+      return hasGrappleRow(c)
+    // combat.tex "Push and drag": pushed somewhere on the board
+    case 'drag':
+      return action.direction !== null && state.board !== null
+    case 'release':
+    case 'resist':
+      return true
     case 'evade':
     case 'evasion':
     case 'avoidExplosion':
     case 'follow':
       return true
   }
+}
+
+// combat.tex "Catch": a running target is caught, not grabbed — and the
+// book's "Interruption" does not cancel a run or a jump either.
+function isUncatchable(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
+  const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  return root?.kind === 'move' && (root.movement === 'run' || root.movement === 'jump')
 }
 
 // Whether the strike may be declared as this variation where it is made.
@@ -292,11 +310,17 @@ function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
 // combat.tex "Accuracy": a shot is the Accuracy test instead, and the way of
 // shooting may carry a bonus of its own (abilities.tex "Elite Sniper":
 // "Snipe gets +1|2|3 to hit").
-export function getAttackTerms(c: CampaignCharacter, action: AttackAction): Term[] {
+// combat.tex "Attack and Defend": a grapple row "can use the grapple skill
+// instead of strike to attack during a grapple".
+export function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
+  const c = state.characters[action.actorId]
+  if (!c) return []
   const variant = getAttackVariant(c, action)
   const shot = action.kind === 'shoot' ? getShotKind(action.variant) : null
+  const grapple = action.kind === 'strike' ? getGrappleStrikeTerm(state, action) : null
+  const strike = { label: 'strike', value: getStrike(c) }
   return [
-    action.kind === 'strike' ? { label: 'strike', value: getStrike(c) } : { label: 'accuracy', value: getAccuracy(c) },
+    action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     { label: action.location, value: -LOCATIONS[action.location].penalty },
@@ -340,7 +364,7 @@ export function getShotDefense(state: CombatState, root: Action): Action | null 
 
 // combat.tex "Defend": the DL a strike is scored against is the defender's
 // Defend if they react, "otherwise, they use the SD" (creating.tex "Standard
-// Deflection"). An evasive jump "gives +AGI/3 on the skill test"; "Blocking
+// Deflection"). An evasive jump "gives +AGI/2 on the skill test"; "Blocking
 // with a shield adds its cover to defend".
 // combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
 // against each other" — on the SD as much as on an active defense.
@@ -355,6 +379,8 @@ export function getCastTerms(c: CampaignCharacter, action: CastAction): Term[] {
 
 export function getDLTerms(state: CombatState, root: Action): Term[] {
   if (root.kind === 'explosion') return getExplosionDLTerms(state, root)
+  if (root.kind === 'grapple') return getManeuverDLTerms(state, root)
+  if (root.kind === 'drag' || root.kind === 'release') return []
   if (root.kind === 'cast') {
     if (!isSpellKey(root.key)) return []
     return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
@@ -396,7 +422,11 @@ export function getRootTest(state: CombatState, root: Action): Test | null {
   switch (root.kind) {
     case 'strike':
     case 'shoot':
-      return { skill: sumTerms(getAttackTerms(actor, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
+      return { skill: sumTerms(getAttackTerms(state, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
+    // combat.tex "Grapple Maneuvers": the grapple skill against the
+    // partner's, on the four degrees ("on a critical", "on a hit")
+    case 'grapple':
+      return { skill: sumTerms(getManeuverTerms(actor)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
     case 'move':
       return { skill: sumTerms(getBalanceTestTerms(actor)), DL: getBalanceDL(state, root), explodes: false, scale: 'degrees' }
     case 'cast':
@@ -404,6 +434,10 @@ export function getRootTest(state: CombatState, root: Action): Test | null {
     default:
       return null
   }
+}
+
+export function getManeuverTerms(c: Character): Term[] {
+  return [{ label: 'grapple', value: getGrapple(c) }]
 }
 
 // A reaction that is a test of its own, scored against the root's DL.
@@ -466,6 +500,7 @@ export function isConcentrating(state: CombatState, root: Action, defenderId: st
 
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
+  if (isImmobile(defender)) return { available: false, reason: 'immobile' }
   if (reactsTo(kind, 'strike') && getConcentratingCast(state, root, defender.id)) return { available: false, reason: 'cancel the spell to defend actively' }
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
@@ -510,13 +545,24 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     const explosions = getAttackOptions(c, 'explosion').filter((o) => hasExplosionPayload(c, o.weaponKey, o.attack))
     const spells = getSpellOptions(c)
     const placed = state.board?.placements[c.id] !== undefined
-    return [
+    const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
+    return closeIfImmobile(c, [
       {
         label: ACTIONS.strike.label,
         draft: { kind: 'strike' },
         cost: null,
         available: strikes.length > 0,
         reason: strikes.length > 0 ? null : 'no melee weapon in hand',
+        reactionTo: null,
+        chosen: false,
+      },
+      // combat.tex "Initiate the Grab": a strike with a grapple row
+      {
+        label: 'grab',
+        draft: { kind: 'strike', grab: true },
+        cost: null,
+        available: grabs.length > 0,
+        reason: grabs.length > 0 ? null : 'no grapple weapon in hand',
         reactionTo: null,
         chosen: false,
       },
@@ -569,7 +615,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         reactionTo: null,
         chosen: false,
       },
-    ]
+      ...getGrappleOptions(state, c),
+    ])
   }
 
   // the actor answers nothing of their own — except a blast, which reaches
@@ -619,6 +666,35 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         return [option(ACTIONS[kind].label, { kind })]
     }
   })
+}
+
+// combat.tex "Grapple": what a character in a grapple can do about it — the
+// maneuvers ("must ... have the grapple property"), pushing or dragging the
+// partner, and letting go of one who does not hold back. Nothing, outside
+// of one.
+function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOption[] {
+  if (getPartners(state, c.id).length === 0) return []
+  const option = (label: string, draft: ActionDraft, cost: ActionCost | null, reason: string | null): ActionOption =>
+    ({ label, draft, cost, available: reason === null, reason, reactionTo: null, chosen: false })
+  const maneuver = getActionCost(c, 'grappleManeuver')
+  const drag = getActionCost(c, 'pushDrag')
+  const placed = state.board?.placements[c.id] !== undefined
+  return [
+    ...GRAPPLE_MANEUVERS.map((m) => {
+      const targets = getManeuverTargets(state, c.id, m)
+      const reason = !hasGrappleRow(c) ? 'no grapple weapon in hand' : targets.length === 0 ? 'nobody holds you' : !canAfford(c, maneuver) ? 'cannot afford' : null
+      return option(m, { kind: 'grapple', maneuver: m }, maneuver, reason)
+    }),
+    option(ACTIONS.drag.label, { kind: 'drag' }, drag, !placed ? 'not on the board' : !canAfford(c, drag) ? 'cannot afford' : null),
+    option(ACTIONS.release.label, { kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back'),
+  ]
+}
+
+// combat.tex "Immobile": "Cannot move and cannot use any combat or movement
+// skills other than escape."
+function closeIfImmobile(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  if (!isImmobile(c)) return options
+  return options.map((o) => (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape') || o.draft.kind === 'release' ? o : { ...o, available: false, reason: 'immobile' })
 }
 
 // The spells the character could declare a cast of: each learned spell,
@@ -742,6 +818,8 @@ function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
   if (option.kind === 'opportunityAttack') return (option.at ?? null) === ((draft as { at?: number | null }).at ?? null)
   if (option.kind === 'explosion') return (option.source ?? 'thrown') === ((draft as { source?: string }).source ?? 'thrown')
   if (option.kind === 'evasion') return (option.stay ?? false) === ((draft as { stay?: boolean }).stay ?? false)
+  if (option.kind === 'strike') return (option.grab ?? false) === ((draft as { grab?: boolean }).grab ?? false)
+  if (option.kind === 'grapple') return (option.maneuver ?? 'escape') === ((draft as { maneuver?: string }).maneuver ?? 'escape')
   return true
 }
 
@@ -765,9 +843,14 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
 export function getTargetIds(state: CombatState, root: Action): string[] {
   if (root.kind === 'move' || root.kind === 'explosion') return []
   if (root.kind === 'cast' && !isTargeted(root)) return []
+  // combat.tex "Grapple": what is done in a grapple is done to a partner
+  if (root.kind === 'grapple') return getManeuverTargets(state, root.actorId, root.maneuver)
+  if (root.kind === 'release') return getReleaseTargets(state, root.actorId)
+  if (root.kind === 'drag') return getPartners(state, root.actorId).filter((id) => state.board?.placements[id] !== undefined)
   return Object.keys(state.characters).filter((id) =>
     id !== root.actorId
-    && (root.kind !== 'strike' || isInReach(state, root, id))    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
+    && (root.kind !== 'strike' || (isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id))))
+    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
     && (root.kind !== 'cast' || isInCastRange(state, root, id)))
 }
 

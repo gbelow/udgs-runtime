@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
@@ -26,8 +26,9 @@ import { getAttackFacts, getHOPOptions, getStrikeTrample, isTripped, outcomeOf }
 import { getExplosionFacts, isSpray } from '../rules/explosion'
 import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
-import { reduceBoard, reduceCharacter, type Phase } from '../reduce'
+import { reduceBoard, reduceCharacter, reduceGrapples, type Phase } from '../reduce'
 import { getCastFacts, getCastOpportunityAttacks, isCastCancelled } from '../rules/cast'
+import { getDragFacts, getGrabFacts, getManeuverFacts, getReleaseFacts, hasGrappleRow, holds } from '../rules/grapple'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -54,7 +55,8 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((s, action) => {
     const next = mapCharacters(s, reduceCharacter(action, phase))
-    return next.board ? { ...next, board: reduceBoard(next, action, phase)(next.board) } : next
+    const grappled = { ...next, grapples: reduceGrapples(action, phase)(next.grapples) }
+    return grappled.board ? { ...grappled, board: reduceBoard(next, action, phase)(grappled.board) } : grappled
   }, state)
 }
 
@@ -102,7 +104,7 @@ export function commitAction(): Updater {
     if (!open || open.status !== 'declared') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if ((open.kind === 'strike' || open.kind === 'shoot' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if ((open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'grapple' || open.kind === 'drag' || open.kind === 'release' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!priceFor(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
@@ -427,8 +429,19 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
           const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
           const outcome = facts && target ? outcomeOf(facts, target) : null
-          return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none', ...(open.kind === 'strike' ? { tripped: isTripped(state, open), trample: getStrikeTrample(state, open) } : {}) }
+          if (open.kind === 'shoot') return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none' }
+          // combat.tex "Initiate the Grab": "On a hit, the opponent is
+          // grappled, and any movement initiated by them is stopped"
+          const grabbed = getGrabFacts(state, open)
+          const interruption: Interruption = grabbed && (outcome?.interruption ?? 'none') === 'none' ? 'interrupted' : outcome?.interruption ?? 'none'
+          return { ...open, status: 'resolved' as const, facts, interruption, tripped: isTripped(state, open), trample: getStrikeTrample(state, open), grabbed }
         })()
+      : open.kind === 'grapple'
+        ? { ...open, status: 'resolved', facts: getManeuverFacts(state, open) }
+      : open.kind === 'release'
+        ? { ...open, status: 'resolved', facts: getReleaseFacts(state, open) }
+      : open.kind === 'drag'
+        ? { ...open, status: 'resolved', facts: getDragFacts(state, open) }
       : open.kind === 'explosion'
         ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
       : open.kind === 'cast'
@@ -440,6 +453,23 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
     const spawned = { ...landed, actions: [...landed.actions, ...spawn(landed, resolved, newId)] }
     return afterLanding(spawned, resolved, newId)
   }
+}
+
+// combat.tex "Escape": "Being interrupted allows for a reaction to escape
+// without the possibility of active resistance." A holder the attack
+// interrupted gives whoever they hold an escape, opened as a maneuver of
+// theirs that nobody may resist, for them to take or skip — made, as any
+// maneuver, with a grapple row.
+function escapesOnInterruption(state: CombatState, root: Action, newId: () => string): Action[] {
+  if ((root.kind !== 'strike' && root.kind !== 'shoot') || root.interruption === 'none' || !root.targetId) return []
+  const holderId = root.targetId
+  return state.grapples
+    .filter((g) => g.members.includes(holderId) && holds(g, holderId))
+    .map((g) => (g.members[0] === holderId ? g.members[1] : g.members[0]))
+    // a grab's own interruption is not one the grabber escapes the hold back from
+    .filter((heldId) => !(root.kind === 'strike' && root.grabbed && heldId === root.actorId))
+    .filter((heldId) => state.characters[heldId] && hasGrappleRow(state.characters[heldId]))
+    .map((heldId) => ActionSchema.parse({ kind: 'grapple', maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
 }
 
 // An opportunity attack fought against a mover or a caster, once it has
@@ -504,6 +534,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         return []
     }
   })
+  opened.push(...escapesOnInterruption(state, root, newId))
   if (root.kind === 'cast' && root.roll?.degree === 'hit' && !isCastCancelled(state, root) && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
     opened.push(ActionSchema.parse({ kind: 'explosion', id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
   }
