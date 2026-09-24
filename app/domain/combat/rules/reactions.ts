@@ -1,4 +1,4 @@
-import type { Action, ActionKind, CastAction, CombatState, ExplosionAction, MoveAction, ShootAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CastAction, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
@@ -29,6 +29,8 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
     case 'explosion': return explosionTriggers(state, root)
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
+    case 'grapple':
+    case 'drag': return grappleTriggers(root)
     default: return []
   }
 }
@@ -70,6 +72,14 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
     })
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
   return [...own, ...guards]
+}
+
+// combat.tex "Grapple Maneuvers", "Push and drag": the partner may pay to
+// resist — except an escape "Being interrupted allows for", "without the
+// possibility of active resistance".
+function grappleTriggers(root: GrappleAction | DragAction): Trigger[] {
+  if (!root.targetId || (root.kind === 'grapple' && root.unresisted)) return []
+  return [{ characterId: root.targetId, kind: 'resist', at: null }]
 }
 
 // combat.tex "Explosions": "defended against with a reflex test"; "Sprays":

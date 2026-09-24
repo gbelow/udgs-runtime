@@ -58,6 +58,30 @@ export function ActionPanel(){
 
       <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
+      {open.along !== null && !locked ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>on a hit</SectionLabel>
+          <Button size='xs' variant={open.along ? 'primary' : 'default'} className={open.along ? 'bg-accent/15' : ''}
+            title='a critical lands on its own; a hit only if you commit yourself too'
+            onClick={() => amend({ along: !open.along })}>
+            {open.maneuver === 'knockdown' ? 'throw yourself along' : 'stay immobile yourself'}
+          </Button>
+        </div>
+      ) : null}
+
+      {open.push && !locked ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>push</SectionLabel>
+          {[1, 2].map((m) =>
+            <Button key={m} size='xs' variant={open.push!.steps === m ? 'primary' : 'default'} className={open.push!.steps === m ? 'bg-accent/15' : ''}
+              title={m === 2 ? 'only on a force difference of 5 or more' : 'up to 1m'}
+              onClick={() => amend({ steps: m })}>
+              up to {m}m
+            </Button>)}
+          <span className='text-xs text-muted'>{open.push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span>
+        </div>
+      ) : null}
+
       {view.spells.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>spell</SectionLabel>
@@ -141,7 +165,7 @@ export function ActionPanel(){
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
-          {view.die || open.area ? <Test open={open} /> : null}
+          {view.die || view.compare || open.area ? <Test open={open} /> : null}
           <div className='flex flex-row gap-1'>
             {view.die
               ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
@@ -153,7 +177,7 @@ export function ActionPanel(){
 
       {rolled ? (
         <div className='flex flex-col gap-1'>
-          {open.roll ? <Test open={open} /> : null}
+          {open.roll || view.compare ? <Test open={open} /> : null}
           {open.roll ? (
             <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
               <span>die <span className='font-mono'>{open.roll.die}</span></span>
@@ -193,6 +217,7 @@ export function ActionPanel(){
             </div>
           ))}
           {view.outcomes.map(({ target, outcome }) => <OutcomeLine key={target} outcome={outcome} target={target} />)}
+          {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
           <div><Button variant='primary' aria-label='resolve action' onClick={resolve}>done</Button></div>
         </div>
@@ -228,7 +253,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation }) => void }){
+function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean }) => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   return (
@@ -260,7 +285,13 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             {l.location}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
           </Button>)}
       </div>
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? 'that attack cannot reach from there' : 'pick the attack'}</span> : null}
+      {strike.grabbable || strike.grab ? (
+        <div>
+          <Button size='xs' variant={strike.grab ? 'primary' : 'default'} className={strike.grab ? 'bg-accent/15' : ''}
+            title='on a hit, the target is grappled' onClick={() => onAmend({ grab: !strike.grab })}>grab</Button>
+        </div>
+      ) : null}
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, or a runner has to be caught' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
     </div>
   )
 }

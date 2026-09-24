@@ -80,7 +80,8 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // declared; aims an explosion being declared at the cell, or a rolled spray
 // towards it (combat.tex "Explosions", "Sprays"); or, against a committed
 // strike, names where the target's evasive jump lands (combat.tex "Evasive
-// Jump") — declaring the jump if it has not been.
+// Jump") — declaring the jump if it has not been; or points a push being
+// declared towards it (combat.tex "Push and drag").
 export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
@@ -96,6 +97,10 @@ export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}
     if (open.kind === 'explosion' && open.status === 'rolled') {
       const from = state.board?.placements[open.actorId]
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
+    }
+    if (open.kind === 'drag' && open.status === 'declared') {
+      const from = state.board?.placements[open.actorId]
+      return from && !sameCell(from.cell, cell) ? amendAction({ direction: directionTo(from.cell, cell) })(state) : state
     }
     if (open.kind === 'strike' && open.status === 'committed' && open.targetId) {
       const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))

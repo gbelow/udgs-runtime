@@ -11,6 +11,7 @@ import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 import { getMoveTramples } from './trample'
+import { isImmobile, isInGrapple } from './grapple'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -94,19 +95,25 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // surge": the surge allows "running until the end of the turn"). A move a
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
-// character can run").
+// character can run"). combat.tex "Grapple": one in a grapple "cannot move
+// without dragging the other grappler" — they push or drag instead;
+// "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = getAfflictions(c).includes('prone')
   const swimming = isInLiquid(state, c)
   const granted = action?.movements ?? null
+  const held = isInGrapple(state, c.id)
+  const immobile = isImmobile(c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
-    const gate = movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
+    const gate = immobile ? { available: false, reason: 'immobile' }
+      : held ? { available: false, reason: 'grappled: push or drag instead' }
+      : movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
