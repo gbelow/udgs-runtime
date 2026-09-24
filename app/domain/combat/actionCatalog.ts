@@ -56,6 +56,14 @@ export const ACTIONS = {
   // combat.tex "Grapple Maneuvers", "Push and drag": the defender's 2 AP +
   // 1 STA that spares them the -5
   resist:      { label: 'resist',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },
+  // combat.tex "Push and drag": everyone else dragged may help the push
+  // ("add to the test and spend AP+STA"), go along with it paying the basic
+  // movement for the metres, or — held by nobody — let go and stay
+  assist:      { label: 'help push',    type: 'reaction', price: 'pushDrag',    reactsTo: ['drag'],   die: false },
+  carry:       { label: 'go along',     type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
+  letGo:       { label: 'let go',       type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
+  // combat.tex "Picking up": "1 standard action"
+  pickUp:      { label: 'pick up',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
 } as const satisfies Record<ActionKind, ActionDef>
 
 export function isReaction(kind: ActionKind): boolean {

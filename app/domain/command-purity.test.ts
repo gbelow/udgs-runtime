@@ -6,6 +6,8 @@ import * as resetCombatModule from './combat/commands/resetCombat'
 import * as startTurnModule from './combat/commands/startTurn'
 import * as actionsModule from './combat/commands/action'
 import * as boardModule from './combat/commands/board'
+import * as grappleModule from './combat/commands/grapple'
+import * as floorModule from './combat/commands/floor'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction, getRootTest } from './combat/rules/action'
 import { makeCampaignCharacter } from './factories'
@@ -13,7 +15,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule, ...grappleModule, ...floorModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -159,6 +161,21 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 })(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
+  chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
+  settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
+  dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
+}
+
+// `a` and `b` holding each other, nothing open.
+function grappling(s: CombatState): CombatState {
+  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [] }] }
+}
+
+// A knockdown by `a` on `b`, thrown, on a frozen state each step along.
+function rolledManeuver(s: CombatState): CombatState {
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'grapple', maneuver: 'knockdown' }, newId)(deepFreeze(grappling(s))))
+  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
+  return combatCommands.rollAction(() => 7)(committed)
 }
 
 // The subject with its committed strike and the evade struck off, for the

@@ -326,6 +326,12 @@ export const ACTION_COSTS = {
 
 export type ActionKind = keyof typeof ACTION_COSTS
 
+// combat.tex "Grapple": "Any skill test made by several characters uses the
+// highest skill value among them plus 3/2/1 for each additional character,
+// up to a maximum of 5. ... Characters of a smaller size category add a
+// maximum of 2." The bonus of the second, third and every further helper.
+export const ASSIST = { bonus: [3, 2, 1], max: 5, smallerMax: 2 } as const
+
 // combat.tex "Shoot", "Quick Shot", "Snipe": the ways a shooting weapon is
 // fired, each named by the variation the attack list gives it and how far it
 // reaches in metres before the shooter's abilities move it — null is as far

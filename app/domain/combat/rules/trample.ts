@@ -87,8 +87,8 @@ export function getMoveTramples(state: CombatState, action: MoveAction, path: Co
 
 // The braced blow's trample: the mover it met, at their Force and speed,
 // against the bracer — "If a strike started this action, targeting the head
-// or legs increases attacker's force by 3". The bracer is pushed back along
-// the mover's heading at the step the blow came on.
+// increases attacker's force by 3". The bracer is pushed back along the
+// mover's heading at the step the blow came on.
 export function getBracedTrample(state: CombatState, strike: StrikeAction, move: MoveAction, at: number): Trample | null {
   const mover = state.characters[move.actorId]
   const bracer = state.characters[strike.actorId]
@@ -97,6 +97,6 @@ export function getBracedTrample(state: CombatState, strike: StrikeAction, move:
   const after = getMoveWaypoint(state, move, at)
   if (!mover || !bracer || !placed || !before || !after) return null
   const runner = getTrampleForce(mover, move.movement)
-  const opponent = getForce(bracer) + (strike.location === 'head' || strike.location === 'leg' ? 3 : 0)
+  const opponent = getForce(bracer) + (strike.location === 'head' ? 3 : 0)
   return outcome(state, bracer.id, at, compare(runner, opponent), placed, directionTo(before.cell, after.cell))
 }

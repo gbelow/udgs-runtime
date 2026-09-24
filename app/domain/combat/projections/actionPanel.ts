@@ -1,4 +1,14 @@
 import type { Action, ActionRoll, CastAction, CombatState, Coord, GrappleManeuver, HitLocation, MoveStop } from '../types'
+
+// The six hex directions as arrows, for a push declared off the board.
+export function getDirectionOptions(): { index: number; arrow: string }[] {
+  const arrows = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗']
+  return DIRECTIONS.map((d, index) => {
+    const { x, y } = toPlane(d)
+    const octant = Math.round(Math.atan2(y, x) / (Math.PI / 4))
+    return { index, arrow: arrows[(octant + 8) % 8] }
+  })
+}
 import type { Area, CampaignCharacter, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -39,7 +49,11 @@ import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
-import { canGrab, getDragFacts, getDragTerms, getManeuverFacts, isGrappleRowOf } from '../rules/grapple'
+import { canGrab, findGrapple, getDisarmOptions, getDragFacts, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf } from '../rules/grapple'
+import { canPickUp, getReachableFloor } from '../rules/floor'
+import { DIRECTIONS } from '../geometry'
+import { toPlane } from '../rules/board'
+import { GRAPPLE_MANEUVERS } from '../../lists'
 import { getGrappleNotes } from './outcomes'
 
 // Everyone with a reaction to the open action, each with their options —
@@ -49,7 +63,24 @@ export type ReactorOptions = {
   id: string
   name: string
   options: ActionOption[]
-  strike: { options: AttackOption[]; locations: LocationOption[]; attack: string; variant: string; location: HitLocation; complete: boolean; grab: boolean; grabbable: boolean } | null
+  strike: {
+    options: AttackOption[]
+    locations: LocationOption[]
+    attack: string
+    variant: string
+    location: HitLocation
+    complete: boolean
+    grab: boolean
+    grabbable: boolean
+    // combat.tex "Grapple Maneuvers", "Push and drag": against a grapple
+    // partner, a maneuver or a push instead of the strike
+    mode: 'strike' | 'grapple' | 'drag'
+    partner: boolean
+    maneuvers: GrappleManeuver[]
+    maneuver: GrappleManeuver
+    direction: number | null
+    steps: number
+  } | null
   // spells.tex "Concentration": still theirs to give up, to answer with
   // anything but the SD (`cancelCast`)
   concentrating: boolean
@@ -70,6 +101,12 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
             complete: isDeclarationComplete(state, c, declared),
             grab: declared.grab,
             grabbable: canGrab(state, declared, declared.targetId ?? ''),
+            mode: declared.mode,
+            partner: findGrapple(state.grapples, c.id, declared.targetId ?? '') !== null,
+            maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
+            maneuver: declared.maneuver,
+            direction: declared.direction,
+            steps: declared.steps,
           }
         : null
       return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, concentrating: isConcentrating(state, open, c.id) }
@@ -120,8 +157,15 @@ export type OpenActionView = {
   // pointed yet, and how far it means to
   grab: boolean
   maneuver: GrappleManeuver | null
+  // once a knockdown or an immobilization has hit: whether the attacker
+  // commits themselves along (null: nothing to choose)
   along: boolean | null
   push: { aimed: boolean; steps: number } | null
+  // a disarm's hit: what it can go for, and what it went for
+  disarm: { itemId: string; name: string }[]
+  item: string
+  // a pick up: what lies within reach, and what was picked
+  floor: { itemId: string; name: string; available: boolean }[]
   // once rolled or compared: what it does to the grapple
   grapple: { target: string; text: string }[]
   cost: ActionCost | null
@@ -211,7 +255,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
-  const dragTerms = drag ? getDragTerms(state, drag) : null
+  const dragTerms = drag ? getDragSides(state, drag) : null
+  const hit = grapple?.status === 'rolled' && (grapple.roll?.degree === 'hit' || grapple.roll?.degree === 'critical')
   const settled = grapple && grapple.status === 'rolled' ? { ...grapple, facts: getManeuverFacts(state, grapple) }
     : drag && drag.status === 'rolled' ? { ...drag, facts: getDragFacts(state, drag) }
     : null
@@ -220,7 +265,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     step,
     open: {
       id: open.id,
-      label: open.kind === 'strike' && open.grab ? 'grab' : grapple ? grapple.maneuver : ACTIONS[open.kind].label,
+      label: open.kind === 'strike' && open.grab ? 'grab' : grapple ? (grapple.stand ? 'stand up' : grapple.maneuver) : ACTIONS[open.kind].label,
       actor: actor?.fightName ?? '',
       target: target?.fightName ?? null,
       targetId: open.targetId,
@@ -239,7 +284,12 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       spawned: open.spawnedBy !== null,
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
-      along: grapple && grapple.maneuver !== 'escape' ? grapple.along : null,
+      along: grapple && hit && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
+      disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple) : [],
+      item: grapple?.item ?? (open.kind === 'pickUp' ? open.itemId : ''),
+      floor: open.kind === 'pickUp' && open.status === 'declared' && actor
+        ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
+        : [],
       push: drag ? { aimed: drag.direction !== null, steps: drag.steps } : null,
       grapple: settled ? getGrappleNotes(state, settled) : [],
       cost: actor ? getDeclaredCost(actor, open) : null,
@@ -250,7 +300,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         roll: r.roll,
       })),
       score: breakdown(attack ? getAttackTerms(state, attack) : cast && actor ? getCastTerms(actor, cast) : grapple && actor ? getManeuverTerms(actor) : dragTerms ? dragTerms.attacker : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
-      DL: breakdown(attack || explosion || cast || grapple ? getDLTerms(state, open) : dragTerms ? dragTerms.defender : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
+      DL: breakdown(attack || explosion || cast || grapple ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
       roll: open.roll,
     },
     report: null,

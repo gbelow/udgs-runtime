@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import { DEGREES, type CampaignCharacter } from '../../types'
-import { MOVEMENT_KINDS } from '../../lists'
+import { DEGREES, ItemSchema, type CampaignCharacter } from '../../types'
+import { GRAPPLE_MANEUVERS, MOVEMENT_KINDS } from '../../lists'
+import { holdItem } from '../../item/commands/hands'
+import { settleGrapples } from '../commands/grapple'
 import { getAvailableActions, getOpenAction, getRootTest } from './action'
 import { getMovementOptions } from './move'
-import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { chooseManeuver, commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -37,11 +39,45 @@ const OVER = { critical: 10, hit: 5, graze: 0, miss: -1 } as const
 
 describe('grapple', () => {
   // combat.tex "Grapple": "When a character is under the effect of grapple,
-  // it cannot move without dragging the other grappler."
-  it.each(['a', 'b'])('closes every movement to %s while in the grapple', (id) => {
+  // it cannot move without dragging the other grappler"; "Escape is also used
+  // for trying to stand up while grappled".
+  it.each(['a', 'b'])('closes every movement and standing up to %s while in the grapple', (id) => {
     const s = grappling()
     const moves = getMovementOptions(s, s.characters[id])
-    for (const kind of MOVEMENT_KINDS) expect(moves.find((m) => m.kind === kind)?.available).toBe(false)
+    for (const kind of [...MOVEMENT_KINDS, 'stand'] as const) expect(moves.find((m) => m.kind === kind)?.available).toBe(false)
+  })
+
+  // The table's ruling: "the grapplers must have a grapple property attack
+  // in one of their weapons at all times ... failing to do so releases the
+  // grapple."
+  it('lets go for a holder left with no grapple row', () => {
+    const s = grappling()
+    const sword = () => ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
+    const full = holdItem(sword())(holdItem(sword())(s.characters.a)) as CampaignCharacter
+    const settled = settleGrapples(s.grapples)({ ...s, characters: { ...s.characters, a: full } })
+    expect(settled.grapples.flatMap((g) => g.holders)).not.toContain('a')
+  })
+
+  // combat.tex "Grapple Maneuvers": "If a grapple maneuvre grazes or misses,
+  // it simply as no effect."
+  it.each(GRAPPLE_MANEUVERS.flatMap((m) => (['graze', 'miss'] as const).map((degree) => [m, degree] as const)))('a %s that comes to a %s changes nothing', (maneuver, degree) => {
+    let s = grappling()
+    s = declareAction('a', { kind: 'grapple', maneuver }, newId)(s)
+    s = rollOver(commitAction()(setTarget('b')(s)), OVER[degree])
+    s = chooseManeuver({ along: true, item: s.characters.b.held[0]?.id ?? '' })(s)
+    const after = resolveAction(newId)(s)
+    expect(after.grapples).toEqual(s.grapples)
+    expect(after.floor).toEqual(s.floor)
+    for (const id of ['a', 'b']) expect(after.characters[id].afflictions).toEqual(s.characters[id].afflictions)
+  })
+
+  // combat.tex "Escape": standing up that way "does not disolve the grapple".
+  it.each(DEGREES)('an escape to stand up at %s leaves the grapple standing', (degree) => {
+    let s = grappling()
+    s = { ...s, characters: { ...s.characters, b: { ...s.characters.b, afflictions: ['prone'] } } }
+    s = declareAction('b', { kind: 'grapple', maneuver: 'escape', stand: true }, newId)(s)
+    s = resolveAction(newId)(rollOver(commitAction()(setTarget('a')(s)), OVER[degree]))
+    expect(s.grapples).toHaveLength(1)
   })
 
   // combat.tex "Immobile": "Cannot move and cannot use any combat or

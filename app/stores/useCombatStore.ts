@@ -6,6 +6,7 @@ import { getActiveCharacter } from '../domain/combat/rules/activeCharacter'
 import { getOpenAction } from '../domain/combat/rules/action'
 import { makeCampaignCharacter } from '../domain/factories'
 import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
+import { settleGrapples } from '../domain/combat/commands/grapple'
 
 // The data half of the store is the domain's CombatState — the store adds only
 // the actions that mutate it. Keeping the two halves separate is what lets the
@@ -34,6 +35,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   actions: [],
   board: null,
   grapples: [],
+  floor: [],
 
   updateCombatState: (updater) => {
     set( updater)
@@ -70,6 +72,8 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
         [current.id]: updated
       }
     });
+    // a holder whose hands no longer hold a grapple row lets go
+    set((s) => settleGrapples(s.grapples)(s));
 
     return updated;
   },
@@ -79,6 +83,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
       if (getOpenAction(s)) return s
       const { [id]: _, ...rest } = s.characters
       const { [id]: _placement, ...placements } = s.board?.placements ?? {}
-      return { characters: rest, board: s.board ? { ...s.board, placements } : null, grapples: s.grapples.filter((g) => !g.members.includes(id)) }
+      const left = { ...s, characters: rest, board: s.board ? { ...s.board, placements } : null, grapples: s.grapples.filter((g) => !g.members.includes(id)) }
+      return settleGrapples(s.grapples)(left)
     })
 }))

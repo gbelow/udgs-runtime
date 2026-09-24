@@ -1,10 +1,11 @@
 import { realDice } from "../components/utils";
-import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/projections/actionPanel";
+import { ActionPanelView, getActionPanel, getActionPanelDigest, getDirectionOptions } from "../domain/combat/projections/actionPanel";
 import {
   amendAction,
   amendReaction,
   cancelAction,
   cancelCast,
+  chooseManeuver,
   commitAction,
   declareAction,
   declareReaction,
@@ -58,6 +59,7 @@ export function useCombatActions() {
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
   const grazeSave = () => update(saveGraze());
+  const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelSpell, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, directions: getDirectionOptions() } as const;
 }

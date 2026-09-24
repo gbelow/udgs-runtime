@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement, StrikeAction } from '../types'
+import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, OpportunityAction, Placement } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -96,8 +96,9 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
 // character can run"). combat.tex "Grapple": one in a grapple "cannot move
-// without dragging the other grappler" — they push or drag instead;
-// "Immobile: Cannot move".
+// without dragging the other grappler" — they push or drag instead, and get
+// up by escaping ("Escape is also used for trying to stand up while
+// grappled"); "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = getAfflictions(c).includes('prone')
   const swimming = isInLiquid(state, c)
@@ -113,7 +114,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : held && kind === 'stand' ? 'grappled: escape to stand up' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
@@ -304,13 +305,13 @@ export function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolea
 // combat.tex "Opportunity Attack": the ones declared against the move, in
 // the order the mover comes to them, each with the strike it opened if it
 // has.
-export function getOpportunityAttacks(state: CombatState, action: MoveAction): { reaction: ActionOf<'opportunityAttack'>; strike: StrikeAction | null }[] {
+export function getOpportunityAttacks(state: CombatState, action: MoveAction): { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }[] {
   return state.actions
     .flatMap((r) => (r.reactionTo === action.id && r.kind === 'opportunityAttack' && r.at !== null ? [r] : []))
     .sort((a, b) => a.at! - b.at!)
     .map((reaction) => {
-      const strike = state.actions.find((a) => a.spawnedBy === reaction.id)
-      return { reaction, strike: strike?.kind === 'strike' ? strike : null }
+      const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
+      return { reaction, spawned: spawned?.kind === 'strike' || spawned?.kind === 'grapple' || spawned?.kind === 'drag' ? spawned : null }
     })
 }
 
@@ -325,8 +326,8 @@ export function getOpportunityAttacks(state: CombatState, action: MoveAction): {
 // or higher, the runner is stopped" — by a braced blow's trample too.
 export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
   const stoppable = action.movement !== 'run' && action.movement !== 'jump'
-  for (const { reaction, strike } of getOpportunityAttacks(state, action)) {
-    if (strike?.status !== 'resolved') continue
+  for (const { reaction, spawned: strike } of getOpportunityAttacks(state, action)) {
+    if (strike?.kind !== 'strike' || strike.status !== 'resolved') continue
     const jumped = state.actions.some((a) => a.reactionTo === strike.id && a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
     if ((stoppable && strike.interruption !== 'none') || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }

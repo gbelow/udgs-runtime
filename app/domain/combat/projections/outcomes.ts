@@ -41,24 +41,36 @@ function deliveryOutcomes(state: CombatState, deliveries: Record<string, Deliver
 }
 
 // What an action did to a grapple, a line per character it changed:
-// grabbed, let go, knocked down, pinned, pushed.
+// grabbed, let go, knocked down, stood up, disarmed, pushed.
 export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => state.characters[id]?.fightName ?? ''
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
+  if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' ? root.facts : null
   if (!facts) return []
+  const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name
+    ?? state.floor.find((f) => f.item.id === itemId)?.item.name ?? 'an item'
   const lines = facts.pair.flatMap((id) => [
     ...((facts.on[id] ?? []).length > 0 ? [{ target: named(id), text: (facts.on[id] ?? []).join(', ') }] : []),
     ...((facts.off[id] ?? []).length > 0 ? [{ target: named(id), text: `no longer ${(facts.off[id] ?? []).join(', ')}` }] : []),
+    ...(facts.prone.includes(id) ? [{ target: named(id), text: 'knocked down' }] : []),
+    ...(facts.stand.includes(id) ? [{ target: named(id), text: 'stands up' }] : []),
+    ...(facts.dropped?.ownerId === id ? [{ target: named(id), text: `drops ${itemName(id, facts.dropped.itemId)}` }] : []),
   ])
+  const taken = facts.seized ? [{ target: named(facts.pair[1]), text: `${itemName(facts.pair[1], facts.seized)} seized` }] : []
   if (facts.grapple === null) return [...lines, { target: facts.pair.map(named).join(' and '), text: 'apart' }]
   if (root.kind === 'strike') return [{ target: named(facts.pair[1]), text: 'grabbed' }, ...lines]
-  return lines.length > 0 ? lines : [{ target: facts.pair.map(named).join(' and '), text: 'still grappling' }]
+  const all = [...lines, ...taken]
+  return all.length > 0 ? all : [{ target: facts.pair.map(named).join(' and '), text: 'no effect' }]
 }
 
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
   const moved = Object.keys(facts.to)
-  return moved.length > 0 ? [{ target: moved.map(named).join(' and '), text: `moved ${facts.steps}m` }] : [{ target: '', text: 'nobody moves' }]
+  return [
+    moved.length > 0 ? { target: moved.map(named).join(', '), text: `moved ${facts.steps}m` } : { target: '', text: 'nobody moves' },
+    ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
+    ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
+  ]
 }
 
 // What an action delivered, per character: a strike's single effect to its

@@ -38,6 +38,8 @@ export type BoardCellView = {
   isCenter: boolean
   threatened: boolean
   zone: Degree | null
+  // what lies on the floor here
+  items: string[]
 }
 
 export type BoardTokenView = {
@@ -162,6 +164,7 @@ export function getBoardView(state: CombatState): BoardView {
       isCenter: explosion?.center !== null && explosion?.center !== undefined && sameCell(explosion.center, cell),
       threatened: threatened.has(key),
       zone: zones.get(key) ?? null,
+      items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),
     }
   })
 
