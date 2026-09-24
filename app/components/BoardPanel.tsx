@@ -124,6 +124,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     cell.jump ? 'evasive jump' : null,
     cell.center ? 'aim here' : null,
     cell.zone ? `explosion: ${cell.zone}` : cell.threatened ? 'in reach of the explosion' : null,
+    cell.items.length > 0 ? `on the floor: ${cell.items.join(', ')}` : null,
   ].filter((s) => s !== null).join(' · ')
   return (
     <g transform={`translate(${cell.x} ${cell.y})`} className='cursor-pointer' onClick={onClick}>
@@ -131,6 +132,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
+      {cell.items.length > 0 ? <text x={0.45} y={-0.3} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.45}>▪</text> : null}
       {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
     </g>
   )

@@ -1,9 +1,10 @@
 import type { CampaignCharacter } from '../types'
-import type { Action, Board, CombatState, Grapple, GrappleFacts, Trample } from './types'
+import type { Action, Board, CombatState, FloorItem, Grapple, GrappleFacts, Trample } from './types'
 import { payCost } from '../character/commands/cost'
 import { deliver } from '../character/commands/deliver'
-import { chargeItem, consumeItem, dischargeItem } from '../item/commands/hands'
-import { getWieldedWeapons } from '../item/rules/hands'
+import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../item/commands/hands'
+import { getHeldItem, getWieldedWeapons } from '../item/rules/hands'
+import { onFloor } from './rules/floor'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './rules/move'
 import { getReactionsTo } from './rules/action'
@@ -76,7 +77,13 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) as CampaignCharacter : delivered
         }
-        if (action.kind === 'drag') return c
+        // combat.tex "Push and drag": going along passively is paid for in
+        // the basic movement of the metres moved
+        if (action.kind === 'drag') {
+          const AP = action.facts?.carried[c.id] ?? 0
+          return AP > 0 ? payCost({ AP, STA: 0, exhaustion: 0, IL: 0, ET: 0 })(c) : c
+        }
+        if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) as CampaignCharacter : c
         if (action.kind !== 'strike' && action.kind !== 'shoot') return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
@@ -92,9 +99,11 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
             return price ? payCost({ ...price, exhaustion: 0, IL: 0, ET: 0 })(acc) : acc
           }, discharged)
+          // combat.tex "Throw": what is thrown leaves the hand
+          if (action.kind === 'shoot') return releaseThrown(paid, action.weaponKey, action.attack)
           // combat.tex "Braced Attack": the trample it triggers, the bracer
           // against the mover the blow met (its target)
-          return action.kind === 'strike' && action.trample ? trampledBy([action.trample], action.targetId ?? '', paid) : paid
+          return action.trample ? trampledBy([action.trample], action.targetId ?? '', paid) : paid
         }
         if (c.id !== action.targetId || !action.facts) return c
         const struck = deliver(action.facts)(c)
@@ -121,25 +130,60 @@ function getGrappleFacts(action: Action): GrappleFacts | null {
   return null
 }
 
-// combat.tex "Grapple": the afflictions the grapple put on and took off the
-// character, and what its holds dealt them ("Grapple Maneuvers").
+// combat.tex "Grapple Maneuvers": what the maneuver did to the character
+// beyond the grapple itself — knocked down or stood up, an item knocked out
+// of their hand — and what the holds dealt them. The grappled and immobile
+// afflictions follow the grapple, and are settled with it.
 function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): CampaignCharacter {
   if (!facts) return c
-  const on = facts.on[c.id] ?? []
-  const off = facts.off[c.id] ?? []
-  const afflicted = on.length === 0 && off.length === 0 ? c : { ...c, afflictions: [...new Set([...c.afflictions.filter((a) => !(off as string[]).includes(a)), ...on])] }
-  return (facts.deliveries[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), afflicted)
+  const down = facts.prone.includes(c.id) ? fallProne(c) : facts.stand.includes(c.id) ? standUp(c) : c
+  const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) as CampaignCharacter : down
+  return (facts.deliveries[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), disarmed)
 }
 
 // The one place an action changes who is in a grapple with whom: the pair's
 // grapple replaced with what the action left of it.
 export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple[]) => Grapple[] {
   return (grapples: Grapple[]) => {
-    const facts = phase === 'resolve' ? getGrappleFacts(action) : null
+    if (phase !== 'resolve') return grapples
+    // combat.tex "Push and drag": one who let go instead of being dragged
+    if (action.kind === 'drag') {
+      const released = action.facts?.released ?? []
+      return released.length === 0 ? grapples : grapples.map((g) => ({ ...g, holders: g.holders.filter((h) => !released.includes(h)) })).filter((g) => g.holders.length > 0)
+    }
+    const facts = getGrappleFacts(action)
     if (!facts) return grapples
     const [a, b] = facts.pair
     const rest = grapples.filter((g) => !(g.members.includes(a) && g.members.includes(b)))
     return facts.grapple ? [...rest, facts.grapple] : rest
+  }
+}
+
+// The one place an action changes what lies on the floor: what a disarm
+// knocked out of a hand, where its owner stands (combat.tex "Disarm"); what
+// was thrown, one of it, where the throw was aimed; what was picked up,
+// gone from it. Read off the fight as it stood before the action landed.
+export function reduceFloor(state: CombatState, action: Action, phase: Phase): (floor: FloorItem[]) => FloorItem[] {
+  return (floor: FloorItem[]) => {
+    if (phase !== 'resolve') return floor
+    const cellOf = (id: string | null) => (id ? state.board?.placements[id]?.cell ?? null : null)
+    if (action.kind === 'grapple' && action.facts?.dropped) {
+      const { ownerId, itemId } = action.facts.dropped
+      const owner = state.characters[ownerId]
+      const item = owner ? getHeldItem(owner, itemId) : undefined
+      return item ? [...floor, onFloor(item, cellOf(ownerId))] : floor
+    }
+    if (action.kind === 'shoot') {
+      const shooter = state.characters[action.actorId]
+      const wielded = shooter ? getWieldedWeapons(shooter).find((w) => w.key === action.weaponKey) : undefined
+      const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
+      const item = shooter && wielded && !wielded.natural ? getHeldItem(shooter, wielded.itemId) : undefined
+      if (!item || !atk || getAttackKind(atk.range) !== 'throw') return floor
+      const unit = item.amount > 1 ? { ...item, id: `${item.id}:${action.id}`, amount: 1, charge: null } : item
+      return [...floor, onFloor(unit, cellOf(action.targetId))]
+    }
+    if (action.kind === 'pickUp') return floor.filter((f) => f.item.id !== action.itemId)
+    return floor
   }
 }
 

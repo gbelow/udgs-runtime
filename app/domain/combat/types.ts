@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS } from '../lists'
 import { HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
@@ -143,32 +143,53 @@ const WeaponRowRef = {
 }
 
 // combat.tex "Grapple": two characters locked together, and which of them
-// holds the other with what — the grapple row each grabbed with, keyed by
-// holder. A hold both ways is a grab answered by "grapple back". Who a
-// maneuver left immobile stays so while the grapple lasts. It is a fact of
-// the fight, not of either character, so it lives on the fight.
+// hold the other — a hold both ways is a grab answered by "grapple back". A
+// holder keeps the hold only while they have a grapple row to hold with.
+// Who a maneuver left immobile stays so while the grapple lasts, and so does
+// a weapon a disarm took hold of ("preventing them from using it until they
+// manage to escape"). It is a fact of the fight, not of either character, so
+// it lives on the fight.
 export const GrappleSchema = z.object({
   members: z.tuple([str, str]),
-  holds: z.record(str, z.object(WeaponRowRef)).default({}),
+  holders: z.array(str).default([]),
   immobile: z.array(str).default([]),
+  seized: z.array(str).default([]),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 
 export const GrappleAfflictionSchema = z.enum(GRAPPLE_AFFLICTIONS)
+export const GrappleManeuverSchema = z.enum(GRAPPLE_MANEUVERS)
+export type GrappleManeuver = z.infer<typeof GrappleManeuverSchema>
 
 // What an action did to one grapple, written at the resolve: the pair it
-// concerns, the grapple as it stands afterwards (null: it is over), what that
-// put on or took off each character, and what the holds dealt (combat.tex
-// "Grapple Maneuvers": "If the grapple attack has any damage, it deals that
-// damage whenever a grapple maneuver is used").
+// concerns, the grapple as it stands afterwards (null: it is over), what the
+// maneuver did to its members beyond the grapple itself — knocked down,
+// stood up, an item knocked out of a hand or taken hold of — and what the
+// holds dealt
+// (combat.tex "Grapple Maneuvers": "If the grapple attack has any damage, it
+// deals that damage whenever a grapple maneuver is used"). `on` and `off`
+// are what the change puts on and takes off each member, for the report.
 export const GrappleFactsSchema = z.object({
   pair: z.tuple([str, str]),
   grapple: GrappleSchema.nullable().default(null),
+  prone: z.array(str).default([]),
+  stand: z.array(str).default([]),
+  dropped: z.object({ ownerId: str, itemId: str }).nullable().default(null),
+  seized: str.nullable().default(null),
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   deliveries: z.record(str, z.array(DeliverySchema)).default({}),
 }).strip()
 export type GrappleFacts = z.infer<typeof GrappleFactsSchema>
+
+// Something lying on the ground: dropped, knocked out of a hand, or thrown
+// and landed. `cell` is where; null on a fight without a board, where the
+// floor is one pile.
+export const FloorItemSchema = z.object({
+  item: ItemSchema,
+  cell: CoordSchema.nullable().default(null),
+}).strip()
+export type FloorItem = z.infer<typeof FloorItemSchema>
 
 // The attacker's side of a strike or a shot, final: what the attack
 // delivers to its target, written when the attack resolves, once the HOP are
@@ -365,6 +386,13 @@ export const OpportunityAttackActionSchema = z.object({
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
   grab: z.boolean().default(false),
+  // combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
+  // opportunity attacks, with the same triggers" — against a grapple
+  // partner, what is opened is a maneuver or a push instead of a strike
+  mode: z.enum(['strike', 'grapple', 'drag']).default('strike'),
+  maneuver: GrappleManeuverSchema.default('immobilize'),
+  direction: z.number().int().min(0).max(5).nullable().default(null),
+  steps: z.number().int().min(1).max(2).default(1),
 }).strip()
 
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
@@ -372,30 +400,40 @@ export const OpportunityAttackActionSchema = z.object({
 // the triggering move cost.
 export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('follow') }).strip()
 
-// combat.tex "Grapple Maneuvers": escape, immobilize or knock down a grapple
-// partner, a grapple test against theirs. `along` is the attacker's own
-// commitment for a hit, declared before the die: "throw oneself along" for a
-// knockdown, "stay immobilized yourself" for an immobilization.
-// `unresisted` is the escape "Being interrupted allows for", opened when the
-// holder is interrupted, "without the possibility of active resistance".
-export const GrappleManeuverSchema = z.enum(GRAPPLE_MANEUVERS)
-export type GrappleManeuver = z.infer<typeof GrappleManeuverSchema>
+// combat.tex "Grapple Maneuvers": escape, immobilize, disarm or knock down
+// a grapple partner, a grapple test against theirs. What a hit buys is the
+// attacker's call once the die is known: `along` is their own commitment —
+// "throw oneself along" for a knockdown, "stay immobilized yourself" for an
+// immobilization — and `item` what a disarm goes for. `stand` is an escape
+// made to get up, which "does not disolve the grapple when done that way".
+// `unresisted` is the escape "Being stunned allows for", "without the
+// possibility of active resistance". `opportunity` is one made as an
+// opportunity attack, its defense at -2.
 export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
   maneuver: GrappleManeuverSchema.default('escape'),
+  stand: z.boolean().default(false),
   along: z.boolean().default(false),
+  item: str.default(''),
   unresisted: z.boolean().default(false),
+  opportunity: z.boolean().default(false),
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Push and drag": a Force comparison that moves the pair — the
-// winner's way — `direction` one of the six hex directions the actor pushes
-// in, `steps` how far they mean to ("up to 1m", 2 on a difference of 5).
-// Written at the resolve: where each of the pair ended.
+// combat.tex "Push and drag": a Force comparison that moves everyone locked
+// in the grapple — the winner's way. `direction` is one of the six hex
+// directions the actor pushes in, `steps` how far they mean to ("up to
+// 1m", 2 on a difference of 5). Written at the resolve: how far it went,
+// where each ended, who was interrupted (the side pushed, or the one that
+// lost pushing back), who let go instead of being dragged, and what each
+// who went along passively paid for the metres.
 export const DragFactsSchema = z.object({
   steps: num.default(0),
   to: z.record(str, PlacementSchema).default({}),
+  interrupted: z.array(str).default([]),
+  released: z.array(str).default([]),
+  carried: z.record(str, num).default({}),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
 export const DragActionSchema = z.object({
@@ -403,6 +441,7 @@ export const DragActionSchema = z.object({
   kind: z.literal('drag'),
   direction: z.number().int().min(0).max(5).nullable().default(null),
   steps: z.number().int().min(1).max(2).default(1),
+  opportunity: z.boolean().default(false),
   facts: DragFactsSchema.nullable().default(null),
 }).strip()
 
@@ -413,10 +452,27 @@ export const ReleaseActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Grapple Maneuvers": "must be defended with the grapple skill,
-// and require the defender to spend 2 AP+1 STA or suffer a -5 penalty";
-// "Push and drag": "The defender must spend 2AP+1STA or receive -5".
+// combat.tex "Picking up": an item off the floor, from the character's own
+// cell or one next to it, into a free hand.
+export const PickUpActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('pickUp'),
+  itemId: str.default(''),
+  // what was picked up, written at the resolve
+  picked: ItemSchema.nullable().default(null),
+}).strip()
+
+// combat.tex "Grapple Maneuvers": "require the defender to interrupt itself
+// and spend 2 AP+1 STA or suffer a -5 penalty"; "Push and drag": the same
+// for the defender. Everyone else dragged along chooses too: to help the
+// push actively ("add to the test and spend AP+STA"), to go along with it
+// passively (paying the basic movement for the metres, not adding to it),
+// or — held by nobody — to let go and stay. One who chooses nothing resists
+// passively.
 export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist') }).strip()
+export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist') }).strip()
+export const CarryActionSchema = z.object({ ...ActionBase, kind: z.literal('carry') }).strip()
+export const LetGoActionSchema = z.object({ ...ActionBase, kind: z.literal('letGo') }).strip()
 export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
   ShootActionSchema,
@@ -435,7 +491,11 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   GrappleActionSchema,
   DragActionSchema,
   ReleaseActionSchema,
+  PickUpActionSchema,
   ResistActionSchema,
+  AssistActionSchema,
+  CarryActionSchema,
+  LetGoActionSchema,
 ])
 
 export type Action = z.infer<typeof ActionSchema>
@@ -454,6 +514,9 @@ export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
+// What an opportunity attack opens: a strike, or against a grapple partner a
+// maneuver or a push (combat.tex "Grapple Maneuvers", "Push and drag").
+export type OpportunityAction = StrikeAction | GrappleAction | DragAction
 
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, status, the roll, the facts). What is left is the kind and its
@@ -485,6 +548,7 @@ export const CombatStateSchema = z.object({
   board: BoardSchema.nullable().default(null),
   // combat.tex "Grapple": every grapple of the fight, one per pair
   grapples: z.array(GrappleSchema).default([]),
+  floor: z.array(FloorItemSchema).default([]),
 }).strip()
 
 export type CombatState = z.infer<typeof CombatStateSchema>

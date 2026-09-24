@@ -68,9 +68,10 @@ export type Wielded = {
 // hands sharing a natural weapon pool into one entry gripped by all of them,
 // so a two-handed natural attack needs two free hands the way a two-handed
 // weapon needs two hands on it. A natural weapon is part of the creature, so
-// it is the creature's size (gear.tex "Scaling weapons").
+// it is the creature's size (gear.tex "Scaling weapons"). A stack a
+// grappler has seized is held but not wielded (combat.tex "Disarm").
 export function getWieldedWeapons(c: Character): Wielded[] {
-  const held = c.held.flatMap((item) => {
+  const held = c.held.filter((item) => !item.seized).flatMap((item) => {
     const weapon = getItemWeapon(item)
     return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false }] : []
   })

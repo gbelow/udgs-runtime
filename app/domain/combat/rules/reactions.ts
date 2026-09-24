@@ -4,6 +4,7 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
+import { getGrappleGroup } from './grapple'
 import { sameCell, setDistance } from '../geometry'
 
 // combat.tex "Reactions": "actions that can be performed on another
@@ -30,7 +31,7 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
     case 'grapple':
-    case 'drag': return grappleTriggers(root)
+    case 'drag': return grappleTriggers(state, root)
     default: return []
   }
 }
@@ -74,12 +75,15 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
   return [...own, ...guards]
 }
 
-// combat.tex "Grapple Maneuvers", "Push and drag": the partner may pay to
-// resist — except an escape "Being interrupted allows for", "without the
-// possibility of active resistance".
-function grappleTriggers(root: GrappleAction | DragAction): Trigger[] {
-  if (!root.targetId || (root.kind === 'grapple' && root.unresisted)) return []
-  return [{ characterId: root.targetId, kind: 'resist', at: null }]
+// combat.tex "Grapple Maneuvers": the partner may pay to resist — except
+// an escape "Being stunned allows for", "without the possibility of active
+// resistance". "Push and drag": everyone dragged along answers it — resists,
+// helps, goes along, or lets go.
+function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): Trigger[] {
+  if (root.kind === 'grapple') return root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
+  return getGrappleGroup(state.grapples, root.actorId)
+    .filter((id) => id !== root.actorId)
+    .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
 }
 
 // combat.tex "Explosions": "defended against with a reflex test"; "Sprays":

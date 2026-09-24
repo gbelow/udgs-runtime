@@ -163,8 +163,7 @@ export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim
 export const POSTURES = ['stand', 'prone'] as const
 
 // combat.tex "Grapple Maneuvers": "escape, immobilize, disarm, or knock down".
-// Disarm waits on somewhere for a dropped item to go.
-export const GRAPPLE_MANEUVERS = ['escape', 'immobilize', 'knockdown'] as const
+export const GRAPPLE_MANEUVERS = ['escape', 'immobilize', 'disarm', 'knockdown'] as const
 
 // The afflictions a grapple puts on and takes off: "grappled", and what the
 // immobilize and knockdown maneuvers leave.

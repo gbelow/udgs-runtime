@@ -5,6 +5,8 @@ import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
+import { useCombatStore } from "../stores/useCombatStore";
+import { dropToFloor } from "../domain/combat/commands/floor";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
@@ -16,6 +18,7 @@ const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: nu
 export function useHandsLens() {
   const update = useActiveCharacterUpdate();
   const pending = useAppStore((s) => s.pendingItem);
+  const tab = useAppStore((s) => s.selectedGameTab);
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
@@ -35,8 +38,11 @@ export function useHandsLens() {
     update(regripItem(itemId, grip));
   };
 
+  // in a fight what is dropped lands on the floor; on the sheet it is gone
   const drop = (itemId: string) => {
-    update(dropItem(itemId));
+    const combat = useCombatStore.getState();
+    if (tab !== "edit" && combat.activeCharacterId) combat.updateCombatState(dropToFloor(combat.activeCharacterId, itemId));
+    else update(dropItem(itemId));
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
