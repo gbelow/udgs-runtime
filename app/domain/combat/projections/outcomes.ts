@@ -6,12 +6,15 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { getAttackFacts, outcomeOf } from '../rules/damage'
 import { getExplosionFacts } from '../rules/explosion'
 import { getManeuverFacts } from '../rules/grapple'
+import { isCancelled, isTriggeringAction } from '../rules/opportunity'
 
 // The outcome of the open action on everyone it lands on, as it would land
 // now: the same function the resolution applies, so the preview and the
 // result cannot differ. One entry for the target of a strike or a shot; one
-// per character in an explosion's area.
+// per character in an explosion's area. Nothing, from an action an
+// opportunity attack cancelled.
 export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
+  if (isTriggeringAction(root) && isCancelled(state, root)) return []
   if (root.kind === 'explosion') {
     const facts = root.facts ?? getExplosionFacts(state, root)
     return Object.entries(facts).flatMap(([id, deliveries]) => {
@@ -41,9 +44,11 @@ function deliveryOutcomes(state: CombatState, deliveries: Record<string, Deliver
 }
 
 // What an action did to a grapple, a line per character it changed:
-// grabbed, let go, knocked down, stood up, disarmed, pushed.
+// grabbed, let go, knocked down, stood up, disarmed, pushed; or that the
+// action was cancelled before it could do any of it.
 export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => state.characters[id]?.fightName ?? ''
+  if (isTriggeringAction(root) && isCancelled(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' ? root.facts : null

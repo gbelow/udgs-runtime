@@ -1,4 +1,5 @@
-import type { Action, ActionKind, CastAction, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, ShootAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CastAction, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
+import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
@@ -30,6 +31,7 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
     case 'explosion': return explosionTriggers(state, root)
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
+    case 'pickUp': return pickUpTriggers(state, root)
     case 'grapple':
     case 'drag': return grappleTriggers(state, root)
     default: return []
@@ -54,6 +56,12 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   return [...defenses, ...flankers]
 }
 
+// combat.tex "Opportunity Attack": a triggering action is answered by
+// anyone who threatens the one attempting it with a melee weapon.
+function opportunityTriggers(state: CombatState, actorId: string): Trigger[] {
+  return getMeleeThreateners(state, actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
+}
+
 // combat.tex "Reflex": the target may answer a shot with evasion or guard.
 // combat.tex "Guard": someone may "block ranged attacks against ...
 // adjacent characters, as long as they are closer to the projectile source
@@ -72,15 +80,23 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
       return toGuard !== null && toTarget !== null && toGuard < toTarget
     })
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
-  return [...own, ...guards]
+  // combat.tex "Opportunity Attack": "Triggering actions include ... ranged
+  // attacks"
+  return [...own, ...guards, ...opportunityTriggers(state, root.actorId)]
 }
 
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
 // resistance". "Push and drag": everyone dragged along answers it — resists,
 // helps, goes along, or lets go.
+// combat.tex "Opportunity Attack": "standing up in melee range" triggers
+// one, an escape made to stand up as much as any — from the partner too,
+// who then answers with it instead of resisting (the table's ruling).
 function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): Trigger[] {
-  if (root.kind === 'grapple') return root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
+  if (root.kind === 'grapple') {
+    const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
+    return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
+  }
   return getGrappleGroup(state.grapples, root.actorId)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
@@ -92,20 +108,27 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
 // threatens its whole range — may avoid it, the one who set it off as much
 // as anyone: a bomb is no respecter of the hand that threw it, and whoever
 // stands in the area is a target of it.
+// combat.tex "Opportunity Attack": a thrown one is a ranged attack, and
+// draws what any does.
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
-  if (!isAvoidable(root)) return []
-  return getThreatenedIds(state, root).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
+  const opportunity = root.source === 'thrown' ? opportunityTriggers(state, root.actorId) : []
+  if (!isAvoidable(root)) return opportunity
+  return [...getThreatenedIds(state, root).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null })), ...opportunity]
 }
 
-// combat.tex "Opportunity Attack": "anything that costs 3 AP or more during
-// a focus surge" triggers it; spells.tex "Casting spells": "Spells require
-// using a focus surge to be cast in combat scenes." spells.tex "Quicken
-// Spell": "+4 DL to allow it to be cast during any surge and not cause
-// opportunity attacks" — the one way to cast without drawing one. Anyone who
-// threatens the caster in melee gets the reaction.
+// combat.tex "Opportunity Attack": "Triggering actions include casting
+// spells"; spells.tex "Quicken Spell": "not cause oportunity attacks" — the
+// one way to cast without drawing one.
 function castTriggers(state: CombatState, root: CastAction): Trigger[] {
-  if (root.quicken) return []
-  return getMeleeThreateners(state, root.actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
+  return root.quicken ? [] : opportunityTriggers(state, root.actorId)
+}
+
+// combat.tex "Opportunity Attack": "Triggering actions include ... standard
+// actions of 3 AP or more" — picking up is one (combat.tex "Standard
+// Action"), cheaper with Prestidigitation.
+function pickUpTriggers(state: CombatState, root: PickUpAction): Trigger[] {
+  const actor = state.characters[root.actorId]
+  return actor && getActionCost(actor, 'standardAction').AP >= 3 ? opportunityTriggers(state, root.actorId) : []
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee
@@ -119,7 +142,7 @@ function castTriggers(state: CombatState, root: CastAction): Trigger[] {
 // Going prone triggers nothing.
 function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
   if (root.movement === 'prone') return []
-  if (root.movement === 'stand') return getMeleeThreateners(state, root.actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: 0 }))
+  if (root.movement === 'stand') return opportunityTriggers(state, root.actorId).map((t) => ({ ...t, at: 0 }))
   const mover = state.characters[root.actorId]
   const from = state.board?.placements[root.actorId]
   if (!mover || !from || !state.board) return []

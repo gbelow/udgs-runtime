@@ -62,7 +62,7 @@ export const ACTIONS = {
   assist:      { label: 'help push',    type: 'reaction', price: 'pushDrag',    reactsTo: ['drag'],   die: false },
   carry:       { label: 'go along',     type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   letGo:       { label: 'let go',       type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
-  // combat.tex "Picking up": "1 standard action"
+  // combat.tex "Standard Action"
   pickUp:      { label: 'pick up',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
 } as const satisfies Record<ActionKind, ActionDef>
 

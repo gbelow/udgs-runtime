@@ -21,7 +21,7 @@ import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMo
 import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggersFor } from './reactions'
-import { isCastCancelled } from './cast'
+import { getCancellableRoot, isCancelled, isTriggeringAction } from './opportunity'
 import { canGrab, canStandByEscape, findGrapple, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { getMoveCost } from './move'
@@ -183,7 +183,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // the participants"; an escape made to stand up, by one who is down
     case 'grapple':
       return !action.stand || canStandByEscape(state, c)
-    // combat.tex "Picking up": something within reach, into a free hand
+    // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
       return !!found && canPickUp(c, found.item)
@@ -484,7 +484,7 @@ export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
 export function canSaveGraze(state: CombatState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
   if (!caster || root.status !== 'rolled' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
-  if (isCastCancelled(state, root) || caster.resources.AP < GRAZE_SAVE.AP) return false
+  if (isCancelled(state, root) || caster.resources.AP < GRAZE_SAVE.AP) return false
   return getGrazeSavedRoll(root.roll).degree === 'hit'
 }
 
@@ -512,24 +512,20 @@ export type ActionOption = {
 // block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
 // there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle".
-// spells.tex "Concentration": "No other action or reaction can be performed
-// while concentrating" — while an opportunity attack against `defenderId`
-// answers a still-live cast of their own, that is the cast they would have
-// to give up (`cancelCast`) to perform it.
-function getConcentratingCast(state: CombatState, root: Action, defenderId: string): CastAction | null {
-  const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  const cast = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
-  return reaction?.kind === 'opportunityAttack' && cast?.kind === 'cast' && cast.actorId === defenderId && !cast.cancelled ? cast : null
-}
-
-export function isConcentrating(state: CombatState, root: Action, defenderId: string): boolean {
-  return getConcentratingCast(state, root, defenderId) !== null
+// While an opportunity attack against `defenderId` answers a still-live
+// action of their own, that action is what they would have to give up
+// (`cancelTriggeringAction`) to defend actively; named for the panel.
+export function getCancellableLabel(state: CombatState, root: Action, defenderId: string): string | null {
+  const triggering = getCancellableRoot(state, root, defenderId)
+  if (!triggering) return null
+  return triggering.kind === 'cast' ? 'spell' : triggering.kind === 'shoot' ? 'shot' : ACTIONS[triggering.kind].label
 }
 
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (isImmobile(defender)) return { available: false, reason: 'immobile' }
-  if ((reactsTo(kind, 'strike') || reactsTo(kind, 'grapple') || reactsTo(kind, 'drag')) && getConcentratingCast(state, root, defender.id)) return { available: false, reason: 'cancel the spell to defend actively' }
+  const cancellable = (reactsTo(kind, 'strike') || reactsTo(kind, 'grapple') || reactsTo(kind, 'drag')) ? getCancellableLabel(state, root, defender.id) : null
+  if (cancellable) return { available: false, reason: `cancel the ${cancellable} to defend actively` }
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
@@ -679,10 +675,16 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'evasiveJump':
         return [option(ACTIONS[kind].label, { kind })]
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
-      // cost" — it is open only to someone who can pay for a strike
+      // cost" — it is open only to someone who can pay for a strike, or,
+      // against a grapple partner, for a maneuver or a push (combat.tex
+      // "Grapple Maneuvers", "Push and drag": "can be used like opportunity
+      // attacks")
       case 'opportunityAttack': {
         const strikes = getAttackOptions(c, 'strike')
-        const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
+        const partner = getPartners(state, c.id).includes(open.actorId)
+        const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }))
+          || (partner && (canAfford(c, getActionCost(c, 'grappleManeuver')) || canAfford(c, getActionCost(c, 'pushDrag'))))
+        const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
         const label = trigger.at ? `${ACTIONS[kind].label} at step ${trigger.at}` : ACTIONS[kind].label
         return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
       }
@@ -730,14 +732,13 @@ function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOpti
   ]
 }
 
-// combat.tex "Picking up": 1 standard action, which needs the focus surge
-// (combat.tex "Focus surge": "required to ... using standard actions").
+// combat.tex "Standard Action": "This is used to pick up items from the
+// floor".
 function getPickUpOption(state: CombatState, c: CampaignCharacter): ActionOption {
   const cost = getActionCost(c, 'standardAction')
   const reachable = getReachableFloor(state, c.id).filter((f) => canPickUp(c, f.item))
   const reason = state.floor.length === 0 ? 'nothing on the floor'
     : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
-    : c.usedSurge !== 'focus' ? 'needs a focus surge'
     : canAfford(c, cost) ? null : 'cannot afford'
   return { label: ACTIONS.pickUp.label, draft: { kind: 'pickUp' }, cost, available: reason === null, reason, reactionTo: null, chosen: false }
 }
@@ -812,7 +813,7 @@ export function getSOPRemaining(root: CastAction): number {
 // spells.tex "Concentration": nothing left to spend overflow on once the
 // cast is cancelled — it produces nothing regardless of what is bought.
 export function getImprovementOptions(state: CombatState, root: CastAction): ImprovementOption[] {
-  if (!root.roll || root.roll.degree !== 'hit' || isCastCancelled(state, root)) return []
+  if (!root.roll || root.roll.degree !== 'hit' || isCancelled(state, root)) return []
   const remaining = getSOPRemaining(root)
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => ({
     name,
@@ -841,7 +842,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (!open) return null
   if (open.status === 'rolled') {
     if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
-    if (open.kind === 'cast' && isCastCancelled(state, open)) return 'confirm'
+    if (isTriggeringAction(open) && isCancelled(state, open)) return 'confirm'
     if (open.kind === 'grapple' && needsDisarmPick(state, open)) return 'choose'
     return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }

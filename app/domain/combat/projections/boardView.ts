@@ -5,6 +5,7 @@ import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption, getNextStep, getOpenAction, getReactionsTo, getRole, getTargetIds, Role } from '../rules/action'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
+import { canPickUp, getReachableFloor } from '../rules/floor'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -56,6 +57,19 @@ export type BoardTokenView = {
   targetable: boolean
 }
 
+// Something lying on a cell, drawn over whoever stands there, and whether a
+// click on it would pick it up: the active character with nothing open, or
+// the one whose pick up is being declared, reaching it with a free hand.
+// `x`/`y` put it at its cell's corner, items sharing a cell stacked
+// downwards.
+export type BoardFloorItemView = {
+  itemId: string
+  name: string
+  x: number
+  y: number
+  pickable: boolean
+}
+
 // What a click on a cell does right now.
 export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
 
@@ -68,6 +82,9 @@ export type BoardView = {
   hex: string
   cells: BoardCellView[]
   tokens: BoardTokenView[]
+  floor: BoardFloorItemView[]
+  // who a click on a pickable floor item picks it up for
+  picker: string | null
   // characters in the fight with no place on the board yet
   unplaced: { id: string; name: string }[]
   mode: BoardMode
@@ -75,7 +92,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 // The move in play, whatever its phase: declared, committed, waiting on an
 // opportunity attack fought against it, or waiting to resolve. Its path
@@ -188,6 +205,21 @@ export function getBoardView(state: CombatState): BoardView {
     }]
   })
 
+  const picker = open?.kind === 'pickUp' && open.status === 'declared' ? open.actorId
+    : !open && state.activeCharacterId && findOption(state, state.activeCharacterId, { kind: 'pickUp' })?.available ? state.activeCharacterId
+    : null
+  const pickerCharacter = picker ? state.characters[picker] : undefined
+  const pickable = new Set(pickerCharacter ? getReachableFloor(state, pickerCharacter.id).filter((f) => canPickUp(pickerCharacter, f.item)).map((f) => f.item.id) : [])
+  const stacks = new Map<string, number>()
+  const floor: BoardFloorItemView[] = state.floor.flatMap((f) => {
+    if (!f.cell) return []
+    const key = coordKey(f.cell)
+    const stack = stacks.get(key) ?? 0
+    stacks.set(key, stack + 1)
+    const { x, y } = toPlane(f.cell)
+    return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id) }]
+  })
+
   const xs = cells.map((c) => c.x)
   const ys = cells.map((c) => c.y)
   const minX = Math.min(...xs) - 1
@@ -203,6 +235,8 @@ export function getBoardView(state: CombatState): BoardView {
     hex: HEX,
     cells,
     tokens,
+    floor,
+    picker: pickable.size > 0 ? picker : null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: c.fightName ?? '' })),
     mode: move ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
     move: move && mover

@@ -103,6 +103,16 @@ export type Board = z.infer<typeof BoardSchema>
 // resolved (the consequences have landed).
 // `cost` is written at the roll, off the actor as they were then, so the
 // record says what was paid without a lens having to recompute it later.
+// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
+// action ... to defend against an opportunity attack" — given up by its
+// actor to answer one actively, or lost outright once one interrupts them
+// (combat.tex "Interruption"). Either way nothing it would have done lands,
+// though the AP/STA already spent stays spent (the table's ruling, after
+// spells.tex "Concentration").
+const Cancellable = {
+  cancelled: z.boolean().default(false),
+}
+
 const ActionBase = {
   id: str,
   actorId: str,
@@ -230,6 +240,7 @@ export const ShootActionSchema = z.object({
   ...WeaponRowRef,
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
+  ...Cancellable,
   facts: DeliverySchema.nullable().default(null),
   // what landing did to the target's action, written at the resolve: an
   // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
@@ -264,6 +275,7 @@ export const ExplosionActionSchema = z.object({
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
   direction: z.number().int().min(0).max(5).nullable().default(null),
+  ...Cancellable,
   facts: ExplosionFactsSchema.nullable().default(null),
 }).strip()
 
@@ -285,11 +297,7 @@ export const CastActionSchema = z.object({
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
   grazeSaved: z.boolean().default(false),
-  // spells.tex "Concentration": given up to answer an opportunity attack it
-  // drew with an active defense instead of the SD, or lost outright once one
-  // of them interrupts — either way nothing the cast would have produced
-  // lands, though the AP/STA already spent stays spent.
-  cancelled: z.boolean().default(false),
+  ...Cancellable,
   facts: z.record(z.string(), z.array(DeliverySchema)).nullable().default(null),
 }).strip()
 
@@ -418,6 +426,7 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
+  ...Cancellable,
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
@@ -452,12 +461,13 @@ export const ReleaseActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Picking up": an item off the floor, from the character's own
+// Picking up: an item off the floor, from the character's own
 // cell or one next to it, into a free hand.
 export const PickUpActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('pickUp'),
   itemId: str.default(''),
+  ...Cancellable,
   // what was picked up, written at the resolve
   picked: ItemSchema.nullable().default(null),
 }).strip()
@@ -517,6 +527,12 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a
 // maneuver or a push (combat.tex "Grapple Maneuvers", "Push and drag").
 export type OpportunityAction = StrikeAction | GrappleAction | DragAction
+export type PickUpAction = z.infer<typeof PickUpActionSchema>
+// combat.tex "Opportunity Attack": the actions whose opportunity attacks are
+// fought before their effect lands, and which one can cancel — a move's are
+// fought along its path instead (rules/move.ts), and a strike draws only a
+// flanker's, fought after it
+export type TriggeringAction = CastAction | ShootAction | ExplosionAction | PickUpAction | GrappleAction
 
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, status, the roll, the facts). What is left is the kind and its

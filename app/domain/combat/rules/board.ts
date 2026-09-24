@@ -199,10 +199,9 @@ export function getFlankers(state: CombatState, attackerId: string, targetId: st
   })
 }
 
-// combat.tex "Opportunity Attack": "anything that costs 3 AP or more during
-// a focus surge" is a triggering action, answered by anyone who threatens
-// the one attempting it with a melee weapon — everyone with them in their
-// own melee range, whatever the board.
+// combat.tex "Opportunity Attack": a triggering action is answered by anyone
+// who threatens the one attempting it with a melee weapon — everyone with
+// them in their own melee range, whatever the board.
 export function getMeleeThreateners(state: CombatState, id: string): string[] {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return []

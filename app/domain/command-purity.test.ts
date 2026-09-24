@@ -144,7 +144,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
-  cancelCast: (s) => combatCommands.cancelCast('a')(deepFreeze(spawnedCastOpportunity(s))),
+  cancelTriggeringAction: (s) => combatCommands.cancelTriggeringAction('a')(deepFreeze(spawnedCastOpportunity(s))),
   rollAction: combatCommands.rollAction(() => 7),
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20)(s)))),
@@ -164,6 +164,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
+  pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
 }
 
 // `a` and `b` holding each other, nothing open.

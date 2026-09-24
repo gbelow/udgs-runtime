@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CastAction, type CombatState, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type CombatState, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
 import {
   areReactionsComplete,
@@ -27,7 +27,8 @@ import { getExplosionFacts, isSpray } from '../rules/explosion'
 import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from '../reduce'
-import { getCastFacts, getCastOpportunityAttacks, isCastCancelled } from '../rules/cast'
+import { getCastFacts } from '../rules/cast'
+import { getCancellableRoot, getDrawnOpportunityAttacks, isCancelled, isTriggeringAction } from '../rules/opportunity'
 import { getDragFacts, getGrabFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
 import { getReachableFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
@@ -54,8 +55,11 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
   return { ...state, characters: Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, f(c)])) }
 }
 
+// A cancelled action lands nothing at its resolve (combat.tex
+// "Interruption"); its price was already taken at the roll.
 function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((s, action) => {
+    if (phase === 'resolve' && isTriggeringAction(action) && action.cancelled) return s
     const next = mapCharacters(s, reduceCharacter(action, phase))
     const grappled = { ...next, floor: reduceFloor(s, action, phase)(s.floor), grapples: reduceGrapples(action, phase)(next.grapples) }
     const placed = grappled.board ? { ...grappled, board: reduceBoard(next, action, phase)(grappled.board) } : grappled
@@ -251,41 +255,40 @@ export function payAction(newId: () => string = () => `${Date.now()}`): Updater 
   }
 }
 
-// What follows the payment: a move or a cast with opportunity attacks
-// declared against it has the first of them opened before it resolves; an
-// explosion has whoever's reflexes cleared it moving out of the way before
-// it goes off.
+// What follows the payment: a move, or an action that drew opportunity
+// attacks, has the first of them opened before it resolves.
 function afterPaying(state: CombatState, id: string, newId: () => string): CombatState {
   const paid = getAction(state, id)
   if (paid?.kind === 'move') return advanceMove(state, paid, newId)
-  if (paid?.kind === 'cast') return advanceCast(state, paid, newId)
-  if (paid?.kind === 'explosion') return { ...state, actions: [...state.actions, ...escapesBefore(state, paid, newId)] }
-  return state
+  return paid && isTriggeringAction(paid) ? advanceTriggering(state, paid, newId) : state
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
-// the triggering action" — a cast's is spawned as each threatener's turn to
+// the triggering action" — each is spawned as its threatener's turn to
 // swing comes up, exactly as a move's, but never halted early: nothing
-// about casting keeps a later threatener from reaching the caster the way a
-// mover outrunning a stretch of path does, so every reaction declared
+// about the action keeps a later threatener from reaching its actor the way
+// a mover outrunning a stretch of path does, so every reaction declared
 // against it gets its attack (combat.tex "Flanking": "resolved in order").
-function advanceCast(state: CombatState, cast: CastAction, newId: () => string): CombatState {
-  const next = getCastOpportunityAttacks(state, cast).find(({ spawned }) => spawned === null)
-  return next ? { ...state, actions: [...state.actions, getOpportunityAction(next.reaction, newId())] } : state
+// Once they are all fought, an explosion still going off has whoever's
+// reflexes cleared it moving out of the way first.
+function advanceTriggering(state: CombatState, root: TriggeringAction, newId: () => string): CombatState {
+  const next = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => spawned === null)
+  if (next) return { ...state, actions: [...state.actions, getOpportunityAction(next.reaction, newId())] }
+  if (root.kind === 'explosion' && !isCancelled(state, root)) return { ...state, actions: [...state.actions, ...escapesBefore(state, root, newId)] }
+  return state
 }
 
-// spells.tex "Concentration": gives up the cast an opportunity attack was
-// drawn against, so its caster can answer with anything but the SD. Only
-// the caster, and only against an opportunity attack their own casting
-// triggered.
-export function cancelCast(actorId: string): Updater {
+// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
+// action ... to defend against an opportunity attack" — gives up the action
+// the open opportunity attack was drawn by, so its actor can answer with
+// anything but the SD. Only that actor, and only against an opportunity
+// attack their own action triggered.
+export function cancelTriggeringAction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || (open.kind !== 'strike' && open.kind !== 'grapple' && open.kind !== 'drag') || open.status !== 'committed' || !open.opportunity) return state
-    const reaction = open.spawnedBy ? getAction(state, open.spawnedBy) : null
-    const cast = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
-    if (!cast || cast.kind !== 'cast' || cast.actorId !== actorId || cast.cancelled) return state
-    return replaceActions(state, [{ ...cast, cancelled: true }])
+    if (!open || open.status !== 'committed') return state
+    const root = getCancellableRoot(state, open, actorId)
+    return root ? replaceActions(state, [{ ...root, cancelled: true }]) : state
   }
 }
 
@@ -439,7 +442,9 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'rolled' || getNextStep(state) === 'aim' || getNextStep(state) === 'choose') return state
-    const resolved: Action = open.kind === 'strike' || open.kind === 'shoot'
+    const resolved: Action = isTriggeringAction(open) && isCancelled(state, open)
+      ? { ...open, status: 'resolved', cancelled: true }
+      : open.kind === 'strike' || open.kind === 'shoot'
       ? (() => {
           const facts = getAttackFacts(state, open)
           const target = open.targetId ? state.characters[open.targetId] : undefined
@@ -488,32 +493,33 @@ function escapesOnStun(state: CombatState, root: Action, newId: () => string): A
     .map((heldId) => ActionSchema.parse({ kind: 'grapple', maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
 }
 
-// An opportunity attack fought against a mover or a caster, once it has
-// landed, hands the root back: on to its next threatener, or to its end.
+// An opportunity attack fought against a mover or a triggering action, once
+// it has landed, hands the root back: on to its next threatener, or to its end.
 function afterLanding(state: CombatState, resolved: Action, newId: () => string): CombatState {
   const reaction = resolved.spawnedBy ? getAction(state, resolved.spawnedBy) : null
   const root = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
   if (reaction?.kind !== 'opportunityAttack' || root?.status !== 'rolled') return state
   if (root.kind === 'move') return advanceMove(state, root, newId)
-  if (root.kind === 'cast') return advanceCast(state, root, newId)
-  return state
+  return isTriggeringAction(root) ? advanceTriggering(state, root, newId) : state
 }
 
 // combat.tex "Flanking", "Follow", "Evasion": the actions the resolved one's
 // reactions open, in the order they were declared. A flanker's opportunity
 // attack "can be voided if the target gets out of range", so one whose
 // target ended beyond the reactor's reach opens nothing. An opportunity
-// attack against a move or a cast was opened before the root resolved (see
-// `advanceMove`, `advanceCast`) and is not opened again here. A cast that
+// attack against a move or a triggering action was opened before the root
+// resolved (see `advanceMove`, `advanceTriggering`) and is not opened again
+// here; a cancelled action opens nothing. A cast that
 // hit with an area to it opens that area as an
 // explosion of the caster's, aimed and played out on its own (combat.tex
 // "Explosions"; the caster's part is done).
 function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
+  if (isTriggeringAction(root) && root.cancelled) return []
   const opened = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     switch (reaction.kind) {
       // combat.tex "Flanking": opened here, after the strike it answers has
-      // landed. A move's or a cast's own opportunity attacks are opened
-      // earlier (`advanceMove`, `advanceCast`) and are already spawned by
+      // landed. Any other root's own opportunity attacks are opened
+      // earlier (`advanceMove`, `advanceTriggering`) and are already spawned by
       // the time their root gets here.
       case 'opportunityAttack': {
         if (root.kind !== 'strike') return []
@@ -551,7 +557,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
     }
   })
   opened.push(...escapesOnStun(state, root, newId))
-  if (root.kind === 'cast' && root.roll?.degree === 'hit' && !isCastCancelled(state, root) && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
+  if (root.kind === 'cast' && root.roll?.degree === 'hit' && !isCancelled(state, root) && isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && SPELLS[root.key].effects.some((e) => e.target === 'area' && e.area !== null)) {
     opened.push(ActionSchema.parse({ kind: 'explosion', id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
   }
   return opened

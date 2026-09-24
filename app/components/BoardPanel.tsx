@@ -2,13 +2,13 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
-import type { BoardCellView, BoardTokenView } from '../domain/combat/projections/boardView'
+import type { BoardCellView, BoardFloorItemView, BoardTokenView } from '../domain/combat/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
 
 const MODE_LABEL = {
-  idle: 'click a cell to place the active character',
+  idle: 'click a cell to place the active character, or an item to pick it up',
   path: 'click cells to walk the move',
   jump: 'click a cell to jump there',
   aim: 'click a cell to aim the explosion',
@@ -28,7 +28,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // on by hand, and the surface a move is walked on. Everything drawn is a
 // field of the board view; the panel only translates it into shapes.
 export function BoardPanel(){
-  const { view, create, clickCell, clickToken, place, turn } = useBoard()
+  const { view, create, clickCell, clickToken, clickFloorItem, place, turn } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
 
   if (!view.present) {
@@ -61,6 +61,7 @@ export function BoardPanel(){
       <svg viewBox={view.viewBox} className='w-full select-none' role='img' aria-label='board'>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
+        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId, f.pickable)} />)}
       </svg>
 
       <LinkRow />
@@ -132,7 +133,6 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
-      {cell.items.length > 0 ? <text x={0.45} y={-0.3} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.45}>▪</text> : null}
       {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
     </g>
   )
@@ -149,6 +149,17 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
       </g>
+    </g>
+  )
+}
+
+// An item lying on the floor, drawn above any token on its cell.
+function FloorItem({ item, onClick }: { item: BoardFloorItemView, onClick: () => void }){
+  return (
+    <g transform={`translate(${item.x} ${item.y})`} className={item.pickable ? 'cursor-pointer' : ''} onClick={onClick}>
+      <title>{item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`}</title>
+      <rect x={-0.16} y={-0.16} width={0.32} height={0.32} rx={0.05}
+        className={item.pickable ? 'fill-accent stroke-fg hover:fill-good' : 'fill-muted stroke-line'} strokeWidth={0.04} />
     </g>
   )
 }

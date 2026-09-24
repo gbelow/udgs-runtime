@@ -2,6 +2,7 @@ import type { Coord } from "../domain/combat/types";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest } from "../domain/combat/projections/boardView";
 import { setTarget } from "../domain/combat/commands/action";
+import { pickFloorItem } from "../domain/combat/commands/floor";
 import { createBoard, paintTerrain, pickCell, placeCharacter, turnCharacter, turnMove } from "../domain/combat/commands/board";
 import { useCombatStore } from "../stores/useCombatStore";
 
@@ -31,6 +32,10 @@ export function useBoard() {
     if (targetable) update(setTarget(id));
     else setActiveCharacter(id);
   };
+  // A click on an item on the floor picks it up, when the view says one would.
+  const clickFloorItem = (itemId: string, pickable: boolean) => {
+    if (pickable && view.picker) update(pickFloorItem(view.picker, itemId, () => crypto.randomUUID()));
+  };
   const place = (id: string) => setActiveCharacter(id);
   const turn = () => {
     if (view.mode === 'path') return update(turnMove());
@@ -38,5 +43,5 @@ export function useBoard() {
     if (activeId) update(turnCharacter(activeId));
   };
 
-  return { view, create, clickCell, clickToken, place, turn } as const;
+  return { view, create, clickCell, clickToken, clickFloorItem, place, turn } as const;
 }

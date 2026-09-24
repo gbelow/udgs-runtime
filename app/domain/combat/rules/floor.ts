@@ -10,7 +10,7 @@ export function onFloor(item: Item, cell: Coord | null): FloorItem {
   return { item: { ...item, seized: false }, cell }
 }
 
-// combat.tex "Picking up": what lies on the character's own cells or next
+// What can be picked up: what lies on the character's own cells or next
 // to them — anything, on a fight without a board, where the floor is one
 // pile.
 export function getReachableFloor(state: CombatState, id: string): FloorItem[] {

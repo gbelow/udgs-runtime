@@ -38,7 +38,7 @@ import {
   getOpenAction,
   getReactionsTo,
   getTargetIds,
-  isConcentrating,
+  getCancellableLabel,
   isDeclarationComplete,
 } from '../rules/action'
 import { getCastFacts } from '../rules/cast'
@@ -81,9 +81,10 @@ export type ReactorOptions = {
     direction: number | null
     steps: number
   } | null
-  // spells.tex "Concentration": still theirs to give up, to answer with
-  // anything but the SD (`cancelCast`)
-  concentrating: boolean
+  // combat.tex "Opportunity Attack": the action of theirs the attack answers,
+  // still theirs to give up to answer with anything but the SD
+  // (`cancelTriggeringAction`); null when there is none
+  cancellable: string | null
 }
 
 export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
@@ -109,7 +110,7 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
             steps: declared.steps,
           }
         : null
-      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, concentrating: isConcentrating(state, open, c.id) }
+      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
     })
     .filter((r) => r.options.length > 0)
 }
