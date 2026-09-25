@@ -10,8 +10,8 @@ import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
 import { findHeldItem, getExplosionPayload, isAimed, isSpray } from './explosion'
-import { getTriggers, getTriggersFor } from './reactions'
-import { isCancelled, isTriggeringAction } from './opportunity'
+import { findTrigger, getTriggers } from './reactions'
+import { isVoided } from './opportunity'
 import { canGrab, canStandByEscape, findGrapple, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
@@ -55,6 +55,18 @@ export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, 
 
 export function getReactionsTo(state: CombatState, id: string): Action[] {
   return state.actions.filter((a) => a.reactionTo === id)
+}
+
+// The reactions to the action declared but not yet paid for, and so still
+// free to change or take back.
+export function getLiveReactionsTo(state: CombatState, id: string): Action[] {
+  return getReactionsTo(state, id).filter((r) => r.status !== 'resolved')
+}
+
+// The actor answers nothing of their own — except a blast, which reaches
+// them where they stand like anyone else (combat.tex "Explosions").
+export function canAnswer(open: Action, characterId: string): boolean {
+  return open.actorId !== characterId || open.kind === 'explosion'
 }
 
 export function getAction(state: CombatState, id: string): Action | null {
@@ -109,7 +121,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const fought = getOpportunityState(state, action)
       // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
       const root = getRootOf(state, action)
-      if (root && !action.grab && getTriggersFor(state, root, action.actorId).find((t) => t.at === action.at)?.catchOnly) return false
+      if (root && !action.grab && findTrigger(state, root, action)?.catchOnly) return false
       return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
@@ -227,7 +239,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
   if (open.status === 'rolled') {
-    if (isTriggeringAction(open) && isCancelled(state, open)) return 'confirm'
+    if (isVoided(state, open)) return 'confirm'
     if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
     // combat.tex "Push and drag": the winner points the way, then whoever
     // it moves someone towards may answer it

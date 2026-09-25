@@ -22,7 +22,7 @@ import { getGrabFacts } from './grapple'
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
 // degree its test came to. The target's side — what that does to whoever
-// it lands on — is the character's own damage lens.
+// it lands on — is the character's own damage rule.
 
 type Defense = Pick<Damage, 'defense' | 'defenseAP' | 'defenseWeaponKey' | 'block' | 'shield'>
 const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '', block: 0, shield: false }

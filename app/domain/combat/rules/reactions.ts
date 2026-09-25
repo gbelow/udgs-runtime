@@ -47,6 +47,18 @@ export function getTriggersFor(state: CombatState, root: Action, characterId: st
   return getTriggers(state, root).filter((t) => t.characterId === characterId)
 }
 
+// The trigger a reaction answers, or would: one of its kind, at the step it
+// names, and against whoever it is aimed at once it is. A reaction that
+// names no step or no target yet matches on what it does name.
+export type TriggerKey = { kind: ActionKind; actorId: string; at?: number | null; targetId?: string | null }
+
+export function findTrigger(state: CombatState, root: Action, reaction: TriggerKey): Trigger | null {
+  return getTriggersFor(state, root, reaction.actorId).find((t) =>
+    t.kind === reaction.kind
+    && (reaction.at === undefined || t.at === reaction.at)
+    && (reaction.targetId === undefined || (t.against ?? root.actorId) === reaction.targetId)) ?? null
+}
+
 // combat.tex "Defend": the target may answer with any of the four defenses.
 // combat.tex "Flanking": everyone flanking the attacker gets an opportunity
 // attack.

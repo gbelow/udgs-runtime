@@ -2,7 +2,7 @@ import type { Coord } from './types'
 
 // Hex arithmetic in axial coordinates (q, r), with the implied third cube
 // axis s = -q - r. Nothing here is a rule: this is the metric the board
-// lenses measure against, and the one the movement table's "space" is
+// rules measure against, and the one the movement table's "space" is
 // counted in.
 
 // The six neighbours of a cell, in the order that is also the rotation

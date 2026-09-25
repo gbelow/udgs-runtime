@@ -12,7 +12,7 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
   price: PricedAction | null
   reactsTo: readonly ActionKind[]
   // whether a die commits the action; one without is committed by paying.
-  // A move is the exception the lens `needsDie` makes: difficult terrain
+  // A move is the exception `needsDie` makes: difficult terrain
   // puts a Balance test on it. On a reaction, whether it is a test of its
   // own, thrown with the root's die.
   die: boolean

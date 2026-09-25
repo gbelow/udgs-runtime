@@ -5,6 +5,7 @@ import { getAfflictions } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
 import { getFootprint, withPlacements } from './board'
 import { canStandAt, getMoveOrigin, getMoveWaypoint, getMovementSpeed } from './move'
+import { getReactionsTo } from './action'
 
 // combat.tex "Trample": "Happens when two characters hit each other at
 // speed. This is a Force vs Force comparison." Two ways into one here: a
@@ -58,7 +59,7 @@ export function getMoveTramples(state: CombatState, action: MoveAction, path: Co
   const from = getMoveOrigin(state, action)
   const board = state.board
   if (!mover || !from || !board) return { trampled: [], stop: null, blocked: false }
-  const evaded = new Set(state.actions.filter((a) => a.reactionTo === action.id && a.kind === 'evade').map((a) => a.actorId))
+  const evaded = new Set(getReactionsTo(state, action.id).filter((a) => a.kind === 'evade').map((a) => a.actorId))
   const standing = Object.keys(state.characters).filter((id) => id !== action.actorId && !evaded.has(id) && isTrampleable(state, id))
 
   const runner = getTrampleForce(mover, action.movement)

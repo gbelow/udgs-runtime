@@ -3,7 +3,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { DamageSchema, ItemSchema, type CampaignCharacter, type Damage, type Degree } from '../../types'
 import { HIT_LOCATIONS } from '../../lists'
 import { LOCATIONS, injuryMap } from '../../tables'
-import { getOutcome } from '../../character/rules/damage'
+import { getOutcome } from './damage'
 
 const target = makeCampaignCharacter({})
 

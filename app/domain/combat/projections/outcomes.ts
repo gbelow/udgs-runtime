@@ -7,7 +7,7 @@ import { getAttackFacts, outcomeOf } from '../rules/damage'
 import { isAttackAction } from '../rules/attack'
 import { getExplosionFacts } from '../rules/explosion'
 import { getGrappleFacts, getManeuverFacts } from '../rules/grapple'
-import { isCancelled, isTriggeringAction } from '../rules/opportunity'
+import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/activeCharacter'
 
 // The outcome of the open action on everyone it lands on, as it would land
@@ -16,7 +16,7 @@ import { getFightName } from '../rules/activeCharacter'
 // per character in an explosion's area. Nothing, from an action an
 // opportunity attack cancelled.
 export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
-  if (isTriggeringAction(root) && isCancelled(state, root)) return []
+  if (isVoided(state, root)) return []
   if (root.kind === 'explosion') return deliveryOutcomes(state, root.facts ?? getExplosionFacts(state, root))
   if (root.kind === 'grapple') return deliveryOutcomes(state, (root.facts ?? getManeuverFacts(state, root))?.deliveries ?? {})
   if (!isAttackAction(root) || !root.targetId) return []
@@ -43,7 +43,7 @@ function flatten(deliveries: Deliveries): { id: string; delivery: Delivery }[] {
 // action was cancelled before it could do any of it.
 export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
-  if (isTriggeringAction(root) && isCancelled(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
+  if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   const facts = getGrappleFacts(root)

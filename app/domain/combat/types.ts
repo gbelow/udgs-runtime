@@ -50,7 +50,7 @@ export const DirectionSchema = z.number().int().min(0).max(5)
 // Where a character stands. `cell` is the anchor of its footprint and
 // `orientation` one of the six hex rotations the footprint may take
 // (creating.tex "Size and Space Occupation"); which cells that covers is the
-// footprint lens's to say. `focus` is who the character is looking at, for
+// footprint rule's to say. `focus` is who the character is looking at, for
 // line of sight (combat.tex "Visibility"); it decides nothing yet. It is a
 // fact of the fight, not of the character, so it lives here and not on the
 // character record.
@@ -110,7 +110,7 @@ export type Board = z.infer<typeof BoardSchema>
 // thrown and the price is paid, in the same step, with no way back),
 // resolved (the consequences have landed).
 // `cost` is written at the roll, off the actor as they were then, so the
-// record says what was paid without a lens having to recompute it later.
+// record says what was paid without a rule having to recompute it later.
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
 // action ... to defend against an opportunity attack" — given up by its
 // actor to answer one actively, or lost outright once one interrupts them

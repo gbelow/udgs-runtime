@@ -144,7 +144,6 @@ export function getBoardView(state: CombatState): BoardView {
   // until the blast is confirmed (combat.tex "Sprays": the direction is
   // chosen after the movement).
   const explosion = findOpenRoot(state, 'explosion')
-  // combat.tex "Push and drag": the way the pair is pushed is picked on the board
   // combat.tex "Push and drag": once settled, the winner points the push or
   // picks where to circle on the board, until the third parties are fought
   const settled = open?.kind === 'drag' && open.status === 'rolled' ? open : null

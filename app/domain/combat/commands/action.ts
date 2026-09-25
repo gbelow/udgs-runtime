@@ -1,12 +1,12 @@
 import type { CampaignCharacter } from '../../types'
 import { ActionSchema, DirectionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type ActionRoll, type CombatState, type Updater, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, getAction, getNextStep, getOpenAction, getPayableCost, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAnswer, getAction, getLiveReactionsTo, getNextStep, getOpenAction, getPayableCost, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { findOption } from '../rules/options'
 import { canSaveGraze, getCastFacts, getGrazeSavedRoll, getImprovementOptions, opensExplosion } from '../rules/cast'
 import { getOpportunityAction, getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
-import { getTriggersFor } from '../rules/reactions'
+import { findTrigger } from '../rules/reactions'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
 import type { Dice } from '../dice'
 import { getAttackFacts, getHOPOptions, getInterruption, getStrikeLanding } from '../rules/damage'
@@ -19,6 +19,7 @@ import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getHoldBa
 import { sameCell } from '../geometry'
 import { getReachableFloor, getThrownItem } from '../rules/floor'
 import { settleGrapples } from './grapple'
+import { makeAction } from '../factories'
 import type { SpellModification } from '../../tables'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -126,15 +127,19 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
   return (state) => {
     const open = getOpenAction(state)
     if (!open || !isAnswerable(state, open)) return state
-    if (open.actorId === actorId && open.kind !== 'explosion') return state
+    if (!canAnswer(open, actorId)) return state
     if (!findOption(state, actorId, draft)?.available) return state
-    const trigger = getTriggersFor(state, open, actorId).find((t) => t.kind === draft.kind && t.at === ((draft as { at?: number | null }).at ?? t.at))
+    const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
     const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: trigger?.against ?? open.actorId, reactionTo: open.id })
-    return pruneReactions({
-      ...state,
-      actions: [...state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId && a.status !== 'resolved')), reaction],
-    })
+    return pruneReactions({ ...state, actions: [...withoutLiveReaction(state, open.id, actorId), reaction] })
   }
+}
+
+// The fight's actions less the character's reaction to the action, if it is
+// still only declared.
+function withoutLiveReaction(state: CombatState, rootId: string, actorId: string): Action[] {
+  const live = getLiveReactionsTo(state, rootId).filter((r) => r.actorId === actorId)
+  return state.actions.filter((a) => !live.includes(a))
 }
 
 // Drops every reaction to the open action that its triggers no longer
@@ -144,8 +149,8 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
 function pruneReactions(state: CombatState): CombatState {
   const open = getOpenAction(state)
   if (!open || !(open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && !open.fought))) return state
-  const kept = state.actions.filter((a) => a.reactionTo !== open.id || a.status === 'resolved' || getTriggersFor(state, open, a.actorId).some((t) =>
-    t.kind === a.kind && (a.kind !== 'opportunityAttack' || (t.at === a.at && (t.against ?? open.actorId) === a.targetId))))
+  const live = getLiveReactionsTo(state, open.id)
+  const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' ? a.at : undefined }) !== null)
   return kept.length === state.actions.length ? state : { ...state, actions: kept }
 }
 
@@ -156,7 +161,7 @@ export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Up
   return (state) => {
     const open = getOpenAction(state)
     if (!open || !isAnswerable(state, open)) return state
-    const reaction = getReactionsTo(state, open.id).find((r) => r.actorId === actorId && r.status !== 'resolved')
+    const reaction = getLiveReactionsTo(state, open.id).find((r) => r.actorId === actorId)
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
     return pruneReactions(replaceActions(state, [ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })]))
   }
@@ -168,7 +173,7 @@ export function withdrawReaction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || !isAnswerable(state, open)) return state
-    return pruneReactions({ ...state, actions: state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === actorId && a.status !== 'resolved')) })
+    return pruneReactions({ ...state, actions: withoutLiveReaction(state, open.id, actorId) })
   }
 }
 
@@ -177,7 +182,7 @@ export function withdrawLastReaction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || !isAnswerable(state, open)) return state
-    const last = getReactionsTo(state, open.id).filter((r) => r.status !== 'resolved').at(-1)
+    const last = getLiveReactionsTo(state, open.id).at(-1)
     return last ? withdrawReaction(last.actorId)(state) : state
   }
 }
@@ -253,7 +258,7 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
 // They were paid for by nobody yet: each opens a strike that is.
 function fightPush(state: CombatState, open: DragAction, newId: () => string): CombatState {
   if (!areReactionsComplete(state, open)) return state
-  const live = getReactionsTo(state, open.id).filter((r) => r.status !== 'resolved')
+  const live = getLiveReactionsTo(state, open.id)
   const fought = replaceActions(state, [{ ...open, fought: true }, ...live.map((r): Action => ({ ...r, status: 'resolved' }))])
   return advanceTriggering(fought, { ...open, fought: true }, newId)
 }
@@ -330,7 +335,7 @@ function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => s
 
 // The move a reaction opens for its reactor.
 function openMove(reaction: Action, newId: () => string, fields: ReactionMove): MoveAction {
-  return ActionSchema.parse({ ...fields, kind: 'move', id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id }) as MoveAction
+  return makeAction('move', { ...fields, id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id })
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
@@ -502,7 +507,7 @@ function settle(state: CombatState, open: Action): Action {
 // one's that nobody may resist, for them to take or skip.
 function escapesOnStun(state: CombatState, root: Action, newId: () => string): Action[] {
   return getStunEscapes(state, root).map(({ heldId, holderId }) =>
-    ActionSchema.parse({ kind: 'grapple', maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
+    makeAction('grapple', { maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
 }
 
 // An opportunity attack fought against a mover or a triggering action, once
@@ -534,7 +539,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
   })
   opened.push(...escapesOnStun(state, root, newId))
   if (root.kind === 'cast' && opensExplosion(state, root)) {
-    opened.push(ActionSchema.parse({ kind: 'explosion', id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
+    opened.push(makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
   }
   return opened
 }

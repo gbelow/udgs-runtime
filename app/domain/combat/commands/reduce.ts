@@ -115,11 +115,11 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
   }
 }
 
-// combat.tex "Throw": a thrown row is made by letting go of the weapon; a
-// natural weapon or a shooting one stays where it is.
 const fallProne = inflict(['prone'])
 const standUp = cure(['prone'])
 
+// combat.tex "Throw": a thrown row is made by letting go of the weapon; a
+// natural weapon or a shooting one stays where it is.
 function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string): CampaignCharacter {
   const row = findWeaponRow(c, weaponKey, attack)
   if (!row || row.wielded.natural || getAttackKind(row.atk.range) !== 'throw') return c

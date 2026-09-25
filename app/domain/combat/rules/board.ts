@@ -8,8 +8,8 @@ import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, coordKey, line, rotate, setDistance } from '../geometry'
 import { findWeaponRow } from './weaponRow'
 
-// The board lenses read the spatial facts of a fight off `state.board`.
-// Every lens that answers for a fight answers null, or "passes", when the
+// The board rules read the spatial facts of a fight off `state.board`.
+// Every rule that answers for a fight answers null, or "passes", when the
 // fight has no board or the character asked about is not placed on it: the
 // domain does not know where anyone stands, so no positional rule can close
 // anything.

@@ -1,5 +1,6 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionOf, type AttackAction, type CombatState, type MoveAction, type OpportunityAction, type StrikeAction, type WeaponAction } from '../types'
+import { makeAction } from '../factories'
+import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, StrikeAction, WeaponAction } from '../types'
 import { LOCATIONS, QUICKEN_DL } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getAttacksList, getShotKind, needsFocus } from '../../character/rules/gear'
@@ -67,7 +68,7 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
   const { weaponKey, attack, variant, location, grab } = reaction
   const root = getRootOf(state, reaction)
   const caught = grab && root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
-  return ActionSchema.parse({ kind: 'strike', id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, status: 'committed' }) as StrikeAction
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, status: 'committed' })
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
@@ -75,9 +76,9 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
 // (combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
 // opportunity attacks").
 export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
-  const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, status: 'committed' }
-  if (reaction.mode === 'grapple') return ActionSchema.parse({ ...base, kind: 'grapple', maneuver: reaction.maneuver }) as OpportunityAction
-  if (reaction.mode === 'drag') return ActionSchema.parse({ ...base, kind: 'drag' }) as OpportunityAction
+  const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, status: 'committed' as const }
+  if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
+  if (reaction.mode === 'drag') return makeAction('drag', base)
   return getOpportunityStrike(state, reaction, id)
 }
 
@@ -226,11 +227,6 @@ function coverTerms(reactor: Character, reaction: Action): Term[] {
   return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
 
-// The reaction a shot is met with: the target's own, or a guard made for
-// them by someone adjacent (combat.tex "Guard": "block ranged attacks
-// against themselves or adjacent characters"). A shot has to beat every one
-// of them (the table's ruling), so the one it is scored against — and the
-// one whose defense the damage meets — is whichever puts up the most.
 // The reaction the attack is met with: a shot's strongest answer, anything
 // else's the target's own. Null: the target stands on their SD.
 export function getDefendingReaction(state: CombatState, root: Action): Action | null {
@@ -238,6 +234,11 @@ export function getDefendingReaction(state: CombatState, root: Action): Action |
   return root.targetId ? getReactionsTo(state, root.id).find((r) => r.actorId === root.targetId) ?? null : null
 }
 
+// The reaction a shot is met with: the target's own, or a guard made for
+// them by someone adjacent (combat.tex "Guard": "block ranged attacks
+// against themselves or adjacent characters"). A shot has to beat every one
+// of them (the table's ruling), so the one it is scored against — and the
+// one whose defense the damage meets — is whichever puts up the most.
 function getShotDefense(state: CombatState, root: Action): Action | null {
   return getReactionsTo(state, root.id)
     .filter((r) => r.kind === 'evasion' || r.kind === 'guard')

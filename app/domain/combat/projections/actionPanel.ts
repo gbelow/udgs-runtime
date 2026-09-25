@@ -5,7 +5,7 @@ import { ACTIONS } from '../rules/actionCatalog'
 import { getFightName } from '../rules/activeCharacter'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
-import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAnswer, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
 import { AttackOption, getAttackOptions, isAttackAction, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { GRAZE_SAVE, LOCATIONS } from '../../tables'
@@ -60,7 +60,7 @@ export type ReactorOptions = {
 
 function getReactors(state: CombatState, open: Action): ReactorOptions[] {
   return Object.values(state.characters)
-    .filter((c) => c.id !== open.actorId || open.kind === 'explosion')
+    .filter((c) => canAnswer(open, c.id))
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
       const strike = declared?.kind === 'opportunityAttack'

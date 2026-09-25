@@ -15,7 +15,7 @@ import { getHeldItem } from '../../item/rules/hands'
 // hard it hits there. The payload is read off the source the action names
 // — the charge in a thrown item, a mundane explosive's own, a spell — and
 // each of its effects covers its own area; the zones off where it is aimed;
-// who is in which zone off the board as it stands, so the same lenses
+// who is in which zone off the board as it stands, so the same rules
 // answer before the reactions move and after.
 
 export type ZoneCell = { cell: Coord; degree: Degree }

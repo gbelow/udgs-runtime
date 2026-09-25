@@ -1,6 +1,7 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
+import { getReactionsTo } from './action'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -19,8 +20,8 @@ export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; 
 // `advanceMove`) as reactions resolve — in the order they were declared,
 // each with what it opened if it has.
 export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
-  return state.actions
-    .flatMap((r) => (r.reactionTo === action.id && r.kind === 'opportunityAttack' ? [r] : []))
+  return getReactionsTo(state, action.id)
+    .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
     .map((reaction) => {
       const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
@@ -47,6 +48,12 @@ export function isCancelled(state: CombatState, action: TriggeringAction): boole
   return action.cancelled || getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.status === 'resolved' && (
     (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
     || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
+}
+
+// Whether the action comes to nothing: a triggering action given up or
+// interrupted (`isCancelled`). Anything else lands.
+export function isVoided(state: CombatState, action: Action): boolean {
+  return isTriggeringAction(action) && isCancelled(state, action)
 }
 
 // What the opportunity attack being fought answers, while its target could

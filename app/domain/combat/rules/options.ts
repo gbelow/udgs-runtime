@@ -11,7 +11,7 @@ import { getTriggersFor } from './reactions'
 import { getCancellableRoot } from './opportunity'
 import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleRowOf, isHeld, isImmobile } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
-import { getEvasionCost, getOpenAction, getReactionsTo, isAnswerable } from './action'
+import { canAnswer, getEvasionCost, getOpenAction, getReactionsTo, isAnswerable } from './action'
 import { defRows, getAttackOptions, guardRows, hasUnfocusedRow } from './attack'
 import { getSpellOptions } from './cast'
 
@@ -147,9 +147,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     ])
   }
 
-  // the actor answers nothing of their own — except a blast, which reaches
-  // them where they stand like anyone else (combat.tex "Explosions")
-  if (!isAnswerable(state, open) || (open.actorId === characterId && open.kind !== 'explosion')) return []
+  if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 

@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import type { CampaignCharacter } from '../types'
-import { BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type Board } from './types'
+import { ActionSchema, BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board } from './types'
 import { parseCoordKey } from './geometry'
+
+// An action of a known kind, every field it does not name at its default.
+export function makeAction<K extends ActionKind>(kind: K, fields: Partial<Omit<ActionOf<K>, 'kind'>> & { id: string; actorId: string }): ActionOf<K> {
+  return ActionSchema.parse({ ...fields, kind }) as ActionOf<K>
+}
 
 // A board arrives from outside — a VTT snapshot, a saved fight — and is read
 // the way a character is: best effort, entry by entry. A placement or a cell

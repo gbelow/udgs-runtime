@@ -12,7 +12,7 @@ import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board
 import { getMoveTramples } from './trample'
 import { isImmobile, isInGrapple } from './grapple'
 import { getDrawnOpportunityAttacks, type DrawnOpportunityAttack } from './opportunity'
-import { findOpenRoot } from './action'
+import { findOpenRoot, getReactionsTo } from './action'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -338,7 +338,7 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
   for (const { reaction, spawned: strike } of getOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.status !== 'resolved') continue
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
-    const jumped = state.actions.some((a) => a.reactionTo === strike.id && a.kind === 'evasiveJump' && a.actorId === action.actorId)
+    const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
     if ((stoppable && strike.interruption !== 'none') || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }
     if (strike.trample?.result === 'stopped') return { step: reaction.at! - 1, stop: 'trample' }
