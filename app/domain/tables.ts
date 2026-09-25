@@ -241,19 +241,19 @@ export const magic_types = {
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5, and spells.tex "Casting
-// spells" converts every point above a hit into an SOP. Reaching n SOPs on
+// spells" converts every point above a hit into a HOP. Reaching n HOPs on
 // a cast therefore means beating DL + HIT_MARGIN + n.
 export const HIT_MARGIN = 5
 
 // spells.tex "Types of Spells and Modifications" — what each improvement
-// costs in SOPs, chosen after the roll. Quicken is not here: it is decided
+// costs in HOPs, chosen after the roll. Quicken is not here: it is decided
 // before the roll and moves the DL instead (QUICKEN_DL).
 export const SPELL_MODIFICATIONS = {
-  extend:     { SOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
-  enhance:    { SOP: 4, text: 'the special improvement described in the spell' },
-  amplify:    { SOP: 5, text: 'multiply an effect marked DM, SM, RM or VM once more' },
-  effortless: { SOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
-} as const satisfies Record<string, { SOP: number; text: string }>
+  extend:     { HOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
+  enhance:    { HOP: 4, text: 'the special improvement described in the spell' },
+  amplify:    { HOP: 5, text: 'multiply an effect marked DM, SM, RM or VM once more' },
+  effortless: { HOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
+} as const satisfies Record<string, { HOP: number; text: string }>
 
 // "Quicken Spell: Increases spell DL by 4 to allow it to be cast during any
 // surge and not cause opportunity attacks."

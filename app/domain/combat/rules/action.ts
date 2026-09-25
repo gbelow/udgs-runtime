@@ -12,7 +12,7 @@ import { canAfford } from '../../character/rules/cost'
 import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findHeldItem } from './activeCharacter'
 import { findTrigger, getTriggers } from './reactions'
-import { isVoided } from './opportunity'
+import { isTriggeringAction, isVoided } from './opportunity'
 import { canGrab, canStandByEscape, findGrapple, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
@@ -201,12 +201,38 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
 }
 
 // What the action costs its actor now, or null if they cannot pay it. A
-// move pays for the path as it will be walked, cut wherever it will stop.
+// move pays for the path as it will be walked, cut wherever it will stop;
+// a defense, less what the action given up for it already paid.
 export function getPayableCost(state: CombatState, action: Action): ActionCost | null {
+  const cost = getOwnCost(state, action)
+  const c = state.characters[action.actorId]
+  return c && cost && canAfford(c, cost) ? cost : null
+}
+
+// What the action costs its actor as it stands, whether or not they can pay
+// it; null while it is too incomplete to price.
+export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
   const cost = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
-  return cost && canAfford(c, cost) ? cost : null
+  return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
+}
+
+// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
+// action and reuse the AP spent to defend against an opportunity attack" —
+// nothing comes back, but the AP the given-up action cost pays towards the
+// defense against the attack it was given up for, and that one only. STA
+// is paid in full, and AP the defense does not use is lost (the table's
+// ruling).
+export function getRepurposedAP(state: CombatState, reactorId: string, rootId: string): number {
+  const given = state.actions.find((a) => isTriggeringAction(a) && a.actorId === reactorId && a.cancelledFor === rootId)
+  return given?.cost?.AP ?? 0
+}
+
+// A reaction's price less the AP repurposed towards it.
+export function lessRepurposed(state: CombatState, reactorId: string, rootId: string, cost: ActionCost): ActionCost {
+  const AP = getRepurposedAP(state, reactorId, rootId)
+  return AP > 0 ? { AP: Math.max(0, cost.AP - AP), STA: cost.STA } : cost
 }
 
 // combat.tex "Evasion": "spend 2 AP to react"; abilities.tex "Precise

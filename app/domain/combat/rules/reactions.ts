@@ -5,7 +5,7 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
-import { getDragPath, getGrappleGroup, isGrappleRow } from './grapple'
+import { getDragOrigin, getDragPath, getGrappleGroup, isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 
@@ -146,7 +146,7 @@ function pushTriggers(state: CombatState, root: DragAction): Trigger[] {
   const path = getDragPath(state, root)
   if (!path || path.steps.length === 0) return []
   const movers = Object.keys(path.steps[0])
-  const start = (id: string) => state.board?.placements[id]
+  const start = (id: string) => getDragOrigin(state, root, id)
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     const other = getPlacedFootprint(state, id)

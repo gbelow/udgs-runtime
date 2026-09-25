@@ -8,7 +8,7 @@ import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/activeCharacter'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
-import { getCircleCells, getDragPath } from '../rules/grapple'
+import { getCircleCells, getDragFacts } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -151,7 +151,7 @@ export function getBoardView(state: CombatState): BoardView {
   const pointing = settled !== null && !settled.fought && (settled.choice === 'push' || settled.choice === 'circle')
   const aiming = (explosion !== null && isAimable(state, explosion)) || pointing
   const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
-  const landed = settled ? getDragPath(state, settled)?.steps.at(-1) ?? {} : {}
+  const landed = settled ? getDragFacts(state, settled)?.to ?? {} : {}
   const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []

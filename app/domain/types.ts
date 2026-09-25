@@ -781,7 +781,7 @@ export const LearnedSpellSchema = z.object({
 export type LearnedSpell = z.infer<typeof LearnedSpellSchema>
 
 // The last action rolled and not yet resolved: what was attempted, what the
-// die came to, and the SOPs it left to spend on improvements. One slot for
+// die came to, and the HOPs it left to spend on improvements. One slot for
 // spells and attacks alike — a new roll replaces it, a round change clears it.
 
 const CampaignValues = {

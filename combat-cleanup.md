@@ -10,7 +10,7 @@ Findings from the audit of `app/domain/combat`, in the order they are worked.
 - [x] Stale "lens" wording in combat comments now reads "rule"
 - [x] `rules/damage.test.ts` moved to `character/rules/damage.test.ts`, beside the `getOutcome` it tests
 - [x] `getStrikeReach` exported but used only by a test — no change: `board.test.ts` imports it
-- [ ] `dice.ts` `rollTest` / `RollMode` (safe and risky tests) are not called anywhere — left in place as staged structure; wire them in or confirm they stay
+- [x] `dice.ts` `rollTest` / `RollMode` (safe and risky tests) are not called anywhere — kept: staged structure, the user confirmed it stays
 
 ## Repeated patterns
 
@@ -27,7 +27,7 @@ Findings from the audit of `app/domain/combat`, in the order they are worked.
 ## Exceptions to the patterns
 
 - [x] Cast price: the reducer pays the AP/STA the roll wrote on the action, like every other kind (the user's ruling: in combat a spell costs only AP and STA; its other costs are exploration's)
-- [ ] Question: `spells.ts` charges a sustained spell's upkeep at `end_round` with the spell's full `cost` (exhaustion, IL, ET included). Under the ruling above, should the combat round change charge only AP/STA?
+- [x] `spells.ts`: a sustained spell's upkeep at the round change charges only the AP/STA of its casting cost
 - [x] UI concerns in `rules/`: `pickPathCell` moved into `commands/board.ts`, its only caller; `findHeldItem` moved beside the other fight lookups in `rules/activeCharacter.ts`
 - [x] `saveGraze` goes through `getRolledOpen`
 - [x] `dice.ts` outside `rules/` — no change: `components/utils.tsx` builds the real dice from it, and components may not import rules
@@ -39,4 +39,10 @@ Findings from the audit of `app/domain/combat`, in the order they are worked.
 
 - [x] Exhaustive dispatch: `getSettled`, `getTriggers` and `getRootTestTerms` list every kind, so a new action kind fails to compile until it is placed. The reducers keep their catch-alls: most kinds rightly leave the board, the floor and the grapples alone
 - [x] Split `commands/action.ts` into `action.ts` (the lifecycle buttons), `choices.ts` (the post-roll choices, added to the purity registry), `sequence.ts` (opportunity-attack sequencing and what a landing opens) and `log.ts` (shared bookkeeping)
-- [ ] One opportunity-attack sequencer for moves, triggering actions and pushes — needs a design decision: it touches the table's rulings on where a mover stands, what stops them and when a catch fires
+- [x] One opportunity-attack sequencer: `advanceOpportunities` in `commands/sequence.ts` replaces `advanceMove` and `advanceTriggering`. `getDrawnOpportunityAttacks` gives the fight order (path order for a move or a push, declaration order otherwise); `getOpportunityStop`, `isOpportunityReached` and `getOpportunityState` in `rules/attack.ts` say when the run ends, which attacks are never reached, and where everyone stands while each is fought. The user's rulings it follows:
+  - every declared attack on a cast, shot or other triggering action is still fought after one cancels it
+  - a push's third-party attacks are fought like a move's: in path order, with the group stood one step short of each stretch (the push records where it set out from, `from`)
+  - only the pusher's interruption stops a push, and it is cut short where it got to rather than undone; later stretches are never reached
+- [x] Cancelling to defend repurposes AP: the given-up action records the attack it was given up for (`cancelledFor`), and its AP pays towards the first defense against that attack (`getRepurposedAP`, `lessRepurposed`, `getOwnCost`); STA is paid in full and unused AP is lost. Options and the panel show the reduced price
+- [x] Found while testing the push: its Force comparison was read live at the resolve, so a blow taken while its attacks were fought changed how far it went. The comparison is now written when the push is paid (`compared`, `getDragComparison`), as a die is written at the roll
+- [x] The board's ghosts of where a push lands follow the path as cut short

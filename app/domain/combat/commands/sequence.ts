@@ -1,12 +1,10 @@
-import type { Action, CombatState, DragAction, TriggeringAction, ExplosionAction, MoveAction } from '../types'
+import type { Action, CombatState, DragAction, ExplosionAction, MoveAction } from '../types'
 import { areReactionsComplete, getAction, getLiveReactionsTo, getReactionsTo, getRootOf } from '../rules/action'
 import { opensExplosion } from '../rules/cast'
-import { getOpportunityAction } from '../rules/attack'
+import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
-import { getMoveFacts, getMoveOverride, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
-import { withPlacements } from '../rules/board'
 import { getDrawnOpportunityAttacks, isCancelled, isFlankInReach, isTriggeringAction } from '../rules/opportunity'
-import { getStunEscapes } from '../rules/grapple'
+import { getDragSides, getStunEscapes } from '../rules/grapple'
 import { makeAction } from '../factories'
 import { appendActions, replaceActions } from './log'
 
@@ -16,34 +14,46 @@ import { appendActions, replaceActions } from './log'
 // call these to carry the fight on to its next step.
 
 // combat.tex "Push and drag": the way pointed and answered, the attacks it
-// drew from third parties are opened, one after another, before it lands.
-// They were paid for by nobody yet: each opens a strike that is.
+// drew from third parties are opened, one after another, before it lands,
+// with everyone it moves setting out from where they stand now. They were
+// paid for by nobody yet: each opens a strike that is.
 export function fightPush(state: CombatState, open: DragAction, newId: () => string): CombatState {
   if (!areReactionsComplete(state, open)) return state
   const live = getLiveReactionsTo(state, open.id)
-  const fought = replaceActions(state, [{ ...open, fought: true }, ...live.map((r): Action => ({ ...r, status: 'resolved' }))])
-  return advanceTriggering(fought, { ...open, fought: true }, newId)
+  const from = Object.fromEntries(getDragSides(state, open).movers.flatMap((id) => {
+    const placement = state.board?.placements[id]
+    return placement ? [[id, placement]] : []
+  }))
+  const fought: DragAction = { ...open, fought: true, from }
+  return advanceOpportunities(replaceActions(state, [fought, ...live.map((r): Action => ({ ...r, status: 'resolved' }))]), fought, newId)
 }
 
 // What follows the payment: a move, or an action that drew opportunity
 // attacks, has the first of them opened before it resolves.
 export function afterPaying(state: CombatState, id: string, newId: () => string): CombatState {
   const paid = getAction(state, id)
-  if (paid?.kind === 'move') return advanceMove(state, paid, newId)
-  return paid && isTriggeringAction(paid) ? advanceTriggering(state, paid, newId) : state
+  return paid ? advanceOpportunities(state, paid, newId) : state
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
-// the triggering action" — each is spawned as its threatener's turn to
-// swing comes up, exactly as a move's, but never halted early: nothing
-// about the action keeps a later threatener from reaching its actor the way
-// a mover outrunning a stretch of path does, so every reaction declared
-// against it gets its attack (combat.tex "Flanking": "resolved in order").
-// Once they are all fought, an explosion still going off has whoever's
-// reflexes cleared it moving out of the way first.
-function advanceTriggering(state: CombatState, root: TriggeringAction, newId: () => string): CombatState {
+// the triggering action." The attacks a move or a triggering action drew
+// are opened one at a time in the order it comes to them, each once the one
+// before has landed; a move or a push has everyone it carries stood one
+// space short of the stretch the next one fires on while it is fought. The
+// run ends once the root is brought to a stop, or at an attack on a stretch
+// it never reaches. Once every attack is fought, an explosion still going
+// off has whoever's reflexes cleared it moving out of the way first.
+// Anything else — a strike, whose flankers swing after it lands — opens
+// nothing here.
+export function advanceOpportunities(state: CombatState, root: Action, newId: () => string): CombatState {
+  if (root.kind !== 'move' && !isTriggeringAction(root)) return state
+  if (getOpportunityStop(state, root) !== null) return state
   const next = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => spawned === null)
-  if (next) return appendActions(state, [getOpportunityAction(state, next.reaction, newId())])
+  if (next) {
+    if (!isOpportunityReached(state, root, next.reaction)) return state
+    const placed = getOpportunityState(state, next.reaction)
+    return appendActions(placed, [getOpportunityAction(placed, next.reaction, newId())])
+  }
   if (root.kind === 'explosion' && !isCancelled(state, root)) return appendActions(state, escapesBefore(state, root, newId))
   return state
 }
@@ -63,26 +73,6 @@ function openMove(reaction: Action, newId: () => string, fields: ReactionMove): 
   return makeAction('move', { ...fields, id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id })
 }
 
-// combat.tex "Opportunity Attack": "The attack occurs before the effect of
-// the triggering action." The mover is walked as far as one space short of
-// the stretch the next opportunity attack fires on and the attack is opened
-// as a strike of its own; once it lands the move is advanced again, to the
-// next one or, if it interrupted, nowhere. One whose stretch the mover never
-// reaches — a fall came first — opens nothing.
-export function advanceMove(state: CombatState, move: MoveAction, newId: () => string): CombatState {
-  if (getMoveOverride(state, move) !== null) return state
-  const walked = getMoveFacts(state, move).path.length
-  const next = getOpportunityAttacks(state, move).find(({ spawned }) => spawned === null)
-  // a catch is fought where the runner already stands, so one on the last
-  // step still comes (combat.tex "Catch")
-  const catching = next?.reaction.grab && move.movement === 'run' ? 1 : 0
-  if (!next || next.reaction.at! - catching > walked) return state
-  const strike = getOpportunityAction(state, next.reaction, newId())
-  const waypoint = getMoveWaypoint(state, move, next.reaction.at! - 1)
-  const placed = waypoint ? withPlacements(state, { [move.actorId]: waypoint }) : state
-  return appendActions(placed, [strike])
-}
-
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held
 // one's that nobody may resist, for them to take or skip.
 function escapesOnStun(state: CombatState, root: Action, newId: () => string): Action[] {
@@ -96,14 +86,13 @@ export function afterLanding(state: CombatState, resolved: Action, newId: () => 
   const reaction = resolved.spawnedBy ? getAction(state, resolved.spawnedBy) : null
   const root = reaction ? getRootOf(state, reaction) : null
   if (reaction?.kind !== 'opportunityAttack' || root?.status !== 'rolled') return state
-  if (root.kind === 'move') return advanceMove(state, root, newId)
-  return isTriggeringAction(root) ? advanceTriggering(state, root, newId) : state
+  return advanceOpportunities(state, root, newId)
 }
 
 // The actions the resolved one's reactions open, in the order they were
 // declared: a flanker's opportunity attack, fought now the strike it answers
 // has landed (any other root's were opened before it resolved — see
-// `advanceMove`, `advanceTriggering` — and are not opened again here), and
+// `advanceOpportunities` — and are not opened again here), and
 // the moves a reaction grants once the root has landed. A cancelled action
 // opens nothing. A cast that hit with an area to it opens that area as an
 // explosion of the caster's, aimed and played out on its own (the caster's

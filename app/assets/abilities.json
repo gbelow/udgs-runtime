@@ -1260,7 +1260,7 @@
           }
         ],
         "requirements": [],
-        "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly. Spending 5 SOP after a hit allows choosing one special effect: Suffocate the enemy, break an arm, and break a leg. Hits can immobilize both characters if the attacker so chooses.",
+        "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, break an arm, and break a leg. Hits can immobilize both characters if the attacker so chooses.",
         "effect": []
       }
     ]

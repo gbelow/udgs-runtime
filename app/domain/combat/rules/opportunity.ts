@@ -16,12 +16,15 @@ function isOpportunityAction(action: Action | undefined): action is OpportunityA
 export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }
 
 // combat.tex "Opportunity Attack": each threatener the action drew gets one
-// attack, spawned in turn (commands/action.ts `advanceTriggering`,
-// `advanceMove`) as reactions resolve — in the order they were declared,
-// each with what it opened if it has.
+// attack, spawned in turn as the one before lands (commands/sequence.ts
+// `advanceOpportunities`), each with what it opened if it has. They are
+// fought in the order the root comes to them: along the path, for a move or
+// a push, whose attacks each fire at a step; in the order they were
+// declared, for anything else (combat.tex "Flanking": "resolved in order").
 export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
   return getReactionsTo(state, action.id)
     .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
+    .sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
     .map((reaction) => {
       const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
@@ -43,9 +46,13 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
 // to answer one actively (`cancelTriggeringAction`). A push that moved or
 // stopped the actor interrupted them too (combat.tex "Push and drag":
 // "interrupts them"). One fought against someone else — a third party's
-// against whoever a push moved at them — does not stop the actor.
+// against whoever a push moved at them — does not stop the actor. A push
+// whose pusher a third party interrupts is cut short where it got to, not
+// cancelled (the table's ruling; `getPushStop`).
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
-  return action.cancelled || getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.status === 'resolved' && (
+  if (action.cancelled) return true
+  if (action.kind === 'drag') return false
+  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.status === 'resolved' && (
     (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
     || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
 }

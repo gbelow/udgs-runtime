@@ -112,13 +112,16 @@ export type Board = z.infer<typeof BoardSchema>
 // `cost` is written at the roll, off the actor as they were then, so the
 // record says what was paid without a rule having to recompute it later.
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action ... to defend against an opportunity attack" — given up by its
-// actor to answer one actively, or lost outright once one interrupts them
-// (combat.tex "Interruption"). Either way nothing it would have done lands,
-// though the AP/STA already spent stays spent (the table's ruling, after
-// spells.tex "Concentration").
+// action and reuse the AP spent to defend against an opportunity attack" —
+// given up by its actor to answer one actively, or lost outright once one
+// interrupts them (combat.tex "Interruption"). Either way nothing it would
+// have done lands, and nothing it cost comes back; given up, its AP pays
+// towards the defense instead. `cancelledFor` is the opportunity attack it
+// was given up for, whose first defense that AP pays towards; null when it
+// was not given up, or was lost to an interruption.
 const Cancellable = {
   cancelled: z.boolean().default(false),
+  cancelledFor: str.nullable().default(null),
 }
 
 const ActionBase = {
@@ -469,6 +472,7 @@ export const DragFactsSchema = z.object({
   carried: z.record(str, num).default({}),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
+const TermSchema = z.object({ label: str, value: num }).strip()
 export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
@@ -477,6 +481,15 @@ export const DragActionSchema = z.object({
   steps: z.number().int().min(1).max(2).default(1),
   to: CoordSchema.nullable().default(null),
   fought: z.boolean().default(false),
+  // the comparison as it stood when the push was paid for — each side's
+  // terms, and whether the actor could circle — written once, like a die:
+  // once the grapple has answered and the price is paid the outcome is
+  // certain, whatever befalls either side while its attacks are fought
+  compared: z.object({ attacker: z.array(TermSchema), defender: z.array(TermSchema).nullable(), circling: z.boolean() }).nullable().default(null),
+  // where everyone it moves set out from, written when the third parties'
+  // attacks are opened: the path is read from here while the group stands
+  // part of the way along it, as a move's is from `from`
+  from: z.record(str, PlacementSchema).nullable().default(null),
   opportunity: z.boolean().default(false),
   ...Cancellable,
   facts: DragFactsSchema.nullable().default(null),

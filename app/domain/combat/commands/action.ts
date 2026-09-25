@@ -7,9 +7,10 @@ import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getCancellableRoot } from '../rules/opportunity'
+import { getDragComparison } from '../rules/grapple'
 import { getSettled } from '../rules/settle'
 import { appendActions, applyPhase, pruneReactions, replaceActions, withoutLiveReaction } from './log'
-import { advanceMove, afterLanding, afterPaying, fightPush, spawn } from './sequence'
+import { advanceOpportunities, afterLanding, afterPaying, fightPush, spawn } from './sequence'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -73,7 +74,7 @@ export function commitAction(): Updater {
 }
 
 // The reactor's way out of an action their reaction opened, while it is
-// still only declared: the action goes, and a move waiting on that
+// still only declared: the action goes, and a root waiting on that
 // opportunity attack is handed on to the next. An opportunity attack goes
 // with its strike, as if never declared, or the move would open it again; a
 // reaction that was paid for (a follow, an evasion) stays on the record.
@@ -85,7 +86,7 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
     const dropped = reaction?.kind === 'opportunityAttack' ? [open.id, reaction.id] : [open.id]
     const withdrawn = { ...state, actions: state.actions.filter((a) => !dropped.includes(a.id)) }
     const root = reaction ? getRootOf(withdrawn, reaction) : null
-    return root?.kind === 'move' && root.status === 'rolled' ? advanceMove(withdrawn, root, newId) : withdrawn
+    return reaction?.kind === 'opportunityAttack' && root?.status === 'rolled' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
   }
 }
 
@@ -185,7 +186,8 @@ export function payAction(newId: () => string): Updater {
     if (open?.kind === 'drag' && open.status === 'rolled' && isAnswerable(state, open)) return fightPush(state, open, newId)
     if (!open || open.status !== 'committed' || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
-    return payAll(state, open, newId)
+    // combat.tex "Push and drag": the comparison is made as the price is paid
+    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open, newId)
   }
 }
 
@@ -206,14 +208,15 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
 // action ... to defend against an opportunity attack" — gives up the action
 // the open opportunity attack was drawn by, so its actor can answer with
-// anything but the SD. Only that actor, and only against an opportunity
+// anything but the SD, the AP it cost paying towards that defense
+// (`getRepurposedAP`). Only that actor, and only against an opportunity
 // attack their own action triggered.
 export function cancelTriggeringAction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'committed') return state
     const root = getCancellableRoot(state, open, actorId)
-    return root ? replaceActions(state, [{ ...root, cancelled: true }]) : state
+    return root ? replaceActions(state, [{ ...root, cancelled: true, cancelledFor: open.id }]) : state
   }
 }
 

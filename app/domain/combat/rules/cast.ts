@@ -102,30 +102,30 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
 }
 
 // spells.tex "Spell Improvements": what the cast's overflow can still buy,
-// each priced in SOP.
+// each priced in HOP.
 export type ImprovementOption = {
   name: SpellModification
-  SOP: number
+  HOP: number
   text: string
   times: number
   available: boolean
 }
 
-export function getSOPRemaining(root: CastAction): number {
-  return (root.roll?.HOP ?? 0) - (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).reduce((sum, m) => sum + (root.improved[m] ?? 0) * SPELL_MODIFICATIONS[m].SOP, 0)
+export function getCastHOPRemaining(root: CastAction): number {
+  return (root.roll?.HOP ?? 0) - (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).reduce((sum, m) => sum + (root.improved[m] ?? 0) * SPELL_MODIFICATIONS[m].HOP, 0)
 }
 
 // spells.tex "Concentration": nothing left to spend overflow on once the
 // cast is cancelled — it produces nothing regardless of what is bought.
 export function getImprovementOptions(state: CombatState, root: CastAction): ImprovementOption[] {
   if (!root.roll || root.roll.degree !== 'hit' || isCancelled(state, root)) return []
-  const remaining = getSOPRemaining(root)
+  const remaining = getCastHOPRemaining(root)
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => ({
     name,
-    SOP: SPELL_MODIFICATIONS[name].SOP,
+    HOP: SPELL_MODIFICATIONS[name].HOP,
     text: SPELL_MODIFICATIONS[name].text,
     times: root.improved[name] ?? 0,
-    available: SPELL_MODIFICATIONS[name].SOP <= remaining,
+    available: SPELL_MODIFICATIONS[name].HOP <= remaining,
   }))
 }
 

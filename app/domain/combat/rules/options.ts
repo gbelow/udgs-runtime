@@ -11,7 +11,7 @@ import { getTriggersFor } from './reactions'
 import { getCancellableRoot } from './opportunity'
 import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleRowOf, isHeld, isImmobile } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
-import { canAnswer, getEvasionCost, getOpenAction, getReactionsTo, isAnswerable } from './action'
+import { canAnswer, getEvasionCost, getOpenAction, getReactionsTo, isAnswerable, lessRepurposed } from './action'
 import { defRows, getAttackOptions, guardRows, hasUnfocusedRow } from './attack'
 import { getSpellOptions } from './cast'
 
@@ -154,7 +154,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   return getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
-    const cost = price ? getActionCost(c, price) : { AP: 0, STA: 0 }
+    const cost = lessRepurposed(state, c.id, open.id, price ? getActionCost(c, price) : { AP: 0, STA: 0 })
     const gate = defenseGate(state, c, open, kind, cost)
     const option = (label: string, draft: ActionDraft, own: ActionCost | null = cost): ActionOption =>
       ({ label, draft, cost: own, ...gate, reactionTo: open.id, chosen: chosen(draft) })
@@ -169,7 +169,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'evasion':
         return [
           option(ACTIONS[kind].label, { kind }),
-          option(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, getEvasionCost(c, true)),
+          option(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, lessRepurposed(state, c.id, open.id, getEvasionCost(c, true))),
         ]
       // where an evasive jump lands is picked on the board, not here
       case 'evasiveJump':

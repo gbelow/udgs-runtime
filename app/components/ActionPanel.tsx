@@ -187,10 +187,10 @@ export function ActionPanel(){
               {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onBuy={() => spend(o.purchase)} onRefund={() => refund(o.purchase)} />)}
             </div>
           ) : null}
-          {step === 'spend' && view.SOP.options.length > 0 ? (
+          {step === 'spend' && view.castHOP.options.length > 0 ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
-              <SectionLabel>SOP <span className='font-mono'>{view.SOP.remaining}</span></SectionLabel>
-              {view.SOP.options.map((o) => <ImprovementButton key={o.name} option={o} onBuy={() => improve(o.name)} onRefund={() => unimprove(o.name)} />)}
+              <SectionLabel>HOP <span className='font-mono'>{view.castHOP.remaining}</span></SectionLabel>
+              {view.castHOP.options.map((o) => <ImprovementButton key={o.name} option={o} onBuy={() => improve(o.name)} onRefund={() => unimprove(o.name)} />)}
             </div>
           ) : null}
           {view.deliveries.map((d, i) => (
@@ -350,7 +350,7 @@ function SpellButton({ option, onCast, onQuicken }: { option: SpellOption, onCas
   )
 }
 
-// spells.tex "Spell Improvements": bought out of the cast's SOP, and taken
+// spells.tex "Spell Improvements": bought out of the cast's HOP, and taken
 // back while nothing has been produced yet.
 function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOption, onBuy: () => void, onRefund: () => void }){
   const bought = option.times > 0
@@ -358,7 +358,7 @@ function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOpt
     <span className='inline-flex items-stretch'>
       <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
         disabled={!option.available} title={option.text} onClick={onBuy}>
-        {option.name} <span className='font-mono text-muted'>{option.SOP}</span>
+        {option.name} <span className='font-mono text-muted'>{option.HOP}</span>
         {bought ? <span className='ml-1 font-mono'>×{option.times}</span> : null}
       </Button>
       {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.name}`} onClick={onRefund}>−</Button> : null}

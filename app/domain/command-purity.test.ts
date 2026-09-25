@@ -215,7 +215,7 @@ function rolledExplosion(s: CombatState): CombatState {
   return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
 }
 
-// A cast of `a`'s sleep, rolled high enough to have SOP to spend, on a
+// A cast of `a`'s sleep, rolled high enough to have HOP to spend, on a
 // frozen state a few commands along.
 function rolledCast(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))

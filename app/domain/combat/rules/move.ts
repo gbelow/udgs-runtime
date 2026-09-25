@@ -11,7 +11,7 @@ import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistanc
 import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
 import { getMoveTramples } from './trample'
 import { isImmobile, isInGrapple } from './grapple'
-import { getDrawnOpportunityAttacks, type DrawnOpportunityAttack } from './opportunity'
+import { getDrawnOpportunityAttacks } from './opportunity'
 import { findOpenRoot, getReactionsTo } from './action'
 
 // How a character crosses the board: what each kind of movement costs it,
@@ -312,14 +312,6 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
   }
 }
 
-// combat.tex "Opportunity Attack": the ones declared against the move, in
-// the order the mover comes to them.
-export function getOpportunityAttacks(state: CombatState, action: MoveAction): DrawnOpportunityAttack[] {
-  return getDrawnOpportunityAttacks(state, action)
-    .filter(({ reaction }) => reaction.at !== null)
-    .sort((a, b) => a.reaction.at! - b.reaction.at!)
-}
-
 // Where an opportunity attack fought against the move took it over, if one
 // has: one space short of the stretch that triggered it, the table's
 // ruling. combat.tex "Interruption": "Movement is cancelled, except running
@@ -335,7 +327,7 @@ export function getOpportunityAttacks(state: CombatState, action: MoveAction): D
 export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', 2) : 0
-  for (const { reaction, spawned: strike } of getOpportunityAttacks(state, action)) {
+  for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.status !== 'resolved') continue
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)

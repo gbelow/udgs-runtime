@@ -96,7 +96,7 @@ export function chooseManeuver(fields: { along?: boolean; item?: string }): Upda
 }
 
 // spells.tex "Spell Improvements": buys one improvement out of the cast's
-// SOPs, only what the option list offers as open.
+// HOPs, only what the option list offers as open.
 export function improveSpell(name: SpellModification): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['cast'])

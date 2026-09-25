@@ -10,10 +10,10 @@ import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isHighGround, withPlacements } from './board'
-import { getBalanceDL, getMoveWaypoint, getStepDelta, isHookedRunner } from './move'
+import { getBalanceDL, getMoveFacts, getMoveOverride, getMoveWaypoint, getStepDelta, isHookedRunner } from './move'
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
-import { getDragPath, getGrappleStrikeTerm, getManeuverDLTerms } from './grapple'
+import { getDragPath, getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './action'
 import { getCastTerms } from './cast'
@@ -88,13 +88,35 @@ export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opp
 // from there.
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = getRootOf(state, reaction)
-  if (root?.kind === 'drag' && reaction.at !== null && reaction.at > 1) {
-    const before = getDragPath(state, root)?.steps[reaction.at - 2]
+  if (root?.kind === 'drag' && reaction.at !== null) {
+    const before = reaction.at > 1 ? getDragPath(state, root)?.steps[reaction.at - 2] : root.from
     return before ? withPlacements(state, before) : state
   }
   if (root?.kind !== 'move' || reaction.at === null) return state
   const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
   return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
+}
+
+// Where the root's run of opportunity attacks was brought to a stop, as the
+// step the one stopped stands short of; null while it goes on. A move is
+// stopped by what `getMoveOverride` reads, a push by an attack that
+// interrupted the pusher (`getPushStop`). Anything else is never stopped:
+// every attack it drew is fought, even once one has cancelled it (the
+// table's ruling), since there is no later stretch it fails to reach.
+export function getOpportunityStop(state: CombatState, root: Action): number | null {
+  if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
+  if (root.kind === 'drag') return getPushStop(state, root)
+  return null
+}
+
+// Whether the root gets as far as the stretch the attack fires on: a move
+// cut short — at a turn, a trample, a fall — never reaches the attacks
+// further along. A catch is fought where the runner already stands, so one
+// on the last step still comes (combat.tex "Catch").
+export function isOpportunityReached(state: CombatState, root: Action, reaction: ActionOf<'opportunityAttack'>): boolean {
+  if (root.kind !== 'move' || reaction.at === null) return true
+  const catching = reaction.grab && root.movement === 'run' ? 1 : 0
+  return reaction.at - catching <= getMoveFacts(state, root).path.length
 }
 
 // Whether the strike may be declared as this variation where it is made.

@@ -5,8 +5,8 @@ import { getActionName } from '../rules/actionCatalog'
 import { getFightName } from '../rules/activeCharacter'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAnswer, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
-import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions } from '../rules/cast'
+import { ActionStep, areReactionsComplete, canAnswer, needsDie, getDeclaredCost, getNextStep, getOwnCost, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
+import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AttackOption, getAttackOptions, isAttackAction, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -201,7 +201,7 @@ export type ActionPanelView = {
   outcomes: { target: string; outcome: Outcome }[]
   // once a cast is rolled: what its overflow can buy, and what it will
   // deliver to whom
-  SOP: { remaining: number; options: ImprovementOption[] }
+  castHOP: { remaining: number; options: ImprovementOption[] }
   // once a cast is rolled: the price of buying its graze up to a hit, when
   // that is open
   grazeSave: { AP: number; STA: number } | null
@@ -210,7 +210,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], SOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -283,7 +283,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
         label: getActionName(r),
-        cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
+        cost: getOwnCost(state, r),
         roll: r.roll,
       })),
       score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
@@ -316,7 +316,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
     outcomes: open.status === 'rolled' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
-    SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
+    castHOP: cast && cast.status === 'rolled' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
     grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
     deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
   }
