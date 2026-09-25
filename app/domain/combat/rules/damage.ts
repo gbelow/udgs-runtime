@@ -12,7 +12,8 @@ import { getDM } from '../../character/rules/helpers'
 import { getBalance, getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
-import { getAction, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { getAction, getReactionsTo, getRootOf } from './action'
+import { getAttackVariant, getShotDefense } from './attack'
 import { findWeaponRow } from './weaponRow'
 import { getMovementSpeed, getStepDelta, isHookedRunner } from './move'
 
@@ -89,7 +90,7 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer:
 // null for a strike no move opened.
 function getOpportunityStep(state: CombatState, root: AttackAction): { move: MoveAction; at: number; reactorId: string } | null {
   const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  const move = reaction?.kind === 'opportunityAttack' && reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
+  const move = reaction?.kind === 'opportunityAttack' ? getRootOf(state, reaction) : null
   return reaction?.kind === 'opportunityAttack' && reaction.at !== null && move?.kind === 'move' ? { move, at: reaction.at, reactorId: reaction.actorId } : null
 }
 

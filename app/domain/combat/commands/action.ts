@@ -1,26 +1,10 @@
 import type { CampaignCharacter } from '../../types'
-import { ActionSchema, type Action, type ActionDraft, type CombatState, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
+import { ActionSchema, DirectionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
 import { ACTIONS, isReaction } from '../actionCatalog'
-import {
-  areReactionsComplete,
-  findOption,
-  canSaveGraze,
-  getAction,
-  getGrazeSavedRoll,
-  getImprovementOptions,
-  getOpportunityAction,
-  isTargeted,
-  getDeclaredCost,
-  getNextStep,
-  getOpenAction,
-  getReactionTest,
-  getReactionsTo,
-  getRootTest,
-  getTargetIds,
-  isAnswerable,
-  isDeclarationComplete,
-  needsDie,
-} from '../rules/action'
+import { areReactionsComplete, getAction, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie } from '../rules/action'
+import { findOption } from '../rules/options'
+import { canSaveGraze, getCastFacts, getGrazeSavedRoll, getImprovementOptions, isTargeted } from '../rules/cast'
+import { getOpportunityAction, getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { getTriggersFor } from '../rules/reactions'
 import type { Dice } from '../dice'
@@ -29,9 +13,8 @@ import { getExplosionFacts, isSpray } from '../rules/explosion'
 import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from '../reduce'
-import { getCastFacts } from '../rules/cast'
 import { getCancellableRoot, getDrawnOpportunityAttacks, isCancelled, isTriggeringAction } from '../rules/opportunity'
-import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getHoldBackFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
+import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getHoldBackFacts, getManeuverFacts, getPartner, getReleaseFacts, holds } from '../rules/grapple'
 import { sameCell } from '../geometry'
 import { getReachableFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
@@ -48,8 +31,6 @@ import { MOVEMENT_KINDS } from '../../lists'
 // takes the price in one update, and from there the only way forward is
 // `resolveAction`. Every command returns the state unchanged when asked for
 // something the phase does not allow, so the store can dispatch blindly.
-
-type Updater = (state: CombatState) => CombatState
 
 function replaceActions(state: CombatState, next: Action[]): CombatState {
   return { ...state, actions: state.actions.map((a) => next.find((n) => n.id === a.id) ?? a) }
@@ -136,7 +117,7 @@ export function withdrawSpawnedAction(newId: () => string = () => `${Date.now()}
     const reaction = getAction(state, open.spawnedBy)
     const dropped = reaction?.kind === 'opportunityAttack' ? [open.id, reaction.id] : [open.id]
     const withdrawn = { ...state, actions: state.actions.filter((a) => !dropped.includes(a.id)) }
-    const root = reaction?.reactionTo ? getAction(withdrawn, reaction.reactionTo) : null
+    const root = reaction ? getRootOf(withdrawn, reaction) : null
     return root?.kind === 'move' && root.status === 'rolled' ? advanceMove(withdrawn, root, newId) : withdrawn
   }
 }
@@ -238,17 +219,7 @@ export function rollAction(dice: Dice, newId: () => string = () => `${Date.now()
     const test = rootTest ? resolveTest(rootTest, dice) : null
     if (!test && ACTIONS[open.kind].die) return state
     const withRoll: Action = test ? { ...open, roll: test } : open
-
-    const priced: Action[] = []
-    for (const a of [withRoll, ...getReactionsTo(state, open.id)]) {
-      const cost = priceFor(state, a)
-      if (!cost) return state
-      const roll = a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll
-      priced.push({ ...a, cost, roll })
-    }
-
-    const rolled = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
-    return afterPaying(applyPhase(replaceActions(state, rolled), rolled, 'roll'), open.id, newId)
+    return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
 }
 
@@ -262,15 +233,22 @@ export function payAction(newId: () => string = () => `${Date.now()}`): Updater 
     if (open?.kind === 'drag' && open.status === 'rolled' && isAnswerable(state, open)) return fightPush(state, open, newId)
     if (!open || open.status !== 'committed' || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
-    const priced: Action[] = []
-    for (const a of [open, ...getReactionsTo(state, open.id)]) {
-      const cost = priceFor(state, a)
-      if (!cost) return state
-      priced.push({ ...a, cost })
-    }
-    const committed = priced.map((a): Action => (a.id === open.id ? { ...a, status: 'rolled' } : { ...a, status: 'resolved' }))
-    return afterPaying(applyPhase(replaceActions(state, committed), committed, 'roll'), open.id, newId)
+    return payAll(state, open, newId)
   }
+}
+
+// Prices the root and every reaction to it off their actors as they stand
+// and takes every price in one update: the root is rolled, its reactions
+// done. Nothing happens if anyone cannot pay. `rollOf` throws the die of a
+// reaction that is a test of its own, in the order they were declared.
+function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (a: Action) => ActionRoll | null = (a) => a.roll): CombatState {
+  const paid: Action[] = []
+  for (const a of [root, ...getReactionsTo(state, root.id)]) {
+    const cost = priceFor(state, a)
+    if (!cost) return state
+    paid.push({ ...a, cost, roll: rollOf(a), status: a.id === root.id ? 'rolled' : 'resolved' })
+  }
+  return afterPaying(applyPhase(replaceActions(state, paid), paid, 'roll'), root.id, newId)
 }
 
 // combat.tex "Push and drag": the way pointed and answered, the attacks it
@@ -358,15 +336,20 @@ function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => s
   return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     if (reaction.kind !== 'avoidExplosion' || !reaction.roll) return []
     const AP = reaction.cost?.AP ?? 0
-    const base = { kind: 'move', id: newId(), actorId: reaction.actorId, budget: AP, prepaid: AP, spawnedBy: reaction.id }
     const notRun = MOVEMENT_KINDS.filter((k) => k !== 'run')
     switch (reaction.roll.degree) {
-      case 'critical': return [ActionSchema.parse({ ...base, movement: 'run', movements: MOVEMENT_KINDS, surchargedMovements: ['run'], surcharge: { AP: 0, STA: 1 } })]
-      case 'hit': return [ActionSchema.parse({ ...base, movement: 'jump', movements: notRun })]
-      case 'graze': return [ActionSchema.parse({ ...base, budget: 1 })]
+      case 'critical': return [openMove(reaction, newId, { budget: AP, prepaid: AP, movement: 'run', movements: [...MOVEMENT_KINDS], surchargedMovements: ['run'], surcharge: { AP: 0, STA: 1 } })]
+      case 'hit': return [openMove(reaction, newId, { budget: AP, prepaid: AP, movement: 'jump', movements: notRun })]
+      case 'graze': return [openMove(reaction, newId, { budget: 1, prepaid: AP })]
       default: return []
     }
   })
+}
+
+// A move a reaction opens for its reactor: `budget` the most AP it may
+// cost, `prepaid` what the reaction already paid towards it.
+function openMove(reaction: Action, newId: () => string, fields: Partial<Omit<MoveAction, 'kind'>>): MoveAction {
+  return ActionSchema.parse({ ...fields, kind: 'move', id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id }) as MoveAction
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
@@ -409,7 +392,7 @@ export function spendHOP(purchase: HOPPurchase): Updater {
     const open = getOpenAction(state)
     if (!open || (open.kind !== 'strike' && open.kind !== 'shoot') || open.status !== 'rolled') return state
     if (!getHOPOptions(state, open).find((o) => o.purchase === purchase)?.available) return state
-    return replaceActions(state, [{ ...open, spent: { ...open.spent, [purchase]: (open.spent[purchase] ?? 0) + 1 } }])
+    return replaceActions(state, [{ ...open, spent: addOne(open.spent, purchase) }])
   }
 }
 
@@ -419,11 +402,23 @@ export function refundHOP(purchase: HOPPurchase): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || (open.kind !== 'strike' && open.kind !== 'shoot') || open.status !== 'rolled') return state
-    const bought = open.spent[purchase] ?? 0
-    if (bought === 0) return state
-    const { [purchase]: _, ...rest } = open.spent
-    return replaceActions(state, [{ ...open, spent: bought > 1 ? { ...rest, [purchase]: bought - 1 } : rest }])
+    const spent = takeOne(open.spent, purchase)
+    return spent ? replaceActions(state, [{ ...open, spent }]) : state
   }
+}
+
+// A tally of purchases, one more of `key`.
+function addOne<K extends string>(tally: Partial<Record<K, number>>, key: K): Partial<Record<K, number>> {
+  return { ...tally, [key]: (tally[key] ?? 0) + 1 }
+}
+
+// One fewer, the key gone at none; null when there is none to take back.
+function takeOne<K extends string>(tally: Partial<Record<K, number>>, key: K): Partial<Record<K, number>> | null {
+  const bought = tally[key] ?? 0
+  if (bought === 0) return null
+  const rest: Partial<Record<K, number>> = { ...tally }
+  delete rest[key]
+  return bought > 1 ? { ...rest, [key]: bought - 1 } : rest
 }
 
 // Points a rolled spray where the attacker chooses, now that the reactions
@@ -433,7 +428,7 @@ export function aimExplosion(direction: number): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'explosion' || open.status !== 'rolled') return state
-    if (!isSpray(state, open) || !Number.isInteger(direction) || direction < 0 || direction > 5) return state
+    if (!isSpray(state, open) || !DirectionSchema.safeParse(direction).success) return state
     return replaceActions(state, [{ ...open, direction }])
   }
 }
@@ -457,7 +452,7 @@ export function improveSpell(name: SpellModification): Updater {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
     if (!getImprovementOptions(state, open).find((o) => o.name === name)?.available) return state
-    return replaceActions(state, [{ ...open, improved: { ...open.improved, [name]: (open.improved[name] ?? 0) + 1 } }])
+    return replaceActions(state, [{ ...open, improved: addOne(open.improved, name) }])
   }
 }
 
@@ -478,10 +473,8 @@ export function refundImprovement(name: SpellModification): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.kind !== 'cast' || open.status !== 'rolled') return state
-    const bought = open.improved[name] ?? 0
-    if (bought === 0) return state
-    const { [name]: _, ...rest } = open.improved
-    return replaceActions(state, [{ ...open, improved: bought > 1 ? { ...rest, [name]: bought - 1 } : rest }])
+    const improved = takeOne(open.improved, name)
+    return improved ? replaceActions(state, [{ ...open, improved }]) : state
   }
 }
 
@@ -545,7 +538,7 @@ function escapesOnStun(state: CombatState, root: Action, newId: () => string): A
   const holderId = root.targetId
   return state.grapples
     .filter((g) => g.members.includes(holderId) && holds(g, holderId))
-    .map((g) => (g.members[0] === holderId ? g.members[1] : g.members[0]))
+    .map((g) => getPartner(g, holderId))
     // a grab's own blow is not one the grabber escapes the hold back from
     .filter((heldId) => !(root.kind === 'strike' && root.grabbed && heldId === root.actorId))
     .filter((heldId) => state.characters[heldId] !== undefined)
@@ -556,7 +549,7 @@ function escapesOnStun(state: CombatState, root: Action, newId: () => string): A
 // it has landed, hands the root back: on to its next threatener, or to its end.
 function afterLanding(state: CombatState, resolved: Action, newId: () => string): CombatState {
   const reaction = resolved.spawnedBy ? getAction(state, resolved.spawnedBy) : null
-  const root = reaction?.reactionTo ? getAction(state, reaction.reactionTo) : null
+  const root = reaction ? getRootOf(state, reaction) : null
   if (reaction?.kind !== 'opportunityAttack' || root?.status !== 'rolled') return state
   if (root.kind === 'move') return advanceMove(state, root, newId)
   return isTriggeringAction(root) ? advanceTriggering(state, root, newId) : state
@@ -588,7 +581,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         return [getOpportunityAction(state, reaction, newId())]
       }
       case 'follow':
-        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.cost?.AP ?? null, spawnedBy: reaction.id })]
+        return [openMove(reaction, newId, { budget: root.cost?.AP ?? null })]
       // combat.tex "Evasion": on a hit, "take the attack normally and then
       // use up to 2 AP to move if not interrupted"; on a graze, "jump to try
       // to gain cover"; on a miss, "spend their movement surge immediately
@@ -598,7 +591,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
       case 'evasion': {
         if (root.kind !== 'shoot' || root.interruption !== 'none' || reaction.stay) return []
         const AP = reaction.cost?.AP ?? 0
-        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP, spawnedBy: reaction.id })]
+        return [openMove(reaction, newId, { budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP })]
       }
       // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP
       // after the explosion" — bought with the AP the reflex paid, and not
@@ -609,7 +602,7 @@ function spawn(state: CombatState, root: Action, newId: () => string): Action[] 
         const facts = root.facts?.[reaction.actorId] ?? []
         const reactor = state.characters[reaction.actorId]
         if (reactor && facts.some((d) => (outcomeOf(d, reactor)?.interruption ?? 'none') !== 'none')) return []
-        return [ActionSchema.parse({ kind: 'move', id: newId(), actorId: reaction.actorId, budget: 2, prepaid: reaction.cost?.AP ?? 0, spawnedBy: reaction.id })]
+        return [openMove(reaction, newId, { budget: 2, prepaid: reaction.cost?.AP ?? 0 })]
       }
       default:
         return []

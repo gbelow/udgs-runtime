@@ -8,14 +8,16 @@ import * as actionsModule from './combat/commands/action'
 import * as boardModule from './combat/commands/board'
 import * as grappleModule from './combat/commands/grapple'
 import * as floorModule from './combat/commands/floor'
+import * as charactersModule from './combat/commands/characters'
 import { CombatStateSchema, type CombatState } from './combat/types'
-import { getOpenAction, getRootTest } from './combat/rules/action'
+import { getOpenAction } from './combat/rules/action'
+import { getRootTest } from './combat/rules/attack'
 import { makeCampaignCharacter } from './factories'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule, ...grappleModule, ...floorModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -104,6 +106,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   resolvePending: characterCommands.resolvePending(0, () => 3),
   resistCurse: (c) => characterCommands.resistCurse('sleep', () => 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
   deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }),
+  deliverAll: characterCommands.deliverAll([{ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }]),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
 
@@ -166,6 +169,8 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   aimPush: (s) => combatCommands.aimPush({ choice: 'stay' })(deepFreeze(settledPush(s))),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
+  removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
+  updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
 }
 
 // `a` and `b` holding each other, nothing open.

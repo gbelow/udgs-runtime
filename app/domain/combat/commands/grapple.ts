@@ -1,8 +1,6 @@
 import type { CampaignCharacter } from '../../types'
-import type { CombatState, Grapple } from '../types'
+import type { Updater, Grapple } from '../types'
 import { diffGrappleAfflictions, getHeldGrapples } from '../rules/grapple'
-
-type Updater = (state: CombatState) => CombatState
 
 // Brings the fight's grapples and the characters in them back into line
 // with each other after anything that may have changed either: a holder

@@ -45,6 +45,12 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
   return occupancy
 }
 
+// A placement moved to `cell`, at the height of the ground there (combat.tex
+// "High Ground"); off any board, the ground is at 0.
+export function placeAt(board: Board | null, placement: Placement, cell: Coord): Placement {
+  return { ...placement, cell, elevation: board?.terrain[coordKey(cell)]?.elevation ?? 0 }
+}
+
 export function getPlacedFootprint(state: CombatState, id: string): Coord[] | null {
   const placement = state.board?.placements[id]
   const c = state.characters[id]

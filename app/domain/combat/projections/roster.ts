@@ -1,6 +1,18 @@
 import type { SurgeKind } from '../../types'
-import type { CombatState } from '../types'
-import { Role, getNextStep, getOpenAction, getRole, getTargetIds } from '../rules/action'
+import type { Action, CombatState } from '../types'
+import { getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
+import { getAffected } from '../rules/explosion'
+
+// Who a character is to an action.
+export type Role = 'actor' | 'target' | 'reactor' | 'none'
+
+export function getRole(state: CombatState, root: Action, characterId: string): Role {
+  if (root.actorId === characterId) return 'actor'
+  if (getReactionsTo(state, root.id).some((r) => r.actorId === characterId)) return 'reactor'
+  if (root.targetId === characterId) return 'target'
+  if (root.kind === 'explosion' && getAffected(state, root).some((a) => a.id === characterId)) return 'target'
+  return 'none'
+}
 
 export type CombatRosterEntry = {
   id: string
@@ -36,7 +48,5 @@ export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
 // gating on this instead means any change the UI can see schedules the render
 // that recomputes it. Same reasoning as the term breakdowns.
 export function getCombatRosterDigest(state: CombatState): string {
-  return getCombatRoster(state)
-    .map((e) => `${e.id}:${e.name}:${e.isActive ? 1 : 0}:${e.usedSurge ?? ''}:${e.role ?? ''}:${e.targetable ? 1 : 0}`)
-    .join('|')
+  return JSON.stringify(getCombatRoster(state))
 }

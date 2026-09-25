@@ -3,48 +3,29 @@ import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, Gr
 import type { Area, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
-import {
-  ActionOption,
-  ActionStep,
-  ImprovementOption,
-  SpellOption,
-  areReactionsComplete,
-  getCastTerms,
-  getImprovementOptions,
-  canSaveGraze,
-  getSOPRemaining,
-  getSpellOptions,
-  needsDie,
-  LocationOption,
-  AttackOption,
-  getAttackOptions,
-  isVariantOpen,
-  getAttackTerms,
-  getManeuverTerms,
-  getAvailableActions,
-  getDLTerms,
-  getDeclaredCost,
-  getLocationOptions,
-  getNextStep,
-  getOpenAction,
-  getReactionsTo,
-  getTargetIds,
-  getCancellableLabel,
-  isDeclarationComplete,
-} from '../rules/action'
-import { getCastFacts } from '../rules/cast'
-import { GRAZE_SAVE } from '../../tables'
+import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
+import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
+import { ImprovementOption, SpellOption, getCastTerms, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
+import { AttackOption, getAttackOptions, isVariantOpen, getAttackTerms, getManeuverTerms, getDLTerms } from '../rules/attack'
+import { GRAZE_SAVE, LOCATIONS } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
-import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
+import { ActionReport, getGrappleNotes, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, findGrapple, getDisarmOptions, getDragChoices, getDragFacts, getDragOutcome, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf, needsDragAim } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
-import { GRAPPLE_MANEUVERS } from '../../lists'
-import { getGrappleNotes } from './outcomes'
+import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
+
+export type LocationOption = { location: HitLocation; penalty: number }
+
+// combat.tex "Localized damage", as a picker: each location and what aiming
+// there costs the attack test.
+function getLocationOptions(): LocationOption[] {
+  return HIT_LOCATIONS.map((location) => ({ location, penalty: LOCATIONS[location].penalty }))
+}
 
 // Everyone with a reaction to the open action, each with their options —
 // and, for one who has chosen an opportunity attack, the strike it opens

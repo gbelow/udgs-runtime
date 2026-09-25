@@ -1,11 +1,11 @@
-import type { Action, ActionRoll, CombatState, DragFacts, GrappleFacts } from '../types'
+import type { Action, ActionRoll, CombatState, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { ACTIONS } from '../actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getAttackFacts, outcomeOf } from '../rules/damage'
 import { getExplosionFacts } from '../rules/explosion'
-import { getManeuverFacts } from '../rules/grapple'
+import { getGrappleFacts, getManeuverFacts } from '../rules/grapple'
 import { isCancelled, isTriggeringAction } from '../rules/opportunity'
 
 // The outcome of the open action on everyone it lands on, as it would land
@@ -51,7 +51,7 @@ export function getGrappleNotes(state: CombatState, root: Action): { target: str
   if (isTriggeringAction(root) && isCancelled(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
-  const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' || root.kind === 'holdBack' ? root.facts : null
+  const facts = getGrappleFacts(root)
   if (!facts) return []
   const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name
     ?? state.floor.find((f) => f.item.id === itemId)?.item.name ?? 'an item'

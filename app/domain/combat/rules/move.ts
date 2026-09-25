@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, OpportunityAction, Placement } from '../types'
+import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -10,9 +10,10 @@ import { Term } from '../../character/rules/terms'
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
-import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
+import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
 import { getMoveTramples } from './trample'
 import { isImmobile, isInGrapple } from './grapple'
+import { getDrawnOpportunityAttacks, type DrawnOpportunityAttack } from './opportunity'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -313,16 +314,11 @@ export function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolea
 }
 
 // combat.tex "Opportunity Attack": the ones declared against the move, in
-// the order the mover comes to them, each with the strike it opened if it
-// has.
-export function getOpportunityAttacks(state: CombatState, action: MoveAction): { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }[] {
-  return state.actions
-    .flatMap((r) => (r.reactionTo === action.id && r.kind === 'opportunityAttack' && r.at !== null ? [r] : []))
-    .sort((a, b) => a.at! - b.at!)
-    .map((reaction) => {
-      const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
-      return { reaction, spawned: spawned?.kind === 'strike' || spawned?.kind === 'grapple' || spawned?.kind === 'drag' ? spawned : null }
-    })
+// the order the mover comes to them.
+export function getOpportunityAttacks(state: CombatState, action: MoveAction): DrawnOpportunityAttack[] {
+  return getDrawnOpportunityAttacks(state, action)
+    .filter(({ reaction }) => reaction.at !== null)
+    .sort((a, b) => a.reaction.at! - b.reaction.at!)
 }
 
 // Where an opportunity attack fought against the move took it over, if one
@@ -386,7 +382,7 @@ export function getMoveWaypoint(state: CombatState, action: MoveAction, steps: n
   const from = getMoveOrigin(state, action)
   const cell = action.path[steps - 1]
   if (!from || !cell || steps <= 0) return null
-  return { ...from, cell, elevation: state.board?.terrain[coordKey(cell)]?.elevation ?? 0 }
+  return placeAt(state.board, from, cell)
 }
 
 // How the step into the `at`th cell of the move changes the mover's distance
@@ -414,12 +410,7 @@ export function getMoveDestination(state: CombatState, action: MoveAction, path:
   const from = getMoveOrigin(state, action)
   const cell = path[path.length - 1]
   if (!from || !cell) return null
-  return {
-    ...from,
-    cell,
-    orientation: action.orientation ?? from.orientation,
-    elevation: state.board?.terrain[coordKey(cell)]?.elevation ?? 0,
-  }
+  return { ...placeAt(state.board, from, cell), orientation: action.orientation ?? from.orientation }
 }
 
 // ---------------------------------------------------------------------------

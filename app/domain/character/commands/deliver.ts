@@ -44,6 +44,11 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
   }
 }
 
+// Every delivery in turn, in the order it was made.
+export function deliverAll(deliveries: readonly Delivery[]): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => deliveries.reduce((acc, d) => deliver(d)(acc), c)
+}
+
 // spells.tex "Curse": "holds until the target shrugs it off" — the test the
 // curse's effect names, rolled again against the DL it landed with; a hit
 // or better and the curse is gone.

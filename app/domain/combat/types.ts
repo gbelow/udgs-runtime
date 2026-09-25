@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS } from '../lists'
-import { HOP_PURCHASES } from '../lists'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema, VisibilitySchema } from '../types'
@@ -38,6 +37,10 @@ export const ActionCostSchema = z.object({
 export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
 export type Coord = z.infer<typeof CoordSchema>
 
+// One of the six hex directions, which are also the six rotations; the
+// order is `geometry.ts`'s DIRECTIONS.
+export const DirectionSchema = z.number().int().min(0).max(5)
+
 // Where a character stands. `cell` is the anchor of its footprint and
 // `orientation` one of the six hex rotations the footprint may take
 // (creating.tex "Size and Space Occupation"); which cells that covers is the
@@ -47,7 +50,7 @@ export type Coord = z.infer<typeof CoordSchema>
 // character record.
 export const PlacementSchema = z.object({
   cell: CoordSchema.default({ q: 0, r: 0 }),
-  orientation: z.number().int().min(0).max(5).default(0),
+  orientation: DirectionSchema.default(0),
   elevation: num.default(0), // metres; combat.tex "High Ground"
   focus: str.nullable().default(null),
 }).strip()
@@ -151,6 +154,14 @@ const WeaponRowRef = {
   attack: str.default(''),
 }
 
+// An attack as declared before the die: the row, the variation it is made
+// as, and where it is aimed.
+const AttackDeclaration = {
+  ...WeaponRowRef,
+  variant: str.default(''),
+  location: HitLocationSchema.default('chest'),
+}
+
 // combat.tex "Grapple": two characters locked together, and which of them
 // hold the other — a hold both ways is a grab answered by "grapple back". A
 // holder keeps the hold only while they have a grapple row to hold with.
@@ -209,9 +220,7 @@ export type FloorItem = z.infer<typeof FloorItemSchema>
 export const StrikeActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('strike'),
-  ...WeaponRowRef,
-  variant: str.default(''),
-  location: HitLocationSchema.default('chest'),
+  ...AttackDeclaration,
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
@@ -241,9 +250,7 @@ export const StrikeActionSchema = z.object({
 export const ShootActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('shoot'),
-  ...WeaponRowRef,
-  variant: str.default(''),
-  location: HitLocationSchema.default('chest'),
+  ...AttackDeclaration,
   ...Cancellable,
   facts: DeliverySchema.nullable().default(null),
   // what landing did to the target's action, written at the resolve: an
@@ -278,7 +285,7 @@ export const ExplosionActionSchema = z.object({
   key: str.default(''),
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
-  direction: z.number().int().min(0).max(5).nullable().default(null),
+  direction: DirectionSchema.nullable().default(null),
   ...Cancellable,
   facts: ExplosionFactsSchema.nullable().default(null),
 }).strip()
@@ -352,7 +359,7 @@ export const MoveActionSchema = z.object({
   kind: z.literal('move'),
   movement: MoveKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
-  orientation: z.number().int().min(0).max(5).nullable().default(null),
+  orientation: DirectionSchema.nullable().default(null),
   // the most AP it may cost, for a move a reaction opened (combat.tex
   // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
   // "use up to 2 AP to move"); null is no cap
@@ -394,9 +401,7 @@ export const OpportunityAttackActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('opportunityAttack'),
   at: num.nullable().default(null),
-  ...WeaponRowRef,
-  variant: str.default(''),
-  location: HitLocationSchema.default('chest'),
+  ...AttackDeclaration,
   grab: z.boolean().default(false),
   // combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
   // opportunity attacks, with the same triggers" — against a grapple
@@ -456,7 +461,7 @@ export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
   choice: z.enum(['push', 'circle', 'stay']).nullable().default(null),
-  direction: z.number().int().min(0).max(5).nullable().default(null),
+  direction: DirectionSchema.nullable().default(null),
   steps: z.number().int().min(1).max(2).default(1),
   to: CoordSchema.nullable().default(null),
   fought: z.boolean().default(false),
@@ -589,3 +594,6 @@ export const CombatStateSchema = z.object({
 }).strip()
 
 export type CombatState = z.infer<typeof CombatStateSchema>
+
+// What every combat command is: a pure update of the fight.
+export type Updater = (state: CombatState) => CombatState

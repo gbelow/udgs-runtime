@@ -4,15 +4,24 @@ export function isTriggeringAction(action: Action): action is TriggeringAction {
   return action.kind === 'cast' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'pickUp' || action.kind === 'grapple' || action.kind === 'drag'
 }
 
+// What an opportunity attack opens: a strike, or against a grapple partner a
+// maneuver or a push.
+export function isOpportunityAction(action: Action | undefined): action is OpportunityAction {
+  return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
+}
+
+export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }
+
 // combat.tex "Opportunity Attack": each threatener the action drew gets one
-// attack, spawned in turn (commands/action.ts `advanceTriggering`) as
-// reactions resolve.
-export function getDrawnOpportunityAttacks(state: CombatState, action: TriggeringAction): { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }[] {
+// attack, spawned in turn (commands/action.ts `advanceTriggering`,
+// `advanceMove`) as reactions resolve — in the order they were declared,
+// each with what it opened if it has.
+export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
   return state.actions
     .flatMap((r) => (r.reactionTo === action.id && r.kind === 'opportunityAttack' ? [r] : []))
     .map((reaction) => {
       const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
-      return { reaction, spawned: spawned?.kind === 'strike' || spawned?.kind === 'grapple' || spawned?.kind === 'drag' ? spawned : null }
+      return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
     })
 }
 

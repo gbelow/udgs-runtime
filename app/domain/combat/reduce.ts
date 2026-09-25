@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../types'
-import type { Action, Board, CombatState, FloorItem, Grapple, GrappleFacts, Trample } from './types'
+import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Grapple, type GrappleFacts, type Trample } from './types'
 import { payCost } from '../character/commands/cost'
-import { deliver } from '../character/commands/deliver'
+import { deliver, deliverAll } from '../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../item/commands/hands'
 import { getHeldItem } from '../item/rules/hands'
 import { findWeaponRow } from './rules/weaponRow'
@@ -12,9 +12,9 @@ import { getReactionsTo } from './rules/action'
 import { getChargedWeapon, getHOPPrice } from './rules/damage'
 import { HOP_PURCHASES } from '../lists'
 import { getTerrainPaint } from './rules/explosion'
+import { dropHolders, getGrappleFacts, replacePair } from './rules/grapple'
 import { coordKey } from './geometry'
 import { SPELLS, isSpellKey } from '../spells'
-import { TerrainCellSchema } from './types'
 import { GRAZE_SAVE, STUN_AP } from '../tables'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -39,10 +39,10 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // a spell's price is the whole of what it asks (spells.tex "Casting
         // spells"), not only the AP and STA the fight prices
         if (action.kind === 'cast' && isSpellKey(action.key)) return payCost(SPELLS[action.key].cost)(c)
-        return payCost({ ...action.cost, exhaustion: 0, IL: 0, ET: 0 })(c)
+        return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
-        return payCost({ AP: GRAZE_SAVE.AP, STA: 0, exhaustion: 0, IL: 0, ET: 0 })(c)
+        return payCost({ AP: GRAZE_SAVE.AP, STA: 0 })(c)
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall
@@ -59,7 +59,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // attacker as much as anyone — and what they threw is out of their
         // hands
         if (action.kind === 'explosion') {
-          const hit = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
+          const hit = deliverAll(action.facts?.[c.id] ?? [])(c)
           // what went off is gone: the thrower's row left their hand, and
           // the object a charge was set off in was destroyed by it
           if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(hit, action.weaponKey, action.attack)
@@ -69,7 +69,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // spells.tex "Sustained": a cast that hit is taken hold of by its
         // caster, its upkeep due at the round change
         if (action.kind === 'cast') {
-          const delivered = (action.facts?.[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c)
+          const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
           if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit') return delivered
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
@@ -82,7 +82,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // the basic movement of the metres moved
         if (action.kind === 'drag') {
           const AP = action.facts?.carried[c.id] ?? 0
-          return AP > 0 ? payCost({ AP, STA: 0, exhaustion: 0, IL: 0, ET: 0 })(c) : c
+          return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) as CampaignCharacter : c
         if (action.kind !== 'strike' && action.kind !== 'shoot') return c
@@ -98,7 +98,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
           const paid = HOP_PURCHASES.reduce((acc, p) => {
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
-            return price ? payCost({ ...price, exhaustion: 0, IL: 0, ET: 0 })(acc) : acc
+            return price ? payCost(price)(acc) : acc
           }, discharged)
           // combat.tex "Throw": what is thrown leaves the hand
           if (action.kind === 'shoot') return releaseThrown(paid, action.weaponKey, action.attack)
@@ -123,14 +123,6 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
   return consumeItem(row.wielded.itemId)(c) as CampaignCharacter
 }
 
-// What a grab, a maneuver, a letting go or a grappling back wrote down about
-// the grapple.
-function getGrappleFacts(action: Action): GrappleFacts | null {
-  if (action.kind === 'strike') return action.grabbed
-  if (action.kind === 'grapple' || action.kind === 'release' || action.kind === 'holdBack') return action.facts
-  return null
-}
-
 // combat.tex "Grapple Maneuvers": what the maneuver did to the character
 // beyond the grapple itself — knocked down or stood up, an item knocked out
 // of their hand — and what the holds dealt them. The grappled and immobile
@@ -139,7 +131,7 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
   if (!facts) return c
   const down = facts.prone.includes(c.id) ? fallProne(c) : facts.stand.includes(c.id) ? standUp(c) : c
   const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) as CampaignCharacter : down
-  return (facts.deliveries[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), disarmed)
+  return deliverAll(facts.deliveries[c.id] ?? [])(disarmed)
 }
 
 // The one place an action changes who is in a grapple with whom: the pair's
@@ -150,13 +142,10 @@ export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple
     // combat.tex "Push and drag": one who let go instead of being dragged
     if (action.kind === 'drag') {
       const released = action.facts?.released ?? []
-      return released.length === 0 ? grapples : grapples.map((g) => ({ ...g, holders: g.holders.filter((h) => !released.includes(h)) })).filter((g) => g.holders.length > 0)
+      return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
     }
     const facts = getGrappleFacts(action)
-    if (!facts) return grapples
-    const [a, b] = facts.pair
-    const rest = grapples.filter((g) => !(g.members.includes(a) && g.members.includes(b)))
-    return facts.grapple ? [...rest, facts.grapple] : rest
+    return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples
   }
 }
 

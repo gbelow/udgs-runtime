@@ -1,17 +1,16 @@
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, TerrainCellSchema, type Coord, type CombatState } from '../types'
+import { BoardSchema, PlacementSchema, TerrainCellSchema, type Coord, type Updater } from '../types'
 import { makeBoard } from '../factories'
 import { coordKey, directionTo, sameCell } from '../geometry'
 import { getOpenAction } from '../rules/action'
 import { getExplosionCenters } from '../rules/explosion'
+import { placeAt } from '../rules/board'
 import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../rules/move'
 import { aimExplosion, aimPush, amendAction, declareReaction } from './action'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
 // is open, so a fight in progress cannot have its ground changed under it.
-
-type Updater = (state: CombatState) => CombatState
 
 // A fresh, empty board of the given radius, everyone unplaced.
 export function createBoard(radius: number): Updater {
@@ -31,13 +30,7 @@ export function importBoard(raw: unknown): Updater {
 export function placeCharacter(id: string, cell: Coord): Updater {
   return (state) => {
     if (!state.board || !state.characters[id] || getOpenAction(state)) return state
-    const current = state.board.placements[id]
-    const placement = {
-      cell,
-      orientation: current?.orientation ?? 0,
-      elevation: state.board.terrain[coordKey(cell)]?.elevation ?? 0,
-      focus: current?.focus ?? null,
-    }
+    const placement = placeAt(state.board, state.board.placements[id] ?? PlacementSchema.parse({}), cell)
     if (!canStandAt(state, id, placement)) return state
     return { ...state, board: { ...state.board, placements: { ...state.board.placements, [id]: placement } } }
   }

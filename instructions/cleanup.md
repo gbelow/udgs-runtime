@@ -10,12 +10,14 @@ Where: commands/action.ts:131,229,258,494, commands/board.ts:86
 Notes: Every caller in hooks/ passes its own newId, so these defaults never run.
 They also put Date.now inside the pure domain, which goes against the "entropy
 is injected" promise in dice.ts.
+Status: CORRECTED — command-purity.test.ts calls rollAction, resolveAction, payAction and pickCell without a newId, so the defaults do run (in tests). Removing them means passing newId in those cases. OPEN.
 ────────────────────────────────────────
 What: CombatStateSchema as a way to load a saved fight
 Where: types.ts:570-574
 Notes: Only tests parse it. The store (useCombatStore.ts:31-38) writes out the
 defaults by hand, so the "a saved fight can be rehydrated" comment describes a
 path that doesn't exist.
+Status: DONE — the combat store now spreads CombatStateSchema.parse({}) as its initial state.
 ────────────────────────────────────────
 What: TerrainCell type, GrappleAfflictionSchema
 Where: types.ts:74,169
@@ -51,14 +53,20 @@ Notes: It only passes through to getBalanceTerms.
 3. Affordability check (5 copies). canAfford (rules/action.ts:312), priceFor (commands/action.ts:399), canPay (actionPanel.ts:340), the HOP gate in damage.ts:280 and affordable in move.ts:515 all do the same check. It should be one rule.
    DONE: character/rules/cost.ts canAfford already existed; its parameter is now Pick<Cost, 'AP' | 'STA'> so ActionCost fits. All combat copies (plus canSaveGraze) use it.
 4. payCost({ ...cost, exhaustion: 0, IL: 0, ET: 0 }) (8 copies). A payAPSTA(cost) helper, or making payCost accept a partial cost, would cover them.
+   CORRECTED: 4 copies, all in reduce.ts (the other hits were schema defaults). DONE: payCost takes Pick<Cost, 'AP' | 'STA'> & Partial<Cost>; exhaustion and IL default to 0.
 5. Applying every delivery to a character. (facts[c.id] ?? []).reduce((acc, d) => deliver(d)(acc), c) appears 3 times in reduce.ts.
+   DONE: deliverAll(deliveries) in character/commands/deliver.ts (exported from the index, with a purity case).
 6. Placing a character on a cell at its ground height (5 copies). { ...from, cell, elevation: terrain[coordKey(cell)]?.elevation ?? 0 } appears in move.ts twice, grapple.ts twice and commands/board.ts.
+   DONE: placeAt(board, placement, cell) in rules/board.ts; six sites (a sixth in getCircleCells used a `key` variable).
 7. Replacing a grapple pair or dropping holders (3 copies). reduceGrapples (reduce.ts:147) repeats replacePair (grapple.ts:149). The "drop released holders, then drop grapples nobody holds" logic appears in reduceGrapples, getDragSides and getHeldGrapples. Some grapple helpers take Grapple[] and others take state, with no obvious reason for which.
+   DONE: replacePair is exported and used by reduceGrapples; dropHolders(grapples, letsGo) replaces the three copies. OPEN: Grapple[] vs state parameters left as they are.
 8. Grapple facts read off an action. getGrappleFacts in reduce.ts:128 and the inline copy in outcomes.ts:54 are the same.
+   DONE: getGrappleFacts lives in rules/grapple.ts; reduce.ts and outcomes.ts use it.
 9. Opportunity-attack bookkeeping.
    - getOpportunityAttacks (move.ts:317) and getDrawnOpportunityAttacks (opportunity.ts:10) are the same function apart from a filter and a sort.
    - The strike | grapple | drag check is written twice where an isOpportunityAction guard would do.
    - reaction.reactionTo ? getAction(state, reaction.reactionTo) : null appears about 6 times. It needs a getRootOf(reaction) helper.
+   DONE: isOpportunityAction guard and DrawnOpportunityAttack type in opportunity.ts; getDrawnOpportunityAttacks takes any action and move.ts's getOpportunityAttacks is it filtered and sorted by step; getRootOf(state, action) in rules/action.ts replaces the lookups (opportunity.ts keeps its own, being a leaf that rules/action.ts imports). escapesOnStun uses getPartner.
 10. "First step closer while within range" loop. It appears in moveTriggers and again in pushTriggers (reactions.ts), and the hook loop is a third variation of it.
 11. Breadth-first cell search. getReachableCells (move.ts:505) and getCircleCells (grapple.ts:494) run the same search. The "crossable" check also duplicates the one inside isPathLegal.
 12. Run-block heading walk. getRunPath and getRunHeading (move.ts:215,238) both walk the path in running blocks to find the heading.
@@ -67,18 +75,22 @@ Notes: It only passes through to getBalanceTerms.
     - spendHOP/refundHOP and improveSpell/refundImprovement are the same bump/unbump on a counter record.
     - Spawned moves are built with ActionSchema.parse({kind:'move', id, actorId, budget, prepaid, spawnedBy}) four times.
     - type Updater is declared in 4 command files.
+   DONE: payAll helper, addOne/takeOne tally helpers, openMove builder, and a shared Updater type in combat/types.ts.
 14. Building a damage delivery. getHoldDeliveries (grapple.ts:245) writes out a full Damage object and delivery by hand. It repeats delivering() and the base Damage from getAttackFacts in damage.ts.
 15. Picking the test's terms per action kind. actionPanel.ts:302-303 chooses score and DL terms for each kind with a nested ternary, repeating what getRootTest already decides. A getRootTestTerms(state, root) → {skill, DL} used by both would keep the preview and the roll from drifting apart.
 16. Schema fragments.
     - variant/location are repeated across strike, shoot, explosion and opportunityAttack (the same situation as WeaponRowRef).
     - z.number().int().min(0).max(5) for a direction appears 4 times, and aimExplosion re-checks the same bounds by hand.
     - '../lists' is imported twice in types.ts:3-4, and './move' twice in rules/action.ts:20,27.
+   DONE: DirectionSchema and AttackDeclaration in types.ts; aimExplosion validates with DirectionSchema; the duplicate imports merged (also in actionPanel.ts, reduce.ts and grapple.ts).
 17. Rule constants written inline in several places.
     - The opportunity -2 appears 3 times (action.ts:448, grapple.ts:237,438).
     - The passive/unresisted -5 appears twice.
     - The size-5 force threshold appears in both trample and drag.
     - Since these are cross-cutting rather than one skill's modifiers, they would sit better in tables.ts.
+   OPEN, likely WON'T DO: the standing preference is rule constants inline with a citation at the point of use, not in a shared table — which is how the -2 already reads in each place. Needs the user's call.
 18. Two ways of building render digests. getActionPanelDigest uses JSON.stringify. getCombatRosterDigest builds its string by hand, so it has to be kept in step with the fields manually.
+   DONE: getCombatRosterDigest is JSON.stringify of the roster.
 
 3. Big exceptions to the patterns and rules
 
@@ -88,7 +100,16 @@ Notes: It only passes through to getBalanceTerms.
    - UI step state (ActionStep, getNextStep).
 
    CLAUDE.md says a file mixing a rule with its view should be split. Commands depend on findOption, so the availability decision is a rule, but the labels and reasons belong in projections/. HOP_LABELS in damage.ts:203 is the same mix on a smaller scale.
+   CORRECTED: the standing ruling is "anything a command consumes is a rule", and the option lists, getNextStep and findOption are named as rules by it, labels and reasons included (the same holds for getHOPOptions/HOP_LABELS, getMovementOptions and getDragChoices). Only two exports were read by projections alone.
+   DONE: getLocationOptions moved to projections/actionPanel.ts; getRole/Role to projections/roster.ts.
+   DONE: rules/action.ts split by concern, no behaviour change —
+     action.ts (245)  lifecycle: open action, completeness, declared cost, getNextStep, targets
+     attack.ts (312)  rows, variants, opportunity strike, attack/DL terms, root and reaction tests, DEF/guard rows
+     cast.ts   (142)  + cast terms, graze save, spell options, SOP/improvements, isTargeted, cast range
+     options.ts (279) getAvailableActions, findOption, sameDraft, defense gate, grapple/pick-up options
+   action.ts and attack.ts import each other (as grapple.ts and action.ts already did); every use is inside a function.
 2. Logic lives in the store. useCombatStore.removeCharacter removes the placement, prunes grapples and settles them, and updateActiveCharacter settles grapples too. CLAUDE.md says stores hold no rules, so this should be a removeFromCombat command.
+   DONE: commands/characters.ts has removeFromCombat and updateCharacter; the store calls them (both registered in command-purity.test.ts).
 3. resetCombat leaves the old actions behind. It wipes characters, grapples and floor but keeps actions, activeCharacterId and inTurnCharacter, so the action log still refers to characters who are gone. This looks like a bug, not just untidiness.
    DONE: resetCombat also clears actions, activeCharacterId and inTurnCharacter.
 4. Two parallel spell-casting pipelines. Combat casting goes through CastAction (improved, getSOPRemaining, getImprovementOptions). The sheet path still uses the older character/commands/spells.ts flow (castSpell, applyModification, pendingAction), shown through useSpellLens, and nextRound still clears pendingAction. The same SOP bookkeeping and option shaping exists twice.
@@ -102,5 +123,6 @@ Notes: It only passes through to getBalanceTerms.
 7. Commands that don't go through amendAction. pickCell (move path) and turnMove in commands/board.ts edit state.actions directly, skipping the re-parse. The explosion branch of the same pickCell does go through amendAction.
 8. Files outside the three-folder layout. reduce.ts is the character/board reducer and imports rules like a command would. actionCatalog.ts is a rules table. rules/activeCharacter.ts is a selector. commands/addCharacterToCombat.ts isn't a state updater at all: it's a character factory with an @/ import and ==. Only reduce.ts really matters here.
 9. Comments attached to the wrong function. The long DL comment (rules/action.ts:409-419) sits above getCastTerms instead of getDLTerms. The grapple/evasive-jump comment (:527-533) sits above getCancellableLabel instead of defenseGate. The block-rounding comment (move.ts:41-45) sits above getMoveBlockCells instead of getMoveCost.
+   DONE for the first two (fixed during the action split). OPEN: move.ts.
 
 If you want to start somewhere, the cheapest wins with the most payoff are the getChargedItem rename, one affordability rule, moving findWeaponRow down a layer, and deciding what resetCombat should clear. Splitting the view code out of rules/action.ts is the biggest structural cleanup.

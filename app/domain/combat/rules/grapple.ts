@@ -1,5 +1,5 @@
 import type { Character, Damage, Delivery, WeaponAttack } from '../../types'
-import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
+import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
 import { getStrikeDamage } from '../../character/rules/gear'
@@ -8,11 +8,9 @@ import { getForce, getGrapple } from '../../character/rules/skills'
 import { getSize } from '../../character/rules/misc'
 import { getHardness } from '../../item/rules/items'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { hasProperty } from '../../weaponProperties'
+import { hasProperty, isMeleeRange } from '../../weaponProperties'
 import { DIRECTIONS, add, coordKey, sameCell, setDistance } from '../geometry'
-import type { Coord } from '../types'
-import { getFootprint, getPlacedFootprint, getReach } from './board'
-import { isMeleeRange } from '../../weaponProperties'
+import { getFootprint, getPlacedFootprint, getReach, placeAt } from './board'
 import { getReactionsTo } from './action'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { canStandAt, getMoveCost } from './move'
@@ -140,12 +138,27 @@ export function diffGrappleAfflictions(state: CombatState, before: Grapple[], af
 // with has let go ("the grapplers must have a grapple property attack at
 // all times"), and every grapple nobody holds any more is over.
 export function getHeldGrapples(state: CombatState, grapples: Grapple[]): Grapple[] {
+  return dropHolders(grapples, (id) => !state.characters[id] || !hasGrappleRow(state.characters[id]))
+}
+
+// The grapples once every holder `letsGo` says lets go has, and any grapple
+// nobody holds any more is over.
+export function dropHolders(grapples: Grapple[], letsGo: (id: string) => boolean): Grapple[] {
   return grapples
-    .map((g) => ({ ...g, holders: g.holders.filter((id) => state.characters[id] && hasGrappleRow(state.characters[id])) }))
+    .map((g) => ({ ...g, holders: g.holders.filter((id) => !letsGo(id)) }))
     .filter((g) => g.holders.length > 0)
 }
 
-function replacePair(grapples: Grapple[], pair: readonly [string, string], next: Grapple | null): Grapple[] {
+// What a grab, a maneuver, a letting go or a grappling back wrote down about
+// the grapple.
+export function getGrappleFacts(action: Action): GrappleFacts | null {
+  if (action.kind === 'strike') return action.grabbed
+  if (action.kind === 'grapple' || action.kind === 'release' || action.kind === 'holdBack') return action.facts
+  return null
+}
+
+// The grapples with the pair's replaced by `next`, or gone for null.
+export function replacePair(grapples: Grapple[], pair: readonly [string, string], next: Grapple | null): Grapple[] {
   const rest = grapples.filter((g) => !(g.members.includes(pair[0]) && g.members.includes(pair[1])))
   return next ? [...rest, next] : rest
 }
@@ -421,9 +434,7 @@ export function getDragSides(state: CombatState, root: DragAction): DragSides {
   const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
   const [assist, carry, letGo, resist] = [chose('assist'), chose('carry'), chose('letGo'), chose('resist')]
   const released = [...letGo].filter((id) => !isHeld(state.grapples, id))
-  const grapples = state.grapples
-    .map((g) => ({ ...g, holders: g.holders.filter((h) => !released.includes(h)) }))
-    .filter((g) => g.holders.length > 0)
+  const grapples = dropHolders(state.grapples, (id) => released.includes(id))
   const movers = getGrappleGroup(grapples, root.actorId)
   const attackers = movers.filter((id) => id === root.actorId || assist.has(id))
   const carriers = movers.filter((id) => carry.has(id) && !attackers.includes(id))
@@ -507,7 +518,7 @@ export function getCircleCells(state: CombatState, root: DragAction): { cell: Co
         const key = coordKey(n)
         if (seen.has(key)) continue
         seen.add(key)
-        const placement = { ...from, cell: n, elevation: board.terrain[key]?.elevation ?? 0 }
+        const placement = placeAt(board, from, n)
         if (!canStandAt(state, root.actorId, placement) || !isInGrappleArea(state, root.actorId, getFootprint(actor, placement))) continue
         next.push({ cell: n, path: [...path, n] })
         found.push({ cell: n, path: [...path, n] })
@@ -528,7 +539,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
   if (root.choice === 'circle' && root.to) {
     const from = board.placements[root.actorId]
     const path = getCircleCells(state, root).find((c) => sameCell(c.cell, root.to!))?.path ?? []
-    return { outcome, steps: path.map((cell) => ({ [root.actorId]: { ...from, cell, elevation: board.terrain[coordKey(cell)]?.elevation ?? 0 } })) }
+    return { outcome, steps: path.map((cell) => ({ [root.actorId]: placeAt(board, from, cell) })) }
   }
   if (root.choice !== 'push' || root.direction === null || outcome.push === 0) return { outcome, steps: [] }
   const heading = DIRECTIONS[root.direction]
@@ -537,7 +548,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
   for (let i = 0; i < Math.min(root.steps, outcome.push); i++) {
     const next: Record<string, Placement> = Object.fromEntries(Object.entries(where).map(([id, p]) => {
       const cell = add(p.cell, heading)
-      return [id, { ...p, cell, elevation: board.terrain[coordKey(cell)]?.elevation ?? 0 }]
+      return [id, placeAt(board, p, cell)]
     }))
     const moved = { ...state, board: { ...board, placements: { ...board.placements, ...next } } }
     if (!Object.keys(next).every((id) => canStandAt(moved, id, next[id]))) break

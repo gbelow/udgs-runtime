@@ -1,12 +1,11 @@
 // stores/useCombatStore.ts
 import { create } from 'zustand'
 import { CampaignCharacter } from '../domain/types'
-import { CombatState } from '../domain/combat/types'
+import { CombatState, CombatStateSchema } from '../domain/combat/types'
 import { getActiveCharacter } from '../domain/combat/rules/activeCharacter'
-import { getOpenAction } from '../domain/combat/rules/action'
 import { makeCampaignCharacter } from '../domain/factories'
 import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
-import { settleGrapples } from '../domain/combat/commands/grapple'
+import { removeFromCombat, updateCharacter } from '../domain/combat/commands/characters'
 
 // The data half of the store is the domain's CombatState — the store adds only
 // the actions that mutate it. Keeping the two halves separate is what lets the
@@ -27,15 +26,8 @@ type CombatActions = {
 
 export type CombatStore = CombatState & CombatActions
 
-export const useCombatStore = create<CombatStore>((set, get) => ({ 
-  characters: {},
-  activeCharacterId: null,
-  round: 0,
-  inTurnCharacter: '',
-  actions: [],
-  board: null,
-  grapples: [],
-  floor: [],
+export const useCombatStore = create<CombatStore>((set, get) => ({
+  ...CombatStateSchema.parse({}),
 
   updateCombatState: (updater) => {
     set( updater)
@@ -60,30 +52,11 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
   getActiveCharacter: () => getActiveCharacter(get()),
 
   updateActiveCharacter: (updater) => {
-    const currentState = get();
-    const current = currentState.getActiveCharacter();
-    if (!current || !current.id) return undefined;
-    
-    const updated = updater(current);
-
-    set({
-      characters: {
-        ...currentState.characters,
-        [current.id]: updated
-      }
-    });
-    // a holder whose hands no longer hold a grapple row lets go
-    set((s) => settleGrapples(s.grapples)(s));
-
-    return updated;
+    const current = get().getActiveCharacter();
+    if (!current) return undefined;
+    set(updateCharacter(current.id, updater));
+    return get().characters[current.id];
   },
 
-  removeCharacter: (id) =>
-    set((s) => {
-      if (getOpenAction(s)) return s
-      const { [id]: _, ...rest } = s.characters
-      const { [id]: _placement, ...placements } = s.board?.placements ?? {}
-      const left = { ...s, characters: rest, board: s.board ? { ...s.board, placements } : null, grapples: s.grapples.filter((g) => !g.members.includes(id)) }
-      return settleGrapples(s.grapples)(left)
-    })
+  removeCharacter: (id) => set(removeFromCombat(id)),
 }))
