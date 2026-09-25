@@ -9,7 +9,8 @@ import { getAvailableActions } from './options'
 import { getOpenAction } from './action'
 import { getRootTest } from './attack'
 import { getMovementOptions } from './move'
-import { chooseManeuver, commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { chooseManeuver } from '../commands/choices'
+import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })

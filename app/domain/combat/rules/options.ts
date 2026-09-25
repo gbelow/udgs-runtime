@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionDraft, ActionKind, CombatState } from '../types'
-import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
+import { ACTIONS, getActionDef, getActionNoun, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -37,7 +37,7 @@ export type ActionOption = {
 export function getCancellableLabel(state: CombatState, root: Action, defenderId: string): string | null {
   const triggering = getCancellableRoot(state, root, defenderId)
   if (!triggering) return null
-  return triggering.kind === 'cast' ? 'spell' : triggering.kind === 'shoot' ? 'shot' : triggering.kind === 'drag' ? 'push' : ACTIONS[triggering.kind].label
+  return getActionNoun(triggering)
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or

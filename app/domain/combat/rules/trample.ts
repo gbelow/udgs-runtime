@@ -4,7 +4,7 @@ import { getForce } from '../../character/rules/skills'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
 import { getFootprint, withPlacements } from './board'
-import { canStandAt, getMoveOrigin, getMoveWaypoint, getMovementSpeed } from './move'
+import { canStandAt, getMoveOrigin, getMovementSpeed, getStepPlacements } from './move'
 import { getReactionsTo } from './action'
 
 // combat.tex "Trample": "Happens when two characters hit each other at
@@ -102,10 +102,9 @@ export function getBlowTrample(state: CombatState, strike: StrikeAction, move: M
   // a catch meets the runner on the step that brought them in reach, the
   // one before the one it is fought ahead of
   const step = strike.catch ? at - 1 : at
-  const before = step <= 1 ? getMoveOrigin(state, move) : getMoveWaypoint(state, move, step - 1)
-  const after = getMoveWaypoint(state, move, step)
-  if (!mover || !bracer || !placed || !before || !after) return null
+  const walked = getStepPlacements(state, move, step)
+  if (!mover || !bracer || !placed || !walked) return null
   const runner = getTrampleForce(mover, move.movement)
   const opponent = getForce(bracer) + (strike.location === 'head' ? 3 : 0) + (strike.catch ? getMovementSpeed(bracer, 'run') : 0)
-  return outcome(state, bracer.id, at, compare(runner, opponent), placed, directionTo(before.cell, after.cell))
+  return outcome(state, bracer.id, at, compare(runner, opponent), placed, directionTo(walked.before.cell, walked.after.cell))
 }

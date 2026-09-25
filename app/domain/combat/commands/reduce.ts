@@ -15,7 +15,8 @@ import { HOP_PURCHASES } from '../../lists'
 import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
-import { GRAZE_SAVE, STUN_AP } from '../../tables'
+import { STUN_AP } from '../../tables'
+import { GRAZE_SAVE_COST } from '../rules/cast'
 
 // The moments an action touches a character: `roll`, when the die is thrown
 // and the price leaves the actor in the same step; `save`, when a graze is
@@ -36,13 +37,10 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
     switch (phase) {
       case 'roll':
         if (c.id !== action.actorId || !action.cost) return c
-        // a spell's price is the whole of what it asks (spells.tex "Casting
-        // spells"), not only the AP and STA the fight prices
-        if (action.kind === 'cast' && isSpellKey(action.key)) return payCost(SPELLS[action.key].cost)(c)
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
-        return payCost({ AP: GRAZE_SAVE.AP, STA: 0 })(c)
+        return payCost(GRAZE_SAVE_COST)(c)
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall

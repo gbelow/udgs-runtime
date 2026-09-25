@@ -1,5 +1,5 @@
 import type { ActionKind as PricedAction } from '../../tables'
-import type { ActionDraft, ActionKind } from '../types'
+import type { Action, ActionDraft, ActionKind } from '../types'
 
 // What kind of thing each action is. `type` is combat.tex "Reactions": a
 // reaction is taken on someone else's turn and only in answer to one of the
@@ -8,6 +8,9 @@ import type { ActionDraft, ActionKind } from '../types'
 // costs what its weapon row and variation cost).
 export type ActionDef<K extends ActionKind = ActionKind> = {
   label: string
+  // what the action is called as a thing done, where that differs from the
+  // label ("cancel the shot")
+  noun?: string
   type: 'action' | 'reaction'
   price: PricedAction | null
   reactsTo: readonly ActionKind[]
@@ -34,12 +37,12 @@ export const ACTIONS = {
   // combat.tex "Strike"
   strike:      { label: 'strike',       type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, identity: { grab: false } },
   // combat.tex "Accuracy", "Shoot"
-  shoot:       { label: 'shoot',        type: 'action',   price: null,          reactsTo: [],         die: true, triggering: true, targeted: true },
+  shoot:       { label: 'shoot',        noun: 'shot',  type: 'action',   price: null,          reactsTo: [],         die: true, triggering: true, targeted: true },
   // combat.tex "Explosions": no test of the attacker's — "the DL of the
   // explosion is equal to the shooting skill", and it is the reactors who roll
   explosion:   { label: 'explosion',    type: 'action',   price: null,          reactsTo: [],         die: false, triggering: true, identity: { source: 'thrown' } },
   // spells.tex "Casting spells": the caster's test against the spell's DL
-  cast:        { label: 'cast',         type: 'action',   price: null,          reactsTo: [],         die: true, triggering: true, targeted: true },
+  cast:        { label: 'cast',         noun: 'spell', type: 'action',   price: null,          reactsTo: [],         die: true, triggering: true, targeted: true },
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
@@ -62,7 +65,7 @@ export const ACTIONS = {
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
   grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, triggering: true, targeted: true, identity: { maneuver: 'escape', stand: false } },
   // combat.tex "Push and drag": "a force vs force comparison", no die
-  drag:        { label: 'push or drag', type: 'action',   price: 'pushDrag',    reactsTo: [],         die: false, triggering: true, targeted: true },
+  drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: 'pushDrag',    reactsTo: [],         die: false, triggering: true, targeted: true },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
   // combat.tex "Initiate the Grab": "It is possible to grapple back
@@ -86,6 +89,20 @@ export const ACTIONS = {
 // where the kind is not known.
 export function getActionDef(kind: ActionKind): ActionDef {
   return ACTIONS[kind]
+}
+
+// What the action is called where it is shown on its own: a strike made as
+// a grab is a grab, a maneuver goes by its name — standing up, when that is
+// what the escape is for — and the rest by the catalog's label.
+export function getActionName(action: Action): string {
+  if (action.kind === 'strike' && action.grab) return 'grab'
+  if (action.kind === 'grapple') return action.stand ? 'stand up' : action.maneuver
+  return ACTIONS[action.kind].label
+}
+
+// The action as a thing done, for a sentence about it.
+export function getActionNoun(action: Action): string {
+  return getActionDef(action.kind).noun ?? getActionName(action)
 }
 
 export function isReaction(kind: ActionKind): boolean {

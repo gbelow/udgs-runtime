@@ -5,24 +5,26 @@ import {
   amendReaction,
   cancelAction,
   cancelTriggeringAction,
-  aimPush,
-  chooseManeuver,
   commitAction,
   declareAction,
   declareReaction,
-  improveSpell,
   payAction,
-  refundImprovement,
-  refundHOP,
   resolveAction,
   rollAction,
-  saveGraze,
   setTarget,
-  spendHOP,
   withdrawLastReaction,
   withdrawReaction,
   withdrawSpawnedAction,
 } from "../domain/combat/commands/action";
+import {
+  aimPush,
+  chooseManeuver,
+  improveSpell,
+  refundImprovement,
+  refundHOP,
+  saveGraze,
+  spendHOP,
+} from "../domain/combat/commands/choices";
 import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
 import type { SpellModification } from "../domain/tables";
 import { useCombatStore } from "../stores/useCombatStore";

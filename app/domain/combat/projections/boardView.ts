@@ -5,6 +5,7 @@ import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption } from '../rules/options'
 import { findOpenRoot, getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
 import { getRole, type Role } from './roster'
+import { getFightName } from '../rules/activeCharacter'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 import { getCircleCells, getDragPath } from '../rules/grapple'
@@ -117,7 +118,7 @@ const HEX = Array.from({ length: 6 }, (_, i) => {
 
 export function getBoardView(state: CombatState): BoardView {
   const board = state.board
-  if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: c.fightName ?? '' })) }
+  if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
 
   const open = getOpenAction(state)
   const step = getNextStep(state)
@@ -154,7 +155,7 @@ export function getBoardView(state: CombatState): BoardView {
   const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []
-    return [{ id, name: c.fightName ?? '', ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
+    return [{ id, name: getFightName(state, id), ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
   })
   const centers = new Set(explosion && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
   const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
@@ -203,7 +204,7 @@ export function getBoardView(state: CombatState): BoardView {
     const anchor = toPlane(placement.cell)
     return [{
       id,
-      name: c.fightName ?? '',
+      name: getFightName(state, id),
       x: anchor.x,
       y: anchor.y,
       cells: footprint,
@@ -249,7 +250,7 @@ export function getBoardView(state: CombatState): BoardView {
     floor,
     ghosts,
     picker: pickable.size > 0 ? picker : null,
-    unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: c.fightName ?? '' })),
+    unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
     mode: move ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }

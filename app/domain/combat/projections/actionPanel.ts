@@ -1,23 +1,24 @@
-import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
+import type { Action, ActionRoll, CombatState, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
 import type { Area, MoveKind } from '../../types'
-import { ACTIONS } from '../rules/actionCatalog'
+import { getActionName } from '../rules/actionCatalog'
 import { getFightName } from '../rules/activeCharacter'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
 import { ActionStep, areReactionsComplete, canAnswer, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
-import { ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
+import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions } from '../rules/cast'
 import { AttackOption, getAttackOptions, isAttackAction, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { GRAZE_SAVE, LOCATIONS } from '../../tables'
+import { LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
-import { ActionReport, getGrappleNotes, getLastReport, getOutcomePreviews } from './outcomes'
+import { ActionReport, getGrappleNotes, getLastReport, getOutcomes } from './outcomes'
+import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
-import { canGrab, findGrapple, getDisarmOptions, getDragChoices, getDragFacts, getDragOutcome, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf, needsDragAim } from '../rules/grapple'
+import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { canGrab, findGrapple, getDisarmOptions, getDragChoices, getDragOutcome, getDragSides, getManeuverTargets, isGrappleRowOf, isManeuverWon, needsDragAim } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 
@@ -79,7 +80,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             maneuver: declared.maneuver,
           }
         : null
-      return { id: c.id, name: c.fightName ?? '', options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
+      return { id: c.id, name: getFightName(state, c.id), options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -88,8 +89,8 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
 // what, and the test it leaves them.
 type DeliveryView = { target: string; name: string; kind: string; test: string | null }
 
-function getCastDeliveries(state: CombatState, root: CastAction): DeliveryView[] {
-  return Object.entries(root.facts ?? getCastFacts(state, root)).flatMap(([id, deliveries]) =>
+function getCastDeliveries(state: CombatState, facts: Deliveries): DeliveryView[] {
+  return Object.entries(facts).flatMap(([id, deliveries]) =>
     deliveries.map((d) => ({ target: getFightName(state, id), name: d.effect.name, kind: d.effect.type, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null })))
 }
 
@@ -237,22 +238,22 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   // a settled push was paid for already; what is left is opening its attacks
   const cost = actor ? getDeclaredCost(actor, open) : null
   const affordable = !!actor && (open.status !== 'committed' || (cost !== null && canAfford(actor, cost)))
-  const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
+  // the action as the resolve would settle it now: what a move will walk, what
+  // a rolled action will land
+  const settled = open.status === 'rolled' || open.kind === 'move' ? getSettled(state, open) : null
+  const facts = settled?.kind === 'move' ? settled.facts : null
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
   const dragTerms = drag ? getDragSides(state, drag) : null
   const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
-  const hit = grapple?.status === 'rolled' && (grapple.roll?.degree === 'hit' || grapple.roll?.degree === 'critical')
-  const settled = grapple && grapple.status === 'rolled' ? { ...grapple, facts: getManeuverFacts(state, grapple) }
-    : drag && drag.status === 'rolled' ? { ...drag, facts: getDragFacts(state, drag) }
-    : null
+  const hit = grapple?.status === 'rolled' && isManeuverWon(grapple)
 
   return {
     step,
     open: {
       id: open.id,
-      label: open.kind === 'strike' && open.grab ? 'grab' : grapple ? (grapple.stand ? 'stand up' : grapple.maneuver) : ACTIONS[open.kind].label,
-      actor: actor?.fightName ?? '',
+      label: getActionName(open),
+      actor: getFightName(state, open.actorId),
       target: target?.fightName ?? null,
       targetId: open.targetId,
       weapon: weaponAction?.weaponKey ?? '',
@@ -277,11 +278,11 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : [],
       push: drag && drag.status === 'rolled' ? getPushView(state, drag) : null,
-      grapple: settled ? getGrappleNotes(state, settled) : [],
+      grapple: settled && (grapple || drag) ? getGrappleNotes(state, settled) : [],
       cost,
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
-        label: ACTIONS[r.kind].label,
+        label: getActionName(r),
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
         roll: r.roll,
       })),
@@ -314,10 +315,10 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     hop: attack && target && attack.status === 'rolled'
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
-    outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
+    outcomes: open.status === 'rolled' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
     SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
-    grazeSave: cast && canSaveGraze(state, cast) ? { AP: GRAZE_SAVE.AP, STA: 0 } : null,
-    deliveries: cast && cast.status === 'rolled' ? getCastDeliveries(state, cast) : [],
+    grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
+    deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
   }
 }
 

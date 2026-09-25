@@ -384,15 +384,22 @@ export function getMoveWaypoint(state: CombatState, action: MoveAction, steps: n
   return placeAt(state.board, from, cell)
 }
 
+// Where the mover stands either side of the step into the `at`th cell of
+// the move: before it, at the origin for the first step.
+export function getStepPlacements(state: CombatState, action: MoveAction, at: number): { before: Placement; after: Placement } | null {
+  const before = at <= 1 ? getMoveOrigin(state, action) : getMoveWaypoint(state, action, at - 1)
+  const after = getMoveWaypoint(state, action, at)
+  return before && after ? { before, after } : null
+}
+
 // How the step into the `at`th cell of the move changes the mover's distance
 // to someone: below zero towards them, above away from them.
 export function getStepDelta(state: CombatState, action: MoveAction, at: number, otherId: string): number | null {
   const mover = state.characters[action.actorId]
   const other = getPlacedFootprint(state, otherId)
-  const before = at <= 1 ? getMoveOrigin(state, action) : getMoveWaypoint(state, action, at - 1)
-  const after = getMoveWaypoint(state, action, at)
-  if (!mover || !other || !before || !after) return null
-  return setDistance(getFootprint(mover, after), other) - setDistance(getFootprint(mover, before), other)
+  const step = getStepPlacements(state, action, at)
+  if (!mover || !other || !step) return null
+  return setDistance(getFootprint(mover, step.after), other) - setDistance(getFootprint(mover, step.before), other)
 }
 
 // combat.tex "Hook Attack": a runner stepping away from the attacker (the
@@ -511,10 +518,6 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
 }
 
-function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
-  return cells.find((r) => sameCell(r.cell, cell)) ?? null
-}
-
 // Whether a footprint may be put down here outside of any move: off
 // blocking cells and free of everyone within a size. What a placement by
 // hand has to respect.
@@ -524,19 +527,4 @@ export function canStandAt(state: CombatState, id: string, placement: Placement)
   if (!c || !ground) return false
   const footprint = getFootprint(c, placement)
   return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)
-}
-
-// The path a click on a cell turns the declared one into: the cell taken
-// back if it is the path's end, one more step if it is next to the end,
-// the shortest way there if it is reachable at all, and nothing otherwise.
-export function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
-  const from = getMoveOrigin(state, action)
-  if (!from) return null
-  const end = action.path[action.path.length - 1] ?? from.cell
-  if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)
-  const reachable = getReachableCells(state, action)
-  const there = findReachable(reachable, cell)
-  if (!there) return null
-  if (distance(end, cell) === 1 && there.steps > action.path.length) return [...action.path, cell]
-  return there.path
 }

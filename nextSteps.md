@@ -128,3 +128,4 @@ allow throwing items with standard action
 drop 3 AP constraint for opportunity attack vs standard actions
 set off charged items on the floor
 add cost to trample
+fix new hook attack

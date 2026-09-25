@@ -5,7 +5,8 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
-import { getDragPath, getGrappleGroup } from './grapple'
+import { getDragPath, getGrappleGroup, isGrappleRow } from './grapple'
+import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 
 // combat.tex "Reactions": "actions that can be performed on another
@@ -39,7 +40,23 @@ export function getTriggers(state: CombatState, root: Action): Trigger[] {
     case 'pickUp': return pickUpTriggers(state, root)
     case 'grapple':
     case 'drag': return grappleTriggers(state, root)
-    default: return []
+    // letting go and grappling back draw nothing; a reaction is never a root
+    case 'release':
+    case 'holdBack':
+    case 'evade':
+    case 'evasiveJump':
+    case 'block':
+    case 'intercept':
+    case 'evasion':
+    case 'guard':
+    case 'avoidExplosion':
+    case 'opportunityAttack':
+    case 'follow':
+    case 'resist':
+    case 'assist':
+    case 'carry':
+    case 'letGo':
+      return []
   }
 }
 
@@ -216,7 +233,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     // run has brought them within its reach, as nobody else may; fought, as
     // every attack on a mover is, with the mover stood where the step before
     // `at` left them — here, the first step in reach
-    const grab = root.movement === 'run' ? Math.max(getMeleeRange(state.characters[id], 'grapple I'), getMeleeRange(state.characters[id], 'grapple II')) : 0
+    const grab = root.movement === 'run' ? getMeleeRange(state.characters[id], isGrappleRow) : 0
     if (grab > 0) {
       const inReach = distances.slice(1).findIndex((d) => d <= grab)
       if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
@@ -224,7 +241,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     // combat.tex "Hook Attack": "a reaction against running targets that
     // move away from the weapon within two spaces, which are both inside its
     // melee range"
-    const hook = getMeleeRange(state.characters[id], 'hook')
+    const hook = getMeleeRange(state.characters[id], (atk) => hasProperty(atk.properties, 'hook'))
     if (root.movement !== 'run' || hook === 0) continue
     const away = firstStep(distances, (previous, now) => now > previous && now <= hook)
     if (away !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: away })

@@ -1,4 +1,4 @@
-import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
+import type { Area, CampaignCharacter, Delivery, SpellEffect, TerrainPatch } from '../../types'
 import { DEGREES, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
@@ -10,6 +10,7 @@ import { DIRECTIONS, add, coordKey, disk, distance, ring, sameCell, setDistance 
 import { angleBetween, angularGap, getPlacedFootprint, getShotReachOf, seesAcross, toPlane } from './board'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getHeldItem } from '../../item/rules/hands'
+import { findHeldItem, getFightName } from './activeCharacter'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -52,17 +53,6 @@ function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEf
   return (charge ? charge.effects : produceEffects(producer, row.atk.payload)).filter(isAreaEffect)
 }
 
-// spells.tex "Charged": a charge waits in an object. Who holds the one
-// named, and what it is; null for anything not in someone's hands.
-export function findHeldItem(state: CombatState, itemId: string): { holder: CampaignCharacter; item: Item } | null {
-  if (!itemId) return null
-  for (const holder of Object.values(state.characters)) {
-    const item = holder.held.find((i) => i.id === itemId)
-    if (item) return { holder, item }
-  }
-  return null
-}
-
 // Every charge in the fight that can be set off from where it lies: one
 // with an area to it, in the hands of someone standing on the board.
 export type ChargeOption = { itemId: string; key: SpellKey; name: string; item: string; holder: string; cell: Coord }
@@ -74,7 +64,7 @@ export function getChargeOptions(state: CombatState): ChargeOption[] {
     return holder.held.flatMap((item): ChargeOption[] => {
       const key = item.charge?.key
       if (!key || !isSpellKey(key) || !item.charge?.effects.some(isAreaEffect)) return []
-      return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: holder.fightName ?? '', cell }]
+      return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: getFightName(state, holder.id), cell }]
     })
   })
 }

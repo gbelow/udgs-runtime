@@ -1,12 +1,13 @@
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type Coord, type Updater } from '../types'
+import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord, type MoveAction, type Updater } from '../types'
 import { makeBoard } from '../factories'
-import { coordKey, directionTo, sameCell } from '../geometry'
+import { coordKey, directionTo, distance, sameCell } from '../geometry'
 import { getOpenAction } from '../rules/action'
 import { getExplosionCenters } from '../rules/explosion'
 import { placeAt, withPlacements } from '../rules/board'
-import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../rules/move'
-import { aimExplosion, aimPush, amendAction, declareReaction } from './action'
+import { canStandAt, getEvasiveJumpPlacements, getMoveOrigin, getReachableCells, type ReachableCell } from '../rules/move'
+import { amendAction, declareReaction } from './action'
+import { aimExplosion, aimPush } from './choices'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -102,6 +103,25 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
     }
     return state
   }
+}
+
+// The path a click on a cell turns the declared one into: the cell taken
+// back if it is the path's end, one more step if it is next to the end,
+// the shortest way there if it is reachable at all, and nothing otherwise.
+function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
+  const from = getMoveOrigin(state, action)
+  if (!from) return null
+  const end = action.path[action.path.length - 1] ?? from.cell
+  if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)
+  const reachable = getReachableCells(state, action)
+  const there = findReachable(reachable, cell)
+  if (!there) return null
+  if (distance(end, cell) === 1 && there.steps > action.path.length) return [...action.path, cell]
+  return there.path
+}
+
+function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
+  return cells.find((r) => sameCell(r.cell, cell)) ?? null
 }
 
 // Turns the open move's ending one step clockwise from where it stands now.

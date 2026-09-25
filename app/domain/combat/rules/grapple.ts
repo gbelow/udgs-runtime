@@ -75,7 +75,7 @@ export function getGrappleGroup(grapples: Grapple[], id: string): string[] {
 // Grapple rows
 
 // gear.tex "Grapple I/II": "This attack is used for grappling actions."
-function isGrappleRow(atk: WeaponAttack): boolean {
+export function isGrappleRow(atk: WeaponAttack): boolean {
   return hasProperty(atk.properties, 'grapple I') || hasProperty(atk.properties, 'grapple II')
 }
 
@@ -278,11 +278,17 @@ export function getDisarmOptions(state: CombatState, root: GrappleAction): { ite
   return target ? target.held.map((i) => ({ itemId: i.id, name: i.name })) : []
 }
 
+// combat.tex "Grapple Maneuvers": a maneuver does something on a hit or a
+// critical; "If a grapple maneuvre grazes or misses, it simply has no
+// effect."
+export function isManeuverWon(root: GrappleAction): boolean {
+  return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
+}
+
 // Whether a rolled maneuver's hit or critical still waits on the attacker's
 // pick of what a disarm takes.
 export function needsDisarmPick(state: CombatState, root: GrappleAction): boolean {
-  const landed = root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
-  return root.maneuver === 'disarm' && landed && root.item === '' && getDisarmOptions(state, root).length > 0
+  return root.maneuver === 'disarm' && isManeuverWon(root) && root.item === '' && getDisarmOptions(state, root).length > 0
 }
 
 // combat.tex "Escape": "Escapes from the grapple on criticals and hits ...
@@ -301,8 +307,7 @@ export function needsDisarmPick(state: CombatState, root: GrappleAction): boolea
 // hit." "If a grapple maneuvre grazes or misses, it simply has no effect."
 export function getManeuverFacts(state: CombatState, root: GrappleAction): GrappleFacts | null {
   const done = getManeuverOutcome(state, root)
-  const won = root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
-  return done && won ? freeSeized(state, root.actorId, done) : done
+  return done && isManeuverWon(root) ? freeSeized(state, root.actorId, done) : done
 }
 
 function freeSeized(state: CombatState, ownerId: string, done: GrappleFacts): GrappleFacts {
@@ -321,7 +326,7 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
   const deliveries = getHoldDeliveries(state, g)
   const degree = root.roll.degree
   const critical = degree === 'critical'
-  const landed = critical || degree === 'hit'
+  const landed = isManeuverWon(root)
   const along = critical || (degree === 'hit' && root.along)
   const who = critical ? [root.targetId] : [root.targetId, root.actorId]
   switch (root.maneuver) {

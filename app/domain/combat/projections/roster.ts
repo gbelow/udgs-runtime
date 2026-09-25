@@ -2,6 +2,7 @@ import type { SurgeKind } from '../../types'
 import type { Action, CombatState } from '../types'
 import { getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
 import { getAffected } from '../rules/explosion'
+import { getFightName } from '../rules/activeCharacter'
 
 // Who a character is to an action.
 export type Role = 'actor' | 'target' | 'reactor' | 'none'
@@ -34,7 +35,7 @@ export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
   const targets = new Set(open && getNextStep(state) === 'target' ? getTargetIds(state, open) : [])
   return Object.entries(state.characters).map(([id, c]) => ({
     id,
-    name: c.fightName ?? '',
+    name: getFightName(state, id),
     isActive: id === state.activeCharacterId,
     hasSurged: c.usedSurge !== null,
     usedSurge: c.usedSurge,

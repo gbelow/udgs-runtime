@@ -5,6 +5,7 @@ import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
 import * as startTurnModule from './combat/commands/startTurn'
 import * as actionsModule from './combat/commands/action'
+import * as choicesModule from './combat/commands/choices'
 import * as boardModule from './combat/commands/board'
 import * as grappleModule from './combat/commands/grapple'
 import * as floorModule from './combat/commands/floor'
@@ -17,7 +18,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...choicesModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole

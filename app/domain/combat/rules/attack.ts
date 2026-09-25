@@ -300,7 +300,26 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
       return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
-    default:
+    // an explosion's tests are its reactors' (combat.tex "Explosions"); the
+    // rest are committed by paying, or are reactions
+    case 'explosion':
+    case 'drag':
+    case 'release':
+    case 'holdBack':
+    case 'pickUp':
+    case 'evade':
+    case 'evasiveJump':
+    case 'block':
+    case 'intercept':
+    case 'evasion':
+    case 'guard':
+    case 'avoidExplosion':
+    case 'opportunityAttack':
+    case 'follow':
+    case 'resist':
+    case 'assist':
+    case 'carry':
+    case 'letGo':
       return null
   }
 }
@@ -323,6 +342,7 @@ export function getRootTest(state: CombatState, root: Action): Test | null {
     case 'cast':
       return { ...base, scale: 'overflow', grazes: !root.quicken }
     default:
+      // a maneuver and a Balance test, the only other kinds with terms
       return { ...base, scale: 'degrees' }
   }
 }

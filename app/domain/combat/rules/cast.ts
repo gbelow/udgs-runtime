@@ -45,10 +45,13 @@ export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
   return resolveTest({ skill: roll.score - roll.die + GRAZE_SAVE.bonus, DL: roll.DL, explodes: false, scale: 'overflow', grazes: true }, () => roll.die)
 }
 
+// spells.tex "Casting spells": the price of buying a graze up to a hit.
+export const GRAZE_SAVE_COST: ActionCost = { AP: GRAZE_SAVE.AP, STA: 0 }
+
 export function canSaveGraze(state: CombatState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
   if (!caster || root.status !== 'rolled' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
-  if (isCancelled(state, root) || !canAfford(caster, { AP: GRAZE_SAVE.AP, STA: 0 })) return false
+  if (isCancelled(state, root) || !canAfford(caster, GRAZE_SAVE_COST)) return false
   return getGrazeSavedRoll(root.roll).degree === 'hit'
 }
 
