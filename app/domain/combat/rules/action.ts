@@ -22,7 +22,7 @@ import { resolveTest, type Test } from './test'
 import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggers, getTriggersFor } from './reactions'
 import { getCancellableRoot, isCancelled, isTriggeringAction } from './opportunity'
-import { canGrab, canStandByEscape, findGrapple, getDragPath, needsDragAim, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
+import { canGrab, canStandByEscape, findGrapple, getDragPath, needsDragAim, getHoldBackTargets, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { getMoveCost } from './move'
 
@@ -203,6 +203,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'drag':
       return state.board !== null
     case 'release':
+    case 'holdBack':
     case 'resist':
     case 'assist':
     case 'carry':
@@ -423,7 +424,7 @@ export function getCastTerms(c: CampaignCharacter, action: CastAction): Term[] {
 export function getDLTerms(state: CombatState, root: Action): Term[] {
   if (root.kind === 'explosion') return getExplosionDLTerms(state, root)
   if (root.kind === 'grapple') return getManeuverDLTerms(state, root)
-  if (root.kind === 'drag' || root.kind === 'release' || root.kind === 'pickUp') return []
+  if (root.kind === 'drag' || root.kind === 'release' || root.kind === 'holdBack' || root.kind === 'pickUp') return []
   if (root.kind === 'cast') {
     if (!isSpellKey(root.key)) return []
     return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
@@ -730,7 +731,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 // combat.tex "Grapple": what a character in a grapple can do about it — the
 // maneuvers, open to "any of the participants" whatever they hold; getting
 // up, which in a grapple is an escape; pushing or dragging; letting go of a
-// partner who does not hold back. Nothing, outside of one.
+// partner who does not hold back; grappling back one held with nothing, once
+// a grapple row is in hand. Nothing, outside of one.
 function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOption[] {
   if (getPartners(state, c.id).length === 0) return []
   const option = (label: string, draft: ActionDraft, cost: ActionCost | null, reason: string | null): ActionOption =>
@@ -745,6 +747,7 @@ function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOpti
     option('stand up', { kind: 'grapple', maneuver: 'escape', stand: true }, maneuver, canStandByEscape(state, c) ? afford(maneuver) : 'not prone'),
     option(ACTIONS.drag.label, { kind: 'drag' }, drag, !placed ? 'not on the board' : afford(drag)),
     option(ACTIONS.release.label, { kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back'),
+    ...(getHoldBackTargets(state, c.id).length > 0 ? [option(ACTIONS.holdBack.label, { kind: 'holdBack' }, { AP: 0, STA: 0 }, null)] : []),
   ]
 }
 
@@ -929,6 +932,7 @@ export function getTargetIds(state: CombatState, root: Action): string[] {
   // combat.tex "Grapple": what is done in a grapple is done to a partner
   if (root.kind === 'grapple') return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
   if (root.kind === 'release') return getReleaseTargets(state, root.actorId)
+  if (root.kind === 'holdBack') return getHoldBackTargets(state, root.actorId)
   if (root.kind === 'drag') return getPartners(state, root.actorId).filter((id) => state.board?.placements[id] !== undefined)
   return Object.keys(state.characters).filter((id) =>
     id !== root.actorId

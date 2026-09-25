@@ -31,7 +31,7 @@ import { getDistanceBetween, getMeleeRange } from '../rules/board'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from '../reduce'
 import { getCastFacts } from '../rules/cast'
 import { getCancellableRoot, getDrawnOpportunityAttacks, isCancelled, isTriggeringAction } from '../rules/opportunity'
-import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
+import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getHoldBackFacts, getManeuverFacts, getReleaseFacts, holds } from '../rules/grapple'
 import { sameCell } from '../geometry'
 import { getReachableFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
@@ -114,7 +114,7 @@ export function commitAction(): Updater {
     if (!open || open.status !== 'declared') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if ((open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'grapple' || open.kind === 'drag' || open.kind === 'release' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if ((open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'grapple' || open.kind === 'drag' || open.kind === 'release' || open.kind === 'holdBack' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!priceFor(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
@@ -518,6 +518,8 @@ export function resolveAction(newId: () => string = () => `${Date.now()}`): Upda
         ? { ...open, status: 'resolved', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
       : open.kind === 'release'
         ? { ...open, status: 'resolved', facts: getReleaseFacts(state, open) }
+      : open.kind === 'holdBack'
+        ? { ...open, status: 'resolved', facts: getHoldBackFacts(state, open) }
       : open.kind === 'drag'
         ? { ...open, status: 'resolved', facts: getDragFacts(state, open) }
       : open.kind === 'explosion'

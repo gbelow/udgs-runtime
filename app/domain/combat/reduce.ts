@@ -123,10 +123,11 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
   return consumeItem(wielded.itemId)(c) as CampaignCharacter
 }
 
-// What a grab, a maneuver or a letting go wrote down about the grapple.
+// What a grab, a maneuver, a letting go or a grappling back wrote down about
+// the grapple.
 function getGrappleFacts(action: Action): GrappleFacts | null {
   if (action.kind === 'strike') return action.grabbed
-  if (action.kind === 'grapple' || action.kind === 'release') return action.facts
+  if (action.kind === 'grapple' || action.kind === 'release' || action.kind === 'holdBack') return action.facts
   return null
 }
 

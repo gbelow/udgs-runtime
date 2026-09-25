@@ -1,5 +1,5 @@
 import type { Character, Damage, Delivery, WeaponAttack } from '../../types'
-import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Placement, ReleaseAction, StrikeAction } from '../types'
+import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
 import { getWieldedWeapons } from '../../item/rules/hands'
@@ -359,6 +359,25 @@ export function getReleaseFacts(state: CombatState, root: ReleaseAction): Grappl
   const g = root.targetId ? findGrapple(state.grapples, root.actorId, root.targetId) : null
   if (!g || !root.targetId) return null
   return facts(state, [root.actorId, root.targetId], null)
+}
+
+// ---------------------------------------------------------------------------
+// Grappling back
+
+// combat.tex "Initiate the Grab": "It is possible to grapple back
+// automatically just by having a weapon with grappling property equipped" —
+// the partners the character holds nothing of, once they have a grapple row
+// in hand.
+export function getHoldBackTargets(state: CombatState, actorId: string): string[] {
+  const c = state.characters[actorId]
+  if (!c || !hasGrappleRow(c)) return []
+  return getGrapplesOf(state, actorId).filter((g) => !holds(g, actorId)).map((g) => getPartner(g, actorId))
+}
+
+export function getHoldBackFacts(state: CombatState, root: HoldBackAction): GrappleFacts | null {
+  const g = root.targetId ? findGrapple(state.grapples, root.actorId, root.targetId) : null
+  if (!g || !root.targetId) return null
+  return facts(state, [root.actorId, root.targetId], { ...g, holders: [...new Set([...g.holders, root.actorId])] })
 }
 
 // ---------------------------------------------------------------------------

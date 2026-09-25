@@ -51,7 +51,7 @@ export function getGrappleNotes(state: CombatState, root: Action): { target: str
   if (isTriggeringAction(root) && isCancelled(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
-  const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' ? root.facts : null
+  const facts: GrappleFacts | null = root.kind === 'strike' ? root.grabbed : root.kind === 'grapple' || root.kind === 'release' || root.kind === 'holdBack' ? root.facts : null
   if (!facts) return []
   const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name
     ?? state.floor.find((f) => f.item.id === itemId)?.item.name ?? 'an item'

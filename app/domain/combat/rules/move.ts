@@ -11,7 +11,7 @@ import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 import { getMoveTramples } from './trample'
-import { canMoveInGrapple, isImmobile, isInGrapple, isInGrappleArea } from './grapple'
+import { isImmobile, isInGrapple } from './grapple'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -43,6 +43,11 @@ export function getMovementSpeed(c: Character, kind: MovementKind): number {
 // is printed to two places (0.33 for a third), so the quotient is read to a
 // tenth before it is rounded up, or a third of a metre three times would
 // cost a fourth block.
+// How many cells of a movement the given AP buys, whole blocks only.
+function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
+  return Math.floor(AP / MOVEMENT_BLOCK_COST[kind].AP) * getMovementSpeed(c, kind)
+}
+
 export function getMoveCost(c: Character, kind: MoveKind, cells: number): ActionCost {
   if (isPosture(kind)) return getPostureCost(c, kind)
   const speed = getMovementSpeed(c, kind)
@@ -96,11 +101,10 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
 // character can run"). combat.tex "Grappled": "Movement requires pushing or
-// dragging the other participants in the grapple" — unless it stays within
-// the grapple area, open to one whose Force is no more than 5 below every
-// partner's (combat.tex "Push and drag"); they get up by escaping ("Escape
-// is also used for trying to stand up while grappled"); "Immobile: Cannot
-// move".
+// dragging the other participants in the grapple" — circling within the
+// grapple area is a push's choice too (combat.tex "Push and drag"); they get
+// up by escaping ("Escape is also used for trying to stand up while
+// grappled"); "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = getAfflictions(c).includes('prone')
   const swimming = isInLiquid(state, c)
@@ -109,7 +113,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const immobile = isImmobile(c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
-      : held && !canMoveInGrapple(state, c) ? { available: false, reason: 'grappled: push or drag instead' }
+      : held ? { available: false, reason: 'grappled: push or drag instead' }
       : movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
@@ -186,7 +190,6 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     const footprint = getFootprint(c, { ...from, cell, orientation })
     if (footprint.some(ground.blocked)) return false
     if (footprint.some(ground.liquid) !== (action.movement === 'swim')) return false
-    if (!isInGrappleArea(state, c.id, footprint)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }
@@ -324,16 +327,21 @@ export function getOpportunityAttacks(state: CombatState, action: MoveAction): {
 // Where an opportunity attack fought against the move took it over, if one
 // has: one space short of the stretch that triggered it, the table's
 // ruling. combat.tex "Interruption": "Movement is cancelled, except running
-// and jumping." combat.tex "Evasive Jump": a mover who jumps away from the
+// and jumping" — and "running": "The first 2 AP worth of running must be
+// uninterrupted, otherwise, running cannot be started", so a run is
+// cancelled like any move by an interruption inside its first block.
+// combat.tex "Evasive Jump": a mover who jumps away from the
 // attack has made a movement of their own, and it takes over from the one
 // declared, whatever the speed.
 // combat.tex "Trip": a mover who "falls and is prone" goes no further,
 // running or not. combat.tex "Trample": "If the defender's force is equal
 // or higher, the runner is stopped" — by a braced blow's trample too.
 export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
-  const stoppable = action.movement !== 'run' && action.movement !== 'jump'
+  const mover = state.characters[action.actorId]
+  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', 2) : 0
   for (const { reaction, spawned: strike } of getOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.status !== 'resolved') continue
+    const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = state.actions.some((a) => a.reactionTo === strike.id && a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
     if ((stoppable && strike.interruption !== 'none') || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }
@@ -508,7 +516,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   }
   const crossable = (cell: Coord) => {
     const footprint = getFootprint(c, { ...from, cell })
-    return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim') && isInGrappleArea(state, c.id, footprint)
+    return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim')
   }
 
   const seen = new Set([coordKey(from.cell)])

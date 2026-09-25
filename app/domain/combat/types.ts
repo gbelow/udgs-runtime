@@ -472,6 +472,14 @@ export const ReleaseActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
+// Grappling back a partner one holds nothing of, once a grapple row is in
+// hand.
+export const HoldBackActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('holdBack'),
+  facts: GrappleFactsSchema.nullable().default(null),
+}).strip()
+
 // Picking up: an item off the floor, from the character's own
 // cell or one next to it, into a free hand.
 export const PickUpActionSchema = z.object({
@@ -512,6 +520,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   GrappleActionSchema,
   DragActionSchema,
   ReleaseActionSchema,
+  HoldBackActionSchema,
   PickUpActionSchema,
   ResistActionSchema,
   AssistActionSchema,
@@ -534,6 +543,7 @@ export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
+export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a
 // maneuver or a push (combat.tex "Grapple Maneuvers", "Push and drag").

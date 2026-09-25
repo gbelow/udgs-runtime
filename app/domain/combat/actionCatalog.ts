@@ -53,6 +53,10 @@ export const ACTIONS = {
   drag:        { label: 'push or drag', type: 'action',   price: 'pushDrag',    reactsTo: [],         die: false },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false },
+  // combat.tex "Initiate the Grab": "It is possible to grapple back
+  // automatically just by having a weapon with grappling property
+  // equipped" — one who takes one up mid-grapple does so as a free action
+  holdBack:    { label: 'grapple back', type: 'action',   price: null,          reactsTo: [],         die: false },
   // combat.tex "Grapple Maneuvers", "Push and drag": the defender's 2 AP +
   // 1 STA that spares them the -5
   resist:      { label: 'resist',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },
