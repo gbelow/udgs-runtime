@@ -4,15 +4,15 @@ import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { getAfflictions } from '../../character/rules/afflictions'
+import { getAfflictions, isImmobile } from '../../character/rules/afflictions'
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
 import { getMoveTramples } from './trample'
-import { isImmobile, isInGrapple } from './grapple'
+import { isInGrapple } from './partners'
 import { getDrawnOpportunityAttacks } from './opportunity'
-import { findOpenRoot, getReactionsTo } from './action'
+import { findOpenRoot, getReactionsTo } from './log'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is

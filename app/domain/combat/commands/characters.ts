@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
-import { getOpenAction } from '../rules/action'
+import { getOpenAction } from '../rules/log'
 import { settleGrapples } from './grapple'
 
 // Takes a character out of the fight: their place on the board goes with

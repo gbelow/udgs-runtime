@@ -5,7 +5,7 @@ import { getHeldItem } from '../../item/rules/hands'
 import { onFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
 import { amendAction, declareAction } from './action'
-import { getOpenAction } from '../rules/action'
+import { getOpenAction } from '../rules/log'
 
 // combat.tex "Putting items away": "Dropping items on the floor costs 0 AP"
 // — in a fight, the stack lands where the character stands, and a holder

@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, CombatState } from '../types'
-import { getLiveReactionsTo, getOpenAction } from '../rules/action'
+import { getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from './reduce'
 import { isTriggeringAction } from '../rules/opportunity'

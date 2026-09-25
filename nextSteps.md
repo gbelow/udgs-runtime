@@ -114,14 +114,15 @@ blast scaling - scale to scale of the item. 1 amplify is allowed over item size.
 clean up redundant clicks in actions, like spray and movement.
 option to strike must not exist when no strikes are available.
 
-trip test - new test 
-hook attack - force condition to trip
 pushing while prone 
+movement afflictions definitions - prone, lame
+
 surge AP usage - 
+running must start in movement surge
+
 soft grapple weapons - whip is not grapple, nor is net
 visual effect marking grapple/tangle
-running must start in movement surge
-movement afflictions definitions - prone, lame
+
 stand up while grappled - opportunity attack/ push - no specific rule required
 disarm during grapple - only crits, no hit effect. trigger at intercept
 allow throwing items with standard action

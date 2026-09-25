@@ -15,7 +15,7 @@ import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
 import { getDragPath, getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
-import { getReactionsTo, getRootOf } from './action'
+import { getReactionsTo, getRootOf } from './log'
 import { getCastTerms } from './cast'
 
 // What an action is rolled with and against: the weapon rows and

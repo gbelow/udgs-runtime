@@ -3,7 +3,7 @@ import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
 import { getOutcomePreviews } from './outcomes'
-import { getOpenAction } from '../rules/action'
+import { getOpenAction } from '../rules/log'
 import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 function fighter(id: string): CampaignCharacter {

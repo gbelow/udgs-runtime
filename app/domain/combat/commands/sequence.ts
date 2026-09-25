@@ -1,5 +1,6 @@
 import type { Action, CombatState, DragAction, ExplosionAction, MoveAction } from '../types'
-import { areReactionsComplete, getAction, getLiveReactionsTo, getReactionsTo, getRootOf } from '../rules/action'
+import { areReactionsComplete } from '../rules/action'
+import { getAction, getLiveReactionsTo, getOpeningReaction, getReactionsTo, getRootOf } from '../rules/log'
 import { opensExplosion } from '../rules/cast'
 import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
@@ -83,9 +84,9 @@ function escapesOnStun(state: CombatState, root: Action, newId: () => string): A
 // An opportunity attack fought against a mover or a triggering action, once
 // it has landed, hands the root back: on to its next threatener, or to its end.
 export function afterLanding(state: CombatState, resolved: Action, newId: () => string): CombatState {
-  const reaction = resolved.spawnedBy ? getAction(state, resolved.spawnedBy) : null
+  const reaction = getOpeningReaction(state, resolved)
   const root = reaction ? getRootOf(state, reaction) : null
-  if (reaction?.kind !== 'opportunityAttack' || root?.status !== 'rolled') return state
+  if (root?.status !== 'rolled') return state
   return advanceOpportunities(state, root, newId)
 }
 

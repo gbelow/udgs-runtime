@@ -1,6 +1,7 @@
 import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater } from '../types'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAnswer, getAction, getLiveReactionsTo, getNextStep, getOpenAction, getPayableCost, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo, getRootOf } from '../rules/log'
 import { findOption } from '../rules/options'
 import { getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
@@ -82,11 +83,11 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'declared' || !open.spawnedBy) return state
-    const reaction = getAction(state, open.spawnedBy)
-    const dropped = reaction?.kind === 'opportunityAttack' ? [open.id, reaction.id] : [open.id]
+    const reaction = getOpeningReaction(state, open)
+    const dropped = reaction ? [open.id, reaction.id] : [open.id]
     const withdrawn = { ...state, actions: state.actions.filter((a) => !dropped.includes(a.id)) }
     const root = reaction ? getRootOf(withdrawn, reaction) : null
-    return reaction?.kind === 'opportunityAttack' && root?.status === 'rolled' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
+    return root?.status === 'rolled' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
   }
 }
 

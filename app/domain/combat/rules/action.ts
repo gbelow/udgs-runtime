@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, CombatState } from '../types'
+import type { Action, ActionOf, CombatState } from '../types'
 import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -13,72 +13,17 @@ import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findHeldItem } from './activeCharacter'
 import { findTrigger, getTriggers } from './reactions'
 import { isTriggeringAction, isVoided } from './opportunity'
-import { canGrab, canStandByEscape, findGrapple, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
+import { canGrab, canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
+import { findGrapple, getPartners } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isAttackAction, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
+import { getOpenAction, getReactionsTo, getRootOf } from './log'
 
-// An action's life in the fight: which one is being played out, whether its
-// declaration is complete and aimed at someone it may be, what it costs as
-// declared, and the step the table is waiting on.
-
-// ---------------------------------------------------------------------------
-// Finding actions in the fight
-
-// The action being played out: the first root not yet resolved. Nothing can
-// be declared while one is open, so there is only ever one — except for the
-// actions a reaction opens (an opportunity attack, a follow, an escape from
-// a blast), which are played out ahead of whatever they were opened
-// against: an opportunity attack on a mover is fought while the move waits
-// to resolve. They stack, so the one opened last goes first — an explosion
-// a cast opened waits for the escapes its own reactions opened.
-export function getOpenAction(state: CombatState): Action | null {
-  const roots = state.actions.filter((a) => a.reactionTo === null && a.status !== 'resolved')
-  return [...roots].reverse().find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
-}
-
-// Whether the action is closed by a die: a strike always, a move when it
-// crosses difficult terrain (combat.tex "Balance"), an explosion when a
-// reaction declared against it is a test of its own (combat.tex "Avoiding
-// an Explosion").
-export function needsDie(state: CombatState, action: Action): boolean {
-  if (action.kind === 'move') return needsBalanceTest(state, action)
-  return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
-}
-
-// The first root of the kind still being played out — waiting on what it
-// opened, or on its own resolve — that `match` accepts.
-export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, match: (a: ActionOf<K>) => boolean = () => true): ActionOf<K> | null {
-  const found = state.actions.find((a): a is ActionOf<K> => a.kind === kind && a.reactionTo === null && a.status !== 'resolved' && match(a as ActionOf<K>))
-  return found ?? null
-}
-
-export function getReactionsTo(state: CombatState, id: string): Action[] {
-  return state.actions.filter((a) => a.reactionTo === id)
-}
-
-// The reactions to the action declared but not yet paid for, and so still
-// free to change or take back.
-export function getLiveReactionsTo(state: CombatState, id: string): Action[] {
-  return getReactionsTo(state, id).filter((r) => r.status !== 'resolved')
-}
-
-// The actor answers nothing of their own — except a blast, which reaches
-// them where they stand like anyone else (combat.tex "Explosions").
-export function canAnswer(open: Action, characterId: string): boolean {
-  return open.actorId !== characterId || open.kind === 'explosion'
-}
-
-export function getAction(state: CombatState, id: string): Action | null {
-  return state.actions.find((a) => a.id === id) ?? null
-}
-
-// The action a reaction answers; null for one taken on its actor's own
-// initiative.
-export function getRootOf(state: CombatState, action: Action): Action | null {
-  return action.reactionTo ? getAction(state, action.reactionTo) : null
-}
+// An action's life in the fight: whether its declaration is complete and
+// aimed at someone it may be, what it costs as declared, and the step the
+// table is waiting on.
 
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike or a shot a variation of a row in
@@ -260,6 +205,15 @@ export type ActionStep = 'declare' | 'target' | 'aim' | 'commit' | 'react' | 'sp
 // the attacks it draws from third parties are opened.
 export function isAnswerable(state: CombatState, open: Action): boolean {
   return open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && getNextStep(state) === 'react')
+}
+
+// Whether the action is closed by a die: a strike always, a move when it
+// crosses difficult terrain (combat.tex "Balance"), an explosion when a
+// reaction declared against it is a test of its own (combat.tex "Avoiding
+// an Explosion").
+export function needsDie(state: CombatState, action: Action): boolean {
+  if (action.kind === 'move') return needsBalanceTest(state, action)
+  return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }
 
 export function getNextStep(state: CombatState): ActionStep | null {

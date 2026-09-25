@@ -1,7 +1,7 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
-import { getReactionsTo } from './action'
+import { getOpeningReaction, getReactionsTo, getRootOf } from './log'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -69,7 +69,7 @@ export function isVoided(state: CombatState, action: Action): boolean {
 // performed while concentrating"; combat.tex "Opportunity Attack": the same
 // for anything else that drew one.
 export function getCancellableRoot(state: CombatState, fought: Action, defenderId: string): TriggeringAction | null {
-  const reaction = fought.spawnedBy ? state.actions.find((a) => a.id === fought.spawnedBy) : undefined
-  const root = reaction?.kind === 'opportunityAttack' && reaction.reactionTo ? state.actions.find((a) => a.id === reaction.reactionTo) : undefined
+  const reaction = getOpeningReaction(state, fought)
+  const root = reaction ? getRootOf(state, reaction) : null
   return root && isTriggeringAction(root) && root.actorId === defenderId && !root.cancelled ? root : null
 }

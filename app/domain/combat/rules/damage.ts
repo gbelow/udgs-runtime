@@ -1,5 +1,5 @@
 import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon } from '../../types'
-import type { ActionOf, AttackAction, CombatState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
+import type { AttackAction, CombatState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
@@ -13,7 +13,7 @@ import { getBalance, getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
-import { getAction, getReactionsTo } from './action'
+import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getMovementSpeed } from './move'
@@ -105,23 +105,17 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer:
 // ---------------------------------------------------------------------------
 // Braced and hooked strikes
 
-// The opportunity attack a strike was opened by; null for any other.
-function getOpportunityReaction(state: CombatState, root: AttackAction): ActionOf<'opportunityAttack'> | null {
-  const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  return reaction?.kind === 'opportunityAttack' ? reaction : null
-}
-
 // The move an opportunity strike was drawn by and the step it fires on;
 // null for a strike no move opened.
 function getOpportunityStep(state: CombatState, root: AttackAction): { move: MoveAction; at: number } | null {
-  const reaction = getOpportunityReaction(state, root)
+  const reaction = getOpeningReaction(state, root)
   return reaction ? getMoveStep(state, reaction) : null
 }
 
 // combat.tex "Braced Attack": the opportunity attack a step towards the
 // attacker draws.
 function isBracedChance(state: CombatState, root: AttackAction): boolean {
-  const reaction = getOpportunityReaction(state, root)
+  const reaction = getOpeningReaction(state, root)
   return reaction !== null && isBracedStep(state, reaction)
 }
 
@@ -130,7 +124,7 @@ function isBracedChance(state: CombatState, root: AttackAction): boolean {
 function isHookChance(state: CombatState, root: AttackAction): boolean {
   if (root.kind !== 'strike') return false
   if (!root.opportunity) return true
-  const reaction = getOpportunityReaction(state, root)
+  const reaction = getOpeningReaction(state, root)
   return reaction !== null && isHookStep(state, reaction)
 }
 

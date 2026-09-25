@@ -5,7 +5,7 @@ import { getAfflictions } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
 import { getFootprint, withPlacements } from './board'
 import { canStandAt, getMoveOrigin, getMovementSpeed, getStepPlacements } from './move'
-import { getReactionsTo } from './action'
+import { getReactionsTo } from './log'
 
 // combat.tex "Trample": "Happens when two characters hit each other at
 // speed. This is a Force vs Force comparison." Two ways into one here: a

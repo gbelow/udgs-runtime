@@ -5,7 +5,8 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
-import { getDragOrigin, getDragPath, getGrappleGroup, isGrappleRow } from './grapple'
+import { getDragOrigin, getDragPath, isGrappleRow } from './grapple'
+import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 

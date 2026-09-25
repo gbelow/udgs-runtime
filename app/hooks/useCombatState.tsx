@@ -1,6 +1,6 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
-import { getOpenAction } from "../domain/combat/rules/action";
+import { getOpenAction } from "../domain/combat/rules/log";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // Fight-level primitives. Both go through the store selector, so a change to a

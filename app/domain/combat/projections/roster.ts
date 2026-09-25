@@ -1,6 +1,7 @@
 import type { SurgeKind } from '../../types'
 import type { Action, CombatState } from '../types'
-import { getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
+import { getNextStep, getTargetIds } from '../rules/action'
+import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected } from '../rules/explosion'
 import { getFightName } from '../rules/activeCharacter'
 
