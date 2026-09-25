@@ -238,7 +238,6 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple I"
         ],
         "payload": []
       }
@@ -359,7 +358,6 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple I",
           "shaft",
           "DEF"
         ],
@@ -611,7 +609,6 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple I",
           "shaft",
           "DEF"
         ],
@@ -686,7 +683,6 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple I",
           "shaft",
           "DEF"
         ],
@@ -743,7 +739,6 @@
         "cut": 0,
         "AP": 3,
         "properties": [
-          "grapple I",
           "shaft",
           "DEF"
         ],
@@ -812,7 +807,6 @@
         "AP": 5,
         "reload": 10,
         "properties": [
-          "grapple I",
           "reload",
           "explosion"
         ],

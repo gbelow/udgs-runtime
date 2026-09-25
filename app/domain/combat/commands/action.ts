@@ -38,6 +38,7 @@ import { settleGrapples } from './grapple'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { SpellModification } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
 import { MOVEMENT_KINDS } from '../../lists'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -396,7 +397,7 @@ function priceFor(state: CombatState, action: Action): ActionCost | null {
   const cost = action.kind === 'move'
     ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getDeclaredCost(c, action)
-  if (!cost || c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
+  if (!cost || !canAfford(c, cost)) return null
   return cost
 }
 

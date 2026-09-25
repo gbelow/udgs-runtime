@@ -1,4 +1,4 @@
-import type { AttackKind, CampaignCharacter, Character, Weapon, WeaponAttack } from '../../types'
+import type { AttackKind, CampaignCharacter, Character, WeaponAttack } from '../../types'
 import { ActionSchema, type Action, type ActionDraft, type ActionKind, type ActionOf, type ActionRoll, type AttackAction, type CastAction, type CombatState, type HitLocation, type OpportunityAction, type StrikeAction, type WeaponAction } from '../types'
 import { ACTIONS, reactsTo } from '../actionCatalog'
 import { GRAZE_SAVE, LOCATIONS, QUICKEN_DL, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
@@ -6,25 +6,26 @@ import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill } from '../../character/rules/spells'
 import { getEffectRange, getTargetEffects } from '../../character/rules/production'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
-import { getWieldedWeapons, isAttackUsable, Wielded } from '../../item/rules/hands'
-import { AttackVariant, getAttacksList, getShotKind, isWieldable, needsFocus } from '../../character/rules/gear'
+import { AttackVariant, getAttacksList, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getAGI } from '../../character/rules/characteristics'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getBuffBonus } from '../../character/rules/effects'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getDistanceBetween, hasLineOfSight, isHighGround, isInReach, isInShotRange } from './board'
 import { getBalanceDL, getBalanceTestTerms, getMovePrice, getMoveWaypoint, getMovementOptions, getStepDelta, hasJumpSpace, isHookedRunner, isMidJump, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { resolveTest, type Test } from './test'
-import { getAffected, getChargeOptions, getChargedItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
+import { getAffected, getChargeOptions, findHeldItem, getExplosionDLTerms, getExplosionPayload, hasExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggers, getTriggersFor } from './reactions'
 import { getCancellableRoot, isCancelled, isTriggeringAction } from './opportunity'
 import { canGrab, canStandByEscape, findGrapple, getDragPath, needsDragAim, getHoldBackTargets, getGrappleStrikeTerm, isGrappleRowOf, getManeuverDLTerms, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isHeld, isImmobile, needsDisarmPick } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { getMoveCost } from './move'
+import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 
 // ---------------------------------------------------------------------------
 // Finding actions in the fight
@@ -60,21 +61,6 @@ export function getAction(state: CombatState, id: string): Action | null {
 
 // ---------------------------------------------------------------------------
 // Weapon rows named by an action
-
-export type WeaponRow = { wielded: Wielded; weapon: Weapon; atk: WeaponAttack }
-
-export function findWeaponRow(c: Character, weaponKey: string, attack: string): WeaponRow | null {
-  const wielded = getWieldedWeapons(c).find((w) => w.key === weaponKey)
-  if (!wielded) return null
-  const atk = wielded.weapon.attacks.find((a) => a.name === attack)
-  return atk ? { wielded, weapon: wielded.weapon, atk } : null
-}
-
-// gear.tex "Size Scaling", "Small/One/Two hands": a row the character can fire
-// right now.
-export function isRowUsable(c: Character, row: WeaponRow): boolean {
-  return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
-}
 
 // gear.tex "Explosion": a row that "resolves like an explosion" — it has
 // the property. Whether it has anything to go off with is the charge's.
@@ -160,7 +146,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'explosion':
       return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
         && (action.source !== 'cast' || isSpellKey(action.key))
-        && (action.source !== 'detonate' || getChargedItem(state, action.itemId) !== null)
+        && (action.source !== 'detonate' || findHeldItem(state, action.itemId) !== null)
         && getExplosionPayload(state, action) !== null && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
@@ -270,32 +256,28 @@ export type AttackOption = {
 }
 
 export function getAttackOptions(c: Character, kind: WeaponAction['kind']): AttackOption[] {
-  return getWieldedWeapons(c).flatMap((wielded) =>
-    wielded.weapon.attacks.flatMap((atk) => {
-      const row = { wielded, weapon: wielded.weapon, atk }
-      if (!isRowUsable(c, row) || !rowFits(atk, kind)) return []
-      if (kind !== 'strike' && needsFocus(atk, c)) return []
-      return getAttacksList({ atk, weapon: wielded.weapon })(c).map((v) => ({
-        weaponKey: wielded.key,
-        weapon: wielded.weapon.name,
-        attack: atk.name,
-        variant: v.name,
-        AP: v.AP,
-        STA: v.STA,
-        penalty: v.penalty,
-        blunt: v.blunt,
-        cut: v.cut,
-        reach: v.reach,
-      }))
-    }),
-  )
+  return getWeaponRows(c).flatMap((row) => {
+    if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return []
+    if (kind !== 'strike' && needsFocus(row.atk, c)) return []
+    return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).map((v) => ({
+      weaponKey: row.wielded.key,
+      weapon: row.weapon.name,
+      attack: row.atk.name,
+      variant: v.name,
+      AP: v.AP,
+      STA: v.STA,
+      penalty: v.penalty,
+      blunt: v.blunt,
+      cut: v.cut,
+      reach: v.reach,
+    }))
+  })
 }
 
 // combat.tex "Focus surge": "required to use ranged attacks" — whether the
 // character holds a row of the kind that only the surge is keeping closed.
 function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
-  return getWieldedWeapons(c).some((wielded) =>
-    wielded.weapon.attacks.some((atk) => isRowUsable(c, { wielded, weapon: wielded.weapon, atk }) && rowFits(atk, kind) && needsFocus(atk, c)))
+  return getWeaponRows(c).some((row) => isRowUsable(c, row) && rowFits(row.atk, kind) && needsFocus(row.atk, c))
 }
 
 export type LocationOption = { location: HitLocation; penalty: number }
@@ -307,11 +289,7 @@ export function getLocationOptions(): LocationOption[] {
 }
 
 // ---------------------------------------------------------------------------
-// Costs and affordability
-
-function canAfford(c: CampaignCharacter, cost: ActionCost): boolean {
-  return c.resources.AP >= cost.AP && c.resources.STA >= cost.STA
-}
+// Costs
 
 // What an action costs its actor, as declared; null while the declaration is
 // too incomplete to price.
@@ -500,7 +478,7 @@ export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
 export function canSaveGraze(state: CombatState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
   if (!caster || root.status !== 'rolled' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
-  if (isCancelled(state, root) || caster.resources.AP < GRAZE_SAVE.AP) return false
+  if (isCancelled(state, root) || !canAfford(caster, { AP: GRAZE_SAVE.AP, STA: 0 })) return false
   return getGrazeSavedRoll(root.roll).degree === 'hit'
 }
 
@@ -550,11 +528,7 @@ function defenseGate(state: CombatState, defender: CampaignCharacter, root: Acti
 
 // gear.tex "DEF": only a row with the property can block or intercept.
 function defRows(c: Character): WeaponRow[] {
-  return getWieldedWeapons(c).flatMap((wielded) =>
-    wielded.weapon.attacks
-      .map((atk) => ({ wielded, weapon: wielded.weapon, atk }))
-      .filter((row) => hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row)),
-  )
+  return getWeaponRows(c).filter((row) => hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row))
 }
 
 // combat.tex "Guard": "If using a shield"; gear.tex "Slow, Fast": a fast
@@ -793,7 +767,7 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   const spell = SPELLS[key]
   const missing = getMissingGear(c, key)
   if (missing) return `needs ${missing}`
-  if (!canAfford(c, { AP: spell.cost.AP, STA: spell.cost.STA })) return 'cannot pay for it'
+  if (!canAfford(c, spell.cost)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
   return canCastSpell(c, key, false) ? null : 'needs a focus surge'
 }

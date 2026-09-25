@@ -2,7 +2,6 @@ import type { Character, Damage, Delivery, WeaponAttack } from '../../types'
 import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
-import { getWieldedWeapons } from '../../item/rules/hands'
 import { getStrikeDamage } from '../../character/rules/gear'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getForce, getGrapple } from '../../character/rules/skills'
@@ -14,7 +13,8 @@ import { DIRECTIONS, add, coordKey, sameCell, setDistance } from '../geometry'
 import type { Coord } from '../types'
 import { getFootprint, getPlacedFootprint, getReach } from './board'
 import { isMeleeRange } from '../../weaponProperties'
-import { findWeaponRow, getReactionsTo, isRowUsable, type WeaponRow } from './action'
+import { getReactionsTo } from './action'
+import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { canStandAt, getMoveCost } from './move'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
@@ -84,8 +84,7 @@ export function isGrappleRow(atk: WeaponAttack): boolean {
 // "Unarmed") — grapple II first: it is the one that deals damage (gear.tex
 // "Grapple II deals damage normally").
 export function getGrappleRows(c: Character): WeaponRow[] {
-  return getWieldedWeapons(c)
-    .flatMap((wielded) => wielded.weapon.attacks.map((atk) => ({ wielded, weapon: wielded.weapon, atk })))
+  return getWeaponRows(c)
     .filter((row) => isGrappleRow(row.atk) && isRowUsable(c, row))
     .sort((a, b) => Number(hasProperty(b.atk.properties, 'grapple II')) - Number(hasProperty(a.atk.properties, 'grapple II')))
 }

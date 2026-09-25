@@ -6,6 +6,7 @@ import { getAttacksList } from '../../character/rules/gear'
 import { hasProperty, isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, coordKey, line, rotate, setDistance } from '../geometry'
+import { findWeaponRow } from './weaponRow'
 
 // The board lenses read the spatial facts of a fight off `state.board`.
 // Every lens that answers for a fight answers null, or "passes", when the
@@ -98,10 +99,9 @@ export function isHighGround(state: CombatState, a: string, b: string): boolean 
 // declared.
 export function getStrikeReach(state: CombatState, action: StrikeAction): number | null {
   const attacker = state.characters[action.actorId]
-  const wielded = attacker ? getWieldedWeapons(attacker).find((w) => w.key === action.weaponKey) : undefined
-  const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
-  if (!wielded || !atk || !isMeleeRange(atk.range)) return null
-  let reach = Math.max(1, getReach(wielded.weapon, atk.range))
+  const row = attacker ? findWeaponRow(attacker, action.weaponKey, action.attack) : null
+  if (!row || !isMeleeRange(row.atk.range)) return null
+  let reach = Math.max(1, getReach(row.weapon, row.atk.range))
   const diff = action.targetId ? getElevationDifference(state, action.actorId, action.targetId) : null
   if (diff !== null && Math.abs(diff) >= 1) {
     const targetsLegs = action.location === 'leg'
@@ -150,10 +150,9 @@ export function hasLineOfSight(state: CombatState, a: string, b: string): boolea
 // Null while the row or the variation is not declared.
 export function getShotReachOf(state: CombatState, action: ShootAction | ExplosionAction): number | null {
   const shooter = state.characters[action.actorId]
-  const wielded = shooter ? getWieldedWeapons(shooter).find((w) => w.key === action.weaponKey) : undefined
-  const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
-  if (!shooter || !wielded || !atk) return null
-  return getAttacksList({ atk, weapon: wielded.weapon })(shooter).find((v) => v.name === action.variant)?.reach ?? null
+  const row = shooter ? findWeaponRow(shooter, action.weaponKey, action.attack) : null
+  if (!shooter || !row) return null
+  return getAttacksList({ atk: row.atk, weapon: row.weapon })(shooter).find((v) => v.name === action.variant)?.reach ?? null
 }
 
 // Whether the shot can land on the target from where its actor stands: the

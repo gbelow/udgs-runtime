@@ -3,6 +3,7 @@ import type { ActionOf, CombatState, Coord, Degree, MoveAction, MoveFacts, Oppor
 import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getBalanceTerms } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
@@ -511,8 +512,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
   const affordable = (steps: number) => {
-    const price = getMovePrice(c, action, steps)
-    return price.AP <= c.resources.AP && price.STA <= c.resources.STA && withinBudget(getMoveCost(c, kind, steps), action.budget)
+    return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const crossable = (cell: Coord) => {
     const footprint = getFootprint(c, { ...from, cell })

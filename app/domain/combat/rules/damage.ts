@@ -7,11 +7,13 @@ import { getArmor } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
 import { getBalance, getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
-import { findWeaponRow, getAction, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { getAction, getAttackVariant, getReactionsTo, getShotDefense } from './action'
+import { findWeaponRow } from './weaponRow'
 import { getMovementSpeed, getStepDelta, isHookedRunner } from './move'
 
 // ---------------------------------------------------------------------------
@@ -173,14 +175,14 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
 // against its own armor value where it lands (combat.tex "Physical
 // attacks"). The charge is scaled by whoever swings it: what it was made
 // with is not written into the item.
-export function getChargedItem(c: Character, action: AttackAction): Item | null {
+export function getChargedWeapon(c: Character, action: AttackAction): Item | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   const item = row ? c.held.find((i) => i.id === row.wielded.itemId) : undefined
   return item?.charge ? item : null
 }
 
 function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] {
-  const charge = getChargedItem(c, action)?.charge
+  const charge = getChargedWeapon(c, action)?.charge
   if (!charge) return []
   return charge.effects.flatMap((e) => (e.type === 'damage' && e.area === null ? e.effect.damage : []))
 }
@@ -277,7 +279,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
-    if (price && (attacker.resources.AP < price.AP || attacker.resources.STA < price.STA)) return closed('cannot afford')
+    if (price && !canAfford(attacker, price)) return closed('cannot afford')
     return { purchase, label: HOP_LABELS[purchase], cost, price, bought, available: true, reason: null }
   })
 }

@@ -4,11 +4,11 @@ import { produceEffects, produceSpellEffect } from '../../character/rules/produc
 import { getAccuracy } from '../../character/rules/skills'
 import { resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
-import { getWieldedWeapons } from '../../item/rules/hands'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
 import { DIRECTIONS, add, coordKey, disk, distance, ring, sameCell, setDistance } from '../geometry'
 import { angleBetween, angularGap, getPlacedFootprint, getShotReachOf, seesAcross, toPlane } from './board'
+import { findWeaponRow } from './weaponRow'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -29,15 +29,14 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
   if (!producer) return null
   const areaEffects = (effects: SpellEffect[]) => effects.filter((e) => e.target === 'area' && e.area !== null)
   if (action.source === 'thrown') {
-    const wielded = getWieldedWeapons(producer).find((w) => w.key === action.weaponKey)
-    const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
-    if (!wielded || !atk || !hasProperty(atk.properties, 'explosion')) return null
-    const item = producer.held.find((i) => i.id === wielded.itemId)
-    const effects = areaEffects(item?.charge ? item.charge.effects : produceEffects(producer, atk.payload))
+    const row = findWeaponRow(producer, action.weaponKey, action.attack)
+    if (!row || !hasProperty(row.atk.properties, 'explosion')) return null
+    const item = producer.held.find((i) => i.id === row.wielded.itemId)
+    const effects = areaEffects(item?.charge ? item.charge.effects : produceEffects(producer, row.atk.payload))
     return effects.length > 0 ? { effects, producer } : null
   }
   if (action.source === 'detonate') {
-    const charge = getChargedItem(state, action.itemId)?.item.charge
+    const charge = findHeldItem(state, action.itemId)?.item.charge
     const effects = charge ? areaEffects(charge.effects) : []
     return effects.length > 0 ? { effects, producer } : null
   }
@@ -45,10 +44,9 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
   return effects.length > 0 ? { effects, producer } : null
 }
 
-// spells.tex "Charged": a charge waits in an object, and every object in
-// the fight is in somebody's hands — nothing can be left on the ground yet.
-// Who holds the one named, and what it is.
-export function getChargedItem(state: CombatState, itemId: string): { holder: CampaignCharacter; item: Item } | null {
+// spells.tex "Charged": a charge waits in an object. Who holds the one
+// named, and what it is; null for anything not in someone's hands.
+export function findHeldItem(state: CombatState, itemId: string): { holder: CampaignCharacter; item: Item } | null {
   if (!itemId) return null
   for (const holder of Object.values(state.characters)) {
     const item = holder.held.find((i) => i.id === itemId)
@@ -76,11 +74,10 @@ export function getChargeOptions(state: CombatState): ChargeOption[] {
 // Whether a thrown row has anything to go off with: a charge in the item,
 // or a mundane explosive's own payload.
 export function hasExplosionPayload(c: CampaignCharacter, weaponKey: string, attack: string): boolean {
-  const wielded = getWieldedWeapons(c).find((w) => w.key === weaponKey)
-  const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
-  if (!wielded || !atk) return false
-  const item = c.held.find((i) => i.id === wielded.itemId)
-  return (item?.charge ?? null) !== null || atk.payload.some((e) => e.target === 'area' && e.area !== null)
+  const row = findWeaponRow(c, weaponKey, attack)
+  if (!row) return false
+  const item = c.held.find((i) => i.id === row.wielded.itemId)
+  return (item?.charge ?? null) !== null || row.atk.payload.some((e) => e.target === 'area' && e.area !== null)
 }
 
 // The areas the payload covers, one per effect that has one, in cells —
@@ -264,7 +261,7 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
   if (!board || !from || !footprint || !payload || isSpray(state, action) || getExplosionAreas(state, action).length === 0) return []
   const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
   if (action.source === 'detonate') {
-    const held = getChargedItem(state, action.itemId)
+    const held = findHeldItem(state, action.itemId)
     return held ? (getPlacedFootprint(state, held.holder.id) ?? []) : []
   }
   const reach = action.source === 'thrown'

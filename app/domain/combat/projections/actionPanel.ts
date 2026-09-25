@@ -1,6 +1,6 @@
 import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
-import type { Area, CampaignCharacter, MoveKind } from '../../types'
+import type { Area, MoveKind } from '../../types'
 import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
 import {
@@ -35,6 +35,7 @@ import {
 import { getCastFacts } from '../rules/cast'
 import { GRAZE_SAVE } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { ActionReport, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
@@ -251,7 +252,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const move = open.kind === 'move' && open.status === 'declared' ? open : null
   const die = needsDie(state, open)
   // a settled push was paid for already; what is left is opening its attacks
-  const affordable = !!actor && (open.status !== 'committed' || canPay(actor, getDeclaredCost(actor, open)))
+  const cost = actor ? getDeclaredCost(actor, open) : null
+  const affordable = !!actor && (open.status !== 'committed' || (cost !== null && canAfford(actor, cost)))
   const facts = open.kind === 'move' ? (open.facts ?? getMoveFacts(state, open)) : null
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
@@ -292,7 +294,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         : [],
       push: drag && drag.status === 'rolled' ? getPushView(state, drag) : null,
       grapple: settled ? getGrappleNotes(state, settled) : [],
-      cost: actor ? getDeclaredCost(actor, open) : null,
+      cost,
       reactions: reactions.map((r) => ({
         actor: state.characters[r.actorId]?.fightName ?? '',
         label: ACTIONS[r.kind].label,
@@ -335,10 +337,6 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       ? getCastDeliveries(state, cast).map((d: DeliveryView) => ({ target: state.characters[d.id]?.fightName ?? '', name: d.name, kind: d.kind, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null }))
       : [],
   }
-}
-
-function canPay(c: CampaignCharacter, cost: ActionCost | null): boolean {
-  return cost !== null && c.resources.AP >= cost.AP && c.resources.STA >= cost.STA
 }
 
 function breakdown(terms: Term[]): { terms: Term[]; total: number } {

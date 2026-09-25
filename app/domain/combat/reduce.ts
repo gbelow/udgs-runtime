@@ -3,12 +3,13 @@ import type { Action, Board, CombatState, FloorItem, Grapple, GrappleFacts, Tram
 import { payCost } from '../character/commands/cost'
 import { deliver } from '../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../item/commands/hands'
-import { getHeldItem, getWieldedWeapons } from '../item/rules/hands'
+import { getHeldItem } from '../item/rules/hands'
+import { findWeaponRow } from './rules/weaponRow'
 import { onFloor } from './rules/floor'
 import { getAttackKind } from '../weaponProperties'
 import { getMoveDestination } from './rules/move'
 import { getReactionsTo } from './rules/action'
-import { getChargedItem, getHOPPrice } from './rules/damage'
+import { getChargedWeapon, getHOPPrice } from './rules/damage'
 import { HOP_PURCHASES } from '../lists'
 import { getTerrainPaint } from './rules/explosion'
 import { coordKey } from './geometry'
@@ -93,7 +94,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // A purchase with a price of its own is paid as it lands (combat.tex
         // "Assassinate": "1 extra AP").
         if (c.id === action.actorId) {
-          const charged = getChargedItem(c, action)
+          const charged = getChargedWeapon(c, action)
           const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
           const paid = HOP_PURCHASES.reduce((acc, p) => {
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
@@ -117,10 +118,9 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
 // combat.tex "Throw": a thrown row is made by letting go of the weapon; a
 // natural weapon or a shooting one stays where it is.
 function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string): CampaignCharacter {
-  const wielded = getWieldedWeapons(c).find((w) => w.key === weaponKey)
-  const atk = wielded?.weapon.attacks.find((a) => a.name === attack)
-  if (!wielded || wielded.natural || !atk || getAttackKind(atk.range) !== 'throw') return c
-  return consumeItem(wielded.itemId)(c) as CampaignCharacter
+  const row = findWeaponRow(c, weaponKey, attack)
+  if (!row || row.wielded.natural || getAttackKind(row.atk.range) !== 'throw') return c
+  return consumeItem(row.wielded.itemId)(c) as CampaignCharacter
 }
 
 // What a grab, a maneuver, a letting go or a grappling back wrote down about
@@ -176,10 +176,9 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     }
     if (action.kind === 'shoot') {
       const shooter = state.characters[action.actorId]
-      const wielded = shooter ? getWieldedWeapons(shooter).find((w) => w.key === action.weaponKey) : undefined
-      const atk = wielded?.weapon.attacks.find((a) => a.name === action.attack)
-      const item = shooter && wielded && !wielded.natural ? getHeldItem(shooter, wielded.itemId) : undefined
-      if (!item || !atk || getAttackKind(atk.range) !== 'throw') return floor
+      const row = shooter ? findWeaponRow(shooter, action.weaponKey, action.attack) : null
+      const item = shooter && row && !row.wielded.natural ? getHeldItem(shooter, row.wielded.itemId) : undefined
+      if (!item || !row || getAttackKind(row.atk.range) !== 'throw') return floor
       const unit = item.amount > 1 ? { ...item, id: `${item.id}:${action.id}`, amount: 1, charge: null } : item
       return [...floor, onFloor(unit, cellOf(action.targetId))]
     }
