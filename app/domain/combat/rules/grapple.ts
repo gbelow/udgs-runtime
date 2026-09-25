@@ -1,4 +1,4 @@
-import type { Character, Damage, Delivery, WeaponAttack } from '../../types'
+import type { Character, Delivery, WeaponAttack } from '../../types'
 import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
@@ -6,14 +6,14 @@ import { getStrikeDamage } from '../../character/rules/gear'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { getForce, getGrapple } from '../../character/rules/skills'
 import { getSize } from '../../character/rules/misc'
-import { getHardness } from '../../item/rules/items'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { hasProperty, isMeleeRange } from '../../weaponProperties'
-import { DIRECTIONS, add, coordKey, sameCell, setDistance } from '../geometry'
+import { DIRECTIONS, add, sameCell, setDistance, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, getReach, placeAt } from './board'
 import { getReactionsTo } from './action'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { canStandAt, getMoveCost } from './move'
+import { delivering, getRowDamage } from './damage'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -262,23 +262,9 @@ function getHoldDeliveries(state: CombatState, g: Grapple): Record<string, Deliv
     if (!row || !holder) continue
     const { blunt, cut } = getStrikeDamage(row.atk, row.weapon, holder)
     if (blunt <= 0 && cut <= 0) continue
-    const damage: Damage = {
-      damage: [{ kind: 'blunt', value: blunt }, { kind: 'cut', value: cut }],
-      hardness: getHardness(row.atk.material),
-      force: getForce(holder),
-      properties: row.atk.properties,
-      location: 'chest',
-      defense: 'none',
-      defenseAP: 0,
-      defenseWeaponKey: '',
-      block: 0,
-      shield: false,
-      bypass: false,
-      bust: false,
-      smash: false,
-    }
+    const damage = getRowDamage(holder, row, [{ kind: 'blunt', value: blunt }, { kind: 'cut', value: cut }], 'chest')
     const heldId = getPartner(g, holderId)
-    out[heldId] = [...(out[heldId] ?? []), { effect: { name: `${row.weapon.name} ${row.atk.name}`, trigger: 'instant', type: 'damage', effect: damage }, degree: 'hit', test: null, when: null, then: [], locks: null }]
+    out[heldId] = [...(out[heldId] ?? []), delivering(`${row.weapon.name} ${row.atk.name}`, damage, 'hit')]
   }
   return out
 }
@@ -507,26 +493,10 @@ export function getCircleCells(state: CombatState, root: DragAction): { cell: Co
   const actor = state.characters[root.actorId]
   const outcome = getDragOutcome(state, root)
   if (!board || !from || !actor || !outcome || outcome.circle === 0) return []
-  const seen = new Set([coordKey(from.cell)])
-  const found: { cell: Coord; path: Coord[] }[] = []
-  let frontier = [{ cell: from.cell, path: [] as Coord[] }]
-  for (let i = 0; i < outcome.circle; i++) {
-    const next: typeof frontier = []
-    for (const { cell, path } of frontier) {
-      for (const d of DIRECTIONS) {
-        const n = add(cell, d)
-        const key = coordKey(n)
-        if (seen.has(key)) continue
-        seen.add(key)
-        const placement = placeAt(board, from, n)
-        if (!canStandAt(state, root.actorId, placement) || !isInGrappleArea(state, root.actorId, getFootprint(actor, placement))) continue
-        next.push({ cell: n, path: [...path, n] })
-        found.push({ cell: n, path: [...path, n] })
-      }
-    }
-    frontier = next
-  }
-  return found
+  return walkOut(from.cell, (steps) => steps <= outcome.circle, (cell) => {
+    const placement = placeAt(board, from, cell)
+    return canStandAt(state, root.actorId, placement) && isInGrappleArea(state, root.actorId, getFootprint(actor, placement))
+  })
 }
 
 // Where everyone moved stands after each step of the way chosen, in order:

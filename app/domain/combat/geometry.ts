@@ -57,6 +57,31 @@ export function neighbors(c: Coord): Coord[] {
   return DIRECTIONS.map((d) => add(c, d))
 }
 
+// Breadth-first from `start`, one ring of cells per step for as long as
+// `further` allows that many steps: every cell first come to along a path
+// whose cells `enter` all admitted, with that path.
+export function walkOut(start: Coord, further: (steps: number) => boolean, enter: (cell: Coord, path: Coord[]) => boolean): { cell: Coord; path: Coord[]; steps: number }[] {
+  const seen = new Set([coordKey(start)])
+  const found: { cell: Coord; path: Coord[]; steps: number }[] = []
+  let frontier: { cell: Coord; path: Coord[] }[] = [{ cell: start, path: [] }]
+  for (let steps = 1; frontier.length > 0 && further(steps); steps++) {
+    const next: typeof frontier = []
+    for (const { cell, path } of frontier) {
+      for (const n of neighbors(cell)) {
+        const key = coordKey(n)
+        if (seen.has(key)) continue
+        seen.add(key)
+        const walked = [...path, n]
+        if (!enter(n, walked)) continue
+        next.push({ cell: n, path: walked })
+        found.push({ cell: n, path: walked, steps })
+      }
+    }
+    frontier = next
+  }
+  return found
+}
+
 // Every cell exactly `radius` steps from the centre; the centre itself at 0.
 export function ring(center: Coord, radius: number): Coord[] {
   if (radius === 0) return [center]

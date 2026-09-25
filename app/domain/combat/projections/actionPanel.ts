@@ -5,8 +5,8 @@ import { ACTIONS } from '../actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
 import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
-import { ImprovementOption, SpellOption, getCastTerms, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
-import { AttackOption, getAttackOptions, isVariantOpen, getAttackTerms, getManeuverTerms, getDLTerms } from '../rules/attack'
+import { ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
+import { AttackOption, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { GRAZE_SAVE, LOCATIONS } from '../../tables'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -14,7 +14,7 @@ import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { ActionReport, getGrappleNotes, getLastReport, getOutcomePreviews } from './outcomes'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getBalanceDL, getBalanceTestTerms, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
+import { MovementOption, ReachableCell, getMoveFacts, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, findGrapple, getDisarmOptions, getDragChoices, getDragFacts, getDragOutcome, getDragSides, getManeuverFacts, getManeuverTargets, isGrappleRowOf, needsDragAim } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
@@ -239,6 +239,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const grapple = open.kind === 'grapple' ? open : null
   const drag = open.kind === 'drag' ? open : null
   const dragTerms = drag ? getDragSides(state, drag) : null
+  const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
   const hit = grapple?.status === 'rolled' && (grapple.roll?.degree === 'hit' || grapple.roll?.degree === 'critical')
   const settled = grapple && grapple.status === 'rolled' ? { ...grapple, facts: getManeuverFacts(state, grapple) }
     : drag && drag.status === 'rolled' ? { ...drag, facts: getDragFacts(state, drag) }
@@ -282,8 +283,8 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
         roll: r.roll,
       })),
-      score: breakdown(attack ? getAttackTerms(state, attack) : cast && actor ? getCastTerms(actor, cast) : grapple && actor ? getManeuverTerms(actor) : dragTerms ? dragTerms.attacker : open.kind === 'move' && actor && die ? getBalanceTestTerms(actor) : []),
-      DL: breakdown(attack || explosion || cast || grapple ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : open.kind === 'move' && die ? [{ label: 'terrain', value: getBalanceDL(state, open) }] : []),
+      score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
+      DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
       roll: open.roll,
     },
     report: null,

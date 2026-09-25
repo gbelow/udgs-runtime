@@ -9,7 +9,7 @@ import { getBalanceTerms } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
-import { DIRECTIONS, coordKey, directionTo, disk, distance, neighbors, sameCell, setDistance, subtract } from '../geometry'
+import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
 import { getMoveTramples } from './trample'
 import { isImmobile, isInGrapple } from './grapple'
@@ -162,6 +162,11 @@ function readGround(state: CombatState, mover: string): Ground | null {
   }
 }
 
+// Off blocking cells, and in the water exactly when swimming.
+function isCrossable(footprint: Coord[], ground: Ground, movement: MoveAction['movement']): boolean {
+  return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (movement === 'swim')
+}
+
 function canRest(state: CombatState, c: Character, footprint: Coord[], ground: Ground): boolean {
   return footprint.every((cell) =>
     ground.sharedBy(cell).every((id) => {
@@ -190,8 +195,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     const last = i === action.path.length - 1
     const orientation = last && action.orientation !== null ? action.orientation : from.orientation
     const footprint = getFootprint(c, { ...from, cell, orientation })
-    if (footprint.some(ground.blocked)) return false
-    if (footprint.some(ground.liquid) !== (action.movement === 'swim')) return false
+    if (!isCrossable(footprint, ground, action.movement)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }
@@ -215,19 +219,10 @@ function withinBudget(cost: ActionCost, budget: number | null): boolean {
 // runner stops there. The table's ruling: turning while running stops the
 // move, and the path may still be drawn past it.
 export function getRunPath(state: CombatState, action: MoveAction): Coord[] {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
-  if (!c || !from || action.movement !== 'run') return action.path
-  const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
-  let cursor = from.cell
-  let heading = 0
-  for (const [i, cell] of action.path.entries()) {
-    const direction = directionTo(cursor, cell)
-    if (i % block === 0) heading = direction
-    else if (!isWithinRunTurn(heading, direction)) return action.path.slice(0, i)
-    cursor = cell
-  }
-  return action.path
+  const blocks = getRunBlocks(state, action)
+  if (!blocks) return action.path
+  const turn = blocks.findIndex((s) => !isWithinRunTurn(s.heading, s.direction))
+  return turn < 0 ? action.path : action.path.slice(0, turn)
 }
 
 function isWithinRunTurn(heading: number, direction: number): boolean {
@@ -238,18 +233,27 @@ function isWithinRunTurn(heading: number, direction: number): boolean {
 // the running block those steps are in, or null at the start of a block,
 // where the next step sets a new one, and for any movement but a run.
 function getRunHeading(state: CombatState, action: MoveAction, steps: number): number | null {
+  const blocks = getRunBlocks(state, action)
+  if (!blocks || steps === 0 || blocks[steps - 1].endsBlock) return null
+  return blocks[steps - 1].heading
+}
+
+// Each step of a run's path in running blocks (one running speed of cells):
+// the way it goes, the heading of its block — the way the block's first step
+// went — and whether it ends the block. Null for any movement but a run.
+function getRunBlocks(state: CombatState, action: MoveAction): { direction: number; heading: number; endsBlock: boolean }[] | null {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
   if (!c || !from || action.movement !== 'run') return null
   const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
-  if (steps % block === 0) return null
   let cursor = from.cell
   let heading = 0
-  for (const [i, cell] of action.path.slice(0, steps).entries()) {
-    if (i % block === 0) heading = directionTo(cursor, cell)
+  return action.path.map((cell, i) => {
+    const direction = directionTo(cursor, cell)
+    if (i % block === 0) heading = direction
     cursor = cell
-  }
-  return heading
+    return { direction, heading, endsBlock: (i + 1) % block === 0 }
+  })
 }
 
 // Whether a displacement keeps within a hex step of the heading: a
@@ -505,32 +509,12 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   const affordable = (steps: number) => {
     return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
-  const crossable = (cell: Coord) => {
-    const footprint = getFootprint(c, { ...from, cell })
-    return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (kind === 'swim')
+  const enter = (cell: Coord, walked: Coord[]) => {
+    return isCrossable(getFootprint(c, { ...from, cell }), ground, kind) && !getMoveTramples(state, { ...action, path: walked }, walked).blocked
   }
-
-  const seen = new Set([coordKey(from.cell)])
-  const reachable: ReachableCell[] = []
-  let frontier: { cell: Coord; path: Coord[] }[] = [{ cell: from.cell, path: [] }]
-  for (let steps = 1; frontier.length > 0; steps++) {
-    if (!affordable(steps)) break
-    const cost = getMovePrice(c, action, steps)
-    const next: typeof frontier = []
-    for (const { cell, path } of frontier) {
-      for (const n of neighbors(cell)) {
-        const key = coordKey(n)
-        if (seen.has(key) || !crossable(n)) continue
-        seen.add(key)
-        const walked = [...path, n]
-        if (getMoveTramples(state, { ...action, path: walked }, walked).blocked) continue
-        next.push({ cell: n, path: walked })
-        if (canRest(state, c, getFootprint(c, { ...from, cell: n }), ground)) reachable.push({ cell: n, steps, cost, path: walked })
-      }
-    }
-    frontier = next
-  }
-  return reachable
+  return walkOut(from.cell, affordable, enter)
+    .filter(({ cell }) => canRest(state, c, getFootprint(c, { ...from, cell }), ground))
+    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
 }
 
 export function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {

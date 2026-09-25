@@ -14,7 +14,7 @@ import { getHardness } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
 import { getAction, getReactionsTo, getRootOf } from './action'
 import { getAttackVariant, getShotDefense } from './attack'
-import { findWeaponRow } from './weaponRow'
+import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getMovementSpeed, getStepDelta, isHookedRunner } from './move'
 
 // ---------------------------------------------------------------------------
@@ -49,8 +49,25 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
 }
 
 // A damage effect on its way, at a degree already decided by the producer.
-function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {
+export function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {
   return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, test: null, when: null, then: [], locks: null }
+}
+
+// A row's damage as it leaves the weapon, nothing yet bought: the
+// components given, the row's hardness and properties, its wielder's force,
+// where it lands and what met it there.
+export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageComponent[], location: Damage['location'], defense: Defense = UNDEFENDED): Damage {
+  return {
+    damage,
+    hardness: getHardness(row.atk.material),
+    force: getForce(wielder),
+    properties: row.atk.properties,
+    location,
+    ...defense,
+    bypass: false,
+    bust: false,
+    smash: false,
+  }
 }
 
 function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
@@ -154,17 +171,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const variant = getAttackVariant(attacker, root)
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
-  const base: Damage = {
-    damage: [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)],
-    hardness: getHardness(row.atk.material),
-    force: getForce(attacker),
-    properties: row.atk.properties,
-    location: root.location,
-    ...getDefense(state, root),
-    bypass: false,
-    bust: false,
-    smash: false,
-  }
+  const base = getRowDamage(attacker, row, [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)], root.location, getDefense(state, root))
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)

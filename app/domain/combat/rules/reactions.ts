@@ -127,13 +127,9 @@ function pushTriggers(state: CombatState, root: DragAction): Trigger[] {
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      let previous = setDistance(getFootprint(c, from), other)
-      for (const [i, step] of path.steps.entries()) {
-        const now = setDistance(getFootprint(c, step[m]), other)
-        if (previous <= range && now < previous) return [{ at: i + 1, against: m }]
-        previous = now
-      }
-      return []
+      const distances = [from, ...path.steps.map((step) => step[m])].map((p) => setDistance(getFootprint(c, p), other))
+      const at = firstStep(distances, (previous, now) => previous <= range && now < previous)
+      return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
     if (hit) triggers.push({ characterId: id, kind: 'opportunityAttack', ...hit })
   }
@@ -197,19 +193,12 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (isTrampleable(state, id) && path.some((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))) {
       triggers.push({ characterId: id, kind: 'evade', at: null })
     }
+    const distances = [from, ...path.map((cell) => ({ ...from, cell }))].map((p) => setDistance(getFootprint(mover, p), other))
     const range = getMeleeRange(state.characters[id])
-    let previous = setDistance(getFootprint(mover, from), other)
-    if (range > 0 && previous <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
+    if (range > 0 && distances[0] <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
     if (range === 0) continue
-    const start = previous
-    for (const [i, cell] of path.entries()) {
-      const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
-      if (previous <= range && distance < previous) {
-        triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
-        break
-      }
-      previous = distance
-    }
+    const approach = firstStep(distances, (previous, now) => previous <= range && now < previous)
+    if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })
     // combat.tex "Catch": "someone tries to initiate a grapple against a
     // running target" — one with a grapple row may grab a runner once the
     // run has brought them within its reach, as nobody else may; fought, as
@@ -217,7 +206,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     // `at` left them — here, the first step in reach
     const grab = root.movement === 'run' ? Math.max(getMeleeRange(state.characters[id], 'grapple I'), getMeleeRange(state.characters[id], 'grapple II')) : 0
     if (grab > 0) {
-      const inReach = path.findIndex((cell) => setDistance(getFootprint(mover, { ...from, cell }), other) <= grab)
+      const inReach = distances.slice(1).findIndex((d) => d <= grab)
       if (inReach >= 0 && !triggers.some((t) => t.characterId === id && t.at === inReach + 2)) triggers.push({ characterId: id, kind: 'opportunityAttack', at: inReach + 2, catchOnly: true })
     }
     // combat.tex "Hook Attack": "a reaction against running targets that
@@ -225,15 +214,16 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     // melee range"
     const hook = getMeleeRange(state.characters[id], 'hook')
     if (root.movement !== 'run' || hook === 0) continue
-    previous = start
-    for (const [i, cell] of path.entries()) {
-      const distance = setDistance(getFootprint(mover, { ...from, cell }), other)
-      if (distance > previous && distance <= hook) {
-        triggers.push({ characterId: id, kind: 'opportunityAttack', at: i + 1 })
-        break
-      }
-      previous = distance
-    }
+    const away = firstStep(distances, (previous, now) => now > previous && now <= hook)
+    if (away !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: away })
   }
   return triggers
+}
+
+// the first step, counted from 1, at which `moved` holds between the
+// distance before it and the distance after it; `distances` starts with the
+// one before the first step
+function firstStep(distances: number[], moved: (previous: number, now: number) => boolean): number | null {
+  for (let i = 1; i < distances.length; i++) if (moved(distances[i - 1], distances[i])) return i
+  return null
 }

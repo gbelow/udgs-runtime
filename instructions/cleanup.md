@@ -68,8 +68,11 @@ Notes: It only passes through to getBalanceTerms.
    - reaction.reactionTo ? getAction(state, reaction.reactionTo) : null appears about 6 times. It needs a getRootOf(reaction) helper.
    DONE: isOpportunityAction guard and DrawnOpportunityAttack type in opportunity.ts; getDrawnOpportunityAttacks takes any action and move.ts's getOpportunityAttacks is it filtered and sorted by step; getRootOf(state, action) in rules/action.ts replaces the lookups (opportunity.ts keeps its own, being a leaf that rules/action.ts imports). escapesOnStun uses getPartner.
 10. "First step closer while within range" loop. It appears in moveTriggers and again in pushTriggers (reactions.ts), and the hook loop is a third variation of it.
+   DONE: firstStep(distances, moved) in rules/reactions.ts; the approach check (moves and pushes), the hook check and the catch reach all read one distance list per mover.
 11. Breadth-first cell search. getReachableCells (move.ts:505) and getCircleCells (grapple.ts:494) run the same search. The "crossable" check also duplicates the one inside isPathLegal.
+   DONE: walkOut(start, further, enter) in geometry.ts runs the search for both; isCrossable(footprint, ground, movement) in rules/move.ts is shared by getReachableCells and isPathLegal.
 12. Run-block heading walk. getRunPath and getRunHeading (move.ts:215,238) both walk the path in running blocks to find the heading.
+   DONE: getRunBlocks in rules/move.ts walks the blocks once (each step's direction, its block's heading, whether it ends the block); getRunPath and getRunHeading read it.
 13. Command boilerplate.
     - rollAction and payAction share the same price-every-reaction loop.
     - spendHOP/refundHOP and improveSpell/refundImprovement are the same bump/unbump on a counter record.
@@ -77,7 +80,9 @@ Notes: It only passes through to getBalanceTerms.
     - type Updater is declared in 4 command files.
    DONE: payAll helper, addOne/takeOne tally helpers, openMove builder, and a shared Updater type in combat/types.ts.
 14. Building a damage delivery. getHoldDeliveries (grapple.ts:245) writes out a full Damage object and delivery by hand. It repeats delivering() and the base Damage from getAttackFacts in damage.ts.
+   DONE: getRowDamage(wielder, row, components, location, defense = undefended) and delivering are exported from rules/damage.ts; getAttackFacts and getHoldDeliveries both build with them.
 15. Picking the test's terms per action kind. actionPanel.ts:302-303 chooses score and DL terms for each kind with a nested ternary, repeating what getRootTest already decides. A getRootTestTerms(state, root) → {skill, DL} used by both would keep the preview and the roll from drifting apart.
+   DONE: getRootTestTerms(state, root) → { skill, DL } in rules/attack.ts is the one per-kind choice; getRootTest sums it and adds the scale, and the action panel shows it (a move only when it needs the die), falling back to the explosion's DL and the push sides.
 16. Schema fragments.
     - variant/location are repeated across strike, shoot, explosion and opportunityAttack (the same situation as WeaponRowRef).
     - z.number().int().min(0).max(5) for a direction appears 4 times, and aimExplosion re-checks the same bounds by hand.

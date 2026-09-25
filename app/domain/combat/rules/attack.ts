@@ -254,30 +254,49 @@ export function getDL(state: CombatState, root: Action): number {
   return sumTerms(getDLTerms(state, root))
 }
 
-// The test a committed root is closed by, or null when it has none of its
-// own. A strike or a shot against the target's defense, trading the critical
-// for HOP (play.tex "Hit Overflow Point"); a move across difficult terrain a
+// The score and DL of the test a committed root is closed by, each broken
+// down into its terms, or null when it has none of its own. A strike or a
+// shot against the target's defense; a move across difficult terrain a
 // Balance test against the ground (combat.tex "Balance"); a cast against the
-// spell's DL, its overflow the HOP that buy improvements, and a graze left
-// open to be saved unless it was quickened (spells.tex "Casting spells";
-// "Quicken Spell": "Grazes equal misses").
-export function getRootTest(state: CombatState, root: Action): Test | null {
+// spell's DL.
+// combat.tex "Grapple Maneuvers": the grapple skill against the partner's.
+export function getRootTestTerms(state: CombatState, root: Action): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   if (!actor) return null
   switch (root.kind) {
     case 'strike':
     case 'shoot':
-      return { skill: sumTerms(getAttackTerms(state, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
-    // combat.tex "Grapple Maneuvers": the grapple skill against the
-    // partner's, on the four degrees ("on a critical", "on a hit")
+      return { skill: getAttackTerms(state, root), DL: getDLTerms(state, root) }
     case 'grapple':
-      return { skill: sumTerms(getManeuverTerms(actor)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
+      return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
     case 'move':
-      return { skill: sumTerms(getBalanceTestTerms(actor)), DL: getBalanceDL(state, root), explodes: false, scale: 'degrees' }
+      return { skill: getBalanceTestTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':
-      return { skill: sumTerms(getCastTerms(actor, root)), DL: getDL(state, root), explodes: false, scale: 'overflow', grazes: !root.quicken }
+      return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
     default:
       return null
+  }
+}
+
+// The root's test, on its scale: a strike or a shot trades the critical for
+// HOP (play.tex "Hit Overflow Point"), as a cast does, its overflow the HOP
+// that buy improvements, and a graze left open to be saved unless it was
+// quickened (spells.tex "Casting spells"; "Quicken Spell": "Grazes equal
+// misses"). A maneuver is read on the four degrees (combat.tex "Grapple
+// Maneuvers": "on a critical", "on a hit"), as a Balance test is.
+export function getRootTest(state: CombatState, root: Action): Test | null {
+  const actor = state.characters[root.actorId]
+  const terms = getRootTestTerms(state, root)
+  if (!actor || !terms) return null
+  const base = { skill: sumTerms(terms.skill), DL: sumTerms(terms.DL), explodes: false }
+  switch (root.kind) {
+    case 'strike':
+    case 'shoot':
+      return { ...base, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
+    case 'cast':
+      return { ...base, scale: 'overflow', grazes: !root.quicken }
+    default:
+      return { ...base, scale: 'degrees' }
   }
 }
 
