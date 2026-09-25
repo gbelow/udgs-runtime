@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
+import type { ACTIONS } from './rules/actionCatalog'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema, VisibilitySchema } from '../types'
 export type { Degree, HitLocation, DefenseKind, Interruption, Visibility } from '../types'
@@ -554,11 +555,8 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // maneuver or a push (combat.tex "Grapple Maneuvers", "Push and drag").
 export type OpportunityAction = StrikeAction | GrappleAction | DragAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
-// combat.tex "Opportunity Attack": the actions whose opportunity attacks are
-// fought before their effect lands, and which one can cancel — a move's are
-// fought along its path instead (rules/move.ts), and a strike draws only a
-// flanker's, fought after it
-export type TriggeringAction = CastAction | ShootAction | ExplosionAction | PickUpAction | GrappleAction | DragAction
+// The kinds the catalog marks `triggering` (rules/actionCatalog.ts).
+export type TriggeringAction = ActionOf<{ [K in ActionKind]: (typeof ACTIONS)[K] extends { triggering: true } ? K : never }[ActionKind]>
 
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, status, the roll, the facts). What is left is the kind and its

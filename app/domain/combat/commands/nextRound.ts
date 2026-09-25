@@ -20,7 +20,7 @@ function breathe(state: CombatState, c: CampaignCharacter): CampaignCharacter {
 }
 
 // clear the used surge of all characters.
-// add +6 AP to all characters but do not allow higher than 6
+// reset every character to 8 AP minus any negative AP
 // increase round counter
 export function nextRound(
   state: CombatState
@@ -41,14 +41,14 @@ export function nextRound(
     // bleed intensity at the end of every round in combat.
     let updatedCharacter = bleed(1)(suffocate(expireUsedAbilities(applyTrigger('end_round')(breathe(state, character)))))
 
-    // Clear the surge used last round and the roll left unresolved in it
+    // Clear the surge used last round
     updatedCharacter = {
       ...updatedCharacter,
       usedSurge: null,
-      pendingAction: null,
     }
 
-    // Add +6 AP but cap at 6
+    // combat.tex "End of the round": "reset to 8 AP minus any negative AP
+    // they had. Any unspent AP is lost."
     if (updatedCharacter.resources) {
       const newAP = Math.min(8, updatedCharacter.resources.AP + 8)
       updatedCharacter = {

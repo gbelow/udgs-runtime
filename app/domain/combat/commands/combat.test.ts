@@ -4,7 +4,6 @@ import { startTurn } from './startTurn'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter, SurgeKind } from '../../types'
-import { addCharacterToCombat } from './addCharacterToCombat'
 
 function fighter(id: string, overrides: Partial<CampaignCharacter> = {}): CampaignCharacter {
   const base = makeCampaignCharacter({})
@@ -67,22 +66,5 @@ describe('startTurn', () => {
   it.each(['b', null, 'gone', ''] as const)('resolves %s to a usable marker', (activeCharacterId) => {
     const marked = startTurn({ ...state, activeCharacterId })
     expect(marked.inTurnCharacter === '' || marked.inTurnCharacter in marked.characters).toBe(true)
-  })
-})
-
-
-
-// Adding the same character sheet to a fight twice replaced the first copy:
-// makeCampaignCharacter carries the incoming id through, and the combat store
-// keys its characters by that id, so the second add overwrote the first.
-describe('addCharacterToCombat', () => {
-  it('issues a duplicate copy an id the fight is not already using', () => {
-    const sheet = makeCampaignCharacter({ name: 'Bob' })
-
-    const first = addCharacterToCombat(sheet, {}, () => 'issued-1')
-    const second = addCharacterToCombat(sheet, { [first.id]: first }, () => 'issued-2')
-
-    expect(first.id).toBe(sheet.id)
-    expect(second.id).toBe('issued-2')
   })
 })

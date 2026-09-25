@@ -4,7 +4,7 @@ import { CampaignCharacter } from '../domain/types'
 import { CombatState, CombatStateSchema } from '../domain/combat/types'
 import { getActiveCharacter } from '../domain/combat/rules/activeCharacter'
 import { makeCampaignCharacter } from '../domain/factories'
-import { addCharacterToCombat } from '../domain/combat/commands/addCharacterToCombat'
+import { addCharacterToCombat } from '../domain/combat/factories'
 import { removeFromCombat, updateCharacter } from '../domain/combat/commands/characters'
 
 // The data half of the store is the domain's CombatState — the store adds only

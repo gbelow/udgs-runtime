@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionOf, CombatState } from '../types'
-import { ACTIONS } from '../actionCatalog'
+import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -223,10 +223,14 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (!actor) return 'declare'
   if (open.kind === 'explosion') return getExplosionPayload(state, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
-  if (open.kind === 'move' || open.kind === 'pickUp') return 'commit'
-  if (open.kind === 'cast' && !isTargeted(open)) return 'commit'
+  if (!needsTarget(open)) return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'commit'
+}
+
+// Whether the declaration has to be aimed at someone before it is committed.
+export function needsTarget(action: Action): boolean {
+  return getActionDef(action.kind).targeted === true && (action.kind !== 'cast' || isTargeted(action))
 }
 
 // Who can be aimed at: everyone in the fight but the actor, and for a strike
@@ -236,8 +240,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
 // ground, a change from snipe to quick shot) drops off this list and has to
 // be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
-  if (root.kind === 'move' || root.kind === 'explosion' || root.kind === 'pickUp') return []
-  if (root.kind === 'cast' && !isTargeted(root)) return []
+  if (!needsTarget(root)) return []
   // combat.tex "Grapple": what is done in a grapple is done to a partner
   if (root.kind === 'grapple') return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
   if (root.kind === 'release') return getReleaseTargets(state, root.actorId)

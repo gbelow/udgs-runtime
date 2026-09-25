@@ -1,7 +1,8 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
+import { getActionDef } from './actionCatalog'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
-  return action.kind === 'cast' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'pickUp' || action.kind === 'grapple' || action.kind === 'drag'
+  return getActionDef(action.kind).triggering === true
 }
 
 // What an opportunity attack opens: a strike, or against a grapple partner a

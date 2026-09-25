@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { makeBoard } from './factories'
+import { addCharacterToCombat, makeBoard } from './factories'
+import { makeCampaignCharacter } from '../factories'
 import { BoardSchema } from './types'
 
 // A board is the domain's door to a VTT — a snapshot it did not write, keyed
@@ -72,5 +73,20 @@ describe('board ingestion settles in one pass', () => {
   it('round-trips a populated board through JSON', () => {
     const board = populated()
     expect(makeBoard(JSON.parse(JSON.stringify(board)))).toEqual(board)
+  })
+})
+
+// Adding the same character sheet to a fight twice replaced the first copy:
+// makeCampaignCharacter carries the incoming id through, and the combat store
+// keys its characters by that id, so the second add overwrote the first.
+describe('addCharacterToCombat', () => {
+  it('issues a duplicate copy an id the fight is not already using', () => {
+    const sheet = makeCampaignCharacter({ name: 'Bob' })
+
+    const first = addCharacterToCombat(sheet, {}, () => 'issued-1')
+    const second = addCharacterToCombat(sheet, { [first.id]: first }, () => 'issued-2')
+
+    expect(first.id).toBe(sheet.id)
+    expect(second.id).toBe('issued-2')
   })
 })

@@ -1,9 +1,9 @@
-import type { CampaignCharacter } from '../../types'
-import { ActionSchema, DirectionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
-import { ACTIONS, isReaction } from '../actionCatalog'
-import { areReactionsComplete, getAction, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie } from '../rules/action'
+import type { CampaignCharacter, Delivery } from '../../types'
+import { ActionSchema, DirectionSchema, type Action, type ActionDraft, type AttackAction, type ActionRoll, type CombatState, type Updater, type Coord, type DragAction, type TriggeringAction, type ExplosionAction, type HOPPurchase, type Interruption, type MoveAction } from '../types'
+import { ACTIONS, isReaction } from '../rules/actionCatalog'
+import { areReactionsComplete, getAction, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getRootOf, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { findOption } from '../rules/options'
-import { canSaveGraze, getCastFacts, getGrazeSavedRoll, getImprovementOptions, isTargeted } from '../rules/cast'
+import { canSaveGraze, getCastFacts, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
 import { getOpportunityAction, getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { getTriggersFor } from '../rules/reactions'
@@ -12,7 +12,7 @@ import { getAttackFacts, getHOPOptions, getStrikeTrample, isTripped, outcomeOf }
 import { getExplosionFacts, isSpray } from '../rules/explosion'
 import { getMoveFacts, getMoveOverride, getMovePrice, getMoveWaypoint, getOpportunityAttacks } from '../rules/move'
 import { getDistanceBetween, getMeleeRange } from '../rules/board'
-import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from '../reduce'
+import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from './reduce'
 import { getCancellableRoot, getDrawnOpportunityAttacks, isCancelled, isTriggeringAction } from '../rules/opportunity'
 import { getCircleCells, getDragChoices, getDragFacts, getDragOutcome, getGrabFacts, getHoldBackFacts, getManeuverFacts, getPartner, getReleaseFacts, holds } from '../rules/grapple'
 import { sameCell } from '../geometry'
@@ -96,7 +96,7 @@ export function commitAction(): Updater {
     if (!open || open.status !== 'declared') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if ((open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'grapple' || open.kind === 'drag' || open.kind === 'release' || open.kind === 'holdBack' || (open.kind === 'cast' && isTargeted(open))) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!priceFor(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
@@ -478,55 +478,62 @@ export function refundImprovement(name: SpellModification): Updater {
   }
 }
 
-// Lands the rolled action on everyone it concerns and closes it. A strike
-// or a shot has its attacker's side written down first, so the record says
-// what landed and the target's reducer needs nothing but the action; what
-// it did to the target's own action is written beside it, for the move it
-// may have cut short or the one an evasion may open. An explosion writes
-// down what reaches everyone in its area as the board stands, once every
-// escape has been played out and it is pointed where it goes off.
+// Lands the rolled action on everyone it concerns and closes it, once
+// nothing is left to aim, choose or answer.
 export function resolveAction(newId: () => string = () => `${Date.now()}`): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'rolled' || getNextStep(state) === 'aim' || getNextStep(state) === 'choose' || getNextStep(state) === 'react') return state
-    const resolved: Action = isTriggeringAction(open) && isCancelled(state, open)
-      ? { ...open, status: 'resolved', cancelled: true }
-      : open.kind === 'strike' || open.kind === 'shoot'
-      ? (() => {
-          const facts = getAttackFacts(state, open)
-          const target = open.targetId ? state.characters[open.targetId] : undefined
-          const outcome = facts && target ? outcomeOf(facts, target) : null
-          if (open.kind === 'shoot') return { ...open, status: 'resolved' as const, facts, interruption: outcome?.interruption ?? 'none' }
-          // combat.tex "Initiate the Grab": "On a hit, the opponent is
-          // grappled, and any movement initiated by them is stopped"
-          // combat.tex "Catch": "If the target is stopped, the catcher can
-          // decide to grapple them without further tests"
-          const trample = getStrikeTrample(state, open)
-          const grabbed = open.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, open)
-          const interruption: Interruption = grabbed && (outcome?.interruption ?? 'none') === 'none' ? 'interrupted' : outcome?.interruption ?? 'none'
-          return { ...open, status: 'resolved' as const, facts, interruption, tripped: isTripped(state, open), trample, grabbed }
-        })()
-      : open.kind === 'grapple'
-        ? { ...open, status: 'resolved', facts: getManeuverFacts(state, open) }
-      : open.kind === 'pickUp'
-        ? { ...open, status: 'resolved', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
-      : open.kind === 'release'
-        ? { ...open, status: 'resolved', facts: getReleaseFacts(state, open) }
-      : open.kind === 'holdBack'
-        ? { ...open, status: 'resolved', facts: getHoldBackFacts(state, open) }
-      : open.kind === 'drag'
-        ? { ...open, status: 'resolved', facts: getDragFacts(state, open) }
-      : open.kind === 'explosion'
-        ? { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
-      : open.kind === 'cast'
-        ? { ...open, status: 'resolved', facts: getCastFacts(state, open) }
-      : open.kind === 'move'
-        ? { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
-        : { ...open, status: 'resolved' }
+    const step = getNextStep(state)
+    if (!open || open.status !== 'rolled' || (step !== 'confirm' && step !== 'spend')) return state
+    const resolved = settle(state, open)
     const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
     const spawned = { ...landed, actions: [...landed.actions, ...spawn(landed, resolved, newId)] }
     return afterLanding(spawned, resolved, newId)
   }
+}
+
+// The rolled action as it lands: closed, with what it came to written down
+// per kind, read off the state as it stands. A cancelled one comes to
+// nothing. A strike or a shot has its attacker's side written down, so the
+// record says what landed and the target's reducer needs nothing but the
+// action, and what it did to the target's own action beside it, for the
+// move it may have cut short or the one an evasion may open. An explosion
+// writes down what reaches everyone in its area as the board stands, once
+// every escape has been played out and it is pointed where it goes off.
+function settle(state: CombatState, open: Action): Action {
+  if (isTriggeringAction(open) && isCancelled(state, open)) return { ...open, status: 'resolved', cancelled: true }
+  switch (open.kind) {
+    case 'strike': {
+      const facts = getAttackFacts(state, open)
+      const interruption = getInterruption(state, open, facts)
+      // combat.tex "Initiate the Grab": "On a hit, the opponent is
+      // grappled, and any movement initiated by them is stopped"
+      // combat.tex "Catch": "If the target is stopped, the catcher can
+      // decide to grapple them without further tests"
+      const trample = getStrikeTrample(state, open)
+      const grabbed = open.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, open)
+      return { ...open, status: 'resolved', facts, interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption, tripped: isTripped(state, open), trample, grabbed }
+    }
+    case 'shoot': {
+      const facts = getAttackFacts(state, open)
+      return { ...open, status: 'resolved', facts, interruption: getInterruption(state, open, facts) }
+    }
+    case 'grapple': return { ...open, status: 'resolved', facts: getManeuverFacts(state, open) }
+    case 'pickUp': return { ...open, status: 'resolved', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
+    case 'release': return { ...open, status: 'resolved', facts: getReleaseFacts(state, open) }
+    case 'holdBack': return { ...open, status: 'resolved', facts: getHoldBackFacts(state, open) }
+    case 'drag': return { ...open, status: 'resolved', facts: getDragFacts(state, open) }
+    case 'explosion': return { ...open, status: 'resolved', facts: getExplosionFacts(state, open) }
+    case 'cast': return { ...open, status: 'resolved', facts: getCastFacts(state, open) }
+    case 'move': return { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
+    default: return { ...open, status: 'resolved' }
+  }
+}
+
+// What the attack's delivery does to its target's own action.
+function getInterruption(state: CombatState, root: AttackAction, facts: Delivery | null): Interruption {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  return (facts && target ? outcomeOf(facts, target)?.interruption : undefined) ?? 'none'
 }
 
 // combat.tex "Escape": "Being stunned allows for a reaction to escape

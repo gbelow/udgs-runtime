@@ -3,10 +3,10 @@ import { CombatStateSchema, type Action, type ActionKind, type CombatState } fro
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
-import { ACTIONS } from '../actionCatalog'
+import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/action'
-import { reduceCharacter } from '../reduce'
+import { reduceCharacter } from './reduce'
 import { cancelAction, commitAction, declareAction, declareReaction, resolveAction, rollAction, setTarget } from './action'
 
 function fighter(id: string): CampaignCharacter {

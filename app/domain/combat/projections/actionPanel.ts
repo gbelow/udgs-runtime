@@ -1,7 +1,7 @@
 import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
 import type { Area, MoveKind } from '../../types'
-import { ACTIONS } from '../actionCatalog'
+import { ACTIONS } from '../rules/actionCatalog'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
 import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'

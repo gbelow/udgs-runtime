@@ -1,7 +1,7 @@
 import type { Action, ActionRoll, CombatState, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
-import { ACTIONS } from '../actionCatalog'
+import { ACTIONS } from '../rules/actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getAttackFacts, outcomeOf } from '../rules/damage'
 import { getExplosionFacts } from '../rules/explosion'

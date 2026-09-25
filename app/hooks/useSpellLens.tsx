@@ -1,6 +1,4 @@
-import { applyModification, castSpell, clearPendingAction, forgetSpell, learnSpell, practiceSpell } from "../domain/character/commands";
-import type { SpellModification } from "../domain/tables";
-import { realDice } from "../components/utils";
+import { forgetSpell, learnSpell, practiceSpell, releaseSpell } from "../domain/character/commands";
 import { getSpellCatalogRows, getSpellSheetRows, SpellCatalogRow, SpellSheetRow } from "../domain/character/lenses/spells";
 import type { SpellKey } from "../domain/spells";
 import { Character, SpellMethod } from "../domain/types";
@@ -29,19 +27,9 @@ export function useSpellLens() {
     update(practiceSpell(key, delta));
   };
 
-  // The dice are handed in here, the one place entropy enters; the test
-  // decides how they are thrown.
-  const cast = (key: SpellKey, quicken = false) => {
-    update(castSpell(key, realDice, quicken));
+  const release = (key: SpellKey) => {
+    update(releaseSpell(key));
   };
 
-  const modify = (mod: SpellModification) => {
-    update(applyModification(mod));
-  };
-
-  const resolve = () => {
-    update(clearPendingAction);
-  };
-
-  return { catalog, learned, learn, forget, practice, cast, modify, resolve } as const;
+  return { catalog, learned, learn, forget, practice, release } as const;
 }

@@ -40,16 +40,16 @@ export function getMovementSpeed(c: Character, kind: MovementKind): number {
   }
 }
 
-// combat.tex "Movement": "moving only a fraction of a space is impossible",
-// so a move is bought in whole blocks, as many as cover the cells. A speed
-// is printed to two places (0.33 for a third), so the quotient is read to a
-// tenth before it is rounded up, or a third of a metre three times would
-// cost a fourth block.
 // How many cells of a movement the given AP buys, whole blocks only.
 function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
   return Math.floor(AP / MOVEMENT_BLOCK_COST[kind].AP) * getMovementSpeed(c, kind)
 }
 
+// combat.tex "Movement": "moving only a fraction of a space is impossible",
+// so a move is bought in whole blocks, as many as cover the cells. A speed
+// is printed to two places (0.33 for a third), so the quotient is read to a
+// tenth before it is rounded up, or a third of a metre three times would
+// cost a fourth block.
 export function getMoveCost(c: Character, kind: MoveKind, cells: number): ActionCost {
   if (isPosture(kind)) return getPostureCost(c, kind)
   const speed = getMovementSpeed(c, kind)

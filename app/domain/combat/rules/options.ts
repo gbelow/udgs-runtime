@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionDraft, ActionKind, CombatState } from '../types'
-import { ACTIONS, reactsTo } from '../actionCatalog'
+import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -261,19 +261,12 @@ export function findOption(state: CombatState, characterId: string, draft: Actio
   return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft)) ?? null
 }
 
+// Two drafts are the same option when they are of one kind and agree on
+// every field the catalog names as telling that kind's options apart.
 function sameDraft(option: ActionDraft, draft: ActionDraft): boolean {
   if (option.kind !== draft.kind) return false
-  if (option.kind === 'block' || option.kind === 'intercept' || option.kind === 'guard') {
-    const d = draft as { weaponKey?: string; attack?: string }
-    return option.weaponKey === d.weaponKey && option.attack === d.attack
-  }
-  if (option.kind === 'opportunityAttack') return (option.at ?? null) === ((draft as { at?: number | null }).at ?? null)
-  if (option.kind === 'explosion') return (option.source ?? 'thrown') === ((draft as { source?: string }).source ?? 'thrown')
-  if (option.kind === 'evasion') return (option.stay ?? false) === ((draft as { stay?: boolean }).stay ?? false)
-  if (option.kind === 'strike') return (option.grab ?? false) === ((draft as { grab?: boolean }).grab ?? false)
-  if (option.kind === 'grapple') {
-    const d = draft as { maneuver?: string; stand?: boolean }
-    return (option.maneuver ?? 'escape') === (d.maneuver ?? 'escape') && (option.stand ?? false) === (d.stand ?? false)
-  }
-  return true
+  const identity: Record<string, unknown> = getActionDef(option.kind).identity ?? {}
+  const a: Record<string, unknown> = option
+  const b: Record<string, unknown> = draft
+  return Object.entries(identity).every(([field, unset]) => (a[field] ?? unset) === (b[field] ?? unset))
 }

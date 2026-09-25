@@ -30,6 +30,7 @@ Notes: resources is always present on a campaign character. The code actually
 applies +8 capped at 8, which matches combat.tex "reset to 8 AP minus any
 negative AP", so only the comment is stale. The literal 8 is also written
 separately in domain/factories.ts:105.
+Status: comment fixed (cites combat.tex "End of the round"). OPEN: the guard and the duplicated 8.
 ────────────────────────────────────────
 What: Stale comment: "every object in the fight is in somebody's hands — nothing
 can be left on the ground yet"
@@ -118,16 +119,21 @@ Notes: It only passes through to getBalanceTerms.
 3. resetCombat leaves the old actions behind. It wipes characters, grapples and floor but keeps actions, activeCharacterId and inTurnCharacter, so the action log still refers to characters who are gone. This looks like a bug, not just untidiness.
    DONE: resetCombat also clears actions, activeCharacterId and inTurnCharacter.
 4. Two parallel spell-casting pipelines. Combat casting goes through CastAction (improved, getSOPRemaining, getImprovementOptions). The sheet path still uses the older character/commands/spells.ts flow (castSpell, applyModification, pendingAction), shown through useSpellLens, and nextRound still clears pendingAction. The same SOP bookkeeping and option shaping exists twice.
+   DONE: sheet casting removed (castSpell, applyModification, clearPendingAction, the pending view, the cast/quicken/SOP buttons) along with PendingActionSchema and the pendingAction field; casting goes only through CastAction. The sheet keeps a free releaseSpell for a held sustained spell. OPEN: isHit in character/rules/spells.ts has no caller left.
 5. Hand-kept lists that should come from the action catalog.
    - isTriggeringAction (opportunity.ts:3) repeats the TriggeringAction type by hand.
    - commitAction (commands/action.ts:117) has its own list of which kinds need a target. getNextStep and getTargetIds each decide that differently.
    - sameDraft compares fields by hand with casts.
 
    Flags such as targeted and triggering on ACTIONS would keep these in one place.
+   DONE: ACTIONS carries `triggering`, `targeted` and `identity` (the fields that tell a kind's options apart, with their unset values). TriggeringAction is derived from the catalog; isTriggeringAction, needsTarget (rules/action.ts, used by commitAction, getNextStep and getTargetIds) and sameDraft read it.
 6. resolveAction is a 30-line chained ternary with an inline function (commands/action.ts:498-531), and it calls getNextStep three times. A per-kind "facts at resolve" switch, like getTriggers, would match the rest of the codebase.
+   DONE: settle(state, open) in commands/action.ts is the per-kind switch, with getInterruption shared by strike and shoot; resolveAction calls getNextStep once.
 7. Commands that don't go through amendAction. pickCell (move path) and turnMove in commands/board.ts edit state.actions directly, skipping the re-parse. The explosion branch of the same pickCell does go through amendAction.
+   DONE: both go through amendAction.
 8. Files outside the three-folder layout. reduce.ts is the character/board reducer and imports rules like a command would. actionCatalog.ts is a rules table. rules/activeCharacter.ts is a selector. commands/addCharacterToCombat.ts isn't a state updater at all: it's a character factory with an @/ import and ==. Only reduce.ts really matters here.
+   DONE: reduce.ts is commands/reduce.ts; actionCatalog.ts is rules/actionCatalog.ts; addCharacterToCombat lives in combat/factories.ts (with its regression test), relative import and === fixed. rules/activeCharacter.ts stays: a command (startTurn) consumes it, which makes it a rule by the standing ruling.
 9. Comments attached to the wrong function. The long DL comment (rules/action.ts:409-419) sits above getCastTerms instead of getDLTerms. The grapple/evasive-jump comment (:527-533) sits above getCancellableLabel instead of defenseGate. The block-rounding comment (move.ts:41-45) sits above getMoveBlockCells instead of getMoveCost.
-   DONE for the first two (fixed during the action split). OPEN: move.ts.
+   DONE: the first two during the action split; the block-rounding comment now sits above getMoveCost.
 
 If you want to start somewhere, the cheapest wins with the most payoff are the getChargedItem rename, one affordability rule, moving findWeaponRow down a layer, and deciding what resetCombat should clear. Splitting the view code out of rules/action.ts is the biggest structural cleanup.

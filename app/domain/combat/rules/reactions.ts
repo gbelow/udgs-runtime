@@ -1,6 +1,6 @@
 import type { Action, ActionKind, CastAction, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
-import { ACTIONS, reactsTo } from '../actionCatalog'
+import { ACTIONS, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'

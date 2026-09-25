@@ -82,8 +82,7 @@ export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}
     if (!open) return state
     if (open.kind === 'move' && open.status === 'declared') {
       const path = pickPathCell(state, open, cell)
-      if (!path) return state
-      return { ...state, actions: state.actions.map((a) => (a.id === open.id ? { ...a, path } : a)) }
+      return path ? amendAction({ path })(state) : state
     }
     if (open.kind === 'explosion' && open.status === 'declared') {
       return getExplosionCenters(state, open).some((c) => sameCell(c, cell)) ? amendAction({ center: cell })(state) : state
@@ -111,7 +110,6 @@ export function turnMove(): Updater {
     const open = getOpenAction(state)
     const from = open ? state.board?.placements[open.actorId] : undefined
     if (!open || open.kind !== 'move' || open.status !== 'declared' || !from) return state
-    const orientation = ((open.orientation ?? from.orientation) + 1) % 6
-    return { ...state, actions: state.actions.map((a) => (a.id === open.id ? { ...a, orientation } : a)) }
+    return amendAction({ orientation: ((open.orientation ?? from.orientation) + 1) % 6 })(state)
   }
 }
