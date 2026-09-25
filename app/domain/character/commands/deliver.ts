@@ -1,5 +1,5 @@
-import type { AfflictionKey, CampaignCharacter, Condition, Degree, Delivery } from '../../types'
-import { AFFLICTIONS, WOUNDS } from '../../tables'
+import type { CampaignCharacter, Condition, Degree, Delivery } from '../../types'
+import { WOUNDS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
 import { Outcome, getOutcome } from '../rules/damage'
@@ -7,6 +7,7 @@ import { skillLenses } from '../lenses'
 import { resolveTest } from '../../combat/rules/test'
 import type { Dice } from '../../combat/dice'
 import { payCost } from './cost'
+import { inflict } from './addAffliction'
 
 // The one place a delivered effect changes a character. A delivery whose
 // degree is known lands now: the effect is applied, and what its landing
@@ -101,18 +102,6 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
     delivery.then
       .filter((next) => passes(next.when, outcome))
       .reduce((acc, next) => deliver(next.degree === null && next.test === null ? { ...next, degree } : next)(acc), c)
-}
-
-// combat.tex "Afflictions": one of a group at a time, the one put on last
-// standing in for whatever of the group was carried. A key already carried
-// is not carried twice.
-function inflict(keys: AfflictionKey[]): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) =>
-    keys.reduce((acc, key) => {
-      const { group } = AFFLICTIONS[key]
-      const rest = group ? acc.afflictions.filter((k) => AFFLICTIONS[k].group !== group) : acc.afflictions
-      return { ...acc, afflictions: rest.includes(key) ? rest : [...rest, key] }
-    }, c)
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury

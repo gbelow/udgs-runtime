@@ -1,12 +1,14 @@
-import type { Action, ActionRoll, CombatState, DragFacts } from '../types'
+import type { Action, ActionRoll, CombatState, Deliveries, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { ACTIONS } from '../rules/actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getAttackFacts, outcomeOf } from '../rules/damage'
+import { isAttackAction } from '../rules/attack'
 import { getExplosionFacts } from '../rules/explosion'
 import { getGrappleFacts, getManeuverFacts } from '../rules/grapple'
 import { isCancelled, isTriggeringAction } from '../rules/opportunity'
+import { getFightName } from '../rules/activeCharacter'
 
 // The outcome of the open action on everyone it lands on, as it would land
 // now: the same function the resolution applies, so the preview and the
@@ -15,39 +17,32 @@ import { isCancelled, isTriggeringAction } from '../rules/opportunity'
 // opportunity attack cancelled.
 export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
   if (isTriggeringAction(root) && isCancelled(state, root)) return []
-  if (root.kind === 'explosion') {
-    const facts = root.facts ?? getExplosionFacts(state, root)
-    return Object.entries(facts).flatMap(([id, deliveries]) => {
-      const target = state.characters[id]
-      return deliveries.flatMap((d) => {
-        const outcome = target ? outcomeOf(d, target) : null
-        return outcome ? [{ id, outcome }] : []
-      })
-    })
-  }
+  if (root.kind === 'explosion') return deliveryOutcomes(state, root.facts ?? getExplosionFacts(state, root))
   if (root.kind === 'grapple') return deliveryOutcomes(state, (root.facts ?? getManeuverFacts(state, root))?.deliveries ?? {})
-  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId) return []
+  if (!isAttackAction(root) || !root.targetId) return []
   const target = state.characters[root.targetId]
   const facts = root.facts ?? getAttackFacts(state, root)
   const outcome = target && facts ? outcomeOf(facts, target) : null
   return outcome ? [{ id: root.targetId, outcome }] : []
 }
 
-function deliveryOutcomes(state: CombatState, deliveries: Record<string, Delivery[]>): { id: string; outcome: Outcome }[] {
-  return Object.entries(deliveries).flatMap(([id, ds]) => {
+function deliveryOutcomes(state: CombatState, deliveries: Deliveries): { id: string; outcome: Outcome }[] {
+  return flatten(deliveries).flatMap(({ id, delivery }) => {
     const target = state.characters[id]
-    return ds.flatMap((d) => {
-      const outcome = target ? outcomeOf(d, target) : null
-      return outcome ? [{ id, outcome }] : []
-    })
+    const outcome = target ? outcomeOf(delivery, target) : null
+    return outcome ? [{ id, outcome }] : []
   })
+}
+
+function flatten(deliveries: Deliveries): { id: string; delivery: Delivery }[] {
+  return Object.entries(deliveries).flatMap(([id, ds]) => ds.map((delivery) => ({ id, delivery })))
 }
 
 // What an action did to a grapple, a line per character it changed:
 // grabbed, let go, knocked down, stood up, disarmed, pushed; or that the
 // action was cancelled before it could do any of it.
 export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
-  const named = (id: string) => state.characters[id]?.fightName ?? ''
+  const named = (id: string) => getFightName(state, id)
   if (isTriggeringAction(root) && isCancelled(state, root)) return [{ target: named(root.actorId), text: `${ACTIONS[root.kind].label} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
@@ -85,13 +80,9 @@ function dragNotes(facts: DragFacts, named: (id: string) => string): { target: s
 // target, everything an explosion or a cast produced to whoever it was
 // produced for. Empty before the action has anything to say.
 function getDeliveries(root: Action): { id: string; delivery: Delivery }[] {
-  if (root.kind === 'explosion' || root.kind === 'cast') {
-    return Object.entries(root.facts ?? {}).flatMap(([id, deliveries]) => deliveries.map((delivery) => ({ id, delivery })))
-  }
-  if (root.kind === 'grapple') {
-    return Object.entries(root.facts?.deliveries ?? {}).flatMap(([id, deliveries]) => deliveries.map((delivery) => ({ id, delivery })))
-  }
-  if ((root.kind !== 'strike' && root.kind !== 'shoot') || !root.targetId || !root.facts) return []
+  if (root.kind === 'explosion' || root.kind === 'cast') return flatten(root.facts ?? {})
+  if (root.kind === 'grapple') return flatten(root.facts?.deliveries ?? {})
+  if (!isAttackAction(root) || !root.targetId || !root.facts) return []
   return [{ id: root.targetId, delivery: root.facts }]
 }
 
@@ -111,7 +102,7 @@ export type ActionReport = {
 export function getLastReport(state: CombatState): ActionReport | null {
   const root = [...state.actions].reverse().find((a) => a.status === 'resolved' && a.reactionTo === null)
   if (!root) return null
-  const named = (id: string) => state.characters[id]?.fightName ?? ''
+  const named = (id: string) => getFightName(state, id)
   const delivered = getDeliveries(root)
   return {
     label: getActionLabel(root, delivered[0]?.delivery.effect.name),

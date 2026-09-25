@@ -1,6 +1,8 @@
 import type { Character, Item } from '../../types'
-import type { CombatState, Coord, FloorItem } from '../types'
-import { canHoldWith } from '../../item/rules/hands'
+import type { CombatState, Coord, FloorItem, ShootAction } from '../types'
+import { canHoldWith, getHeldItem } from '../../item/rules/hands'
+import { getAttackKind } from '../../weaponProperties'
+import { findWeaponRow } from './weaponRow'
 import { distance } from '../geometry'
 import { getPlacedFootprint } from './board'
 
@@ -17,6 +19,17 @@ export function getReachableFloor(state: CombatState, id: string): FloorItem[] {
   const footprint = getPlacedFootprint(state, id)
   if (!state.board || !footprint) return state.floor
   return state.floor.filter((f) => f.cell === null || footprint.some((cell) => distance(cell, f.cell!) <= 1))
+}
+
+// combat.tex "Throw": what a thrown row sends to the floor — the weapon, or
+// one of a stack of them, emptied of any charge it went off with; nothing
+// for a shot or a natural weapon.
+export function getThrownItem(state: CombatState, shot: ShootAction): Item | null {
+  const shooter = state.characters[shot.actorId]
+  const row = shooter ? findWeaponRow(shooter, shot.weaponKey, shot.attack) : null
+  const item = shooter && row && !row.wielded.natural ? getHeldItem(shooter, row.wielded.itemId) : undefined
+  if (!item || !row || getAttackKind(row.atk.range) !== 'throw') return null
+  return item.amount > 1 ? { ...item, id: `${item.id}:${shot.id}`, amount: 1, charge: null } : item
 }
 
 // Whether the item can go into a free hand.

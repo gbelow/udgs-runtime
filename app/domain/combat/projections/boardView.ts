@@ -1,9 +1,9 @@
 import type { CombatState, Coord, Degree } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { coordKey, disk, sameCell } from '../geometry'
+import { coordKey, disk, parseCoordKey, sameCell } from '../geometry'
 import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption } from '../rules/options'
-import { getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
+import { findOpenRoot, getNextStep, getOpenAction, getReactionsTo, getTargetIds } from '../rules/action'
 import { getRole, type Role } from './roster'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
@@ -110,21 +110,6 @@ export type BoardView = {
 
 const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
-// The move in play, whatever its phase: declared, committed, waiting on an
-// opportunity attack fought against it, or waiting to resolve. Its path
-// stays drawn throughout.
-function getPendingMove(state: CombatState) {
-  const move = state.actions.find((a) => a.kind === 'move' && a.reactionTo === null && a.status !== 'resolved')
-  return move?.kind === 'move' ? move : null
-}
-
-// The explosion in play, whatever its phase: its area stays drawn while
-// the escapes it opened are walked and until it resolves.
-function getPendingExplosion(state: CombatState) {
-  const explosion = state.actions.find((a) => a.kind === 'explosion' && a.reactionTo === null && a.status !== 'resolved')
-  return explosion?.kind === 'explosion' ? explosion : null
-}
-
 const HEX = Array.from({ length: 6 }, (_, i) => {
   const angle = (Math.PI / 180) * (60 * i - 30)
   return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
@@ -136,7 +121,8 @@ export function getBoardView(state: CombatState): BoardView {
 
   const open = getOpenAction(state)
   const step = getNextStep(state)
-  const pending = getPendingMove(state)
+  // the move in play, whatever its phase: its path stays drawn throughout
+  const pending = findOpenRoot(state, 'move')
   const move = open?.kind === 'move' && open.status === 'declared' ? open : null
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
@@ -157,7 +143,7 @@ export function getBoardView(state: CombatState): BoardView {
   // long as it can be re-aimed — a disk until its actor commits, a spray
   // until the blast is confirmed (combat.tex "Sprays": the direction is
   // chosen after the movement).
-  const explosion = getPendingExplosion(state)
+  const explosion = findOpenRoot(state, 'explosion')
   // combat.tex "Push and drag": the way the pair is pushed is picked on the board
   // combat.tex "Push and drag": once settled, the winner points the push or
   // picks where to circle on the board, until the third parties are fought
@@ -179,10 +165,8 @@ export function getBoardView(state: CombatState): BoardView {
   // painted or threatened beyond it.
   const extent = new Map(disk(board.origin, board.radius).map((c) => [coordKey(c), c]))
   for (const key of [...Object.keys(board.terrain), ...Object.keys(occupancy), ...threatened]) {
-    if (!extent.has(key)) {
-      const [q, r] = key.split(',').map(Number)
-      extent.set(key, { q, r })
-    }
+    const cell = parseCoordKey(key)
+    if (cell && !extent.has(key)) extent.set(key, cell)
   }
 
   const cells: BoardCellView[] = [...extent.values()].map((cell) => {

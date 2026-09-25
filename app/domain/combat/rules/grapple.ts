@@ -1,5 +1,5 @@
-import type { Character, Delivery, WeaponAttack } from '../../types'
-import type { Action, CombatState, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
+import type { Character, WeaponAttack } from '../../types'
+import type { Action, CombatState, Deliveries, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
 import { getStrikeDamage } from '../../character/rules/gear'
@@ -9,11 +9,13 @@ import { getSize } from '../../character/rules/misc'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { hasProperty, isMeleeRange } from '../../weaponProperties'
 import { DIRECTIONS, add, sameCell, setDistance, walkOut } from '../geometry'
-import { getFootprint, getPlacedFootprint, getReach, placeAt } from './board'
+import { getFootprint, getPlacedFootprint, getReach, placeAt, withPlacements } from './board'
 import { getReactionsTo } from './action'
+import { getFightName } from './activeCharacter'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { canStandAt, getMoveCost } from './move'
 import { delivering, getRowDamage } from './damage'
+import { isAttackAction } from './attack'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -24,7 +26,7 @@ export function findGrapple(grapples: Grapple[], a: string, b: string): Grapple 
   return grapples.find((g) => a !== b && g.members.includes(a) && g.members.includes(b)) ?? null
 }
 
-export function getGrapplesOf(state: CombatState, id: string): Grapple[] {
+function getGrapplesOf(state: CombatState, id: string): Grapple[] {
   return state.grapples.filter((g) => g.members.includes(id))
 }
 
@@ -32,7 +34,7 @@ export function isInGrapple(state: CombatState, id: string): boolean {
   return getGrapplesOf(state, id).length > 0
 }
 
-export function getPartner(g: Grapple, id: string): string {
+function getPartner(g: Grapple, id: string): string {
   return g.members[0] === id ? g.members[1] : g.members[0]
 }
 
@@ -73,7 +75,7 @@ export function getGrappleGroup(grapples: Grapple[], id: string): string[] {
 // Grapple rows
 
 // gear.tex "Grapple I/II": "This attack is used for grappling actions."
-export function isGrappleRow(atk: WeaponAttack): boolean {
+function isGrappleRow(atk: WeaponAttack): boolean {
   return hasProperty(atk.properties, 'grapple I') || hasProperty(atk.properties, 'grapple II')
 }
 
@@ -81,13 +83,13 @@ export function isGrappleRow(atk: WeaponAttack): boolean {
 // Bardiche's shaft only in both hands, a free hand among them (gear.tex
 // "Unarmed") — grapple II first: it is the one that deals damage (gear.tex
 // "Grapple II deals damage normally").
-export function getGrappleRows(c: Character): WeaponRow[] {
+function getGrappleRows(c: Character): WeaponRow[] {
   return getWeaponRows(c)
     .filter((row) => isGrappleRow(row.atk) && isRowUsable(c, row))
     .sort((a, b) => Number(hasProperty(b.atk.properties, 'grapple II')) - Number(hasProperty(a.atk.properties, 'grapple II')))
 }
 
-export function hasGrappleRow(c: Character): boolean {
+function hasGrappleRow(c: Character): boolean {
   return getGrappleRows(c).length > 0
 }
 
@@ -110,7 +112,7 @@ function isGrappledBy(state: CombatState, g: Grapple, id: string): boolean {
   return getGrapple(c) < getGrapple(partner) + 10
 }
 
-export function getGrappleAfflictions(state: CombatState, grapples: Grapple[], id: string): GrappleAffliction[] {
+function getGrappleAfflictions(state: CombatState, grapples: Grapple[], id: string): GrappleAffliction[] {
   const own = grapples.filter((g) => g.members.includes(id))
   return [
     ...(own.some((g) => isGrappledBy(state, g, id)) ? ['grappled' as const] : []),
@@ -254,8 +256,8 @@ export function getManeuverDLTerms(state: CombatState, root: GrappleAction): Ter
 // deals that damage whenever a grapple maneuver is used, regardless of who
 // initiated it or the test's result." Each holder's best grapple row lands
 // on the partner, at a hit to the chest, undefended.
-function getHoldDeliveries(state: CombatState, g: Grapple): Record<string, Delivery[]> {
-  const out: Record<string, Delivery[]> = {}
+function getHoldDeliveries(state: CombatState, g: Grapple): Deliveries {
+  const out: Deliveries = {}
   for (const holderId of g.holders) {
     const holder = state.characters[holderId]
     const row = holder ? getGrappleRows(holder)[0] : undefined
@@ -340,6 +342,21 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
       return facts(state, pair, { ...g, seized: [...new Set([...g.seized, item])] }, { deliveries, seized: item })
     }
   }
+}
+
+// combat.tex "Escape": "Being stunned allows for a reaction to escape
+// without the possibility of active resistance." A holder the attack
+// stunned gives whoever they hold an escape — but not the grabber from their
+// own grab's blow.
+export function getStunEscapes(state: CombatState, root: Action): { heldId: string; holderId: string }[] {
+  if (!isAttackAction(root) || root.interruption !== 'stunned' || !root.targetId) return []
+  const holderId = root.targetId
+  return state.grapples
+    .filter((g) => g.members.includes(holderId) && holds(g, holderId))
+    .map((g) => getPartner(g, holderId))
+    .filter((heldId) => !(root.kind === 'strike' && root.grabbed && heldId === root.actorId))
+    .filter((heldId) => state.characters[heldId] !== undefined)
+    .map((heldId) => ({ heldId, holderId }))
 }
 
 // ---------------------------------------------------------------------------
@@ -427,7 +444,7 @@ export function getDragSides(state: CombatState, root: DragAction): DragSides {
   const resisters = movers.filter((id) => !attackers.includes(id) && !carriers.includes(id))
   const active = resisters.filter((id) => resist.has(id))
   const force = (id: string) => (state.characters[id] ? getForce(state.characters[id]) : 0)
-  const name = (id: string) => state.characters[id]?.fightName || id
+  const name = (id: string) => getFightName(state, id)
   const attacker = sideTerms(attackers.map((id) => ({ id, value: force(id), label: `${name(id)} force` })), attackers, state)
   const defender = resisters.length === 0 ? null : [
     ...sideTerms(resisters.map((id) => ({ id, value: force(id) - (active.includes(id) ? 0 : 5), label: `${name(id)} force${active.includes(id) ? '' : ' (passive)'}` })), active, state),
@@ -520,7 +537,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
       const cell = add(p.cell, heading)
       return [id, placeAt(board, p, cell)]
     }))
-    const moved = { ...state, board: { ...board, placements: { ...board.placements, ...next } } }
+    const moved = withPlacements(state, next)
     if (!Object.keys(next).every((id) => canStandAt(moved, id, next[id]))) break
     steps.push(next)
     where = next
@@ -546,7 +563,7 @@ export function getDragFacts(state: CombatState, root: DragAction): DragFacts | 
 // combat.tex "Push and drag": "Moving within the grapple area, without
 // displacing the opponent, is possible if Force is no lower than 5 points
 // lower than the opponent" — than every partner's.
-export function canMoveInGrapple(state: CombatState, c: Character): boolean {
+function canMoveInGrapple(state: CombatState, c: Character): boolean {
   return getPartners(state, c.id).every((id) => !state.characters[id] || getForce(c) >= getForce(state.characters[id]) - 5)
 }
 
@@ -561,7 +578,7 @@ function getGrappleReach(state: CombatState, g: Grapple): number {
 
 // Whether a footprint of the character's keeps every partner on the board
 // inside the grapple area.
-export function isInGrappleArea(state: CombatState, id: string, footprint: Coord[]): boolean {
+function isInGrappleArea(state: CombatState, id: string, footprint: Coord[]): boolean {
   return getGrapplesOf(state, id).every((g) => {
     const partner = getPlacedFootprint(state, getPartner(g, id))
     return !partner || setDistance(footprint, partner) <= getGrappleReach(state, g)

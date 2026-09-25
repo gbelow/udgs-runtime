@@ -21,16 +21,17 @@ function combat(...characters: CampaignCharacter[]): CombatState {
 describe('the preview', () => {
   it('is what the target takes', () => {
     let n = 0
+    const newId = () => `a${++n}`
     let s = combat(fighter('atk'), fighter('def'))
-    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, () => `a${++n}`)(s)
+    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, newId)(s)
     s = setTarget('def')(s)
     s = commitAction()(s)
-    s = rollAction(() => 30)(s)
+    s = rollAction(() => 30, newId)(s)
     const open = getOpenAction(s)!
     const preview = getOutcomePreviews(s, open)[0].outcome
     expect(preview.tier).not.toBeNull()
 
-    const after = resolveAction()(s)
+    const after = resolveAction(newId)(s)
     expect(after.characters.def.injuries.injuryLevel - s.characters.def.injuries.injuryLevel).toBe(preview.IL)
     expect(after.characters.def.injuries.bleed - s.characters.def.injuries.bleed).toBe(preview.bleed)
     expect(s.characters.def.resources.AP - after.characters.def.resources.AP).toBe(preview.apLoss)

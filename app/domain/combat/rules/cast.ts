@@ -1,5 +1,5 @@
-import type { CampaignCharacter, Delivery } from '../../types'
-import type { ActionRoll, CastAction, CombatState } from '../types'
+import type { CampaignCharacter } from '../../types'
+import type { ActionRoll, CastAction, CombatState, Deliveries } from '../types'
 import { isCancelled } from './opportunity'
 import { getEffectRange, getSelfEffects, getTargetEffects, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
@@ -10,6 +10,7 @@ import { canAfford } from '../../character/rules/cost'
 import { Term } from '../../character/rules/terms'
 import { getDistanceBetween, hasLineOfSight } from './board'
 import { resolveTest } from './test'
+import { isAreaEffect } from './explosion'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -17,12 +18,12 @@ import { resolveTest } from './test'
 // it: each delivery is the one who holds it's to roll. A charged spell
 // produces nothing now: "activates an object that stays charged", and what
 // it does waits in the object until the charge is released.
-export function getCastFacts(state: CombatState, root: CastAction): Record<string, Delivery[]> {
+export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   const caster = state.characters[root.actorId]
   if (!caster || root.roll?.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return {}
   const spell = SPELLS[root.key]
   if (spell.type === 'charged') return {}
-  const facts: Record<string, Delivery[]> = {}
+  const facts: Deliveries = {}
   const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, root.improved, root.key))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId]) {
@@ -92,7 +93,7 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
       castable: canCastSpell(c, key, false),
       quickenable: canCastSpell(c, key, true),
       reason: reasonAgainst(c, key),
-      targeted: spell.type !== 'charged' && getTargetEffects(spell).length > 0,
+      targeted: isTargetedSpell(key),
     }
   })
 }
@@ -129,7 +130,20 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
 // target, and is not cast on an object (spells.tex "Charged": what it does
 // waits in the object, and is aimed when the charge is released).
 export function isTargeted(root: CastAction): boolean {
-  return isSpellKey(root.key) && SPELLS[root.key].type !== 'charged' && getTargetEffects(SPELLS[root.key]).length > 0
+  return isSpellKey(root.key) && isTargetedSpell(root.key)
+}
+
+function isTargetedSpell(key: SpellKey): boolean {
+  return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key]).length > 0
+}
+
+// combat.tex "Explosions": a cast that hit with an area to it opens that area
+// as an explosion of the caster's, aimed and played out on its own; a charged
+// spell's area waits in its object.
+export function opensExplosion(state: CombatState, root: CastAction): boolean {
+  if (root.roll?.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return false
+  const spell = SPELLS[root.key]
+  return spell.type !== 'charged' && spell.effects.some(isAreaEffect)
 }
 
 // Whether every targeted effect of the spell reaches the target from where

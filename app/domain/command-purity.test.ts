@@ -74,6 +74,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   bleed: characterCommands.bleed(2),
   updateSTA: characterCommands.updateSTA(1),
   addAffliction: characterCommands.addAffliction('blind'),
+  inflict: characterCommands.inflict(['prone']),
+  cure: characterCommands.cure(['prone']),
   restCharacter: characterCommands.restCharacter,
   actionSurge: characterCommands.actionSurge('focus'),
   wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareAndRested(c)),
@@ -145,11 +147,11 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
   cancelTriggeringAction: (s) => combatCommands.cancelTriggeringAction('a')(deepFreeze(spawnedCastOpportunity(s))),
-  rollAction: combatCommands.rollAction(() => 7),
-  spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20)(s))),
-  refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20)(s)))),
-  resolveAction: (s) => combatCommands.resolveAction()(deepFreeze(combatCommands.rollAction(() => 7)(s))),
-  payAction: (s) => combatCommands.payAction()(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
+  rollAction: combatCommands.rollAction(() => 7, newId),
+  spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
+  refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
+  resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
+  payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('extend')(deepFreeze(combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))))),
@@ -159,7 +161,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
-  pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 })(deepFreeze(declaredMove(s))),
+  pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
@@ -186,7 +188,7 @@ function settledPush(s: CombatState): CombatState {
 function rolledManeuver(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'grapple', maneuver: 'knockdown' }, newId)(deepFreeze(grappling(s))))
   const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
-  return combatCommands.rollAction(() => 7)(committed)
+  return combatCommands.rollAction(() => 7, newId)(committed)
 }
 
 // The subject with its committed strike and the evade struck off, for the

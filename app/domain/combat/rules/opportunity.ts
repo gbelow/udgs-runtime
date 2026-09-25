@@ -1,5 +1,6 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
+import { getDistanceBetween, getMeleeRange } from './board'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -7,7 +8,7 @@ export function isTriggeringAction(action: Action): action is TriggeringAction {
 
 // What an opportunity attack opens: a strike, or against a grapple partner a
 // maneuver or a push.
-export function isOpportunityAction(action: Action | undefined): action is OpportunityAction {
+function isOpportunityAction(action: Action | undefined): action is OpportunityAction {
   return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
 }
 
@@ -24,6 +25,15 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
       const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
     })
+}
+
+// combat.tex "Flanking": a flanker's opportunity attack "can be voided if
+// the target gets out of range" — whether the attacker it answers still
+// stands within the flanker's reach once the strike has landed.
+export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportunityAttack'>, root: Action): boolean {
+  const reactor = state.characters[reaction.actorId]
+  const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
+  return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
 }
 
 // combat.tex "Interruption": "interrupts any action from its victim, making

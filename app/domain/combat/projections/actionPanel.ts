@@ -2,12 +2,14 @@ import type { Action, ActionRoll, CastAction, CombatState, Coord, DragAction, Gr
 
 import type { Area, MoveKind } from '../../types'
 import { ACTIONS } from '../rules/actionCatalog'
+import { getFightName } from '../rules/activeCharacter'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
 import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOpenAction, getReactionsTo, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getSOPRemaining, getSpellOptions, getCastFacts } from '../rules/cast'
-import { AttackOption, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { AttackOption, getAttackOptions, isAttackAction, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { GRAZE_SAVE, LOCATIONS } from '../../tables'
+import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
@@ -56,7 +58,7 @@ export type ReactorOptions = {
   cancellable: string | null
 }
 
-export function getReactors(state: CombatState, open: Action): ReactorOptions[] {
+function getReactors(state: CombatState, open: Action): ReactorOptions[] {
   return Object.values(state.characters)
     .filter((c) => c.id !== open.actorId || open.kind === 'explosion')
     .map((c) => {
@@ -84,11 +86,11 @@ export function getReactors(state: CombatState, open: Action): ReactorOptions[] 
 
 // The deliveries a cast will make as it stands, for the panel: who takes
 // what, and the test it leaves them.
-export type DeliveryView = { id: string; name: string; kind: string; test: { roll: string; DL: number } | null }
+type DeliveryView = { target: string; name: string; kind: string; test: string | null }
 
-export function getCastDeliveries(state: CombatState, root: CastAction): DeliveryView[] {
+function getCastDeliveries(state: CombatState, root: CastAction): DeliveryView[] {
   return Object.entries(root.facts ?? getCastFacts(state, root)).flatMap(([id, deliveries]) =>
-    deliveries.map((d) => ({ id, name: d.effect.name, kind: d.effect.type, test: d.test ? { roll: d.test.roll, DL: d.test.DL } : null })))
+    deliveries.map((d) => ({ target: getFightName(state, id), name: d.effect.name, kind: d.effect.type, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null })))
 }
 
 // The open action as the panel reads it, every field final.
@@ -202,7 +204,7 @@ export type ActionPanelView = {
   // once a cast is rolled: the price of buying its graze up to a hit, when
   // that is open
   grazeSave: { AP: number; STA: number } | null
-  deliveries: { target: string; name: string; kind: string; test: string | null }[]
+  deliveries: DeliveryView[]
   // with nothing open: what the last action played out came to
   report: ActionReport | null
 }
@@ -224,7 +226,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const actor = state.characters[open.actorId]
   const target = open.targetId ? state.characters[open.targetId] : undefined
   const reactions = getReactionsTo(state, open.id)
-  const attack = open.kind === 'strike' || open.kind === 'shoot' ? open : null
+  const attack = isAttackAction(open) ? open : null
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
   const weaponAction = attack ?? explosion
@@ -260,7 +262,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null, aimable: isAimable(state, explosion!) } : null,
       source: explosion?.source ?? null,
       itemId: explosion?.itemId ?? '',
-      spell: cast && actor ? getSpellOptions(actor).find((s) => s.key === cast.key)?.name ?? '' : '',
+      spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
       quicken: cast?.quicken ?? false,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
@@ -278,7 +280,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       grapple: settled ? getGrappleNotes(state, settled) : [],
       cost,
       reactions: reactions.map((r) => ({
-        actor: state.characters[r.actorId]?.fightName ?? '',
+        actor: getFightName(state, r.actorId),
         label: ACTIONS[r.kind].label,
         cost: state.characters[r.actorId] ? getDeclaredCost(state.characters[r.actorId], r) : null,
         roll: r.roll,
@@ -296,7 +298,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.status === 'declared' ? getChargeOptions(state) : [],
     locations: attack ? getLocationOptions() : [],
-    targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: state.characters[id].fightName ?? '' })) : [],
+    targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: getFightName(state, id) })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
@@ -312,12 +314,10 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     hop: attack && target && attack.status === 'rolled'
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
-    outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: state.characters[id]?.fightName ?? '', outcome })) : [],
+    outcomes: open.status === 'rolled' ? getOutcomePreviews(state, open).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
     SOP: cast && cast.status === 'rolled' ? { remaining: getSOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
     grazeSave: cast && canSaveGraze(state, cast) ? { AP: GRAZE_SAVE.AP, STA: 0 } : null,
-    deliveries: cast && cast.status === 'rolled'
-      ? getCastDeliveries(state, cast).map((d: DeliveryView) => ({ target: state.characters[d.id]?.fightName ?? '', name: d.name, kind: d.kind, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null }))
-      : [],
+    deliveries: cast && cast.status === 'rolled' ? getCastDeliveries(state, cast) : [],
   }
 }
 

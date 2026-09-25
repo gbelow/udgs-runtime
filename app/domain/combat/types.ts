@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, TerrainPatchSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -19,6 +19,11 @@ export const ActionRollSchema = z.object({
   HOP: num.default(0),
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
+
+// What an action produced for each character it reached, keyed by id: the
+// deliveries that character's own effect processor lands.
+export const DeliveriesSchema = z.record(z.string(), z.array(DeliverySchema))
+export type Deliveries = z.infer<typeof DeliveriesSchema>
 
 export const HOPPurchaseSchema = z.enum(HOP_PURCHASES)
 export type HOPPurchase = z.infer<typeof HOPPurchaseSchema>
@@ -75,7 +80,6 @@ export const TerrainCellSchema = z.object({
   // slippery, unstable, long, and narrow the path is" — the table's call
   DL: num.default(5),
 }).strip()
-export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
 // The spatial facts of a fight, in game units. The real grid is a VTT's; this
 // is what the domain needs of it to judge distance, reach, cover and where a
@@ -201,7 +205,7 @@ export const GrappleFactsSchema = z.object({
   freed: z.array(str).default([]),
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
-  deliveries: z.record(str, z.array(DeliverySchema)).default({}),
+  deliveries: DeliveriesSchema.default({}),
 }).strip()
 export type GrappleFacts = z.infer<typeof GrappleFactsSchema>
 
@@ -242,6 +246,9 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Catch": a grab made at a running target, "3 AP + 1STA",
   // whose hit is a trample the catcher defends with their running speed
   catch: z.boolean().default(false),
+  // combat.tex "Evasive Jump": where the target's jump landed them, written
+  // at the resolve
+  jumpedTo: PlacementSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
@@ -257,6 +264,9 @@ export const ShootActionSchema = z.object({
   // what landing did to the target's action, written at the resolve: an
   // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
   interruption: InterruptionSchema.default('none'),
+  // combat.tex "Throw": what left the hand, one of it, to land where the
+  // throw was aimed; written at the resolve, null for a shot
+  thrown: ItemSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": a ranged attack
@@ -267,8 +277,6 @@ export const ShootActionSchema = z.object({
 // movement"). Whoever stands in the area when it resolves is in `facts`,
 // each with what reaches them at their zone's degree, one delivery per
 // effect of the payload that reaches them.
-export const ExplosionFactsSchema = z.record(z.string(), z.array(DeliverySchema))
-export type ExplosionFacts = z.infer<typeof ExplosionFactsSchema>
 
 // Where an explosion comes from decides its test: thrown, the reflex is
 // against the thrower's Accuracy; cast, against what the spell's effects
@@ -288,7 +296,10 @@ export const ExplosionActionSchema = z.object({
   center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
   ...Cancellable,
-  facts: ExplosionFactsSchema.nullable().default(null),
+  facts: DeliveriesSchema.nullable().default(null),
+  // combat.tex "Gas": what it leaves on the ground, cell by cell, written at
+  // the resolve while whatever carried the charge is still there to read
+  paint: z.array(z.object({ cell: CoordSchema, patch: TerrainPatchSchema })).default([]),
 }).strip()
 
 // spells.tex "Casting spells": a spell cast in the fight. The caster's test
@@ -310,7 +321,7 @@ export const CastActionSchema = z.object({
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
   grazeSaved: z.boolean().default(false),
   ...Cancellable,
-  facts: z.record(z.string(), z.array(DeliverySchema)).nullable().default(null),
+  facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.

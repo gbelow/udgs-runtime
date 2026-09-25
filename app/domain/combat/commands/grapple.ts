@@ -1,6 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { Updater, Grapple } from '../types'
 import { diffGrappleAfflictions, getHeldGrapples } from '../rules/grapple'
+import { cure, inflict } from '../../character/commands/addAffliction'
 
 // Brings the fight's grapples and the characters in them back into line
 // with each other after anything that may have changed either: a holder
@@ -22,9 +23,9 @@ export function settleGrapples(before: Grapple[]): Updater {
       const remove = off[id] ?? []
       const touchesSeized = c.held.some((i) => seizedBefore.has(i.id) || seizedAfter.has(i.id))
       if (add.length === 0 && remove.length === 0 && !touchesSeized) return [id, c]
-      const afflictions = [...new Set([...c.afflictions.filter((a) => !(remove as string[]).includes(a)), ...add])]
+      const afflicted = inflict(add)(cure(remove)(c))
       const held = touchesSeized ? c.held.map((i) => (seizedBefore.has(i.id) || seizedAfter.has(i.id) ? { ...i, seized: seizedAfter.has(i.id) } : i)) : c.held
-      return [id, { ...c, afflictions, held }]
+      return [id, { ...afflicted, held }]
     }))
     return { ...state, grapples: after, characters }
   }

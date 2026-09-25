@@ -1,5 +1,5 @@
 import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon } from '../../types'
-import type { AttackAction, CombatState, HOPPurchase, MoveAction, Trample } from '../types'
+import type { ActionOf, AttackAction, CombatState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
@@ -11,11 +11,13 @@ import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
 import { getBalance, getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
+import { getHeldItem } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
-import { getAction, getReactionsTo, getRootOf } from './action'
-import { getAttackVariant, getShotDefense } from './attack'
+import { getAction, getReactionsTo } from './action'
+import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
-import { getMovementSpeed, getStepDelta, isHookedRunner } from './move'
+import { getMovementSpeed } from './move'
+import { getGrabFacts } from './grapple'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -30,7 +32,7 @@ const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '
 // target or by an adjacent guard, whose shield it is that absorbs.
 function getDefense(state: CombatState, root: AttackAction): Defense {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
-  const reaction = root.kind === 'shoot' ? getShotDefense(state, root) : defender ? getReactionsTo(state, root.id).find((r) => r.actorId === defender.id) : undefined
+  const reaction = getDefendingReaction(state, root)
   const reactor = reaction ? state.characters[reaction.actorId] : undefined
   if (!defender || !reaction || !reactor) return UNDEFENDED
   const defenseAP = reaction.cost?.AP ?? 0
@@ -103,20 +105,24 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer:
 // ---------------------------------------------------------------------------
 // Braced and hooked strikes
 
-// The move an opportunity strike was drawn by and the step it fires on;
-// null for a strike no move opened.
-function getOpportunityStep(state: CombatState, root: AttackAction): { move: MoveAction; at: number; reactorId: string } | null {
+// The opportunity attack a strike was opened by; null for any other.
+function getOpportunityReaction(state: CombatState, root: AttackAction): ActionOf<'opportunityAttack'> | null {
   const reaction = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-  const move = reaction?.kind === 'opportunityAttack' ? getRootOf(state, reaction) : null
-  return reaction?.kind === 'opportunityAttack' && reaction.at !== null && move?.kind === 'move' ? { move, at: reaction.at, reactorId: reaction.actorId } : null
+  return reaction?.kind === 'opportunityAttack' ? reaction : null
 }
 
-// combat.tex "Braced Attack": "a reaction when a target is moving towards
-// the weapon ... when movement is between two spaces within weapon range" —
-// the opportunity attack a step towards the attacker draws.
+// The move an opportunity strike was drawn by and the step it fires on;
+// null for a strike no move opened.
+function getOpportunityStep(state: CombatState, root: AttackAction): { move: MoveAction; at: number } | null {
+  const reaction = getOpportunityReaction(state, root)
+  return reaction ? getMoveStep(state, reaction) : null
+}
+
+// combat.tex "Braced Attack": the opportunity attack a step towards the
+// attacker draws.
 function isBracedChance(state: CombatState, root: AttackAction): boolean {
-  const step = getOpportunityStep(state, root)
-  return step !== null && (getStepDelta(state, step.move, step.at, step.reactorId) ?? 0) < 0
+  const reaction = getOpportunityReaction(state, root)
+  return reaction !== null && isBracedStep(state, reaction)
 }
 
 // combat.tex "Hook Attack": "used as an action or as a reaction against
@@ -124,8 +130,8 @@ function isBracedChance(state: CombatState, root: AttackAction): boolean {
 function isHookChance(state: CombatState, root: AttackAction): boolean {
   if (root.kind !== 'strike') return false
   if (!root.opportunity) return true
-  const step = getOpportunityStep(state, root)
-  return step !== null && isHookedRunner(state, step.move, step.at, step.reactorId)
+  const reaction = getOpportunityReaction(state, root)
+  return reaction !== null && isHookStep(state, reaction)
 }
 
 // What the hooked target was doing: jumping clear of the blow, running, or
@@ -139,7 +145,7 @@ function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'j
 // combat.tex "Braced Attack": "The additional damage effect also triggers a
 // trample" — a braced hit, against the mover it met; combat.tex "Catch": so
 // does a catch that lands.
-export function getStrikeTrample(state: CombatState, root: AttackAction): Trample | null {
+function getStrikeTrample(state: CombatState, root: AttackAction): Trample | null {
   if (root.kind !== 'strike' || (!root.catch && (root.spent.braced ?? 0) === 0) || root.roll?.degree !== 'hit') return null
   const step = getOpportunityStep(state, root)
   return step ? getBlowTrample(state, root, step.move, step.at) : null
@@ -151,7 +157,7 @@ export function getStrikeTrample(state: CombatState, root: AttackAction): Trampl
 // higher, the target falls and is prone. Targeting the head or legs increases
 // the attacker's value by +5." The moving party is the target; an evasive
 // jump moves at the backwards jump ("Evasive Jump").
-export function isTripped(state: CombatState, root: AttackAction): boolean {
+function isTripped(state: CombatState, root: AttackAction): boolean {
   const attacker = state.characters[root.actorId]
   const target = root.targetId ? state.characters[root.targetId] : undefined
   if (!attacker || !target || (root.spent.hook ?? 0) === 0 || root.roll?.degree !== 'hit') return false
@@ -185,7 +191,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
 // with is not written into the item.
 export function getChargedWeapon(c: Character, action: AttackAction): Item | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  const item = row ? c.held.find((i) => i.id === row.wielded.itemId) : undefined
+  const item = row ? getHeldItem(c, row.wielded.itemId) : undefined
   return item?.charge ? item : null
 }
 
@@ -193,6 +199,33 @@ function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] 
   const charge = getChargedWeapon(c, action)?.charge
   if (!charge) return []
   return charge.effects.flatMap((e) => (e.type === 'damage' && e.area === null ? e.effect.damage : []))
+}
+
+// What the attack's delivery does to its target's own action.
+export function getInterruption(state: CombatState, root: AttackAction, facts: Delivery | null): Interruption {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  return (facts && target ? outcomeOf(facts, target)?.interruption : undefined) ?? 'none'
+}
+
+// What a strike's landing did beyond its damage, written at the resolve:
+// what it did to the target's own action, the trip and the trample it set
+// off, the grab it made, and where the target's evasive jump took them.
+// combat.tex "Initiate the Grab": "On a hit, the opponent is grappled, and
+// any movement initiated by them is stopped"; combat.tex "Catch": "If the
+// target is stopped, the catcher can decide to grapple them without further
+// tests".
+export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'tripped' | 'trample' | 'grabbed' | 'jumpedTo'> {
+  const interruption = getInterruption(state, strike, facts)
+  const trample = getStrikeTrample(state, strike)
+  const grabbed = strike.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, strike)
+  const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
+  return {
+    interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,
+    tripped: isTripped(state, strike),
+    trample,
+    grabbed,
+    jumpedTo: jump?.kind === 'evasiveJump' ? jump.to : null,
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -239,7 +272,7 @@ function priceOf(purchase: HOPPurchase, target: Character): number {
   return cost === 'deflection' ? getArmor(target).deflection : cost
 }
 
-export function getHOPSpent(root: AttackAction, target: Character): number {
+function getHOPSpent(root: AttackAction, target: Character): number {
   return HOP_PURCHASES.reduce((sum, p) => sum + (root.spent[p] ?? 0) * priceOf(p, target), 0)
 }
 

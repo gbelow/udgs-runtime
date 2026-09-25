@@ -4,7 +4,7 @@ import { makeBoard } from '../factories'
 import { coordKey, directionTo, sameCell } from '../geometry'
 import { getOpenAction } from '../rules/action'
 import { getExplosionCenters } from '../rules/explosion'
-import { placeAt } from '../rules/board'
+import { placeAt, withPlacements } from '../rules/board'
 import { canStandAt, getEvasiveJumpPlacements, pickPathCell } from '../rules/move'
 import { aimExplosion, aimPush, amendAction, declareReaction } from './action'
 
@@ -32,7 +32,7 @@ export function placeCharacter(id: string, cell: Coord): Updater {
     if (!state.board || !state.characters[id] || getOpenAction(state)) return state
     const placement = placeAt(state.board, state.board.placements[id] ?? PlacementSchema.parse({}), cell)
     if (!canStandAt(state, id, placement)) return state
-    return { ...state, board: { ...state.board, placements: { ...state.board.placements, [id]: placement } } }
+    return withPlacements(state, { [id]: placement })
   }
 }
 
@@ -43,7 +43,7 @@ export function turnCharacter(id: string): Updater {
     if (!state.board || !current || getOpenAction(state)) return state
     const placement = { ...current, orientation: (current.orientation + 1) % 6 }
     if (!canStandAt(state, id, placement)) return state
-    return { ...state, board: { ...state.board, placements: { ...state.board.placements, [id]: placement } } }
+    return withPlacements(state, { [id]: placement })
   }
 }
 
@@ -76,7 +76,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // Jump") — declaring the jump if it has not been; or, once a push is
 // settled, points it towards the cell or circles round to it (combat.tex
 // "Push and drag").
-export function pickCell(cell: Coord, newId: () => string = () => `${Date.now()}`): Updater {
+export function pickCell(cell: Coord, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open) return state

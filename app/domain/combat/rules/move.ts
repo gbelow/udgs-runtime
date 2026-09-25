@@ -5,8 +5,6 @@ import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getAfflictions } from '../../character/rules/afflictions'
-import { getBalanceTerms } from '../../character/rules/skills'
-import { Term } from '../../character/rules/terms'
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
@@ -14,6 +12,7 @@ import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board
 import { getMoveTramples } from './trample'
 import { isImmobile, isInGrapple } from './grapple'
 import { getDrawnOpportunityAttacks, type DrawnOpportunityAttack } from './opportunity'
+import { findOpenRoot } from './action'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -285,10 +284,6 @@ function firstDifficultStep(state: CombatState, action: MoveAction): number | nu
   return i === -1 ? null : i + 1
 }
 
-export function getBalanceTestTerms(c: Character): Term[] {
-  return getBalanceTerms(c)
-}
-
 // The DL of the first difficult cell the move enters.
 export function getBalanceDL(state: CombatState, action: MoveAction): number {
   const c = state.characters[action.actorId]
@@ -308,7 +303,7 @@ export function getBalanceDL(state: CombatState, action: MoveAction): number {
 // inconsequential. On a success, only moving at a normal speed is safe, but
 // not jumping or running. On a graze, moving at a careful speed is safe. On
 // a miss, only crawling is allowed."
-export function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
+function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
   switch (degree) {
     case 'critical': return true
     case 'hit': return kind !== 'run' && kind !== 'jump'
@@ -423,8 +418,7 @@ export function getMoveDestination(state: CombatState, action: MoveAction, path:
 // The move the character is in the middle of, if an opportunity attack has
 // them stood part of the way along one.
 function getMoveUnderway(state: CombatState, id: string): MoveAction | null {
-  const move = state.actions.find((a) => a.kind === 'move' && a.actorId === id && a.reactionTo === null && a.status === 'rolled')
-  return move?.kind === 'move' ? move : null
+  return findOpenRoot(state, 'move', (m) => m.actorId === id && m.status === 'rolled')
 }
 
 // How far along the move underway the character has walked: the step of the
@@ -517,7 +511,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
 }
 
-export function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
+function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
   return cells.find((r) => sameCell(r.cell, cell)) ?? null
 }
 

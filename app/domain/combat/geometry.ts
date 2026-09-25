@@ -53,7 +53,7 @@ export function setDistance(a: readonly Coord[], b: readonly Coord[]): number {
   return best
 }
 
-export function neighbors(c: Coord): Coord[] {
+function neighbors(c: Coord): Coord[] {
   return DIRECTIONS.map((d) => add(c, d))
 }
 

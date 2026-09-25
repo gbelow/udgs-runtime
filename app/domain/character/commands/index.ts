@@ -1,6 +1,6 @@
 export { heal, updateIL } from "./heal"
 export { bleed, updateSTA, suffocate } from "./bleed"
-export { addAffliction } from "./addAffliction"
+export { addAffliction, inflict, cure } from "./addAffliction"
 export { restCharacter } from "./rest"
 export { actionSurge } from "./actionSurge"
 export { wearFromContainer, wearFromHands, equipArmor, doffArmor, putGauntlets, putHelm } from "./armor"

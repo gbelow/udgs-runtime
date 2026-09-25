@@ -1,17 +1,17 @@
 import type { CampaignCharacter } from '../../types'
 import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Grapple, type GrappleFacts, type Trample } from '../types'
 import { payCost } from '../../character/commands/cost'
+import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll } from '../../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { findWeaponRow } from '../rules/weaponRow'
-import { onFloor } from '../rules/floor'
 import { getAttackKind } from '../../weaponProperties'
+import { onFloor } from '../rules/floor'
 import { getMoveDestination } from '../rules/move'
-import { getReactionsTo } from '../rules/action'
+import { isAttackAction } from '../rules/attack'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
-import { getTerrainPaint } from '../rules/explosion'
 import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -85,7 +85,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) as CampaignCharacter : c
-        if (action.kind !== 'strike' && action.kind !== 'shoot') return c
+        if (!isAttackAction(action)) return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
         // with" — and leaves the object empty. A row that pierces has no
@@ -117,6 +117,9 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
 
 // combat.tex "Throw": a thrown row is made by letting go of the weapon; a
 // natural weapon or a shooting one stays where it is.
+const fallProne = inflict(['prone'])
+const standUp = cure(['prone'])
+
 function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string): CampaignCharacter {
   const row = findWeaponRow(c, weaponKey, attack)
   if (!row || row.wielded.natural || getAttackKind(row.atk.range) !== 'throw') return c
@@ -163,21 +166,10 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
       const item = owner ? getHeldItem(owner, itemId) : undefined
       return item ? [...floor, onFloor(item, cellOf(ownerId))] : floor
     }
-    if (action.kind === 'shoot') {
-      const shooter = state.characters[action.actorId]
-      const row = shooter ? findWeaponRow(shooter, action.weaponKey, action.attack) : null
-      const item = shooter && row && !row.wielded.natural ? getHeldItem(shooter, row.wielded.itemId) : undefined
-      if (!item || !row || getAttackKind(row.atk.range) !== 'throw') return floor
-      const unit = item.amount > 1 ? { ...item, id: `${item.id}:${action.id}`, amount: 1, charge: null } : item
-      return [...floor, onFloor(unit, cellOf(action.targetId))]
-    }
+    if (action.kind === 'shoot') return action.thrown ? [...floor, onFloor(action.thrown, cellOf(action.targetId))] : floor
     if (action.kind === 'pickUp') return floor.filter((f) => f.item.id !== action.itemId)
     return floor
   }
-}
-
-function fallProne(c: CampaignCharacter): CampaignCharacter {
-  return { ...c, afflictions: [...new Set([...c.afflictions, 'prone' as const])] }
 }
 
 // combat.tex "Trample": whoever loses is stunned — the runner "stopped and
@@ -188,17 +180,13 @@ function fallProne(c: CampaignCharacter): CampaignCharacter {
 function trampledBy(tramples: Trample[], runnerId: string, c: CampaignCharacter): CampaignCharacter {
   const lost = tramples.filter((t) => (t.result === 'stopped' ? runnerId : t.id) === c.id)
   if (lost.length === 0) return c
-  const stunned = { ...c, resources: { ...c.resources, AP: c.resources.AP - STUN_AP } }
+  const stunned = payCost({ AP: STUN_AP, STA: 0 })(c)
   return lost.some((t) => t.result === 'knocked') ? fallProne(stunned) : stunned
 }
 
 // Where each trample pushed whoever lost it, the last push standing.
 function pushedBy(tramples: Trample[], placements: Board['placements']): Board['placements'] {
   return tramples.reduce((acc, t) => (t.to ? { ...acc, [t.id]: t.to } : acc), placements)
-}
-
-function standUp(c: CampaignCharacter): CampaignCharacter {
-  return { ...c, afflictions: c.afflictions.filter((a) => a !== 'prone') }
 }
 
 // The one place an action changes the board, the same way: it reads the
@@ -218,16 +206,15 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
     if (action.kind === 'strike') {
       const placements = pushedBy(action.trample ? [action.trample] : [], board.placements)
       // combat.tex "Evasive Jump": the defender lands where the jump said
-      const jump = getReactionsTo(state, action.id).find((r) => r.kind === 'evasiveJump')
-      if (!jump || jump.kind !== 'evasiveJump' || !jump.to) return { ...board, placements }
-      return { ...board, placements: { ...placements, [jump.actorId]: jump.to } }
+      if (!action.jumpedTo || !action.targetId) return { ...board, placements }
+      return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }
     }
     // combat.tex "Push and drag": the pair where the push left them
     if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas": what the explosion leaves on the ground, by zone
     if (action.kind === 'explosion') {
       const terrain = { ...board.terrain }
-      for (const { cell, patch } of getTerrainPaint(state, action)) {
+      for (const { cell, patch } of action.paint) {
         const key = coordKey(cell)
         const was = terrain[key] ?? TerrainCellSchema.parse({})
         terrain[key] = { ...was, visibility: patch.visibility ?? was.visibility, suffocating: was.suffocating || patch.suffocating }

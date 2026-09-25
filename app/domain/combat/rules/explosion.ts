@@ -1,5 +1,5 @@
 import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
-import { DEGREES, type CombatState, type Coord, type Degree, type ExplosionAction, type ExplosionFacts } from '../types'
+import { DEGREES, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { resolveDL } from '../../character/rules/spells'
@@ -8,7 +8,8 @@ import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
 import { DIRECTIONS, add, coordKey, disk, distance, ring, sameCell, setDistance } from '../geometry'
 import { angleBetween, angularGap, getPlacedFootprint, getShotReachOf, seesAcross, toPlane } from './board'
-import { findWeaponRow } from './weaponRow'
+import { findWeaponRow, type WeaponRow } from './weaponRow'
+import { getHeldItem } from '../../item/rules/hands'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -27,21 +28,28 @@ export type ZoneCell = { cell: Coord; degree: Degree }
 export function getExplosionPayload(state: CombatState, action: ExplosionAction): { effects: SpellEffect[]; producer: CampaignCharacter } | null {
   const producer = state.characters[action.actorId]
   if (!producer) return null
-  const areaEffects = (effects: SpellEffect[]) => effects.filter((e) => e.target === 'area' && e.area !== null)
-  if (action.source === 'thrown') {
-    const row = findWeaponRow(producer, action.weaponKey, action.attack)
-    if (!row || !hasProperty(row.atk.properties, 'explosion')) return null
-    const item = producer.held.find((i) => i.id === row.wielded.itemId)
-    const effects = areaEffects(item?.charge ? item.charge.effects : produceEffects(producer, row.atk.payload))
-    return effects.length > 0 ? { effects, producer } : null
-  }
-  if (action.source === 'detonate') {
-    const charge = findHeldItem(state, action.itemId)?.item.charge
-    const effects = charge ? areaEffects(charge.effects) : []
-    return effects.length > 0 ? { effects, producer } : null
-  }
-  const effects = isSpellKey(action.key) ? areaEffects(produceEffects(producer, SPELLS[action.key].effects)) : []
+  const effects = (() => {
+    if (action.source === 'thrown') {
+      const row = findWeaponRow(producer, action.weaponKey, action.attack)
+      return row && hasProperty(row.atk.properties, 'explosion') ? getRowAreaEffects(producer, row) : []
+    }
+    if (action.source === 'detonate') return findHeldItem(state, action.itemId)?.item.charge?.effects.filter(isAreaEffect) ?? []
+    return isSpellKey(action.key) ? produceEffects(producer, SPELLS[action.key].effects).filter(isAreaEffect) : []
+  })()
   return effects.length > 0 ? { effects, producer } : null
+}
+
+// An effect that covers an area rather than one character (combat.tex
+// "Explosions").
+export function isAreaEffect(e: SpellEffect): boolean {
+  return e.target === 'area' && e.area !== null
+}
+
+// What a thrown row goes off with: the charge its item carries, or a
+// mundane explosive's own payload.
+function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEffect[] {
+  const charge = getHeldItem(producer, row.wielded.itemId)?.charge
+  return (charge ? charge.effects : produceEffects(producer, row.atk.payload)).filter(isAreaEffect)
 }
 
 // spells.tex "Charged": a charge waits in an object. Who holds the one
@@ -65,19 +73,16 @@ export function getChargeOptions(state: CombatState): ChargeOption[] {
     if (!cell) return []
     return holder.held.flatMap((item): ChargeOption[] => {
       const key = item.charge?.key
-      if (!key || !isSpellKey(key) || !item.charge?.effects.some((e) => e.target === 'area' && e.area !== null)) return []
+      if (!key || !isSpellKey(key) || !item.charge?.effects.some(isAreaEffect)) return []
       return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: holder.fightName ?? '', cell }]
     })
   })
 }
 
-// Whether a thrown row has anything to go off with: a charge in the item,
-// or a mundane explosive's own payload.
+// Whether a thrown row has anything with an area to go off with.
 export function hasExplosionPayload(c: CampaignCharacter, weaponKey: string, attack: string): boolean {
   const row = findWeaponRow(c, weaponKey, attack)
-  if (!row) return false
-  const item = c.held.find((i) => i.id === row.wielded.itemId)
-  return (item?.charge ?? null) !== null || row.atk.payload.some((e) => e.target === 'area' && e.area !== null)
+  return row !== null && getRowAreaEffects(c, row).length > 0
 }
 
 // The areas the payload covers, one per effect that has one, in cells —
@@ -98,7 +103,7 @@ export function isSpray(state: CombatState, action: ExplosionAction): boolean {
 // ones in the edge are grazed." The centre cell is the critical zone, the
 // outermost ring the graze, every ring between a hit. (Past 5m of radius the
 // book lets the table widen the outer zones, 30%/40%/30%; not done here.)
-export function getDiskZones(center: Coord, radius: number): ZoneCell[] {
+function getDiskZones(center: Coord, radius: number): ZoneCell[] {
   return Array.from({ length: radius + 1 }, (_, k) =>
     ring(center, k).map((cell): ZoneCell => ({ cell, degree: k === 0 ? 'critical' : k === radius ? 'graze' : 'hit' })),
   ).flat()
@@ -109,7 +114,7 @@ export function getDiskZones(center: Coord, radius: number): ZoneCell[] {
 // the angle either side of the direction; the first ring is the critical
 // zone, the last the graze, the rings between a hit. A cell on the cone's
 // edge is in it.
-export function getConeZones(origin: Coord, direction: number, length: number, angle: number): ZoneCell[] {
+function getConeZones(origin: Coord, direction: number, length: number, angle: number): ZoneCell[] {
   const from = toPlane(origin)
   const heading = angleBetween(from, toPlane(add(origin, DIRECTIONS[direction])))
   const half = (angle / 2) * (Math.PI / 180) + 1e-9
@@ -124,7 +129,7 @@ export function getConeZones(origin: Coord, direction: number, length: number, a
 // The zones of one area, once the explosion is fixed where it lands: a disk
 // at the centre, a spray in its direction from the attacker, less the
 // attacker's own footprint. Empty before.
-export function getAreaZones(state: CombatState, action: ExplosionAction, area: Area): ZoneCell[] {
+function getAreaZones(state: CombatState, action: ExplosionAction, area: Area): ZoneCell[] {
   if (area.shape === 'explosion') return action.center ? getDiskZones(action.center, area.radius) : []
   const from = state.board?.placements[action.actorId]
   const own = getPlacedFootprint(state, action.actorId) ?? []
@@ -167,7 +172,7 @@ export function getExplosionZones(state: CombatState, action: ExplosionAction): 
 // combat.tex "Explosions": "If a creature occupies multiple spaces, apply
 // the strongest effect." The degree the character's footprint takes from
 // one area where it stands now, or null outside it.
-export function getZoneOf(state: CombatState, action: ExplosionAction, id: string, area: Area): Degree | null {
+function getZoneOf(state: CombatState, action: ExplosionAction, id: string, area: Area): Degree | null {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
   const zones = new Map(getAreaZones(state, action, area).map((z) => [coordKey(z.cell), z.degree]))
@@ -200,10 +205,10 @@ export function getAffected(state: CombatState, action: ExplosionAction): { id: 
 // whose area they stand in, at that zone's degree, made by the producer
 // (spells.tex "Casting spells"; gear.tex "Explosion": "applies the weapon's
 // damage ... and any other effects"). What goes to the ground is not here.
-export function getExplosionFacts(state: CombatState, action: ExplosionAction): ExplosionFacts {
+export function getExplosionFacts(state: CombatState, action: ExplosionAction): Deliveries {
   const payload = getExplosionPayload(state, action)
   if (!payload) return {}
-  const facts: ExplosionFacts = {}
+  const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
     const deliveries = payload.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []

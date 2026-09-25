@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CombatStateSchema, type Action, type ActionKind, type CombatState } from '../types'
+import { BoardSchema, CombatStateSchema, type Action, type ActionKind, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
@@ -7,7 +7,10 @@ import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/action'
 import { reduceCharacter } from './reduce'
-import { cancelAction, commitAction, declareAction, declareReaction, resolveAction, rollAction, setTarget } from './action'
+import { amendAction, cancelAction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
+import { getTerrainPaint } from '../rules/explosion'
+import { produceEffects } from '../../character/rules/production'
+import { SPELLS } from '../../spells'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -71,7 +74,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   it('the roll pays every declared price in the same state', () => {
     const before = declared(attack)
     expect(getReactionsTo(before, getOpenAction(before)!.id)).toHaveLength(1)
-    const after = rollAction(() => 5)(before)
+    const after = rollAction(() => 5, newId)(before)
     const open = getOpenAction(after)
     expect(open?.roll).not.toBeNull()
 
@@ -87,9 +90,9 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   // Once the die is thrown there is no way back: the action can only be
   // played out, and nothing is refunded by trying.
   it('a rolled action cannot be cancelled', () => {
-    const rolled = rollAction(() => 5)(declared(attack))
+    const rolled = rollAction(() => 5, newId)(declared(attack))
     expect(cancelAction()(rolled)).toEqual(rolled)
-    expect(getOpenAction(resolveAction()(rolled))).toBeNull()
+    expect(getOpenAction(resolveAction(newId)(rolled))).toBeNull()
   })
 
   // A price that cannot be paid stops the die: the state is left exactly as
@@ -97,7 +100,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   it('refuses the roll when someone cannot pay, and changes nothing', () => {
     const before = declared(attack)
     const broke = { ...before, characters: { ...before.characters, def: { ...before.characters.def, resources: { ...before.characters.def.resources, AP: 0 } } } }
-    expect(rollAction(() => 5)(broke)).toEqual(broke)
+    expect(rollAction(() => 5, newId)(broke)).toEqual(broke)
   })
 })
 
@@ -138,5 +141,26 @@ describe('what can be declared', () => {
       const next = declareReaction('def', option.draft, newId)(committed)
       expect(next !== committed).toBe(option.available)
     }
+  })
+})
+
+// A charge set off, or a charged item thrown, is consumed by the blast
+// before the board is painted; the gas was read off the charge after it had
+// gone, so a smoke charge left no smoke.
+describe('a charge set off', () => {
+  it('leaves on the ground what it said it would', () => {
+    const base = fighter('a')
+    const bomb = ItemSchema.parse({ id: 'bomb', name: 'bomb' })
+    const charge = { key: 'smoke-explosive', effects: produceEffects(base, SPELLS['smoke-explosive'].effects) }
+    let s: CombatState = {
+      ...combat({ ...base, fightName: 'a', held: [{ ...bomb, charge }] }),
+      board: BoardSchema.parse({ placements: { a: { cell: { q: 0, r: 0 } } } }),
+    }
+    s = amendAction({ center: { q: 0, r: 0 } })(declareAction('a', { kind: 'explosion', source: 'detonate', itemId: 'bomb' }, newId)(s))
+    const open = getOpenAction(s)
+    const painted = open?.kind === 'explosion' ? getTerrainPaint(s, open).length : 0
+    expect(painted).toBeGreaterThan(0)
+    const after = resolveAction(newId)(payAction(newId)(commitAction()(s)))
+    expect(Object.keys(after.board?.terrain ?? {})).toHaveLength(painted)
   })
 })

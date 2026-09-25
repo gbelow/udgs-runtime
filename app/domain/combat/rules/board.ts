@@ -20,7 +20,7 @@ import { findWeaponRow } from './weaponRow'
 // creating.tex "Size and Space Occupation": the cells a character covers
 // around its anchor, before it is placed: its shape at its size's cell count,
 // in orientation 0.
-export function getShapeCells(c: Character): readonly Coord[] {
+function getShapeCells(c: Character): readonly Coord[] {
   return FOOTPRINTS[c.shape][FOOTPRINT_CELLS[getSize(c) - 1]]
 }
 
@@ -49,6 +49,12 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
 // "High Ground"); off any board, the ground is at 0.
 export function placeAt(board: Board | null, placement: Placement, cell: Coord): Placement {
   return { ...placement, cell, elevation: board?.terrain[coordKey(cell)]?.elevation ?? 0 }
+}
+
+// The fight with the given characters standing elsewhere, for reading what
+// would hold there; unchanged on a fight without a board.
+export function withPlacements(state: CombatState, placements: Board['placements']): CombatState {
+  return state.board ? { ...state, board: { ...state.board, placements: { ...state.board.placements, ...placements } } } : state
 }
 
 export function getPlacedFootprint(state: CombatState, id: string): Coord[] | null {
@@ -86,7 +92,7 @@ export function getReach(weapon: Weapon, range: MeleeRange): number {
 
 // combat.tex "High Ground": "standing on terrain around 1m higher than its
 // surroundings". Positive when `a` stands above `b`.
-export function getElevationDifference(state: CombatState, a: string, b: string): number | null {
+function getElevationDifference(state: CombatState, a: string, b: string): number | null {
   const pa = state.board?.placements[a]
   const pb = state.board?.placements[b]
   return pa && pb ? pa.elevation - pb.elevation : null
@@ -225,7 +231,7 @@ export function toPlane(c: Coord): { x: number; y: number } {
   return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
 }
 
-export function centroid(cells: readonly Coord[]): { x: number; y: number } {
+function centroid(cells: readonly Coord[]): { x: number; y: number } {
   const points = cells.map(toPlane)
   return {
     x: points.reduce((sum, p) => sum + p.x, 0) / points.length,

@@ -28,13 +28,13 @@ function grappling(): CombatState {
   }
   s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = commitAction()(setTarget('b')(s))
-  return resolveAction(newId)(rollAction(() => 50)(s))
+  return resolveAction(newId)(rollAction(() => 50, newId)(s))
 }
 
 // The open action's test thrown to come out over its DL by exactly `over`.
 function rollOver(s: CombatState, over: number): CombatState {
   const test = getRootTest(s, getOpenAction(s)!)!
-  return rollAction(() => test.DL - test.skill + over)(s)
+  return rollAction(() => test.DL - test.skill + over, newId)(s)
 }
 
 const OVER = { critical: 10, hit: 5, graze: 0, miss: -1 } as const

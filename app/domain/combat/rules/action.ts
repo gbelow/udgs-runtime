@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionOf, CombatState } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState } from '../types'
 import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -7,14 +7,15 @@ import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
-import { getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
+import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
+import { canAfford } from '../../character/rules/cost'
 import { findHeldItem, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { getTriggers, getTriggersFor } from './reactions'
 import { isCancelled, isTriggeringAction } from './opportunity'
 import { canGrab, canStandByEscape, findGrapple, getHoldBackTargets, getManeuverTargets, getPartners, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
 import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isVariantOpen } from './attack'
+import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isAttackAction, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
 
 // An action's life in the fight: which one is being played out, whether its
@@ -43,6 +44,13 @@ export function getOpenAction(state: CombatState): Action | null {
 export function needsDie(state: CombatState, action: Action): boolean {
   if (action.kind === 'move') return needsBalanceTest(state, action)
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
+}
+
+// The first root of the kind still being played out — waiting on what it
+// opened, or on its own resolve — that `match` accepts.
+export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, match: (a: ActionOf<K>) => boolean = () => true): ActionOf<K> | null {
+  const found = state.actions.find((a): a is ActionOf<K> => a.kind === kind && a.reactionTo === null && a.status !== 'resolved' && match(a as ActionOf<K>))
+  return found ?? null
 }
 
 export function getReactionsTo(state: CombatState, id: string): Action[] {
@@ -179,6 +187,15 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
   return price ? getActionCost(c, price) : { AP: 0, STA: 0 }
 }
 
+// What the action costs its actor now, or null if they cannot pay it. A
+// move pays for the path as it will be walked, cut wherever it will stop.
+export function getPayableCost(state: CombatState, action: Action): ActionCost | null {
+  const c = state.characters[action.actorId]
+  if (!c) return null
+  const cost = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
+  return cost && canAfford(c, cost) ? cost : null
+}
+
 // combat.tex "Evasion": "spend 2 AP to react"; abilities.tex "Precise
 // Reflexes": "If the character uses reflexes without moving, reflexes only
 // cost 1 AP."
@@ -216,7 +233,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
     // it moves someone towards may answer it
     if (open.kind === 'drag') return needsDragAim(state, open) ? 'aim' : !open.fought && getTriggers(state, open).length > 0 ? 'react' : 'confirm'
     if (open.kind === 'grapple' && needsDisarmPick(state, open)) return 'choose'
-    return (open.kind === 'strike' || open.kind === 'shoot' || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+    return (isAttackAction(open) || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }
   if (open.status === 'committed') return 'react'
   const actor = state.characters[open.actorId]

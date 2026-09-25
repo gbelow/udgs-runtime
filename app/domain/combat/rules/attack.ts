@@ -1,15 +1,15 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack } from '../../types'
-import { ActionSchema, type Action, type ActionOf, type AttackAction, type CombatState, type OpportunityAction, type StrikeAction, type WeaponAction } from '../types'
+import { ActionSchema, type Action, type ActionOf, type AttackAction, type CombatState, type MoveAction, type OpportunityAction, type StrikeAction, type WeaponAction } from '../types'
 import { LOCATIONS, QUICKEN_DL } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getAttacksList, getShotKind, needsFocus } from '../../character/rules/gear'
-import { getAccuracy, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getAccuracy, getBalanceTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
-import { isHighGround } from './board'
-import { getBalanceDL, getBalanceTestTerms, getMoveWaypoint, getStepDelta, isHookedRunner } from './move'
+import { isHighGround, withPlacements } from './board'
+import { getBalanceDL, getMoveWaypoint, getStepDelta, isHookedRunner } from './move'
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
 import { getDragPath, getGrappleStrikeTerm, getManeuverDLTerms } from './grapple'
@@ -23,6 +23,11 @@ import { getCastTerms } from './cast'
 
 // ---------------------------------------------------------------------------
 // Weapon rows named by an action
+
+// The two weapon attacks, rolled against a defense and landing as an injury.
+export function isAttackAction(action: Action): action is AttackAction {
+  return action.kind === 'strike' || action.kind === 'shoot'
+}
 
 // gear.tex "Explosion": a row that "resolves like an explosion" — it has
 // the property. Whether it has anything to go off with is the charge's.
@@ -82,13 +87,13 @@ export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opp
 // from there.
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = getRootOf(state, reaction)
-  if (root?.kind === 'drag' && reaction.at !== null && reaction.at > 1 && state.board) {
+  if (root?.kind === 'drag' && reaction.at !== null && reaction.at > 1) {
     const before = getDragPath(state, root)?.steps[reaction.at - 2]
-    return before ? { ...state, board: { ...state.board, placements: { ...state.board.placements, ...before } } } : state
+    return before ? withPlacements(state, before) : state
   }
-  if (root?.kind !== 'move' || reaction.at === null || !state.board) return state
+  if (root?.kind !== 'move' || reaction.at === null) return state
   const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
-  return waypoint ? { ...state, board: { ...state.board, placements: { ...state.board.placements, [root.actorId]: waypoint } } } : state
+  return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
 }
 
 // Whether the strike may be declared as this variation where it is made.
@@ -101,12 +106,30 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 export function isVariantOpen(state: CombatState, action: Action, variant: string): boolean {
   if (action.kind === 'strike') return action.opportunity || variant !== 'braced'
   if (action.kind !== 'opportunityAttack') return true
-  const root = getRootOf(state, action)
-  const step = root?.kind === 'move' && action.at !== null ? { move: root, at: action.at } : null
-  const away = step !== null && isHookedRunner(state, step.move, step.at, action.actorId)
-  if (variant === 'braced') return step !== null && (getStepDelta(state, step.move, step.at, action.actorId) ?? 0) < 0
-  if (variant === 'hook') return away
-  return !away
+  if (variant === 'braced') return isBracedStep(state, action)
+  const hooked = isHookStep(state, action)
+  return variant === 'hook' ? hooked : !hooked
+}
+
+// The move an opportunity attack answers and the step of its path it fires
+// on; null for one that answers anything else.
+export function getMoveStep(state: CombatState, reaction: ActionOf<'opportunityAttack'>): { move: MoveAction; at: number } | null {
+  const root = getRootOf(state, reaction)
+  return root?.kind === 'move' && reaction.at !== null ? { move: root, at: reaction.at } : null
+}
+
+// combat.tex "Braced Attack": "a reaction when a target is moving towards
+// the weapon ... when movement is between two spaces within weapon range".
+export function isBracedStep(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
+  const step = getMoveStep(state, reaction)
+  return step !== null && (getStepDelta(state, step.move, step.at, reaction.actorId) ?? 0) < 0
+}
+
+// combat.tex "Hook Attack": "a reaction against running targets that move
+// away from the weapon".
+export function isHookStep(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
+  const step = getMoveStep(state, reaction)
+  return step !== null && isHookedRunner(state, step.move, step.at, reaction.actorId)
 }
 
 // Every attack of the kind the character could declare: each usable row of
@@ -161,7 +184,7 @@ export function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']
 // "Snipe gets +1|2|3 to hit").
 // combat.tex "Attack and Defend": a grapple row "can use the grapple skill
 // instead of strike to attack during a grapple".
-export function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
+function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
   const c = state.characters[action.actorId]
   if (!c) return []
   const variant = getAttackVariant(c, action)
@@ -179,7 +202,7 @@ export function getAttackTerms(state: CombatState, action: AttackAction): Term[]
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the
 // DL of the explosion" — what a reaction that is a test of its own is
 // rolled with.
-export function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
+function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor || reaction.kind !== 'avoidExplosion') return []
   return [{ label: 'reflex', value: getReflex(reactor) }]
@@ -192,12 +215,15 @@ export function getReactionTestTerms(state: CombatState, reaction: Action): Term
 function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  const terms: Term[] = [{ label: 'reflex', value: getReflex(reactor) }]
-  if (reaction.kind === 'guard') {
-    const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
-    if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
-  }
-  return terms
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction)]
+}
+
+// combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":
+// "Blocking with a shield adds its cover to defend".
+function coverTerms(reactor: Character, reaction: Action): Term[] {
+  if (reaction.kind !== 'block' && reaction.kind !== 'guard') return []
+  const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
+  return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
 
 // The reaction a shot is met with: the target's own, or a guard made for
@@ -205,7 +231,14 @@ function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
 // against themselves or adjacent characters"). A shot has to beat every one
 // of them (the table's ruling), so the one it is scored against — and the
 // one whose defense the damage meets — is whichever puts up the most.
-export function getShotDefense(state: CombatState, root: Action): Action | null {
+// The reaction the attack is met with: a shot's strongest answer, anything
+// else's the target's own. Null: the target stands on their SD.
+export function getDefendingReaction(state: CombatState, root: Action): Action | null {
+  if (root.kind === 'shoot') return getShotDefense(state, root)
+  return root.targetId ? getReactionsTo(state, root.id).find((r) => r.actorId === root.targetId) ?? null : null
+}
+
+function getShotDefense(state: CombatState, root: Action): Action | null {
   return getReactionsTo(state, root.id)
     .filter((r) => r.kind === 'evasion' || r.kind === 'guard')
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
@@ -232,17 +265,10 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   }
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
-  if (root.kind === 'shoot') {
-    const reaction = getShotDefense(state, root)
-    return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
-  }
-  const reaction = getReactionsTo(state, root.id).find((r) => r.actorId === defender.id)
-  const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }]
+  const reaction = getDefendingReaction(state, root)
+  if (root.kind === 'shoot') return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
+  const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }, ...coverTerms(defender, reaction)]
   if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 2) })
-  if (reaction?.kind === 'block') {
-    const row = findWeaponRow(defender, reaction.weaponKey, reaction.attack)
-    if (row?.weapon.shield) terms.push({ label: 'cover', value: row.weapon.shield.cover })
-  }
   if (root.kind === 'strike' && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD" — not against a braced attack (the table's ruling)
@@ -250,7 +276,7 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   return terms
 }
 
-export function getDL(state: CombatState, root: Action): number {
+function getDL(state: CombatState, root: Action): number {
   return sumTerms(getDLTerms(state, root))
 }
 
@@ -270,7 +296,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     case 'grapple':
       return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
     case 'move':
-      return { skill: getBalanceTestTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
+      return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
     default:
@@ -300,7 +326,7 @@ export function getRootTest(state: CombatState, root: Action): Test | null {
   }
 }
 
-export function getManeuverTerms(c: Character): Term[] {
+function getManeuverTerms(c: Character): Term[] {
   return [{ label: 'grapple', value: getGrapple(c) }]
 }
 
@@ -309,7 +335,7 @@ export function getReactionTest(state: CombatState, root: Action, reaction: Acti
   return { skill: sumTerms(getReactionTestTerms(state, reaction)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
 }
 
-export function isPiercingAttack(c: Character, action: AttackAction): boolean {
+function isPiercingAttack(c: Character, action: AttackAction): boolean {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   return row ? hasProperty(row.atk.properties, 'piercing') : false
 }

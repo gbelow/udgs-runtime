@@ -3,7 +3,7 @@ import type { CombatState, Coord, MoveAction, Placement, StrikeAction, Trample }
 import { getForce } from '../../character/rules/skills'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
-import { getFootprint } from './board'
+import { getFootprint, withPlacements } from './board'
 import { canStandAt, getMoveOrigin, getMoveWaypoint, getMovementSpeed } from './move'
 
 // combat.tex "Trample": "Happens when two characters hit each other at
@@ -21,7 +21,7 @@ export function isTrampleable(state: CombatState, id: string): boolean {
 
 // "Whoever is running or jumping gets a bonus equal to their running or
 // jumping speed to this."
-export function getTrampleForce(c: Character, movement: MoveKind | null): number {
+function getTrampleForce(c: Character, movement: MoveKind | null): number {
   const speed = movement === 'run' || movement === 'jump' ? getMovementSpeed(c, movement) : 0
   return getForce(c) + speed
 }
@@ -75,7 +75,7 @@ export function getMoveTramples(state: CombatState, action: MoveAction, path: Co
       if (!other || down.has(id)) continue
       const theirs = getFootprint(other, where[id])
       if (!footprint.some((f) => theirs.some((t) => sameCell(f, t)))) continue
-      const now = { ...state, board: { ...board, placements: { ...board.placements, ...where } } }
+      const now = withPlacements(state, where)
       const result = outcome(now, id, i + 1, compare(runner, getForce(other)), where[id], heading)
       trampled.push(result)
       if (result.result === 'stopped') return { trampled, stop: i, blocked: false }

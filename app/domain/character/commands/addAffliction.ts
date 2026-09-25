@@ -22,3 +22,22 @@ export function addAffliction(item: AfflictionKey): (c: CampaignCharacter) => Ca
     return { ...c, afflictions: [...rest, item] }
   })
 }
+
+// combat.tex "Afflictions": one of a group at a time, the one put on last
+// standing in for whatever of the group was carried. A key already carried
+// is not carried twice.
+export function inflict(keys: readonly AfflictionKey[]): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) =>
+    keys.reduce((acc, key) => {
+      const { group } = AFFLICTIONS[key]
+      const rest = group ? acc.afflictions.filter((k) => AFFLICTIONS[k].group !== group) : acc.afflictions
+      if (!rest.includes(key)) return { ...acc, afflictions: [...rest, key] }
+      return rest === acc.afflictions ? acc : { ...acc, afflictions: rest }
+    }, c)
+}
+
+// Takes the keys off the stored list; one not carried is left as it is.
+export function cure(keys: readonly AfflictionKey[]): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) =>
+    keys.some((key) => c.afflictions.includes(key)) ? { ...c, afflictions: c.afflictions.filter((a) => !keys.includes(a)) } : c
+}
