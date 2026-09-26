@@ -17,4 +17,4 @@ Places that break the project's own rules
 
 Architecture
 
-1. Adding an action kind still means editing per-kind code in several places (getDeclaredCost, isDeclarationComplete, getDLTerms, getTargetIds, getNextStep, triggers, options). Longer term: a record of handlers per kind checked with satisfies { [K in ActionKind]: … }.
+1. The per-kind dispatch is exhaustive everywhere but one place: the list of a character's own actions in getAvailableActions (options.ts) is written by hand, so a new root kind a player can declare has to be added there without the compiler asking. Generated kinds (displace, blast) rightly have no entry, so a Record over root kinds would need a way to say "none".

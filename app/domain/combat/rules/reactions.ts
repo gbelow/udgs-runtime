@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, CombatState, Coord, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
-import { ACTIONS, isDefense, reactsTo } from './actionCatalog'
+import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
@@ -24,7 +24,7 @@ import { getProtectors } from './protect'
 
 export type Trigger = {
   characterId: string
-  kind: ActionKind
+  kind: ReactionKind
   // the step of a move's path (counted from 1) at which the trigger fires;
   // null for a trigger that is not about a step
   at: number | null
@@ -90,8 +90,7 @@ export function findTrigger(state: CombatState, root: RootAction, reaction: Trig
 function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   if (!root.targetId) return []
   const counters = state.characters[root.targetId]?.abilities.includes('counterattack') ?? false
-  const defenses = (Object.keys(ACTIONS) as ActionKind[])
-    .filter((kind) => isDefense(kind) || (kind === 'counterattack' && counters))
+  const defenses = [...(Object.keys(ACTIONS) as ActionKind[]).filter(isDefense), ...(counters ? ['counterattack' as const] : [])]
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const flankers = getFlankers(state, root.actorId, root.targetId)
     .filter((id) => getMeleeRange(state.characters[id]) > 0)
@@ -116,7 +115,8 @@ function opportunityTriggers(state: CombatState, actorId: string): Trigger[] {
 function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
   if (!root.targetId) return []
   const own = (Object.keys(ACTIONS) as ActionKind[])
-    .filter((kind) => ACTIONS[kind].type === 'reaction' && reactsTo(kind, 'shoot'))
+    .filter(isReaction)
+    .filter((kind) => reactsTo(kind, 'shoot'))
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const toTarget = getDistanceBetween(state, root.actorId, root.targetId)
   const guards = getAdjacentIds(state, root.targetId)

@@ -149,8 +149,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
           answer(ACTIONS[kind].label, { kind }),
           answer(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, lessRepurposed(state, c.id, open.id, getEvasionCost(c, true))),
         ]
-      // where an evasive jump lands is picked on the board, not here
+      // nothing to pick among; where an evasive jump lands is picked on the
+      // board, not here
+      case 'evade':
       case 'evasiveJump':
+      case 'avoidExplosion':
+      case 'resist':
+      case 'assist':
         return [answer(ACTIONS[kind].label, { kind })]
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike, or,
@@ -190,8 +195,6 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         const reason = getMovementOptions(state, c).some((m) => m.available && canAfford(c, m.block)) ? null : 'cannot afford a move'
         return [answer(ACTIONS[kind].label, { kind }, null, reason)]
       }
-      default:
-        return [answer(ACTIONS[kind].label, { kind })]
     }
   })
 }

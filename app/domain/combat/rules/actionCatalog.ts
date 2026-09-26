@@ -1,5 +1,5 @@
 import type { ActionKind as PricedAction } from '../../tables'
-import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, RootAction } from '../types'
+import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, ReactionKind, RootAction } from '../types'
 
 // What kind of thing each action is. `type` is combat.tex "Reactions": a
 // reaction is taken on someone else's turn and only in answer to one of the
@@ -116,7 +116,7 @@ export function getActionNoun(action: Action): string {
   return getActionDef(action.kind).noun ?? getActionName(action)
 }
 
-export function isReaction(kind: ActionKind): boolean {
+export function isReaction(kind: ActionKind): kind is ReactionKind {
   return ACTIONS[kind].type === 'reaction'
 }
 
@@ -139,8 +139,8 @@ export function reactsTo(kind: ActionKind, root: ActionKind): boolean {
 
 // combat.tex "Defend": "There are four types of defense: Evade, Evasive
 // Jump, Intercept, and Block."
-const DEFENSES: readonly ActionKind[] = ['evade', 'evasiveJump', 'block', 'intercept']
+const DEFENSES = ['evade', 'evasiveJump', 'block', 'intercept'] as const satisfies readonly ReactionKind[]
 
-export function isDefense(kind: ActionKind): boolean {
-  return DEFENSES.includes(kind)
+export function isDefense(kind: ActionKind): kind is (typeof DEFENSES)[number] {
+  return (DEFENSES as readonly ActionKind[]).includes(kind)
 }
