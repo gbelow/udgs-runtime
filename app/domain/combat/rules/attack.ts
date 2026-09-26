@@ -3,7 +3,7 @@ import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction, WeaponAction } from '../types'
 import { LOCATIONS, QUICKEN_DL } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
-import { AttackVariant, getAttacksList, getShotKind, needsFocus } from '../../character/rules/gear'
+import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
@@ -14,7 +14,7 @@ import { getBalanceDL, getMoveFacts, getMoveOverride, getMoveWaypoint, getStepDe
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
 import { getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
-import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
+import { findRowVariant, findWeaponRow, getRowVariants, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
 import { getCastTerms } from './cast'
@@ -54,14 +54,21 @@ function rowFits(atk: WeaponAttack, kind: WeaponAction['kind']): boolean {
   }
 }
 
+// Whether the character can fire the row as the attack's kind right now:
+// open, closed, or held of that kind and usable but for the focus surge
+// (combat.tex "Focus surge": "required to use ranged attacks").
+function getRowState(c: Character, row: WeaponRow, kind: WeaponAction['kind']): 'open' | 'unfocused' | 'closed' {
+  if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
+  return needsFocus(row.atk, c) ? 'unfocused' : 'open'
+}
+
 // The variation an attack declared, priced against the attacker as they
 // stand; null while it names no row of the attack's kind the attacker can
-// fire. combat.tex "Focus surge": "required to use ranged attacks".
+// fire.
 export function getAttackVariant(c: Character, action: WeaponAction): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  if (!row || !isRowUsable(c, row) || !rowFits(row.atk, action.kind)) return null
-  if (action.kind !== 'strike' && needsFocus(row.atk, c)) return null
-  return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).find((v) => v.name === action.variant) ?? null
+  if (!row || getRowState(c, row, action.kind) !== 'open') return null
+  return findRowVariant(c, row, action.variant)
 }
 
 // The strike an opportunity attack opens, as declared on the reaction:
@@ -177,9 +184,8 @@ export type AttackOption = {
 
 export function getAttackOptions(c: Character, kind: WeaponAction['kind']): AttackOption[] {
   return getWeaponRows(c).flatMap((row) => {
-    if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return []
-    if (kind !== 'strike' && needsFocus(row.atk, c)) return []
-    return getAttacksList({ atk: row.atk, weapon: row.weapon })(c).map((v) => ({
+    if (getRowState(c, row, kind) !== 'open') return []
+    return getRowVariants(c, row).map((v) => ({
       weaponKey: row.wielded.key,
       weapon: row.weapon.name,
       attack: row.atk.name,
@@ -194,10 +200,10 @@ export function getAttackOptions(c: Character, kind: WeaponAction['kind']): Atta
   })
 }
 
-// combat.tex "Focus surge": "required to use ranged attacks" — whether the
-// character holds a row of the kind that only the surge is keeping closed.
+// Whether the character holds a row of the kind that only the focus surge
+// is keeping closed.
 export function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
-  return getWeaponRows(c).some((row) => isRowUsable(c, row) && rowFits(row.atk, kind) && needsFocus(row.atk, c))
+  return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unfocused')
 }
 
 // ---------------------------------------------------------------------------

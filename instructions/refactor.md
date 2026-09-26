@@ -9,14 +9,6 @@ Unused and small
 - Orientation (geometry.ts) is a literal-union second definition of DirectionSchema (combat/types.ts). Unifying needs DirectionSchema to infer 0..5 rather than number.
 - rollTest / RollMode (dice.ts) have no callers: safe and risky tests are not wired in. Inert structure drawn ahead, kept on purpose.
 
-Repeated patterns
-
-1. Option literals in rules/options.ts: seven hand-written options repeat reactionTo: null and chosen: false, some compute their availability test twice, and there are two local option helpers (in the reaction builder and in getGrappleOptions). One shared option(label, draft, cost, reason) with available = reason === null would cover them and getPickUpOption.
-2. Weapon-row checks: isRowUsable + rowFits + needsFocus is repeated in getAttackVariant, getAttackOptions and hasUnfocusedRow (rules/attack.ts). getShotReachOf (rules/board.ts) reimplements the variant lookup.
-3. getMovementSpeed (rules/move.ts) is a switch that duplicates movementLenses in character/lenses.
-4. Explosions: getExplosionPayload is recomputed on nearly every call path (isAimed, isSpray, getExplosionAreas), and the worse-degree fold runs in three places in rules/explosion.ts.
-5. Trigger building in rules/reactions.ts: the approach detection (footprint distances, then firstStep) is near-duplicated between the push and move triggers.
-
 Places that break the project's own rules
 
 - Screen text inside rules/: labels and reason strings in options.ts (findOption only reads .available), HOP_LABELS (damage.ts), getSpellOptions (cast.ts), getChargeOptions (explosion.ts), getDisarmOptions and getDragSides (grapple.ts). They belong in projections.

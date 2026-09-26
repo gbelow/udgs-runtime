@@ -1,4 +1,5 @@
-import type { ActionKind, CastAction, CombatState, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
+import type { Character } from '../../types'
+import type { ActionKind, CastAction, CombatState, Coord, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, isDefense, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
@@ -166,8 +167,7 @@ function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      const distances = [from, ...root.path.map((step) => step[m])].map((p) => setDistance(getFootprint(c, p), other))
-      const at = firstStep(distances, (previous, now) => previous <= range && now < previous)
+      const at = getApproachStep(getPathDistances(c, [from, ...root.path.map((step) => step[m])], other), range)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
     if (hit) triggers.push({ characterId: id, kind: 'opportunityAttack', ...hit })
@@ -232,11 +232,11 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (isTrampleable(state, id) && path.some((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))) {
       triggers.push({ characterId: id, kind: 'evade', at: null })
     }
-    const distances = [from, ...path.map((cell) => ({ ...from, cell }))].map((p) => setDistance(getFootprint(mover, p), other))
+    const distances = getPathDistances(mover, [from, ...path.map((cell) => ({ ...from, cell }))], other)
     const range = getMeleeRange(state.characters[id])
     if (range > 0 && distances[0] <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
     if (range === 0) continue
-    const approach = firstStep(distances, (previous, now) => previous <= range && now < previous)
+    const approach = getApproachStep(distances, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })
     // combat.tex "Catch": "someone tries to initiate a grapple against a
     // running target" — one with a grapple row may grab a runner once the
@@ -257,6 +257,19 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (away !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: away })
   }
   return triggers
+}
+
+// How far the mover's footprint stands from the other's at each placement
+// along the way, the one set out from first.
+function getPathDistances(mover: Character, placements: Placement[], other: Coord[]): number[] {
+  return placements.map((p) => setDistance(getFootprint(mover, p), other))
+}
+
+// combat.tex "Opportunity Attack": "moving towards a melee weapon while
+// within its attack range" — the first step taken from within the range to
+// closer still.
+function getApproachStep(distances: number[], range: number): number | null {
+  return firstStep(distances, (previous, now) => previous <= range && now < previous)
 }
 
 // the first step, counted from 1, at which `moved` holds between the

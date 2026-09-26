@@ -1,6 +1,6 @@
 import type { Character, Weapon, WeaponAttack } from '../../types'
 import { getWieldedWeapons, isAttackUsable, type Wielded } from '../../item/rules/hands'
-import { isWieldable } from '../../character/rules/gear'
+import { type AttackVariant, getAttacksList, isWieldable } from '../../character/rules/gear'
 
 // A weapon row is named the way the hands name it: the wielded key (an item
 // id or `natural:<name>`) and the attack row's name.
@@ -22,4 +22,14 @@ export function findWeaponRow(c: Character, weaponKey: string, attack: string): 
 // right now.
 export function isRowUsable(c: Character, row: WeaponRow): boolean {
   return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
+}
+
+// The variations the row can be fired as, priced against the character as
+// they stand.
+export function getRowVariants(c: Character, row: WeaponRow): AttackVariant[] {
+  return getAttacksList({ atk: row.atk, weapon: row.weapon })(c)
+}
+
+export function findRowVariant(c: Character, row: WeaponRow, variant: string): AttackVariant | null {
+  return getRowVariants(c, row).find((v) => v.name === variant) ?? null
 }

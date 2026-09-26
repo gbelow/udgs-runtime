@@ -2,11 +2,10 @@ import type { Character, MeleeRange, Weapon, WeaponAttack } from '../../types'
 import type { Board, CombatState, Coord, ExplosionAction, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/misc'
-import { getAttacksList } from '../../character/rules/gear'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, coordKey, line, rotate, setDistance } from '../geometry'
-import { findWeaponRow } from './weaponRow'
+import { findRowVariant, findWeaponRow } from './weaponRow'
 
 // The board rules read the spatial facts of a fight off `state.board`.
 // Every rule that answers for a fight answers null, or "passes", when the
@@ -164,7 +163,7 @@ export function getShotReachOf(state: CombatState, action: ShootAction | Explosi
   const shooter = state.characters[action.actorId]
   const row = shooter ? findWeaponRow(shooter, action.weaponKey, action.attack) : null
   if (!shooter || !row) return null
-  return getAttacksList({ atk: row.atk, weapon: row.weapon })(shooter).find((v) => v.name === action.variant)?.reach ?? null
+  return findRowVariant(shooter, row, action.variant)?.reach ?? null
 }
 
 // Whether the shot can land on the target from where its actor stands: the

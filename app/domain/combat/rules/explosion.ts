@@ -27,15 +27,21 @@ export type ZoneCell = { cell: Coord; degree: Degree }
 export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects'>
 
 export function getBlastOf(state: CombatState, action: ExplosionAction): BlastShape {
-  return { actorId: action.actorId, center: action.center, direction: null, effects: getExplosionPayload(state, action)?.effects ?? [] }
+  return toBlast(action, getExplosionPayload(state, action))
 }
+
+function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
+  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [] }
+}
+
+type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
 
 // What the explosion is made of: the area effects of the charge a thrown
 // item carries (spells.tex "Charged"), of the row itself for a mundane
 // explosive (gear.tex "Explosion"), or of the spell for a cast or a charge
 // set off; and who made them, whose size scales them. Empty while the
 // source is not declared or has nothing to go off with.
-export function getExplosionPayload(state: CombatState, action: ExplosionAction): { effects: SpellEffect[]; producer: CampaignCharacter } | null {
+export function getExplosionPayload(state: CombatState, action: ExplosionAction): Payload | null {
   const producer = state.characters[action.actorId]
   if (!producer) return null
   const effects = (() => {
@@ -152,7 +158,10 @@ export function getThreatenedCells(state: CombatState, action: BlastShape): Coor
   return [...cells.values()]
 }
 
-const worse = (a: Degree | null, b: Degree): Degree => (a === null || DEGREES.indexOf(b) > DEGREES.indexOf(a) ? b : a)
+// The worst of the degrees that reach, or null when none does.
+function worstOf(degrees: (Degree | null)[]): Degree | null {
+  return degrees.reduce<Degree | null>((worst, d) => (d !== null && (worst === null || DEGREES.indexOf(d) > DEGREES.indexOf(worst)) ? d : worst), null)
+}
 
 // The zones of the whole explosion, each cell at the worst of what reaches
 // it. Empty until it is fixed where it lands.
@@ -161,7 +170,7 @@ export function getExplosionZones(state: CombatState, action: BlastShape): ZoneC
   for (const area of getExplosionAreas(action)) {
     for (const z of getAreaZones(state, action, area)) {
       const key = coordKey(z.cell)
-      zones.set(key, { cell: z.cell, degree: worse(zones.get(key)?.degree ?? null, z.degree) })
+      zones.set(key, { cell: z.cell, degree: worstOf([zones.get(key)?.degree ?? null, z.degree]) ?? z.degree })
     }
   }
   return [...zones.values()]
@@ -174,10 +183,7 @@ function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Are
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
   const zones = new Map(getAreaZones(state, action, area).map((z) => [coordKey(z.cell), z.degree]))
-  return footprint.reduce<Degree | null>((best, cell) => {
-    const here = zones.get(coordKey(cell)) ?? null
-    return here !== null ? worse(best, here) : best
-  }, null)
+  return worstOf(footprint.map((cell) => zones.get(coordKey(cell)) ?? null))
 }
 
 // Everyone the explosion may reach as declared, the attacker included when
@@ -191,10 +197,7 @@ export function getThreatenedIds(state: CombatState, action: BlastShape): string
 // board stands.
 export function getAffected(state: CombatState, action: BlastShape): { id: string; degree: Degree }[] {
   return Object.keys(state.characters).flatMap((id) => {
-    const degree = getExplosionAreas(action).reduce<Degree | null>((best, area) => {
-      const here = getZoneOf(state, action, id, area)
-      return here !== null ? worse(best, here) : best
-    }, null)
+    const degree = worstOf(getExplosionAreas(action).map((area) => getZoneOf(state, action, id, area)))
     return degree ? [{ id, degree }] : []
   })
 }
@@ -255,12 +258,14 @@ export function isAvoidable(action: ExplosionAction): boolean {
 // whoever holds it stands. Nowhere for a spray, which is aimed by
 // direction.
 export function getExplosionCenters(state: CombatState, action: ExplosionAction): Coord[] {
+  return getCentersOf(state, action, getExplosionPayload(state, action))
+}
+
+function getCentersOf(state: CombatState, action: ExplosionAction, payload: Payload | null): Coord[] {
   const board = state.board
   const from = board?.placements[action.actorId]
   const footprint = getPlacedFootprint(state, action.actorId)
-  const payload = getExplosionPayload(state, action)
-  const blast = getBlastOf(state, action)
-  if (!board || !from || !footprint || !payload || isSpray(blast) || getExplosionAreas(blast).length === 0) return []
+  if (!board || !from || !footprint || !payload || isSpray(toBlast(action, payload))) return []
   const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
   if (action.source === 'detonate') {
     const held = findHeldItem(state, action.itemId)
@@ -286,8 +291,8 @@ export function isAimable(state: CombatState, action: ExplosionAction | BlastAct
 // Whether the explosion as declared is aimed: a disk at a centre it may be
 // aimed at, a spray at nothing yet.
 export function isAimed(state: CombatState, action: ExplosionAction): boolean {
-  const blast = getBlastOf(state, action)
-  if (getExplosionAreas(blast).length === 0) return false
-  if (isSpray(blast)) return true
-  return action.center !== null && getExplosionCenters(state, action).some((c) => sameCell(c, action.center!))
+  const payload = getExplosionPayload(state, action)
+  if (!payload) return false
+  if (isSpray(toBlast(action, payload))) return true
+  return action.center !== null && getCentersOf(state, action, payload).some((c) => sameCell(c, action.center!))
 }

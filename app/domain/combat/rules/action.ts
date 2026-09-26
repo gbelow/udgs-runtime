@@ -46,7 +46,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
         && (action.source !== 'cast' || isSpellKey(action.key))
         && (action.source !== 'detonate' || findHeldItem(state, action.itemId) !== null)
-        && getExplosionPayload(state, action) !== null && isAimed(state, action)
+        && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
     case 'move':

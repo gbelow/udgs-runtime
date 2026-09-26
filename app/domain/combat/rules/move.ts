@@ -5,7 +5,7 @@ import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
-import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
+import { getJumpMovement, getRunningJumpMovement, getStandMovement, movementGetters } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
@@ -31,14 +31,7 @@ export function getMoveOrigin(state: CombatState, action: MoveAction): Placement
 
 // combat.tex "Movement Costs and Speeds": metres per block of the kind.
 export function getMovementSpeed(c: Character, kind: MovementKind): number {
-  switch (kind) {
-    case 'careful': return getCarefulMovement(c)
-    case 'basic': return getBasicMovement(c)
-    case 'run': return getRunMovement(c)
-    case 'jump': return getJumpMovement(c)
-    case 'crawl': return getCrawlMovement(c)
-    case 'swim': return getSwimMovement(c)
-  }
+  return movementGetters[kind](c)
 }
 
 // How many cells of a movement the given AP buys, whole blocks only.

@@ -35,6 +35,10 @@ export type ActionOption = {
   chosen: boolean
 }
 
+function option(label: string, draft: ActionDraft, cost: ActionCost | null, reason: string | null, reactionTo: string | null = null, chosen = false): ActionOption {
+  return { label, draft, cost, available: reason === null, reason, reactionTo, chosen }
+}
+
 // While an opportunity attack against `defenderId` answers a still-live
 // action of their own, that action is what defending actively gives up
 // (`getGivenUpFor`); named for the panel.
@@ -48,28 +52,28 @@ export function getCancellableLabel(state: CombatState, root: Action, defenderId
 // block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
 // there is space to jump"; "jumping": a jump "cannot be voluntarily
 // interrupted in the middle".
-function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
-  if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
-  if (isImmobile(defender)) return { available: false, reason: 'immobile' }
-  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasAffliction(defender, 'grappled')) return { available: false, reason: 'grappled' }
-  if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
-  if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
-  return { available: true, reason: null }
+function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
+  if (!canAfford(defender, cost)) return 'cannot afford'
+  if (isImmobile(defender)) return 'immobile'
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasAffliction(defender, 'grappled')) return 'grappled'
+  if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
+  if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return 'no space to jump'
+  return null
 }
 
 // A block or an intercept as it may be made against a strike: whether it
 // can be made from where its defender stands, or from a step they can
 // still take (`needsGuardStep`), and its price with that step. Against
 // anything else, as it stands.
-function guardOption(state: CombatState, c: CampaignCharacter, root: Action, guard: ActionOf<'block'> | ActionOf<'intercept'>, gate: { available: boolean; reason: string | null }): { label: string; cost: ActionCost; available: boolean; reason: string | null } {
+function guardOption(state: CombatState, c: CampaignCharacter, root: Action, guard: ActionOf<'block'> | ActionOf<'intercept'>, gate: string | null): { label: string; cost: ActionCost; reason: string | null } {
   const label = guard.kind === 'intercept' && guard.advance ? 'defensive advance' : ACTIONS[guard.kind].label
   const cost = withGuardStep(c, guard, getActionCost(c, guard.kind))
-  if (root.kind !== 'strike') return { label, cost, ...gate }
+  if (root.kind !== 'strike') return { label, cost, reason: gate }
   const stepping = needsGuardStep(state, root, guard)
   const placed = stepping || isGuardPlaced(state, root, guard)
   const priced = stepping && !(guard.kind === 'intercept' && guard.advance) ? withGuardStep(c, { ...guard, to: getGuardSteps(state, root, guard)[0] }, getActionCost(c, guard.kind)) : cost
-  const reason = gate.reason ?? (!canAfford(c, priced) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
-  return { label, cost: priced, available: reason === null, reason }
+  const reason = gate ?? (!canAfford(c, priced) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
+  return { label, cost: priced, reason }
 }
 
 // Everything the character may declare right now: their own actions while no
@@ -90,75 +94,24 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     const placed = state.board?.placements[c.id] !== undefined
     const movable = getMovementOptions(state, c).some((m) => m.available)
     const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
+    const explosionReason = explosions.length > 0 ? (placed ? null : 'not on the board')
+      : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge'
+      : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it'
+      : 'no exploding weapon in hand'
+    const castable = spells.some((s) => s.castable || s.quickenable)
     return closeIfImmobile(c, [
-      {
-        label: ACTIONS.strike.label,
-        draft: { kind: 'strike' },
-        cost: null,
-        available: strikes.length > 0,
-        reason: strikes.length > 0 ? null : 'no melee weapon in hand',
-        reactionTo: null,
-        chosen: false,
-      },
+      option(ACTIONS.strike.label, { kind: 'strike' }, null, strikes.length > 0 ? null : 'no melee weapon in hand'),
       // combat.tex "Initiate the Grab": a strike with a grapple row
-      {
-        label: 'grab',
-        draft: { kind: 'strike', grab: true },
-        cost: null,
-        available: grabs.length > 0,
-        reason: grabs.length > 0 ? null : 'no grapple weapon in hand',
-        reactionTo: null,
-        chosen: false,
-      },
-      {
-        label: ACTIONS.shoot.label,
-        draft: { kind: 'shoot' },
-        cost: null,
-        available: shots.length > 0,
-        reason: shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand',
-        reactionTo: null,
-        chosen: false,
-      },
+      option('grab', { kind: 'strike', grab: true }, null, grabs.length > 0 ? null : 'no grapple weapon in hand'),
+      option(ACTIONS.shoot.label, { kind: 'shoot' }, null, shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand'),
       // an explosion is aimed at ground, so it needs a board to land on
-      {
-        label: ACTIONS.explosion.label,
-        draft: { kind: 'explosion', source: 'thrown' },
-        cost: null,
-        available: explosions.length > 0 && placed,
-        reason: explosions.length > 0 ? (placed ? null : 'not on the board') : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge' : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it' : 'no exploding weapon in hand',
-        reactionTo: null,
-        chosen: false,
-      },
+      option(ACTIONS.explosion.label, { kind: 'explosion', source: 'thrown' }, null, explosionReason),
       // combat.tex "Explosions": "If the explosion occurs before being
       // perceived, no test can be made" — a charge or a trap set off by the
       // table, from wherever the active character stands
-      {
-        label: 'set off a charge',
-        draft: { kind: 'explosion', source: 'detonate' },
-        cost: null,
-        available: placed && getChargeOptions(state).length > 0,
-        reason: placed ? (getChargeOptions(state).length > 0 ? null : 'nothing is charged') : 'not on the board',
-        reactionTo: null,
-        chosen: false,
-      },
-      {
-        label: ACTIONS.move.label,
-        draft: { kind: 'move' },
-        cost: null,
-        available: placed && movable,
-        reason: placed ? (movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move') : 'not on the board',
-        reactionTo: null,
-        chosen: false,
-      },
-      {
-        label: ACTIONS.cast.label,
-        draft: { kind: 'cast' },
-        cost: null,
-        available: spells.some((s) => s.castable || s.quickenable),
-        reason: spells.some((s) => s.castable || s.quickenable) ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned',
-        reactionTo: null,
-        chosen: false,
-      },
+      option('set off a charge', { kind: 'explosion', source: 'detonate' }, null, !placed ? 'not on the board' : getChargeOptions(state).length > 0 ? null : 'nothing is charged'),
+      option(ACTIONS.move.label, { kind: 'move' }, null, !placed ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move'),
+      option(ACTIONS.cast.label, { kind: 'cast' }, null, castable ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned'),
       ...getGrappleOptions(state, c),
       getPickUpOption(state, c),
     ])
@@ -173,8 +126,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     const price = ACTIONS[kind].price
     const cost = lessRepurposed(state, c.id, open.id, price ? getActionCost(c, price) : { AP: 0, STA: 0 })
     const gate = defenseGate(state, c, open, kind, cost)
-    const option = (label: string, draft: ActionDraft, own: ActionCost | null = cost): ActionOption =>
-      ({ label, draft, cost: own, ...gate, reactionTo: open.id, chosen: chosen(draft) })
+    const answer = (label: string, draft: ActionDraft, own: ActionCost | null = cost, reason: string | null = gate): ActionOption =>
+      option(label, draft, own, reason, open.id, chosen(draft))
     switch (kind) {
       case 'block':
       case 'intercept':
@@ -182,23 +135,23 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
           const base = { id: '', actorId: c.id, reactionTo: open.id, weaponKey: row.wielded.key, attack: row.atk.name }
           const guards = [makeAction(kind, base), ...(kind === 'intercept' && c.abilities.includes('defensive-advance') ? [makeAction('intercept', { ...base, advance: true })] : [])]
           return guards.map((guard) => {
-            const { label, cost: own, available, reason } = guardOption(state, c, open, guard, gate)
+            const { label, cost: own, reason } = guardOption(state, c, open, guard, gate)
             const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }
-            return { ...option(`${label} with ${row.weapon.name}`, draft, lessRepurposed(state, c.id, open.id, own)), available, reason }
+            return answer(`${label} with ${row.weapon.name}`, draft, lessRepurposed(state, c.id, open.id, own), reason)
           })
         })
       case 'guard':
-        return guardRows(state, c, open).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+        return guardRows(state, c, open).map((row) => answer(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
       // combat.tex "Evasion" lets the evader move after the shot; one who
       // stays put gives that up, for Precise Reflexes' price if they have it
       case 'evasion':
         return [
-          option(ACTIONS[kind].label, { kind }),
-          option(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, lessRepurposed(state, c.id, open.id, getEvasionCost(c, true))),
+          answer(ACTIONS[kind].label, { kind }),
+          answer(`${ACTIONS[kind].label}, staying put`, { kind, stay: true }, lessRepurposed(state, c.id, open.id, getEvasionCost(c, true))),
         ]
       // where an evasive jump lands is picked on the board, not here
       case 'evasiveJump':
-        return [option(ACTIONS[kind].label, { kind })]
+        return [answer(ACTIONS[kind].label, { kind })]
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike, or,
       // against a grapple partner, for a maneuver or a push (combat.tex
@@ -212,34 +165,33 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
         const name = trigger.catchOnly ? 'catch' : ACTIONS[kind].label
         const label = trigger.at ? `${name} at step ${trigger.catchOnly ? trigger.at - 1 : trigger.at}` : name
-        return [{ ...option(label, { kind, at: trigger.at }, null), available: reason === null, reason }]
+        return [answer(label, { kind, at: trigger.at }, null, reason)]
       }
       // combat.tex "Push and drag": going along is paid in the basic
       // movement of the metres moved, at least one to be open;
       // letting go is only for one nobody holds
       case 'carry': {
         const most = open.kind === 'drag' ? getMoveCost(c, 'basic', 1) : { AP: 0, STA: 0 }
-        return [{ ...option(ACTIONS[kind].label, { kind }, most), available: gate.available && canAfford(c, most), reason: gate.reason ?? (canAfford(c, most) ? null : 'cannot afford') }]
+        return [answer(ACTIONS[kind].label, { kind }, most, gate ?? (canAfford(c, most) ? null : 'cannot afford'))]
       }
       case 'letGo': {
-        const reason = isHeld(state.grapples, c.id) ? 'held' : null
-        return [{ ...option(ACTIONS[kind].label, { kind }), available: gate.available && reason === null, reason: gate.reason ?? reason }]
+        return [answer(ACTIONS[kind].label, { kind }, cost, gate ?? (isHeld(state.grapples, c.id) ? 'held' : null))]
       }
       // abilities.tex "Counterattack": a strike of their own, so it is open
       // only to someone who can pay for one
       case 'counterattack': {
         const strikes = getAttackOptions(c, 'strike')
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
-        return [{ ...option(ACTIONS[kind].label, { kind }, null), available: gate.available && reason === null, reason: gate.reason ?? reason }]
+        return [answer(ACTIONS[kind].label, { kind }, null, gate ?? reason)]
       }
       // combat.tex "Follow": a move of the follower's own, so it is open only
       // to someone who can pay for one
       case 'follow': {
         const reason = getMovementOptions(state, c).some((m) => m.available && canAfford(c, m.block)) ? null : 'cannot afford a move'
-        return [{ ...option(ACTIONS[kind].label, { kind }, null), available: reason === null, reason }]
+        return [answer(ACTIONS[kind].label, { kind }, null, reason)]
       }
       default:
-        return [option(ACTIONS[kind].label, { kind })]
+        return [answer(ACTIONS[kind].label, { kind })]
     }
   })
 }
@@ -251,8 +203,6 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 // a grapple row is in hand. Nothing, outside of one.
 function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOption[] {
   if (getPartners(state, c.id).length === 0) return []
-  const option = (label: string, draft: ActionDraft, cost: ActionCost | null, reason: string | null): ActionOption =>
-    ({ label, draft, cost, available: reason === null, reason, reactionTo: null, chosen: false })
   const maneuver = getActionCost(c, 'grappleManeuver')
   const drag = getActionCost(c, 'pushDrag')
   const placed = state.board?.placements[c.id] !== undefined
@@ -275,7 +225,7 @@ function getPickUpOption(state: CombatState, c: CampaignCharacter): ActionOption
   const reason = state.floor.length === 0 ? 'nothing on the floor'
     : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
     : canAfford(c, cost) ? null : 'cannot afford'
-  return { label: ACTIONS.pickUp.label, draft: { kind: 'pickUp' }, cost, available: reason === null, reason, reactionTo: null, chosen: false }
+  return option(ACTIONS.pickUp.label, { kind: 'pickUp' }, cost, reason)
 }
 
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
