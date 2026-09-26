@@ -4,6 +4,7 @@ import { getNextStep, getTargetIds } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
 import { getFightName } from '../rules/activeCharacter'
+import { perState } from './perState'
 
 // Who a character is to an action.
 export type Role = 'actor' | 'target' | 'reactor' | 'none'
@@ -32,7 +33,7 @@ export type CombatRosterEntry = {
 // The fight's roster as the UI reads it: who is in it, who is selected, who has
 // already spent their surge this round and which one (combat.tex "Action
 // surge": one per round, cleared by nextRound).
-export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
+function buildCombatRoster(state: CombatState): CombatRosterEntry[] {
   const open = getOpenAction(state)
   const targets = new Set(open && getNextStep(state) === 'target' ? getTargetIds(state, open) : [])
   return Object.entries(state.characters).map(([id, c]) => ({
@@ -46,10 +47,10 @@ export function getCombatRoster(state: CombatState): CombatRosterEntry[] {
   }))
 }
 
+export const getCombatRoster = perState(buildCombatRoster)
+
 // Everything the roster displays, as one string. A roster entry is freshly
 // allocated on every call, so it cannot gate its own re-render by identity;
 // gating on this instead means any change the UI can see schedules the render
 // that recomputes it. Same reasoning as the term breakdowns.
-export function getCombatRosterDigest(state: CombatState): string {
-  return JSON.stringify(getCombatRoster(state))
-}
+export const getCombatRosterDigest = perState((state) => JSON.stringify(getCombatRoster(state)))

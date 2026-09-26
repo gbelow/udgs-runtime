@@ -19,4 +19,3 @@ Places that break the project's own rules
 Architecture
 
 1. Adding an action kind still means editing per-kind code in several places (getDeclaredCost, isDeclarationComplete, getDLTerms, getTargetIds, getNextStep, triggers, options). Longer term: a record of handlers per kind checked with satisfies { [K in ActionKind]: … }.
-2. Projections are computed twice per store write: each *Digest is JSON.stringify(getX(state)) and the hook calls getX again to render (useBoard, useCombatActions). getActionPanel is heavy. Caching each projection per state object (a WeakMap) would halve the work without touching the hooks' gating.

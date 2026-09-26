@@ -27,6 +27,7 @@ import { getRiposteDefense } from '../rules/riposte'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
+import { perState } from './perState'
 
 export type LocationOption = { location: HitLocation; penalty: number }
 
@@ -233,7 +234,7 @@ const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
 // two never need the roster switched between them.
-export function getActionPanel(state: CombatState): ActionPanelView {
+function buildActionPanel(state: CombatState): ActionPanelView {
   const step = getNextStep(state)
   const open = getOpenAction(state)
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
@@ -341,13 +342,13 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   }
 }
 
+export const getActionPanel = perState(buildActionPanel)
+
 function breakdown(terms: Term[]): { terms: Term[]; total: number } {
   return { terms, total: sumTerms(terms) }
 }
 
-export function getActionPanelDigest(state: CombatState): string {
-  return JSON.stringify(getActionPanel(state))
-}
+export const getActionPanelDigest = perState((state) => JSON.stringify(getActionPanel(state)))
 
 function getPushView(state: CombatState, drag: DragAction): PushView {
   const outcome = getDragOutcome(state, drag)

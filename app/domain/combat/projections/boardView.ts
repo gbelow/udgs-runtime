@@ -12,6 +12,7 @@ import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells,
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
+import { perState } from './perState'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -122,7 +123,7 @@ const HEX = Array.from({ length: 6 }, (_, i) => {
   return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
 }).join(' ')
 
-export function getBoardView(state: CombatState): BoardView {
+function buildBoardView(state: CombatState): BoardView {
   const board = state.board
   if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
 
@@ -271,10 +272,10 @@ export function getBoardView(state: CombatState): BoardView {
   }
 }
 
+export const getBoardView = perState(buildBoardView)
+
 function elevationLabel(elevation: number): string {
   return elevation > 0 ? `+${elevation}` : elevation < 0 ? `${elevation}` : ''
 }
 
-export function getBoardViewDigest(state: CombatState): string {
-  return JSON.stringify(getBoardView(state))
-}
+export const getBoardViewDigest = perState((state) => JSON.stringify(getBoardView(state)))
