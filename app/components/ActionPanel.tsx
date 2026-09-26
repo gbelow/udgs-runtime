@@ -253,7 +253,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
   if (!open.attack) return null
   return (
     <div className='text-xs text-muted'>
-      {open.spawned ? <span className='text-bad'>opportunity · </span> : null}
+      {open.opportunity ? <span className='text-bad'>opportunity · </span> : null}
       {open.attack} {open.variant} <Cost cost={open.cost} />
       {open.reactions.map((r) => <span key={`${r.actor}:${r.label}`}> · {r.actor} {r.label} <Cost cost={r.cost} /></span>)}
     </div>

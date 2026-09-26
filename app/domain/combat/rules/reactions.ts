@@ -1,6 +1,6 @@
 import type { Action, ActionKind, CastAction, CombatState, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
-import { ACTIONS, reactsTo } from './actionCatalog'
+import { ACTIONS, isDefense, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
@@ -66,6 +66,7 @@ function getKindTriggers(state: CombatState, root: Action): Trigger[] {
     case 'guard':
     case 'avoidExplosion':
     case 'opportunityAttack':
+    case 'counterattack':
     case 'follow':
     case 'resist':
     case 'assist':
@@ -91,13 +92,15 @@ export function findTrigger(state: CombatState, root: Action, reaction: TriggerK
     && (reaction.targetId === undefined || (t.against ?? root.actorId) === reaction.targetId)) ?? null
 }
 
-// combat.tex "Defend": the target may answer with any of the four defenses.
+// combat.tex "Defend": the target may answer with any of the four defenses,
+// or with a counterattack if they know it (abilities.tex "Counterattack").
 // combat.tex "Flanking": everyone flanking the attacker gets an opportunity
 // attack.
 function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   if (!root.targetId) return []
+  const counters = state.characters[root.targetId]?.abilities.includes('counterattack') ?? false
   const defenses = (Object.keys(ACTIONS) as ActionKind[])
-    .filter((kind) => ACTIONS[kind].type === 'reaction' && kind !== 'opportunityAttack' && reactsTo(kind, 'strike'))
+    .filter((kind) => isDefense(kind) || (kind === 'counterattack' && counters))
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const flankers = getFlankers(state, root.actorId, root.targetId)
     .filter((id) => getMeleeRange(state.characters[id]) > 0)

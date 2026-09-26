@@ -5,7 +5,9 @@ import { getSettled } from '../rules/settle'
 import { opensExplosion } from '../rules/cast'
 import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
-import { getDrawnOpportunityAttacks, isFlankInReach, isTriggeringAction, isVoided } from '../rules/opportunity'
+import { getDrawnOpportunityAttacks, isFlankInReach, isInterruptingStrike, isTriggeringAction, isVoided } from '../rules/opportunity'
+import { getCounterattack, getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from '../rules/counter'
+import { getRiposteOpening } from '../rules/riposte'
 import { getDisplacement, getStunEscapes } from '../rules/grapple'
 import { makeAction } from '../factories'
 import { appendActions, applyPhase, replaceActions } from './log'
@@ -62,7 +64,28 @@ function openBefore(state: CombatState, root: Action, newId: () => string): Comb
     const placed = getOpportunityState(state, next.reaction)
     return appendActions(placed, [getOpportunityAction(placed, next.reaction, newId())])
   }
-  return state
+  return appendActions(state, openCounter(state, root, ['before', 'tie'], newId))
+}
+
+// abilities.tex "Counterattack": "The attack with the higher result hits
+// first" — the counterattack's strike, opened ahead of the attack's effect
+// when it rolled higher or the same (the table's ruling: a tie lands both,
+// neither interrupting the other), after it when it rolled lower, unless the
+// attack interrupted the one who made it.
+function openCounter(state: CombatState, root: Action, slots: CounterSlot[], newId: () => string): Action[] {
+  const reaction = getCounterattack(state, root)
+  const slot = reaction ? getCounterSlot(root, reaction) : null
+  if (!reaction || !slot || !slots.includes(slot) || getCounterStrikeOf(state, reaction)) return []
+  if (slot === 'after' && isInterruptingStrike(root, reaction.actorId)) return []
+  return [getCounterStrike(reaction, newId())]
+}
+
+// abilities.tex "Riposte": the defender's attack after a melee attack their
+// defense made miss, aimed back at the attacker, for them to declare or
+// pass up.
+function openRiposte(state: CombatState, root: Action, newId: () => string): Action[] {
+  const defense = getRiposteOpening(state, root)
+  return defense ? [makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id })] : []
 }
 
 // combat.tex "Avoiding an Explosion": the explosion goes off as a blast,
@@ -89,11 +112,13 @@ function openMove(reaction: Action, newId: () => string, fields: ReactionMove): 
 // escapes a stun opens, the way a push was pointed, walked, the blast an
 // explosion goes off as, and the explosion a cast that hit with an area to
 // it goes off as, aimed and played out on its own (the caster's part is
-// done). Its opportunity attacks were opened before it landed
+// done), and a riposte. Its opportunity attacks were opened before it landed
 // (`openBefore`). A voided action generates nothing (the table's ruling: no
-// follow-ups for an interrupted action).
+// follow-ups for an interrupted action) — but the counterattack that rolled
+// lower than it, which is its target's attack, not its own.
 export function getFollowUps(state: CombatState, root: Action, newId: () => string): Action[] {
-  if (isVoided(state, root)) return []
+  const counter = openCounter(state, root, ['after'], newId)
+  if (isVoided(state, root)) return counter
   if (root.kind === 'explosion') return goOff(state, root, newId)
   const answered = root.kind === 'blast' && root.spawnedBy ? root.spawnedBy : root.id
   const opened = getReactionsTo(state, answered).flatMap((reaction): Action[] => {
@@ -106,7 +131,7 @@ export function getFollowUps(state: CombatState, root: Action, newId: () => stri
   if (root.kind === 'cast' && opensExplosion(state, root)) {
     opened.push(makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
   }
-  return opened
+  return [...counter, ...opened, ...openRiposte(state, root, newId)]
 }
 
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held

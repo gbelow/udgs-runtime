@@ -66,6 +66,9 @@ export const ACTIONS = {
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },
   follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
+  // abilities.tex "Counterattack": a strike of the target's, rolled with the
+  // attack it answers and priced by the strike it opens
+  counterattack: { label: 'counterattack', type: 'reaction', price: null,      reactsTo: ['strike'], die: true },
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
   grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, triggering: true, targeted: true, identity: { maneuver: 'escape', stand: false } },
   // combat.tex "Push and drag": "a force vs force comparison", no die
@@ -119,4 +122,12 @@ export function isReaction(kind: ActionKind): boolean {
 
 export function reactsTo(kind: ActionKind, root: ActionKind): boolean {
   return (ACTIONS[kind].reactsTo as readonly ActionKind[]).includes(root)
+}
+
+// combat.tex "Defend": "There are four types of defense: Evade, Evasive
+// Jump, Intercept, and Block."
+const DEFENSES: readonly ActionKind[] = ['evade', 'evasiveJump', 'block', 'intercept']
+
+export function isDefense(kind: ActionKind): boolean {
+  return DEFENSES.includes(kind)
 }

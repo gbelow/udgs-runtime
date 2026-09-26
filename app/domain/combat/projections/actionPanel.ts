@@ -22,6 +22,8 @@ import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimabl
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, getDisarmOptions, getDragChoices, getDragOutcome, getDragSides, getManeuverTargets, isGrappleRowOf, isManeuverWon, needsDragAim } from '../rules/grapple'
 import { findGrapple } from '../rules/partners'
+import { getOpeningCounter } from '../rules/counter'
+import { getRiposteDefense } from '../rules/riposte'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 
@@ -67,7 +69,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
-      const strike = declared?.kind === 'opportunityAttack'
+      const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack'
         ? {
             options: getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
             locations: getLocationOptions(),
@@ -75,17 +77,25 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             variant: declared.variant,
             location: declared.location,
             complete: isDeclarationComplete(state, c, declared),
-            grab: declared.grab,
-            grabbable: canGrab(state, declared, declared.targetId ?? ''),
-            mode: declared.mode,
+            grab: declared.kind === 'opportunityAttack' && declared.grab,
+            grabbable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? ''),
+            mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(state.grapples, c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
-            maneuver: declared.maneuver,
+            maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
           }
         : null
       return { id: c.id, name: getFightName(state, c.id), options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
     })
     .filter((r) => r.options.length > 0)
+}
+
+// What the open action is called: a strike a counterattack or a riposte
+// opened goes by that name (abilities.tex "Counterattack", "Riposte").
+function getOpenLabel(state: CombatState, open: Action): string {
+  if (open.kind === 'strike' && getOpeningCounter(state, open)) return 'counterattack'
+  if (open.kind === 'strike' && getRiposteDefense(state, open)) return 'riposte'
+  return getActionName(open)
 }
 
 // The deliveries a cast will make as it stands, for the panel: who takes
@@ -123,8 +133,10 @@ export type OpenActionView = {
   path: Coord[]
   // how far the move will actually get and why it stops there
   walked: { cells: number; stop: MoveStop } | null
-  // an opportunity attack, or a follow: what opened it
+  // opened by a reaction — an opportunity attack, a follow, a riposte —
+  // and whether it is the attack an opportunity attack opens
   spawned: boolean
+  opportunity: boolean
   // combat.tex "Grapple": a strike made as a grab; the maneuver declared and
   // whether a hit is to be bought by the attacker's own commitment (null
   // where the maneuver has none); where a push goes, whether it has been
@@ -255,7 +267,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     step,
     open: {
       id: open.id,
-      label: getActionName(open),
+      label: getOpenLabel(state, open),
       actor: getFightName(state, open.actorId),
       target: target?.fightName ?? null,
       targetId: open.targetId,
@@ -272,6 +284,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
       spawned: open.spawnedBy !== null,
+      opportunity: open.kind === 'strike' && open.opportunity,
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
       along: grapple && hit && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,

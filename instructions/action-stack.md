@@ -43,6 +43,11 @@ Rulings the stack must respect:
   a maneuver, a push) is still answered by its target, and draws no opportunity attack.
 - A counterattack (abilities.tex "Counterattack") is a reaction whose opened attack goes
   before the parent's effect if it rolled higher, and is a follow-up if it rolled lower.
+  On a tie both land and neither interrupts the other. It answers strikes only.
+- A riposte follows the `.tex` (after an active defense against a melee attack that
+  misses), not the stale description in `app/assets/abilities.json`.
+- The braced trample stays a fact on the braced strike's own record: it has no die and no
+  choice, so an action of its own would have nothing to decide.
 
 ## Target shape
 
@@ -55,10 +60,9 @@ Rulings the stack must respect:
 - One `isInterrupted(state, id)` rule replacing `isCancelled`, `getPushStop` and the
   interruption part of `getMoveOverride`.
 - Each reaction kind in `ACTIONS` says where its opened action goes:
-  `opens: 'before' | 'after' | 'byRoll'`. Deferred to stage 7: today the per-kind rules
-  (`getMoveBeforeBlast`, `getMoveAfter`) already say it, and a catalog field nothing reads
-  would be structure ahead of practice. Add it with the counterattack, the first reaction
-  whose slot is decided by the roll.
+  `opens: 'before' | 'after' | 'byRoll'`. Dropped at stage 7: every reaction that opens
+  something needs a rule of its own to say when (a reflex by its degree, a counterattack
+  by comparing two results), so the field would only name which rule to call.
 
 ## Stages
 
@@ -81,7 +85,7 @@ Rulings the stack must respect:
   and `pruneReactions`.
 - [x] **6.** Explosion: the blast becomes a follow-up (a spray is aimed in its `define`),
   preceded by the escapes; the graze/miss moves are its follow-ups.
-- [ ] **7.** Riposte, counterattack, braced trample as catalog entries.
+- [x] **7.** Riposte and counterattack; the braced trample stays as it is.
 
 ## Decisions
 
@@ -197,3 +201,26 @@ Rulings the stack must respect:
   - Not exercised: a spray. The aim step, board click and `aimExplosion` target the blast,
     but the only spray in the catalog is a sustained spell, and no test or scratch run
     plays one out.
+- Stage 7: new reaction kind `counterattack` (abilities.tex "Counterattack"), offered to a
+  strike's target who knows the ability, declared with its strike in full like an
+  opportunity attack, and complete only when that strike reaches. It is a test of its
+  own: its die is thrown with the attack's, scored as its strike (-2 to hit, against the
+  attacker's SD), and it pays the strike's price. The attack is scored against the
+  target's SD too (`getDefendingReaction` skips it). Its strike is opened already rolled
+  (`rules/counter.ts`): by `openBefore` on a higher result or a tie, by `getFollowUps` on
+  a lower one — even when the attack was voided, and not when the attack interrupted the
+  counterattacker. `isVoided` breaks a strike that a counterattack rolling higher
+  interrupted.
+  - Riposte (abilities.tex "Riposte", `rules/riposte.ts`) is a follow-up, not a reaction:
+    a strike that lands as a miss against an active defense (`isDefense`: evade, evasive
+    jump, block, intercept) by a defender who knows it generates a strike for them at
+    `define`, aimed at the attacker, which they declare or decline. It gets +2 to hit and
+    costs 1 AP less, 2 AP less with an object other than the one the defense named.
+  - Open question: an evade names no object. The code treats it as 1 AP less; the user
+    has not ruled on it.
+  - The panel names these strikes "counterattack" and "riposte"; the red "opportunity"
+    tag now shows only on an opportunity attack's strike, not on every spawned action.
+  - Tests: a counterattack in each of the three orders (higher lands first and breaks
+    the attack; lower is broken by the attack; a tie lands both), and a riposte offered
+    after an active defense, not after the SD, at the two discounts.
+

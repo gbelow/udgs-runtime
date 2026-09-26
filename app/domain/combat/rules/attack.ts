@@ -17,6 +17,8 @@ import { getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { getCastTerms } from './cast'
+import { getCounterStrike, getOpeningCounter } from './counter'
+import { getRiposteDefense } from './riposte'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -219,7 +221,16 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     { label: action.location, value: -LOCATIONS[action.location].penalty },
+    ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
   ]
+}
+
+// abilities.tex "Counterattack": "The counterattack receives -2 to hit";
+// "Riposte": "an attack with a +2 bonus to hit".
+function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
+  if (getOpeningCounter(state, strike)) return [{ label: 'counterattack', value: -2 }]
+  if (getRiposteDefense(state, strike)) return [{ label: 'riposte', value: 2 }]
+  return []
 }
 
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the
@@ -250,10 +261,12 @@ function coverTerms(reactor: Character, reaction: Action): Term[] {
 }
 
 // The reaction the attack is met with: a shot's strongest answer, anything
-// else's the target's own. Null: the target stands on their SD.
+// else's the target's own. Null: the target stands on their SD — as one who
+// counterattacks does (abilities.tex "Counterattack": "Both attacks are made
+// against the opponent's SD").
 export function getDefendingReaction(state: CombatState, root: Action): Action | null {
   if (root.kind === 'shoot') return getShotDefense(state, root)
-  return root.targetId ? getReactionsTo(state, root.id).find((r) => r.actorId === root.targetId) ?? null : null
+  return root.targetId ? getReactionsTo(state, root.id).find((r) => r.actorId === root.targetId && r.kind !== 'counterattack') ?? null : null
 }
 
 // The reaction a shot is met with: the target's own, or a guard made for
@@ -339,6 +352,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     case 'guard':
     case 'avoidExplosion':
     case 'opportunityAttack':
+    case 'counterattack':
     case 'follow':
     case 'resist':
     case 'assist':
@@ -375,8 +389,12 @@ function getManeuverTerms(c: Character): Term[] {
   return [{ label: 'grapple', value: getGrapple(c) }]
 }
 
-// A reaction that is a test of its own, scored against the root's DL.
+// A reaction that is a test of its own, scored against the root's DL — but
+// a counterattack, which is its strike's test (abilities.tex
+// "Counterattack").
 export function getReactionTest(state: CombatState, root: Action, reaction: Action): Test {
+  const counter = reaction.kind === 'counterattack' ? getRootTest(state, getCounterStrike(reaction, '')) : null
+  if (counter) return counter
   return { skill: sumTerms(getReactionTestTerms(state, reaction)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
 }
 

@@ -8,16 +8,16 @@ import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/
 import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getAttackOptions } from '../rules/attack'
-import { isDeclarationComplete } from '../rules/action'
+import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimPush } from './choices'
 import { withdrawSpawnedAction } from './action'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 
-function fighter(id: string): CampaignCharacter {
+function fighter(id: string, abilities: string[] = []): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } }
+  return { ...base, id, fightName: id, abilities, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
 function archer(id: string): CampaignCharacter {
@@ -25,9 +25,9 @@ function archer(id: string): CampaignCharacter {
   return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id))) as CampaignCharacter), usedSurge: 'focus' }
 }
 
-function spearman(id: string): CampaignCharacter {
+function spearman(id: string, abilities: string[] = []): CampaignCharacter {
   const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
-  return regripItem(spear.id, 2)(holdItem(spear)(fighter(id))) as CampaignCharacter
+  return regripItem(spear.id, 2)(holdItem(spear)(fighter(id, abilities))) as CampaignCharacter
 }
 
 function onBoard(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {
@@ -285,5 +285,81 @@ describe('an explosion', () => {
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
     expect(facts.x).toBeUndefined()
     expect(facts.y?.length).toBeGreaterThan(0)
+  })
+})
+
+// A spearman's thrust at the character, committed.
+function thrustAt(target: CampaignCharacter): CombatState {
+  let s = onBoard({ atk: [0, 0], [target.id]: [1, 0] }, spearman('atk'), target)
+  const [row] = getAttackOptions(s.characters.atk, 'strike')
+  s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+  return commitAction()(setTarget(target.id)(s))
+}
+
+// abilities.tex "Counterattack": "Both attacks are made against the
+// opponent's SD. The attack with the higher result hits first, having the
+// chance to interrupt the opponent. The counterattack receives -2 to hit."
+// The table's ruling: on a tie both land, neither interrupting the other.
+describe('a counterattack', () => {
+  // The dice are the thrust's, then the counterattack's; every hit here
+  // interrupts. Who struck, in the order they landed, and whether it hit.
+  function landings(faces: number[]): { by: string; hit: boolean }[] {
+    const def = spearman('def', ['counterattack'])
+    let s = declareReaction('def', { kind: 'counterattack' }, newId)(thrustAt(def))
+    const [row] = getAttackOptions(s.characters.def, 'strike')
+    s = amendReaction('def', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(s)
+    const dice = [...faces]
+    s = rollAction(() => dice.shift()!, newId)(s)
+    for (let i = 0; i < 5 && getOpenAction(s); i++) s = resolveAction(newId)(s)
+    return s.history.map((id) => s.actions.find((a) => a.id === id)!).map((a) => ({ by: a.actorId, hit: a.kind === 'strike' && a.facts !== null }))
+  }
+
+  it('that rolls higher lands first, and the attack it interrupts lands nothing', () => {
+    expect(landings([3, 9])).toEqual([{ by: 'def', hit: true }, { by: 'atk', hit: false }])
+  })
+
+  it('that rolls lower is broken by the attack that interrupts it', () => {
+    expect(landings([9, 5])).toEqual([{ by: 'atk', hit: true }])
+  })
+
+  // 7 less the counterattack's 2 is the thrust's 5
+  it('that rolls the same lands along with the attack', () => {
+    expect(landings([5, 7])).toEqual([{ by: 'def', hit: true }, { by: 'atk', hit: true }])
+  })
+})
+
+// abilities.tex "Riposte": "After defending a melee attack that misses, the
+// character can make an attack with a +2 bonus to hit immediately after. The
+// attack costs 1 AP less than the normal attack, and 2 AP less if made with
+// an object different from the one used for defense."
+describe('a riposte', () => {
+  // A thrust that misses a shield-bearer who knows Riposte, blocking with
+  // the shield or standing on their SD.
+  function missedShieldBearer(block: boolean): CombatState {
+    const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+    let s = thrustAt(holdItem(shield)(fighter('def', ['riposte'])) as CampaignCharacter)
+    const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === 'block' && o.draft.weaponKey === shield.id)!
+    if (block) s = declareReaction('def', option.draft, newId)(s)
+    return resolveAction(newId)(rollAction(() => MISS, newId)(s))
+  }
+
+  it('is offered to one who defended actively, at the attacker', () => {
+    const open = getOpenAction(missedShieldBearer(true))
+    expect(open).toMatchObject({ kind: 'strike', actorId: 'def', targetId: 'atk', step: 'define' })
+  })
+
+  it('is not offered to one who stood on their SD', () => {
+    expect(getOpenAction(missedShieldBearer(false))).toBeNull()
+  })
+
+  it('costs 1 AP less with the object that defended, 2 with another', () => {
+    const s = missedShieldBearer(true)
+    const shield = s.characters.def.held[0].id
+    const discounts = getAttackOptions(s.characters.def, 'strike').filter((o) => o.variant === 'basic').map((o) => {
+      const declared = amendAction({ weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(s)
+      return { same: o.weaponKey === shield, less: o.AP - getOwnCost(declared, getOpenAction(declared)!)!.AP }
+    })
+    expect(discounts.filter((d) => d.same).map((d) => d.less)).toEqual([1])
+    expect(new Set(discounts.filter((d) => !d.same).map((d) => d.less))).toEqual(new Set([2]))
   })
 })

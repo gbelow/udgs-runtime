@@ -49,7 +49,7 @@ export function getCancellableLabel(state: CombatState, root: Action, defenderId
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (isImmobile(defender)) return { available: false, reason: 'immobile' }
-  if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }
@@ -199,6 +199,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'letGo': {
         const reason = isHeld(state.grapples, c.id) ? 'held' : null
         return [{ ...option(ACTIONS[kind].label, { kind }), available: gate.available && reason === null, reason: gate.reason ?? reason }]
+      }
+      // abilities.tex "Counterattack": a strike of their own, so it is open
+      // only to someone who can pay for one
+      case 'counterattack': {
+        const strikes = getAttackOptions(c, 'strike')
+        const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
+        return [{ ...option(ACTIONS[kind].label, { kind }, null), available: gate.available && reason === null, reason: gate.reason ?? reason }]
       }
       // combat.tex "Follow": a move of the follower's own, so it is open only
       // to someone who can pay for one

@@ -433,6 +433,11 @@ export const OpportunityAttackActionSchema = z.object({
   maneuver: GrappleManeuverSchema.default('immobilize'),
 }).strip()
 
+// abilities.tex "Counterattack": the target's answer to a strike, declared
+// with the strike it opens in full. Its die is thrown with the attack's, and
+// the two results say which of them lands first (rules/counter.ts).
+export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...AttackDeclaration }).strip()
+
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
 // the root resolves it opens a move of the follower's own, capped at what
 // the triggering move cost.
@@ -570,6 +575,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   BlockActionSchema,
   InterceptActionSchema,
   OpportunityAttackActionSchema,
+  CounterattackActionSchema,
   FollowActionSchema,
   MoveActionSchema,
   GrappleActionSchema,

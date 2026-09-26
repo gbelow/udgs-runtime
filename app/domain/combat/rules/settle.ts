@@ -47,6 +47,7 @@ export function getSettled(state: CombatState, open: Action): Action {
     case 'guard':
     case 'avoidExplosion':
     case 'opportunityAttack':
+    case 'counterattack':
     case 'follow':
     case 'resist':
     case 'assist':

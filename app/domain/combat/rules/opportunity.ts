@@ -2,6 +2,7 @@ import type { Action, ActionOf, CombatState, DragAction, OpportunityAction, Trig
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
 import { getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { getCounterattack, getCounterSlot, getCounterStrikeOf } from './counter'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -86,12 +87,20 @@ export function isCancelled(state: CombatState, action: TriggeringAction): boole
 }
 
 // Whether the action comes to nothing: a triggering action given up or
-// interrupted (`isCancelled`), or a strike a flanker interrupted before it
-// landed (the table's ruling: an interruption breaks the action). A move is
-// cut short instead (`getMoveOverride`); anything else lands.
+// interrupted (`isCancelled`), or a strike a flanker, or a counterattack
+// that rolled higher, interrupted before it landed (the table's ruling: an
+// interruption breaks the action). A move is cut short instead
+// (`getMoveOverride`); anything else lands.
 export function isVoided(state: CombatState, action: Action): boolean {
   if (isTriggeringAction(action)) return isCancelled(state, action)
-  return action.kind === 'strike' && isInterruptedByOpportunity(state, action)
+  return action.kind === 'strike' && (isInterruptedByOpportunity(state, action) || isInterruptedByCounter(state, action))
+}
+
+// abilities.tex "Counterattack": "The attack with the higher result hits
+// first, having the chance to interrupt the opponent."
+function isInterruptedByCounter(state: CombatState, action: Action): boolean {
+  const counter = getCounterattack(state, action)
+  return counter !== null && getCounterSlot(action, counter) === 'before' && isInterruptingStrike(getCounterStrikeOf(state, counter), action.actorId)
 }
 
 // The triggering action of the defender's that answering the opportunity

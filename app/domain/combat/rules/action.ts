@@ -19,6 +19,8 @@ import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isAttackAction, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
+import { getCounterStrike } from './counter'
+import { getRiposteDiscount } from './riposte'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 
 // An action's life in the fight: whether its declaration is complete and
@@ -100,6 +102,11 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'avoidExplosion':
     case 'follow':
       return true
+    // abilities.tex "Counterattack": "as long as you are within range"
+    case 'counterattack': {
+      const strike = getCounterStrike(action, '')
+      return getAttackVariant(c, strike) !== null && isVariantOpen(state, strike, strike.variant) && isInReach(state, strike, action.targetId ?? '')
+    }
   }
 }
 
@@ -132,8 +139,8 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
   // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
   // strike with a weapon with the grapple property"
   if (action.kind === 'strike' && action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
-  if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion') {
-    const variant = getAttackVariant(c, action)
+  if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'counterattack') {
+    const variant = getAttackVariant(c, action.kind === 'counterattack' ? getCounterStrike(action, '') : action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
   }
   if (action.kind === 'move') return action.path.length > 0 || isPosture(action.movement) ? getMovePrice(c, action, action.path.length) : null
@@ -159,11 +166,14 @@ export function getPayableCost(state: CombatState, action: Action): ActionCost |
 }
 
 // What the action costs its actor as it stands, whether or not they can pay
-// it; null while it is too incomplete to price.
+// it; null while it is too incomplete to price. A riposte comes cheaper
+// (abilities.tex "Riposte").
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
-  const cost = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
+  const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
+  const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : 0
+  const cost = declared && discount > 0 ? { AP: Math.max(0, declared.AP - discount), STA: declared.STA } : declared
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
 }
 
