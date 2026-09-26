@@ -1,4 +1,4 @@
-import type { Coord } from './types'
+import type { Coord, Direction } from './types'
 
 // Hex arithmetic in axial coordinates (q, r), with the implied third cube
 // axis s = -q - r. Nothing here is a rule: this is the metric the board
@@ -16,7 +16,13 @@ export const DIRECTIONS: readonly Coord[] = [
   { q: 0, r: 1 },
 ]
 
-export type Orientation = 0 | 1 | 2 | 3 | 4 | 5
+// The directions by index, in the order of DIRECTIONS.
+export const ROTATIONS = [0, 1, 2, 3, 4, 5] as const satisfies readonly Direction[]
+
+// A direction turned `steps` times clockwise.
+export function turn(d: Direction, steps = 1): Direction {
+  return ROTATIONS[(((d + steps) % 6) + 6) % 6]
+}
 
 export function coordKey(c: Coord): string {
   return `${c.q},${c.r}`
@@ -117,15 +123,16 @@ export function rotate(offset: Coord, steps: number): Coord {
 // The direction from one cell towards another, as the nearest of the six:
 // the one whose unit vector the displacement projects onto most. Both cells
 // the same is direction 0.
-export function directionTo(from: Coord, to: Coord): Orientation {
+export function directionTo(from: Coord, to: Coord): Direction {
   const d = subtract(to, from)
   const ds = -d.q - d.r
-  let best: Orientation = 0
+  let best: Direction = 0
   let bestDot = -Infinity
-  DIRECTIONS.forEach((dir, i) => {
+  for (const i of ROTATIONS) {
+    const dir = DIRECTIONS[i]
     const dot = d.q * dir.q + d.r * dir.r + ds * (-dir.q - dir.r)
-    if (dot > bestDot) [best, bestDot] = [i as Orientation, dot]
-  })
+    if (dot > bestDot) [best, bestDot] = [i, dot]
+  }
   return best
 }
 

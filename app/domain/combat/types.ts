@@ -45,7 +45,8 @@ export type Coord = z.infer<typeof CoordSchema>
 
 // One of the six hex directions, which are also the six rotations; the
 // order is `geometry.ts`'s DIRECTIONS.
-export const DirectionSchema = z.number().int().min(0).max(5)
+export const DirectionSchema = z.literal([0, 1, 2, 3, 4, 5])
+export type Direction = z.infer<typeof DirectionSchema>
 
 // Where a character stands. `cell` is the anchor of its footprint and
 // `orientation` one of the six hex rotations the footprint may take

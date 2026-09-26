@@ -6,7 +6,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
-import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
+import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
 import { canRest, isCrossable, readGround } from './ground'
 import { getMoveOrigin } from './waypoint'
@@ -370,7 +370,7 @@ export function getEvasiveJumpPlacements(state: CombatState, defenderId: string,
   const placements: Placement[] = []
   for (const cell of disk(from.cell, leap)) {
     if (sameCell(cell, from.cell) || !reaches(cell)) continue
-    for (let orientation = 0; orientation < 6; orientation++) {
+    for (const orientation of ROTATIONS) {
       const to = { ...from, cell, orientation }
       const footprint = getFootprint(defender, to)
       if (footprint.every(free) && setDistance(footprint, attacker) > before) placements.push(to)

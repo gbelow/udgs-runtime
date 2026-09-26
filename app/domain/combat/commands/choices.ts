@@ -1,4 +1,4 @@
-import { DirectionSchema, type Action, type Updater, type Coord, type DragAction, type HOPPurchase } from '../types'
+import type { Action, Coord, Direction, DragAction, HOPPurchase, Updater } from '../types'
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
 import { getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
@@ -15,7 +15,7 @@ import { applyPhase, getRolledOpen, pruneReactions, replaceActions } from './log
 // The winner's way for the push, once the grapple has answered: push along
 // a direction and how far, circle round to a cell, or stay. Only what the
 // outcome leaves open; third parties' answers to a way no longer taken go.
-export function aimPush(fields: { choice?: 'push' | 'circle' | 'stay'; direction?: number; steps?: number; to?: Coord }): Updater {
+export function aimPush(fields: { choice?: 'push' | 'circle' | 'stay'; direction?: Direction; steps?: number; to?: Coord }): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['drag'])
     if (!open) return state
@@ -75,10 +75,10 @@ function takeOne<K extends string>(tally: Partial<Record<K, number>>, key: K): P
 // Points a rolled spray where the attacker chooses, now that the reactions
 // have moved (combat.tex "Sprays": "The attacker can choose the exact
 // direction of the cone after the movement").
-export function aimExplosion(direction: number): Updater {
+export function aimExplosion(direction: Direction): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['blast'])
-    if (!open || !isSpray(open) || !DirectionSchema.safeParse(direction).success) return state
+    if (!open || !isSpray(open)) return state
     return replaceActions(state, [{ ...open, direction }])
   }
 }

@@ -6,7 +6,6 @@ Needs a decision
 
 Unused and small
 
-- Orientation (geometry.ts) is a literal-union second definition of DirectionSchema (combat/types.ts). Unifying needs DirectionSchema to infer 0..5 rather than number.
 - rollTest / RollMode (dice.ts) have no callers: safe and risky tests are not wired in. Inert structure drawn ahead, kept on purpose.
 
 Places that break the project's own rules

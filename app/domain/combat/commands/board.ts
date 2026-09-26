@@ -1,7 +1,7 @@
 import type { TerrainBrush } from '../../types'
 import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord, type MoveAction, type Updater } from '../types'
 import { makeBoard } from '../factories'
-import { coordKey, directionTo, distance, sameCell } from '../geometry'
+import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
 import { getOpenAction } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getExplosionCenters } from '../rules/explosion'
@@ -45,7 +45,7 @@ export function turnCharacter(id: string): Updater {
   return (state) => {
     const current = state.board?.placements[id]
     if (!state.board || !current || getOpenAction(state)) return state
-    const placement = { ...current, orientation: (current.orientation + 1) % 6 }
+    const placement = { ...current, orientation: turn(current.orientation) }
     if (!canStandAt(state, id, placement)) return state
     return withPlacements(state, { [id]: placement })
   }
@@ -138,6 +138,6 @@ export function turnMove(): Updater {
     const open = getOpenAction(state)
     const from = open ? state.board?.placements[open.actorId] : undefined
     if (!open || open.kind !== 'move' || open.step !== 'define' || !from) return state
-    return amendAction({ orientation: ((open.orientation ?? from.orientation) + 1) % 6 })(state)
+    return amendAction({ orientation: turn(open.orientation ?? from.orientation) })(state)
   }
 }
