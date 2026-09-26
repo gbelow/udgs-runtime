@@ -7,7 +7,8 @@ import { getAttackOptions, getOpportunityAction, getOpportunityState, getOpportu
 import { isInReach } from '../rules/board'
 import { getBlastOf, isSpray } from '../rules/explosion'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
-import { getDrawnOpportunityAttacks, isFlankInReach, isInterruptingStrike, isTriggeringAction, isVoided } from '../rules/opportunity'
+import { getDrawnOpportunityAttacks, isFlankInReach, isTriggeringAction, isVoided } from '../rules/opportunity'
+import { getInterruptionOf } from '../rules/interruption'
 import { getCounterattack, getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from '../rules/counter'
 import { getRiposteOpening } from '../rules/riposte'
 import { getDisplacement, getStunEscapes } from '../rules/grapple'
@@ -78,7 +79,7 @@ function openCounter(state: CombatState, root: Action, slots: CounterSlot[], new
   const reaction = getCounterattack(state, root)
   const slot = reaction ? getCounterSlot(root, reaction) : null
   if (!reaction || !slot || !slots.includes(slot) || getCounterStrikeOf(state, reaction)) return []
-  if (slot === 'after' && isInterruptingStrike(root, reaction.actorId)) return []
+  if (slot === 'after' && getInterruptionOf(root, reaction.actorId) !== 'none') return []
   return [getCounterStrike(reaction, newId())]
 }
 

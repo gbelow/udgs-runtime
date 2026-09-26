@@ -1,8 +1,8 @@
-import type { Action, ActionOf, CombatState, DragAction, OpportunityAction, TriggeringAction } from '../types'
+import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
 import { getOpeningReaction, getReactionsTo, getRootOf } from './log'
-import { getCounterattack, getCounterSlot, getCounterStrikeOf } from './counter'
+import { isBroken } from './interruption'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -41,30 +41,6 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
   return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
 }
 
-// combat.tex "Interruption": "interrupts any action from its victim" —
-// whether the action is a strike that has landed on the character with an
-// interruption.
-export function isInterruptingStrike(action: Action | null | undefined, victimId: string): boolean {
-  return action?.kind === 'strike' && action.step === 'done' && action.targetId === victimId && action.interruption !== 'none'
-}
-
-// Whether an opportunity attack the action drew has landed with an
-// interruption on its actor. A push made as one interrupts them too, if
-// they resisted it actively or it moved them (combat.tex "Push and drag":
-// "interrupts them"). One fought against someone else — a third party's
-// against whoever a push moved at them — does not stop the actor.
-function isInterruptedByOpportunity(state: CombatState, action: Action): boolean {
-  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => isInterruptingStrike(spawned, action.actorId)
-    || (spawned?.kind === 'drag' && isInterruptedByPush(state, spawned, action.actorId)))
-}
-
-function isInterruptedByPush(state: CombatState, push: DragAction, id: string): boolean {
-  if (push.step !== 'done') return false
-  const walked = state.actions.find((a) => a.kind === 'displace' && a.spawnedBy === push.id)
-  const moved = walked?.kind === 'displace' && walked.step === 'done' ? walked.facts?.interrupted ?? [] : []
-  return [...(push.facts?.interrupted ?? []), ...moved].includes(id)
-}
-
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
 // action and reuse the AP spent to defend against an opportunity attack." Its
 // actor gives it up by answering one of the attacks it drew with anything
@@ -78,29 +54,15 @@ export function getGivenUpFor(state: CombatState, action: TriggeringAction): Opp
 }
 
 // A triggering action comes to nothing once its actor gives it up
-// (`getGivenUpFor`) or an opportunity attack interrupts them. A push whose
-// pusher a third party interrupts is cut short where it got to, not
-// cancelled (the table's ruling; `getPushStop`).
+// (`getGivenUpFor`) or it is broken (`isBroken`).
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
-  if (getGivenUpFor(state, action) !== null) return true
-  return action.kind !== 'displace' && isInterruptedByOpportunity(state, action)
+  return getGivenUpFor(state, action) !== null || isBroken(state, action)
 }
 
-// Whether the action comes to nothing: a triggering action given up or
-// interrupted (`isCancelled`), or a strike a flanker, or a counterattack
-// that rolled higher, interrupted before it landed (the table's ruling: an
-// interruption breaks the action). A move is cut short instead
-// (`getMoveOverride`); anything else lands.
+// Whether the action comes to nothing: a triggering action given up, or
+// anything broken by an interruption before its effect (`isBroken`).
 export function isVoided(state: CombatState, action: Action): boolean {
-  if (isTriggeringAction(action)) return isCancelled(state, action)
-  return action.kind === 'strike' && (isInterruptedByOpportunity(state, action) || isInterruptedByCounter(state, action))
-}
-
-// abilities.tex "Counterattack": "The attack with the higher result hits
-// first, having the chance to interrupt the opponent."
-function isInterruptedByCounter(state: CombatState, action: Action): boolean {
-  const counter = getCounterattack(state, action)
-  return counter !== null && getCounterSlot(action, counter) === 'before' && isInterruptingStrike(getCounterStrikeOf(state, counter), action.actorId)
+  return isTriggeringAction(action) ? isCancelled(state, action) : isBroken(state, action)
 }
 
 // The triggering action of the defender's that answering the opportunity

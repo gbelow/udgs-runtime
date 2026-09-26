@@ -11,7 +11,8 @@ import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistanc
 import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
-import { getDrawnOpportunityAttacks, isInterruptingStrike } from './opportunity'
+import { getDrawnOpportunityAttacks } from './opportunity'
+import { getInterruptionOf } from './interruption'
 import { findOpenRoot, getReactionsTo } from './log'
 
 // How a character crosses the board: what each kind of movement costs it,
@@ -332,7 +333,7 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
-    if ((stoppable && isInterruptingStrike(strike, action.actorId)) || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }
+    if ((stoppable && getInterruptionOf(strike, action.actorId) !== 'none') || strike.tripped) return { step: reaction.at! - 1, stop: 'reaction' }
     if (strike.trample?.result === 'stopped') return { step: reaction.at! - 1, stop: 'trample' }
   }
   return null

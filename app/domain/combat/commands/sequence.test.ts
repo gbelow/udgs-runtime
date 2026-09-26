@@ -25,9 +25,13 @@ function archer(id: string): CampaignCharacter {
   return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id))) as CampaignCharacter), usedSurge: 'focus' }
 }
 
+function wielder(id: string, weapon: string, abilities: string[] = []): CampaignCharacter {
+  const item = ItemSchema.parse({ name: weapon, type: 'weapon', refId: weapon, bulk: 3 })
+  return regripItem(item.id, 2)(holdItem(item)(fighter(id, abilities))) as CampaignCharacter
+}
+
 function spearman(id: string, abilities: string[] = []): CampaignCharacter {
-  const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
-  return regripItem(spear.id, 2)(holdItem(spear)(fighter(id, abilities))) as CampaignCharacter
+  return wielder(id, 'Short Spear', abilities)
 }
 
 function onBoard(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {
@@ -62,7 +66,8 @@ function openedByOpportunity(s: CombatState, landed: Action[]): Action[] {
 }
 
 // Plays the open action out to the end with the die showing `face`, taking
-// every default a step offers, and returns the order in which its root
+// every default a step offers and passing up any escape a stun opens, and
+// returns the order in which its root
 // actions landed, and the triggers each action an opportunity attack opened
 // offered while it was open to answers.
 function playOut(start: CombatState, face: number): { state: CombatState; landed: Action[]; openedTriggers: string[] } {
@@ -73,7 +78,8 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const next = [rollAction(() => face, newId), payAction(newId), resolveAction(newId)].map((step) => step(s)).find((t) => t !== s)
+    const steps = open.kind === 'grapple' && open.maneuver === 'escape' && open.step === 'define' ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
+    const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
     s = next
@@ -183,13 +189,35 @@ describe('an action broken by an opportunity attack', () => {
     expect(state.characters.def).toEqual(s.characters.def)
   })
 
-  // The table's ruling: only the pusher being interrupted stops a push; one
-  // who is dragged and interrupted is still dragged all the way.
+  // The table's ruling: only a stun of the pusher stops a push; one who is
+  // dragged and interrupted is still dragged all the way.
   it('does not stop a push when the one it interrupts is dragged', () => {
     const { state } = playOut(pushTowardsSpearman(), LAND)
     expect(state.actions.find((a) => a.kind === 'strike' && a.targetId === 'b' && a.step === 'done' && a.interruption !== 'none')).toBeDefined()
     expect(state.board?.placements.b?.cell).toEqual({ q: 3, r: 0 })
     expect(state.board?.placements.a?.cell).toEqual({ q: 2, r: 0 })
+  })
+
+  // The table's ruling: the pusher goes along with the push, so like running
+  // and jumping it carries on through an interruption; only a stun of the
+  // pusher stops it, one step short of the stretch the attack fired on. A
+  // leaves [0, 0] pulling B from [1, 0] 2m away from the attacker, who
+  // strikes A on the second step.
+  it.each([
+    { weapon: 'Short Spear', a: { q: -2, r: 0 }, b: { q: -1, r: 0 } },
+    { weapon: 'Greatsword', a: { q: -1, r: 0 }, b: { q: 0, r: 0 } },
+  ])('stops a push whose pusher a $weapon hits only if it stuns them', ({ weapon, a, b }) => {
+    let s = onBoard({ a: [0, 0], b: [1, 0], t: [-3, 0] }, fighter('a'), fighter('b'), wielder('t', weapon))
+    s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+    s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction()(setTarget('b')(s))))
+    s = declareAction('a', { kind: 'drag' }, newId)(s)
+    s = payAction(newId)(commitAction()(setTarget('b')(s)))
+    s = resolveAction(newId)(aimPush({ choice: 'push', direction: 3, steps: 2 })(s))
+    const { state } = playOut(everyoneAttacks(s, ['t']), LAND)
+    const strike = state.actions.find((x) => x.kind === 'strike' && x.actorId === 't')
+    expect(strike?.kind === 'strike' && [strike.targetId, strike.interruption]).toEqual(['a', weapon === 'Greatsword' ? 'stunned' : 'interrupted'])
+    expect(state.board?.placements.a?.cell).toEqual(a)
+    expect(state.board?.placements.b?.cell).toEqual(b)
   })
 
   // The table's ruling: an interrupted mover stays one step short of the
@@ -302,8 +330,8 @@ function thrustAt(target: CampaignCharacter): CombatState {
 // The table's ruling: on a tie both land, neither interrupting the other.
 describe('a counterattack', () => {
   // The dice are the thrust's, then the counterattack's; every hit here
-  // interrupts. Who struck, in the order they landed, and whether it hit.
-  function landings(faces: number[]): { by: string; hit: boolean }[] {
+  // interrupts. The strikes, in the order they landed.
+  function strikes(faces: number[]): Action[] {
     const def = spearman('def', ['counterattack'])
     let s = declareReaction('def', { kind: 'counterattack' }, newId)(thrustAt(def))
     const [row] = getAttackOptions(s.characters.def, 'strike')
@@ -311,7 +339,12 @@ describe('a counterattack', () => {
     const dice = [...faces]
     s = rollAction(() => dice.shift()!, newId)(s)
     for (let i = 0; i < 5 && getOpenAction(s); i++) s = resolveAction(newId)(s)
-    return s.history.map((id) => s.actions.find((a) => a.id === id)!).map((a) => ({ by: a.actorId, hit: a.kind === 'strike' && a.facts !== null }))
+    return s.history.map((id) => s.actions.find((a) => a.id === id)!)
+  }
+
+  // Who struck, in the order they landed, and whether it hit.
+  function landings(faces: number[]): { by: string; hit: boolean }[] {
+    return strikes(faces).map((a) => ({ by: a.actorId, hit: a.kind === 'strike' && a.facts !== null }))
   }
 
   it('that rolls higher lands first, and the attack it interrupts lands nothing', () => {
@@ -322,9 +355,12 @@ describe('a counterattack', () => {
     expect(landings([9, 5])).toEqual([{ by: 'atk', hit: true }])
   })
 
-  // 7 less the counterattack's 2 is the thrust's 5
+  // 7 less the counterattack's 2 is the thrust's 5. What the tied strike
+  // lands still interrupts the attacker; it only does not break the attack.
   it('that rolls the same lands along with the attack', () => {
     expect(landings([5, 7])).toEqual([{ by: 'def', hit: true }, { by: 'atk', hit: true }])
+    const [tied] = strikes([5, 7])
+    expect(tied.kind === 'strike' && tied.interruption).toBe('interrupted')
   })
 })
 

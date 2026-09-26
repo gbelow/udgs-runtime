@@ -10,14 +10,14 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { hasProperty, isMeleeRange } from '../../weaponProperties'
 import { DIRECTIONS, add, sameCell, setDistance, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, getReach, placeAt, withPlacements } from './board'
-import { getReactionsTo } from './log'
+import { getOpeningReaction, getReactionsTo } from './log'
 import { findGrapple, getGrapplesOf, isInGrapple, getPartner, getPartners, holds, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './activeCharacter'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { canStandAt, getMoveCost } from './move'
 import { delivering, getRowDamage } from './damage'
 import { isAttackAction } from './attack'
-import { getDrawnOpportunityAttacks, isInterruptingStrike } from './opportunity'
+import { getInterruptions } from './interruption'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -537,12 +537,15 @@ export function getDisplacement(state: CombatState, root: DragAction): Pick<Disp
 }
 
 // Where the displacement was brought to a stop: one step short of the
-// stretch on which a third party's attack interrupted the pusher, where
-// everyone it moves stays, as an interrupted mover does (the table's ruling:
-// only the pusher's interruption stops it). Null while it goes on.
+// stretch on which a third party's attack stunned the pusher, where everyone
+// it moves stays, as an interrupted mover does. The table's ruling: the
+// pusher goes along with the push, so like running and jumping it carries
+// on through an interruption, and only a stun of the pusher stops it. Null
+// while it goes on.
 export function getPushStop(state: CombatState, root: DisplaceAction): number | null {
-  const stopped = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => isInterruptingStrike(spawned, root.actorId))
-  return stopped ? Math.max(0, (stopped.reaction.at ?? 1) - 1) : null
+  const stunned = getInterruptions(state, root).find(({ level }) => level === 'stunned')
+  const reaction = stunned ? getOpeningReaction(state, stunned.by) : null
+  return reaction ? Math.max(0, (reaction.at ?? 1) - 1) : null
 }
 
 // The way walked as far as it got: where each ended, the side pushed
