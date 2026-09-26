@@ -3,16 +3,16 @@ import type { Action, ActionKind, ActionOf, CombatState } from '../types'
 // The fight's log of actions: which one is open, what answers what, and
 // what opened what.
 
-// The action being played out: the first root not yet resolved. Nothing can
-// be declared while one is open, so there is only ever one — except for the
-// actions a reaction opens (an opportunity attack, a follow, an escape from
-// a blast), which are played out ahead of whatever they were opened
-// against: an opportunity attack on a mover is fought while the move waits
-// to resolve. They stack, so the one opened last goes first — an explosion
-// a cast opened waits for the escapes its own reactions opened.
+// The action being played out: the top of the stack. Nothing can be declared
+// while one is open, so there is only ever one root — except for the actions
+// a reaction opens (an opportunity attack, a follow, an escape from a blast),
+// which are pushed over whatever they were opened against and played out
+// first: an opportunity attack on a mover is fought while the move waits to
+// resolve, and an explosion a cast opened waits for the escapes its own
+// reactions opened.
 export function getOpenAction(state: CombatState): Action | null {
-  const roots = state.actions.filter((a) => a.reactionTo === null && a.status !== 'resolved')
-  return [...roots].reverse().find((a) => a.spawnedBy !== null) ?? roots[0] ?? null
+  const id = state.stack.at(-1)
+  return id ? getAction(state, id) : null
 }
 
 // The first root of the kind still being played out — waiting on what it

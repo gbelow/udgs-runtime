@@ -10,7 +10,7 @@ import type { Dice } from '../dice'
 import { getCancellableRoot } from '../rules/opportunity'
 import { getDragComparison } from '../rules/grapple'
 import { getSettled } from '../rules/settle'
-import { appendActions, applyPhase, pruneReactions, replaceActions, withoutLiveReaction } from './log'
+import { appendActions, applyPhase, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advanceOpportunities, afterLanding, afterPaying, fightPush, spawn } from './sequence'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -85,7 +85,7 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
     if (!open || open.status !== 'declared' || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
     const dropped = reaction ? [open.id, reaction.id] : [open.id]
-    const withdrawn = { ...state, actions: state.actions.filter((a) => !dropped.includes(a.id)) }
+    const withdrawn = setActions(state, state.actions.filter((a) => !dropped.includes(a.id)))
     const root = reaction ? getRootOf(withdrawn, reaction) : null
     return root?.status === 'rolled' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
   }
@@ -102,7 +102,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     if (!findOption(state, actorId, draft)?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
     const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: trigger?.against ?? open.actorId, reactionTo: open.id })
-    return pruneReactions({ ...state, actions: [...withoutLiveReaction(state, open.id, actorId), reaction] })
+    return pruneReactions(setActions(state, [...withoutLiveReaction(state, open.id, actorId), reaction]))
   }
 }
 
@@ -125,7 +125,7 @@ export function withdrawReaction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || !isAnswerable(state, open)) return state
-    return pruneReactions({ ...state, actions: withoutLiveReaction(state, open.id, actorId) })
+    return pruneReactions(setActions(state, withoutLiveReaction(state, open.id, actorId)))
   }
 }
 
@@ -146,7 +146,7 @@ export function cancelAction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.status !== 'declared' || open.spawnedBy) return state
-    return { ...state, actions: state.actions.filter((a) => a.id !== open.id && a.reactionTo !== open.id) }
+    return setActions(state, state.actions.filter((a) => a.id !== open.id && a.reactionTo !== open.id))
   }
 }
 

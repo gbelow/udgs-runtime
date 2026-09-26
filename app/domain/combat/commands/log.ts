@@ -11,12 +11,20 @@ import { settleGrapples } from './grapple'
 // everything it touches, and keeping the declared reactions in line with
 // what the open action still triggers.
 
-export function replaceActions(state: CombatState, next: Action[]): CombatState {
-  return { ...state, actions: state.actions.map((a) => next.find((n) => n.id === a.id) ?? a) }
+// The fight with its log rewritten, and the stack kept to the actions still
+// being played out: `pushed` goes on top, anything resolved or gone leaves.
+export function setActions(state: CombatState, actions: Action[], pushed: string[] = []): CombatState {
+  const live = new Set(actions.filter((a) => a.status !== 'resolved').map((a) => a.id))
+  return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)) }
 }
 
+export function replaceActions(state: CombatState, next: Action[]): CombatState {
+  return setActions(state, state.actions.map((a) => next.find((n) => n.id === a.id) ?? a))
+}
+
+// Every root added is pushed, in the order given, so the last goes first.
 export function appendActions(state: CombatState, added: Action[]): CombatState {
-  return added.length === 0 ? state : { ...state, actions: [...state.actions, ...added] }
+  return added.length === 0 ? state : setActions(state, [...state.actions, ...added], added.filter((a) => a.reactionTo === null).map((a) => a.id))
 }
 
 function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => CampaignCharacter): CombatState {
@@ -51,7 +59,7 @@ export function pruneReactions(state: CombatState): CombatState {
   if (!open || !(open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && !open.fought))) return state
   const live = getLiveReactionsTo(state, open.id)
   const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' ? a.at : undefined }) !== null)
-  return kept.length === state.actions.length ? state : { ...state, actions: kept }
+  return kept.length === state.actions.length ? state : setActions(state, kept)
 }
 
 // The open action, once rolled, when it is of one of the kinds; null

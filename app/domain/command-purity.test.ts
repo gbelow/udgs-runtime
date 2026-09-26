@@ -263,6 +263,7 @@ function combatSubject(): CombatState {
   return {
     ...CombatStateSchema.parse({
       actions: [strike, evade],
+      stack: ['s1'],
       board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 0, r: 1 } } }, terrain: { '2,0': { blocking: true } } },
     }),
     characters: { a, b },

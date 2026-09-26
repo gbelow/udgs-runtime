@@ -607,6 +607,10 @@ export const CombatStateSchema = z.object({
   // included: the open one is the last root still short of resolved, and the
   // rest is the fight's history.
   actions: z.array(ActionSchema).default([]),
+  // The actions still being played out, by id, the one the table is waiting
+  // on last. An action a reaction opens is pushed over the one it answers
+  // and played out first; an action leaves when it resolves.
+  stack: z.array(z.string()).default([]),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),
