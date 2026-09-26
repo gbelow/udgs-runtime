@@ -258,7 +258,7 @@ function declaredMove(s: CombatState): CombatState {
 function combatSubject(): CombatState {
   const a = { ...characterSubject(), id: 'a', fightName: 'a' }
   const b = { ...characterSubject(), id: 'b', fightName: 'b' }
-  const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', status: 'committed' }
+  const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', step: 'react' }
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
     ...CombatStateSchema.parse({

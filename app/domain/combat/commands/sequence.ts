@@ -26,7 +26,7 @@ export function fightPush(state: CombatState, open: DragAction, newId: () => str
     return placement ? [[id, placement]] : []
   }))
   const fought: DragAction = { ...open, fought: true, from }
-  return advanceOpportunities(replaceActions(state, [fought, ...live.map((r): Action => ({ ...r, status: 'resolved' }))]), fought, newId)
+  return advanceOpportunities(replaceActions(state, [fought, ...live.map((r): Action => ({ ...r, step: 'done' }))]), fought, newId)
 }
 
 // What follows the payment: a move, or an action that drew opportunity
@@ -86,7 +86,7 @@ function escapesOnStun(state: CombatState, root: Action, newId: () => string): A
 export function afterLanding(state: CombatState, resolved: Action, newId: () => string): CombatState {
   const reaction = getOpeningReaction(state, resolved)
   const root = reaction ? getRootOf(state, reaction) : null
-  if (root?.status !== 'rolled') return state
+  if (root?.step !== 'post') return state
   return advanceOpportunities(state, root, newId)
 }
 

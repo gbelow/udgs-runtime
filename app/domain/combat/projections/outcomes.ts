@@ -95,7 +95,7 @@ export type ActionReport = {
 }
 
 export function getLastReport(state: CombatState): ActionReport | null {
-  const root = [...state.actions].reverse().find((a) => a.status === 'resolved' && a.reactionTo === null)
+  const root = [...state.actions].reverse().find((a) => a.step === 'done' && a.reactionTo === null)
   if (!root) return null
   const named = (id: string) => getFightName(state, id)
   const delivered = getDeliveries(root)

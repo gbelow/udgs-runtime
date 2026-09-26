@@ -81,23 +81,23 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open) return state
-    if (open.kind === 'move' && open.status === 'declared') {
+    if (open.kind === 'move' && open.step === 'define') {
       const path = pickPathCell(state, open, cell)
       return path ? amendAction({ path })(state) : state
     }
-    if (open.kind === 'explosion' && open.status === 'declared') {
+    if (open.kind === 'explosion' && open.step === 'define') {
       return getExplosionCenters(state, open).some((c) => sameCell(c, cell)) ? amendAction({ center: cell })(state) : state
     }
-    if (open.kind === 'explosion' && open.status === 'rolled') {
+    if (open.kind === 'explosion' && open.step === 'post') {
       const from = state.board?.placements[open.actorId]
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
     }
-    if (open.kind === 'drag' && open.status === 'rolled') {
+    if (open.kind === 'drag' && open.step === 'post') {
       if (open.choice === 'circle') return aimPush({ to: cell })(state)
       const from = state.board?.placements[open.actorId]
       return open.choice === 'push' && from && !sameCell(from.cell, cell) ? aimPush({ direction: directionTo(from.cell, cell) })(state) : state
     }
-    if (open.kind === 'strike' && open.status === 'committed' && open.targetId) {
+    if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
       const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
       return to ? declareReaction(open.targetId, { kind: 'evasiveJump', to }, newId)(state) : state
     }
@@ -129,7 +129,7 @@ export function turnMove(): Updater {
   return (state) => {
     const open = getOpenAction(state)
     const from = open ? state.board?.placements[open.actorId] : undefined
-    if (!open || open.kind !== 'move' || open.status !== 'declared' || !from) return state
+    if (!open || open.kind !== 'move' || open.step !== 'define' || !from) return state
     return amendAction({ orientation: ((open.orientation ?? from.orientation) + 1) % 6 })(state)
   }
 }

@@ -104,11 +104,14 @@ export type Board = z.infer<typeof BoardSchema>
 // procedure — the character reducer reads an action and applies the part of
 // it that concerns that character. It is stored, so it is a schema.
 //
-// `status` is the clock the commands enforce: declared (free to edit or
-// cancel), committed (the declaration is locked and its triggers loaded, so
-// everyone else may answer it; still free to cancel), rolled (the die is
-// thrown and the price is paid, in the same step, with no way back),
-// resolved (the consequences have landed).
+// `step` is where the action waits in the pipeline every action runs,
+// define → react → roll → post → effect, and the commands enforce it:
+// define (free to edit or cancel), react (the declaration is locked and its
+// triggers loaded, so everyone else may answer it), post (the die is thrown
+// and the price paid, in one step with no way back; the choices the result
+// opens are made), done (the effect has landed). The roll and the effect are
+// transitions, not places to wait. A reaction is at define until its root is
+// rolled, and done from then.
 // `cost` is written at the roll, off the actor as they were then, so the
 // record says what was paid without a rule having to recompute it later.
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
@@ -134,7 +137,7 @@ const ActionBase = {
   // The reaction whose resolution opened this action — an opportunity attack
   // is declared as a reaction and fought as a strike of its own.
   spawnedBy: str.nullable().default(null),
-  status: z.enum(['declared', 'committed', 'rolled', 'resolved']).default('declared'),
+  step: z.enum(['define', 'react', 'post', 'done']).default('define'),
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought
@@ -583,7 +586,7 @@ export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type TriggeringAction = ActionOf<{ [K in ActionKind]: (typeof ACTIONS)[K] extends { triggering: true } ? K : never }[ActionKind]>
 
 // The declaration a click makes: an action minus everything the commands fill
-// in (identity, status, the roll, the facts). What is left is the kind and its
+// in (identity, step, the roll, the facts). What is left is the kind and its
 // own declared fields, each optional so a bare kind can be declared and
 // completed step by step.
 export type ActionDraft = {

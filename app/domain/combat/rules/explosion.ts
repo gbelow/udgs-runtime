@@ -272,7 +272,7 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
 // direction of the cone after the movement").
 export function isAimable(state: CombatState, action: ExplosionAction): boolean {
   if (getExplosionAreas(state, action).length === 0) return false
-  return action.status === 'declared' || (action.status === 'rolled' && isSpray(state, action))
+  return action.step === 'define' || (action.step === 'post' && isSpray(state, action))
 }
 
 // Whether the explosion as declared is aimed: a disk at a centre it may be

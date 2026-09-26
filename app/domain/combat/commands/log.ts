@@ -14,7 +14,7 @@ import { settleGrapples } from './grapple'
 // The fight with its log rewritten, and the stack kept to the actions still
 // being played out: `pushed` goes on top, anything resolved or gone leaves.
 export function setActions(state: CombatState, actions: Action[], pushed: string[] = []): CombatState {
-  const live = new Set(actions.filter((a) => a.status !== 'resolved').map((a) => a.id))
+  const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
   return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)) }
 }
 
@@ -56,7 +56,7 @@ export function withoutLiveReaction(state: CombatState, rootId: string, actorId:
 // (combat.tex "Push and drag").
 export function pruneReactions(state: CombatState): CombatState {
   const open = getOpenAction(state)
-  if (!open || !(open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && !open.fought))) return state
+  if (!open || !(open.step === 'react' || (open.kind === 'drag' && open.step === 'post' && !open.fought))) return state
   const live = getLiveReactionsTo(state, open.id)
   const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' ? a.at : undefined }) !== null)
   return kept.length === state.actions.length ? state : setActions(state, kept)
@@ -66,5 +66,5 @@ export function pruneReactions(state: CombatState): CombatState {
 // otherwise — what every choice made after the die starts from.
 export function getRolledOpen<K extends ActionKind>(state: CombatState, kinds: readonly K[]): ActionOf<K> | null {
   const open = getOpenAction(state)
-  return open && open.status === 'rolled' && (kinds as readonly ActionKind[]).includes(open.kind) ? open as ActionOf<K> : null
+  return open && open.step === 'post' && (kinds as readonly ActionKind[]).includes(open.kind) ? open as ActionOf<K> : null
 }

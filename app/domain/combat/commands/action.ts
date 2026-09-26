@@ -38,7 +38,7 @@ export function declareAction(actorId: string, draft: ActionDraft, newId: () => 
 export function amendAction(fields: Partial<ActionDraft>): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared') return state
+    if (!open || open.step !== 'define') return state
     if (fields.kind !== undefined && fields.kind !== open.kind) return state
     return replaceActions(state, [ActionSchema.parse({ ...open, ...fields, kind: open.kind })])
   }
@@ -48,7 +48,7 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
 export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared') return state
+    if (!open || open.step !== 'define') return state
     if (!getTargetIds(state, open).includes(targetId)) return state
     return replaceActions(state, [{ ...open, targetId }])
   }
@@ -62,14 +62,14 @@ export function setTarget(targetId: string): Updater {
 export function commitAction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared') return state
+    if (!open || open.step !== 'define') return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!getPayableCost(state, open)) return state
     const committed: Action = open.kind === 'move'
-      ? { ...open, status: 'committed', from: state.board?.placements[open.actorId] ?? null }
-      : { ...open, status: 'committed' }
+      ? { ...open, step: 'react', from: state.board?.placements[open.actorId] ?? null }
+      : { ...open, step: 'react' }
     return replaceActions(state, [committed])
   }
 }
@@ -82,12 +82,12 @@ export function commitAction(): Updater {
 export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || !open.spawnedBy) return state
+    if (!open || open.step !== 'define' || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
     const dropped = reaction ? [open.id, reaction.id] : [open.id]
     const withdrawn = setActions(state, state.actions.filter((a) => !dropped.includes(a.id)))
     const root = reaction ? getRootOf(withdrawn, reaction) : null
-    return root?.status === 'rolled' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
+    return root?.step === 'post' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
   }
 }
 
@@ -145,7 +145,7 @@ export function withdrawLastReaction(): Updater {
 export function cancelAction(): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'declared' || open.spawnedBy) return state
+    if (!open || open.step !== 'define' || open.spawnedBy) return state
     return setActions(state, state.actions.filter((a) => a.id !== open.id && a.reactionTo !== open.id))
   }
 }
@@ -165,7 +165,7 @@ export function cancelAction(): Updater {
 export function rollAction(dice: Dice, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed' || !needsDie(state, open)) return state
+    if (!open || open.step !== 'react' || !needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
     if (!actor || !areReactionsComplete(state, open)) return state
 
@@ -184,8 +184,8 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
 export function payAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (open?.kind === 'drag' && open.status === 'rolled' && isAnswerable(state, open)) return fightPush(state, open, newId)
-    if (!open || open.status !== 'committed' || needsDie(state, open)) return state
+    if (open?.kind === 'drag' && open.step === 'post' && isAnswerable(state, open)) return fightPush(state, open, newId)
+    if (!open || open.step !== 'react' || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
     return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open, newId)
@@ -201,7 +201,7 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    paid.push({ ...a, cost, roll: rollOf(a), status: a.id === root.id ? 'rolled' : 'resolved' })
+    paid.push({ ...a, cost, roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
   }
   return afterPaying(applyPhase(replaceActions(state, paid), paid, 'roll'), root.id, newId)
 }
@@ -215,7 +215,7 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
 export function cancelTriggeringAction(actorId: string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (!open || open.status !== 'committed') return state
+    if (!open || open.step !== 'react') return state
     const root = getCancellableRoot(state, open, actorId)
     return root ? replaceActions(state, [{ ...root, cancelled: true, cancelledFor: open.id }]) : state
   }
@@ -227,7 +227,7 @@ export function resolveAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     const step = getNextStep(state)
-    if (!open || open.status !== 'rolled' || (step !== 'confirm' && step !== 'spend')) return state
+    if (!open || open.step !== 'post' || (step !== 'confirm' && step !== 'spend')) return state
     const resolved = getSettled(state, open)
     const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
     const spawned = appendActions(landed, spawn(landed, resolved, newId))

@@ -526,7 +526,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
 // pusher's interruption stops it). Null while it goes on.
 export function getPushStop(state: CombatState, root: DragAction): number | null {
   const stopped = getDrawnOpportunityAttacks(state, root).find(({ spawned }) =>
-    spawned?.kind === 'strike' && spawned.status === 'resolved' && spawned.targetId === root.actorId && spawned.interruption !== 'none')
+    spawned?.kind === 'strike' && spawned.step === 'done' && spawned.targetId === root.actorId && spawned.interruption !== 'none')
   return stopped ? Math.max(0, (stopped.reaction.at ?? 1) - 1) : null
 }
 

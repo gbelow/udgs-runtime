@@ -328,7 +328,7 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', 2) : 0
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
-    if (strike?.kind !== 'strike' || strike.status !== 'resolved') continue
+    if (strike?.kind !== 'strike' || strike.step !== 'done') continue
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
@@ -417,7 +417,7 @@ export function getMoveDestination(state: CombatState, action: MoveAction, path:
 // The move the character is in the middle of, if an opportunity attack has
 // them stood part of the way along one.
 function getMoveUnderway(state: CombatState, id: string): MoveAction | null {
-  return findOpenRoot(state, 'move', (m) => m.actorId === id && m.status === 'rolled')
+  return findOpenRoot(state, 'move', (m) => m.actorId === id && m.step === 'post')
 }
 
 // How far along the move underway the character has walked: the step of the

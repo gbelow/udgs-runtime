@@ -133,7 +133,7 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
     const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
     return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
   }
-  if (root.status !== 'committed') return root.status === 'rolled' && !root.fought ? pushTriggers(state, root) : []
+  if (root.step !== 'react') return root.step === 'post' && !root.fought ? pushTriggers(state, root) : []
   return getGrappleGroup(state.grapples, root.actorId)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))

@@ -204,7 +204,7 @@ export type ActionStep = 'declare' | 'target' | 'aim' | 'commit' | 'react' | 'sp
 // committed, and for a push once more, after its way is pointed and before
 // the attacks it draws from third parties are opened.
 export function isAnswerable(state: CombatState, open: Action): boolean {
-  return open.status === 'committed' || (open.kind === 'drag' && open.status === 'rolled' && getNextStep(state) === 'react')
+  return open.step === 'react' || (open.kind === 'drag' && open.step === 'post' && getNextStep(state) === 'react')
 }
 
 // Whether the action is closed by a die: a strike always, a move when it
@@ -219,7 +219,7 @@ export function needsDie(state: CombatState, action: Action): boolean {
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
-  if (open.status === 'rolled') {
+  if (open.step === 'post') {
     if (isVoided(state, open)) return 'confirm'
     if (open.kind === 'explosion') return isSpray(state, open) && open.direction === null ? 'aim' : 'confirm'
     // combat.tex "Push and drag": the winner points the way, then whoever
@@ -228,7 +228,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
     if (open.kind === 'grapple' && needsDisarmPick(state, open)) return 'choose'
     return (isAttackAction(open) || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
   }
-  if (open.status === 'committed') return 'react'
+  if (open.step === 'react') return 'react'
   const actor = state.characters[open.actorId]
   if (!actor) return 'declare'
   if (open.kind === 'explosion') return getExplosionPayload(state, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'

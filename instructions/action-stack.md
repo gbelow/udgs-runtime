@@ -44,7 +44,8 @@ Rulings the stack must respect:
 
 ## Target shape
 
-- `ActionBase.step`: `define | react | roll | post | effect | done`, replacing `status`.
+- `ActionBase.step`: `define | react | post | done`, replacing `status`. The roll and the
+  effect are transitions, not places an action waits, so they have no value.
 - `CombatState.stack`: action ids, the top being the action the table is waiting on.
   `getOpenAction` reads the top.
 - One `advance(state)` in `commands/sequence.ts` owns sequencing: pushes the actions the
@@ -61,7 +62,7 @@ Rulings the stack must respect:
   stage that changes the order by accident fails.
 - [x] **1.** Store the stack. Commands push and pop it; `getOpenAction` reads its top.
   `status` stays. No behavior change.
-- [ ] **2.** `status` → `step`. `getNextStep` stays as the UI sub-step, derived from the
+- [x] **2.** `status` → `step`. `getNextStep` stays as the UI sub-step, derived from the
   step.
 - [ ] **3.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
   Replaces `afterPaying`, `afterLanding`, `advanceOpportunities`, `spawn`, `fightPush`.
@@ -99,3 +100,6 @@ Rulings the stack must respect:
   `getOpenAction` reads the top. While building it, `getOpenAction` compared the stack top
   with the old search over the whole suite, with no difference; the check was removed.
   Two hand-built test states gained `stack`.
+- Stage 2: `status` renamed to `step` across `app/domain` (`declared → define`,
+  `committed → react`, `rolled → post`, `resolved → done`). No behavior change;
+  `getNextStep` is untouched and still derives the UI sub-step.

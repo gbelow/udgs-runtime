@@ -18,7 +18,7 @@ export function getOpenAction(state: CombatState): Action | null {
 // The first root of the kind still being played out — waiting on what it
 // opened, or on its own resolve — that `match` accepts.
 export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, match: (a: ActionOf<K>) => boolean = () => true): ActionOf<K> | null {
-  const found = state.actions.find((a): a is ActionOf<K> => a.kind === kind && a.reactionTo === null && a.status !== 'resolved' && match(a as ActionOf<K>))
+  const found = state.actions.find((a): a is ActionOf<K> => a.kind === kind && a.reactionTo === null && a.step !== 'done' && match(a as ActionOf<K>))
   return found ?? null
 }
 
@@ -29,7 +29,7 @@ export function getReactionsTo(state: CombatState, id: string): Action[] {
 // The reactions to the action declared but not yet paid for, and so still
 // free to change or take back.
 export function getLiveReactionsTo(state: CombatState, id: string): Action[] {
-  return getReactionsTo(state, id).filter((r) => r.status !== 'resolved')
+  return getReactionsTo(state, id).filter((r) => r.step !== 'done')
 }
 
 // The actor answers nothing of their own — except a blast, which reaches

@@ -50,7 +50,7 @@ export const GRAZE_SAVE_COST: ActionCost = { AP: GRAZE_SAVE.AP, STA: 0 }
 
 export function canSaveGraze(state: CombatState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
-  if (!caster || root.status !== 'rolled' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
+  if (!caster || root.step !== 'post' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
   if (isCancelled(state, root) || !canAfford(caster, GRAZE_SAVE_COST)) return false
   return getGrazeSavedRoll(root.roll).degree === 'hit'
 }

@@ -52,7 +52,7 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
   if (action.cancelled) return true
   if (action.kind === 'drag') return false
-  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.status === 'resolved' && (
+  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.step === 'done' && (
     (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
     || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
 }

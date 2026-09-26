@@ -125,7 +125,7 @@ export function getBoardView(state: CombatState): BoardView {
   const step = getNextStep(state)
   // the move in play, whatever its phase: its path stays drawn throughout
   const pending = findOpenRoot(state, 'move')
-  const move = open?.kind === 'move' && open.status === 'declared' ? open : null
+  const move = open?.kind === 'move' && open.step === 'define' ? open : null
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
   const reachable = move ? getReachableCells(state, move) : []
@@ -135,7 +135,7 @@ export function getBoardView(state: CombatState): BoardView {
 
   // the landings open to the target of a committed strike, while the jump
   // is still theirs to declare
-  const jumper = open?.kind === 'strike' && open.status === 'committed' && open.targetId && findOption(state, open.targetId, { kind: 'evasiveJump' })?.available ? open.targetId : null
+  const jumper = open?.kind === 'strike' && open.step === 'react' && open.targetId && findOption(state, open.targetId, { kind: 'evasiveJump' })?.available ? open.targetId : null
   const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
@@ -148,7 +148,7 @@ export function getBoardView(state: CombatState): BoardView {
   const explosion = findOpenRoot(state, 'explosion')
   // combat.tex "Push and drag": once settled, the winner points the push or
   // picks where to circle on the board, until the third parties are fought
-  const settled = open?.kind === 'drag' && open.status === 'rolled' ? open : null
+  const settled = open?.kind === 'drag' && open.step === 'post' ? open : null
   const pointing = settled !== null && !settled.fought && (settled.choice === 'push' || settled.choice === 'circle')
   const aiming = (explosion !== null && isAimable(state, explosion)) || pointing
   const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
@@ -158,7 +158,7 @@ export function getBoardView(state: CombatState): BoardView {
     if (!c) return []
     return [{ id, name: getFightName(state, id), ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
   })
-  const centers = new Set(explosion && explosion.status === 'declared' ? getExplosionCenters(state, explosion).map(coordKey) : [])
+  const centers = new Set(explosion && explosion.step === 'define' ? getExplosionCenters(state, explosion).map(coordKey) : [])
   const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
   const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])
 
@@ -218,7 +218,7 @@ export function getBoardView(state: CombatState): BoardView {
     }]
   })
 
-  const picker = open?.kind === 'pickUp' && open.status === 'declared' ? open.actorId
+  const picker = open?.kind === 'pickUp' && open.step === 'define' ? open.actorId
     : !open && state.activeCharacterId && findOption(state, state.activeCharacterId, { kind: 'pickUp' })?.available ? state.activeCharacterId
     : null
   const pickerCharacter = picker ? state.characters[picker] : undefined

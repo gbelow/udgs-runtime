@@ -18,24 +18,24 @@ import { isVoided } from './opportunity'
 // its area as the board stands, once every escape has been played out and it
 // is pointed where it goes off.
 export function getSettled(state: CombatState, open: Action): Action {
-  if (isVoided(state, open) && 'cancelled' in open) return { ...open, status: 'resolved', cancelled: true }
+  if (isVoided(state, open) && 'cancelled' in open) return { ...open, step: 'done', cancelled: true }
   switch (open.kind) {
     case 'strike': {
       const facts = getAttackFacts(state, open)
-      return { ...open, status: 'resolved', facts, ...getStrikeLanding(state, open, facts) }
+      return { ...open, step: 'done', facts, ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
       const facts = getAttackFacts(state, open)
-      return { ...open, status: 'resolved', facts, interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
+      return { ...open, step: 'done', facts, interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
-    case 'grapple': return { ...open, status: 'resolved', facts: getManeuverFacts(state, open) }
-    case 'pickUp': return { ...open, status: 'resolved', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
-    case 'release': return { ...open, status: 'resolved', facts: getReleaseFacts(state, open) }
-    case 'holdBack': return { ...open, status: 'resolved', facts: getHoldBackFacts(state, open) }
-    case 'drag': return { ...open, status: 'resolved', facts: getDragFacts(state, open) }
-    case 'explosion': return { ...open, status: 'resolved', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
-    case 'cast': return { ...open, status: 'resolved', facts: getCastFacts(state, open) }
-    case 'move': return { ...open, status: 'resolved', facts: getMoveFacts(state, open) }
+    case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
+    case 'pickUp': return { ...open, step: 'done', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
+    case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
+    case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
+    case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
+    case 'explosion': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
+    case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
+    case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     // reactions: settled with their root, nothing of their own to write
     case 'evade':
     case 'evasiveJump':
@@ -50,6 +50,6 @@ export function getSettled(state: CombatState, open: Action): Action {
     case 'assist':
     case 'carry':
     case 'letGo':
-      return { ...open, status: 'resolved' }
+      return { ...open, step: 'done' }
   }
 }

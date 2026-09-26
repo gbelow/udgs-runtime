@@ -63,10 +63,10 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const open = getOpenAction(s)
     if (!open) return { state: s, landed }
     const next = [rollAction(() => face, newId), payAction(newId), resolveAction(newId)].map((step) => step(s)).find((t) => t !== s)
-    if (!next) throw new Error(`stuck on ${open.kind} (${open.status})`)
+    if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const a of next.actions.filter(isRoot)) {
       const was = s.actions.find((b) => b.id === a.id)
-      if (a.status === 'resolved' && was?.status !== 'resolved') landed.push(a)
+      if (a.step === 'done' && was?.step !== 'done') landed.push(a)
     }
     s = next
   }

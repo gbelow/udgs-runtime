@@ -68,7 +68,7 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
   const { weaponKey, attack, variant, location, grab } = reaction
   const root = getRootOf(state, reaction)
   const caught = grab && root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, status: 'committed' })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
@@ -76,7 +76,7 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
 // (combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
 // opportunity attacks").
 export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
-  const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, status: 'committed' as const }
+  const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
   if (reaction.mode === 'drag') return makeAction('drag', base)
   return getOpportunityStrike(state, reaction, id)
