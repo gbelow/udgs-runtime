@@ -53,17 +53,16 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           if (action.movement === 'prone') return fallProne(c)
           return action.facts?.fell ? fallProne(trampled) : trampled
         }
-        // combat.tex "Explosions": everyone in the area takes it, the
-        // attacker as much as anyone — and what they threw is out of their
-        // hands
+        // combat.tex "Explosions": what went off is gone — the thrower's row
+        // left their hand, and the object a charge was set off in was
+        // destroyed by it
         if (action.kind === 'explosion') {
-          const hit = deliverAll(action.facts?.[c.id] ?? [])(c)
-          // what went off is gone: the thrower's row left their hand, and
-          // the object a charge was set off in was destroyed by it
-          if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(hit, action.weaponKey, action.attack)
-          if (action.source === 'detonate' && hit.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(hit) as CampaignCharacter
-          return hit
+          if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(c, action.weaponKey, action.attack)
+          if (action.source === 'detonate' && c.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(c) as CampaignCharacter
+          return c
         }
+        // everyone in the area takes it, the attacker as much as anyone
+        if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
         // spells.tex "Sustained": a cast that hit is taken hold of by its
         // caster, its upkeep due at the round change
         if (action.kind === 'cast') {
@@ -210,7 +209,7 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
     // combat.tex "Push and drag": the pair where the push left them
     if (action.kind === 'displace') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas": what the explosion leaves on the ground, by zone
-    if (action.kind === 'explosion') {
+    if (action.kind === 'blast') {
       const terrain = { ...board.terrain }
       for (const { cell, patch } of action.paint) {
         const key = coordKey(cell)

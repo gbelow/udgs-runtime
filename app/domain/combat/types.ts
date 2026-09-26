@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, TerrainPatchSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, TerrainPatchSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -267,11 +267,10 @@ export const ShootActionSchema = z.object({
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": a ranged attack
 // with an area, made with an exploding row. It is aimed at ground, not at a
 // character: a disk at the `center` it lands on, picked before the commit;
-// a cone from the attacker in a `direction` picked once the reactions have
-// moved ("The attacker can choose the exact direction of the cone after the
-// movement"). Whoever stands in the area when it resolves is in `facts`,
-// each with what reaches them at their zone's degree, one delivery per
-// effect of the payload that reaches them.
+// a cone from the attacker, pointed on the blast it goes off as. When it
+// lands, what carried it is gone — the thrown row out of the hand, the
+// object a charge was set off in destroyed — and it generates the escapes
+// the reflexes that cleared it open, and the blast.
 
 // Where an explosion comes from decides its test: thrown, the reflex is
 // against the thrower's Accuracy; cast, against what the spell's effects
@@ -289,10 +288,29 @@ export const ExplosionActionSchema = z.object({
   key: str.default(''),
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
+  // the area effects it goes off with, written at the resolve while what
+  // carried them is still there to read
+  effects: z.array(SpellEffectSchema).default([]),
+}).strip()
+
+// combat.tex "Explosions", "Sprays": the explosion going off, once everyone
+// whose reflexes cleared it has moved — the follow-up an explosion
+// generates as it lands. It carries the area effects as they were produced
+// (`effects`), since what carried them is gone, and the spell they came
+// from (`key`), if any. A disk is where the explosion was aimed; a cone is
+// pointed here ("The attacker can choose the exact direction of the cone
+// after the movement"). Whoever stands in the area when it resolves is in
+// `facts`, each with what reaches them at their zone's degree, one delivery
+// per effect that reaches them.
+export const BlastActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('blast'),
+  key: str.default(''),
+  effects: z.array(SpellEffectSchema).default([]),
+  center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
-  // combat.tex "Gas": what it leaves on the ground, cell by cell, written at
-  // the resolve while whatever carried the charge is still there to read
+  // combat.tex "Gas": what it leaves on the ground, cell by cell
   paint: z.array(z.object({ cell: CoordSchema, patch: TerrainPatchSchema })).default([]),
 }).strip()
 
@@ -542,6 +560,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   StrikeActionSchema,
   ShootActionSchema,
   ExplosionActionSchema,
+  BlastActionSchema,
   CastActionSchema,
   EvasionActionSchema,
   GuardActionSchema,
@@ -573,6 +592,7 @@ export type ShootAction = z.infer<typeof ShootActionSchema>
 // injury, declared as a weapon row, a variation and a location.
 export type AttackAction = StrikeAction | ShootAction
 export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
+export type BlastAction = z.infer<typeof BlastActionSchema>
 export type CastAction = z.infer<typeof CastActionSchema>
 // Everything made with a weapon row: the two attacks and an explosion.
 export type WeaponAction = AttackAction | ExplosionAction

@@ -77,8 +77,8 @@ function takeOne<K extends string>(tally: Partial<Record<K, number>>, key: K): P
 // direction of the cone after the movement").
 export function aimExplosion(direction: number): Updater {
   return (state) => {
-    const open = getRolledOpen(state, ['explosion'])
-    if (!open || !isSpray(state, open) || !DirectionSchema.safeParse(direction).success) return state
+    const open = getRolledOpen(state, ['blast'])
+    if (!open || !isSpray(open) || !DirectionSchema.safeParse(direction).success) return state
     return replaceActions(state, [{ ...open, direction }])
   }
 }

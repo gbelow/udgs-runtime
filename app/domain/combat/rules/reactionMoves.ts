@@ -50,7 +50,7 @@ export function getMoveAfter(state: CombatState, root: Action, reaction: Action)
       return { budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP }
     }
     case 'avoidExplosion': {
-      if (root.kind !== 'explosion' || reaction.roll?.degree !== 'miss') return null
+      if (root.kind !== 'blast' || reaction.roll?.degree !== 'miss') return null
       const reactor = state.characters[reaction.actorId]
       const hit = root.facts?.[reaction.actorId] ?? []
       if (reactor && hit.some((d) => (outcomeOf(d, reactor)?.interruption ?? 'none') !== 'none')) return null

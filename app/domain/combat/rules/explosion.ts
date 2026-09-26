@@ -1,5 +1,5 @@
 import type { Area, CampaignCharacter, Delivery, SpellEffect, TerrainPatch } from '../../types'
-import { DEGREES, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
+import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { resolveDL } from '../../character/rules/spells'
@@ -20,6 +20,15 @@ import { findHeldItem, getFightName } from './activeCharacter'
 // answer before the reactions move and after.
 
 export type ZoneCell = { cell: Coord; degree: Degree }
+
+// An area laid out on the board: who set it off, where it was aimed, and
+// the effects that cover it — an explosion as declared, before it goes off,
+// or the blast it goes off as. A spray is pointed only on the blast.
+export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects'>
+
+export function getBlastOf(state: CombatState, action: ExplosionAction): BlastShape {
+  return { actorId: action.actorId, center: action.center, direction: null, effects: getExplosionPayload(state, action)?.effects ?? [] }
+}
 
 // What the explosion is made of: the area effects of the charge a thrown
 // item carries (spells.tex "Charged"), of the row itself for a mundane
@@ -75,17 +84,16 @@ export function hasExplosionPayload(c: CampaignCharacter, weaponKey: string, att
   return row !== null && getRowAreaEffects(c, row).length > 0
 }
 
-// The areas the payload covers, one per effect that has one, in cells —
-// already at the size of whoever produced it.
-export function getExplosionAreas(state: CombatState, action: ExplosionAction): Area[] {
-  const payload = getExplosionPayload(state, action)
-  return payload ? payload.effects.flatMap((e) => (e.area ? [e.area] : [])) : []
+// The areas the effects cover, one per effect that has one, in cells —
+// already at the size of whoever produced them.
+export function getExplosionAreas(blast: BlastShape): Area[] {
+  return blast.effects.flatMap((e) => (e.area ? [e.area] : []))
 }
 
 // Whether any of it is a spray, which is aimed by direction once the
 // reactions have moved (combat.tex "Sprays").
-export function isSpray(state: CombatState, action: ExplosionAction): boolean {
-  return getExplosionAreas(state, action).some((a) => a.shape === 'spray')
+export function isSpray(blast: BlastShape): boolean {
+  return getExplosionAreas(blast).some((a) => a.shape === 'spray')
 }
 
 // combat.tex "Explosions": "Anyone caught in the center of the radius
@@ -119,7 +127,7 @@ function getConeZones(origin: Coord, direction: number, length: number, angle: n
 // The zones of one area, once the explosion is fixed where it lands: a disk
 // at the centre, a spray in its direction from the attacker, less the
 // attacker's own footprint. Empty before.
-function getAreaZones(state: CombatState, action: ExplosionAction, area: Area): ZoneCell[] {
+function getAreaZones(state: CombatState, action: BlastShape, area: Area): ZoneCell[] {
   if (area.shape === 'explosion') return action.center ? getDiskZones(action.center, area.radius) : []
   const from = state.board?.placements[action.actorId]
   const own = getPlacedFootprint(state, action.actorId) ?? []
@@ -131,11 +139,11 @@ function getAreaZones(state: CombatState, action: ExplosionAction, area: Area): 
 // centre; for a spray, the cone once it is aimed and, until then, everything
 // in its length of the attacker (combat.tex "Sprays": "target all
 // characters in range"), less the attacker's own footprint.
-export function getThreatenedCells(state: CombatState, action: ExplosionAction): Coord[] {
+export function getThreatenedCells(state: CombatState, action: BlastShape): Coord[] {
   const from = state.board?.placements[action.actorId]
   const own = getPlacedFootprint(state, action.actorId) ?? []
   const cells = new Map<string, Coord>()
-  for (const area of getExplosionAreas(state, action)) {
+  for (const area of getExplosionAreas(action)) {
     const reach = area.shape === 'explosion'
       ? (action.center ? disk(action.center, area.radius) : [])
       : !from ? [] : action.direction === null ? disk(from.cell, area.length).filter((c) => !own.some((o) => sameCell(o, c))) : getAreaZones(state, action, area).map((z) => z.cell)
@@ -148,9 +156,9 @@ const worse = (a: Degree | null, b: Degree): Degree => (a === null || DEGREES.in
 
 // The zones of the whole explosion, each cell at the worst of what reaches
 // it. Empty until it is fixed where it lands.
-export function getExplosionZones(state: CombatState, action: ExplosionAction): ZoneCell[] {
+export function getExplosionZones(state: CombatState, action: BlastShape): ZoneCell[] {
   const zones = new Map<string, ZoneCell>()
-  for (const area of getExplosionAreas(state, action)) {
+  for (const area of getExplosionAreas(action)) {
     for (const z of getAreaZones(state, action, area)) {
       const key = coordKey(z.cell)
       zones.set(key, { cell: z.cell, degree: worse(zones.get(key)?.degree ?? null, z.degree) })
@@ -162,7 +170,7 @@ export function getExplosionZones(state: CombatState, action: ExplosionAction): 
 // combat.tex "Explosions": "If a creature occupies multiple spaces, apply
 // the strongest effect." The degree the character's footprint takes from
 // one area where it stands now, or null outside it.
-function getZoneOf(state: CombatState, action: ExplosionAction, id: string, area: Area): Degree | null {
+function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Area): Degree | null {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
   const zones = new Map(getAreaZones(state, action, area).map((z) => [coordKey(z.cell), z.degree]))
@@ -174,16 +182,16 @@ function getZoneOf(state: CombatState, action: ExplosionAction, id: string, area
 
 // Everyone the explosion may reach as declared, the attacker included when
 // they stand in it: whoever's footprint touches a threatened cell.
-export function getThreatenedIds(state: CombatState, action: ExplosionAction): string[] {
+export function getThreatenedIds(state: CombatState, action: BlastShape): string[] {
   const threatened = new Set(getThreatenedCells(state, action).map(coordKey))
   return Object.keys(state.characters).filter((id) => (getPlacedFootprint(state, id) ?? []).some((cell) => threatened.has(coordKey(cell))))
 }
 
 // Everyone the explosion reaches, with the worst zone each is in, as the
 // board stands.
-export function getAffected(state: CombatState, action: ExplosionAction): { id: string; degree: Degree }[] {
+export function getAffected(state: CombatState, action: BlastShape): { id: string; degree: Degree }[] {
   return Object.keys(state.characters).flatMap((id) => {
-    const degree = getExplosionAreas(state, action).reduce<Degree | null>((best, area) => {
+    const degree = getExplosionAreas(action).reduce<Degree | null>((best, area) => {
       const here = getZoneOf(state, action, id, area)
       return here !== null ? worse(best, here) : best
     }, null)
@@ -191,19 +199,19 @@ export function getAffected(state: CombatState, action: ExplosionAction): { id: 
   })
 }
 
-// What reaches each character in the area: every effect of the payload
-// whose area they stand in, at that zone's degree, made by the producer
-// (spells.tex "Casting spells"; gear.tex "Explosion": "applies the weapon's
-// damage ... and any other effects"). What goes to the ground is not here.
-export function getExplosionFacts(state: CombatState, action: ExplosionAction): Deliveries {
-  const payload = getExplosionPayload(state, action)
-  if (!payload) return {}
+// What reaches each character in the area: every effect whose area they
+// stand in, at that zone's degree, made by whoever set it off (spells.tex
+// "Casting spells"; gear.tex "Explosion": "applies the weapon's damage ...
+// and any other effects"). What goes to the ground is not here.
+export function getExplosionFacts(state: CombatState, action: BlastShape): Deliveries {
+  const producer = state.characters[action.actorId]
+  if (!producer) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
-    const deliveries = payload.effects.flatMap((e): Delivery[] => {
+    const deliveries = action.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
       const degree = getZoneOf(state, action, id, e.area)
-      return degree ? [{ ...produceSpellEffect(payload.producer, e), degree, test: null }] : []
+      return degree ? [{ ...produceSpellEffect(producer, e), degree, test: null }] : []
     })
     if (deliveries.length > 0) facts[id] = deliveries
   }
@@ -212,10 +220,8 @@ export function getExplosionFacts(state: CombatState, action: ExplosionAction): 
 
 // combat.tex "Gas": what the explosion leaves on the ground, cell by cell —
 // each terrain effect's patch for the zone the cell is in.
-export function getTerrainPaint(state: CombatState, action: ExplosionAction): { cell: Coord; patch: TerrainPatch }[] {
-  const payload = getExplosionPayload(state, action)
-  if (!payload) return []
-  return payload.effects.flatMap((e) => {
+export function getTerrainPaint(state: CombatState, action: BlastShape): { cell: Coord; patch: TerrainPatch }[] {
+  return action.effects.flatMap((e) => {
     if (e.type !== 'terrain' || !e.area) return []
     return getAreaZones(state, action, e.area).flatMap((z) => (z.degree === 'miss' ? [] : [{ cell: z.cell, patch: e.effect[z.degree] }]))
   })
@@ -253,7 +259,8 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
   const from = board?.placements[action.actorId]
   const footprint = getPlacedFootprint(state, action.actorId)
   const payload = getExplosionPayload(state, action)
-  if (!board || !from || !footprint || !payload || isSpray(state, action) || getExplosionAreas(state, action).length === 0) return []
+  const blast = getBlastOf(state, action)
+  if (!board || !from || !footprint || !payload || isSpray(blast) || getExplosionAreas(blast).length === 0) return []
   const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
   if (action.source === 'detonate') {
     const held = findHeldItem(state, action.itemId)
@@ -266,19 +273,21 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
   return disk(from.cell, reach).filter((cell) => setDistance([cell], footprint) <= reach && open(cell) && seesAcross(board, footprint, [cell]))
 }
 
-// Whether the explosion is still its actor's to point, and can be pointed
-// somewhere else: a disk until they commit to it, a spray until the blast
-// is confirmed (combat.tex "Sprays": "The attacker can choose the exact
-// direction of the cone after the movement").
-export function isAimable(state: CombatState, action: ExplosionAction): boolean {
-  if (getExplosionAreas(state, action).length === 0) return false
-  return action.step === 'define' || (action.step === 'post' && isSpray(state, action))
+// Whether the area is still its actor's to point, and can be pointed
+// somewhere else: a disk until they commit to the explosion, a spray until
+// the blast is confirmed (combat.tex "Sprays": "The attacker can choose the
+// exact direction of the cone after the movement").
+export function isAimable(state: CombatState, action: ExplosionAction | BlastAction): boolean {
+  if (action.kind === 'blast') return action.step === 'post' && isSpray(action)
+  const blast = getBlastOf(state, action)
+  return getExplosionAreas(blast).length > 0 && action.step === 'define' && !isSpray(blast)
 }
 
 // Whether the explosion as declared is aimed: a disk at a centre it may be
 // aimed at, a spray at nothing yet.
 export function isAimed(state: CombatState, action: ExplosionAction): boolean {
-  if (getExplosionAreas(state, action).length === 0) return false
-  if (isSpray(state, action)) return true
+  const blast = getBlastOf(state, action)
+  if (getExplosionAreas(blast).length === 0) return false
+  if (isSpray(blast)) return true
   return action.center !== null && getExplosionCenters(state, action).some((c) => sameCell(c, action.center!))
 }

@@ -88,7 +88,7 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
     if (open.kind === 'explosion' && open.step === 'define') {
       return getExplosionCenters(state, open).some((c) => sameCell(c, cell)) ? amendAction({ center: cell })(state) : state
     }
-    if (open.kind === 'explosion' && open.step === 'post') {
+    if (open.kind === 'blast' && open.step === 'post') {
       const from = state.board?.placements[open.actorId]
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
     }

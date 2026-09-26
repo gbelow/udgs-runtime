@@ -7,7 +7,7 @@ import { getNextStep, getTargetIds } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/activeCharacter'
-import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
+import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -146,12 +146,14 @@ export function getBoardView(state: CombatState): BoardView {
   // until the blast is confirmed (combat.tex "Sprays": the direction is
   // chosen after the movement).
   const explosion = findOpenRoot(state, 'explosion')
+  const blast = findOpenRoot(state, 'blast')
+  const laid = blast ?? (explosion ? getBlastOf(state, explosion) : null)
   // combat.tex "Push and drag": once settled, the winner points the push or
   // picks where to circle on the board, with where everyone ends up shown
   // until the way is walked
   const settled = open?.kind === 'drag' && open.step === 'post' ? open : null
   const pointing = settled !== null && (settled.choice === 'push' || settled.choice === 'circle')
-  const aiming = (explosion !== null && isAimable(state, explosion)) || pointing
+  const aiming = (blast !== null && isAimable(state, blast)) || (explosion !== null && isAimable(state, explosion)) || pointing
   const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
   const walking = findOpenRoot(state, 'displace')
   const landed: Record<string, Placement> = walking ? getDisplaceFacts(state, walking).to : settled ? getDragPath(state, settled)?.steps.at(-1) ?? {} : {}
@@ -161,8 +163,8 @@ export function getBoardView(state: CombatState): BoardView {
     return [{ id, name: getFightName(state, id), ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
   })
   const centers = new Set(explosion && explosion.step === 'define' ? getExplosionCenters(state, explosion).map(coordKey) : [])
-  const threatened = new Set(explosion ? getThreatenedCells(state, explosion).map(coordKey) : [])
-  const zones = new Map(explosion ? getExplosionZones(state, explosion).map((z) => [coordKey(z.cell), z.degree]) : [])
+  const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
+  const zones = new Map(laid ? getExplosionZones(state, laid).map((z) => [coordKey(z.cell), z.degree]) : [])
 
   // The drawn extent: the disk of the board's radius, plus anything placed,
   // painted or threatened beyond it.
@@ -192,7 +194,7 @@ export function getBoardView(state: CombatState): BoardView {
       jump: landings.has(key),
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
       center: centers.has(key),
-      isCenter: explosion?.center !== null && explosion?.center !== undefined && sameCell(explosion.center, cell),
+      isCenter: laid?.center !== null && laid?.center !== undefined && sameCell(laid.center, cell),
       threatened: threatened.has(key),
       zone: zones.get(key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),

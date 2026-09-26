@@ -83,7 +83,7 @@ function displaceNotes(facts: DisplaceFacts, named: (id: string) => string): { t
 // target, everything an explosion or a cast produced to whoever it was
 // produced for. Empty before the action has anything to say.
 function getDeliveries(root: Action): { id: string; delivery: Delivery }[] {
-  if (root.kind === 'explosion' || root.kind === 'cast') return flatten(root.facts ?? {})
+  if (root.kind === 'blast' || root.kind === 'cast') return flatten(root.facts ?? {})
   if (root.kind === 'grapple') return flatten(root.facts?.deliveries ?? {})
   if (!isAttackAction(root) || !root.targetId || !root.facts) return []
   return [{ id: root.targetId, delivery: root.facts }]
@@ -137,6 +137,6 @@ function getChargeNote(state: CombatState, root: Action): { target: string; text
 // a cast that delivered nothing, and the action's name the rest.
 function getActionLabel(root: Action, delivered: string | undefined): string {
   if (root.kind !== 'grapple' && delivered) return delivered
-  if ((root.kind === 'cast' || root.kind === 'explosion') && isSpellKey(root.key)) return SPELLS[root.key].name
+  if ((root.kind === 'cast' || root.kind === 'explosion' || root.kind === 'blast') && isSpellKey(root.key)) return SPELLS[root.key].name
   return getActionName(root)
 }

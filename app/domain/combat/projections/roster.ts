@@ -2,7 +2,7 @@ import type { SurgeKind } from '../../types'
 import type { Action, CombatState } from '../types'
 import { getNextStep, getTargetIds } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
-import { getAffected } from '../rules/explosion'
+import { getAffected, getBlastOf } from '../rules/explosion'
 import { getFightName } from '../rules/activeCharacter'
 
 // Who a character is to an action.
@@ -12,7 +12,8 @@ export function getRole(state: CombatState, root: Action, characterId: string): 
   if (root.actorId === characterId) return 'actor'
   if (getReactionsTo(state, root.id).some((r) => r.actorId === characterId)) return 'reactor'
   if (root.targetId === characterId) return 'target'
-  if (root.kind === 'explosion' && getAffected(state, root).some((a) => a.id === characterId)) return 'target'
+  if (root.kind === 'explosion' && getAffected(state, getBlastOf(state, root)).some((a) => a.id === characterId)) return 'target'
+  if (root.kind === 'blast' && getAffected(state, root).some((a) => a.id === characterId)) return 'target'
   return 'none'
 }
 

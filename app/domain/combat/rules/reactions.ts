@@ -2,7 +2,7 @@ import type { Action, ActionKind, CastAction, CombatState, DisplaceAction, DragA
 import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
-import { getThreatenedIds, isAvoidable } from './explosion'
+import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
 import { isGrappleRow } from './grapple'
@@ -53,6 +53,8 @@ function getKindTriggers(state: CombatState, root: Action): Trigger[] {
     case 'grapple':
     case 'drag': return grappleTriggers(state, root)
     case 'displace': return displaceTriggers(state, root)
+    // nobody answers the blast: the reflexes were against the explosion
+    case 'blast': return []
     // letting go and grappling back draw nothing; a reaction is never a root
     case 'release':
     case 'holdBack':
@@ -188,7 +190,7 @@ function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
   const opportunity = root.source === 'thrown' ? opportunityTriggers(state, root.actorId) : []
   if (!isAvoidable(root)) return opportunity
-  return [...getThreatenedIds(state, root).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null })), ...opportunity]
+  return [...getThreatenedIds(state, getBlastOf(state, root)).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null })), ...opportunity]
 }
 
 // combat.tex "Opportunity Attack": "Triggering actions include casting

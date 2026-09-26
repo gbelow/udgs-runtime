@@ -5,7 +5,7 @@ import { getSettled } from '../rules/settle'
 import { opensExplosion } from '../rules/cast'
 import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
-import { getDrawnOpportunityAttacks, isCancelled, isFlankInReach, isTriggeringAction, isVoided } from '../rules/opportunity'
+import { getDrawnOpportunityAttacks, isFlankInReach, isTriggeringAction, isVoided } from '../rules/opportunity'
 import { getDisplacement, getStunEscapes } from '../rules/grapple'
 import { makeAction } from '../factories'
 import { appendActions, applyPhase, replaceActions } from './log'
@@ -20,9 +20,10 @@ import { appendActions, applyPhase, replaceActions } from './log'
 
 // Carries the fight on from whatever is on top of the stack: a rolled action
 // opens the next of the actions its reactions opened before its effect. One
-// waiting on a declaration, an answer or a choice is left to it — except a
-// displacement, which has nothing of its own to decide: nobody able to
-// answer it, it is walked at once, and it lands once its attacks are fought.
+// waiting on a declaration, an answer or a choice is left to it — except
+// those with nothing of their own left to decide, which land once their
+// attacks are fought: an explosion, and a displacement, which nobody able to
+// answer it is walked at once.
 export function advance(state: CombatState, newId: () => string): CombatState {
   const top = getOpenAction(state)
   if (!top) return state
@@ -31,7 +32,7 @@ export function advance(state: CombatState, newId: () => string): CombatState {
   }
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  return opened === state && top.kind === 'displace' ? land(state, top, newId) : opened
+  return opened === state && (top.kind === 'displace' || top.kind === 'explosion') ? land(state, top, newId) : opened
 }
 
 // The action's effect: settled as it stands, landed on everyone it
@@ -50,9 +51,7 @@ export function land(state: CombatState, open: Action, newId: () => string): Com
 // stood one space short of the stretch the next one fires on while it is
 // fought. The run ends once the root is brought to a stop, or at an attack
 // on a stretch it never reaches; a flanker the attacker has got out of
-// range of is passed over (combat.tex "Flanking"). Once every attack is
-// fought, an explosion still going off has whoever's reflexes cleared it
-// moving out of the way first.
+// range of is passed over (combat.tex "Flanking").
 function openBefore(state: CombatState, root: Action, newId: () => string): CombatState {
   if (root.kind !== 'move' && root.kind !== 'strike' && !isTriggeringAction(root)) return state
   if (getOpportunityStop(state, root) !== null) return state
@@ -63,19 +62,20 @@ function openBefore(state: CombatState, root: Action, newId: () => string): Comb
     const placed = getOpportunityState(state, next.reaction)
     return appendActions(placed, [getOpportunityAction(placed, next.reaction, newId())])
   }
-  if (root.kind === 'explosion' && !isCancelled(state, root)) return appendActions(state, escapesBefore(state, root, newId))
   return state
 }
 
-// combat.tex "Avoiding an Explosion": the escapes the reflexes that cleared
-// the blast open, played out ahead of it, each once; one whose test missed
-// moves after it instead, opened when it has landed.
-function escapesBefore(state: CombatState, root: ExplosionAction, newId: () => string): Action[] {
-  return getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
+// combat.tex "Avoiding an Explosion": the explosion goes off as a blast,
+// once the escapes the reflexes that cleared it open have been walked —
+// pushed over the blast, so they are played out first; one whose test
+// missed moves after the blast instead, its follow-up.
+function goOff(state: CombatState, root: ExplosionAction, newId: () => string): Action[] {
+  const blast = makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, effects: root.effects, center: root.center, step: 'post' })
+  const escapes = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
     const move = getMoveBeforeBlast(reaction)
-    const opened = state.actions.some((a) => a.spawnedBy === reaction.id)
-    return move && !opened ? [openMove(reaction, newId, move)] : []
+    return move ? [openMove(reaction, newId, move)] : []
   })
+  return [blast, ...escapes]
 }
 
 // The move a reaction opens for its reactor.
@@ -84,15 +84,19 @@ function openMove(reaction: Action, newId: () => string, fields: ReactionMove): 
 }
 
 // The follow-ups the landed action generates, in the order they were
-// declared: the moves its reactions grant once it has landed, the escapes a
-// stun opens, the way a push was pointed, walked, and the explosion a cast
-// that hit with an area to it goes off as, aimed and played out on its own
-// (the caster's part is done). Its opportunity attacks were opened before it
-// landed (`openBefore`). A voided action generates nothing (the table's
-// ruling: no follow-ups for an interrupted action).
+// declared: the moves its reactions grant once it has landed — a blast's,
+// those of the reflexes against the explosion it went off from — the
+// escapes a stun opens, the way a push was pointed, walked, the blast an
+// explosion goes off as, and the explosion a cast that hit with an area to
+// it goes off as, aimed and played out on its own (the caster's part is
+// done). Its opportunity attacks were opened before it landed
+// (`openBefore`). A voided action generates nothing (the table's ruling: no
+// follow-ups for an interrupted action).
 export function getFollowUps(state: CombatState, root: Action, newId: () => string): Action[] {
   if (isVoided(state, root)) return []
-  const opened = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
+  if (root.kind === 'explosion') return goOff(state, root, newId)
+  const answered = root.kind === 'blast' && root.spawnedBy ? root.spawnedBy : root.id
+  const opened = getReactionsTo(state, answered).flatMap((reaction): Action[] => {
     const move = getMoveAfter(state, root, reaction)
     return move ? [openMove(reaction, newId, move)] : []
   })

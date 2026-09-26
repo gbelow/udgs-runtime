@@ -327,6 +327,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     case 'explosion':
     case 'drag':
     case 'displace':
+    case 'blast':
     case 'release':
     case 'holdBack':
     case 'pickUp':

@@ -11,6 +11,9 @@ import { getAttackOptions } from '../rules/attack'
 import { isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimPush } from './choices'
+import { withdrawSpawnedAction } from './action'
+import { produceEffects } from '../../character/rules/production'
+import { SPELLS } from '../../spells'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -246,5 +249,41 @@ describe('giving up the action an opportunity attack answers', () => {
     const kept = withdrawReaction('atk')(evade(s))
     const { state } = playOut(kept, MISS)
     expect(state.characters.def).not.toEqual(s.characters.def)
+  })
+})
+
+// The table's ruling: an explosion's area picks its targets after the
+// reactions have moved, never before (combat.tex "Explosions": "People react
+// with reflexes to leave the area").
+describe('an explosion', () => {
+  // A grenade charged with a shock explosive (radius 3) thrown between two
+  // who stand beside its centre, both clearing the reflex.
+  function grenadeAtTwo(): CombatState {
+    const base = fighter('t')
+    const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
+    const thrower = { ...(holdItem(charged)(base) as CampaignCharacter), usedSurge: 'focus' as const }
+    let s = onBoard({ t: [-5, 0], x: [0, -1], y: [0, 1] }, thrower, fighter('x'), fighter('y'))
+    const [row] = getAttackOptions(s.characters.t, 'explosion')
+    s = declareAction('t', { kind: 'explosion', source: 'thrown', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction()(amendAction({ center: { q: 0, r: 0 } })(s))
+    for (const id of ['x', 'y']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
+    return rollAction(() => 50, newId)(s)
+  }
+
+  // One walks 3m out of it, the other skips the escape.
+  it('reaches only who is still in the area once the escapes are walked', () => {
+    let s = grenadeAtTwo()
+    const escaping = () => getOpenAction(s)!.actorId
+    for (let i = 0; i < 5 && getOpenAction(s)?.kind === 'move'; i++) {
+      s = escaping() === 'x'
+        ? resolveAction(newId)(payAction(newId)(commitAction()(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))))
+        : withdrawSpawnedAction(newId)(s)
+    }
+    expect(getOpenAction(s)?.kind).toBe('blast')
+    const blast = resolveAction(newId)(s).actions.find((a) => a.kind === 'blast')
+    const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
+    expect(facts.x).toBeUndefined()
+    expect(facts.y?.length).toBeGreaterThan(0)
   })
 })

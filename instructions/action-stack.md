@@ -79,7 +79,7 @@ Rulings the stack must respect:
 - [x] **5.** Push: the third parties' window becomes a follow-up action carrying the
   displacement; `fought` goes, with the drag special cases in `getNextStep`, `payAction`
   and `pruneReactions`.
-- [ ] **6.** Explosion: the blast becomes a follow-up (a spray is aimed in its `define`),
+- [x] **6.** Explosion: the blast becomes a follow-up (a spray is aimed in its `define`),
   preceded by the escapes; the graze/miss moves are its follow-ups.
 - [ ] **7.** Riposte, counterattack, braced trample as catalog entries.
 
@@ -178,3 +178,22 @@ Rulings the stack must respect:
     displacement lands, none chained), and "interrupting someone dragged does not stop the
     push" (the table's ruling). The test driver now reads landing order from `history`,
     since several actions can land in one command.
+- Stage 6: new action kind `blast`. The explosion keeps its declaration, its disk aim,
+  the reflexes and any opportunity attacks; it has nothing to decide once rolled, so
+  `advance` lands it as soon as its attacks are fought. Landing, it writes its area
+  effects on its own record (`effects`, read while what carried them still exists),
+  releases the thrown row or consumes the detonated charge, and generates the blast with
+  the escapes pushed over it. The blast carries the effects, the centre, a spray's
+  direction, the facts and the paint. A spray is pointed on the blast at `post` (not a
+  `define` as first planned: the panel's aim-then-done steps stay as they were), and the
+  blast is confirmed as the explosion used to be. The graze/miss moves are the blast's
+  follow-ups, read off the explosion's reflexes. The zone geometry in `explosion.ts` takes
+  a `BlastShape` (who set it off, where it was aimed, its effects); `getBlastOf` lays out
+  an explosion before it goes off. `openBefore` lost its explosion branch.
+  - Behavior change: the thrown item leaves the hand (or the charge is consumed) when the
+    explosion lands, before the escapes, where it used to be at the very end.
+  - Test: an explosion reaches only who is still in the area once the escapes are walked
+    (the table's ruling), with one reactor walking out and one skipping the escape.
+  - Not exercised: a spray. The aim step, board click and `aimExplosion` target the blast,
+    but the only spray in the catalog is a sustained spell, and no test or scratch run
+    plays one out.

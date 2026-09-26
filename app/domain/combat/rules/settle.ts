@@ -2,7 +2,7 @@ import type { Action, CombatState } from '../types'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, getReachableFloor } from './floor'
 import { getDisplaceFacts, getDragFacts, getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
-import { getExplosionFacts, getTerrainPaint } from './explosion'
+import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
 import { getCastFacts } from './cast'
 import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
@@ -34,7 +34,8 @@ export function getSettled(state: CombatState, open: Action): Action {
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
     case 'displace': return { ...open, step: 'done', facts: getDisplaceFacts(state, open) }
-    case 'explosion': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
+    case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
+    case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
     case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     // reactions: settled with their root, nothing of their own to write

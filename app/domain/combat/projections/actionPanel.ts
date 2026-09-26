@@ -18,7 +18,7 @@ import { ActionReport, getGrappleNotes, getLastReport, getOutcomes } from './out
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
-import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
+import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, getDisarmOptions, getDragChoices, getDragOutcome, getDragSides, getManeuverTargets, isGrappleRowOf, isManeuverWon, needsDragAim } from '../rules/grapple'
 import { findGrapple } from '../rules/partners'
@@ -233,8 +233,9 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
   const weaponAction = attack ?? explosion
-  const areas = explosion ? getExplosionAreas(state, explosion) : []
-  const area = areas.length > 0 ? (isSpray(state, explosion!) ? { shape: 'spray' as const } : { shape: 'explosion' as const }) : null
+  const blast = open.kind === 'blast' ? open : null
+  const laid = explosion ? getBlastOf(state, explosion) : blast
+  const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
   // a settled push was paid for already; what is left is opening its attacks
@@ -262,7 +263,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       attack: weaponAction?.attack ?? '',
       variant: weaponAction?.variant ?? '',
       location: attack?.location ?? 'chest',
-      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? explosion!.center !== null : explosion!.direction !== null, aimable: isAimable(state, explosion!) } : null,
+      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
       source: explosion?.source ?? null,
       itemId: explosion?.itemId ?? '',
       spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',

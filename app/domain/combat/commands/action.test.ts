@@ -8,7 +8,7 @@ import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { reduceCharacter } from './reduce'
 import { amendAction, cancelAction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
-import { getTerrainPaint } from '../rules/explosion'
+import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 
@@ -158,7 +158,7 @@ describe('a charge set off', () => {
     }
     s = amendAction({ center: { q: 0, r: 0 } })(declareAction('a', { kind: 'explosion', source: 'detonate', itemId: 'bomb' }, newId)(s))
     const open = getOpenAction(s)
-    const painted = open?.kind === 'explosion' ? getTerrainPaint(s, open).length : 0
+    const painted = open?.kind === 'explosion' ? getTerrainPaint(s, getBlastOf(s, open)).length : 0
     expect(painted).toBeGreaterThan(0)
     const after = resolveAction(newId)(payAction(newId)(commitAction()(s)))
     expect(Object.keys(after.board?.terrain ?? {})).toHaveLength(painted)
