@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, CombatState, RootAction, WeaponAction } from '../types'
-import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
+import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -288,14 +288,7 @@ export function needsDie(state: CombatState, action: Action): boolean {
 export function getNextStep(state: CombatState): ActionStep | null {
   const open = getOpenAction(state)
   if (!open) return null
-  if (open.step === 'post') {
-    if (isVoided(state, open)) return 'confirm'
-    if (open.kind === 'blast') return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
-    // combat.tex "Push and drag": the winner points the way
-    if (open.kind === 'drag') return needsDragAim(state, open) ? 'aim' : 'confirm'
-    if (open.kind === 'grapple' && needsDisarmPick(state, open)) return 'choose'
-    return (isAttackAction(open) || open.kind === 'cast') && open.roll?.degree === 'hit' ? 'spend' : 'confirm'
-  }
+  if (open.step === 'post') return isVoided(state, open) ? 'confirm' : getPostStep(state, open)
   if (open.step === 'react') return 'react'
   const actor = state.characters[open.actorId]
   if (!actor) return 'declare'
@@ -304,6 +297,32 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (!needsTarget(open)) return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
   return 'commit'
+}
+
+// What the root still waits on once its die is thrown or its cost paid,
+// before it lands: HOP to spend on a hit, a way to point, a pick to make.
+function getPostStep(state: CombatState, open: RootAction): ActionStep {
+  switch (open.kind) {
+    case 'strike':
+    case 'shoot':
+    case 'cast':
+      return open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+    // combat.tex "Sprays": the cone is pointed once the reflexes have moved
+    case 'blast':
+      return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
+    // combat.tex "Push and drag": the winner points the way
+    case 'drag':
+      return needsDragAim(state, open) ? 'aim' : 'confirm'
+    case 'grapple':
+      return needsDisarmPick(state, open) ? 'choose' : 'confirm'
+    case 'explosion':
+    case 'move':
+    case 'displace':
+    case 'release':
+    case 'holdBack':
+    case 'pickUp':
+      return 'confirm'
+  }
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.
