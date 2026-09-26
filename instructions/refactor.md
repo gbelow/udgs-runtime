@@ -14,7 +14,3 @@ Places that break the project's own rules
 - Screen text inside rules/: labels and reason strings in options.ts (findOption only reads .available), HOP_LABELS (damage.ts), getSpellOptions (cast.ts), getChargeOptions (explosion.ts), getDisarmOptions (grapple.ts) and getDragSides (drag.ts). They belong in projections.
 - Misfiled: the plane geometry in rules/board.ts (toPlane, centroid, angleBetween, angularGap) is used by boardView and belongs with geometry. rules/activeCharacter.ts also holds findHeldItem and getFightName.
 - commands/ holds non-button helpers (log.ts, reduce.ts, sequence.ts). Fine, but CLAUDE.md doesn't describe them.
-
-Architecture
-
-1. The per-kind dispatch is exhaustive everywhere but one place: the list of a character's own actions in getAvailableActions (options.ts) is written by hand, so a new root kind a player can declare has to be added there without the compiler asking. Generated kinds (displace, blast) rightly have no entry, so a Record over root kinds would need a way to say "none".

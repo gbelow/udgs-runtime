@@ -626,6 +626,9 @@ export type TriggeringAction = ActionOf<{ [K in ActionKind]: (typeof ACTIONS)[K]
 export type ReactionKind = { [K in ActionKind]: (typeof ACTIONS)[K] extends { type: 'reaction' } ? K : never }[ActionKind]
 export type ReactionAction = ActionOf<ReactionKind>
 export type RootAction = Exclude<Action, ReactionAction>
+// The roots a player declares: every one the catalog does not mark
+// `generated`.
+export type DeclarableKind = Exclude<ActionKind, ReactionKind | { [K in ActionKind]: (typeof ACTIONS)[K] extends { generated: true } ? K : never }[ActionKind]>
 
 // The declaration a click makes: an action minus everything the commands fill
 // in (identity, step, the roll, the facts). What is left is the kind and its

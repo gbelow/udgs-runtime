@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import type { Action, ActionDraft, ActionKind, ActionOf, CombatState } from '../types'
+import type { Action, ActionDraft, ActionKind, ActionOf, CombatState, DeclarableKind } from '../types'
 import { ACTIONS, getActionDef, getActionNoun, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
@@ -86,36 +86,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) {
-    const strikes = getAttackOptions(c, 'strike')
-    const shots = getAttackOptions(c, 'shoot')
-    const explosions = getAttackOptions(c, 'explosion').filter((o) => hasExplosionPayload(c, o.weaponKey, o.attack))
-    const spells = getSpellOptions(c)
-    const placed = state.board?.placements[c.id] !== undefined
-    const movable = getMovementOptions(state, c).some((m) => m.available)
-    const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
-    const explosionReason = explosions.length > 0 ? (placed ? null : 'not on the board')
-      : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge'
-      : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it'
-      : 'no exploding weapon in hand'
-    const castable = spells.some((s) => s.castable || s.quickenable)
-    return closeIfImmobile(c, [
-      option(ACTIONS.strike.label, { kind: 'strike' }, null, strikes.length > 0 ? null : 'no melee weapon in hand'),
-      // combat.tex "Initiate the Grab": a strike with a grapple row
-      option('grab', { kind: 'strike', grab: true }, null, grabs.length > 0 ? null : 'no grapple weapon in hand'),
-      option(ACTIONS.shoot.label, { kind: 'shoot' }, null, shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand'),
-      // an explosion is aimed at ground, so it needs a board to land on
-      option(ACTIONS.explosion.label, { kind: 'explosion', source: 'thrown' }, null, explosionReason),
-      // combat.tex "Explosions": "If the explosion occurs before being
-      // perceived, no test can be made" — a charge or a trap set off by the
-      // table, from wherever the active character stands
-      option('set off a charge', { kind: 'explosion', source: 'detonate' }, null, !placed ? 'not on the board' : getChargeOptions(state).length > 0 ? null : 'nothing is charged'),
-      option(ACTIONS.move.label, { kind: 'move' }, null, !placed ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move'),
-      option(ACTIONS.cast.label, { kind: 'cast' }, null, castable ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned'),
-      ...getGrappleOptions(state, c),
-      getPickUpOption(state, c),
-    ])
-  }
+  if (!open) return closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
@@ -199,36 +170,99 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   })
 }
 
-// combat.tex "Grapple": what a character in a grapple can do about it — the
-// maneuvers, open to "any of the participants" whatever they hold; getting
-// up, which in a grapple is an escape; pushing or dragging; letting go of a
-// partner who does not hold back; grappling back one held with nothing, once
-// a grapple row is in hand. Nothing, outside of one.
-function getGrappleOptions(state: CombatState, c: CampaignCharacter): ActionOption[] {
-  if (getPartners(state, c.id).length === 0) return []
-  const maneuver = getActionCost(c, 'grappleManeuver')
-  const drag = getActionCost(c, 'pushDrag')
-  const placed = state.board?.placements[c.id] !== undefined
-  const afford = (cost: ActionCost) => (canAfford(c, cost) ? null : 'cannot afford')
-  return [
-    ...GRAPPLE_MANEUVERS.map((m) =>
-      option(m, { kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(maneuver))),
-    option('stand up', { kind: 'grapple', maneuver: 'escape', stand: true }, maneuver, canStandByEscape(state, c) ? afford(maneuver) : 'not prone'),
-    option(ACTIONS.drag.label, { kind: 'drag' }, drag, !placed ? 'not on the board' : afford(drag)),
-    option(ACTIONS.release.label, { kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back'),
-    ...(getHoldBackTargets(state, c.id).length > 0 ? [option(ACTIONS.holdBack.label, { kind: 'holdBack' }, { AP: 0, STA: 0 }, null)] : []),
-  ]
+// The actions a character may take on their own initiative, one entry per
+// kind a player declares (`DeclarableKind`), each listing its options in
+// the order the panel shows them.
+type OwnOptions = (state: CombatState, c: CampaignCharacter) => ActionOption[]
+
+const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
+  strike: (_state, c) => {
+    const strikes = getAttackOptions(c, 'strike')
+    const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
+    return [
+      option(ACTIONS.strike.label, { kind: 'strike' }, null, strikes.length > 0 ? null : 'no melee weapon in hand'),
+      // combat.tex "Initiate the Grab": a strike with a grapple row
+      option('grab', { kind: 'strike', grab: true }, null, grabs.length > 0 ? null : 'no grapple weapon in hand'),
+    ]
+  },
+  shoot: (_state, c) => {
+    const shots = getAttackOptions(c, 'shoot')
+    return [option(ACTIONS.shoot.label, { kind: 'shoot' }, null, shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand')]
+  },
+  explosion: (state, c) => {
+    const placed = isPlaced(state, c)
+    const explosions = getAttackOptions(c, 'explosion').filter((o) => hasExplosionPayload(c, o.weaponKey, o.attack))
+    const reason = explosions.length > 0 ? (placed ? null : 'not on the board')
+      : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge'
+      : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it'
+      : 'no exploding weapon in hand'
+    return [
+      // an explosion is aimed at ground, so it needs a board to land on
+      option(ACTIONS.explosion.label, { kind: 'explosion', source: 'thrown' }, null, reason),
+      // combat.tex "Explosions": "If the explosion occurs before being
+      // perceived, no test can be made" — a charge or a trap set off by the
+      // table, from wherever the active character stands
+      option('set off a charge', { kind: 'explosion', source: 'detonate' }, null, !placed ? 'not on the board' : getChargeOptions(state).length > 0 ? null : 'nothing is charged'),
+    ]
+  },
+  move: (state, c) => {
+    const movable = getMovementOptions(state, c).some((m) => m.available)
+    return [option(ACTIONS.move.label, { kind: 'move' }, null, !isPlaced(state, c) ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move')]
+  },
+  cast: (_state, c) => {
+    const spells = getSpellOptions(c)
+    const castable = spells.some((s) => s.castable || s.quickenable)
+    return [option(ACTIONS.cast.label, { kind: 'cast' }, null, castable ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned')]
+  },
+  // combat.tex "Grapple": what a character in a grapple can do about it — the
+  // maneuvers, open to "any of the participants" whatever they hold; getting
+  // up, which in a grapple is an escape; pushing or dragging; letting go of a
+  // partner who does not hold back; grappling back one held with nothing, once
+  // a grapple row is in hand. Nothing, outside of one.
+  grapple: (state, c) => {
+    if (!isInAnyGrapple(state, c)) return []
+    const maneuver = getActionCost(c, 'grappleManeuver')
+    return [
+      ...GRAPPLE_MANEUVERS.map((m) =>
+        option(m, { kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(c, maneuver))),
+      option('stand up', { kind: 'grapple', maneuver: 'escape', stand: true }, maneuver, canStandByEscape(state, c) ? afford(c, maneuver) : 'not prone'),
+    ]
+  },
+  drag: (state, c) => {
+    if (!isInAnyGrapple(state, c)) return []
+    const drag = getActionCost(c, 'pushDrag')
+    return [option(ACTIONS.drag.label, { kind: 'drag' }, drag, !isPlaced(state, c) ? 'not on the board' : afford(c, drag))]
+  },
+  release: (state, c) => {
+    if (!isInAnyGrapple(state, c)) return []
+    return [option(ACTIONS.release.label, { kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back')]
+  },
+  holdBack: (state, c) => {
+    if (!isInAnyGrapple(state, c) || getHoldBackTargets(state, c.id).length === 0) return []
+    return [option(ACTIONS.holdBack.label, { kind: 'holdBack' }, { AP: 0, STA: 0 }, null)]
+  },
+  // combat.tex "Standard Action": "This is used to pick up items from the
+  // floor".
+  pickUp: (state, c) => {
+    const cost = getActionCost(c, 'standardAction')
+    const reachable = getReachableFloor(state, c.id).filter((f) => canPickUp(c, f.item))
+    const reason = state.floor.length === 0 ? 'nothing on the floor'
+      : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
+      : canAfford(c, cost) ? null : 'cannot afford'
+    return [option(ACTIONS.pickUp.label, { kind: 'pickUp' }, cost, reason)]
+  },
 }
 
-// combat.tex "Standard Action": "This is used to pick up items from the
-// floor".
-function getPickUpOption(state: CombatState, c: CampaignCharacter): ActionOption {
-  const cost = getActionCost(c, 'standardAction')
-  const reachable = getReachableFloor(state, c.id).filter((f) => canPickUp(c, f.item))
-  const reason = state.floor.length === 0 ? 'nothing on the floor'
-    : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
-    : canAfford(c, cost) ? null : 'cannot afford'
-  return option(ACTIONS.pickUp.label, { kind: 'pickUp' }, cost, reason)
+function isPlaced(state: CombatState, c: CampaignCharacter): boolean {
+  return state.board?.placements[c.id] !== undefined
+}
+
+function isInAnyGrapple(state: CombatState, c: CampaignCharacter): boolean {
+  return getPartners(state, c.id).length > 0
+}
+
+function afford(c: CampaignCharacter, cost: ActionCost): string | null {
+  return canAfford(c, cost) ? null : 'cannot afford'
 }
 
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
