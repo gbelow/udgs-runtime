@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, Deliveries, DragFacts } from '../types'
+import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { getActionName } from '../rules/actionCatalog'
@@ -41,6 +41,7 @@ export function getGrappleNotes(state: CombatState, root: Action): { target: str
   const named = (id: string) => getFightName(state, id)
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
+  if (root.kind === 'displace') return root.facts ? displaceNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   const facts = getGrappleFacts(root)
   if (!facts) return []
@@ -64,11 +65,17 @@ export function getGrappleNotes(state: CombatState, root: Action): { target: str
 }
 
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
+  return [
+    ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
+    ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
+  ]
+}
+
+function displaceNotes(facts: DisplaceFacts, named: (id: string) => string): { target: string; text: string }[] {
   const moved = Object.keys(facts.to)
   return [
     moved.length > 0 ? { target: moved.map(named).join(', '), text: `moved ${facts.steps}m` } : { target: '', text: 'nobody moves' },
     ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
-    ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
   ]
 }
 

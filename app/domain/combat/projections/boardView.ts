@@ -1,4 +1,4 @@
-import type { CombatState, Coord, Degree } from '../types'
+import type { CombatState, Coord, Degree, Placement } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell } from '../geometry'
 import { getFootprint, getOccupancy, toPlane } from '../rules/board'
@@ -9,7 +9,7 @@ import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/activeCharacter'
 import { getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
-import { getCircleCells, getDragFacts } from '../rules/grapple'
+import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/grapple'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -147,12 +147,14 @@ export function getBoardView(state: CombatState): BoardView {
   // chosen after the movement).
   const explosion = findOpenRoot(state, 'explosion')
   // combat.tex "Push and drag": once settled, the winner points the push or
-  // picks where to circle on the board, until the third parties are fought
+  // picks where to circle on the board, with where everyone ends up shown
+  // until the way is walked
   const settled = open?.kind === 'drag' && open.step === 'post' ? open : null
-  const pointing = settled !== null && !settled.fought && (settled.choice === 'push' || settled.choice === 'circle')
+  const pointing = settled !== null && (settled.choice === 'push' || settled.choice === 'circle')
   const aiming = (explosion !== null && isAimable(state, explosion)) || pointing
   const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
-  const landed = settled ? getDragFacts(state, settled)?.to ?? {} : {}
+  const walking = findOpenRoot(state, 'displace')
+  const landed: Record<string, Placement> = walking ? getDisplaceFacts(state, walking).to : settled ? getDragPath(state, settled)?.steps.at(-1) ?? {} : {}
   const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []

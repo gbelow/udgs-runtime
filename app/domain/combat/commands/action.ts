@@ -8,9 +8,8 @@ import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getDragComparison } from '../rules/grapple'
-import { getSettled } from '../rules/settle'
 import { appendActions, applyPhase, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
-import { advance, fightPush, getFollowUps } from './sequence'
+import { advance, land } from './sequence'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -185,7 +184,6 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
 export function payAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
-    if (open?.kind === 'drag' && open.step === 'post' && isAnswerable(state, open)) return fightPush(state, open, newId)
     if (!open || open.step !== 'react' || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
@@ -214,8 +212,6 @@ export function resolveAction(newId: () => string): Updater {
     const open = getOpenAction(state)
     const step = getNextStep(state)
     if (!open || open.step !== 'post' || (step !== 'confirm' && step !== 'spend')) return state
-    const resolved = getSettled(state, open)
-    const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
-    return advance(appendActions(landed, getFollowUps(landed, resolved, newId)), newId)
+    return land(state, open, newId)
   }
 }

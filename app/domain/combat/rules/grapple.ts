@@ -1,5 +1,5 @@
 import type { Character, WeaponAttack } from '../../types'
-import type { Action, CombatState, Deliveries, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
+import type { Action, CombatState, Deliveries, DisplaceAction, DisplaceFacts, DragAction, DragFacts, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, Coord, HoldBackAction, Placement, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
 import { getStrikeDamage } from '../../character/rules/gear'
@@ -467,17 +467,11 @@ export function needsDragAim(state: CombatState, root: DragAction): boolean {
   return root.choice === null || (root.choice === 'push' && root.direction === null) || (root.choice === 'circle' && root.to === null)
 }
 
-// Where someone the push moves set out from: the placement written when its
-// third parties' attacks were opened, or before then where they stand.
-export function getDragOrigin(state: CombatState, root: DragAction, id: string): Placement | undefined {
-  return root.from?.[id] ?? state.board?.placements[id]
-}
-
 // Where the actor may circle to: every cell within the reach circling
 // allows, got to one free step at a time, inside the grapple area.
 export function getCircleCells(state: CombatState, root: DragAction): { cell: Coord; path: Coord[] }[] {
   const board = state.board
-  const from = getDragOrigin(state, root, root.actorId)
+  const from = board?.placements[root.actorId]
   const actor = state.characters[root.actorId]
   const outcome = getDragOutcome(state, root)
   if (!board || !from || !actor || !outcome || outcome.circle === 0) return []
@@ -495,7 +489,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
   const outcome = getDragOutcome(state, root)
   if (!board || !outcome) return null
   if (root.choice === 'circle' && root.to) {
-    const from = getDragOrigin(state, root, root.actorId)
+    const from = board.placements[root.actorId]
     if (!from) return { outcome, steps: [] }
     const path = getCircleCells(state, root).find((c) => sameCell(c.cell, root.to!))?.path ?? []
     return { outcome, steps: path.map((cell) => ({ [root.actorId]: placeAt(board, from, cell) })) }
@@ -503,7 +497,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
   if (root.choice !== 'push' || root.direction === null || outcome.push === 0) return { outcome, steps: [] }
   const heading = DIRECTIONS[root.direction]
   let where: Record<string, Placement> = Object.fromEntries(outcome.sides.movers.flatMap((id) => {
-    const origin = getDragOrigin(state, root, id)
+    const origin = board.placements[id]
     return origin ? [[id, origin]] : []
   }))
   const steps: Record<string, Placement>[] = []
@@ -520,27 +514,46 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
   return { outcome, steps }
 }
 
-// Where the push was brought to a stop: one step short of the stretch on
-// which a third party's attack interrupted the pusher, where everyone it
-// moves stays, as an interrupted mover does (the table's ruling: only the
-// pusher's interruption stops it). Null while it goes on.
-export function getPushStop(state: CombatState, root: DragAction): number | null {
+// Whoever resisted actively "interrupt[ed] itself", and who let go instead
+// of being dragged. Where the way goes is the displacement's to walk.
+export function getDragFacts(state: CombatState, root: DragAction): DragFacts | null {
+  const outcome = getDragOutcome(state, root)
+  return outcome ? { interrupted: outcome.sides.active, released: outcome.sides.released } : null
+}
+
+// The displacement the push generates as it lands: the way pointed, step by
+// step, from where everyone stands; the side pushed, and those who went
+// along passively. Null when the way moves nobody — a stay, or a push that
+// cannot take a step.
+export function getDisplacement(state: CombatState, root: DragAction): Pick<DisplaceAction, 'path' | 'from' | 'pushed' | 'carriers' | 'opportunity'> | null {
+  const path = getDragPath(state, root)
+  if (!path || path.steps.length === 0) return null
+  const pushing = root.choice === 'push'
+  const from = Object.fromEntries(Object.keys(path.steps[0]).flatMap((id) => {
+    const placement = state.board?.placements[id]
+    return placement ? [[id, placement]] : []
+  }))
+  return { path: path.steps, from, pushed: pushing ? path.outcome.pushed : [], carriers: pushing ? path.outcome.sides.carriers : [], opportunity: root.opportunity }
+}
+
+// Where the displacement was brought to a stop: one step short of the
+// stretch on which a third party's attack interrupted the pusher, where
+// everyone it moves stays, as an interrupted mover does (the table's ruling:
+// only the pusher's interruption stops it). Null while it goes on.
+export function getPushStop(state: CombatState, root: DisplaceAction): number | null {
   const stopped = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => isInterruptingStrike(spawned, root.actorId))
   return stopped ? Math.max(0, (stopped.reaction.at ?? 1) - 1) : null
 }
 
-// Whoever resisted actively "interrupt[ed] itself"; the side a push moved
-// was interrupted by it. The way is walked as far as the push got.
-export function getDragFacts(state: CombatState, root: DragAction): DragFacts | null {
-  const path = getDragPath(state, root)
-  if (!path) return null
+// The way walked as far as it got: where each ended, the side pushed
+// interrupted by it if it moved at all, and what each who went along
+// passively paid for the metres.
+export function getDisplaceFacts(state: CombatState, root: DisplaceAction): DisplaceFacts {
   const stop = getPushStop(state, root)
-  const { outcome: { sides, pushed } } = path
-  const steps = stop === null ? path.steps : path.steps.slice(0, stop)
-  const taken = root.choice === 'push' ? steps.length : 0
-  const interrupted = [...new Set([...(taken > 0 ? pushed : []), ...sides.active])]
-  const carried = Object.fromEntries(sides.carriers.flatMap((id) => (state.characters[id] && taken > 0 ? [[id, getMoveCost(state.characters[id], 'basic', taken).AP]] : [])))
-  return { steps: steps.length, to: steps.length > 0 ? steps[steps.length - 1] : {}, interrupted, released: sides.released, carried }
+  const steps = stop === null ? root.path : root.path.slice(0, stop)
+  const taken = steps.length
+  const carried = Object.fromEntries(root.carriers.flatMap((id) => (state.characters[id] && taken > 0 ? [[id, getMoveCost(state.characters[id], 'basic', taken).AP]] : [])))
+  return { steps: taken, to: taken > 0 ? steps[taken - 1] : {}, interrupted: taken > 0 ? root.pushed : [], carried }
 }
 
 // ---------------------------------------------------------------------------

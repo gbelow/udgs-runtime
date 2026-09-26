@@ -10,6 +10,7 @@ import { getLastReport } from '../projections/outcomes'
 import { getAttackOptions } from '../rules/attack'
 import { isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
+import { aimPush } from './choices'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -51,8 +52,10 @@ function everyoneAttacks(s: CombatState, reactorIds: string[]): CombatState {
   }, s)
 }
 
-function isRoot(a: Action): boolean {
-  return a.reactionTo === null
+// The actions the opportunity attacks declared in `s` opened, among `landed`.
+function openedByOpportunity(s: CombatState, landed: Action[]): Action[] {
+  const declared = s.actions.filter((a) => a.kind === 'opportunityAttack').map((a) => a.id)
+  return landed.filter((a) => a.spawnedBy !== null && declared.includes(a.spawnedBy))
 }
 
 // Plays the open action out to the end with the die showing `face`, taking
@@ -69,10 +72,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
     const next = [rollAction(() => face, newId), payAction(newId), resolveAction(newId)].map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
-    for (const a of next.actions.filter(isRoot)) {
-      const was = s.actions.find((b) => b.id === a.id)
-      if (a.step === 'done' && was?.step !== 'done') landed.push(a)
-    }
+    for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
     s = next
   }
   throw new Error('did not end')
@@ -114,10 +114,26 @@ function strikeFlankedTwice(): CombatState {
   return everyoneAttacks(s, ['f1', 'f2'])
 }
 
+// A has grabbed B and pushes them 2m straight at a spearman with reach 2,
+// B going along only passively; the push lands and its way is walked, the
+// spearman answering it (combat.tex "Push and drag"; "Opportunity Attack":
+// "moving towards a melee weapon while within its attack range").
+function pushTowardsSpearman(): CombatState {
+  let s = onBoard({ a: [0, 0], b: [1, 0], t: [4, 0] }, fighter('a'), fighter('b'), spearman('t'))
+  s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+  s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction()(setTarget('b')(s))))
+  s = declareAction('a', { kind: 'drag' }, newId)(s)
+  s = payAction(newId)(commitAction()(setTarget('b')(s)))
+  s = resolveAction(newId)(aimPush({ choice: 'push', direction: 0, steps: 2 })(s))
+  expect(getOpenAction(s)?.kind).toBe('displace')
+  return everyoneAttacks(s, ['t'])
+}
+
 const scenarios = [
   { name: 'a shot', start: shotBetweenThreateners, reactors: ['t1', 't2'] },
   { name: 'a move', start: walkPastSpearmen, reactors: ['r1', 'r2'] },
   { name: 'a flanked strike', start: strikeFlankedTwice, reactors: ['f1', 'f2'] },
+  { name: 'a push', start: pushTowardsSpearman, reactors: ['t'] },
 ]
 
 describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, reactors }) => {
@@ -128,8 +144,7 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
     const declared = s.actions.filter((a) => a.kind === 'opportunityAttack')
     expect(declared.map((a) => a.actorId).sort()).toEqual([...reactors].sort())
     const { landed } = playOut(s, MISS)
-    const opened = landed.filter((a) => a.spawnedBy !== null)
-    expect(opened.map((a) => a.spawnedBy).sort()).toEqual(declared.map((a) => a.id).sort())
+    expect(openedByOpportunity(s, landed).map((a) => a.spawnedBy).sort()).toEqual(declared.map((a) => a.id).sort())
   })
 
   // combat.tex "Opportunity Attack": "The attack occurs before the effect of
@@ -139,7 +154,7 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
     const rootId = getOpenAction(s)!.id
     const { landed } = playOut(s, MISS)
     expect(landed.at(-1)?.id).toBe(rootId)
-    expect(landed.filter((a) => a.spawnedBy !== null)).toHaveLength(reactors.length)
+    expect(openedByOpportunity(s, landed)).toHaveLength(reactors.length)
   })
 
   // The table's ruling: opportunity attacks never trigger other opportunity
@@ -161,8 +176,17 @@ describe('an action broken by an opportunity attack', () => {
   ])('$name lands nothing, and every attack it drew is still fought', ({ start }) => {
     const s = start()
     const { state, landed } = playOut(s, LAND)
-    expect(landed.filter((a) => a.spawnedBy !== null)).toHaveLength(2)
+    expect(openedByOpportunity(s, landed)).toHaveLength(2)
     expect(state.characters.def).toEqual(s.characters.def)
+  })
+
+  // The table's ruling: only the pusher being interrupted stops a push; one
+  // who is dragged and interrupted is still dragged all the way.
+  it('does not stop a push when the one it interrupts is dragged', () => {
+    const { state } = playOut(pushTowardsSpearman(), LAND)
+    expect(state.actions.find((a) => a.kind === 'strike' && a.targetId === 'b' && a.step === 'done' && a.interruption !== 'none')).toBeDefined()
+    expect(state.board?.placements.b?.cell).toEqual({ q: 3, r: 0 })
+    expect(state.board?.placements.a?.cell).toEqual({ q: 2, r: 0 })
   })
 
   // The table's ruling: an interrupted mover stays one step short of the

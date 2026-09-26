@@ -456,12 +456,12 @@ function PushAim({ push, onAim }: { push: PushView, onAim: (fields: { choice?: '
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>{PUSH_WINNER[push.winner]}</SectionLabel>
         {push.choices.map((c) =>
-          <Button key={c.choice} size='xs' {...toggle(push.choice === c.choice)} disabled={!push.open || !c.available} onClick={() => onAim({ choice: c.choice })}>{PUSH_CHOICE[c.choice]}</Button>)}
+          <Button key={c.choice} size='xs' {...toggle(push.choice === c.choice)} disabled={!c.available} onClick={() => onAim({ choice: c.choice })}>{PUSH_CHOICE[c.choice]}</Button>)}
         {push.choice === 'push' ? push.distances.map((m) =>
-          <Button key={m} size='xs' {...toggle(push.steps === m)} disabled={!push.open} onClick={() => onAim({ steps: m })}>{m}m</Button>) : null}
+          <Button key={m} size='xs' {...toggle(push.steps === m)} onClick={() => onAim({ steps: m })}>{m}m</Button>) : null}
       </div>
-      {push.open && push.choice === 'push' ? <span className='text-xs text-muted'>{push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span> : null}
-      {push.open && push.choice === 'circle' ? <span className='text-xs text-muted'>{push.aimed ? 'click another marked cell to change it' : 'click a marked cell on the board to circle to'}</span> : null}
+      {push.choice === 'push' ? <span className='text-xs text-muted'>{push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span> : null}
+      {push.choice === 'circle' ? <span className='text-xs text-muted'>{push.aimed ? 'click another marked cell to change it' : 'click a marked cell on the board to circle to'}</span> : null}
     </div>
   )
 }

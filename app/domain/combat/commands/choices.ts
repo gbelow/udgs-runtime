@@ -18,7 +18,7 @@ import { applyPhase, getRolledOpen, pruneReactions, replaceActions } from './log
 export function aimPush(fields: { choice?: 'push' | 'circle' | 'stay'; direction?: number; steps?: number; to?: Coord }): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['drag'])
-    if (!open || open.fought) return state
+    if (!open) return state
     const outcome = getDragOutcome(state, open)
     const choice = fields.choice ?? open.choice
     if (!outcome || !choice || !getDragChoices(state, open).find((c) => c.choice === choice)?.available) return state

@@ -448,17 +448,12 @@ export const GrappleActionSchema = z.object({
 // `direction`, one of the six hex directions, for `steps` metres ("up to
 // 1m", 2 on a difference of 5); for the actor, to circle round to `to`
 // without displacing anyone ("Moving within the grapple area"); or to stay.
-// `fought`: the opportunity attacks the chosen way drew from third parties
-// have been opened. Written at the resolve: how far it went,
-// where each ended, who was interrupted (the side pushed, or the one that
-// lost pushing back), who let go instead of being dragged, and what each
-// who went along passively paid for the metres.
+// Written at the resolve: who resisted actively and so interrupted
+// themselves, and who let go instead of being dragged. The way itself is
+// walked by the displacement the push generates.
 export const DragFactsSchema = z.object({
-  steps: num.default(0),
-  to: z.record(str, PlacementSchema).default({}),
   interrupted: z.array(str).default([]),
   released: z.array(str).default([]),
-  carried: z.record(str, num).default({}),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
 const TermSchema = z.object({ label: str, value: num }).strip()
@@ -469,18 +464,42 @@ export const DragActionSchema = z.object({
   direction: DirectionSchema.nullable().default(null),
   steps: z.number().int().min(1).max(2).default(1),
   to: CoordSchema.nullable().default(null),
-  fought: z.boolean().default(false),
   // the comparison as it stood when the push was paid for — each side's
   // terms, and whether the actor could circle — written once, like a die:
   // once the grapple has answered and the price is paid the outcome is
   // certain, whatever befalls either side while its attacks are fought
   compared: z.object({ attacker: z.array(TermSchema), defender: z.array(TermSchema).nullable(), circling: z.boolean() }).nullable().default(null),
-  // where everyone it moves set out from, written when the third parties'
-  // attacks are opened: the path is read from here while the group stands
-  // part of the way along it, as a move's is from `from`
-  from: z.record(str, PlacementSchema).nullable().default(null),
   opportunity: z.boolean().default(false),
   facts: DragFactsSchema.nullable().default(null),
+}).strip()
+
+// combat.tex "Push and drag": the way a push was pointed, walked — the
+// follow-up a push generates when it lands on a way that moves someone. It
+// is its own action because third parties answer it: whoever the group is
+// moved towards may take an opportunity attack ("moving towards a melee
+// weapon while within its attack range"), fought along the way as a move's
+// are. `path` is where everyone moved stands after each step, `from` where
+// they set out; `pushed` is the side the push moves against, interrupted if
+// it moves at all; `carriers` went along passively and pay for the metres.
+// Written at the resolve: how far it went, where each ended, who it
+// interrupted and what each carrier paid.
+export const DisplaceFactsSchema = z.object({
+  steps: num.default(0),
+  to: z.record(str, PlacementSchema).default({}),
+  interrupted: z.array(str).default([]),
+  carried: z.record(str, num).default({}),
+}).strip()
+export type DisplaceFacts = z.infer<typeof DisplaceFactsSchema>
+export const DisplaceActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('displace'),
+  path: z.array(z.record(str, PlacementSchema)).default([]),
+  from: z.record(str, PlacementSchema).default({}),
+  pushed: z.array(str).default([]),
+  carriers: z.array(str).default([]),
+  // made by a push that was itself an opportunity attack: it draws none
+  opportunity: z.boolean().default(false),
+  facts: DisplaceFactsSchema.nullable().default(null),
 }).strip()
 
 // A holder letting go of a partner who does not hold them back.
@@ -536,6 +555,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   MoveActionSchema,
   GrappleActionSchema,
   DragActionSchema,
+  DisplaceActionSchema,
   ReleaseActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
@@ -559,6 +579,7 @@ export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
+export type DisplaceAction = z.infer<typeof DisplaceActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>

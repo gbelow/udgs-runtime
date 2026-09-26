@@ -78,7 +78,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         }
         // combat.tex "Push and drag": going along passively is paid for in
         // the basic movement of the metres moved
-        if (action.kind === 'drag') {
+        if (action.kind === 'displace') {
           const AP = action.facts?.carried[c.id] ?? 0
           return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
         }
@@ -208,7 +208,7 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }
     }
     // combat.tex "Push and drag": the pair where the push left them
-    if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
+    if (action.kind === 'displace') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas": what the explosion leaves on the ground, by zone
     if (action.kind === 'explosion') {
       const terrain = { ...board.terrain }

@@ -53,12 +53,10 @@ export function withoutLiveReaction(state: CombatState, rootId: string, actorId:
 }
 
 // Drops every reaction to the open action that its triggers no longer
-// offer: what a push moves someone into depends on the way it is pointed,
-// so a third party's opportunity attack goes when the way changes
-// (combat.tex "Push and drag").
+// offer, as its declaration changes.
 export function pruneReactions(state: CombatState): CombatState {
   const open = getOpenAction(state)
-  if (!open || !(open.step === 'react' || (open.kind === 'drag' && open.step === 'post' && !open.fought))) return state
+  if (!open || open.step !== 'react') return state
   const live = getLiveReactionsTo(state, open.id)
   const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' ? a.at : undefined }) !== null)
   return kept.length === state.actions.length ? state : setActions(state, kept)

@@ -161,7 +161,6 @@ export type PushView = {
   distances: number[]
   steps: number
   aimed: boolean
-  open: boolean
 }
 
 export type ActionPanelView = {
@@ -343,6 +342,5 @@ function getPushView(state: CombatState, drag: DragAction): PushView {
     distances: Array.from({ length: outcome?.push ?? 0 }, (_, i) => i + 1),
     steps: drag.steps,
     aimed: !needsDragAim(state, drag),
-    open: !drag.fought,
   }
 }

@@ -1,4 +1,4 @@
-import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
+import type { Action, ActionOf, CombatState, DragAction, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
 import { getOpeningReaction, getReactionsTo, getRootOf } from './log'
@@ -48,13 +48,20 @@ export function isInterruptingStrike(action: Action | null | undefined, victimId
 }
 
 // Whether an opportunity attack the action drew has landed with an
-// interruption on its actor. A push that moved or stopped the actor
-// interrupted them too (combat.tex "Push and drag": "interrupts them"). One
-// fought against someone else — a third party's against whoever a push
-// moved at them — does not stop the actor.
+// interruption on its actor. A push made as one interrupts them too, if
+// they resisted it actively or it moved them (combat.tex "Push and drag":
+// "interrupts them"). One fought against someone else — a third party's
+// against whoever a push moved at them — does not stop the actor.
 function isInterruptedByOpportunity(state: CombatState, action: Action): boolean {
   return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => isInterruptingStrike(spawned, action.actorId)
-    || (spawned?.kind === 'drag' && spawned.step === 'done' && (spawned.facts?.interrupted ?? []).includes(action.actorId)))
+    || (spawned?.kind === 'drag' && isInterruptedByPush(state, spawned, action.actorId)))
+}
+
+function isInterruptedByPush(state: CombatState, push: DragAction, id: string): boolean {
+  if (push.step !== 'done') return false
+  const walked = state.actions.find((a) => a.kind === 'displace' && a.spawnedBy === push.id)
+  const moved = walked?.kind === 'displace' && walked.step === 'done' ? walked.facts?.interrupted ?? [] : []
+  return [...(push.facts?.interrupted ?? []), ...moved].includes(id)
 }
 
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
@@ -75,7 +82,7 @@ export function getGivenUpFor(state: CombatState, action: TriggeringAction): Opp
 // cancelled (the table's ruling; `getPushStop`).
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
   if (getGivenUpFor(state, action) !== null) return true
-  return action.kind !== 'drag' && isInterruptedByOpportunity(state, action)
+  return action.kind !== 'displace' && isInterruptedByOpportunity(state, action)
 }
 
 // Whether the action comes to nothing: a triggering action given up or

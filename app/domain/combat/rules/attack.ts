@@ -13,7 +13,7 @@ import { isHighGround, withPlacements } from './board'
 import { getBalanceDL, getMoveFacts, getMoveOverride, getMoveWaypoint, getStepDelta, isHookedRunner } from './move'
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
-import { getDragPath, getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
+import { getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { getCastTerms } from './cast'
@@ -88,8 +88,8 @@ export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opp
 // from there.
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = getRootOf(state, reaction)
-  if (root?.kind === 'drag' && reaction.at !== null) {
-    const before = reaction.at > 1 ? getDragPath(state, root)?.steps[reaction.at - 2] : root.from
+  if (root?.kind === 'displace' && reaction.at !== null) {
+    const before = reaction.at > 1 ? root.path[reaction.at - 2] : root.from
     return before ? withPlacements(state, before) : state
   }
   if (root?.kind !== 'move' || reaction.at === null) return state
@@ -105,7 +105,7 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 // table's ruling), since there is no later stretch it fails to reach.
 export function getOpportunityStop(state: CombatState, root: Action): number | null {
   if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
-  if (root.kind === 'drag') return getPushStop(state, root)
+  if (root.kind === 'displace') return getPushStop(state, root)
   return null
 }
 
@@ -326,6 +326,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     // rest are committed by paying, or are reactions
     case 'explosion':
     case 'drag':
+    case 'displace':
     case 'release':
     case 'holdBack':
     case 'pickUp':

@@ -1,11 +1,11 @@
-import type { Action, ActionKind, CastAction, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
+import type { Action, ActionKind, CastAction, CombatState, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
-import { getDragOrigin, getDragPath, isGrappleRow } from './grapple'
+import { isGrappleRow } from './grapple'
 import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
@@ -33,11 +33,13 @@ export type Trigger = {
 }
 
 // The table's ruling: opportunity attacks never trigger other opportunity
-// attacks. What one opens — a strike, a maneuver, a push — is still
-// answered by its target, and draws no opportunity attack from anyone.
+// attacks. What one opens — a strike, a maneuver, a push and the way it is
+// walked — is still answered by its target, and draws no opportunity attack
+// from anyone.
 export function getTriggers(state: CombatState, root: Action): Trigger[] {
   const triggers = getKindTriggers(state, root)
-  return getOpeningReaction(state, root) ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+  const opportunity = getOpeningReaction(state, root) !== null || (root.kind === 'displace' && root.opportunity)
+  return opportunity ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
 }
 
 function getKindTriggers(state: CombatState, root: Action): Trigger[] {
@@ -50,6 +52,7 @@ function getKindTriggers(state: CombatState, root: Action): Trigger[] {
     case 'pickUp': return pickUpTriggers(state, root)
     case 'grapple':
     case 'drag': return grappleTriggers(state, root)
+    case 'displace': return displaceTriggers(state, root)
     // letting go and grappling back draw nothing; a reaction is never a root
     case 'release':
     case 'holdBack':
@@ -132,8 +135,8 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
 // resistance". "Push and drag": everyone dragged along answers it — resists,
-// helps, goes along, or lets go — while committed; once its way is pointed,
-// the third parties it moves someone towards do.
+// helps, goes along, or lets go — while committed; the third parties the way
+// it is pointed moves someone towards answer the displacement it generates.
 // combat.tex "Opportunity Attack": "standing up in melee range" triggers
 // one, an escape made to stand up as much as any — from the partner too,
 // who then answers with it instead of resisting (the table's ruling).
@@ -142,7 +145,7 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
     const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
     return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
   }
-  if (root.step !== 'react') return root.step === 'post' && !root.fought ? pushTriggers(state, root) : []
+  if (root.step !== 'react') return []
   return getGrappleGroup(state.grapples, root.actorId)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
@@ -152,11 +155,10 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
 // within its attack range" — a push moves everyone dragged, and a third
 // party gets the attack against the first of them it moves closer from
 // within range, at that step, on the way the winner pointed.
-function pushTriggers(state: CombatState, root: DragAction): Trigger[] {
-  const path = getDragPath(state, root)
-  if (!path || path.steps.length === 0) return []
-  const movers = Object.keys(path.steps[0])
-  const start = (id: string) => getDragOrigin(state, root, id)
+function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
+  if (root.path.length === 0) return []
+  const movers = Object.keys(root.path[0])
+  const start = (id: string) => root.from[id]
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     const other = getPlacedFootprint(state, id)
@@ -166,7 +168,7 @@ function pushTriggers(state: CombatState, root: DragAction): Trigger[] {
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      const distances = [from, ...path.steps.map((step) => step[m])].map((p) => setDistance(getFootprint(c, p), other))
+      const distances = [from, ...root.path.map((step) => step[m])].map((p) => setDistance(getFootprint(c, p), other))
       const at = firstStep(distances, (previous, now) => previous <= range && now < previous)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
