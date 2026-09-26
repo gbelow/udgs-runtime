@@ -271,30 +271,43 @@ function getShotDefense(state: CombatState, root: Action): Action | null {
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
 }
 
+// The DL the root is rolled against — by its own test, or for an explosion
+// by its reactors' (combat.tex "Explosions") — or none: a Balance test's DL
+// is the ground's (`getRootTestTerms`), and the rest are committed by
+// paying.
+export function getDLTerms(state: CombatState, root: RootAction): Term[] {
+  switch (root.kind) {
+    case 'strike':
+      return getStrikeDLTerms(state, root)
+    case 'shoot':
+      return getShotDLTerms(state, root)
+    case 'cast':
+      return getSpellDLTerms(root)
+    case 'explosion':
+      return getExplosionDLTerms(state, root)
+    case 'grapple':
+      return getManeuverDLTerms(state, root)
+    case 'move':
+    case 'drag':
+    case 'displace':
+    case 'blast':
+    case 'release':
+    case 'holdBack':
+    case 'pickUp':
+      return []
+  }
+}
+
 // combat.tex "Defend": the DL a strike is scored against is the defender's
 // Defend if they react, "otherwise, they use the SD" (creating.tex "Standard
 // Deflection"). An evasive jump "gives +AGI/2 on the skill test"; "Blocking
 // with a shield adds its cover to defend".
 // combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
 // against each other" — on the SD as much as on an active defense.
-// combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
-// or their SD, should they choose not to react"; "Guard": "Shield Cover is
-// added to guard as a bonus", the guard's own reflexes when it is an ally's.
-// spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
-// Increases spell DL by 4".
-export function getDLTerms(state: CombatState, root: Action): Term[] {
-  if (root.kind === 'explosion') return getExplosionDLTerms(state, root)
-  if (root.kind === 'grapple') return getManeuverDLTerms(state, root)
-  if (root.kind === 'drag' || root.kind === 'release' || root.kind === 'holdBack' || root.kind === 'pickUp') return []
-  if (root.kind === 'cast') {
-    if (!isSpellKey(root.key)) return []
-    return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
-  }
+function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
-  if (root.kind === 'shoot') return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
-  if (root.kind !== 'strike') return []
   const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender) }]
   if (!reaction && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
@@ -303,7 +316,24 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   return terms
 }
 
-function getDL(state: CombatState, root: Action): number {
+// combat.tex "Accuracy": a shot is scored "against the opponent's reflexes
+// or their SD, should they choose not to react"; "Guard": "Shield Cover is
+// added to guard as a bonus", the guard's own reflexes when it is an ally's.
+function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
+  const defender = root.targetId ? state.characters[root.targetId] : undefined
+  if (!defender) return []
+  const reaction = getDefendingReaction(state, root)
+  return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
+}
+
+// spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
+// Increases spell DL by 4".
+function getSpellDLTerms(root: ActionOf<'cast'>): Term[] {
+  if (!isSpellKey(root.key)) return []
+  return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
+}
+
+function getDL(state: CombatState, root: RootAction): number {
   return sumTerms(getDLTerms(state, root))
 }
 
@@ -369,7 +399,7 @@ function getManeuverTerms(c: Character): Term[] {
 // A reaction that is a test of its own, scored against the root's DL — but
 // a counterattack, which is its strike's test (abilities.tex
 // "Counterattack").
-export function getReactionTest(state: CombatState, root: Action, reaction: Action): Test {
+export function getReactionTest(state: CombatState, root: RootAction, reaction: Action): Test {
   const counter = reaction.kind === 'counterattack' ? getRootTest(state, getCounterStrike(reaction, '')) : null
   if (counter) return counter
   return { skill: sumTerms(getReactionTestTerms(state, reaction)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
