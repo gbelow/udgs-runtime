@@ -1,4 +1,4 @@
-import type { Action, ActionKind, ActionOf, CombatState, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, OpportunityAction, RootAction } from '../types'
 import { isRootAction } from './actionCatalog'
 
 // The fight's log of actions: which one is open, what answers what, and
@@ -66,4 +66,28 @@ export function getOpenedBy(state: CombatState, reaction: Action): Action | null
 export function getOpeningReaction(state: CombatState, action: Action): ActionOf<'opportunityAttack'> | null {
   const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null
   return reaction?.kind === 'opportunityAttack' ? reaction : null
+}
+
+// What an opportunity attack opens: a strike, or against a grapple partner a
+// maneuver or a push.
+function isOpportunityAction(action: Action | null): action is OpportunityAction {
+  return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
+}
+
+export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }
+
+// combat.tex "Opportunity Attack": each threatener the action drew gets one
+// attack, spawned in turn as the one before lands (commands/sequence.ts
+// `openBefore`), each with what it opened if it has. They are
+// fought in the order the root comes to them: along the path, for a move or
+// a push, whose attacks each fire at a step; in the order they were
+// declared, for anything else (combat.tex "Flanking": "resolved in order").
+export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
+  return getReactionsTo(state, action.id)
+    .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
+    .sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
+    .map((reaction) => {
+      const spawned = getOpenedBy(state, reaction)
+      return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
+    })
 }

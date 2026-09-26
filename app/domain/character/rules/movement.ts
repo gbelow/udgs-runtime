@@ -1,4 +1,4 @@
-import { Character, Movement } from "../../types";
+import { Character, Movement, MovementKind } from "../../types";
 // combat.tex "Afflictions" excludes movement speeds from the injury penalty,
 // so every speed below reads the unpenalized AGI base (gear burden still
 // applies — gear.tex puts that penalty on the attribute itself).
@@ -53,3 +53,8 @@ export const movementGetters: Record<keyof Movement, (c: Character) => number> =
   "fast swim": getFastSwimMovement,
   stand: getStandMovement,
 };
+
+// combat.tex "Movement Costs and Speeds": metres per block of the kind.
+export function getMovementSpeed(c: Character, kind: MovementKind): number {
+  return movementGetters[kind](c);
+}

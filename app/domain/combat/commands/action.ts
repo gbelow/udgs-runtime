@@ -7,7 +7,7 @@ import { getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
-import { getDragComparison } from '../rules/grapple'
+import { getDragComparison } from '../rules/drag'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
 

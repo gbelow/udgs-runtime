@@ -9,22 +9,19 @@ import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rul
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
-import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
-import { findWeaponRow, type WeaponRow } from './weaponRow'
+import { findWeaponRow } from './weaponRow'
+import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getGrabFacts } from './grapple'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
 // degree its test came to. The target's side — what that does to whoever
 // it lands on — is the character's own damage rule.
-
-type Defense = Pick<Damage, 'defense' | 'defenseAP' | 'defenseWeaponKey' | 'block' | 'shield'>
-const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '', block: 0, shield: false }
 
 // What the attack was met with, what it cost the one who met it, and what
 // the object absorbs. A strike is met by its target alone; a shot by its
@@ -47,28 +44,6 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
   }
   if (reaction.kind === 'evade' || reaction.kind === 'evasiveJump' || reaction.kind === 'evasion') return { ...UNDEFENDED, defense: reaction.kind, defenseAP }
   return UNDEFENDED
-}
-
-// A damage effect on its way, at a degree already decided by the producer.
-export function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {
-  return { effect: { name, trigger: 'instant', type: 'damage', effect: damage }, degree, test: null, when: null, then: [], locks: null }
-}
-
-// A row's damage as it leaves the weapon, nothing yet bought: the
-// components given, the row's hardness and properties, its wielder's force,
-// where it lands and what met it there.
-export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageComponent[], location: Damage['location'], defense: Defense = UNDEFENDED): Damage {
-  return {
-    damage,
-    hardness: getHardness(row.atk.material),
-    force: getForce(wielder),
-    properties: row.atk.properties,
-    location,
-    ...defense,
-    bypass: false,
-    bust: false,
-    smash: false,
-  }
 }
 
 function addTo(damage: Damage, kind: DamageKind, value: number): Damage {

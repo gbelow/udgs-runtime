@@ -1,35 +1,51 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
-import { getDistanceBetween, getMeleeRange } from './board'
-import { getOpenedBy, getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { getDistanceBetween, getMeleeRange, withPlacements } from './board'
+import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
+import { getMoveFacts, getMoveOverride } from './move'
+import { getMoveWaypoint } from './waypoint'
+import { getPushStop } from './drag'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
 }
 
-// What an opportunity attack opens: a strike, or against a grapple partner a
-// maneuver or a push.
-function isOpportunityAction(action: Action | null): action is OpportunityAction {
-  return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
+// The fight as it will stand when the opportunity attack is fought: against
+// a move, with the mover walked one space short of the stretch that fired
+// it; against a push, with everyone dragged pushed as far. Reach is judged
+// from there.
+export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
+  const root = getRootOf(state, reaction)
+  if (root?.kind === 'displace' && reaction.at !== null) {
+    const before = reaction.at > 1 ? root.path[reaction.at - 2] : root.from
+    return before ? withPlacements(state, before) : state
+  }
+  if (root?.kind !== 'move' || reaction.at === null) return state
+  const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
+  return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
 }
 
-export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }
+// Where the root's run of opportunity attacks was brought to a stop, as the
+// step the one stopped stands short of; null while it goes on. A move is
+// stopped by what `getMoveOverride` reads, a push by an attack that
+// interrupted the pusher (`getPushStop`). Anything else is never stopped:
+// every attack it drew is fought, even once one has cancelled it (the
+// table's ruling), since there is no later stretch it fails to reach.
+export function getOpportunityStop(state: CombatState, root: Action): number | null {
+  if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
+  if (root.kind === 'displace') return getPushStop(state, root)
+  return null
+}
 
-// combat.tex "Opportunity Attack": each threatener the action drew gets one
-// attack, spawned in turn as the one before lands (commands/sequence.ts
-// `openBefore`), each with what it opened if it has. They are
-// fought in the order the root comes to them: along the path, for a move or
-// a push, whose attacks each fire at a step; in the order they were
-// declared, for anything else (combat.tex "Flanking": "resolved in order").
-export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
-  return getReactionsTo(state, action.id)
-    .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
-    .sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
-    .map((reaction) => {
-      const spawned = getOpenedBy(state, reaction)
-      return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
-    })
+// Whether the root gets as far as the stretch the attack fires on: a move
+// cut short — at a turn, a trample, a fall — never reaches the attacks
+// further along. A catch is fought where the runner already stands, so one
+// on the last step still comes (combat.tex "Catch").
+export function isOpportunityReached(state: CombatState, root: Action, reaction: ActionOf<'opportunityAttack'>): boolean {
+  if (root.kind !== 'move' || reaction.at === null) return true
+  const catching = reaction.grab && root.movement === 'run' ? 1 : 0
+  return reaction.at - catching <= getMoveFacts(state, root).path.length
 }
 
 // combat.tex "Flanking": a flanker's opportunity attack "can be voided if

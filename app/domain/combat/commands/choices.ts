@@ -2,7 +2,7 @@ import { DirectionSchema, type Action, type Updater, type Coord, type DragAction
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
 import { getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
-import { getCircleCells, getDragChoices, getDragOutcome } from '../rules/grapple'
+import { getCircleCells, getDragChoices, getDragOutcome } from '../rules/drag'
 import { sameCell } from '../geometry'
 import type { SpellModification } from '../../tables'
 import { applyPhase, getRolledOpen, pruneReactions, replaceActions } from './log'

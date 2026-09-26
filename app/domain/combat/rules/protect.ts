@@ -1,7 +1,8 @@
 import type { ActionOf, CombatState, Placement, StrikeAction } from '../types'
 import { disk, line, ring, sameCell, setDistance } from '../geometry'
 import { getFootprint, getPlacedFootprint, getReach } from './board'
-import { canStandAt, getMoveBlockCells } from './move'
+import { getMoveBlockCells } from './move'
+import { canStandAt } from './ground'
 import { findWeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
 

@@ -11,16 +11,12 @@ Unused and small
 
 Places that break the project's own rules
 
-- Screen text inside rules/: labels and reason strings in options.ts (findOption only reads .available), HOP_LABELS (damage.ts), getSpellOptions (cast.ts), getChargeOptions (explosion.ts), getDisarmOptions and getDragSides (grapple.ts). They belong in projections.
+- Screen text inside rules/: labels and reason strings in options.ts (findOption only reads .available), HOP_LABELS (damage.ts), getSpellOptions (cast.ts), getChargeOptions (explosion.ts), getDisarmOptions (grapple.ts) and getDragSides (drag.ts). They belong in projections.
 - getDLTerms (rules/attack.ts) lists the kinds without a DL in an if chain over Action; its sibling getRootTestTerms is an exhaustive switch over RootAction. A new root kind falls silently into the defender branch.
 - Misfiled: the plane geometry in rules/board.ts (toPlane, centroid, angleBetween, angularGap) is used by boardView and belongs with geometry. rules/activeCharacter.ts also holds findHeldItem and getFightName.
 - commands/ holds non-button helpers (log.ts, reduce.ts, sequence.ts). Fine, but CLAUDE.md doesn't describe them.
 
 Architecture
 
-1. Remaining import cycles in rules/: attack↔grapple, damage↔grapple, grapple↔move, move↔trample. grapple.ts is the hub. They work only because function declarations are hoisted; a top-level constant used across a cycle would crash with "used before initialization".
-2. Split the big rule files:
-   - Drag (rules/grapple.ts, getDragSides onward, with its own types) is its own mechanic: rules/drag.ts. This also breaks some of the cycles above.
-   - The opportunity sequencing (getOpportunityState, getOpportunityStop) sits in rules/attack.ts; its callers are openers.ts and action.ts. It belongs in opportunity.ts.
-3. Adding an action kind still means editing per-kind code in several places (getDeclaredCost, isDeclarationComplete, getDLTerms, getTargetIds, getNextStep, triggers, options). Longer term: a record of handlers per kind checked with satisfies { [K in ActionKind]: … }.
-4. Projections are computed twice per store write: each *Digest is JSON.stringify(getX(state)) and the hook calls getX again to render (useBoard, useCombatActions). getActionPanel is heavy. Caching each projection per state object (a WeakMap) would halve the work without touching the hooks' gating.
+1. Adding an action kind still means editing per-kind code in several places (getDeclaredCost, isDeclarationComplete, getDLTerms, getTargetIds, getNextStep, triggers, options). Longer term: a record of handlers per kind checked with satisfies { [K in ActionKind]: … }.
+2. Projections are computed twice per store write: each *Digest is JSON.stringify(getX(state)) and the hook calls getX again to render (useBoard, useCombatActions). getActionPanel is heavy. Caching each projection per state object (a WeakMap) would halve the work without touching the hooks' gating.

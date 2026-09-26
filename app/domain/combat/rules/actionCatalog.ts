@@ -1,5 +1,5 @@
 import type { ActionKind as PricedAction } from '../../tables'
-import type { Action, ActionDraft, ActionKind, ReactionAction, RootAction } from '../types'
+import type { Action, ActionDraft, ActionKind, AttackAction, ReactionAction, RootAction } from '../types'
 
 // What kind of thing each action is. `type` is combat.tex "Reactions": a
 // reaction is taken on someone else's turn and only in answer to one of the
@@ -126,6 +126,11 @@ export function isReactionAction(action: Action): action is ReactionAction {
 
 export function isRootAction(action: Action): action is RootAction {
   return !isReaction(action.kind)
+}
+
+// The two weapon attacks, rolled against a defense and landing as an injury.
+export function isAttackAction(action: Action): action is AttackAction {
+  return action.kind === 'strike' || action.kind === 'shoot'
 }
 
 export function reactsTo(kind: ActionKind, root: ActionKind): boolean {

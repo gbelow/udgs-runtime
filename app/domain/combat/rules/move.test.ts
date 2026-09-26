@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCampaignCharacter } from '../../factories'
-import { getMoveCost, getMovementSpeed } from './move'
+import { getMovementSpeed } from '../../character/rules/movement'
+import { getMoveCost } from './move'
 
 // combat.tex "Movement" — running: "The character can run a partial amount
 // smaller than its running speed, but AP cost is the same"; jumping:

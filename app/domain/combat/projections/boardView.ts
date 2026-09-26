@@ -10,7 +10,7 @@ import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/activeCharacter'
 import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
-import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/grapple'
+import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 
 // The board as the simulation tool draws it: every cell with what is on it

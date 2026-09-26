@@ -4,7 +4,9 @@ import { getForce } from '../../character/rules/skills'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
 import { getFootprint, withPlacements } from './board'
-import { canStandAt, getMoveOrigin, getMovementSpeed, getStepPlacements } from './move'
+import { getMovementSpeed } from '../../character/rules/movement'
+import { canStandAt } from './ground'
+import { getMoveOrigin, getStepPlacements } from './waypoint'
 import { getReactionsTo } from './log'
 
 // combat.tex "Trample": "Happens when two characters hit each other at

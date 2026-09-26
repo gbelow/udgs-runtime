@@ -5,34 +5,23 @@ import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
-import { getJumpMovement, getRunningJumpMovement, getStandMovement, movementGetters } from '../../character/rules/movement'
-import { getSize } from '../../character/rules/misc'
+import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
-import { getFootprint, getOccupancy, getPlacedFootprint, placeAt } from './board'
+import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
+import { canRest, isCrossable, readGround } from './ground'
+import { getMoveOrigin } from './waypoint'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
-import { getDrawnOpportunityAttacks } from './opportunity'
 import { getInterruptionOf } from './interruption'
 import { isKnockedDownByHook } from './grapple'
-import { findOpenRoot, getReactionsTo } from './log'
+import { findOpenRoot, getDrawnOpportunityAttacks, getReactionsTo } from './log'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
 // one it can walk, and where it could get to.
 
-// Where the move sets out from: the placement the commit wrote down, or
-// while it is still being declared, where the actor stands.
-export function getMoveOrigin(state: CombatState, action: MoveAction): Placement | undefined {
-  return action.from ?? state.board?.placements[action.actorId]
-}
-
 // ---------------------------------------------------------------------------
 // Price
-
-// combat.tex "Movement Costs and Speeds": metres per block of the kind.
-export function getMovementSpeed(c: Character, kind: MovementKind): number {
-  return movementGetters[kind](c)
-}
 
 // How many cells of a movement the given AP buys, whole blocks only.
 export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
@@ -132,43 +121,7 @@ function movementGate(kind: MovementKind, prone: boolean, swimming: boolean, sur
 }
 
 // ---------------------------------------------------------------------------
-// Where a footprint may stand
-
-// creating.tex "Size and Space Occupation": "Two creatures of size 3 can
-// occupy the same space, but cannot end a turn like that. A creature can
-// occupy the same space as another of two sizes higher than itself." A
-// footprint may be walked through anyone's cells but may only come to rest
-// on cells free of everyone within a size of it.
-type Ground = {
-  blocked: (cell: Coord) => boolean
-  liquid: (cell: Coord) => boolean
-  sharedBy: (cell: Coord) => string[]
-}
-
-function readGround(state: CombatState, mover: string): Ground | null {
-  const board = state.board
-  if (!board) return null
-  const occupancy = getOccupancy(board, state.characters)
-  return {
-    blocked: (cell) => !!board.terrain[coordKey(cell)]?.blocking,
-    liquid: (cell) => !!board.terrain[coordKey(cell)]?.liquid,
-    sharedBy: (cell) => (occupancy[coordKey(cell)] ?? []).filter((id) => id !== mover),
-  }
-}
-
-// Off blocking cells, and in the water exactly when swimming.
-function isCrossable(footprint: Coord[], ground: Ground, movement: MoveAction['movement']): boolean {
-  return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (movement === 'swim')
-}
-
-function canRest(state: CombatState, c: Character, footprint: Coord[], ground: Ground): boolean {
-  return footprint.every((cell) =>
-    ground.sharedBy(cell).every((id) => {
-      const other = state.characters[id]
-      return other !== undefined && Math.abs(getSize(other) - getSize(c)) >= 2
-    }),
-  )
-}
+// Whether a declared path may be walked
 
 // Whether the move as declared is one its actor can make: every step a
 // neighbour of the last, every footprint along the way off blocking cells
@@ -361,51 +314,6 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
   return { path, stop, fell, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'stopped' ? 1 : 0)) }
 }
 
-// Where the mover stands part of the way along the move: the anchor at that
-// step, as oriented when they set out. Null at step 0, where they have not
-// left the origin.
-export function getMoveWaypoint(state: CombatState, action: MoveAction, steps: number): Placement | null {
-  const from = getMoveOrigin(state, action)
-  const cell = action.path[steps - 1]
-  if (!from || !cell || steps <= 0) return null
-  return placeAt(state.board, from, cell)
-}
-
-// Where the mover stands either side of the step into the `at`th cell of
-// the move: before it, at the origin for the first step.
-export function getStepPlacements(state: CombatState, action: MoveAction, at: number): { before: Placement; after: Placement } | null {
-  const before = at <= 1 ? getMoveOrigin(state, action) : getMoveWaypoint(state, action, at - 1)
-  const after = getMoveWaypoint(state, action, at)
-  return before && after ? { before, after } : null
-}
-
-// How the step into the `at`th cell of the move changes the mover's distance
-// to someone: below zero towards them, above away from them.
-export function getStepDelta(state: CombatState, action: MoveAction, at: number, otherId: string): number | null {
-  const mover = state.characters[action.actorId]
-  const other = getPlacedFootprint(state, otherId)
-  const step = getStepPlacements(state, action, at)
-  if (!mover || !other || !step) return null
-  return setDistance(getFootprint(mover, step.after), other) - setDistance(getFootprint(mover, step.before), other)
-}
-
-// combat.tex "Hook Attack": a runner stepping away from the attacker (the
-// step the hook's reaction fires on).
-export function isHookedRunner(state: CombatState, action: MoveAction, at: number, attackerId: string): boolean {
-  return action.movement === 'run' && (getStepDelta(state, action, at, attackerId) ?? 0) > 0
-}
-
-// Where the move ends: the last cell of the path as walked, the orientation
-// it named, the elevation of the ground there — the board's terrain says how
-// high a cell is, so a placement carried in from a VTT is re-read off it on
-// the first move.
-export function getMoveDestination(state: CombatState, action: MoveAction, path: Coord[]): Placement | null {
-  const from = getMoveOrigin(state, action)
-  const cell = path[path.length - 1]
-  if (!from || !cell) return null
-  return { ...placeAt(state.board, from, cell), orientation: action.orientation ?? from.orientation }
-}
-
 // ---------------------------------------------------------------------------
 // Jumping clear
 
@@ -503,15 +411,4 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell }) => canRest(state, c, getFootprint(c, { ...from, cell }), ground))
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
-}
-
-// Whether a footprint may be put down here outside of any move: off
-// blocking cells and free of everyone within a size. What a placement by
-// hand has to respect.
-export function canStandAt(state: CombatState, id: string, placement: Placement): boolean {
-  const c = state.characters[id]
-  const ground = readGround(state, id)
-  if (!c || !ground) return false
-  const footprint = getFootprint(c, placement)
-  return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)
 }
