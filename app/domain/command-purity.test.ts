@@ -209,7 +209,7 @@ function spawnedFollow(s: CombatState): CombatState {
 // A charged grenade of `a`'s, thrown past the wall with nobody avoiding it
 // and waiting to go off, on a frozen state a few commands along.
 function rolledExplosion(s: CombatState): CombatState {
-  const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) as CampaignCharacter } })
+  const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'explosion', weaponKey: grenadeItem.id, attack: 'throw', variant: 'basic', center: { q: 0, r: 3 } }, newId)(armed))
   return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
 }

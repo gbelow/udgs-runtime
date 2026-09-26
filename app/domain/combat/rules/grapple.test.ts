@@ -56,7 +56,7 @@ describe('grapple', () => {
   it('lets go for a holder left with no grapple row', () => {
     const s = grappling()
     const sword = () => ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
-    const full = holdItem(sword())(holdItem(sword())(s.characters.a)) as CampaignCharacter
+    const full = holdItem(sword())(holdItem(sword())(s.characters.a))
     const settled = settleGrapples(s.grapples)({ ...s, characters: { ...s.characters, a: full } })
     expect(settled.grapples.flatMap((g) => g.holders)).not.toContain('a')
   })

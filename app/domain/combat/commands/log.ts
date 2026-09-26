@@ -1,9 +1,10 @@
 import type { CampaignCharacter } from '../../types'
-import type { Action, ActionKind, ActionOf, CombatState } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, RootAction } from '../types'
 import { getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
+import { isAnswerable } from '../rules/action'
 import { settleGrapples } from './grapple'
 
 // The bookkeeping the action commands share: replacing and appending
@@ -52,11 +53,24 @@ export function withoutLiveReaction(state: CombatState, rootId: string, actorId:
   return state.actions.filter((a) => !live.includes(a))
 }
 
+// The open action while it is at the step; null otherwise.
+export function getOpenAt(state: CombatState, step: Action['step']): RootAction | null {
+  const open = getOpenAction(state)
+  return open && open.step === step ? open : null
+}
+
+// The open action while reactions to it can still be declared or taken
+// back; null otherwise.
+export function getAnswerableOpen(state: CombatState): RootAction | null {
+  const open = getOpenAction(state)
+  return open && isAnswerable(state, open) ? open : null
+}
+
 // Drops every reaction to the open action that its triggers no longer
 // offer, as its declaration changes.
 export function pruneReactions(state: CombatState): CombatState {
-  const open = getOpenAction(state)
-  if (!open || open.step !== 'react') return state
+  const open = getOpenAt(state, 'react')
+  if (!open) return state
   const live = getLiveReactionsTo(state, open.id)
   const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' ? a.at : undefined }) !== null)
   return kept.length === state.actions.length ? state : setActions(state, kept)

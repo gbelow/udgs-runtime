@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts, RootAction } from '../types'
+import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { getActionName } from '../rules/actionCatalog'
@@ -6,19 +6,9 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { outcomeOf } from '../rules/damage'
 import { isAttackAction } from '../rules/attack'
 import { getGrappleFacts } from '../rules/grapple'
-import { getSettled } from '../rules/settle'
 import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/activeCharacter'
 import { getAction } from '../rules/log'
-
-// The outcome of the open action on everyone it lands on, as it would land
-// now: read off the action as the resolve would settle it, so the preview
-// and the result cannot differ. One entry for the target of a strike or a
-// shot; one per character a blast, a cast or a maneuver's holds reach.
-// Nothing, from an action an opportunity attack cancelled.
-export function getOutcomePreviews(state: CombatState, root: RootAction): { id: string; outcome: Outcome }[] {
-  return getOutcomes(state, getSettled(state, root))
-}
 
 // What the settled or resolved action's damage does to each character it
 // was delivered to, as they stand.
@@ -37,7 +27,7 @@ function flatten(deliveries: Deliveries): { id: string; delivery: Delivery }[] {
 // What an action did to a grapple, a line per character it changed:
 // grabbed, let go, knocked down, stood up, disarmed, pushed; or that the
 // action was cancelled before it could do any of it.
-export function getGrappleNotes(state: CombatState, root: Action): { target: string; text: string }[] {
+export function getActionNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
@@ -117,7 +107,7 @@ export function getLastReport(state: CombatState): ActionReport | null {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
       return [{ target: named(id), text: `${delivery.effect.name}${waiting}` }]
-    }).concat(getChargeNote(state, root), getGrappleNotes(state, root)),
+    }).concat(getChargeNote(state, root), getActionNotes(state, root)),
   }
 }
 

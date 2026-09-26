@@ -1,5 +1,5 @@
 import { CampaignCharacter } from "../../types"
-import { getAfflictions } from "../rules/afflictions"
+import { hasAffliction } from "../rules/afflictions"
 
 
 export function bleed( amount: number): (c: CampaignCharacter) => CampaignCharacter {
@@ -22,6 +22,6 @@ export function updateSTA( newSTA: number): (c: CampaignCharacter) => CampaignCh
 // of a round, they lose 1 STA". It is a loss, not STA spent, so it does not
 // bleed, and per "Negative STA" it is the one way STA goes below zero.
 export function suffocate(c: CampaignCharacter): CampaignCharacter {
-  if (!getAfflictions(c).includes('suffocating')) return c
+  if (!hasAffliction(c, 'suffocating')) return c
   return { ...c, resources: { ...c.resources, STA: c.resources.STA - 1 } }
 }

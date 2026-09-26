@@ -59,7 +59,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // destroyed by it
         if (action.kind === 'explosion') {
           if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(c, action.weaponKey, action.attack)
-          if (action.source === 'detonate' && c.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(c) as CampaignCharacter
+          if (action.source === 'detonate' && c.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(c)
           return c
         }
         // everyone in the area takes it, the attacker as much as anyone
@@ -74,7 +74,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
-          return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) as CampaignCharacter : delivered
+          return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) : delivered
         }
         // combat.tex "Push and drag": going along passively is paid for in
         // the basic movement of the metres moved
@@ -82,7 +82,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           const AP = action.facts?.carried[c.id] ?? 0
           return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
         }
-        if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) as CampaignCharacter : c
+        if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         if (!isAttackAction(action)) return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
@@ -93,7 +93,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // "Assassinate": "1 extra AP").
         if (c.id === action.actorId) {
           const charged = getChargedWeapon(c, action)
-          const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) as CampaignCharacter : c
+          const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) : c
           const paid = HOP_PURCHASES.reduce((acc, p) => {
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
             return price ? payCost(price)(acc) : acc
@@ -119,7 +119,7 @@ const standUp = cure(['prone'])
 function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string): CampaignCharacter {
   const row = findWeaponRow(c, weaponKey, attack)
   if (!row || row.wielded.natural || getAttackKind(row.atk.range) !== 'throw') return c
-  return consumeItem(row.wielded.itemId)(c) as CampaignCharacter
+  return consumeItem(row.wielded.itemId)(c)
 }
 
 // combat.tex "Grapple Maneuvers": what the maneuver did to the character
@@ -129,7 +129,7 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
 function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): CampaignCharacter {
   if (!facts) return c
   const down = facts.prone.includes(c.id) ? fallProne(c) : facts.stand.includes(c.id) ? standUp(c) : c
-  const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) as CampaignCharacter : down
+  const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) : down
   return deliverAll(facts.deliveries[c.id] ?? [])(disarmed)
 }
 

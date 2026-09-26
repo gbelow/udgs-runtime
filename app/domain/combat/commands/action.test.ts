@@ -28,7 +28,7 @@ const newId = () => `a${++n}`
 // "Focus surge": "required to use ranged attacks").
 function archer(id: string): CampaignCharacter {
   const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
-  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id))) as CampaignCharacter), usedSurge: 'focus' }
+  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id)))), usedSurge: 'focus' }
 }
 
 // The two weapon attacks, each aimed at a defender who answers it: the

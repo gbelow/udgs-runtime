@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { Action, ActionDraft, ActionKind, ActionOf, CombatState } from '../types'
 import { ACTIONS, getActionDef, getActionNoun, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
-import { getAfflictions, isImmobile } from '../../character/rules/afflictions'
+import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getMoveCost, getMovementOptions, hasJumpSpace, isMidJump } from './move'
@@ -51,7 +51,7 @@ export function getCancellableLabel(state: CombatState, root: Action, defenderId
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (isImmobile(defender)) return { available: false, reason: 'immobile' }
-  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasAffliction(defender, 'grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }

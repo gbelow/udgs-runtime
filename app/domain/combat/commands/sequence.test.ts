@@ -23,12 +23,12 @@ function fighter(id: string, abilities: string[] = []): CampaignCharacter {
 
 function archer(id: string): CampaignCharacter {
   const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
-  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id))) as CampaignCharacter), usedSurge: 'focus' }
+  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id)))), usedSurge: 'focus' }
 }
 
 function wielder(id: string, weapon: string, abilities: string[] = []): CampaignCharacter {
   const item = ItemSchema.parse({ name: weapon, type: 'weapon', refId: weapon, bulk: 3 })
-  return regripItem(item.id, 2)(holdItem(item)(fighter(id, abilities))) as CampaignCharacter
+  return regripItem(item.id, 2)(holdItem(item)(fighter(id, abilities)))
 }
 
 function spearman(id: string, abilities: string[] = []): CampaignCharacter {
@@ -291,7 +291,7 @@ describe('an explosion', () => {
     const base = fighter('t')
     const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
     const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
-    const thrower = { ...(holdItem(charged)(base) as CampaignCharacter), usedSurge: 'focus' as const }
+    const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
     let s = onBoard({ t: [-5, 0], x: [0, -1], y: [0, 1] }, thrower, fighter('x'), fighter('y'))
     const [row] = getAttackOptions(s.characters.t, 'explosion')
     s = declareAction('t', { kind: 'explosion', source: 'thrown', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
@@ -374,7 +374,7 @@ describe('a riposte', () => {
   // the shield, evading, or standing on their SD.
   function missedShieldBearer(defense: 'block' | 'evade' | null): CombatState {
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
-    let s = thrustAt(holdItem(shield)(fighter('def', ['riposte'])) as CampaignCharacter)
+    let s = thrustAt(holdItem(shield)(fighter('def', ['riposte'])))
     const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
     if (option) s = declareReaction('def', option.draft, newId)(s)
     return resolveAction(newId)(rollAction(() => MISS, newId)(s))
@@ -481,7 +481,7 @@ describe('a hook attack', () => {
 describe('protecting the target of a strike', () => {
   function shielded(id: string, abilities: string[] = []): CampaignCharacter {
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
-    return holdItem(shield)(fighter(id, abilities)) as CampaignCharacter
+    return holdItem(shield)(fighter(id, abilities))
   }
 
   // A spearman thrusts at a target two spaces away, who knows Defensive
@@ -557,7 +557,7 @@ describe('a spray', () => {
   // west of the caster, with a third out of range.
   function flamesCast(): CombatState {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2 })
-    const caster = { ...(holdItem(flamethrower)(fighter('c')) as CampaignCharacter), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     let s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
     s = commitAction()(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s))
     return resolveAction(newId)(rollAction(() => 9, newId)(s))

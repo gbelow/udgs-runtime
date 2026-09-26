@@ -1,6 +1,6 @@
 import { Character, Skills } from '../../types'
 import { getSM, skill } from './helpers'
-import { getAfflictionPenalty, getAfflictions } from './afflictions'
+import { getAfflictionPenalty, hasAffliction } from './afflictions'
 import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
@@ -94,7 +94,7 @@ export function getSDTerms(c: Character): Term[] {
     { label: 'base', value: -2 },
     { label: 'size', value: -SM },
     { label: 'SD', value: skill(c, 'SD').value },
-    { label: 'immobile', value: getAfflictions(c).includes('immobile') ? -3 : 0 },
+    { label: 'immobile', value: hasAffliction(c, 'immobile') ? -3 : 0 },
     { label: 'abilities', value: getBuffBonus(c, 'skill:SD') },
   ]
 }

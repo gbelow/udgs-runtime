@@ -3,7 +3,7 @@ import type { Action, CombatState, Deliveries, DisplaceAction, DisplaceFacts, Dr
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { ASSIST } from '../../tables'
 import { getStrikeDamage } from '../../character/rules/gear'
-import { getAfflictions } from '../../character/rules/afflictions'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { getForce, getGrapple } from '../../character/rules/skills'
 import { getSize } from '../../character/rules/misc'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -180,7 +180,7 @@ export function getManeuverTargets(state: CombatState, actorId: string, maneuver
 
 // combat.tex "Escape is also used for trying to stand up while grappled".
 export function canStandByEscape(state: CombatState, c: Character): boolean {
-  return isInGrapple(state, c.id) && getAfflictions(c).includes('prone')
+  return isInGrapple(state, c.id) && hasAffliction(c, 'prone')
 }
 
 function isResisted(state: CombatState, root: Action): boolean {
@@ -287,7 +287,7 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
       return facts(state, pair, landed ? null : g, { deliveries })
     case 'knockdown': {
       const actor = state.characters[root.actorId]
-      if (degree === 'hit' && actor && getAfflictions(actor).includes('prone')) return facts(state, pair, g, { deliveries, prone: [root.targetId] })
+      if (degree === 'hit' && actor && hasAffliction(actor, 'prone')) return facts(state, pair, g, { deliveries, prone: [root.targetId] })
       return facts(state, pair, g, { deliveries, prone: along ? who : [] })
     }
     case 'immobilize':

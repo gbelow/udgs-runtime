@@ -5,16 +5,15 @@ import { getActionName } from '../rules/actionCatalog'
 import { getFightName } from '../rules/activeCharacter'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
-import { ActionStep, areReactionsComplete, needsDie, getDeclaredCost, getNextStep, getOwnCost, getTargetIds, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
 import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AttackOption, getAttackOptions, isAttackAction, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
-import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
-import { ActionReport, getGrappleNotes, getLastReport, getOutcomes } from './outcomes'
+import { ActionReport, getActionNotes, getLastReport, getOutcomes } from './outcomes'
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
@@ -254,9 +253,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
-  // a settled push was paid for already; what is left is opening its attacks
-  const cost = actor ? getDeclaredCost(actor, open) : null
-  const affordable = !!actor && (open.step !== 'react' || (cost !== null && canAfford(actor, cost)))
+  const cost = getOwnCost(state, open)
   // the action as the resolve would settle it now: what a move will walk, what
   // a rolled action will land
   const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
@@ -298,7 +295,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : [],
       push: drag && drag.step === 'post' ? getPushView(state, drag) : null,
-      grapple: settled && (grapple || drag || isVoided(state, open)) ? getGrappleNotes(state, settled) : [],
+      grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
@@ -323,11 +320,11 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
-    canCommit: step === 'commit' && affordable,
+    canCommit: step === 'commit' && getPayableCost(state, open) !== null,
     die,
     compare: drag !== null,
-    canRoll: step === 'react' && die && areReactionsComplete(state, open),
-    canPay: step === 'react' && !die && affordable && areReactionsComplete(state, open),
+    canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),
+    canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,

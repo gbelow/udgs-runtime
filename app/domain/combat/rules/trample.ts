@@ -1,7 +1,7 @@
 import type { Character, MoveKind } from '../../types'
 import type { CombatState, Coord, MoveAction, Placement, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
-import { getAfflictions } from '../../character/rules/afflictions'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
 import { getFootprint, withPlacements } from './board'
 import { canStandAt, getMoveOrigin, getMovementSpeed, getStepPlacements } from './move'
@@ -17,7 +17,7 @@ import { getReactionsTo } from './log'
 // passage" — nobody to compare against.
 export function isTrampleable(state: CombatState, id: string): boolean {
   const c = state.characters[id]
-  return !!c && !getAfflictions(c).includes('prone')
+  return !!c && !hasAffliction(c, 'prone')
 }
 
 // "Whoever is running or jumping gets a bonus equal to their running or

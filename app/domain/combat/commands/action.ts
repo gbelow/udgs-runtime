@@ -1,6 +1,6 @@
 import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater } from '../types'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption } from '../rules/options'
 import { getReactionTest, getRootTest } from '../rules/attack'
@@ -8,7 +8,7 @@ import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getDragComparison } from '../rules/grapple'
-import { appendActions, applyPhase, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
+import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
 
 // The phases of an action, as commands. Everything up to the roll only edits
@@ -35,8 +35,8 @@ export function declareAction(actorId: string, draft: ActionDraft, newId: () => 
 // declared. The kind is not a declaration and cannot change.
 export function amendAction(fields: Partial<ActionDraft>): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'define') return state
+    const open = getOpenAt(state, 'define')
+    if (!open) return state
     if (fields.kind !== undefined && fields.kind !== open.kind) return state
     return replaceActions(state, [ActionSchema.parse({ ...open, ...fields, kind: open.kind })])
   }
@@ -45,8 +45,8 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
 // Aims the open action.
 export function setTarget(targetId: string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'define') return state
+    const open = getOpenAt(state, 'define')
+    if (!open) return state
     if (!getTargetIds(state, open).includes(targetId)) return state
     return replaceActions(state, [{ ...open, targetId }])
   }
@@ -59,8 +59,8 @@ export function setTarget(targetId: string): Updater {
 // along it before it resolves.
 export function commitAction(): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'define') return state
+    const open = getOpenAt(state, 'define')
+    if (!open) return state
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
@@ -81,8 +81,8 @@ export function commitAction(): Updater {
 // the record.
 export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'define' || !open.spawnedBy) return state
+    const open = getOpenAt(state, 'define')
+    if (!open || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
     const withdrawn = reaction
       ? setActions(state, state.actions.filter((a) => a.id !== open.id && a.id !== reaction.id))
@@ -96,8 +96,8 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
 // one answer at a time: a new one replaces it.
 export function declareReaction(actorId: string, draft: ActionDraft, newId: () => string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || !isAnswerable(state, open)) return state
+    const open = getAnswerableOpen(state)
+    if (!open) return state
     if (!canAnswer(open, actorId)) return state
     if (!findOption(state, actorId, draft)?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
@@ -111,8 +111,8 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
 // its die. The kind is not a declaration and cannot change.
 export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || !isAnswerable(state, open)) return state
+    const open = getAnswerableOpen(state)
+    if (!open) return state
     const reaction = getLiveReactionsTo(state, open.id).find((r) => r.actorId === actorId)
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
     return pruneReactions(replaceActions(state, [ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })]))
@@ -123,8 +123,8 @@ export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Up
 // reactor who had chosen an opportunity attack is back to choosing.
 export function withdrawReaction(actorId: string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || !isAnswerable(state, open)) return state
+    const open = getAnswerableOpen(state)
+    if (!open) return state
     return pruneReactions(setActions(state, withoutLiveReaction(state, open.id, actorId)))
   }
 }
@@ -132,8 +132,8 @@ export function withdrawReaction(actorId: string): Updater {
 // One step back: the reaction declared last is taken back, whoever's it was.
 export function withdrawLastReaction(): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || !isAnswerable(state, open)) return state
+    const open = getAnswerableOpen(state)
+    if (!open) return state
     const last = getLiveReactionsTo(state, open.id).at(-1)
     return last ? withdrawReaction(last.actorId)(state) : state
   }
@@ -144,8 +144,8 @@ export function withdrawLastReaction(): Updater {
 // is withdrawn instead, so its reaction goes with it.
 export function cancelAction(): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'define' || open.spawnedBy) return state
+    const open = getOpenAt(state, 'define')
+    if (!open || open.spawnedBy) return state
     return setActions(state, state.actions.filter((a) => a.id !== open.id && a.reactionTo !== open.id))
   }
 }
@@ -164,8 +164,8 @@ export function cancelAction(): Updater {
 // DL (combat.tex "Avoiding an Explosion").
 export function rollAction(dice: Dice, newId: () => string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'react' || !needsDie(state, open)) return state
+    const open = getOpenAt(state, 'react')
+    if (!open || !needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
     if (!actor || !areReactionsComplete(state, open)) return state
 
@@ -183,8 +183,8 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
 // when a reaction has not said all it must or someone cannot pay.
 export function payAction(newId: () => string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'react' || needsDie(state, open)) return state
+    const open = getOpenAt(state, 'react')
+    if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
     return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open, newId)
@@ -209,9 +209,9 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
 // nothing is left to aim, choose or answer.
 export function resolveAction(newId: () => string): Updater {
   return (state) => {
-    const open = getOpenAction(state)
+    const open = getOpenAt(state, 'post')
     const step = getNextStep(state)
-    if (!open || open.step !== 'post' || (step !== 'confirm' && step !== 'spend')) return state
+    if (!open || (step !== 'confirm' && step !== 'spend')) return state
     return land(state, open, newId)
   }
 }

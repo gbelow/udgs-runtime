@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
-import { getOutcomePreviews } from './outcomes'
-import { getOpenAction } from '../rules/log'
+import { getActionPanel } from './actionPanel'
 import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 function fighter(id: string): CampaignCharacter {
@@ -27,8 +26,7 @@ describe('the preview', () => {
     s = setTarget('def')(s)
     s = commitAction()(s)
     s = rollAction(() => 30, newId)(s)
-    const open = getOpenAction(s)!
-    const preview = getOutcomePreviews(s, open)[0].outcome
+    const preview = getActionPanel(s).outcomes[0].outcome
     expect(preview.tier).not.toBeNull()
 
     const after = resolveAction(newId)(s)

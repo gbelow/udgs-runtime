@@ -52,10 +52,14 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   return worstOfEachGroup(dropSupersededGroups([...afflictions]))
 }
 
+export function hasAffliction(c: Character, key: AfflictionKey): boolean {
+  return getAfflictions(c).includes(key)
+}
+
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
 // skills other than escape."
 export function isImmobile(c: Character): boolean {
-  return getAfflictions(c).includes('immobile')
+  return hasAffliction(c, 'immobile')
 }
 
 // An affliction that `supersedes` a ladder removes every rung of it. No entry

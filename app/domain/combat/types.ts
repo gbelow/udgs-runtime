@@ -4,8 +4,8 @@ import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 
-export { DEGREES, DegreeSchema, HitLocationSchema, DefenseKindSchema, InterruptionSchema, VisibilitySchema } from '../types'
-export type { Degree, HitLocation, DefenseKind, Interruption, Visibility } from '../types'
+export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
+export type { Degree, HitLocation, Interruption } from '../types'
 
 const num = z.number()
 const str = z.string()

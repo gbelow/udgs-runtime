@@ -17,7 +17,7 @@ function fighter(id: string, AP: number): CampaignCharacter {
 // him, three cells, and the move committed.
 function approach(reactorAP: number): CombatState {
   const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
-  const r = regripItem(spear.id, 2)(holdItem(spear)(fighter('r', reactorAP))) as CampaignCharacter
+  const r = regripItem(spear.id, 2)(holdItem(spear)(fighter('r', reactorAP)))
   let n = 0
   let s: CombatState = {
     ...CombatStateSchema.parse({ board: { placements: { m: { cell: { q: 0, r: 0 } }, r: { cell: { q: 4, r: 0 } } } } }),

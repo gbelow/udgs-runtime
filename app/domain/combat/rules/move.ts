@@ -4,7 +4,7 @@ import { MOVEMENT_BLOCK_COST } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { getAfflictions, isImmobile } from '../../character/rules/afflictions'
+import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { getBasicMovement, getCarefulMovement, getCrawlMovement, getJumpMovement, getRunMovement, getRunningJumpMovement, getStandMovement, getSwimMovement } from '../../character/rules/movement'
 import { getSize } from '../../character/rules/misc'
 import { DIRECTIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
@@ -109,7 +109,7 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // up by escaping ("Escape is also used for trying to stand up while
 // grappled"); "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
-  const prone = getAfflictions(c).includes('prone')
+  const prone = hasAffliction(c, 'prone')
   const swimming = isInLiquid(state, c)
   const granted = action?.movements ?? null
   const held = isInGrapple(state, c.id)

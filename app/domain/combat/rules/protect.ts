@@ -55,7 +55,7 @@ export function isInInterceptRange(state: CombatState, root: StrikeAction, id: s
   const attacker = getPlacedFootprint(state, root.actorId)
   const row = c ? findWeaponRow(c, weaponKey, attack) : null
   if (!c || !row) return false
-  return !attacker || setDistance(getFootprint(c, placement), attacker) <= Math.max(1, getReach(row.weapon, 'short'))
+  return !attacker || setDistance(getFootprint(c, placement), attacker) <= getReach(row.weapon, 'short')
 }
 
 // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in

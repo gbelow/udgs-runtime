@@ -85,9 +85,9 @@ export function getAdjacentIds(state: CombatState, id: string): string[] {
 
 // gear.tex "Short, Long I/II" and "Scaling weapons" ("multiply ... reach by
 // the RM"): a melee attack's reach in metres, which is cells, at the
-// weapon's own size.
+// weapon's own size, and never short of the next cell.
 export function getReach(weapon: Weapon, range: MeleeRange): number {
-  return REACH[range] * RMArr[weapon.scale - 1]
+  return Math.max(1, REACH[range] * RMArr[weapon.scale - 1])
 }
 
 // combat.tex "High Ground": "standing on terrain around 1m higher than its
@@ -113,7 +113,7 @@ export function getStrikeReach(state: CombatState, action: StrikeAction): number
   const attacker = state.characters[action.actorId]
   const row = attacker ? findWeaponRow(attacker, action.weaponKey, action.attack) : null
   if (!row || !isMeleeRange(row.atk.range)) return null
-  let reach = Math.max(1, getReach(row.weapon, row.atk.range))
+  let reach = getReach(row.weapon, row.atk.range)
   const diff = action.targetId ? getElevationDifference(state, action.actorId, action.targetId) : null
   if (diff !== null && Math.abs(diff) >= 1) {
     const targetsLegs = action.location === 'leg'
@@ -184,7 +184,7 @@ export function isInShotRange(state: CombatState, action: ShootAction, targetId:
 // to strike with.
 export function getMeleeRange(c: Character, fits: (atk: WeaponAttack) => boolean = () => true): number {
   return Math.max(0, ...getWieldedWeapons(c).flatMap((w) =>
-    w.weapon.attacks.flatMap((a) => (isMeleeRange(a.range) && fits(a) ? [Math.max(1, getReach(w.weapon, a.range))] : [])),
+    w.weapon.attacks.flatMap((a) => (isMeleeRange(a.range) && fits(a) ? [getReach(w.weapon, a.range)] : [])),
   ))
 }
 

@@ -2,7 +2,7 @@ import { CampaignCharacter, SurgeKind } from "../../types"
 import { SURGES } from "../../tables"
 import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
-import { getAfflictions } from "./afflictions"
+import { hasAffliction } from "./afflictions"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -24,6 +24,6 @@ export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
   return (c: CampaignCharacter) => {
     const surge = SURGES[kind]
     if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
-    return !('forbiddenBy' in surge) || !getAfflictions(c).includes(surge.forbiddenBy)
+    return !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
 }

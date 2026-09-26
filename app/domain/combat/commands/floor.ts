@@ -1,4 +1,3 @@
-import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { dropItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
@@ -17,7 +16,7 @@ export function dropToFloor(characterId: string, itemId: string): Updater {
     if (!c || !item) return state
     const dropped = {
       ...state,
-      characters: { ...state.characters, [characterId]: dropItem(itemId)(c) as CampaignCharacter },
+      characters: { ...state.characters, [characterId]: dropItem(itemId)(c) },
       floor: [...state.floor, onFloor(item, state.board?.placements[characterId]?.cell ?? null)],
     }
     return settleGrapples(state.grapples)(dropped)
