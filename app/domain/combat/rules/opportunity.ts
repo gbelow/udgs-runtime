@@ -1,7 +1,7 @@
 import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
 import { getActionDef } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange } from './board'
-import { getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { getOpenedBy, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
@@ -10,7 +10,7 @@ export function isTriggeringAction(action: Action): action is TriggeringAction {
 
 // What an opportunity attack opens: a strike, or against a grapple partner a
 // maneuver or a push.
-function isOpportunityAction(action: Action | undefined): action is OpportunityAction {
+function isOpportunityAction(action: Action | null): action is OpportunityAction {
   return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
 }
 
@@ -27,7 +27,7 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
     .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
     .sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
     .map((reaction) => {
-      const spawned = state.actions.find((a) => a.spawnedBy === reaction.id)
+      const spawned = getOpenedBy(state, reaction)
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
     })
 }

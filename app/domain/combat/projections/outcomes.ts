@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts } from '../types'
+import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts, RootAction } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { getActionName } from '../rules/actionCatalog'
@@ -16,7 +16,7 @@ import { getAction } from '../rules/log'
 // and the result cannot differ. One entry for the target of a strike or a
 // shot; one per character a blast, a cast or a maneuver's holds reach.
 // Nothing, from an action an opportunity attack cancelled.
-export function getOutcomePreviews(state: CombatState, root: Action): { id: string; outcome: Outcome }[] {
+export function getOutcomePreviews(state: CombatState, root: RootAction): { id: string; outcome: Outcome }[] {
   return getOutcomes(state, getSettled(state, root))
 }
 

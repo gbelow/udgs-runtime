@@ -411,6 +411,24 @@ describe('a riposte', () => {
     const { shield, other } = discounts(missedShieldBearer('evade'))
     expect(new Set([...shield, ...other])).toEqual(new Set([1]))
   })
+
+  // The table's ruling: a riposte draws no opportunity attack from those
+  // flanking the riposter, though its target still defends. A spearman stands
+  // behind the riposter, flanking them (combat.tex "Flanking"), as the same
+  // punch made on the riposter's own initiative shows.
+  it('draws no opportunity attack from those flanking the riposter', () => {
+    const punch = { weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' } as const
+    const start = onBoard({ atk: [0, 0], def: [1, 0], f: [2, 0] }, spearman('atk'), fighter('def', ['riposte']), spearman('f'))
+    const [row] = getAttackOptions(start.characters.atk, 'strike')
+    let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
+    s = declareReaction('def', { kind: 'evade' }, newId)(commitAction()(setTarget('def')(s)))
+    s = commitAction()(amendAction(punch)(resolveAction(newId)(rollAction(() => MISS, newId)(s))))
+    const own = commitAction()(setTarget('atk')(declareAction('def', { kind: 'strike', ...punch }, newId)(start)))
+    const kinds = (state: CombatState) => getTriggers(state, getOpenAction(state)!).map((t) => t.kind)
+    expect(kinds(own)).toContain('opportunityAttack')
+    expect(kinds(s)).not.toContain('opportunityAttack')
+    expect(kinds(s)).toContain('evade')
+  })
 })
 
 // combat.tex "Sprays": "Sprays target all characters in range, which their

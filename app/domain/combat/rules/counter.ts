@@ -1,6 +1,6 @@
 import type { Action, ActionOf, CombatState, StrikeAction } from '../types'
 import { makeAction } from '../factories'
-import { getAction, getReactionsTo } from './log'
+import { getAction, getOpenedBy } from './log'
 
 // abilities.tex "Counterattack": "You can attack in response to an attack,
 // as long as you are within range. Both attacks are made against the
@@ -18,11 +18,6 @@ export function getCounterStrike(reaction: ActionOf<'counterattack'>, id: string
   return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, spawnedBy: reaction.id, step: 'post', roll: reaction.roll })
 }
 
-// The counterattack the attack was answered with, if it was.
-export function getCounterattack(state: CombatState, root: Action): ActionOf<'counterattack'> | null {
-  return getReactionsTo(state, root.id).find((r): r is ActionOf<'counterattack'> => r.kind === 'counterattack') ?? null
-}
-
 // Where the counterattack's strike lands against the attack: ahead of it on
 // a higher result, alongside it on the same, after it on a lower one; null
 // until both are rolled.
@@ -36,7 +31,8 @@ export function getCounterSlot(root: Action, reaction: ActionOf<'counterattack'>
 
 // The strike the counterattack has opened, once it has.
 export function getCounterStrikeOf(state: CombatState, reaction: ActionOf<'counterattack'>): StrikeAction | null {
-  return state.actions.find((a): a is StrikeAction => a.kind === 'strike' && a.spawnedBy === reaction.id) ?? null
+  const opened = getOpenedBy(state, reaction)
+  return opened?.kind === 'strike' ? opened : null
 }
 
 // The counterattack that opened the strike; null for a strike opened any

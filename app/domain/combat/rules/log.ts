@@ -1,4 +1,5 @@
-import type { Action, ActionKind, ActionOf, CombatState } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, RootAction } from '../types'
+import { isRootAction } from './actionCatalog'
 
 // The fight's log of actions: which one is open, what answers what, and
 // what opened what.
@@ -10,16 +11,21 @@ import type { Action, ActionKind, ActionOf, CombatState } from '../types'
 // first: an opportunity attack on a mover is fought while the move waits to
 // resolve, and an explosion a cast opened waits for the escapes its own
 // reactions opened.
-export function getOpenAction(state: CombatState): Action | null {
+export function getOpenAction(state: CombatState): RootAction | null {
   const id = state.stack.at(-1)
-  return id ? getAction(state, id) : null
+  const open = id ? getAction(state, id) : null
+  return open && isRootAction(open) ? open : null
 }
 
 // The first root of the kind still being played out — waiting on what it
-// opened, or on its own resolve — that `match` accepts.
+// opened, or on its own resolve — that `match` accepts, from the bottom of
+// the stack up.
 export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, match: (a: ActionOf<K>) => boolean = () => true): ActionOf<K> | null {
-  const found = state.actions.find((a): a is ActionOf<K> => a.kind === kind && a.reactionTo === null && a.step !== 'done' && match(a as ActionOf<K>))
-  return found ?? null
+  for (const id of state.stack) {
+    const action = getAction(state, id)
+    if (action?.kind === kind && match(action as ActionOf<K>)) return action as ActionOf<K>
+  }
+  return null
 }
 
 export function getReactionsTo(state: CombatState, id: string): Action[] {
@@ -44,8 +50,15 @@ export function getAction(state: CombatState, id: string): Action | null {
 
 // The action a reaction answers; null for one taken on its actor's own
 // initiative.
-export function getRootOf(state: CombatState, action: Action): Action | null {
-  return action.reactionTo ? getAction(state, action.reactionTo) : null
+export function getRootOf(state: CombatState, action: Action): RootAction | null {
+  const root = action.reactionTo ? getAction(state, action.reactionTo) : null
+  return root && isRootAction(root) ? root : null
+}
+
+// What the reaction opened, once it has: the strike, maneuver or push an
+// opportunity attack opens, a counterattack's strike.
+export function getOpenedBy(state: CombatState, reaction: Action): Action | null {
+  return state.actions.find((a) => a.spawnedBy === reaction.id) ?? null
 }
 
 // The opportunity attack that opened the action; null for one opened any

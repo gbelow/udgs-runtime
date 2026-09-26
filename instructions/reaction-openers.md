@@ -2,7 +2,7 @@
 
 The follow-on to `instructions/action-stack.md`, whose stages 0–7 are done (last commit
 `b53a909`). Read that file first. It holds the pipeline model and the table's rulings.
-This file tracks the next refactor. Stage 1 is done.
+This file tracks the next refactor. Stages 1–3 and 5 are done.
 
 ## Where the combat sequencing stands
 
@@ -12,9 +12,10 @@ This file tracks the next refactor. Stage 1 is done.
   `CombatState.history` records the order actions landed in.
 - `commands/sequence.ts` drives everything:
   - `advance` picks up from the top of the stack.
-  - `openBefore` opens the actions that go before the effect: opportunity attacks, and a
-    counterattack that rolled higher or tied.
-  - `land` settles the action, applies its effect and pushes `getFollowUps`.
+  - `openBefore` loops over the root's reactions and opens the first `before` in
+    `REACTION_OPENERS` (`rules/openers.ts`) that opens something.
+  - `land` settles the action, applies its effect and pushes `getFollowUps`, which
+    collects every reaction's `after` plus the follow-ups no reaction opens.
   - Every command ends in `advance`.
 - An action writes only its own record. Giving up an action and being voided are
   derived from the log (`rules/opportunity.ts`), and being interrupted from the same
@@ -27,16 +28,6 @@ This file tracks the next refactor. Stage 1 is done.
 
 ## Known costs of the current shape
 
-- Five files list every action kind in an exhaustive switch, mostly to return nothing
-  for reactions: `rules/action.ts`, `rules/attack.ts`, `rules/options.ts`,
-  `rules/reactions.ts` and `rules/settle.ts`. Every new kind touches all five.
-- The answer to "what does this reaction open, and when" is spread over five places:
-  - `openBefore`: opportunity attacks, and a counterattack that rolled higher or tied.
-  - `goOff`: the escapes before a blast.
-  - `getFollowUps`: moves after the effect, a counterattack that rolled lower, the
-    riposte, escapes from a stun, and a push's displacement.
-  - `rules/reactionMoves.ts`: `getMoveBeforeBlast` and `getMoveAfter`.
-  - `rules/counter.ts`: the order a counterattack takes by its roll.
 - Order within a follow-up array matters: the last one pushed plays first. Only comments
   say so.
 
@@ -53,7 +44,7 @@ This file tracks the next refactor. Stage 1 is done.
     differently, so decide whether they consume it or keep their own.
   - A counterattack tie must not break the attack. The table's ruling is that both land
     and neither interrupts the other.
-- [ ] **2. A table of what each reaction opens.** Make a record keyed by reaction kind,
+- [x] **2. A table of what each reaction opens.** Make a record keyed by reaction kind,
   typed so that a new reaction kind fails to compile until it says what it opens. Each
   entry has an optional `before(state, root, reaction)` and `after(state, root, reaction)`,
   each returning the actions it opens. `openBefore` and `getFollowUps` become loops over
@@ -66,7 +57,7 @@ This file tracks the next refactor. Stage 1 is done.
   - Consumers coming from the book, all reactions: Precise Evasion ("If the opponent
     grazes or misses, an opportunity attack is triggered"), Defender, Defensive Advance
     (`abilities.tex`).
-- [ ] **3. Take reactions out of the root switches.** Add an action type that excludes
+- [x] **3. Take reactions out of the root switches.** Add an action type that excludes
   reactions, and make the five exhaustive switches take it. Reactions are never roots, so
   they stop listing them. Do this together with stage 2.
 - [ ] **4. Share the strike a reaction carries.** The opportunity attack and the
@@ -75,7 +66,7 @@ This file tracks the next refactor. Stage 1 is done.
   hand", "cannot afford a strike"), the completeness check, the cost, and the panel's
   strike picker (`getReactors`). Share these when a third reaction of this kind appears,
   not before.
-- [ ] **5. Small cleanups, only when already editing these files.** `findOpenRoot` still
+- [x] **5. Small cleanups, only when already editing these files.** `findOpenRoot` still
   scans the log in five places and could read the stack. The "what did this reaction
   open" lookups could be one function in `rules/log.ts`.
 
@@ -122,3 +113,49 @@ one list, driven by `getTriggers`. Its per-kind switch shapes genuinely differen
     counterattack that rolled lower cannot break the attack). The fixtures cannot
     arrange a hit that does not interrupt, and nothing observable reads a landed
     action's `isVoided` after its follow-ups today.
+- **Stages 2 and 3.**
+  - `RootAction` (`types.ts`) is every action that is not a reaction, and `ReactionKind`
+    and `ReactionAction` are the rest, both read off the catalog's `type`.
+    `getOpenAction` and `getRootOf` narrow to `RootAction` (`isRootAction`), so the
+    narrowing happens once, where the open action is read.
+  - Three of the five switches only listed reactions to return nothing:
+    `getKindTriggers`, `getRootTestTerms` and `getSettled`. They take `RootAction` and no
+    longer name reactions. The other two genuinely switch on reactions, so they stay:
+    `isDeclarationComplete` checks a block's row, a guard's shield, and an opportunity
+    attack's or counterattack's strike, and the option switch in `options.ts` is over
+    trigger kinds, which are reactions.
+  - `REACTION_OPENERS` (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`,
+    so a new reaction kind does not compile until it has an entry, even an empty one.
+  - `before` returns `{ state, action }` rather than a bare action. An opportunity attack
+    is fought with the root's movers placed one step short of its stretch
+    (`getOpportunityState`), so opening one changes the board as well.
+  - `after` returns the follow-ups. A voided root gets only those from an
+    `evenIfVoided` entry: the counterattack, whose strike is its target's attack.
+  - Order before the effect is explicit in `getReactionsInOrder`: the drawn opportunity
+    attacks in path order, then the rest as declared. That keeps opportunity attacks
+    ahead of a counterattack, as before. After the effect, a blast reads the reactions
+    to its explosion (`getAnsweringReactions`).
+  - `getMoveAfter`'s switch became `getFollowMove`, `getEvasionMove` and
+    `getEscapeAfterBlast`, and `getMoveBeforeBlast` became `getEscapeBeforeBlast`. Each
+    is called from its entry in the table. `goOff` now only makes the blast, pushed
+    beneath the escapes. `getCounterattack` is gone, because the counterattack entry
+    reads its own reaction.
+  - The riposte stays outside the table. Filed under the defense kinds, its follow-up
+    would sit beneath the escapes a stun opens instead of on top of them, which would
+    change the order it is played in. Its gate is also the root's degree and the
+    defender's ability, not the defense itself.
+  - No new tests. Completeness is held by the mapped type, and the existing sequencing
+    tests pin the behaviour, which is unchanged.
+- **A riposte draws no flankers.** This is the table's ruling. `getTriggers` drops
+  opportunity attacks from a riposte, as it does from what an opportunity attack opens,
+  and the riposte's target still defends. A counterattack's strike is left as it is: it
+  starts at `post`, so it draws nothing at all. A test in `sequence.test.ts` checks
+  the fixture's flanker against the same punch made on the riposter's own initiative.
+- **Stage 5.**
+  - `findOpenRoot` reads the stack from the bottom up instead of scanning the log. The
+    stack holds exactly the roots not yet done, in the order they were pushed.
+  - `getOpenedBy` (`rules/log.ts`) is the one lookup for what a reaction opened. It is
+    used by `getDrawnOpportunityAttacks`, `getCounterStrikeOf` and the opportunity
+    attack's opener.
+  - The reverse lookups, `getOpeningReaction`, `getOpeningCounter` and
+    `getRiposteDefense`, stay separate. Each narrows to a different opener.

@@ -1,6 +1,6 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack } from '../../types'
 import { makeAction } from '../factories'
-import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, StrikeAction, WeaponAction } from '../types'
+import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction, WeaponAction } from '../types'
 import { LOCATIONS, QUICKEN_DL } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getAttacksList, getShotKind, needsFocus } from '../../character/rules/gear'
@@ -322,7 +322,7 @@ function getDL(state: CombatState, root: Action): number {
 // Balance test against the ground (combat.tex "Balance"); a cast against the
 // spell's DL.
 // combat.tex "Grapple Maneuvers": the grapple skill against the partner's.
-export function getRootTestTerms(state: CombatState, root: Action): { skill: Term[]; DL: Term[] } | null {
+export function getRootTestTerms(state: CombatState, root: RootAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   if (!actor) return null
   switch (root.kind) {
@@ -336,7 +336,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
     // an explosion's tests are its reactors' (combat.tex "Explosions"); the
-    // rest are committed by paying, or are reactions
+    // rest are committed by paying
     case 'explosion':
     case 'drag':
     case 'displace':
@@ -344,20 +344,6 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
     case 'release':
     case 'holdBack':
     case 'pickUp':
-    case 'evade':
-    case 'evasiveJump':
-    case 'block':
-    case 'intercept':
-    case 'evasion':
-    case 'guard':
-    case 'avoidExplosion':
-    case 'opportunityAttack':
-    case 'counterattack':
-    case 'follow':
-    case 'resist':
-    case 'assist':
-    case 'carry':
-    case 'letGo':
       return null
   }
 }
@@ -368,7 +354,7 @@ export function getRootTestTerms(state: CombatState, root: Action): { skill: Ter
 // quickened (spells.tex "Casting spells"; "Quicken Spell": "Grazes equal
 // misses"). A maneuver is read on the four degrees (combat.tex "Grapple
 // Maneuvers": "on a critical", "on a hit"), as a Balance test is.
-export function getRootTest(state: CombatState, root: Action): Test | null {
+export function getRootTest(state: CombatState, root: RootAction): Test | null {
   const actor = state.characters[root.actorId]
   const terms = getRootTestTerms(state, root)
   if (!actor || !terms) return null

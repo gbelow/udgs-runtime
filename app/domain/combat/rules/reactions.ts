@@ -1,4 +1,4 @@
-import type { Action, ActionKind, CastAction, CombatState, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, CombatState, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, isDefense, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
@@ -10,6 +10,7 @@ import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 import { getOpeningReaction } from './log'
+import { getRiposteDefense } from './riposte'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -32,17 +33,19 @@ export type Trigger = {
   catchOnly?: boolean
 }
 
-// The table's ruling: opportunity attacks never trigger other opportunity
-// attacks. What one opens — a strike, a maneuver, a push and the way it is
-// walked — is still answered by its target, and draws no opportunity attack
-// from anyone.
-export function getTriggers(state: CombatState, root: Action): Trigger[] {
+// The table's rulings: opportunity attacks never trigger other opportunity
+// attacks, and a riposte draws none from those flanking the riposter. What
+// an opportunity attack opens — a strike, a maneuver, a push and the way it
+// is walked — and a riposte are still answered by their target, and draw no
+// opportunity attack from anyone.
+export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null || (root.kind === 'displace' && root.opportunity)
-  return opportunity ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+  const riposte = root.kind === 'strike' && getRiposteDefense(state, root) !== null
+  return opportunity || riposte ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
 }
 
-function getKindTriggers(state: CombatState, root: Action): Trigger[] {
+function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
   switch (root.kind) {
     case 'strike': return strikeTriggers(state, root)
     case 'shoot': return shootTriggers(state, root)
@@ -55,28 +58,14 @@ function getKindTriggers(state: CombatState, root: Action): Trigger[] {
     case 'displace': return displaceTriggers(state, root)
     // nobody answers the blast: the reflexes were against the explosion
     case 'blast': return []
-    // letting go and grappling back draw nothing; a reaction is never a root
+    // letting go and grappling back draw nothing
     case 'release':
     case 'holdBack':
-    case 'evade':
-    case 'evasiveJump':
-    case 'block':
-    case 'intercept':
-    case 'evasion':
-    case 'guard':
-    case 'avoidExplosion':
-    case 'opportunityAttack':
-    case 'counterattack':
-    case 'follow':
-    case 'resist':
-    case 'assist':
-    case 'carry':
-    case 'letGo':
       return []
   }
 }
 
-export function getTriggersFor(state: CombatState, root: Action, characterId: string): Trigger[] {
+export function getTriggersFor(state: CombatState, root: RootAction, characterId: string): Trigger[] {
   return getTriggers(state, root).filter((t) => t.characterId === characterId)
 }
 
@@ -85,7 +74,7 @@ export function getTriggersFor(state: CombatState, root: Action, characterId: st
 // names no step or no target yet matches on what it does name.
 export type TriggerKey = { kind: ActionKind; actorId: string; at?: number | null; targetId?: string | null }
 
-export function findTrigger(state: CombatState, root: Action, reaction: TriggerKey): Trigger | null {
+export function findTrigger(state: CombatState, root: RootAction, reaction: TriggerKey): Trigger | null {
   return getTriggersFor(state, root, reaction.actorId).find((t) =>
     t.kind === reaction.kind
     && (reaction.at === undefined || t.at === reaction.at)

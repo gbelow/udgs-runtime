@@ -1,4 +1,4 @@
-import type { Action, CombatState } from '../types'
+import type { CombatState, RootAction } from '../types'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, getReachableFloor } from './floor'
 import { getDisplaceFacts, getDragFacts, getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
@@ -17,7 +17,7 @@ import { isVoided } from './opportunity'
 // one an evasion may open. An explosion writes down what reaches everyone in
 // its area as the board stands, once every escape has been played out and it
 // is pointed where it goes off.
-export function getSettled(state: CombatState, open: Action): Action {
+export function getSettled(state: CombatState, open: RootAction): RootAction {
   if (isVoided(state, open)) return { ...open, step: 'done' }
   switch (open.kind) {
     case 'strike': {
@@ -38,21 +38,5 @@ export function getSettled(state: CombatState, open: Action): Action {
     case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
     case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
-    // reactions: settled with their root, nothing of their own to write
-    case 'evade':
-    case 'evasiveJump':
-    case 'block':
-    case 'intercept':
-    case 'evasion':
-    case 'guard':
-    case 'avoidExplosion':
-    case 'opportunityAttack':
-    case 'counterattack':
-    case 'follow':
-    case 'resist':
-    case 'assist':
-    case 'carry':
-    case 'letGo':
-      return { ...open, step: 'done' }
   }
 }
