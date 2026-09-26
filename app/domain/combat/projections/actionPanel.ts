@@ -15,6 +15,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { ActionReport, getGrappleNotes, getLastReport, getOutcomes } from './outcomes'
+import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
@@ -280,7 +281,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : [],
       push: drag && drag.step === 'post' ? getPushView(state, drag) : null,
-      grapple: settled && (grapple || drag) ? getGrappleNotes(state, settled) : [],
+      grapple: settled && (grapple || drag || isVoided(state, open)) ? getGrappleNotes(state, settled) : [],
       cost,
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
@@ -314,7 +315,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
-    hop: attack && target && attack.step === 'post'
+    hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
       : { remaining: 0, options: [] },
     outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],

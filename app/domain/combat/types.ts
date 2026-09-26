@@ -614,6 +614,10 @@ export const CombatStateSchema = z.object({
   // on last. An action a reaction opens is pushed over the one it answers
   // and played out first; an action leaves when it resolves.
   stack: z.array(z.string()).default([]),
+  // The actions that have been played out, by id, in the order they landed —
+  // which is not the order they were declared in: an opportunity attack
+  // lands before the action it answers.
+  history: z.array(z.string()).default([]),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),

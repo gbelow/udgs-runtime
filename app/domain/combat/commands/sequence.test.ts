@@ -6,6 +6,7 @@ import { holdItem, regripItem } from '../../item/commands/hands'
 import { getAvailableActions } from '../rules/options'
 import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
+import { getLastReport } from '../projections/outcomes'
 import { getAttackOptions } from '../rules/attack'
 import { isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
@@ -170,4 +171,15 @@ describe('an action broken by an opportunity attack', () => {
     const { state } = playOut(walkPastSpearmen(), LAND)
     expect(state.board?.placements.m?.cell).toEqual({ q: 2, r: 0 })
   })
+})
+
+// The report after a strike its flanker interrupted showed the flanker's
+// thrust, not the strike: the last action in the log was taken for the last
+// one to land, and the strike, declared first, was never reported cancelled.
+it('reports the strike a flanker broke as cancelled once it closes', () => {
+  const { state } = playOut(strikeFlankedTwice(), LAND)
+  const report = getLastReport(state)
+  expect(report?.actor).toBe('atk')
+  expect(report?.outcomes).toEqual([])
+  expect(report?.notes.map((n) => n.text)).toContain('strike cancelled')
 })

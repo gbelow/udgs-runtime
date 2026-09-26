@@ -9,6 +9,7 @@ import { getGrappleFacts } from '../rules/grapple'
 import { getSettled } from '../rules/settle'
 import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/activeCharacter'
+import { getAction } from '../rules/log'
 
 // The outcome of the open action on everyone it lands on, as it would land
 // now: read off the action as the resolve would settle it, so the preview
@@ -95,7 +96,8 @@ export type ActionReport = {
 }
 
 export function getLastReport(state: CombatState): ActionReport | null {
-  const root = [...state.actions].reverse().find((a) => a.step === 'done' && a.reactionTo === null)
+  const id = state.history.at(-1)
+  const root = id ? getAction(state, id) : null
   if (!root) return null
   const named = (id: string) => getFightName(state, id)
   const delivered = getDeliveries(root)

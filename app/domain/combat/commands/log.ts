@@ -12,10 +12,12 @@ import { settleGrapples } from './grapple'
 // what the open action still triggers.
 
 // The fight with its log rewritten, and the stack kept to the actions still
-// being played out: `pushed` goes on top, anything resolved or gone leaves.
+// being played out: `pushed` goes on top, anything resolved or gone leaves,
+// and what leaves resolved goes into the history.
 export function setActions(state: CombatState, actions: Action[], pushed: string[] = []): CombatState {
   const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
-  return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)) }
+  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id))
+  return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)), history: [...state.history, ...landed] }
 }
 
 export function replaceActions(state: CombatState, next: Action[]): CombatState {

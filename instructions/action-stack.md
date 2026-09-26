@@ -121,3 +121,9 @@ Rulings the stack must respect:
   `post` choices (HOP, spell improvements), not between `post` and `effect` as the model
   first put it. This is kept: an interruption decides whether there is anything left to
   spend HOP on, and a voided action skips `post` entirely.
+- Fix after 3b (reported in play): the last-action report read the last finished action in
+  *log* order, so after a flanker broke a strike it kept showing the flanker's thrust and
+  never said the strike was cancelled. `CombatState.history` now records ids in the order
+  they land (kept by `setActions`), and `getLastReport` reads its end. The panel shows the
+  "cancelled" note and no HOP for a voided attack waiting on confirm. Regression test in
+  `sequence.test.ts`. `history` is the first piece of the event log the model anticipated.
