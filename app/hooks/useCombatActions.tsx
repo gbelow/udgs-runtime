@@ -4,7 +4,6 @@ import {
   amendAction,
   amendReaction,
   cancelAction,
-  cancelTriggeringAction,
   commitAction,
   declareAction,
   declareReaction,
@@ -50,7 +49,6 @@ export function useCombatActions() {
   const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => update(amendReaction(reactorId, fields));
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
-  const cancelTriggering = (actorId: string) => update(cancelTriggeringAction(actorId));
   const roll = () => update(rollAction(realDice, newId));
   const commit = () => update(commitAction());
   const back = () => update(withdrawLastReaction());
@@ -65,5 +63,5 @@ export function useCombatActions() {
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const aim = (fields: { choice?: 'push' | 'circle' | 'stay'; steps?: number }) => update(aimPush(fields));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, cancelTriggering, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, aim } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, aim } as const;
 }

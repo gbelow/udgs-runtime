@@ -147,7 +147,6 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
-  cancelTriggeringAction: (s) => combatCommands.cancelTriggeringAction('a')(deepFreeze(spawnedCastOpportunity(s))),
   rollAction: combatCommands.rollAction(() => 7, newId),
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
@@ -228,17 +227,6 @@ function grazedCast(s: CombatState): CombatState {
   const committed = deepFreeze(combatCommands.commitAction()(declared))
   const test = getRootTest(committed, getOpenAction(committed)!)!
   return combatCommands.rollAction(() => test.DL - test.skill + 3, newId)(committed)
-}
-
-// A's cast of sleep committed with b's opportunity attack declared against
-// it, then rolled — spawning the strike b's swing opens against a — on a
-// frozen state a few commands along.
-function spawnedCastOpportunity(s: CombatState): CombatState {
-  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
-  const committed = deepFreeze(combatCommands.commitAction()(declared))
-  const reacted = deepFreeze(combatCommands.declareReaction('b', { kind: 'opportunityAttack', at: null }, newId)(committed))
-  const amended = deepFreeze(combatCommands.amendReaction('b', { weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' })(reacted))
-  return combatCommands.rollAction(() => 7, newId)(amended)
 }
 
 // The committed strike cancelled and a fresh one declared in its place, on a

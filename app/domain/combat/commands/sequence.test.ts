@@ -9,7 +9,7 @@ import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getAttackOptions } from '../rules/attack'
 import { isDeclarationComplete } from '../rules/action'
-import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
+import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -182,4 +182,45 @@ it('reports the strike a flanker broke as cancelled once it closes', () => {
   expect(report?.actor).toBe('atk')
   expect(report?.outcomes).toEqual([])
   expect(report?.notes.map((n) => n.text)).toContain('strike cancelled')
+})
+
+// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
+// action and reuse the AP spent to defend against an opportunity attack."
+// The table's ruling: the AP is not refunded but pays towards the first
+// defense, the one against the attack the action was given up for; later
+// defenses pay in full.
+describe('giving up the action an opportunity attack answers', () => {
+  // The shot between two threateners, rolled to land on its target, with the
+  // shooter stood before the first attack it drew; the attacks will miss.
+  function firstAttackOnShooter(): CombatState {
+    const s = rollAction(() => LAND, newId)(shotBetweenThreateners())
+    expect(getOpenAction(s)?.targetId).toBe('atk')
+    return s
+  }
+  const evade = (s: CombatState) => declareReaction('atk', { kind: 'evade' }, newId)(s)
+  const evadeOf = (s: CombatState, id: string) => s.actions.find((a) => a.kind === 'evade' && a.reactionTo === id)
+
+  it('happens by defending actively, and the shot then lands nothing', () => {
+    const s = firstAttackOnShooter()
+    const { state } = playOut(evade(s), MISS)
+    expect(state.characters.def).toEqual(s.characters.def)
+  })
+
+  it("pays the shot's AP towards the first defense only", () => {
+    let s = evade(firstAttackOnShooter())
+    const shot = s.actions.find((a) => a.kind === 'shoot')!
+    const first = getOpenAction(s)!
+    s = resolveAction(newId)(rollAction(() => MISS, newId)(s))
+    const second = getOpenAction(s)!
+    s = rollAction(() => MISS, newId)(evade(s))
+    const full = evadeOf(s, second.id)!.cost!.AP
+    expect(evadeOf(s, first.id)!.cost!.AP).toBe(Math.max(0, full - shot.cost!.AP))
+  })
+
+  it("is taken back with the defense, before that attack's die", () => {
+    const s = firstAttackOnShooter()
+    const kept = withdrawReaction('atk')(evade(s))
+    const { state } = playOut(kept, MISS)
+    expect(state.characters.def).not.toEqual(s.characters.def)
+  })
 })

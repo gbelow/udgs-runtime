@@ -34,8 +34,8 @@ export type ActionOption = {
 }
 
 // While an opportunity attack against `defenderId` answers a still-live
-// action of their own, that action is what they would have to give up
-// (`cancelTriggeringAction`) to defend actively; named for the panel.
+// action of their own, that action is what defending actively gives up
+// (`getGivenUpFor`); named for the panel.
 export function getCancellableLabel(state: CombatState, root: Action, defenderId: string): string | null {
   const triggering = getCancellableRoot(state, root, defenderId)
   if (!triggering) return null
@@ -49,8 +49,6 @@ export function getCancellableLabel(state: CombatState, root: Action, defenderId
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): { available: boolean; reason: string | null } {
   if (!canAfford(defender, cost)) return { available: false, reason: 'cannot afford' }
   if (isImmobile(defender)) return { available: false, reason: 'immobile' }
-  const cancellable = (reactsTo(kind, 'strike') || reactsTo(kind, 'grapple') || reactsTo(kind, 'drag')) ? getCancellableLabel(state, root, defender.id) : null
-  if (cancellable) return { available: false, reason: `cancel the ${cancellable} to defend actively` }
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && getAfflictions(defender).includes('grappled')) return { available: false, reason: 'grappled' }
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }

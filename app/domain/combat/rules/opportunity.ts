@@ -57,12 +57,24 @@ function isInterruptedByOpportunity(state: CombatState, action: Action): boolean
     || (spawned?.kind === 'drag' && spawned.step === 'done' && (spawned.facts?.interrupted ?? []).includes(action.actorId)))
 }
 
-// A triggering action comes to nothing once its actor gives it up to answer
-// an opportunity attack actively (`cancelTriggeringAction`) or one
-// interrupts them. A push whose pusher a third party interrupts is cut short
-// where it got to, not cancelled (the table's ruling; `getPushStop`).
+// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
+// action and reuse the AP spent to defend against an opportunity attack." Its
+// actor gives it up by answering one of the attacks it drew with anything
+// but the SD (spells.tex "Concentration": "No other action or reaction can
+// be performed while concentrating"; the same for anything else that drew
+// one). The attack it was given up for is the first they answered; taking
+// the answer back before that attack's die keeps the action.
+export function getGivenUpFor(state: CombatState, action: TriggeringAction): OpportunityAction | null {
+  return getDrawnOpportunityAttacks(state, action).find(({ spawned }) =>
+    spawned !== null && getReactionsTo(state, spawned.id).some((r) => r.actorId === action.actorId))?.spawned ?? null
+}
+
+// A triggering action comes to nothing once its actor gives it up
+// (`getGivenUpFor`) or an opportunity attack interrupts them. A push whose
+// pusher a third party interrupts is cut short where it got to, not
+// cancelled (the table's ruling; `getPushStop`).
 export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
-  if (action.cancelled) return true
+  if (getGivenUpFor(state, action) !== null) return true
   return action.kind !== 'drag' && isInterruptedByOpportunity(state, action)
 }
 
@@ -75,13 +87,13 @@ export function isVoided(state: CombatState, action: Action): boolean {
   return action.kind === 'strike' && isInterruptedByOpportunity(state, action)
 }
 
-// What the opportunity attack being fought answers, while its target could
-// still give it up to defend actively: their own triggering action, not yet
-// cancelled. spells.tex "Concentration": "No other action or reaction can be
-// performed while concentrating"; combat.tex "Opportunity Attack": the same
-// for anything else that drew one.
+// The triggering action of the defender's that answering the opportunity
+// attack being fought with anything but the SD gives up (`getGivenUpFor`):
+// theirs, not yet given up for another attack. Null when there is none.
 export function getCancellableRoot(state: CombatState, fought: Action, defenderId: string): TriggeringAction | null {
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
-  return root && isTriggeringAction(root) && root.actorId === defenderId && !root.cancelled ? root : null
+  if (!root || !isTriggeringAction(root) || root.actorId !== defenderId) return null
+  const given = getGivenUpFor(state, root)
+  return given === null || given.id === fought.id ? root : null
 }

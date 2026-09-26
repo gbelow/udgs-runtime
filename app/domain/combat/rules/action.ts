@@ -12,14 +12,14 @@ import { canAfford } from '../../character/rules/cost'
 import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findHeldItem } from './activeCharacter'
 import { findTrigger, getTriggers } from './reactions'
-import { isTriggeringAction, isVoided } from './opportunity'
+import { getCancellableRoot, getGivenUpFor, isVoided } from './opportunity'
 import { canGrab, canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick, needsDragAim } from './grapple'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isAttackAction, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
-import { getOpenAction, getReactionsTo, getRootOf } from './log'
+import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -170,8 +170,9 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
 // is paid in full, and AP the defense does not use is lost (the table's
 // ruling).
 export function getRepurposedAP(state: CombatState, reactorId: string, rootId: string): number {
-  const given = state.actions.find((a) => isTriggeringAction(a) && a.actorId === reactorId && a.cancelledFor === rootId)
-  return given?.cost?.AP ?? 0
+  const fought = getAction(state, rootId)
+  const given = fought ? getCancellableRoot(state, fought, reactorId) : null
+  return given && getGivenUpFor(state, given)?.id === rootId ? given.cost?.AP ?? 0 : 0
 }
 
 // A reaction's price less the AP repurposed towards it.

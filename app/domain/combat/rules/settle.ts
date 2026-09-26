@@ -18,7 +18,7 @@ import { isVoided } from './opportunity'
 // its area as the board stands, once every escape has been played out and it
 // is pointed where it goes off.
 export function getSettled(state: CombatState, open: Action): Action {
-  if (isVoided(state, open)) return 'cancelled' in open ? { ...open, step: 'done', cancelled: true } : { ...open, step: 'done' }
+  if (isVoided(state, open)) return { ...open, step: 'done' }
   switch (open.kind) {
     case 'strike': {
       const facts = getAttackFacts(state, open)

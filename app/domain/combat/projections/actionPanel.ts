@@ -57,8 +57,8 @@ export type ReactorOptions = {
     maneuver: GrappleManeuver
   } | null
   // combat.tex "Opportunity Attack": the action of theirs the attack answers,
-  // still theirs to give up to answer with anything but the SD
-  // (`cancelTriggeringAction`); null when there is none
+  // which answering with anything but the SD gives up (`getGivenUpFor`);
+  // null when there is none
   cancellable: string | null
 }
 

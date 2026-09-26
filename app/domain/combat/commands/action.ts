@@ -7,7 +7,6 @@ import { getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
-import { getCancellableRoot } from '../rules/opportunity'
 import { getDragComparison } from '../rules/grapple'
 import { getSettled } from '../rules/settle'
 import { appendActions, applyPhase, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
@@ -206,21 +205,6 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
     paid.push({ ...a, cost, roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
-}
-
-// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action ... to defend against an opportunity attack" — gives up the action
-// the open opportunity attack was drawn by, so its actor can answer with
-// anything but the SD, the AP it cost paying towards that defense
-// (`getRepurposedAP`). Only that actor, and only against an opportunity
-// attack their own action triggered.
-export function cancelTriggeringAction(actorId: string): Updater {
-  return (state) => {
-    const open = getOpenAction(state)
-    if (!open || open.step !== 'react') return state
-    const root = getCancellableRoot(state, open, actorId)
-    return root ? replaceActions(state, [{ ...root, cancelled: true, cancelledFor: open.id }]) : state
-  }
 }
 
 // Lands the rolled action on everyone it concerns and closes it, once

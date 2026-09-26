@@ -74,7 +74,7 @@ Rulings the stack must respect:
   it interrupts lands nothing and opens nothing.
 - [x] **3c.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
   Replaces `afterPaying`, `afterLanding`, `advanceOpportunities`, `spawn`, `fightPush`.
-- [ ] **4.** Cancelling the triggering action becomes a defense option on the opportunity
+- [x] **4.** Cancelling the triggering action becomes a defense option on the opportunity
   strike's own `react` step; `cancelled` / `cancelledFor` go.
 - [ ] **5.** Push: the third parties' window becomes a follow-up action carrying the
   displacement; `fought` goes, with the drag special cases in `getNextStep`, `payAction`
@@ -146,3 +146,13 @@ Rulings the stack must respect:
   - Behavior change: the follow-ups of an opportunity attack's strike (a stun escape) are
     now played out before the next opportunity attack on the same root, not after it.
     This is the pipeline's order: an action's follow-ups come right after its effect.
+- Stage 4: `cancelTriggeringAction`, its button and the `cancelled` / `cancelledFor` fields
+  are gone. Giving up is derived: the actor of a triggering action gives it up by answering
+  one of the opportunity attacks it drew with anything but the SD (`getGivenUpFor`, the
+  first attack they answered). The option gate no longer closes active defenses; the panel
+  notes "defending actively gives up the …" instead. `getRepurposedAP` pays the action's AP
+  towards the defense against that first attack only. `applyPhase` skips the resolve of any
+  voided action. Behavior change: giving up is now reversible until that attack's die
+  (withdraw the defense), where the button was final. Tests in `sequence.test.ts`: defending
+  actively voids a shot that would have landed; the AP pays towards the first defense only;
+  withdrawing the defense keeps the shot.

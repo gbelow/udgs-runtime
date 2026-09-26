@@ -3,7 +3,7 @@ import type { Action, ActionKind, ActionOf, CombatState } from '../types'
 import { getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from './reduce'
-import { isTriggeringAction } from '../rules/opportunity'
+import { isVoided } from '../rules/opportunity'
 import { settleGrapples } from './grapple'
 
 // The bookkeeping the action commands share: replacing and appending
@@ -33,11 +33,11 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
   return { ...state, characters: Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, f(c)])) }
 }
 
-// A cancelled action lands nothing at its resolve (combat.tex
+// A voided action lands nothing at its resolve (combat.tex
 // "Interruption"); its price was already taken at the roll.
 export function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((s, action) => {
-    if (phase === 'resolve' && isTriggeringAction(action) && action.cancelled) return s
+    if (phase === 'resolve' && isVoided(s, action)) return s
     const next = mapCharacters(s, reduceCharacter(action, phase))
     const grappled = { ...next, floor: reduceFloor(s, action, phase)(s.floor), grapples: reduceGrapples(action, phase)(next.grapples) }
     const placed = grappled.board ? { ...grappled, board: reduceBoard(next, action, phase)(grappled.board) } : grappled

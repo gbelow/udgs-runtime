@@ -114,19 +114,6 @@ export type Board = z.infer<typeof BoardSchema>
 // rolled, and done from then.
 // `cost` is written at the roll, off the actor as they were then, so the
 // record says what was paid without a rule having to recompute it later.
-// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action and reuse the AP spent to defend against an opportunity attack" —
-// given up by its actor to answer one actively, or lost outright once one
-// interrupts them (combat.tex "Interruption"). Either way nothing it would
-// have done lands, and nothing it cost comes back; given up, its AP pays
-// towards the defense instead. `cancelledFor` is the opportunity attack it
-// was given up for, whose first defense that AP pays towards; null when it
-// was not given up, or was lost to an interruption.
-const Cancellable = {
-  cancelled: z.boolean().default(false),
-  cancelledFor: str.nullable().default(null),
-}
-
 const ActionBase = {
   id: str,
   actorId: str,
@@ -268,7 +255,6 @@ export const ShootActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('shoot'),
   ...AttackDeclaration,
-  ...Cancellable,
   facts: DeliverySchema.nullable().default(null),
   // what landing did to the target's action, written at the resolve: an
   // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
@@ -304,7 +290,6 @@ export const ExplosionActionSchema = z.object({
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
-  ...Cancellable,
   facts: DeliveriesSchema.nullable().default(null),
   // combat.tex "Gas": what it leaves on the ground, cell by cell, written at
   // the resolve while whatever carried the charge is still there to read
@@ -329,7 +314,6 @@ export const CastActionSchema = z.object({
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
   grazeSaved: z.boolean().default(false),
-  ...Cancellable,
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -454,7 +438,6 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
-  ...Cancellable,
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
@@ -497,7 +480,6 @@ export const DragActionSchema = z.object({
   // part of the way along it, as a move's is from `from`
   from: z.record(str, PlacementSchema).nullable().default(null),
   opportunity: z.boolean().default(false),
-  ...Cancellable,
   facts: DragFactsSchema.nullable().default(null),
 }).strip()
 
@@ -522,7 +504,6 @@ export const PickUpActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('pickUp'),
   itemId: str.default(''),
-  ...Cancellable,
   // what was picked up, written at the resolve
   picked: ItemSchema.nullable().default(null),
 }).strip()
