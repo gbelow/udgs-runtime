@@ -39,6 +39,8 @@ Rulings the stack must respect:
   never reaches do not fire.
 - An action writes only its own record, and only up to its own effect. Nothing is written
   onto another action after that action's commit.
+- Opportunity attacks never trigger other opportunity attacks. What one opens (a strike,
+  a maneuver, a push) is still answered by its target, and draws no opportunity attack.
 - A counterattack (abilities.tex "Counterattack") is a reaction whose opened attack goes
   before the parent's effect if it rolled higher, and is a follow-up if it rolled lower.
 
@@ -64,7 +66,10 @@ Rulings the stack must respect:
   `status` stays. No behavior change.
 - [x] **2.** `status` → `step`. `getNextStep` stays as the UI sub-step, derived from the
   step.
-- [ ] **3.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
+- [x] **3a.** An action opened by an opportunity attack draws no opportunity attacks.
+- [x] **3b.** A flanker's opportunity attack is fought before the strike lands; a strike
+  it interrupts lands nothing and opens nothing.
+- [ ] **3c.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
   Replaces `afterPaying`, `afterLanding`, `advanceOpportunities`, `spawn`, `fightPush`.
 - [ ] **4.** Cancelling the triggering action becomes a defense option on the opportunity
   strike's own `react` step; `cancelled` / `cancelledFor` go.
@@ -77,10 +82,10 @@ Rulings the stack must respect:
 
 ## Decisions
 
-- **Flanker order** — open. The pipeline puts a flanker's opportunity attack before the
-  strike's effect; the code today runs it after. combat.tex "Flanking" ("can be voided if
-  the target gets out of range") may read either way. Needed by stage 3; the working
-  default is *before*.
+- **Flanker order** — decided: *before* the strike lands. "Can be voided if the target
+  gets out of range" is checked when each flanker's attack comes to be fought.
+- **Chained opportunity attacks** — decided: none. This also removes the third-party
+  attacks a push made *as* an opportunity attack used to draw.
 - **Push window** — open. Stage 5 assumes a generated action for the displacement rather
   than a second `react` window on the push.
 - **Saved fights** — not needed yet. Nothing ingests a `CombatState` today (the store only
@@ -103,3 +108,16 @@ Rulings the stack must respect:
 - Stage 2: `status` renamed to `step` across `app/domain` (`declared → define`,
   `committed → react`, `rolled → post`, `resolved → done`). No behavior change;
   `getNextStep` is untouched and still derives the UI sub-step.
+- Stage 3a: `getTriggers` drops opportunity-attack triggers from any action whose
+  `spawnedBy` is an opportunity attack. Test: during play-out, no action an opportunity
+  attack opened offers one, across the shot, move and flanked-strike scenarios.
+- Stage 3b: `advanceOpportunities` now opens a strike's flankers before it lands, passing
+  over a flanker out of reach when their turn comes; `spawn` no longer opens them after.
+  `isVoided` covers a strike interrupted by one, so it lands nothing and opens nothing;
+  `getSettled` closes a voided strike with no facts. Tests: the flanked strike joins the
+  scenarios, and "a broken action lands nothing" runs over the shot and the flanked strike
+  (confirmed to fail without the `getSettled` change).
+- Observed order in the code: a rolled action's opportunity attacks are fought *before* its
+  `post` choices (HOP, spell improvements), not between `post` and `effect` as the model
+  first put it. This is kept: an interruption decides whether there is anything left to
+  spend HOP on, and a voided action skips `post` entirely.

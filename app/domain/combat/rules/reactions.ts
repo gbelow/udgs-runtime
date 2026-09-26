@@ -9,6 +9,7 @@ import { getDragOrigin, getDragPath, isGrappleRow } from './grapple'
 import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
+import { getOpeningReaction } from './log'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -31,7 +32,15 @@ export type Trigger = {
   catchOnly?: boolean
 }
 
+// The table's ruling: opportunity attacks never trigger other opportunity
+// attacks. What one opens — a strike, a maneuver, a push — is still
+// answered by its target, and draws no opportunity attack from anyone.
 export function getTriggers(state: CombatState, root: Action): Trigger[] {
+  const triggers = getKindTriggers(state, root)
+  return getOpeningReaction(state, root) ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+}
+
+function getKindTriggers(state: CombatState, root: Action): Trigger[] {
   switch (root.kind) {
     case 'strike': return strikeTriggers(state, root)
     case 'shoot': return shootTriggers(state, root)

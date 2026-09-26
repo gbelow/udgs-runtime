@@ -4,7 +4,7 @@ import { getAction, getLiveReactionsTo, getOpeningReaction, getReactionsTo, getR
 import { opensExplosion } from '../rules/cast'
 import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
-import { getDrawnOpportunityAttacks, isCancelled, isFlankInReach, isTriggeringAction } from '../rules/opportunity'
+import { getDrawnOpportunityAttacks, isCancelled, isFlankInReach, isTriggeringAction, isVoided } from '../rules/opportunity'
 import { getDragSides, getStunEscapes } from '../rules/grapple'
 import { makeAction } from '../factories'
 import { appendActions, replaceActions } from './log'
@@ -37,19 +37,20 @@ export function afterPaying(state: CombatState, id: string, newId: () => string)
 }
 
 // combat.tex "Opportunity Attack": "The attack occurs before the effect of
-// the triggering action." The attacks a move or a triggering action drew
-// are opened one at a time in the order it comes to them, each once the one
-// before has landed; a move or a push has everyone it carries stood one
-// space short of the stretch the next one fires on while it is fought. The
-// run ends once the root is brought to a stop, or at an attack on a stretch
-// it never reaches. Once every attack is fought, an explosion still going
-// off has whoever's reflexes cleared it moving out of the way first.
-// Anything else — a strike, whose flankers swing after it lands — opens
-// nothing here.
+// the triggering action." The attacks a move, a strike or a triggering
+// action drew are opened one at a time in the order it comes to them, each
+// once the one before has landed; a move or a push has everyone it carries
+// stood one space short of the stretch the next one fires on while it is
+// fought. The run ends once the root is brought to a stop, or at an attack
+// on a stretch it never reaches; a flanker the attacker has got out of
+// range of is passed over (combat.tex "Flanking"). Once every attack is
+// fought, an explosion still going off has whoever's reflexes cleared it
+// moving out of the way first.
 export function advanceOpportunities(state: CombatState, root: Action, newId: () => string): CombatState {
-  if (root.kind !== 'move' && !isTriggeringAction(root)) return state
+  if (root.kind !== 'move' && root.kind !== 'strike' && !isTriggeringAction(root)) return state
   if (getOpportunityStop(state, root) !== null) return state
-  const next = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => spawned === null)
+  const next = getDrawnOpportunityAttacks(state, root)
+    .find(({ reaction, spawned }) => spawned === null && (root.kind !== 'strike' || isFlankInReach(state, reaction, root)))
   if (next) {
     if (!isOpportunityReached(state, root, next.reaction)) return state
     const placed = getOpportunityState(state, next.reaction)
@@ -91,19 +92,14 @@ export function afterLanding(state: CombatState, resolved: Action, newId: () => 
 }
 
 // The actions the resolved one's reactions open, in the order they were
-// declared: a flanker's opportunity attack, fought now the strike it answers
-// has landed (any other root's were opened before it resolved — see
-// `advanceOpportunities` — and are not opened again here), and
-// the moves a reaction grants once the root has landed. A cancelled action
-// opens nothing. A cast that hit with an area to it opens that area as an
+// declared: the moves a reaction grants once the root has landed. Its
+// opportunity attacks were opened before it resolved (`advanceOpportunities`)
+// and are not opened again here. A voided action opens nothing. A cast that hit with an area to it opens that area as an
 // explosion of the caster's, aimed and played out on its own (the caster's
 // part is done).
 export function spawn(state: CombatState, root: Action, newId: () => string): Action[] {
-  if (isTriggeringAction(root) && root.cancelled) return []
+  if (isVoided(state, root)) return []
   const opened = getReactionsTo(state, root.id).flatMap((reaction): Action[] => {
-    if (reaction.kind === 'opportunityAttack') {
-      return root.kind === 'strike' && isFlankInReach(state, reaction, root) ? [getOpportunityAction(state, reaction, newId())] : []
-    }
     const move = getMoveAfter(state, root, reaction)
     return move ? [openMove(reaction, newId, move)] : []
   })

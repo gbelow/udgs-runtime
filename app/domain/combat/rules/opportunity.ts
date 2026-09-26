@@ -33,7 +33,7 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
 
 // combat.tex "Flanking": a flanker's opportunity attack "can be voided if
 // the target gets out of range" — whether the attacker it answers still
-// stands within the flanker's reach once the strike has landed.
+// stands within the flanker's reach when it comes to be fought.
 export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportunityAttack'>, root: Action): boolean {
   const reactor = state.characters[reaction.actorId]
   const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
@@ -41,26 +41,33 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
 }
 
 // combat.tex "Interruption": "interrupts any action from its victim, making
-// them lose its associated costs" — an opportunity attack the action drew
-// that lands with interruption cancels it, same as its actor giving it up
-// to answer one actively (`cancelTriggeringAction`). A push that moved or
+// them lose its associated costs" — whether an opportunity attack the action
+// drew has landed with an interruption on its actor. A push that moved or
 // stopped the actor interrupted them too (combat.tex "Push and drag":
 // "interrupts them"). One fought against someone else — a third party's
-// against whoever a push moved at them — does not stop the actor. A push
-// whose pusher a third party interrupts is cut short where it got to, not
-// cancelled (the table's ruling; `getPushStop`).
-export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
-  if (action.cancelled) return true
-  if (action.kind === 'drag') return false
+// against whoever a push moved at them — does not stop the actor.
+function isInterruptedByOpportunity(state: CombatState, action: Action): boolean {
   return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.step === 'done' && (
     (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
     || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
 }
 
+// A triggering action comes to nothing once its actor gives it up to answer
+// an opportunity attack actively (`cancelTriggeringAction`) or one
+// interrupts them. A push whose pusher a third party interrupts is cut short
+// where it got to, not cancelled (the table's ruling; `getPushStop`).
+export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
+  if (action.cancelled) return true
+  return action.kind !== 'drag' && isInterruptedByOpportunity(state, action)
+}
+
 // Whether the action comes to nothing: a triggering action given up or
-// interrupted (`isCancelled`). Anything else lands.
+// interrupted (`isCancelled`), or a strike a flanker interrupted before it
+// landed (the table's ruling: an interruption breaks the action). A move is
+// cut short instead (`getMoveOverride`); anything else lands.
 export function isVoided(state: CombatState, action: Action): boolean {
-  return isTriggeringAction(action) && isCancelled(state, action)
+  if (isTriggeringAction(action)) return isCancelled(state, action)
+  return action.kind === 'strike' && isInterruptedByOpportunity(state, action)
 }
 
 // What the opportunity attack being fought answers, while its target could

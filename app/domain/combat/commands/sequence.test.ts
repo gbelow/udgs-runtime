@@ -4,7 +4,8 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
 import { getAvailableActions } from '../rules/options'
-import { getLiveReactionsTo, getOpenAction } from '../rules/log'
+import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
+import { getTriggers } from '../rules/reactions'
 import { getAttackOptions } from '../rules/attack'
 import { isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
@@ -55,13 +56,16 @@ function isRoot(a: Action): boolean {
 
 // Plays the open action out to the end with the die showing `face`, taking
 // every default a step offers, and returns the order in which its root
-// actions landed.
-function playOut(start: CombatState, face: number): { state: CombatState; landed: Action[] } {
+// actions landed, and the triggers each action an opportunity attack opened
+// offered while it was open to answers.
+function playOut(start: CombatState, face: number): { state: CombatState; landed: Action[]; openedTriggers: string[] } {
   let s = start
   const landed: Action[] = []
+  const openedTriggers: string[] = []
   for (let i = 0; i < 50; i++) {
     const open = getOpenAction(s)
-    if (!open) return { state: s, landed }
+    if (!open) return { state: s, landed, openedTriggers }
+    if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
     const next = [rollAction(() => face, newId), payAction(newId), resolveAction(newId)].map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const a of next.actions.filter(isRoot)) {
@@ -97,9 +101,22 @@ function walkPastSpearmen(): CombatState {
 const MISS = 1
 const LAND = 5
 
+// A punch at a defender, with two spearmen lined up behind the attacker
+// (combat.tex "Flanking": an attack triggers an opportunity attack from those
+// "that cannot be fit within a semi-circle centered on the triggering
+// attack's target"). The nearer spearman's attack on the attacker has the
+// farther one behind it in turn.
+function strikeFlankedTwice(): CombatState {
+  let s = onBoard({ atk: [0, 0], def: [1, 0], f1: [-1, 0], f2: [-2, 0] }, fighter('atk'), fighter('def'), spearman('f1'), spearman('f2'))
+  s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(s)
+  s = commitAction()(setTarget('def')(s))
+  return everyoneAttacks(s, ['f1', 'f2'])
+}
+
 const scenarios = [
   { name: 'a shot', start: shotBetweenThreateners, reactors: ['t1', 't2'] },
   { name: 'a move', start: walkPastSpearmen, reactors: ['r1', 'r2'] },
+  { name: 'a flanked strike', start: strikeFlankedTwice, reactors: ['f1', 'f2'] },
 ]
 
 describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, reactors }) => {
@@ -123,14 +140,25 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
     expect(landed.at(-1)?.id).toBe(rootId)
     expect(landed.filter((a) => a.spawnedBy !== null)).toHaveLength(reactors.length)
   })
+
+  // The table's ruling: opportunity attacks never trigger other opportunity
+  // attacks. What one opens is still defended against.
+  it('draw no opportunity attacks of their own', () => {
+    const { openedTriggers } = playOut(start(), MISS)
+    expect(openedTriggers.length).toBeGreaterThan(0)
+    expect(openedTriggers).not.toContain('opportunityAttack')
+  })
 })
 
 // combat.tex "Interruption": "interrupts any action from its victim". The
 // table's ruling: every declared opportunity attack is still fought after
 // one has broken the action, and the broken action lands nothing.
 describe('an action broken by an opportunity attack', () => {
-  it('lands nothing, and every attack it drew is still fought', () => {
-    const s = shotBetweenThreateners()
+  it.each([
+    { name: 'a shot', start: shotBetweenThreateners },
+    { name: 'a flanked strike', start: strikeFlankedTwice },
+  ])('$name lands nothing, and every attack it drew is still fought', ({ start }) => {
+    const s = start()
     const { state, landed } = playOut(s, LAND)
     expect(landed.filter((a) => a.spawnedBy !== null)).toHaveLength(2)
     expect(state.characters.def).toEqual(s.characters.def)
