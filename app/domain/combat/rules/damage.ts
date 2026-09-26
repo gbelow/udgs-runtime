@@ -195,7 +195,6 @@ export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts
 
 export type HOPOption = {
   purchase: HOPPurchase
-  label: string
   cost: number
   // what it takes from the attacker on top of the HOP, paid as the action
   // resolves
@@ -203,17 +202,6 @@ export type HOPOption = {
   bought: number
   available: boolean
   reason: string | null
-}
-
-const HOP_LABELS: Record<HOPPurchase, string> = {
-  slice: 'slice',
-  bypass: 'bypass',
-  bust: 'bust',
-  smash: 'smash',
-  handSwitch: 'switch to hand',
-  assassinate: 'assassinate',
-  braced: 'braced',
-  hook: 'hook',
 }
 
 // combat.tex "Assassinate": "This costs 1 extra AP on the normal cost of the
@@ -259,7 +247,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const cost = priceOf(purchase, target)
     const bought = root.spent[purchase] ?? 0
     const price = getHOPPrice(purchase, attacker)
-    const closed = (reason: string): HOPOption => ({ purchase, label: HOP_LABELS[purchase], cost, price, bought, available: false, reason })
+    const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(row.atk.properties, property)) return closed(`needs ${property}`)
     if (purchase !== 'slice' && bought > 0) return closed('bought')
@@ -283,7 +271,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
     if (price && !canAfford(attacker, price)) return closed('cannot afford')
-    return { purchase, label: HOP_LABELS[purchase], cost, price, bought, available: true, reason: null }
+    return { purchase, cost, price, bought, available: true, reason: null }
   })
 }
 

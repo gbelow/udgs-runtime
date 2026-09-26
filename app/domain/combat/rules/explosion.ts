@@ -10,7 +10,7 @@ import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ri
 import { getPlacedFootprint, getShotReachOf, seesAcross } from './board'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getHeldItem } from '../../item/rules/hands'
-import { findHeldItem, getFightName } from './fighters'
+import { findHeldItem } from './fighters'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -70,7 +70,7 @@ function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEf
 
 // Every charge in the fight that can be set off from where it lies: one
 // with an area to it, in the hands of someone standing on the board.
-export type ChargeOption = { itemId: string; key: SpellKey; name: string; item: string; holder: string; cell: Coord }
+export type ChargeOption = { itemId: string; key: SpellKey; holderId: string; cell: Coord }
 
 export function getChargeOptions(state: CombatState): ChargeOption[] {
   return Object.values(state.characters).flatMap((holder) => {
@@ -79,7 +79,7 @@ export function getChargeOptions(state: CombatState): ChargeOption[] {
     return holder.held.flatMap((item): ChargeOption[] => {
       const key = item.charge?.key
       if (!key || !isSpellKey(key) || !item.charge?.effects.some(isAreaEffect)) return []
-      return [{ itemId: item.id, key, name: SPELLS[key].name, item: item.name, holder: getFightName(state, holder.id), cell }]
+      return [{ itemId: item.id, key, holderId: holder.id, cell }]
     })
   })
 }

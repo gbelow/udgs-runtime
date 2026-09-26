@@ -214,11 +214,11 @@ function getHoldDeliveries(state: CombatState, g: Grapple): Deliveries {
   return out
 }
 
-// What a disarm can go for: anything in the partner's hands — a natural
-// weapon is not an item and cannot be taken.
-export function getDisarmOptions(state: CombatState, root: GrappleAction): { itemId: string; name: string }[] {
+// What a disarm can go for: the id of anything in the partner's hands — a
+// natural weapon is not an item and cannot be taken.
+export function getDisarmOptions(state: CombatState, root: GrappleAction): string[] {
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  return target ? target.held.map((i) => ({ itemId: i.id, name: i.name })) : []
+  return target ? target.held.map((i) => i.id) : []
 }
 
 // combat.tex "Grapple Maneuvers": a maneuver does something on a hit or a
@@ -286,7 +286,7 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
     case 'immobilize':
       return facts(state, pair, along ? { ...g, immobile: [...new Set([...g.immobile, ...who])] } : g, { deliveries })
     case 'disarm': {
-      const item = root.item && getDisarmOptions(state, root).some((o) => o.itemId === root.item) ? root.item : null
+      const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
       if (!item || !landed) return facts(state, pair, g, { deliveries })
       if (critical) return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item } })
       return facts(state, pair, { ...g, seized: [...new Set([...g.seized, item])] }, { deliveries, seized: item })

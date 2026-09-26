@@ -7,6 +7,7 @@ import { getAvailableActions } from '../rules/options'
 import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
+import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
@@ -494,7 +495,7 @@ describe('protecting the target of a strike', () => {
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction()(setTarget('def')(s))
   }
-  const shieldOption = (s: CombatState, id: string, label: string) => getAvailableActions(s, id).find((o) => o.label === `${label} with Wooden Shield`)
+  const shieldOption = (s: CombatState, id: string, label: string) => getAvailableActions(s, id).find((o) => getOptionLabel(s, id, o) === `${label} with Wooden Shield`)
   const kinds = (s: CombatState, id: string) => [...new Set(getAvailableActions(s, id).map((o) => o.draft.kind))]
   // The step open to the one declared, picked on the board: the first cell
   // a click there takes.

@@ -60,7 +60,6 @@ export function canSaveGraze(state: CombatState, root: CastAction): boolean {
 // (spells.tex "Quicken Spell").
 export type SpellOption = {
   key: SpellKey
-  name: string
   DL: number | null
   quickenedDL: number | null
   cost: ActionCost
@@ -89,7 +88,6 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
     const spell = SPELLS[key]
     return {
       key,
-      name: spell.name,
       DL: spell.DL,
       quickenedDL: getCastingDL(spell, true),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },

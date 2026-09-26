@@ -105,20 +105,6 @@ export function getActionDef(kind: ActionKind): ActionDef {
   return ACTIONS[kind]
 }
 
-// What the action is called where it is shown on its own: a strike made as
-// a grab is a grab, a maneuver goes by its name — standing up, when that is
-// what the escape is for — and the rest by the catalog's label.
-export function getActionName(action: Action): string {
-  if (action.kind === 'strike' && action.grab) return 'grab'
-  if (action.kind === 'grapple') return action.stand ? 'stand up' : action.maneuver
-  return ACTIONS[action.kind].label
-}
-
-// The action as a thing done, for a sentence about it.
-export function getActionNoun(action: Action): string {
-  return getActionDef(action.kind).noun ?? getActionName(action)
-}
-
 export function isReaction(kind: ActionKind): kind is ReactionKind {
   return ACTIONS[kind].type === 'reaction'
 }

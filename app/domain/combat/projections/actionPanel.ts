@@ -1,10 +1,10 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
 import type { Area, MoveKind } from '../../types'
-import { getActionName, isAttackAction } from '../rules/actionCatalog'
-import { getFightName } from '../rules/fighters'
+import { isAttackAction } from '../rules/actionCatalog'
+import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
+import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
 import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
@@ -28,6 +28,7 @@ import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
+import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 
 export type LocationOption = { location: HitLocation; penalty: number }
 
@@ -40,10 +41,20 @@ function getLocationOptions(): LocationOption[] {
 // Everyone with a reaction to the open action, each with their options —
 // and, for one who has chosen an opportunity attack, the strike it opens
 // still to be declared: its rows and where it aims.
+// The option lists as the panel shows them: each named for its button.
+export type ActionOptionView = ActionOption & { label: string }
+export type HOPOptionView = HOPOption & { label: string }
+export type SpellOptionView = SpellOption & { name: string }
+export type ChargeView = ChargeOption & { name: string; item: string; holder: string }
+
+function labelled(state: CombatState, actorId: string, options: ActionOption[]): ActionOptionView[] {
+  return options.map((o) => ({ ...o, label: getOptionLabel(state, actorId, o) }))
+}
+
 export type ReactorOptions = {
   id: string
   name: string
-  options: ActionOption[]
+  options: ActionOptionView[]
   strike: {
     options: AttackOption[]
     locations: LocationOption[]
@@ -87,7 +98,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
           }
         : null
-      return { id: c.id, name: getFightName(state, c.id), options: getAvailableActions(state, c.id), strike, cancellable: getCancellableLabel(state, open, c.id) }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id) }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -181,15 +192,15 @@ export type ActionPanelView = {
   step: ActionStep | null
   open: OpenActionView | null
   // with nothing open: what the active character can declare
-  options: ActionOption[]
+  options: ActionOptionView[]
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
   // at `declare`: the rows and variations an attack can be made with, the
   // spells a cast can be of, or the charges that can be set off
   attacks: AttackOption[]
-  spells: SpellOption[]
-  charges: ChargeOption[]
+  spells: SpellOptionView[]
+  charges: ChargeView[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
   // why the target list is empty, when it is
@@ -216,7 +227,7 @@ export type ActionPanelView = {
   reachable: ReachableCell[]
   // once rolled: what the hit's overflow can buy, and what the action does
   // to everyone it lands on as they stand
-  hop: { remaining: number; options: HOPOption[] }
+  hop: { remaining: number; options: HOPOptionView[] }
   outcomes: { target: string; outcome: Outcome }[]
   // once a cast is rolled: what its overflow can buy, and what it will
   // deliver to whom
@@ -240,7 +251,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
 
   if (!open) {
-    return { ...EMPTY, options: active ? getAvailableActions(state, active.id) : [], report: getLastReport(state) }
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], report: getLastReport(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -291,7 +302,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
       along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
-      disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple) : [],
+      disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' ? open.itemId : ''),
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
@@ -315,8 +326,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown')
       ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
       : [],
-    spells: cast && step === 'declare' && actor ? getSpellOptions(actor) : [],
-    charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define' ? getChargeOptions(state) : [],
+    spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
+    charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
+      ? getChargeOptions(state).map((o) => ({ ...o, name: SPELLS[o.key].name, item: findHeldItem(state, o.itemId)?.item.name ?? '', holder: getFightName(state, o.holderId) }))
+      : [],
     locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: getFightName(state, id) })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
@@ -333,7 +346,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
-      ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack) }
+      ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
       : { remaining: 0, options: [] },
     outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
     castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },

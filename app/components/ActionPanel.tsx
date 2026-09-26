@@ -1,12 +1,10 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { ActionOption } from '../domain/combat/rules/options'
 import type { AttackOption } from '../domain/combat/rules/attack'
-import type { SpellOption, ImprovementOption } from '../domain/combat/rules/cast'
+import type { ImprovementOption } from '../domain/combat/rules/cast'
 import type { MovementOption } from '../domain/combat/rules/move'
-import type { OpenActionView, PushView, ReactorOptions } from '../domain/combat/projections/actionPanel'
+import type { ActionOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/combat/projections/actionPanel'
 import type { ActionReport } from '../domain/combat/projections/outcomes'
-import type { HOPOption } from '../domain/combat/rules/damage'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { GrappleManeuver, HitLocation } from '../domain/combat/types'
@@ -340,7 +338,7 @@ function Test({ open }: { open: OpenActionView }){
 
 // A spell to cast, on the focus surge or quickened at +4 DL without it
 // (spells.tex "Quicken Spell").
-function SpellButton({ option, onCast, onQuicken }: { option: SpellOption, onCast: () => void, onQuicken: () => void }){
+function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, onCast: () => void, onQuicken: () => void }){
   return (
     <span className='inline-flex items-stretch'>
       <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.reason ?? undefined} onClick={onCast}>
@@ -376,7 +374,7 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
   )
 }
 
-function OptionButton({ option, active = false, onClick }: { option: ActionOption, active?: boolean, onClick: () => void }){
+function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
     <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
       disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
@@ -387,7 +385,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
 
 // A purchase: click to buy, and once bought a second control to take it
 // back — the die is thrown but nothing has landed yet.
-function HOPButton({ option, onBuy, onRefund }: { option: HOPOption, onBuy: () => void, onRefund: () => void }){
+function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: () => void, onRefund: () => void }){
   const bought = option.bought > 0
   return (
     <span className='inline-flex items-stretch'>
