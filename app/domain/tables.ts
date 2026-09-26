@@ -286,14 +286,14 @@ export const SURGES = {
 // the full price of a standalone action or reaction.
 export const ACTION_COSTS = {
   // attack variations — combat.tex "Heavy Attack", "Sweeping Attack",
-  // "Braced Attack", "Hook Attack" (the trip rider), "Assassinate" — those
+  // "Braced Attack", "Hook Attack" (its damage), "Assassinate" — those
   // three bought after a hit — "Snipe", "Quick Shot"; gear.tex "Reload"
   heavy1:    { AP: 1, STA: 0 },
   heavy2:    { AP: 2, STA: 1 },
   heavy3:    { AP: 3, STA: 1 },
   sweep:     { AP: 1, STA: 0 },
   braced:    { AP: 2, STA: 1 },
-  hookTrip:  { AP: 1, STA: 1 },
+  hook:      { AP: 2, STA: 1 },
   assassinate: { AP: 1, STA: 0 },
   snipe:     { AP: 2, STA: 0 },
   quickShot: { AP: -1, STA: 0 },
@@ -303,6 +303,11 @@ export const ACTION_COSTS = {
   evasiveJump: { AP: 3, STA: 1 },
   block:       { AP: 2, STA: 0 },
   intercept:   { AP: 3, STA: 0 },
+  // abilities.tex "Defender": "spend 1 STA to move 1 basic movement";
+  // "Defensive Advance": "Spend 1 STA to move forward" — on top of the
+  // defense they are taken for
+  defenderStep:     { AP: 0, STA: 1 },
+  defensiveAdvance: { AP: 0, STA: 1 },
   // ranged reactions — combat.tex "Reflex"
   reflex:         { AP: 2, STA: 0 },
   guard:          { AP: 2, STA: 0 },

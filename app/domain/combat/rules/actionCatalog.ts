@@ -55,7 +55,7 @@ export const ACTIONS = {
   evade:       { label: 'evade',        type: 'reaction', price: 'evade',       reactsTo: ['strike', 'move'], die: false },
   evasiveJump: { label: 'evasive jump', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
   block:       { label: 'block',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '' } },
-  intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '' } },
+  intercept:   { label: 'intercept',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', advance: false } },
   // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
   evasion:     { label: 'evasion',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false, identity: { stay: false } },
   guard:       { label: 'guard',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '' } },

@@ -17,6 +17,7 @@ import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
 import { GRAZE_SAVE_COST } from '../rules/cast'
+import { getReactionsTo } from '../rules/log'
 
 // The moments an action touches a character: `roll`, when the die is thrown
 // and the price leaves the actor in the same step; `save`, when a graze is
@@ -105,9 +106,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         }
         if (c.id !== action.targetId || !action.facts) return c
         const struck = deliver(action.facts)(c)
-        const braced = action.kind === 'strike' && action.trample ? trampledBy([action.trample], c.id, struck) : struck
-        // combat.tex "Trip": "the target falls and is prone"
-        return action.kind === 'strike' && action.tripped ? fallProne(braced) : braced
+        return action.kind === 'strike' && action.trample ? trampledBy([action.trample], c.id, struck) : struck
     }
   }
 }
@@ -201,7 +200,10 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       return { ...board, placements: destination ? { ...placements, [action.actorId]: destination } : placements }
     }
     if (action.kind === 'strike') {
-      const placements = pushedBy(action.trample ? [action.trample] : [], board.placements)
+      // abilities.tex "Defender", "Defensive Advance": whoever stepped to
+      // block or intercept stands where they stepped
+      const stepped = Object.fromEntries(getReactionsTo(state, action.id).flatMap((r) => ((r.kind === 'block' || r.kind === 'intercept') && r.to ? [[r.actorId, r.to]] : [])))
+      const placements = pushedBy(action.trample ? [action.trample] : [], { ...board.placements, ...stepped })
       // combat.tex "Evasive Jump": the defender lands where the jump said
       if (!action.jumpedTo || !action.targetId) return { ...board, placements }
       return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }

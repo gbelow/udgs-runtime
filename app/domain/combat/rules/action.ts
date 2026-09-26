@@ -20,6 +20,7 @@ import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityState, getOpportunityStrike, guardRows, isAttackAction, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
 import { getCounterStrike } from './counter'
+import { isGuardPlaced } from './protect'
 import { getRiposteDiscount } from './riposte'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 
@@ -53,7 +54,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
-      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row)
+      const root = getRootOf(state, action)
+      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (root?.kind !== 'strike' || isGuardPlaced(state, root, action))
     }
     case 'guard': {
       const root = getRootOf(state, action)
@@ -139,6 +141,9 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
   // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
   // strike with a weapon with the grapple property"
   if (action.kind === 'strike' && action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
+  // the knockdown a hook opens is the hook's post-hit effect, not a
+  // maneuver of its own (the table's ruling)
+  if (action.kind === 'grapple' && action.hook) return { AP: 0, STA: 0 }
   if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'counterattack') {
     const variant = getAttackVariant(c, action.kind === 'counterattack' ? getCounterStrike(action, '') : action)
     return variant ? { AP: variant.AP, STA: variant.STA } : null
@@ -148,6 +153,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
   // AP and STA is paid the same, off the sheet
   if (action.kind === 'cast') return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
   if (action.kind === 'evasion') return getEvasionCost(c, action.stay)
+  if (action.kind === 'block' || action.kind === 'intercept') return withGuardStep(c, action, getActionCost(c, action.kind))
   // combat.tex "Push and drag": going along is paid at the resolve, for the
   // metres actually moved
   // a reaction with no price of its own (an opportunity attack, a follow)
@@ -193,6 +199,13 @@ export function getRepurposedAP(state: CombatState, reactorId: string, rootId: s
 export function lessRepurposed(state: CombatState, reactorId: string, rootId: string, cost: ActionCost): ActionCost {
   const AP = getRepurposedAP(state, reactorId, rootId)
   return AP > 0 ? { AP: Math.max(0, cost.AP - AP), STA: cost.STA } : cost
+}
+
+// A block's or an intercept's price, and the STA of the step it is made
+// with: a Defensive Advance's, or a Defender's.
+export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | ActionOf<'intercept'>, cost: ActionCost): ActionCost {
+  const step = action.kind === 'intercept' && action.advance ? getActionCost(c, 'defensiveAdvance') : action.to ? getActionCost(c, 'defenderStep') : null
+  return step ? { AP: cost.AP + step.AP, STA: cost.STA + step.STA } : cost
 }
 
 // combat.tex "Evasion": "spend 2 AP to react"; abilities.tex "Precise
@@ -264,7 +277,9 @@ export function needsTarget(action: Action): boolean {
 // be aimed at again.
 export function getTargetIds(state: CombatState, root: Action): string[] {
   if (!needsTarget(root)) return []
-  // combat.tex "Grapple": what is done in a grapple is done to a partner
+  // combat.tex "Grapple": what is done in a grapple is done to a partner —
+  // but the knockdown a hook opens, at whoever it hooked ("Hook Attack")
+  if (root.kind === 'grapple' && root.hook) return root.targetId ? [root.targetId] : []
   if (root.kind === 'grapple') return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
   if (root.kind === 'release') return getReleaseTargets(state, root.actorId)
   if (root.kind === 'holdBack') return getHoldBackTargets(state, root.actorId)

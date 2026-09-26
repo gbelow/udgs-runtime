@@ -5,6 +5,7 @@ import { getFootprint, getOccupancy, toPlane } from '../rules/board'
 import { findOption } from '../rules/options'
 import { getNextStep, getTargetIds } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
+import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/activeCharacter'
 import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
@@ -38,6 +39,10 @@ export type BoardCellView = {
   // landing it has picked
   jump: boolean
   isJumpTo: boolean
+  // where a block or intercept against the open strike may step first
+  // (abilities.tex "Defender", "Defensive Advance"), while its step is
+  // still to be picked
+  step: boolean
   // the explosion in play: where it may be aimed, where it is aimed, what
   // it may still reach, and the degree of effect where it goes off
   center: boolean
@@ -139,6 +144,8 @@ export function getBoardView(state: CombatState): BoardView {
   const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
+  const guard = open?.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
+  const steps = new Set(guard ? guard.steps.map((p) => coordKey(p.cell)) : [])
 
   // the explosion in play: the centres it may be aimed at, what it
   // threatens, and its zones once it is pointed. It stays aimable for as
@@ -193,6 +200,7 @@ export function getBoardView(state: CombatState): BoardView {
       isDestination: destination !== null && sameCell(destination, cell),
       jump: landings.has(key),
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
+      step: steps.has(key),
       center: centers.has(key),
       isCenter: laid?.center !== null && laid?.center !== undefined && sameCell(laid.center, cell),
       threatened: threatened.has(key),

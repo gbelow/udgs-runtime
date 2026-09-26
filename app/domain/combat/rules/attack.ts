@@ -16,6 +16,7 @@ import { getExplosionDLTerms } from './explosion'
 import { getGrappleStrikeTerm, getManeuverDLTerms, getPushStop } from './grapple'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
+import { isDefense } from './actionCatalog'
 import { getCastTerms } from './cast'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRiposteDefense } from './riposte'
@@ -253,20 +254,45 @@ function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":
-// "Blocking with a shield adds its cover to defend".
+// "Blocking with a shield adds its cover to defend"; abilities.tex
+// "Defensive Advance": an intercept made with one, "adding shield cover to
+// the defense".
 function coverTerms(reactor: Character, reaction: Action): Term[] {
-  if (reaction.kind !== 'block' && reaction.kind !== 'guard') return []
+  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && !(reaction.kind === 'intercept' && reaction.advance)) return []
   const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
   return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
 
-// The reaction the attack is met with: a shot's strongest answer, anything
-// else's the target's own. Null: the target stands on their SD — as one who
-// counterattacks does (abilities.tex "Counterattack": "Both attacks are made
-// against the opponent's SD").
+// The reaction the attack is met with: a shot's or a strike's strongest
+// answer, anything else's the target's own. Null: the target stands on
+// their SD — as one who counterattacks does (abilities.tex "Counterattack":
+// "Both attacks are made against the opponent's SD").
 export function getDefendingReaction(state: CombatState, root: Action): Action | null {
   if (root.kind === 'shoot') return getShotDefense(state, root)
+  if (root.kind === 'strike') return getStrikeDefense(state, root)
   return root.targetId ? getReactionsTo(state, root.id).find((r) => r.actorId === root.targetId && r.kind !== 'counterattack') ?? null : null
+}
+
+// The reaction a strike is met with: the target's own, or a block or an
+// intercept made for them by a protector (combat.tex "Protect"). Like a
+// shot against its guards, it has to beat every one of them (the table's
+// ruling), so it is scored against whichever puts up the most.
+function getStrikeDefense(state: CombatState, root: StrikeAction): Action | null {
+  return getReactionsTo(state, root.id)
+    .filter((r) => (r.actorId === root.targetId && isDefense(r.kind)) || (r.actorId !== root.targetId && (r.kind === 'block' || r.kind === 'intercept')))
+    .reduce<Action | null>((best, r) => (best === null || sumTerms(strikeDefenseTerms(state, root, r)) > sumTerms(strikeDefenseTerms(state, root, best)) ? r : best), null)
+}
+
+// combat.tex "Defend": what one reaction to a strike puts up — the
+// reactor's Defend, with a shield's cover, an evasive jump's "+AGI/2 on the
+// skill test"; "High Ground": "+2 bonus to their melee defense".
+function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Action): Term[] {
+  const reactor = state.characters[reaction.actorId]
+  if (!reactor) return []
+  const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction)]
+  if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
+  if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
+  return terms
 }
 
 // The reaction a shot is met with: the target's own, or a guard made for
@@ -303,12 +329,12 @@ export function getDLTerms(state: CombatState, root: Action): Term[] {
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
   if (root.kind === 'shoot') return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
-  const terms: Term[] = !reaction ? [{ label: 'SD', value: getSD(defender) }] : [{ label: 'defend', value: getDefend(defender) }, ...coverTerms(defender, reaction)]
-  if (reaction?.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(defender) / 2) })
-  if (root.kind === 'strike' && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
+  if (root.kind !== 'strike') return []
+  const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender) }]
+  if (!reaction && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD" — not against a braced attack (the table's ruling)
-  if (root.kind === 'strike' && root.opportunity && root.variant !== 'braced' && reaction) terms.push({ label: 'opportunity', value: -2 })
+  if (root.opportunity && root.variant !== 'braced' && reaction) terms.push({ label: 'opportunity', value: -2 })
   return terms
 }
 

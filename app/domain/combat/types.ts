@@ -229,9 +229,6 @@ export const StrikeActionSchema = z.object({
   // what landing did to the target's action, written at the resolve: a move
   // an opportunity attack interrupted is cut short by it
   interruption: InterruptionSchema.default('none'),
-  // combat.tex "Trip": the hook's trip took the target off their feet,
-  // written at the resolve
-  tripped: z.boolean().default(false),
   // combat.tex "Braced Attack": "The additional damage effect also triggers
   // a trample" — the mover against the bracer, written at the resolve
   trample: TrampleSchema.nullable().default(null),
@@ -340,8 +337,12 @@ export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evad
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
 // away from the attack"); null on a fight without a board.
 export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
-export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef }).strip()
-export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef }).strip()
+// A block or an intercept names where its defender steps before they make
+// it, if they do (abilities.tex "Defender", "Defensive Advance"); an
+// intercept made as a Defensive Advance is `advance`.
+const GuardStep = { to: PlacementSchema.nullable().default(null) }
+export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...GuardStep }).strip()
+export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, advance: z.boolean().default(false) }).strip()
 
 // combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
 // test; where it lets the evader move, the move is opened after the shot,
@@ -451,7 +452,9 @@ export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('fol
 // made to get up, which "does not disolve the grapple when done that way".
 // `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
-// opportunity attack, its defense at -2.
+// opportunity attack, its defense at -2. `hook` is the knockdown a hook
+// attack opens (combat.tex "Hook Attack"): free, needing no grapple, and
+// with no throwing oneself along ("Knockdown").
 export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
@@ -461,6 +464,7 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
+  hook: z.boolean().default(false),
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 

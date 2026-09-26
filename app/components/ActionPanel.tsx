@@ -157,6 +157,7 @@ export function ActionPanel(){
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
+          {view.stepPending ? <span className='text-xs text-muted'>pick where {view.stepPending} steps on the board</span> : null}
           {view.die || view.compare || open.area ? <Test open={open} /> : null}
           <div className='flex flex-row gap-1'>
             {view.die

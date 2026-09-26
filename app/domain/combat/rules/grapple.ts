@@ -270,14 +270,16 @@ function freeSeized(state: CombatState, ownerId: string, done: GrappleFacts): Gr
 
 function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFacts | null {
   if (!root.targetId || !root.roll) return null
-  const g = findGrapple(state.grapples, root.actorId, root.targetId)
-  if (!g) return null
   const pair: [string, string] = [root.actorId, root.targetId]
+  const found = findGrapple(state.grapples, root.actorId, root.targetId)
+  if (!found && root.hook) return getHookKnockdownFacts(state, root, pair)
+  if (!found) return null
+  const g = found
   const deliveries = getHoldDeliveries(state, g)
   const degree = root.roll.degree
   const critical = degree === 'critical'
   const landed = isManeuverWon(root)
-  const along = critical || (degree === 'hit' && root.along)
+  const along = critical || (degree === 'hit' && root.along && !root.hook)
   const who = critical ? [root.targetId] : [root.targetId, root.actorId]
   switch (root.maneuver) {
     case 'escape':
@@ -297,6 +299,19 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
       return facts(state, pair, { ...g, seized: [...new Set([...g.seized, item])] }, { deliveries, seized: item })
     }
   }
+}
+
+// combat.tex "Hook Attack": the knockdown a hook opens between two who hold
+// nothing of each other — no grapple to change, nor holds to deal their
+// damage; the target falls on a critical ("Knockdown": "It is not possible
+// to throw oneself along during a hook attack").
+function getHookKnockdownFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
+  return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], stand: [], dropped: null, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+}
+
+// Whether the knockdown the strike's hook opened put the character down.
+export function isKnockedDownByHook(state: CombatState, strike: StrikeAction, id: string): boolean {
+  return state.actions.some((a) => a.kind === 'grapple' && a.hook && a.spawnedBy === strike.id && a.step === 'done' && (a.facts?.prone.includes(id) ?? false))
 }
 
 // combat.tex "Escape": "Being stunned allows for a reaction to escape

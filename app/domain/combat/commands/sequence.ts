@@ -10,6 +10,7 @@ import { isVoided } from '../rules/opportunity'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
 import { getDisplacement, getStunEscapes } from '../rules/grapple'
+import { getHookKnockdown } from '../rules/damage'
 import { makeAction } from '../factories'
 import { appendActions, applyPhase, replaceActions } from './log'
 
@@ -82,7 +83,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // reactions open after it (rules/openers.ts), in the order they were
 // declared; the escapes a stun opens, the way a push was pointed, walked,
 // the explosion a cast that hit with an area to it goes off as, aimed and
-// played out on its own (the caster's part is done); and on top, a riposte.
+// played out on its own (the caster's part is done), the knockdown a hook
+// opens; and on top, a riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`.
 export function getFollowUps(state: CombatState, root: RootAction, newId: () => string): Action[] {
@@ -100,6 +102,7 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
     ...escapesOnStun(state, root, newId),
     ...(displacement ? [makeAction('displace', { ...displacement, id: newId(), actorId: root.actorId, spawnedBy: root.id, step: 'react' })] : []),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
+    ...openHookKnockdown(state, root, newId),
     ...openRiposte(state, root, newId),
   ]
 }
@@ -110,6 +113,14 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
 function castExplosion(state: CombatState, root: CastAction, newId: () => string): ExplosionAction {
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id })
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
+}
+
+// combat.tex "Hook Attack": the knockdown the hook opens, for the hooker to
+// take or skip, unresisted against one running or jumping.
+function openHookKnockdown(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  const knockdown = root.kind === 'strike' ? getHookKnockdown(state, root) : null
+  if (!knockdown || root.kind !== 'strike') return []
+  return [makeAction('grapple', { maneuver: 'knockdown', hook: true, unresisted: knockdown.unresisted, id: newId(), actorId: root.actorId, targetId: root.targetId, spawnedBy: root.id })]
 }
 
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held

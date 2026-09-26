@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
+import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
 import type { Area, MoveKind } from '../../types'
 import { getActionName } from '../rules/actionCatalog'
@@ -25,6 +25,7 @@ import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
 import { canPickUp, getReachableFloor } from '../rules/floor'
+import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 
 export type LocationOption = { location: HitLocation; penalty: number }
@@ -203,6 +204,9 @@ export type ActionPanelView = {
   canPay: boolean
   // an evasive jump is declared but has not picked its landing yet
   jumpPending: boolean
+  // who still has to pick on the board where they step to block or
+  // intercept; null when nobody does
+  stepPending: string | null
   // at `react`: a reaction has been declared and can be taken back
   canBack: boolean
   // for a move being declared: the kinds of movement open to the actor and
@@ -224,7 +228,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -287,7 +291,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
       opportunity: open.kind === 'strike' && open.opportunity,
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
-      along: grapple && hit && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
+      along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
       disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' ? open.itemId : ''),
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
@@ -325,6 +329,7 @@ export function getActionPanel(state: CombatState): ActionPanelView {
     canRoll: step === 'react' && die && areReactionsComplete(state, open),
     canPay: step === 'react' && !die && affordable && areReactionsComplete(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
+    stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
     reachable: move ? getReachableCells(state, move) : [],
@@ -357,4 +362,10 @@ function getPushView(state: CombatState, drag: DragAction): PushView {
     steps: drag.steps,
     aimed: !needsDragAim(state, drag),
   }
+}
+
+// Who still has to pick where they step to block or intercept the strike.
+function stepPendingName(state: CombatState, open: StrikeAction): string | null {
+  const guard = getPendingGuardStep(state, open)
+  return guard ? getFightName(state, guard.reaction.actorId) : null
 }

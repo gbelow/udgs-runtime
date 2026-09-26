@@ -7,10 +7,11 @@ import { getAvailableActions } from '../rules/options'
 import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
-import { getAttackOptions } from '../rules/attack'
+import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
-import { aimExplosion, aimPush } from './choices'
+import { aimExplosion, aimPush, spendHOP } from './choices'
+import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
@@ -428,6 +429,122 @@ describe('a riposte', () => {
     expect(kinds(own)).toContain('opportunityAttack')
     expect(kinds(s)).not.toContain('opportunityAttack')
     expect(kinds(s)).toContain('evade')
+  })
+})
+
+// combat.tex "Hook Attack": "a reaction against running targets that move
+// away from the weapon within two spaces, which are both inside its melee
+// range. On a hit, the character can spend +2 AP +1STA to get" its damage;
+// "If the attack was aimed at the legs or head, the post hit effect is a
+// knockdown attempt which cannot be reacted against if they are running or
+// jumping." The table's ruling: the knockdown comes only once the damage is
+// bought, and costs nothing more.
+describe('a hook attack', () => {
+  // A halberdier hooks, at `location`, a runner setting off away from them,
+  // the hook hitting; with its damage bought or not, and landed.
+  function hookRunner(location: 'leg' | 'chest', buy: boolean): CombatState {
+    let s = onBoard({ h: [0, 0], r: [1, 0] }, wielder('h', 'Halberd'), { ...fighter('r'), usedSurge: 'movement' as const })
+    s = declareAction('r', { kind: 'move' }, newId)(s)
+    s = commitAction()(amendAction({ movement: 'run', path: [{ q: 2, r: 0 }, { q: 3, r: 0 }, { q: 4, r: 0 }, { q: 5, r: 0 }] })(s))
+    const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
+    s = declareReaction('h', option.draft, newId)(s)
+    s = amendReaction('h', { weaponKey: s.characters.h.held[0].id, attack: 'hook', variant: 'hook', location })(s)
+    s = rollAction(() => 9, newId)(payAction(newId)(s))
+    expect(getOpenAction(s)?.roll?.degree).toBe('hit')
+    return resolveAction(newId)(buy ? spendHOP('hook')(s) : s)
+  }
+
+  it('knocks a runner hooked at the legs down, unresisted, and the run stops there', () => {
+    let s = commitAction()(hookRunner('leg', true))
+    const knockdown = getOpenAction(s)
+    expect(knockdown).toMatchObject({ kind: 'grapple', maneuver: 'knockdown', actorId: 'h', targetId: 'r', unresisted: true })
+    expect(getTriggers(s, knockdown!)).toEqual([])
+    s = resolveAction(newId)(rollAction(() => 20, newId)(s))
+    const { state } = playOut(s, MISS)
+    expect(state.characters.r.afflictions).toContain('prone')
+    expect(state.board?.placements.r?.cell).toEqual({ q: 1, r: 0 })
+  })
+
+  it.each([
+    { name: 'without its damage bought', location: 'leg' as const, buy: false },
+    { name: 'aimed at the chest', location: 'chest' as const, buy: true },
+  ])('opens no knockdown $name', ({ location, buy }) => {
+    expect(getOpenAction(hookRunner(location, buy))?.kind).toBe('move')
+  })
+})
+
+// combat.tex "Protect": "It is possible to defend an ally by staying within
+// one space distance of the line between attacker and target. The defender
+// can block or intercept an attack directed at an ally." The table's
+// rulings: anyone may; a strike has to beat every defense, as a shot its
+// guards; Defender and Defensive Advance are steps taken with the defense.
+describe('protecting the target of a strike', () => {
+  function shielded(id: string, abilities: string[] = []): CampaignCharacter {
+    const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+    return holdItem(shield)(fighter(id, abilities)) as CampaignCharacter
+  }
+
+  // A spearman thrusts at a target two spaces away, who knows Defensive
+  // Advance. By the line: one right beside it, one two spaces off it who
+  // knows Defender, and one well away from it.
+  function thrustPastBystanders(): CombatState {
+    let s = onBoard({ atk: [0, 0], def: [2, 0], p: [1, -1], d: [1, -2], o: [0, 3] },
+      spearman('atk'), shielded('def', ['defensive-advance']), shielded('p'), shielded('d', ['defender']), shielded('o'))
+    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    return commitAction()(setTarget('def')(s))
+  }
+  const shieldOption = (s: CombatState, id: string, label: string) => getAvailableActions(s, id).find((o) => o.label === `${label} with Wooden Shield`)
+  const kinds = (s: CombatState, id: string) => [...new Set(getAvailableActions(s, id).map((o) => o.draft.kind))]
+  // The step open to the one declared, picked on the board: the first cell
+  // a click there takes.
+  function pickStep(s: CombatState): CombatState {
+    for (let q = -3; q <= 3; q++) for (let r = -3; r <= 3; r++) {
+      const picked = pickCell({ q, r }, newId)(s)
+      if (picked !== s) return picked
+    }
+    return s
+  }
+
+  it('offers a block and an intercept to one by the line, and nothing to one away from it', () => {
+    const s = thrustPastBystanders()
+    expect(kinds(s, 'p')).toEqual(['block', 'intercept'])
+    expect(kinds(s, 'o')).toEqual([])
+  })
+
+  it("scores the strike against a protector's block when the target stands on their SD", () => {
+    const start = thrustPastBystanders()
+    const s = declareReaction('p', shieldOption(start, 'p', 'block')!.draft, newId)(start)
+    const strike = getOpenAction(s)!
+    expect(getDefendingReaction(s, strike)?.actorId).toBe('p')
+    expect(getDLTerms(s, strike).map((t) => t.label)).toContain('cover')
+  })
+
+  // combat.tex "Intercept": "It requires the defender to be in short range."
+  // abilities.tex "Defensive Advance": "Spend 1 STA to move forward to get in
+  // range to intercept, adding shield cover to the defense."
+  it('closes an intercept out of short range, but for a Defensive Advance a step closer, with cover', () => {
+    const start = thrustPastBystanders()
+    expect(shieldOption(start, 'def', 'intercept')?.reason).toBe('out of short range')
+    const advance = shieldOption(start, 'def', 'defensive advance')!
+    expect(advance.cost).toEqual({ AP: 3, STA: 1 })
+    const s = pickStep(declareReaction('def', advance.draft, newId)(start))
+    expect(getDLTerms(s, getOpenAction(s)!).map((t) => t.label)).toContain('cover')
+    const { state } = playOut(s, MISS)
+    expect(state.board?.placements.def?.cell).toEqual({ q: 1, r: 0 })
+  })
+
+  // abilities.tex "Defender": "Allows you to spend 1 STA to move 1 basic
+  // movement as a reaction to position yourself to defend someone."
+  it('lets one who knows Defender step onto the line to block, for 1 STA more', () => {
+    const start = thrustPastBystanders()
+    const block = shieldOption(start, 'd', 'block')!
+    expect(block.cost).toEqual({ AP: 2, STA: 1 })
+    const declared = declareReaction('d', block.draft, newId)(start)
+    const s = pickStep(declared)
+    expect(s).not.toBe(declared)
+    const { state } = playOut(s, MISS)
+    expect(state.board?.placements.d?.cell).toEqual({ q: 0, r: -1 })
   })
 })
 

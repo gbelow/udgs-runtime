@@ -9,14 +9,13 @@ import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rul
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
-import { getBalance, getForce } from '../../character/rules/skills'
+import { getForce } from '../../character/rules/skills'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
-import { getMovementSpeed } from './move'
 import { getGrabFacts } from './grapple'
 
 // ---------------------------------------------------------------------------
@@ -145,20 +144,15 @@ function getStrikeTrample(state: CombatState, root: AttackAction): Trample | nul
   return step ? getBlowTrample(state, root, step.move, step.at) : null
 }
 
-// combat.tex "Trip": "a comparison between the attacker's force and target's
-// balance + force. If anyone is jumping or running, the attacker gets a bonus
-// equal to the moving party's movement speed. If the attacker's value is
-// higher, the target falls and is prone. Targeting the head or legs increases
-// the attacker's value by +5." The moving party is the target; an evasive
-// jump moves at the backwards jump ("Evasive Jump").
-function isTripped(state: CombatState, root: AttackAction): boolean {
-  const attacker = state.characters[root.actorId]
-  const target = root.targetId ? state.characters[root.targetId] : undefined
-  if (!attacker || !target || (root.spent.hook ?? 0) === 0 || root.roll?.degree !== 'hit') return false
-  const motion = getHookedMotion(state, root)
-  const speed = motion === 'running' ? getMovementSpeed(target, 'run') : motion === 'jumping' ? getMovementSpeed(target, 'jump') / 2 : 0
-  const aimed = root.location === 'head' || root.location === 'leg' ? 5 : 0
-  return getForce(attacker) + speed + aimed > getBalance(target) + getForce(target)
+// combat.tex "Hook Attack": "If the attack was aimed at the legs or head,
+// the post hit effect is a knockdown attempt which cannot be reacted against
+// if they are running or jumping" — a knockdown of the hooker's, made only
+// once the hook's damage was bought (the table's ruling). Null when the
+// strike opens none; otherwise whether the target may resist it.
+export function getHookKnockdown(state: CombatState, root: StrikeAction): { unresisted: boolean } | null {
+  if (!root.targetId || (root.spent.hook ?? 0) === 0 || root.roll?.degree !== 'hit') return null
+  if (root.location !== 'head' && root.location !== 'leg') return null
+  return { unresisted: getHookedMotion(state, root) !== null }
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP
@@ -208,14 +202,13 @@ export function getInterruption(state: CombatState, root: AttackAction, facts: D
 // any movement initiated by them is stopped"; combat.tex "Catch": "If the
 // target is stopped, the catcher can decide to grapple them without further
 // tests".
-export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'tripped' | 'trample' | 'grabbed' | 'jumpedTo'> {
+export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
   const grabbed = strike.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, strike)
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
   return {
     interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,
-    tripped: isTripped(state, strike),
     trample,
     grabbed,
     jumpedTo: jump?.kind === 'evasiveJump' ? jump.to : null,
@@ -245,18 +238,18 @@ const HOP_LABELS: Record<HOPPurchase, string> = {
   handSwitch: 'switch to hand',
   assassinate: 'assassinate',
   braced: 'braced',
-  hook: 'hook (trip)',
+  hook: 'hook',
 }
 
 // combat.tex "Assassinate": "This costs 1 extra AP on the normal cost of the
 // attack"; "Braced Attack": "an additional +2AP and +1STA on top of the
-// normal attack cost"; "Hook Attack": "On a hit, the character can spend +1
-// AP +1STA to attempt to trip their target".
+// normal attack cost"; "Hook Attack": "On a hit, the character can spend +2
+// AP +1STA to get" its damage.
 export function getHOPPrice(purchase: HOPPurchase, attacker: Character): ActionCost | null {
   switch (purchase) {
     case 'assassinate': return getActionCost(attacker, 'assassinate')
     case 'braced': return getActionCost(attacker, 'braced')
-    case 'hook': return getActionCost(attacker, 'hookTrip')
+    case 'hook': return getActionCost(attacker, 'hook')
     default: return null
   }
 }

@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import type { Action, ActionDraft, ActionKind, CombatState } from '../types'
+import type { Action, ActionDraft, ActionKind, ActionOf, CombatState } from '../types'
 import { ACTIONS, getActionDef, getActionNoun, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { getAfflictions, isImmobile } from '../../character/rules/afflictions'
@@ -12,7 +12,9 @@ import { getCancellableRoot } from './opportunity'
 import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, isHeld } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
-import { getEvasionCost, isAnswerable, lessRepurposed } from './action'
+import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './action'
+import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
+import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
 import { defRows, getAttackOptions, guardRows, hasUnfocusedRow } from './attack'
 import { getSpellOptions } from './cast'
@@ -53,6 +55,21 @@ function defenseGate(state: CombatState, defender: CampaignCharacter, root: Acti
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return { available: false, reason: 'mid-jump' }
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return { available: false, reason: 'no space to jump' }
   return { available: true, reason: null }
+}
+
+// A block or an intercept as it may be made against a strike: whether it
+// can be made from where its defender stands, or from a step they can
+// still take (`needsGuardStep`), and its price with that step. Against
+// anything else, as it stands.
+function guardOption(state: CombatState, c: CampaignCharacter, root: Action, guard: ActionOf<'block'> | ActionOf<'intercept'>, gate: { available: boolean; reason: string | null }): { label: string; cost: ActionCost; available: boolean; reason: string | null } {
+  const label = guard.kind === 'intercept' && guard.advance ? 'defensive advance' : ACTIONS[guard.kind].label
+  const cost = withGuardStep(c, guard, getActionCost(c, guard.kind))
+  if (root.kind !== 'strike') return { label, cost, ...gate }
+  const stepping = needsGuardStep(state, root, guard)
+  const placed = stepping || isGuardPlaced(state, root, guard)
+  const priced = stepping && !(guard.kind === 'intercept' && guard.advance) ? withGuardStep(c, { ...guard, to: getGuardSteps(state, root, guard)[0] }, getActionCost(c, guard.kind)) : cost
+  const reason = gate.reason ?? (!canAfford(c, priced) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
+  return { label, cost: priced, available: reason === null, reason }
 }
 
 // Everything the character may declare right now: their own actions while no
@@ -161,7 +178,15 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
     switch (kind) {
       case 'block':
       case 'intercept':
-        return defRows(c).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+        return defRows(c).flatMap((row) => {
+          const base = { id: '', actorId: c.id, reactionTo: open.id, weaponKey: row.wielded.key, attack: row.atk.name }
+          const guards = [makeAction(kind, base), ...(kind === 'intercept' && c.abilities.includes('defensive-advance') ? [makeAction('intercept', { ...base, advance: true })] : [])]
+          return guards.map((guard) => {
+            const { label, cost: own, available, reason } = guardOption(state, c, open, guard, gate)
+            const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }
+            return { ...option(`${label} with ${row.weapon.name}`, draft, lessRepurposed(state, c.id, open.id, own)), available, reason }
+          })
+        })
       case 'guard':
         return guardRows(state, c, open).map((row) => option(`${ACTIONS[kind].label} with ${row.weapon.name}`, { kind, weaponKey: row.wielded.key, attack: row.atk.name }))
       // combat.tex "Evasion" lets the evader move after the shot; one who

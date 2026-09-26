@@ -159,3 +159,6 @@ one list, driven by `getTriggers`. Its per-kind switch shapes genuinely differen
     attack's opener.
   - The reverse lookups, `getOpeningReaction`, `getOpeningCounter` and
     `getRiposteDefense`, stay separate. Each narrows to a different opener.
+- **Defender and Defensive Advance did not trigger stage 4.** They are steps taken with
+  a block or an intercept (`rules/protect.ts`), not reactions that carry a strike.
+  Precise Evasion is still the candidate third one.

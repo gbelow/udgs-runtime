@@ -3,10 +3,11 @@ import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type
 import { makeBoard } from '../factories'
 import { coordKey, directionTo, distance, sameCell } from '../geometry'
 import { getOpenAction } from '../rules/log'
+import { getPendingGuardStep } from '../rules/protect'
 import { getExplosionCenters } from '../rules/explosion'
 import { placeAt, withPlacements } from '../rules/board'
 import { canStandAt, getEvasiveJumpPlacements, getMoveOrigin, getReachableCells, type ReachableCell } from '../rules/move'
-import { amendAction, declareReaction } from './action'
+import { amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion, aimPush } from './choices'
 
 // The simulation tool's own commands: what the table does to the board by
@@ -96,6 +97,11 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
       if (open.choice === 'circle') return aimPush({ to: cell })(state)
       const from = state.board?.placements[open.actorId]
       return open.choice === 'push' && from && !sameCell(from.cell, cell) ? aimPush({ direction: directionTo(from.cell, cell) })(state) : state
+    }
+    const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
+    if (guard) {
+      const to = guard.steps.find((p) => sameCell(p.cell, cell))
+      return to ? amendReaction(guard.reaction.actorId, { to })(state) : state
     }
     if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
       const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))

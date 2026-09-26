@@ -11,6 +11,7 @@ import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 import { getOpeningReaction } from './log'
 import { getRiposteDefense } from './riposte'
+import { getProtectors } from './protect'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -94,7 +95,10 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   const flankers = getFlankers(state, root.actorId, root.targetId)
     .filter((id) => getMeleeRange(state.characters[id]) > 0)
     .map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
-  return [...defenses, ...flankers]
+  // combat.tex "Protect": whoever stands by the line may block or intercept
+  const protectors = getProtectors(state, root)
+    .flatMap((id) => (['block', 'intercept'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
+  return [...defenses, ...protectors, ...flankers]
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by
