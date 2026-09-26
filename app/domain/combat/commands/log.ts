@@ -13,10 +13,10 @@ import { settleGrapples } from './grapple'
 
 // The fight with its log rewritten, and the stack kept to the actions still
 // being played out: `pushed` goes on top, anything resolved or gone leaves,
-// and what leaves resolved goes into the history.
+// and what leaves having landed goes into the history.
 export function setActions(state: CombatState, actions: Action[], pushed: string[] = []): CombatState {
   const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
-  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id))
+  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id && !a.declined))
   return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)), history: [...state.history, ...landed] }
 }
 

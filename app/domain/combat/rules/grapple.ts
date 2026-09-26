@@ -17,7 +17,7 @@ import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './wea
 import { canStandAt, getMoveCost } from './move'
 import { delivering, getRowDamage } from './damage'
 import { isAttackAction } from './attack'
-import { getDrawnOpportunityAttacks } from './opportunity'
+import { getDrawnOpportunityAttacks, isInterruptingStrike } from './opportunity'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -525,8 +525,7 @@ export function getDragPath(state: CombatState, root: DragAction): { outcome: Dr
 // moves stays, as an interrupted mover does (the table's ruling: only the
 // pusher's interruption stops it). Null while it goes on.
 export function getPushStop(state: CombatState, root: DragAction): number | null {
-  const stopped = getDrawnOpportunityAttacks(state, root).find(({ spawned }) =>
-    spawned?.kind === 'strike' && spawned.step === 'done' && spawned.targetId === root.actorId && spawned.interruption !== 'none')
+  const stopped = getDrawnOpportunityAttacks(state, root).find(({ spawned }) => isInterruptingStrike(spawned, root.actorId))
   return stopped ? Math.max(0, (stopped.reaction.at ?? 1) - 1) : null
 }
 

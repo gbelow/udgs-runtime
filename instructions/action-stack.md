@@ -55,7 +55,10 @@ Rulings the stack must respect:
 - One `isInterrupted(state, id)` rule replacing `isCancelled`, `getPushStop` and the
   interruption part of `getMoveOverride`.
 - Each reaction kind in `ACTIONS` says where its opened action goes:
-  `opens: 'before' | 'after' | 'byRoll'`.
+  `opens: 'before' | 'after' | 'byRoll'`. Deferred to stage 7: today the per-kind rules
+  (`getMoveBeforeBlast`, `getMoveAfter`) already say it, and a catalog field nothing reads
+  would be structure ahead of practice. Add it with the counterattack, the first reaction
+  whose slot is decided by the roll.
 
 ## Stages
 
@@ -69,7 +72,7 @@ Rulings the stack must respect:
 - [x] **3a.** An action opened by an opportunity attack draws no opportunity attacks.
 - [x] **3b.** A flanker's opportunity attack is fought before the strike lands; a strike
   it interrupts lands nothing and opens nothing.
-- [ ] **3c.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
+- [x] **3c.** `advance` and the two slots, driven by `opens` in the catalog; `isInterrupted`.
   Replaces `afterPaying`, `afterLanding`, `advanceOpportunities`, `spawn`, `fightPush`.
 - [ ] **4.** Cancelling the triggering action becomes a defense option on the opportunity
   strike's own `react` step; `cancelled` / `cancelledFor` go.
@@ -127,3 +130,19 @@ Rulings the stack must respect:
   they land (kept by `setActions`), and `getLastReport` reads its end. The panel shows the
   "cancelled" note and no HOP for a voided attack waiting on confirm. Regression test in
   `sequence.test.ts`. `history` is the first piece of the event log the model anticipated.
+- Stage 3c: `commands/sequence.ts` is now `advance` (resume from the top of the stack: a
+  rolled action opens the next action its reactions opened before its effect), `openBefore`,
+  `getFollowUps` (was `spawn`) and `fightPush`. `afterPaying`, `afterLanding` and
+  `advanceOpportunities` are gone; every command ends in `advance`. The three copies of
+  "a landed strike that interrupted this character" share `isInterruptingStrike`
+  (`isCancelled`, `getPushStop`, `getMoveOverride`).
+  - New field `ActionBase.declined`. Withdrawing an action another opened (an escape, a
+    follow, a stun escape) used to delete it, which only worked because escapes were opened
+    at one fixed moment. With `advance` resuming from the stack, a deleted escape would be
+    offered again, so it is now closed as declined, kept in the log, and left out of
+    `history`. An opportunity attack's strike is still removed together with its reaction.
+    Checked by a scratch play-out (blast, two escapes, first skipped, second walked); not
+    kept as a test.
+  - Behavior change: the follow-ups of an opportunity attack's strike (a stun escape) are
+    now played out before the next opportunity attack on the same root, not after it.
+    This is the pipeline's order: an action's follow-ups come right after its effect.

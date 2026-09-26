@@ -138,6 +138,9 @@ const ActionBase = {
   // is declared as a reaction and fought as a strike of its own.
   spawnedBy: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
+  // An action another opened that its actor chose not to take: closed
+  // without landing, and kept so it is not offered again.
+  declined: z.boolean().default(false),
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought

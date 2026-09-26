@@ -17,7 +17,7 @@ export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; 
 
 // combat.tex "Opportunity Attack": each threatener the action drew gets one
 // attack, spawned in turn as the one before lands (commands/sequence.ts
-// `advanceOpportunities`), each with what it opened if it has. They are
+// `openBefore`), each with what it opened if it has. They are
 // fought in the order the root comes to them: along the path, for a move or
 // a push, whose attacks each fire at a step; in the order they were
 // declared, for anything else (combat.tex "Flanking": "resolved in order").
@@ -40,16 +40,21 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
   return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
 }
 
-// combat.tex "Interruption": "interrupts any action from its victim, making
-// them lose its associated costs" — whether an opportunity attack the action
-// drew has landed with an interruption on its actor. A push that moved or
-// stopped the actor interrupted them too (combat.tex "Push and drag":
-// "interrupts them"). One fought against someone else — a third party's
-// against whoever a push moved at them — does not stop the actor.
+// combat.tex "Interruption": "interrupts any action from its victim" —
+// whether the action is a strike that has landed on the character with an
+// interruption.
+export function isInterruptingStrike(action: Action | null | undefined, victimId: string): boolean {
+  return action?.kind === 'strike' && action.step === 'done' && action.targetId === victimId && action.interruption !== 'none'
+}
+
+// Whether an opportunity attack the action drew has landed with an
+// interruption on its actor. A push that moved or stopped the actor
+// interrupted them too (combat.tex "Push and drag": "interrupts them"). One
+// fought against someone else — a third party's against whoever a push
+// moved at them — does not stop the actor.
 function isInterruptedByOpportunity(state: CombatState, action: Action): boolean {
-  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => spawned?.step === 'done' && (
-    (spawned.kind === 'strike' && spawned.targetId === action.actorId && spawned.interruption !== 'none')
-    || (spawned.kind === 'drag' && (spawned.facts?.interrupted ?? []).includes(action.actorId))))
+  return getDrawnOpportunityAttacks(state, action).some(({ spawned }) => isInterruptingStrike(spawned, action.actorId)
+    || (spawned?.kind === 'drag' && spawned.step === 'done' && (spawned.facts?.interrupted ?? []).includes(action.actorId)))
 }
 
 // A triggering action comes to nothing once its actor gives it up to answer

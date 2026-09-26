@@ -1,7 +1,7 @@
 import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater } from '../types'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isAnswerable, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
-import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo, getRootOf } from '../rules/log'
+import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption } from '../rules/options'
 import { getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
@@ -11,7 +11,7 @@ import { getCancellableRoot } from '../rules/opportunity'
 import { getDragComparison } from '../rules/grapple'
 import { getSettled } from '../rules/settle'
 import { appendActions, applyPhase, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
-import { advanceOpportunities, afterLanding, afterPaying, fightPush, spawn } from './sequence'
+import { advance, fightPush, getFollowUps } from './sequence'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -74,20 +74,22 @@ export function commitAction(): Updater {
   }
 }
 
-// The reactor's way out of an action their reaction opened, while it is
-// still only declared: the action goes, and a root waiting on that
-// opportunity attack is handed on to the next. An opportunity attack goes
-// with its strike, as if never declared, or the move would open it again; a
-// reaction that was paid for (a follow, an evasion) stays on the record.
+// The actor's way out of an action another opened for them, while it is
+// still only declared, and the fight carries on from the action beneath. An
+// opportunity attack goes with its strike, as if never declared, or the
+// root would open it again. Anything else is declined: closed without
+// landing, and kept so it is not offered again; the reaction that opened it
+// (a follow, an evasion, a reflex against a blast) was paid for and stays on
+// the record.
 export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
     if (!open || open.step !== 'define' || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
-    const dropped = reaction ? [open.id, reaction.id] : [open.id]
-    const withdrawn = setActions(state, state.actions.filter((a) => !dropped.includes(a.id)))
-    const root = reaction ? getRootOf(withdrawn, reaction) : null
-    return root?.step === 'post' ? advanceOpportunities(withdrawn, root, newId) : withdrawn
+    const withdrawn = reaction
+      ? setActions(state, state.actions.filter((a) => a.id !== open.id && a.id !== reaction.id))
+      : replaceActions(state, [{ ...open, step: 'done', declined: true }])
+    return advance(withdrawn, newId)
   }
 }
 
@@ -203,7 +205,7 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
     if (!cost) return state
     paid.push({ ...a, cost, roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
   }
-  return afterPaying(applyPhase(replaceActions(state, paid), paid, 'roll'), root.id, newId)
+  return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
 }
 
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
@@ -230,7 +232,6 @@ export function resolveAction(newId: () => string): Updater {
     if (!open || open.step !== 'post' || (step !== 'confirm' && step !== 'spend')) return state
     const resolved = getSettled(state, open)
     const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
-    const spawned = appendActions(landed, spawn(landed, resolved, newId))
-    return afterLanding(spawned, resolved, newId)
+    return advance(appendActions(landed, getFollowUps(landed, resolved, newId)), newId)
   }
 }
