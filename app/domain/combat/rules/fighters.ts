@@ -1,6 +1,9 @@
 import type { CampaignCharacter, Item } from '../../types'
 import type { CombatState } from '../types'
 
+// Who in the fight is who: the active character, the name each goes by,
+// who holds an item.
+
 // Read-side: which character is active is a pure function of combat state.
 // The domain owns this so combat commands never need to import CombatStore.
 export function getActiveCharacter(state: CombatState): CampaignCharacter | null {

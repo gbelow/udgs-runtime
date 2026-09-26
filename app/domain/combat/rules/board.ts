@@ -4,7 +4,7 @@ import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/misc'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
-import { add, coordKey, line, rotate, setDistance } from '../geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, line, rotate, setDistance } from '../geometry'
 import { findRowVariant, findWeaponRow } from './weaponRow'
 
 // The board rules read the spatial facts of a fight off `state.board`.
@@ -220,31 +220,4 @@ export function getMeleeThreateners(state: CombatState, id: string): string[] {
     const otherFootprint = getPlacedFootprint(state, other)
     return !!otherFootprint && setDistance(otherFootprint, footprint) <= getMeleeRange(state.characters[other])
   })
-}
-
-// ---------------------------------------------------------------------------
-// Angles
-
-// Axial to the plane, pointy-top hexes of unit spacing.
-export function toPlane(c: Coord): { x: number; y: number } {
-  return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
-}
-
-function centroid(cells: readonly Coord[]): { x: number; y: number } {
-  const points = cells.map(toPlane)
-  return {
-    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
-    y: points.reduce((sum, p) => sum + p.y, 0) / points.length,
-  }
-}
-
-export function angleBetween(from: { x: number; y: number }, to: { x: number; y: number }): number {
-  const angle = Math.atan2(to.y - from.y, to.x - from.x)
-  return angle < 0 ? angle + 2 * Math.PI : angle
-}
-
-// The smaller turn between two directions.
-export function angularGap(a: number, b: number): number {
-  const gap = Math.abs(a - b) % (2 * Math.PI)
-  return Math.min(gap, 2 * Math.PI - gap)
 }

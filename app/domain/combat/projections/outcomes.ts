@@ -6,7 +6,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { outcomeOf } from '../rules/damage'
 import { getGrappleFacts } from '../rules/grapple'
 import { isVoided } from '../rules/opportunity'
-import { getFightName } from '../rules/activeCharacter'
+import { getFightName } from '../rules/fighters'
 import { getAction } from '../rules/log'
 
 // What the settled or resolved action's damage does to each character it

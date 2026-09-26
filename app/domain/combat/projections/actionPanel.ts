@@ -2,7 +2,7 @@ import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, 
 
 import type { Area, MoveKind } from '../../types'
 import { getActionName, isAttackAction } from '../rules/actionCatalog'
-import { getFightName } from '../rules/activeCharacter'
+import { getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions, getCancellableLabel } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'

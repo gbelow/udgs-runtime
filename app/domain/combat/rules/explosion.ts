@@ -6,11 +6,11 @@ import { resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
-import { DIRECTIONS, add, coordKey, disk, distance, ring, sameCell, setDistance } from '../geometry'
-import { angleBetween, angularGap, getPlacedFootprint, getShotReachOf, seesAcross, toPlane } from './board'
+import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from '../geometry'
+import { getPlacedFootprint, getShotReachOf, seesAcross } from './board'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getHeldItem } from '../../item/rules/hands'
-import { findHeldItem, getFightName } from './activeCharacter'
+import { findHeldItem, getFightName } from './fighters'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names

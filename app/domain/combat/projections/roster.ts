@@ -3,7 +3,7 @@ import type { Action, CombatState } from '../types'
 import { getNextStep, getTargetIds } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
-import { getFightName } from '../rules/activeCharacter'
+import { getFightName } from '../rules/fighters'
 import { perState } from './perState'
 
 // Who a character is to an action.

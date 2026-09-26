@@ -1,5 +1,5 @@
 import type { CombatState } from '../types'
-import { getActiveCharacter } from '../rules/activeCharacter'
+import { getActiveCharacter } from '../rules/fighters'
 
 // The active character's turn begins.
 export function startTurn(state: CombatState): CombatState {

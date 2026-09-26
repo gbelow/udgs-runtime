@@ -12,5 +12,4 @@ Unused and small
 Places that break the project's own rules
 
 - Screen text inside rules/: labels and reason strings in options.ts (findOption only reads .available), HOP_LABELS (damage.ts), getSpellOptions (cast.ts), getChargeOptions (explosion.ts), getDisarmOptions (grapple.ts) and getDragSides (drag.ts). They belong in projections.
-- Misfiled: the plane geometry in rules/board.ts (toPlane, centroid, angleBetween, angularGap) is used by boardView and belongs with geometry. rules/activeCharacter.ts also holds findHeldItem and getFightName.
 - commands/ holds non-button helpers (log.ts, reduce.ts, sequence.ts). Fine, but CLAUDE.md doesn't describe them.
