@@ -1,0 +1,318 @@
+# Combat domain map
+
+A reader's guide to `app/domain/combat/`: the ideas it is built on, how an action moves
+through it, and which file holds what. It describes the code as it stands; the history of
+how it got here, and the table's rulings behind the sequencing, are in
+`instructions/action-stack.md` and `instructions/reaction-openers.md`. When this map and the
+code disagree, the code wins — fix the map.
+
+The combat domain covers play both in and out of a fight (a skill test is play, so it lives
+here, not under `character/`), and the tactical grid is part of the fight, not a domain of its
+own.
+
+## The ideas it rests on
+
+1. **A fight is one value.** `CombatState` (`types.ts`) holds everything: the characters
+   (as `CampaignCharacter`s), the round, the action log, the stack, the history, the board,
+   the grapples and the floor. It is a Zod schema with a default on every field, so it can
+   be parsed from a partial or older payload. Every command is an `Updater`,
+   `(state) => state`, and the store (`stores/useCombatStore.ts`) only holds the value and
+   applies updaters to it.
+
+2. **An action is data, never a procedure.** A strike, a move, a defense is a record in
+   `state.actions`: who, against whom, what was declared, what the die said, and — once it
+   lands — what it came to (`facts`). Nothing about an action is computed twice: whatever
+   needed two characters to work out is written onto the record when the transition
+   happens, so the reducers that land it need only the record.
+
+3. **Every action runs the same pipeline.** `define → react → roll → post → effect`, stored
+   as `ActionBase.step` (`define | react | post | done`). The roll and the effect are
+   transitions, not places an action waits.
+
+4. **A stack decides whose turn it is to be played out.** `state.stack` holds ids of root
+   actions still being played out; the top is the open one (`getOpenAction`). Anything an
+   action opens — the strike an opportunity attack opens, a riposte, the blast of an
+   explosion — is pushed over it and played out first. `state.history` records the order
+   actions *landed*, which differs from the order they were declared.
+
+5. **An action writes only its own record.** Being given up, voided, interrupted or broken is
+   never written onto the victim; it is *derived* from the log (`rules/opportunity.ts`,
+   `rules/interruption.ts`). Nothing is written onto an action after its commit except by
+   its own transitions.
+
+6. **One place changes each part of the state.** Characters change only in
+   `reduceCharacter`, grapples in `reduceGrapples`, the floor in `reduceFloor`, the board in
+   `reduceBoard` (all `commands/reduce.ts`), driven by `applyPhase` (`commands/log.ts`). The
+   log and stack change only in `setActions`.
+
+7. **What is previewed is what lands.** `getSettled` (`rules/settle.ts`) computes the landed
+   action; the resolve writes exactly that and the panel's previews read the same function.
+
+8. **A command refuses exactly what the UI shows as closed.** Declarations go through
+   `findOption` (`rules/options.ts`), the same list the panel renders with reasons, and a
+   refused command returns the state unchanged, so the store can dispatch blindly.
+
+9. **A fight without a board is a legal fight.** `state.board === null` means every
+   positional gate passes; board rules answer null or "passes" when the board or the
+   placement is missing.
+
+10. **The domain holds no entropy.** Dice come in as a `Dice` function
+    (`components/utils.tsx` `realDice` is the one `Math.random` seam) and ids as a
+    `newId: () => string` (hooks pass `crypto.randomUUID`).
+
+## The action catalog
+
+`rules/actionCatalog.ts` `ACTIONS` is the one table of what each kind is, typed
+`satisfies { [K in ActionKind]: ActionDef<K> }` so a new kind in the union fails to compile
+until it has an entry. Flags: `type` (action | reaction), `price` (row of the action-cost
+table, or null when the declaration prices it), `reactsTo`, `die`, `triggering` (draws
+opportunity attacks and can be given up), `targeted`, `generated` (never declared by a
+player), `identity` (fields telling two options of a kind apart).
+
+Types derived from it in `types.ts`: `ReactionKind` / `ReactionAction`, `RootAction` (every
+non-reaction), `TriggeringAction`, `DeclarableKind`, and `ActionDraft` (what a click
+declares).
+
+| Group | Kinds |
+|---|---|
+| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag`, `release`, `holdBack`, `pickUp` |
+| Generated roots | `blast` (an explosion going off), `displace` (a push walked) — plus strikes, moves and maneuvers that other actions open, marked by `spawnedBy` |
+| Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
+| Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
+| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move) |
+| Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
+
+Two links tie the log together: `reactionTo` (a reaction points at its root) and
+`spawnedBy` (an opened action points at whatever opened it). `rules/log.ts` holds every
+lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReaction`,
+`getDrawnOpportunityAttacks`).
+
+## The pipeline, step by step
+
+| Step (`step`) | UI sub-step (`getNextStep`) | Commands (`commands/action.ts` unless noted) |
+|---|---|---|
+| `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `pickCell` / `turnMove` (`commands/board.ts`) |
+| `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`; then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
+| `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `aimPush`, `chooseManeuver`; then `resolveAction(newId)` |
+| `done` | — | — |
+
+- **define** — free to edit or cancel. Only one root can be declared at a time
+  (`declareAction` refuses while anything is open).
+- **commit** (`commitAction`) — checks the declaration is complete
+  (`isDeclarationComplete`), aimed legally (`getTargetIds`) and affordable
+  (`getPayableCost`), then locks it at `react`. A move records `from` here.
+- **react** — triggers are read off the locked action (`getTriggers`, `rules/reactions.ts`);
+  each character gets one answer, and a new one replaces the old. `pruneReactions` drops
+  answers the declaration no longer triggers.
+- **roll / pay** (`payAll`) — prices the root and every reaction off their actors as they
+  stand, throws the root's die and each reaction's own die (in declaration order), and
+  takes every price, all in one update: no state exists where a die is known and its price
+  unpaid. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
+  cannot pay.
+- **post** — choices made once the result is known; each only edits the rolled record and
+  is reversible (except `saveGraze`, whose price is paid as it is bought).
+- **effect** (`resolveAction` → `land`) — settle, apply, generate follow-ups.
+
+Reactions are never played out on their own: they are paid with their root and close with
+it. What a reaction *opens* is a root of its own.
+
+## Sequencing: the stack, `advance` and `land`
+
+`commands/sequence.ts` is the engine. Every command that changes the pipeline ends in
+`advance`.
+
+```
+payAll ──► advance ──► top at post? ──► openBefore: first reaction whose
+                                         REACTION_OPENERS[kind].before opens something
+                                         → push it, stop (the table plays it out)
+                          │ nothing left to open, and the top has nothing to decide
+                          │ (explosion, displace)
+                          ▼
+resolveAction ─────────► land(top)
+                          getSettled → applyPhase('resolve') → close
+                          push getFollowUps(...) → advance again
+```
+
+- **Before the effect** — `openBefore` walks `getReactionsInOrder` (`rules/openers.ts`): the
+  drawn opportunity attacks in the order the root reaches them (path order for a move or a
+  push), then the other reactions as declared. It opens one at a time; when that lands,
+  `advance` resumes the root and opens the next.
+- **After the effect** — `getFollowUps` builds the list pushed over the landed action; the
+  **last pushed is played first**. Bottom to top: the blast (under everything), whatever
+  reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
+  counterattack), escapes a stun opens, a push's displacement, the explosion a cast opens,
+  a hook's knockdown, and a riposte on top. A voided root generates only what an
+  `evenIfVoided` opener gives (the counterattack).
+- **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
+  a new reaction kind does not compile until it says what it opens (`before`, `after`, or
+  nothing). Follow-ups no reaction opens (blast, displace, cast explosion, hook knockdown,
+  stun escapes, riposte) live in `getFollowUps` itself.
+- **Auto-landing** — an explosion or a displacement has nothing to decide once its attacks
+  are fought, so `advance` lands it; a displacement nobody can answer is paid at no cost and
+  walked at once.
+- **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
+  log so it is not offered again, left out of `history`); an opportunity attack's strike is
+  instead removed together with its reaction.
+
+## Interruption, giving up, voiding
+
+- `getInterruptionOf(landed, victim)` (`rules/interruption.ts`) — what a landed strike,
+  push or displacement did to someone: `none | interrupted | stunned`.
+- `getInterruptions(state, action)` — what the action's descendants (through `reactionTo`
+  and `spawnedBy`) landed on its actor *before its own effect*, ordered by `history`. A
+  counterattack's tied strike is skipped (a tie breaks neither).
+- `isBroken` — any such interruption, except for a move (cut short where caught,
+  `getMoveOverride` in `rules/move.ts`) or a displacement (stopped only by a stun of the
+  pusher, `getPushStop` in `rules/drag.ts`).
+- `rules/opportunity.ts` — `getGivenUpFor` / `isCancelled` (the actor of a triggering action
+  gives it up by answering an opportunity attack it drew with anything but the SD) and
+  `isVoided` (cancelled or broken). A voided action lands nothing at its resolve
+  (`applyPhase` skips it), settles with no facts, generates no follow-ups, and its price is
+  still paid.
+
+## Landing: settle, then reduce
+
+- `getSettled(state, open)` (`rules/settle.ts`) — the exhaustive switch over `RootAction`
+  that writes each kind's `facts` from the fight as it stands: attack deliveries,
+  interruption and trample for a strike, the thrown item for a shot, grapple facts for a
+  maneuver, path facts for a move, zone deliveries and terrain paint for a blast, cast
+  deliveries per character.
+- `applyPhase(state, actions, phase)` (`commands/log.ts`) — runs every character through
+  `reduceCharacter`, then the floor, grapples and board reducers, then `settleGrapples`.
+  Phases: `roll` (the price leaves the actor), `save` (a cast's graze bought up), `resolve`
+  (the action lands).
+- `reduceCharacter` hands deliveries to the character domain's own effect processor
+  (`character/commands/deliver.ts`); combat never computes damage on the target side.
+- `settleGrapples` (`commands/grapple.ts`) re-derives grapple afflictions and seized items
+  after anything that could change who holds whom — also called by `updateCharacter`,
+  `dropToFloor` and `removeFromCombat`.
+
+## The board
+
+- `geometry.ts` — hex arithmetic in axial coordinates, no rules: `DIRECTIONS` (also the
+  rotation order), `distance`, `setDistance`, `line`, `disk`, `ring`, `rotate`, `walkOut`,
+  plane conversion for drawing and cones. One cell is one metre.
+- `rules/board.ts` — footprints and occupancy by size, distance between characters, reach
+  and shot range, line of sight, high ground, flankers, melee threateners.
+- `rules/ground.ts` — where a footprint may cross and where it may come to rest.
+- `rules/move.ts`, `rules/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
+  runs, Balance tests, reachable cells, where the mover stands along a path, where a move
+  was cut short, tramples.
+- Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
+  `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
+  action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
+
+## Reading for the UI: projections
+
+`projections/` shapes the fight for a screen and has no setters.
+
+- `actionPanel.ts` `getActionPanel` — everything the action panel shows: the open action,
+  its sub-step, options with reasons, reactors and their pickers, HOP and spell options,
+  push choices.
+- `boardView.ts` `getBoardView` — cells, tokens, ghosts, floor items, and what a click on
+  each cell would mean (`BoardMode`).
+- `roster.ts` `getCombatRoster`, `getRole` — who each character is to the open action.
+- `outcomes.ts` — `getOutcomes` (damage previews), `getActionNotes`, `getLastReport` (reads
+  the end of `history`).
+- `labels.ts` — names for actions, options and HOP purchases.
+- `perState.ts` — memoizes a projection per state object. Each big projection exports a
+  `…Digest` (its JSON) so a hook re-renders only when the view actually changed, then reads
+  the same cached view.
+
+Hooks: `useCombatActions` (pipeline buttons, injects dice and ids), `useCombatCommands`,
+`useCombatState`, `useBoard` — thin adapters over the commands and projections above.
+
+## File map
+
+```
+app/domain/combat/
+├── types.ts            CombatState, Board, every Action schema, derived action types
+├── factories.ts        makeAction, makeBoard (ingestion), addCharacterToCombat
+├── geometry.ts         hex math, no rules
+├── dice.ts             d10 with explosions; rollTest (safe/risky) drawn ahead, unwired
+│
+├── commands/                        the write side
+│   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
+│   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
+│   ├── sequence.ts     advance, land, openBefore, getFollowUps — the engine
+│   ├── log.ts          setActions (only writer of log/stack/history), applyPhase, pruneReactions
+│   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
+│   ├── grapple.ts      settleGrapples
+│   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
+│   ├── floor.ts        dropToFloor, pickFloorItem
+│   ├── characters.ts   removeFromCombat, updateCharacter
+│   ├── nextRound.ts    round change: upkeep, gas, bleed, AP reset
+│   ├── startTurn.ts, resetCombat.ts
+│
+├── rules/                           what the book says about a state
+│   ├── actionCatalog.ts ACTIONS, isReaction/isRootAction/isDefense
+│   ├── log.ts          open action, stack lookups, reactionTo/spawnedBy lookups
+│   ├── action.ts       declaration completeness, costs, getNextStep, needsDie, targets
+│   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not
+│   ├── reactions.ts    getTriggers: who may answer a committed action, with what
+│   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after
+│   ├── settle.ts       getSettled: an action as it lands
+│   ├── interruption.ts getInterruptions, isBroken
+│   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
+│   ├── counter.ts      counterattack slot (before / tie / after) and its strike
+│   ├── riposte.ts      when a riposte opens, its discount
+│   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
+│   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
+│   ├── test.ts         resolveTest: skill vs DL → degree and HOP
+│   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hook knockdown
+│   ├── delivery.ts     a row's damage as it leaves the weapon
+│   ├── weaponRow.ts    rows in hand, usable rows, variants
+│   ├── cast.ts         spells: options, facts, improvements, graze save, explosion a cast opens
+│   ├── explosion.ts    payload, areas, zones, spray vs disk, who is reached, terrain paint
+│   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
+│   ├── waypoint.ts     where the mover stands along a path
+│   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
+│   ├── trample.ts      Force comparisons from moves and braced blows
+│   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
+│   ├── ground.ts       crossable and restable cells
+│   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
+│   ├── partners.ts     who is grappled with whom
+│   ├── drag.ts         push and drag: sides, outcome, choices, path, displacement
+│   ├── floor.ts        items on the floor, reachable, thrown
+│   └── fighters.ts     active character, fight names, who holds an item
+│
+└── projections/                     read-for-UI, no setters
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts
+    └── perState.ts     memoize once per state object
+```
+
+The combat domain calls into `character/` (costs, afflictions, deliveries, skill terms,
+effects) and `item/` (hands, items). The one call back is the character's effect processor
+(`character/commands/deliver.ts`), which rolls a delivery's test with `rules/test.ts` and
+`dice.ts`, since a skill test is play and lives here.
+
+## Where a change goes
+
+- **A new action kind.** Add its schema to `types.ts` and to `ActionSchema`; add its
+  `ACTIONS` entry; the compiler then walks you through the exhaustive switches
+  (`getSettled`, `getPostStep`, `getKindTriggers`, `getRootTestTerms`, …). If it changes
+  characters, the grid, the floor or grapples on landing, add its branch to the reducer
+  that owns that part.
+- **A new reaction kind.** Same, with `type: 'reaction'`; `REACTION_OPENERS` will not
+  compile until it has an entry. Its trigger goes in `rules/reactions.ts`, its option and
+  reasons in `rules/options.ts`, its completeness in `isDeclarationComplete`.
+- **A new follow-up no reaction opens.** Add it to `getFollowUps`, minding the push order
+  (last pushed plays first).
+- **A new choice after the die.** A command in `commands/choices.ts` guarded by
+  `getRolledOpen`, a branch in `getPostStep`, and the field on the action schema.
+- **A rule change.** Read the `.tex` first, change the rule in `rules/`, cite it beside the
+  code. Commands and projections should not need to change.
+
+## Tests
+
+- `commands/sequence.test.ts` — the sequencing invariants, played through the commands
+  (`playOut`, scenarios): opportunity attacks fought once and before the action that drew
+  them, never chained; broken actions land nothing; giving up by defending; explosions and
+  sprays reach only who is still in the area; counterattack orders; ripostes; hook
+  knockdowns; protecting.
+- `commands/action.test.ts`, `commands/combat.test.ts` — pipeline guards and round change.
+- `rules/*.test.ts` — boardless fights pass every gate; reach; moves; grapples; reactions.
+- `projections/outcomes.test.ts` — the preview is what the target takes.
+- `factories.test.ts` — board ingestion is total and round-trips.
+
+All tests follow `instructions/testing.md`.
