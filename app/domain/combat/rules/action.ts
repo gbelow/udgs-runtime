@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionOf, CombatState } from '../types'
+import type { Action, ActionOf, CombatState, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -279,18 +279,33 @@ export function needsTarget(action: Action): boolean {
 // declaration has since put out of reach (a change of location on the high
 // ground, a change from snipe to quick shot) drops off this list and has to
 // be aimed at again.
-export function getTargetIds(state: CombatState, root: Action): string[] {
+export function getTargetIds(state: CombatState, root: RootAction): string[] {
   if (!needsTarget(root)) return []
-  // combat.tex "Grapple": what is done in a grapple is done to a partner —
-  // but the knockdown a hook opens, at whoever it hooked ("Hook Attack")
-  if (root.kind === 'grapple' && root.hook) return root.targetId ? [root.targetId] : []
-  if (root.kind === 'grapple') return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
-  if (root.kind === 'release') return getReleaseTargets(state, root.actorId)
-  if (root.kind === 'holdBack') return getHoldBackTargets(state, root.actorId)
-  if (root.kind === 'drag') return getPartners(state, root.actorId).filter((id) => state.board?.placements[id] !== undefined)
-  return Object.keys(state.characters).filter((id) =>
-    id !== root.actorId
-    && (root.kind !== 'strike' || (isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id))))
-    && (root.kind !== 'shoot' || isInShotRange(state, root, id))
-    && (root.kind !== 'cast' || isInCastRange(state, root, id)))
+  const others = Object.keys(state.characters).filter((id) => id !== root.actorId)
+  switch (root.kind) {
+    case 'strike':
+      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)))
+    case 'shoot':
+      return others.filter((id) => isInShotRange(state, root, id))
+    case 'cast':
+      return others.filter((id) => isInCastRange(state, root, id))
+    // combat.tex "Grapple": what is done in a grapple is done to a partner —
+    // but the knockdown a hook opens, at whoever it hooked ("Hook Attack")
+    case 'grapple':
+      if (root.hook) return root.targetId ? [root.targetId] : []
+      return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
+    case 'release':
+      return getReleaseTargets(state, root.actorId)
+    case 'holdBack':
+      return getHoldBackTargets(state, root.actorId)
+    case 'drag':
+      return getPartners(state, root.actorId).filter((id) => state.board?.placements[id] !== undefined)
+    // aimed at the board, or at nobody
+    case 'explosion':
+    case 'blast':
+    case 'move':
+    case 'displace':
+    case 'pickUp':
+      return []
+  }
 }
