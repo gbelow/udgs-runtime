@@ -7,7 +7,7 @@ import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
-import { getFootprint, getOccupancy, getPlacedFootprint } from './board'
+import { getFootprint, getPlacedFootprint } from './board'
 import { canRest, isCrossable, readGround } from './ground'
 import { getMoveOrigin } from './waypoint'
 import { getMoveTramples } from './trample'
@@ -343,27 +343,22 @@ export function isMidJump(state: CombatState, id: string): boolean {
 // attack and uses the movement speed of jumping backwards" — half the jump
 // ("Movement": "If performed backwards, the horizontal distance is halved"),
 // in whole cells. Every other anchor within that many cells, in any
-// orientation, whose footprint stands on free ground and ends at least one
+// orientation, whose footprint may stand where it lands (creating.tex "Size
+// and Space Occupation", as `canStandAt` reads it) and ends at least one
 // cell further from the attacker than it began. A runner hit mid-block may
 // jump any way, but within a hex step of the block's heading the jump is a
 // forward one out of the run and reaches the running long jump ("jumping":
 // "If performed during a run ... match that of running"); the table's
 // ruling. One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
-  const board = state.board
   const defender = state.characters[defenderId]
-  const from = board?.placements[defenderId]
+  const from = state.board?.placements[defenderId]
   const attacker = getPlacedFootprint(state, attackerId)
-  if (!board || !defender || !from || !attacker || isMidJump(state, defenderId)) return []
+  const ground = readGround(state, defenderId)
+  if (!defender || !from || !attacker || !ground || isMidJump(state, defenderId)) return []
   const underway = getMoveUnderway(state, defenderId)
   const heading = underway ? getRunHeading(state, underway, getStepsWalked(state, underway)) : null
   const before = setDistance(getFootprint(defender, from), attacker)
-  const taken = new Set(
-    Object.entries(getOccupancy(board, state.characters))
-      .filter(([, ids]) => ids.some((id) => id !== defenderId))
-      .map(([key]) => key),
-  )
-  const free = (cell: Coord) => !taken.has(coordKey(cell)) && !board.terrain[coordKey(cell)]?.blocking
   const hop = Math.floor(getJumpMovement(defender) / 2)
   const leap = heading === null ? hop : Math.max(hop, Math.floor(getRunningJumpMovement(defender)))
   const reaches = (cell: Coord) => distance(cell, from.cell) <= hop || (heading !== null && isWithinCone(subtract(cell, from.cell), heading))
@@ -373,7 +368,7 @@ export function getEvasiveJumpPlacements(state: CombatState, defenderId: string,
     for (const orientation of ROTATIONS) {
       const to = { ...from, cell, orientation }
       const footprint = getFootprint(defender, to)
-      if (footprint.every(free) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (!footprint.some(ground.blocked) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements

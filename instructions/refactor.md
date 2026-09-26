@@ -1,9 +1,5 @@
 Open refactor items (combat domain)
 
-Needs a decision
-
-- getEvasiveJumpPlacements (rules/move.ts) refuses any occupied cell. Every other placement goes through canRest, which lets two characters at least two sizes apart share a cell (creating.tex "Size and Space Occupation", as quoted beside canRest). Bug or intended?
-
 Unused and small
 
 - rollTest / RollMode (dice.ts) have no callers: safe and risky tests are not wired in. Inert structure drawn ahead, kept on purpose.
