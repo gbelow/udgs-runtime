@@ -1748,7 +1748,7 @@
           }
         ],
         "requirements": [],
-        "description": "After blocking or intercepting a melee attack and reducing its damage to 0, the character can make an attack with a +2 bonus to hit immediately after. The attack costs 1 AP less than the normal attack if made with an object different from the one used for defense.",
+        "description": "After defending a melee attack that misses or grazes, the character can make an attack with a +2 bonus to hit immediately after, if in range. The attack costs 1 AP less than the normal attack if made with an object different from the one used for defense.",
         "effect": []
       }
     ]

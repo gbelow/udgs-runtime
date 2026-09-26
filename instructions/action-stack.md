@@ -44,8 +44,9 @@ Rulings the stack must respect:
 - A counterattack (abilities.tex "Counterattack") is a reaction whose opened attack goes
   before the parent's effect if it rolled higher, and is a follow-up if it rolled lower.
   On a tie both land and neither interrupts the other. It answers strikes only.
-- A riposte follows the `.tex` (after an active defense against a melee attack that
-  misses), not the stale description in `app/assets/abilities.json`.
+- A riposte follows the `.tex`: after an active defense against a melee attack that
+  misses or grazes, if in range; 1 AP less only with an object other than the one that
+  defended, and after an evade (which uses no object) always 1 AP less.
 - The braced trample stays a fact on the braced strike's own record: it has no die and no
   choice, so an action of its own would have nothing to decide.
 
@@ -212,15 +213,21 @@ Rulings the stack must respect:
   counterattacker. `isVoided` breaks a strike that a counterattack rolling higher
   interrupted.
   - Riposte (abilities.tex "Riposte", `rules/riposte.ts`) is a follow-up, not a reaction:
-    a strike that lands as a miss against an active defense (`isDefense`: evade, evasive
-    jump, block, intercept) by a defender who knows it generates a strike for them at
-    `define`, aimed at the attacker, which they declare or decline. It gets +2 to hit and
-    costs 1 AP less, 2 AP less with an object other than the one the defense named.
-  - Open question: an evade names no object. The code treats it as 1 AP less; the user
-    has not ruled on it.
+    a strike that lands as a miss or a graze against an active defense (`isDefense`:
+    evade, evasive jump, block, intercept) by a defender who knows it, with some strike
+    that reaches the attacker, generates a strike for them at `define`, aimed at the
+    attacker, which they declare or decline. It gets +2 to hit and costs 1 AP less with
+    an object other than the one the defense named; an evade names none, so always 1 AP
+    less (the user's ruling, after they rewrote the ability text).
   - The panel names these strikes "counterattack" and "riposte"; the red "opportunity"
     tag now shows only on an opportunity attack's strike, not on every spawned action.
   - Tests: a counterattack in each of the three orders (higher lands first and breaks
     the attack; lower is broken by the attack; a tie lands both), and a riposte offered
     after an active defense, not after the SD, at the two discounts.
+- Spray check after stage 7: the flamethrower (a sustained spell with a spray area) plays
+  out end to end. Before the reflexes the board shows everything within its length of the
+  caster, with nothing to aim, and only those in it are offered a reflex; after them the
+  blast is pointed and reaches only the cone. The explosion a cast opens as a spray is now
+  committed as it opens, since it has nothing to declare. Tests: the spray's reflexes go
+  to those in range, and its blast reaches only the cone it is pointed in.
 

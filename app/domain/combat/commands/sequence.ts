@@ -1,9 +1,11 @@
-import type { Action, CombatState, ExplosionAction, MoveAction } from '../types'
+import type { Action, CastAction, CombatState, ExplosionAction, MoveAction } from '../types'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
 import { getSettled } from '../rules/settle'
 import { opensExplosion } from '../rules/cast'
-import { getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
+import { getAttackOptions, getOpportunityAction, getOpportunityState, getOpportunityStop, isOpportunityReached } from '../rules/attack'
+import { isInReach } from '../rules/board'
+import { getBlastOf, isSpray } from '../rules/explosion'
 import { getMoveAfter, getMoveBeforeBlast, type ReactionMove } from '../rules/reactionMoves'
 import { getDrawnOpportunityAttacks, isFlankInReach, isInterruptingStrike, isTriggeringAction, isVoided } from '../rules/opportunity'
 import { getCounterattack, getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from '../rules/counter'
@@ -81,11 +83,15 @@ function openCounter(state: CombatState, root: Action, slots: CounterSlot[], new
 }
 
 // abilities.tex "Riposte": the defender's attack after a melee attack their
-// defense made miss, aimed back at the attacker, for them to declare or
-// pass up.
+// defense made miss or graze, aimed back at the attacker "if in range" —
+// some strike they hold reaches — for them to declare or pass up.
 function openRiposte(state: CombatState, root: Action, newId: () => string): Action[] {
   const defense = getRiposteOpening(state, root)
-  return defense ? [makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id })] : []
+  const riposter = defense ? state.characters[defense.actorId] : undefined
+  if (!defense || !riposter) return []
+  const strike = makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id })
+  const reaches = getAttackOptions(riposter, 'strike').some((o) => isInReach(state, { ...strike, ...o }, root.actorId))
+  return reaches ? [strike] : []
 }
 
 // combat.tex "Avoiding an Explosion": the explosion goes off as a blast,
@@ -128,10 +134,16 @@ export function getFollowUps(state: CombatState, root: Action, newId: () => stri
   opened.push(...escapesOnStun(state, root, newId))
   const displacement = root.kind === 'drag' ? getDisplacement(state, root) : null
   if (displacement) opened.push(makeAction('displace', { ...displacement, id: newId(), actorId: root.actorId, spawnedBy: root.id, step: 'react' }))
-  if (root.kind === 'cast' && opensExplosion(state, root)) {
-    opened.push(makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id }))
-  }
+  if (root.kind === 'cast' && opensExplosion(state, root)) opened.push(castExplosion(state, root, newId))
   return [...counter, ...opened, ...openRiposte(state, root, newId)]
+}
+
+// The explosion a cast goes off as: to be aimed, a disk; a spray has nothing
+// to aim before the reflexes, only a range to show them (combat.tex
+// "Sprays"), so it is committed as it opens.
+function castExplosion(state: CombatState, root: CastAction, newId: () => string): ExplosionAction {
+  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id })
+  return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
 }
 
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held

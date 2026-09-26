@@ -10,7 +10,7 @@ import { getLastReport } from '../projections/outcomes'
 import { getAttackOptions } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
-import { aimPush } from './choices'
+import { aimExplosion, aimPush } from './choices'
 import { withdrawSpawnedAction } from './action'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
@@ -328,38 +328,80 @@ describe('a counterattack', () => {
   })
 })
 
-// abilities.tex "Riposte": "After defending a melee attack that misses, the
-// character can make an attack with a +2 bonus to hit immediately after. The
-// attack costs 1 AP less than the normal attack, and 2 AP less if made with
-// an object different from the one used for defense."
+// abilities.tex "Riposte": "After defending a melee attack that misses or
+// grazes, the character can make an attack with a +2 bonus to hit
+// immediately after, if in range. The attack costs 1 AP less than the normal
+// attack if made with an object different from the one used for defense."
 describe('a riposte', () => {
   // A thrust that misses a shield-bearer who knows Riposte, blocking with
-  // the shield or standing on their SD.
-  function missedShieldBearer(block: boolean): CombatState {
+  // the shield, evading, or standing on their SD.
+  function missedShieldBearer(defense: 'block' | 'evade' | null): CombatState {
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
     let s = thrustAt(holdItem(shield)(fighter('def', ['riposte'])) as CampaignCharacter)
-    const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === 'block' && o.draft.weaponKey === shield.id)!
-    if (block) s = declareReaction('def', option.draft, newId)(s)
+    const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
+    if (option) s = declareReaction('def', option.draft, newId)(s)
     return resolveAction(newId)(rollAction(() => MISS, newId)(s))
   }
 
+  // What each basic attack the riposter holds is cheaper by, split by
+  // whether it is made with the shield.
+  function discounts(s: CombatState): { shield: number[]; other: number[] } {
+    const shield = s.characters.def.held[0].id
+    const less = getAttackOptions(s.characters.def, 'strike').filter((o) => o.variant === 'basic').map((o) => {
+      const declared = amendAction({ weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(s)
+      return { shield: o.weaponKey === shield, less: o.AP - getOwnCost(declared, getOpenAction(declared)!)!.AP }
+    })
+    return { shield: less.filter((l) => l.shield).map((l) => l.less), other: less.filter((l) => !l.shield).map((l) => l.less) }
+  }
+
   it('is offered to one who defended actively, at the attacker', () => {
-    const open = getOpenAction(missedShieldBearer(true))
+    const open = getOpenAction(missedShieldBearer('block'))
     expect(open).toMatchObject({ kind: 'strike', actorId: 'def', targetId: 'atk', step: 'define' })
   })
 
   it('is not offered to one who stood on their SD', () => {
-    expect(getOpenAction(missedShieldBearer(false))).toBeNull()
+    expect(getOpenAction(missedShieldBearer(null))).toBeNull()
   })
 
-  it('costs 1 AP less with the object that defended, 2 with another', () => {
-    const s = missedShieldBearer(true)
-    const shield = s.characters.def.held[0].id
-    const discounts = getAttackOptions(s.characters.def, 'strike').filter((o) => o.variant === 'basic').map((o) => {
-      const declared = amendAction({ weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(s)
-      return { same: o.weaponKey === shield, less: o.AP - getOwnCost(declared, getOpenAction(declared)!)!.AP }
-    })
-    expect(discounts.filter((d) => d.same).map((d) => d.less)).toEqual([1])
-    expect(new Set(discounts.filter((d) => !d.same).map((d) => d.less))).toEqual(new Set([2]))
+  it('costs 1 AP less only with an object other than the one that defended', () => {
+    const { shield, other } = discounts(missedShieldBearer('block'))
+    expect(shield).toEqual([0])
+    expect(new Set(other)).toEqual(new Set([1]))
+  })
+
+  // The table's ruling: an evade is made with no object, so any riposte after
+  // one is made with another.
+  it('costs 1 AP less with anything after an evade', () => {
+    const { shield, other } = discounts(missedShieldBearer('evade'))
+    expect(new Set([...shield, ...other])).toEqual(new Set([1]))
+  })
+})
+
+// combat.tex "Sprays": "Sprays target all characters in range, which their
+// reflex saves to escape ... The attacker can choose the exact direction of
+// the cone after the movement." The table's ruling: nothing is aimed before
+// the reflexes; the range around the attacker is only shown.
+describe('a spray', () => {
+  // A flamethrower (4m) cast from between two in range, one east and one
+  // west of the caster, with a third out of range.
+  function flamesCast(): CombatState {
+    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2 })
+    const caster = { ...(holdItem(flamethrower)(fighter('c')) as CampaignCharacter), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    let s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
+    s = commitAction()(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s))
+    return resolveAction(newId)(rollAction(() => 9, newId)(s))
+  }
+
+  it('asks everyone in its range for their reflexes, with nothing to aim first', () => {
+    const s = flamesCast()
+    expect(getOpenAction(s)).toMatchObject({ kind: 'explosion', step: 'react' })
+    const asked = ['x', 'y', 'z'].filter((id) => getAvailableActions(s, id).some((o) => o.draft.kind === 'avoidExplosion'))
+    expect(asked).toEqual(['x', 'y'])
+  })
+
+  it('reaches only the cone it is pointed in once the reflexes are done', () => {
+    const s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(flamesCast())))
+    const blast = s.actions.find((a) => a.kind === 'blast')
+    expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
   })
 })
