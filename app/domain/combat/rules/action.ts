@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionOf, CombatState, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, RootAction, WeaponAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -135,28 +135,66 @@ export function areReactionsComplete(state: CombatState, root: Action): boolean 
 // What an action costs its actor, as declared; null while the declaration is
 // too incomplete to price.
 export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCost | null {
-  // a cast's explosion was paid for by the cast; a charge set off costs
-  // whoever sets it off nothing
-  if (action.kind === 'explosion' && action.source !== 'thrown') return { AP: 0, STA: 0 }
-  // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
-  // strike with a weapon with the grapple property"
-  if (action.kind === 'strike' && action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
-  // the knockdown a hook opens is the hook's post-hit effect, not a
-  // maneuver of its own (the table's ruling)
-  if (action.kind === 'grapple' && action.hook) return { AP: 0, STA: 0 }
-  if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'explosion' || action.kind === 'counterattack') {
-    const variant = getAttackVariant(c, action.kind === 'counterattack' ? getCounterStrike(action, '') : action)
-    return variant ? { AP: variant.AP, STA: variant.STA } : null
+  switch (action.kind) {
+    // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
+    // strike with a weapon with the grapple property"
+    case 'strike':
+      if (action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
+      return getVariantCost(c, action)
+    case 'shoot':
+      return getVariantCost(c, action)
+    // a cast's explosion was paid for by the cast; a charge set off costs
+    // whoever sets it off nothing
+    case 'explosion':
+      return action.source === 'thrown' ? getVariantCost(c, action) : { AP: 0, STA: 0 }
+    case 'counterattack':
+      return getVariantCost(c, getCounterStrike(action, ''))
+    case 'move':
+      return action.path.length > 0 || isPosture(action.movement) ? getMovePrice(c, action, action.path.length) : null
+    // spells.tex "Casting spells": the spell's own price; what it asks beyond
+    // AP and STA is paid the same, off the sheet
+    case 'cast':
+      return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
+    case 'evasion':
+      return getEvasionCost(c, action.stay)
+    case 'block':
+    case 'intercept':
+      return withGuardStep(c, action, getActionCost(c, action.kind))
+    // the knockdown a hook opens is the hook's post-hit effect, not a
+    // maneuver of its own (the table's ruling)
+    case 'grapple':
+      return action.hook ? { AP: 0, STA: 0 } : getCatalogCost(c, action.kind)
+    case 'evade':
+    case 'evasiveJump':
+    case 'guard':
+    case 'avoidExplosion':
+    case 'opportunityAttack':
+    case 'follow':
+    case 'drag':
+    case 'displace':
+    case 'blast':
+    case 'release':
+    case 'holdBack':
+    case 'resist':
+    case 'assist':
+    case 'carry':
+    case 'letGo':
+    case 'pickUp':
+      return getCatalogCost(c, action.kind)
   }
-  if (action.kind === 'move') return action.path.length > 0 || isPosture(action.movement) ? getMovePrice(c, action, action.path.length) : null
-  // spells.tex "Casting spells": the spell's own price; what it asks beyond
-  // AP and STA is paid the same, off the sheet
-  if (action.kind === 'cast') return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
-  if (action.kind === 'evasion') return getEvasionCost(c, action.stay)
-  if (action.kind === 'block' || action.kind === 'intercept') return withGuardStep(c, action, getActionCost(c, action.kind))
-  // a reaction with no price of its own (an opportunity attack, a follow)
-  // pays through the action it opens
-  const price = ACTIONS[action.kind].price
+}
+
+// What the weapon row and variation the attack is declared with cost.
+function getVariantCost(c: CampaignCharacter, action: WeaponAction): ActionCost | null {
+  const variant = getAttackVariant(c, action)
+  return variant ? { AP: variant.AP, STA: variant.STA } : null
+}
+
+// The row of the cost table the catalog names for the kind; nothing for one
+// with no price of its own (an opportunity attack, a follow), which pays
+// through the action it opens.
+function getCatalogCost(c: CampaignCharacter, kind: ActionKind): ActionCost {
+  const price = ACTIONS[kind].price
   return price ? getActionCost(c, price) : { AP: 0, STA: 0 }
 }
 
