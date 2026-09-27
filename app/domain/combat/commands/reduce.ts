@@ -83,6 +83,9 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
+        // combat.tex "Standard Action": a thrown item leaves whichever hand
+        // it was thrown from; one thrown off the floor was never in it
+        if (action.kind === 'throwItem') return c.id === action.actorId && action.thrown && c.held.some((i) => i.id === action.thrown!.id) ? dropItem(action.thrown.id)(c) : c
         if (!isAttackAction(action)) return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
@@ -151,7 +154,9 @@ export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple
 // The one place an action changes what lies on the floor: what a disarm
 // knocked out of a hand, where its owner stands (combat.tex "Disarm"); what
 // was thrown, one of it, where the throw was aimed; what was picked up,
-// gone from it. Read off the fight as it stood before the action landed.
+// gone from it; what a standard-action throw moved, gone from wherever it
+// lay and landed where it was aimed (combat.tex "Standard Action"). Read off
+// the fight as it stood before the action landed.
 export function reduceFloor(state: CombatState, action: Action, phase: Phase): (floor: FloorItem[]) => FloorItem[] {
   return (floor: FloorItem[]) => {
     if (phase !== 'resolve') return floor
@@ -164,6 +169,9 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     }
     if (action.kind === 'shoot') return action.thrown ? [...floor, onFloor(action.thrown, cellOf(action.targetId))] : floor
     if (action.kind === 'pickUp') return floor.filter((f) => f.item.id !== action.itemId)
+    // combat.tex "Standard Action": lands where it was thrown, gone from
+    // wherever it lay before — a free hand leaves nothing behind on the floor
+    if (action.kind === 'throwItem') return action.thrown ? [...floor.filter((f) => f.item.id !== action.itemId), onFloor(action.thrown, action.to)] : floor
     return floor
   }
 }

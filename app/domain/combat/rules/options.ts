@@ -10,7 +10,7 @@ import { getChargeOptions, hasExplosionPayload } from './explosion'
 import { getTriggersFor } from './reactions'
 import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, isHeld } from './partners'
-import { canPickUp, getReachableFloor } from './floor'
+import { canPickUp, canThrowItem, getReachableFloor } from './floor'
 import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
@@ -236,6 +236,16 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
       : canAfford(c, cost) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]
+  },
+  // combat.tex "Standard Action": "throwing items with bulk smaller than
+  // character size by up to 10m" — from a free hand or the floor.
+  throwItem: (state, c) => {
+    const cost = getActionCost(c, 'standardAction')
+    const throwable = [...c.held, ...getReachableFloor(state, c.id).map((f) => f.item)].filter((item) => canThrowItem(c, item))
+    const reason = !isPlaced(state, c) ? 'not on the board'
+      : throwable.length === 0 ? 'nothing small enough to throw'
+      : afford(c, cost)
+    return [option({ kind: 'throwItem' }, cost, reason)]
   },
 }
 

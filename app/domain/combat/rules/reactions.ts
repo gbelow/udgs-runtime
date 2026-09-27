@@ -1,6 +1,5 @@
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
-import { getActionCost } from '../../character/rules/actionCosts'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
@@ -55,6 +54,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
+    case 'throwItem': return opportunityTriggers(state, root.actorId)
     case 'grapple':
     case 'drag': return grappleTriggers(state, root)
     case 'displace': return displaceTriggers(state, root)
@@ -197,11 +197,10 @@ function castTriggers(state: CombatState, root: CastAction): Trigger[] {
 }
 
 // combat.tex "Opportunity Attack": "Triggering actions include ... standard
-// actions of 3 AP or more" — picking up is one (combat.tex "Standard
-// Action"), cheaper with Prestidigitation.
+// actions" — picking up is one (combat.tex "Standard Action"), whatever its
+// AP cost comes to with Prestidigitation.
 function pickUpTriggers(state: CombatState, root: PickUpAction): Trigger[] {
-  const actor = state.characters[root.actorId]
-  return actor && getActionCost(actor, 'standardAction').AP >= 3 ? opportunityTriggers(state, root.actorId) : []
+  return opportunityTriggers(state, root.actorId)
 }
 
 // combat.tex "Opportunity Attack": triggered by "moving towards a melee

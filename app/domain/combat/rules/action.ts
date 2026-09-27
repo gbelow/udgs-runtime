@@ -13,10 +13,11 @@ import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findHeldItem } from './fighters'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, needsDisarmPick } from './grapple'
+import { canGrab, canStandByEscape, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
 import { needsDragAim } from './drag'
 import { findGrapple, getPartners } from './partners'
-import { canPickUp, getReachableFloor } from './floor'
+import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
+import { sameCell } from '../geometry'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityStrike, guardRows, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
@@ -84,6 +85,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'pickUp': {
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
       return !!found && canPickUp(c, found.item)
+    }
+    // combat.tex "Standard Action": "throwing items with bulk smaller than
+    // character size by up to 10m" — from a free hand or off the floor
+    case 'throwItem': {
+      const item = findThrowSource(state, action.actorId, action.itemId)
+      return !!item && canThrowItem(c, item) && action.to !== null && getThrowCells(state, action.actorId).some((cell) => sameCell(cell, action.to!))
     }
     // combat.tex "Push and drag": on the board; which way is the winner's
     // to say once the grapple has answered
@@ -180,6 +187,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'carry':
     case 'letGo':
     case 'pickUp':
+    case 'throwItem':
       return getCatalogCost(c, action.kind)
   }
 }
@@ -220,7 +228,7 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
   const c = state.characters[action.actorId]
   if (!c) return null
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
-  const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : 0
+  const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : action.kind === 'grapple' ? getDisarmDiscount(state, action) : 0
   const cost = declared && discount > 0 ? { AP: Math.max(0, declared.AP - discount), STA: declared.STA } : declared
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
 }
@@ -321,6 +329,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'release':
     case 'holdBack':
     case 'pickUp':
+    case 'throwItem':
       return 'confirm'
   }
 }
@@ -347,9 +356,10 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'cast':
       return others.filter((id) => isInCastRange(state, root, id))
     // combat.tex "Grapple": what is done in a grapple is done to a partner —
-    // but the knockdown a hook opens, at whoever it hooked ("Hook Attack")
+    // but the knockdown a hook opens, at whoever it hooked ("Hook Attack"),
+    // and a disarm intercept opens, at whoever it intercepted ("Disarm")
     case 'grapple':
-      if (root.hook) return root.targetId ? [root.targetId] : []
+      if (root.hook || isInterceptDisarm(state, root)) return root.targetId ? [root.targetId] : []
       return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
     case 'release':
       return getReleaseTargets(state, root.actorId)
@@ -363,6 +373,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'move':
     case 'displace':
     case 'pickUp':
+    case 'throwItem':
       return []
   }
 }

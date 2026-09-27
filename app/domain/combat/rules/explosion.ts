@@ -1,4 +1,4 @@
-import type { Area, CampaignCharacter, Delivery, SpellEffect, TerrainPatch } from '../../types'
+import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
@@ -11,6 +11,7 @@ import { getPlacedFootprint, getShotReachOf, seesAcross } from './board'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getHeldItem } from '../../item/rules/hands'
 import { findHeldItem } from './fighters'
+import { findFloorItem } from './floor'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -49,7 +50,10 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
       const row = findWeaponRow(producer, action.weaponKey, action.attack)
       return row && hasProperty(row.atk.properties, 'explosion') ? getRowAreaEffects(producer, row) : []
     }
-    if (action.source === 'detonate') return findHeldItem(state, action.itemId)?.item.charge?.effects.filter(isAreaEffect) ?? []
+    if (action.source === 'detonate') {
+      const charge = findHeldItem(state, action.itemId)?.item.charge ?? findFloorItem(state, action.itemId)?.item.charge
+      return charge?.effects.filter(isAreaEffect) ?? []
+    }
     return isSpellKey(action.key) ? produceEffects(producer, SPELLS[action.key].effects).filter(isAreaEffect) : []
   })()
   return effects.length > 0 ? { effects, producer } : null
@@ -69,19 +73,23 @@ function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEf
 }
 
 // Every charge in the fight that can be set off from where it lies: one
-// with an area to it, in the hands of someone standing on the board.
-export type ChargeOption = { itemId: string; key: SpellKey; holderId: string; cell: Coord }
+// with an area to it, in the hands of someone standing on the board, or
+// lying on the floor — `holderId` null for the latter.
+export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | null; cell: Coord }
+
+function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
+  const key = item.charge?.key
+  return !!key && isSpellKey(key) && (item.charge?.effects.some(isAreaEffect) ?? false)
+}
 
 export function getChargeOptions(state: CombatState): ChargeOption[] {
-  return Object.values(state.characters).flatMap((holder) => {
+  const held = Object.values(state.characters).flatMap((holder) => {
     const cell = state.board?.placements[holder.id]?.cell
     if (!cell) return []
-    return holder.held.flatMap((item): ChargeOption[] => {
-      const key = item.charge?.key
-      if (!key || !isSpellKey(key) || !item.charge?.effects.some(isAreaEffect)) return []
-      return [{ itemId: item.id, key, holderId: holder.id, cell }]
-    })
+    return holder.held.flatMap((item): ChargeOption[] => (hasChargedArea(item) ? [{ itemId: item.id, key: item.charge.key, holderId: holder.id, cell }] : []))
   })
+  const onFloor = state.floor.flatMap((f): ChargeOption[] => (f.cell && hasChargedArea(f.item) ? [{ itemId: f.item.id, key: f.item.charge.key, holderId: null, cell: f.cell }] : []))
+  return [...held, ...onFloor]
 }
 
 // Whether a thrown row has anything with an area to go off with.
@@ -254,9 +262,9 @@ export function isAvoidable(action: ExplosionAction): boolean {
 // Where a disk explosion may be aimed. Thrown: any cell within the row's
 // reach of the attacker's footprint that some cell of it sees (combat.tex
 // "Cover"), off blocking ground. Cast: within the effects' range of the
-// caster, in sight. Set off: where the charged object is, which is where
-// whoever holds it stands. Nowhere for a spray, which is aimed by
-// direction.
+// caster, in sight. Set off: where the charged object is — whoever holds
+// it stands, or the cell it lies on if it is on the floor. Nowhere for a
+// spray, which is aimed by direction.
 export function getExplosionCenters(state: CombatState, action: ExplosionAction): Coord[] {
   return getCentersOf(state, action, getExplosionPayload(state, action))
 }
@@ -269,7 +277,9 @@ function getCentersOf(state: CombatState, action: ExplosionAction, payload: Payl
   const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
   if (action.source === 'detonate') {
     const held = findHeldItem(state, action.itemId)
-    return held ? (getPlacedFootprint(state, held.holder.id) ?? []) : []
+    if (held) return getPlacedFootprint(state, held.holder.id) ?? []
+    const floored = findFloorItem(state, action.itemId)
+    return floored?.cell ? [floored.cell] : []
   }
   const reach = action.source === 'thrown'
     ? getShotReachOf(state, action)

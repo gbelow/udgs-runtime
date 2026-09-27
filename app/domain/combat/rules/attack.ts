@@ -294,6 +294,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'release':
     case 'holdBack':
     case 'pickUp':
+    case 'throwItem':
       return []
   }
 }
@@ -365,6 +366,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
     case 'release':
     case 'holdBack':
     case 'pickUp':
+    case 'throwItem':
       return null
   }
 }

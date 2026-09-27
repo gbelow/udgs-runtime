@@ -33,6 +33,7 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'displace') return root.facts ? displaceNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
+  if (root.kind === 'throwItem') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
   const facts = getGrappleFacts(root)
   if (!facts) return []
   const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name

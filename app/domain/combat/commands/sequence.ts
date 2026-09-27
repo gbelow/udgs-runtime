@@ -9,7 +9,7 @@ import { getBlastOf, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
-import { getStunEscapes } from '../rules/grapple'
+import { getDisarmOptions, getInterceptDisarmOpening, getStunEscapes } from '../rules/grapple'
 import { getDisplacement } from '../rules/drag'
 import { getHookKnockdown } from '../rules/damage'
 import { makeAction } from '../factories'
@@ -85,7 +85,7 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // declared; the escapes a stun opens, the way a push was pointed, walked,
 // the explosion a cast that hit with an area to it goes off as, aimed and
 // played out on its own (the caster's part is done), the knockdown a hook
-// opens; and on top, a riposte.
+// opens, the disarm an intercept opens; and on top, a riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`.
 export function getFollowUps(state: CombatState, root: RootAction, newId: () => string): Action[] {
@@ -104,6 +104,7 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
     ...(displacement ? [makeAction('displace', { ...displacement, id: newId(), actorId: root.actorId, spawnedBy: root.id, step: 'react' })] : []),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
     ...openHookKnockdown(state, root, newId),
+    ...openInterceptDisarm(state, root, newId),
     ...openRiposte(state, root, newId),
   ]
 }
@@ -129,4 +130,15 @@ function openHookKnockdown(state: CombatState, root: RootAction, newId: () => st
 function escapesOnStun(state: CombatState, root: RootAction, newId: () => string): Action[] {
   return getStunEscapes(state, root).map(({ heldId, holderId }) =>
     makeAction('grapple', { maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
+}
+
+// combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
+// stops an attack" — a disarm the interceptor may declare or pass up, at
+// whoever they intercepted, with something of theirs to take.
+function openInterceptDisarm(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  if (root.kind !== 'strike') return []
+  const intercept = getInterceptDisarmOpening(state, root)
+  if (!intercept) return []
+  const draft = makeAction('grapple', { maneuver: 'disarm', id: newId(), actorId: intercept.actorId, targetId: root.actorId, spawnedBy: intercept.id })
+  return getDisarmOptions(state, draft).length > 0 ? [draft] : []
 }

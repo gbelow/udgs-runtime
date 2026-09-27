@@ -1,6 +1,6 @@
 import type { CombatState, RootAction } from '../types'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
-import { getThrownItem, getReachableFloor } from './floor'
+import { findThrowSource, getThrownItem, getReachableFloor } from './floor'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDisplaceFacts, getDragFacts } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
@@ -31,6 +31,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'pickUp': return { ...open, step: 'done', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
+    case 'throwItem': return { ...open, step: 'done', thrown: findThrowSource(state, open.actorId, open.itemId) }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }

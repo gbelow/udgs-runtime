@@ -555,6 +555,18 @@ export const PickUpActionSchema = z.object({
   picked: ItemSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Standard Action": "throwing items with bulk smaller than
+// character size by up to 10m" — from a free hand or off the floor, to
+// another cell on the floor.
+export const ThrowItemActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('throwItem'),
+  itemId: str.default(''),
+  to: CoordSchema.nullable().default(null),
+  // what was thrown, written at the resolve
+  thrown: ItemSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Grapple Maneuvers": "require the defender to interrupt itself
 // and spend 2 AP+1 STA or suffer a -5 penalty"; "Push and drag": the same
 // for the defender. Everyone else dragged along chooses too: to help the
@@ -589,6 +601,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ReleaseActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
+  ThrowItemActionSchema,
   ResistActionSchema,
   AssistActionSchema,
   CarryActionSchema,
@@ -618,6 +631,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // maneuver or a push (combat.tex "Grapple Maneuvers", "Push and drag").
 export type OpportunityAction = StrikeAction | GrappleAction | DragAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
+export type ThrowItemAction = z.infer<typeof ThrowItemActionSchema>
 // The kinds the catalog marks `triggering` (rules/actionCatalog.ts).
 export type TriggeringAction = ActionOf<{ [K in ActionKind]: (typeof ACTIONS)[K] extends { triggering: true } ? K : never }[ActionKind]>
 // The kinds the catalog marks reactions, and every action that is not one:

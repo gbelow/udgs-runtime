@@ -9,6 +9,7 @@ import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
+import { isInterceptDisarm } from '../rules/grapple'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimExplosion, aimPush, spendHOP } from './choices'
@@ -68,8 +69,8 @@ function openedByOpportunity(s: CombatState, landed: Action[]): Action[] {
 }
 
 // Plays the open action out to the end with the die showing `face`, taking
-// every default a step offers and passing up any escape a stun opens, and
-// returns the order in which its root
+// every default a step offers and passing up any escape a stun opens or
+// disarm an intercept opens, and returns the order in which its root
 // actions landed, and the triggers each action an opportunity attack opened
 // offered while it was open to answers.
 function playOut(start: CombatState, face: number): { state: CombatState; landed: Action[]; openedTriggers: string[] } {
@@ -80,7 +81,8 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const steps = open.kind === 'grapple' && open.maneuver === 'escape' && open.step === 'define' ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
+    const passedUp = open.kind === 'grapple' && open.step === 'define' && (open.maneuver === 'escape' || isInterceptDisarm(s, open))
+    const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
@@ -546,6 +548,39 @@ describe('protecting the target of a strike', () => {
     expect(s).not.toBe(declared)
     const { state } = playOut(s, MISS)
     expect(state.board?.placements.d?.cell).toEqual({ q: 0, r: -1 })
+  })
+})
+
+// combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
+// stops an attack" — a discount off the maneuver's usual 3 AP + 1 STA
+// (combat.tex "Grapple Maneuvers"), and open with neither in a grapple.
+describe('a disarm an intercept opens', () => {
+  function facingOff(): CombatState {
+    const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+    const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+    let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), holdItem(shield)(fighter('def')))
+    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    return commitAction()(setTarget('def')(s))
+  }
+
+  it('opens at the attacker, discounted, when the intercept stops the strike', () => {
+    const start = facingOff()
+    const intercept = getAvailableActions(start, 'def').find((o) => o.draft.kind === 'intercept')!
+    const declared = declareReaction('def', intercept.draft, newId)(start)
+    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    const opened = getOpenAction(s)
+    expect(opened).toMatchObject({ kind: 'grapple', maneuver: 'disarm', actorId: 'def', targetId: 'atk' })
+    expect(getOwnCost(s, opened!)).toEqual({ AP: 1, STA: 1 })
+  })
+
+  it('may be passed up, leaving the dagger where it is', () => {
+    const start = facingOff()
+    const intercept = getAvailableActions(start, 'def').find((o) => o.draft.kind === 'intercept')!
+    const declared = declareReaction('def', intercept.draft, newId)(start)
+    const { state } = playOut(declared, MISS)
+    expect(state.characters.atk.held.some((i) => i.name === 'Dagger')).toBe(true)
+    expect(state.floor).toEqual([])
   })
 })
 

@@ -6,7 +6,7 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
-import { getReactionsTo } from './log'
+import { getAction, getReactionsTo } from './log'
 import { findGrapple, getGrapplesOf, isInGrapple, getPartner, holds } from './partners'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { delivering, getRowDamage } from './delivery'
@@ -266,6 +266,7 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
   const pair: [string, string] = [root.actorId, root.targetId]
   const found = findGrapple(state.grapples, root.actorId, root.targetId)
   if (!found && root.hook) return getHookKnockdownFacts(state, root, pair)
+  if (!found && isInterceptDisarm(state, root)) return getInterceptDisarmFacts(state, root, pair)
   if (!found) return null
   const g = found
   const deliveries = getHoldDeliveries(state, g)
@@ -300,6 +301,37 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
 // to throw oneself along during a hook attack").
 function getHookKnockdownFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
   return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], stand: [], dropped: null, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+}
+
+// combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
+// stops an attack" — no grapple between the two to seize a hit into, so
+// only a critical does anything: the item falls loose (the table's ruling,
+// mirroring the hook's own knockdown with nothing to hold).
+function getInterceptDisarmFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
+  const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
+  const dropped = item && root.roll?.degree === 'critical' ? { ownerId: pair[1], itemId: item } : null
+  return { pair, grapple: null, prone: [], stand: [], dropped, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+}
+
+// combat.tex "Disarm": whether this is that follow-up — opened by the
+// interceptor's own intercept, priced at a discount — rather than a
+// maneuver declared during a grapple.
+export function isInterceptDisarm(state: CombatState, root: GrappleAction): boolean {
+  return root.maneuver === 'disarm' && root.spawnedBy !== null && getAction(state, root.spawnedBy)?.kind === 'intercept'
+}
+
+// combat.tex "Intercept": "stops the attack" on a graze or a miss (the
+// table's ruling, as abilities.tex "Riposte" reads the same two degrees off
+// a defense). "Disarm": the intercept a strike was met with, when it did.
+export function getInterceptDisarmOpening(state: CombatState, strike: StrikeAction): Action | null {
+  if (strike.roll?.degree !== 'miss' && strike.roll?.degree !== 'graze') return null
+  return getReactionsTo(state, strike.id).find((r) => r.kind === 'intercept') ?? null
+}
+
+// combat.tex "Disarm": "+1AP+1STA" in place of the maneuver's usual
+// 3 AP + 1 STA (combat.tex "Grapple Maneuvers"), when it is this follow-up.
+export function getDisarmDiscount(state: CombatState, root: GrappleAction): number {
+  return isInterceptDisarm(state, root) ? 2 : 0
 }
 
 // Whether the knockdown the strike's hook opened put the character down.

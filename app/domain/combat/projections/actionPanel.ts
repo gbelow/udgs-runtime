@@ -24,7 +24,7 @@ import { getDragChoices, getDragOutcome, getDragSides, needsDragAim } from '../r
 import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
-import { canPickUp, getReachableFloor } from '../rules/floor'
+import { canPickUp, canThrowItem, findFloorItem, getReachableFloor, getThrowCells } from '../rules/floor'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
@@ -163,8 +163,12 @@ export type OpenActionView = {
   // a disarm's hit: what it can go for, and what it went for
   disarm: { itemId: string; name: string }[]
   item: string
-  // a pick up: what lies within reach, and what was picked
+  // a pick up: what lies within reach, and what was picked; a standard-action
+  // throw: what can be thrown, from a free hand or the floor
   floor: { itemId: string; name: string; available: boolean }[]
+  // a standard-action throw: where it may be aimed, and where it has been
+  to: Coord | null
+  throwCells: Coord[]
   // once rolled or compared: what it does to the grapple
   grapple: { target: string; text: string }[]
   cost: ActionCost | null
@@ -303,10 +307,14 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       maneuver: grapple?.maneuver ?? null,
       along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
       disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
-      item: grapple?.item ?? (open.kind === 'pickUp' ? open.itemId : ''),
+      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throwItem' ? open.itemId : ''),
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
+        : open.kind === 'throwItem' && open.step === 'define' && actor
+        ? [...actor.held, ...getReachableFloor(state, actor.id).map((f) => f.item)].map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
         : [],
+      to: open.kind === 'throwItem' ? open.to : null,
+      throwCells: open.kind === 'throwItem' && open.step === 'define' ? getThrowCells(state, open.actorId) : [],
       push: drag && drag.step === 'post' ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
@@ -328,7 +336,12 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
-      ? getChargeOptions(state).map((o) => ({ ...o, name: SPELLS[o.key].name, item: findHeldItem(state, o.itemId)?.item.name ?? '', holder: getFightName(state, o.holderId) }))
+      ? getChargeOptions(state).map((o) => ({
+          ...o,
+          name: SPELLS[o.key].name,
+          item: (findHeldItem(state, o.itemId)?.item ?? findFloorItem(state, o.itemId)?.item)?.name ?? '',
+          holder: o.holderId ? getFightName(state, o.holderId) : '',
+        }))
       : [],
     locations: attack ? getLocationOptions() : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: getFightName(state, id) })) : [],

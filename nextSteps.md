@@ -123,10 +123,4 @@ running must start in movement surge
 soft grapple weapons - whip is not grapple, nor is net
 visual effect marking grapple/tangle
 
-stand up while grappled - opportunity attack/ push - no specific rule required
-disarm during grapple - only crits, no hit effect. trigger at intercept
-allow throwing items with standard action
-drop 3 AP constraint for opportunity attack vs standard actions
-set off charged items on the floor
 add cost to trample
-fix new hook attack

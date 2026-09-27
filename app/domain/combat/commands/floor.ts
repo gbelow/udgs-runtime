@@ -32,3 +32,14 @@ export function pickFloorItem(characterId: string, itemId: string, newId: () => 
     return declareAction(characterId, { kind: 'pickUp', itemId }, newId)(state)
   }
 }
+
+// combat.tex "Standard Action": the item chosen to throw — a free hand's,
+// or one already on the floor — declares the throw, or changes it while it
+// is still being declared; where it lands is picked on the board (`pickCell`).
+export function pickThrowItem(characterId: string, itemId: string, newId: () => string): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (open?.kind === 'throwItem' && open.actorId === characterId) return amendAction({ itemId })(state)
+    return declareAction(characterId, { kind: 'throwItem', itemId }, newId)(state)
+  }
+}

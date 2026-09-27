@@ -125,6 +125,10 @@ export const HOP_EFFECTS = {
 export const STUN_AP = 2
 export const STUN_TIER = 3
 
+// combat.tex "Standard Action": "throwing items with bulk smaller than
+// character size by up to 10m"
+export const THROW_ITEM_RANGE = 10
+
 // combat.tex "Wounds" table. A wound is a permanent effect the character
 // carries in `active` until healed: `heal` is the IL wound to heal it away
 // (null for "no heal" — an amputation is for good), `affliction` its
