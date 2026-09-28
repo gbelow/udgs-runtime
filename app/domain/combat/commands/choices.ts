@@ -1,39 +1,14 @@
-import type { Action, Coord, Direction, DragAction, HOPPurchase, Updater } from '../types'
+import type { Action, Direction, HOPPurchase, Updater } from '../types'
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
 import { getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
-import { getCircleCells, getDragChoices, getDragOutcome } from '../rules/drag'
-import { sameCell } from '../geometry'
 import type { SpellModification } from '../../tables'
-import { applyPhase, getRolledOpen, pruneReactions, replaceActions } from './log'
+import { applyPhase, getRolledOpen, replaceActions } from './log'
 
 // The choices made once the die is known and before the action lands: what
-// a hit's overflow buys, where a spray or a push is pointed, what a
+// a hit's overflow buys, where a spray is pointed, what a
 // maneuver's hit is made of. Each edits only the rolled action, except the
 // graze a cast buys up, whose price is taken as it is bought.
-
-// The winner's way for the push, once the grapple has answered: push along
-// a direction and how far, circle round to a cell, or stay. Only what the
-// outcome leaves open; third parties' answers to a way no longer taken go.
-export function aimPush(fields: { choice?: 'push' | 'circle' | 'stay'; direction?: Direction; steps?: number; to?: Coord }): Updater {
-  return (state) => {
-    const open = getRolledOpen(state, ['drag'])
-    if (!open) return state
-    const outcome = getDragOutcome(state, open)
-    const choice = fields.choice ?? open.choice
-    if (!outcome || !choice || !getDragChoices(state, open).find((c) => c.choice === choice)?.available) return state
-    const changed = choice !== open.choice
-    const next: DragAction = {
-      ...open,
-      choice,
-      direction: choice !== 'push' ? null : fields.direction ?? (changed ? null : open.direction),
-      steps: Math.max(1, Math.min(fields.steps ?? open.steps, outcome.push || 1)),
-      to: choice !== 'circle' ? null : fields.to ?? (changed ? null : open.to),
-    }
-    if (next.to && !getCircleCells(state, next).some((c) => sameCell(c.cell, next.to!))) return state
-    return pruneReactions(replaceActions(state, [next]))
-  }
-}
 
 // combat.tex "Success Overflow": buys one effect out of the hit's HOP. Only
 // what the option list offers as open, so the command refuses exactly what

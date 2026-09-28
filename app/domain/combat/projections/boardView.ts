@@ -10,7 +10,7 @@ import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
-import { getCircleCells, getDisplaceFacts, getDragPath } from '../rules/drag'
+import { getDisplaceCost, getDisplaceFacts, getGroupReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { perState } from './perState'
 
@@ -52,8 +52,6 @@ export type BoardCellView = {
   zone: Degree | null
   // what lies on the floor here
   items: string[]
-  // where the actor of a settled push may circle round to
-  circle: boolean
 }
 
 export type BoardTokenView = {
@@ -104,7 +102,7 @@ export type BoardView = {
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
-  // combat.tex "Push and drag": where everyone the settled push moves will
+  // combat.tex "Push and drag": where everyone in a group being moved will
   // stand once it lands, drawn over the board before it does
   ghosts: BoardGhostView[]
   // who a click on a pickable floor item picks it up for
@@ -129,12 +127,17 @@ function buildBoardView(state: CombatState): BoardView {
 
   const open = getOpenAction(state)
   const step = getNextStep(state)
-  // the move in play, whatever its phase: its path stays drawn throughout
-  const pending = findOpenRoot(state, 'move')
+  // the move in play, whatever its phase: its path stays drawn throughout;
+  // so does the way a grapple group is moved (combat.tex "Push and drag")
+  const walking = findOpenRoot(state, 'displace')
+  const pending = findOpenRoot(state, 'move') ?? walking
   const move = open?.kind === 'move' && open.step === 'define' ? open : null
+  const group = open?.kind === 'displace' && open.step === 'define' ? open : null
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
-  const reachable = move ? getReachableCells(state, move) : []
+  const reachable = move ? getReachableCells(state, move)
+    : group ? getGroupReach(state, group).map((r) => ({ ...r, cost: getDisplaceCost(state, group, r.steps) ?? { AP: 0, STA: 0 } }))
+    : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
   const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
   const destination = pending?.path[pending.path.length - 1] ?? null
@@ -156,15 +159,10 @@ function buildBoardView(state: CombatState): BoardView {
   const explosion = findOpenRoot(state, 'explosion')
   const blast = findOpenRoot(state, 'blast')
   const laid = blast ?? (explosion ? getBlastOf(state, explosion) : null)
-  // combat.tex "Push and drag": once settled, the winner points the push or
-  // picks where to circle on the board, with where everyone ends up shown
-  // until the way is walked
-  const settled = open?.kind === 'drag' && open.step === 'post' ? open : null
-  const pointing = settled !== null && (settled.choice === 'push' || settled.choice === 'circle')
-  const aiming = (blast !== null && isAimable(state, blast)) || (explosion !== null && isAimable(state, explosion)) || pointing
-  const circling = new Set(settled && pointing && settled.choice === 'circle' ? getCircleCells(state, settled).map((c) => coordKey(c.cell)) : [])
-  const walking = findOpenRoot(state, 'displace')
-  const landed: Record<string, Placement> = walking ? getDisplaceFacts(state, walking).to : settled ? getDragPath(state, settled)?.steps.at(-1) ?? {} : {}
+  const aiming = (blast !== null && isAimable(state, blast)) || (explosion !== null && isAimable(state, explosion))
+  // combat.tex "Push and drag": where everyone in the group moved ends up,
+  // shown until the way is walked
+  const landed: Record<string, Placement> = walking ? (walking.step === 'define' ? getGroupSteps(state, walking)?.at(-1) ?? {} : getDisplaceFacts(state, walking).to) : {}
   const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []
@@ -207,7 +205,6 @@ function buildBoardView(state: CombatState): BoardView {
       threatened: threatened.has(key),
       zone: zones.get(key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),
-      circle: circling.has(key),
     }
   })
 
@@ -265,7 +262,7 @@ function buildBoardView(state: CombatState): BoardView {
     ghosts,
     picker: pickable.size > 0 ? picker : null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
-    mode: move ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
+    mode: move || group ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,

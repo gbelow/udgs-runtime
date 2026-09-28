@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, CombatState, RootAction, WeaponAction } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, DragAction, RootAction, WeaponAction } from '../types'
 import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -14,7 +14,7 @@ import { findHeldItem } from './fighters'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
 import { canGrab, canStandByEscape, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
-import { needsDragAim } from './drag'
+import { getDisplaceCost, getGroupSteps, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
 import { sameCell } from '../geometry'
@@ -92,13 +92,14 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const item = findThrowSource(state, action.actorId, action.itemId)
       return !!item && canThrowItem(c, item) && action.to !== null && getThrowCells(state, action.actorId).some((cell) => sameCell(cell, action.to!))
     }
-    // combat.tex "Push and drag": on the board; which way is the winner's
-    // to say once the grapple has answered
+    // combat.tex "Push and drag": on the board
     case 'drag':
       return state.board !== null
-    // nothing more to declare; a displace or a blast is generated with its
-    // way already walked out
+    // a way the whole group can take, cell by cell
     case 'displace':
+      return action.path.length > 0 && getGroupSteps(state, action) !== null
+    // nothing more to declare; a blast is generated with its way already
+    // walked out
     case 'blast':
     case 'release':
     case 'holdBack':
@@ -107,6 +108,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'carry':
     case 'letGo':
     case 'evade':
+    case 'brace':
     case 'evasion':
     case 'avoidExplosion':
     case 'follow':
@@ -172,6 +174,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'grapple':
       return action.hook ? { AP: 0, STA: 0 } : getCatalogCost(c, action.kind)
     case 'evade':
+    case 'brace':
     case 'evasiveJump':
     case 'guard':
     case 'avoidExplosion':
@@ -227,10 +230,20 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
-  const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length) : getDeclaredCost(c, action)
+  const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
+    : action.kind === 'displace' ? getDisplaceCost(state, action, action.path.length)
+    : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
+    : getDeclaredCost(c, action)
   const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : action.kind === 'grapple' ? getDisarmDiscount(state, action) : 0
   const cost = declared && discount > 0 ? { AP: Math.max(0, declared.AP - discount), STA: declared.STA } : declared
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
+}
+
+// The push an action pays for as its pusher, resister or helper.
+function getPushRoot(state: CombatState, action: Action): DragAction | null {
+  if (action.kind === 'drag') return action
+  const root = action.kind === 'resist' || action.kind === 'assist' ? getRootOf(state, action) : null
+  return root?.kind === 'drag' ? root : null
 }
 
 // combat.tex "Opportunity Attack": "It is possible to cancel the triggering
@@ -318,13 +331,11 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     // combat.tex "Sprays": the cone is pointed once the reflexes have moved
     case 'blast':
       return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
-    // combat.tex "Push and drag": the winner points the way
-    case 'drag':
-      return needsDragAim(state, open) ? 'aim' : 'confirm'
     case 'grapple':
       return needsDisarmPick(state, open) ? 'choose' : 'confirm'
     case 'explosion':
     case 'move':
+    case 'drag':
     case 'displace':
     case 'release':
     case 'holdBack':

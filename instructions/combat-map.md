@@ -75,9 +75,10 @@ declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag`, `release`, `holdBack`, `pickUp` |
-| Generated roots | `blast` (an explosion going off), `displace` (a push walked) — plus strikes, moves and maneuvers that other actions open, marked by `spawnedBy` |
+| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag`, `displace` (the controller moving a grapple group), `release`, `holdBack`, `pickUp` |
+| Generated roots | `blast` (an explosion going off) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
+| Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
 | Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move) |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
@@ -140,16 +141,16 @@ resolveAction ─────────► land(top)
 - **After the effect** — `getFollowUps` builds the list pushed over the landed action; the
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
-  counterattack), escapes a stun opens, a push's displacement, the explosion a cast opens,
+  counterattack), escapes a stun opens, a push made again when a grab brings someone into a
+  group under control, the explosion a cast opens,
   a hook's knockdown, and a riposte on top. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
-  nothing). Follow-ups no reaction opens (blast, displace, cast explosion, hook knockdown,
+  nothing). Follow-ups no reaction opens (blast, push re-evaluation, cast explosion, hook knockdown,
   stun escapes, riposte) live in `getFollowUps` itself.
-- **Auto-landing** — an explosion or a displacement has nothing to decide once its attacks
-  are fought, so `advance` lands it; a displacement nobody can answer is paid at no cost and
-  walked at once.
+- **Auto-landing** — an explosion or a group moved (`displace`) has nothing to decide once its
+  attacks are fought, so `advance` lands it.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.
@@ -157,13 +158,13 @@ resolveAction ─────────► land(top)
 ## Interruption, giving up, voiding
 
 - `getInterruptionOf(landed, victim)` (`rules/interruption.ts`) — what a landed strike,
-  push or displacement did to someone: `none | interrupted | stunned`.
+  grapple maneuver or push did to someone: `none | interrupted | stunned`.
 - `getInterruptions(state, action)` — what the action's descendants (through `reactionTo`
   and `spawnedBy`) landed on its actor *before its own effect*, ordered by `history`. A
   counterattack's tied strike is skipped (a tie breaks neither).
 - `isBroken` — any such interruption, except for a move (cut short where caught,
-  `getMoveOverride` in `rules/move.ts`) or a displacement (stopped only by a stun of the
-  pusher, `getPushStop` in `rules/drag.ts`).
+  `getMoveOverride` in `rules/move.ts`) or a group moved (stopped only by a stun of the
+  controller, `getPushStop` in `rules/drag.ts`).
 - `rules/opportunity.ts` — `getGivenUpFor` / `isCancelled` (the actor of a triggering action
   gives it up by answering an opportunity attack it drew with anything but the SD) and
   `isVoided` (cancelled or broken). A voided action lands nothing at its resolve
@@ -208,7 +209,7 @@ resolveAction ─────────► land(top)
 
 - `actionPanel.ts` `getActionPanel` — everything the action panel shows: the open action,
   its sub-step, options with reasons, reactors and their pickers, HOP and spell options,
-  push choices.
+  push outcome.
 - `boardView.ts` `getBoardView` — cells, tokens, ghosts, floor items, and what a click on
   each cell would mean (`BoardMode`).
 - `roster.ts` `getCombatRoster`, `getRole` — who each character is to the open action.
@@ -267,12 +268,12 @@ app/domain/combat/
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
 │   ├── waypoint.ts     where the mover stands along a path
 │   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
-│   ├── trample.ts      Force comparisons from moves and braced blows
+│   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
 │   ├── ground.ts       crossable and restable cells
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
-│   ├── drag.ts         push and drag: sides, outcome, choices, path, displacement
+│   ├── drag.ts         push and drag: sides, outcome, control of the group, moving it
 │   ├── floor.ts        items on the floor, reachable, thrown
 │   └── fighters.ts     active character, fight names, who holds an item
 │

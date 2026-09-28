@@ -1,6 +1,5 @@
 import type { Action, CastAction, CombatState, ExplosionAction, RootAction } from '../types'
 import { getOpenAction } from '../rules/log'
-import { getTriggers } from '../rules/reactions'
 import { getSettled } from '../rules/settle'
 import { opensExplosion } from '../rules/cast'
 import { getAttackOptions } from '../rules/attack'
@@ -10,7 +9,8 @@ import { isVoided } from '../rules/opportunity'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
 import { getDisarmOptions, getInterceptDisarmOpening, getStunEscapes } from '../rules/grapple'
-import { getDisplacement } from '../rules/drag'
+import { getControlRecheck } from '../rules/drag'
+import { getGrappleFacts } from '../rules/grapple'
 import { getHookKnockdown } from '../rules/damage'
 import { makeAction } from '../factories'
 import { appendActions, applyPhase, replaceActions } from './log'
@@ -27,14 +27,10 @@ import { appendActions, applyPhase, replaceActions } from './log'
 // opens the next of the actions its reactions opened before its effect. One
 // waiting on a declaration, an answer or a choice is left to it — except
 // those with nothing of their own left to decide, which land once their
-// attacks are fought: an explosion, and a displacement, which nobody able to
-// answer it is walked at once.
+// attacks are fought: an explosion, and the group moved.
 export function advance(state: CombatState, newId: () => string): CombatState {
   const top = getOpenAction(state)
   if (!top) return state
-  if (top.kind === 'displace' && top.step === 'react' && getTriggers(state, top).length === 0) {
-    return advance(replaceActions(state, [{ ...top, step: 'post', cost: { AP: 0, STA: 0 } }]), newId)
-  }
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
   return opened === state && (top.kind === 'displace' || top.kind === 'explosion') ? land(state, top, newId) : opened
@@ -82,8 +78,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // The follow-ups the landed action generates, the last played out first:
 // the blast an explosion goes off as, beneath everything else; what its
 // reactions open after it (rules/openers.ts), in the order they were
-// declared; the escapes a stun opens, the way a push was pointed, walked,
-// the explosion a cast that hit with an area to it goes off as, aimed and
+// declared; the escapes a stun opens, the push made again for someone who
+// joined a group under control, the explosion a cast that hit with an area to it goes off as, aimed and
 // played out on its own (the caster's part is done), the knockdown a hook
 // opens, the disarm an intercept opens; and on top, a riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
@@ -96,12 +92,11 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
     return opener.after && (!voided || opener.evenIfVoided) ? opener.after(state, root, reaction, newId) : []
   })
   if (voided) return opened
-  const displacement = root.kind === 'drag' ? getDisplacement(state, root) : null
   return [
     ...blast,
     ...opened,
     ...escapesOnStun(state, root, newId),
-    ...(displacement ? [makeAction('displace', { ...displacement, id: newId(), actorId: root.actorId, spawnedBy: root.id, step: 'react' })] : []),
+    ...openControlRecheck(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
     ...openHookKnockdown(state, root, newId),
     ...openInterceptDisarm(state, root, newId),
@@ -115,6 +110,17 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
 function castExplosion(state: CombatState, root: CastAction, newId: () => string): ExplosionAction {
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id })
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
+}
+
+// combat.tex "Push and drag": a grab that brings someone into a group under
+// control "reevaluates the comparison" (the table's ruling) — the
+// controller's push, made again, for the group to answer anew.
+function openControlRecheck(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  const pair = getGrappleFacts(root)?.pair
+  const controller = pair ? getControlRecheck(state, pair) : null
+  if (!pair || !controller) return []
+  const targetId = pair[0] === controller ? pair[1] : pair[0]
+  return [makeAction('drag', { recheck: true, id: newId(), actorId: controller, targetId, spawnedBy: root.id, step: 'react' })]
 }
 
 // combat.tex "Hook Attack": the knockdown the hook opens, for the hooker to

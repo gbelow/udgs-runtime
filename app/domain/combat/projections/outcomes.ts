@@ -59,6 +59,7 @@ function dragNotes(facts: DragFacts, named: (id: string) => string): { target: s
   return [
     ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
     ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
+    facts.control ? { target: named(facts.control.controller), text: `controls the group · ${facts.control.basic ? 'basic' : 'careful'}` } : { target: '', text: 'nobody controls the group' },
   ]
 }
 
@@ -66,7 +67,6 @@ function displaceNotes(facts: DisplaceFacts, named: (id: string) => string): { t
   const moved = Object.keys(facts.to)
   return [
     moved.length > 0 ? { target: moved.map(named).join(', '), text: `moved ${facts.steps}m` } : { target: '', text: 'nobody moves' },
-    ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
   ]
 }
 

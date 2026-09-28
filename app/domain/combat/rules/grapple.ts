@@ -127,7 +127,7 @@ export function getGrabFacts(state: CombatState, strike: StrikeAction): GrappleF
   const pair: [string, string] = [strike.actorId, strike.targetId]
   const was = findGrapple(state.grapples, ...pair)
   const holders = [...new Set([...(was?.holders ?? []), strike.actorId, ...(hasGrappleRow(target) ? [target.id] : [])])]
-  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], seized: was?.seized ?? [] })
+  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], seized: was?.seized ?? [], control: was?.control ?? null })
 }
 
 // Whether the strike may be a grab at the target: made with a grapple row,

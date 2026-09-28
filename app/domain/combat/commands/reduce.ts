@@ -13,6 +13,7 @@ import { isAttackAction } from '../rules/actionCatalog'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
 import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
+import { getGrappleGroup } from '../rules/partners'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
@@ -48,7 +49,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
         // combat.tex "Movement": "getting up: Removes the prone condition" —
         // unless an opportunity attack cancelled it ("Interruption")
         if (action.kind === 'move') {
-          const trampled = trampledBy(action.facts?.trampled ?? [], action.actorId, c)
+          const trampled = trampledBy(action.facts?.trampled ?? [], c)
           if (c.id !== action.actorId) return trampled
           if (action.movement === 'stand') return action.facts?.stop === 'end' ? standUp(c) : c
           if (action.movement === 'prone') return fallProne(c)
@@ -76,11 +77,11 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) : delivered
         }
-        // combat.tex "Push and drag": going along passively is paid for in
-        // the basic movement of the metres moved
+        // combat.tex "Push and drag": going along is paid for in the
+        // movement of the metres moved
         if (action.kind === 'displace') {
-          const AP = action.facts?.carried[c.id] ?? 0
-          return AP > 0 ? payCost({ AP, STA: 0 })(c) : c
+          const cost = action.facts?.carried[c.id]
+          return cost ? payCost(cost)(c) : c
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Standard Action": a thrown item leaves whichever hand
@@ -103,13 +104,13 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           }, discharged)
           // combat.tex "Throw": what is thrown leaves the hand
           if (action.kind === 'shoot') return releaseThrown(paid, action.weaponKey, action.attack)
-          // combat.tex "Braced Attack": the trample it triggers, the bracer
-          // against the mover the blow met (its target)
-          return action.trample ? trampledBy([action.trample], action.targetId ?? '', paid) : paid
+          // combat.tex "Braced Attack": the crash it triggers, the mover the
+          // blow met against the bracer
+          return action.trample ? trampledBy([action.trample], paid) : paid
         }
         if (c.id !== action.targetId || !action.facts) return c
         const struck = deliver(action.facts)(c)
-        return action.kind === 'strike' && action.trample ? trampledBy([action.trample], c.id, struck) : struck
+        return action.kind === 'strike' && action.trample ? trampledBy([action.trample], struck) : struck
     }
   }
 }
@@ -141,10 +142,14 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
 export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple[]) => Grapple[] {
   return (grapples: Grapple[]) => {
     if (phase !== 'resolve') return grapples
-    // combat.tex "Push and drag": one who let go instead of being dragged
+    // combat.tex "Push and drag": one who let go instead of being dragged,
+    // and the control of the group's movement won — or, on a draw, lost
     if (action.kind === 'drag') {
-      const released = action.facts?.released ?? []
-      return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
+      if (!action.facts) return grapples
+      const { released, control } = action.facts
+      const held = released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
+      const group = new Set(getGrappleGroup(held, action.actorId))
+      return held.map((g) => (group.has(g.members[0]) ? { ...g, control } : g))
     }
     const facts = getGrappleFacts(action)
     return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples
@@ -176,21 +181,13 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
   }
 }
 
-// combat.tex "Trample": whoever loses is stunned — the runner "stopped and
-// stunned", the opponent "moves back one space and is stunned", or "stunned
-// and prone" — and "Stun: An interrupt in which the target also loses 2 AP".
-// A mover who pushes someone along their heading meets them again on every
-// step, but it is one stun for the whole move (the table's ruling).
-function trampledBy(tramples: Trample[], runnerId: string, c: CampaignCharacter): CampaignCharacter {
-  const lost = tramples.filter((t) => (t.result === 'stopped' ? runnerId : t.id) === c.id)
-  if (lost.length === 0) return c
-  const stunned = payCost({ AP: STUN_AP, STA: 0 })(c)
-  return lost.some((t) => t.result === 'knocked') ? fallProne(stunned) : stunned
-}
-
-// Where each trample pushed whoever lost it, the last push standing.
-function pushedBy(tramples: Trample[], placements: Board['placements']): Board['placements'] {
-  return tramples.reduce((acc, t) => (t.to ? { ...acc, [t.id]: t.to } : acc), placements)
+// combat.tex "Crash": who it stunned, and the target it knocked prone —
+// "Stun: An interrupt in which the target also loses 2 AP".
+function trampledBy(tramples: Trample[], c: CampaignCharacter): CampaignCharacter {
+  const hit = tramples.filter((t) => t.stunned.includes(c.id))
+  if (hit.length === 0) return c
+  const stunned = payCost({ AP: STUN_AP * hit.length, STA: 0 })(c)
+  return hit.some((t) => t.prone && t.id === c.id) ? fallProne(stunned) : stunned
 }
 
 // The one place an action changes the board, the same way: it reads the
@@ -200,9 +197,8 @@ function pushedBy(tramples: Trample[], placements: Board['placements']): Board['
 export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
   return (board: Board) => {
     if (phase !== 'resolve') return board
-    // combat.tex "Trample": "the opponent moves back one space"
     if (action.kind === 'move') {
-      const placements = pushedBy(action.facts?.trampled ?? [], board.placements)
+      const placements = board.placements
       // a jump away from an opportunity attack put the mover where it landed
       const destination = action.facts && action.facts.stop !== 'jump' ? getMoveDestination(state, action, action.facts.path) : null
       return { ...board, placements: destination ? { ...placements, [action.actorId]: destination } : placements }
@@ -211,7 +207,7 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       // abilities.tex "Defender", "Defensive Advance": whoever stepped to
       // block or intercept stands where they stepped
       const stepped = Object.fromEntries(getReactionsTo(state, action.id).flatMap((r) => ((r.kind === 'block' || r.kind === 'intercept') && r.to ? [[r.actorId, r.to]] : [])))
-      const placements = pushedBy(action.trample ? [action.trample] : [], { ...board.placements, ...stepped })
+      const placements = { ...board.placements, ...stepped }
       // combat.tex "Evasive Jump": the defender lands where the jump said
       if (!action.jumpedTo || !action.targetId) return { ...board, placements }
       return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }

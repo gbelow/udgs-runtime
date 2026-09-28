@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CombatStateSchema, type Action, type CombatState } from '../types'
+import { CombatStateSchema, type Action, type CombatState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
@@ -12,7 +12,7 @@ import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/att
 import { isInterceptDisarm } from '../rules/grapple'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
-import { aimExplosion, aimPush, spendHOP } from './choices'
+import { aimExplosion, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { produceEffects } from '../../character/rules/production'
@@ -127,19 +127,25 @@ function strikeFlankedTwice(): CombatState {
   return everyoneAttacks(s, ['f1', 'f2'])
 }
 
-// A has grabbed B and pushes them 2m straight at a spearman with reach 2,
-// B going along only passively; the push lands and its way is walked, the
-// spearman answering it (combat.tex "Push and drag"; "Opportunity Attack":
-// "moving towards a melee weapon while within its attack range").
+// A has grabbed B and pushed them passively, taking control of the group,
+// and moves it 2m straight at a spearman with reach 2, the spearman
+// answering it (combat.tex "Push and drag"; "Opportunity Attack": "moving
+// towards a melee weapon while within its attack range").
 function pushTowardsSpearman(): CombatState {
-  let s = onBoard({ a: [0, 0], b: [1, 0], t: [4, 0] }, fighter('a'), fighter('b'), spearman('t'))
+  return moveGrabbedGroup({ a: [0, 0], b: [1, 0], t: [4, 0] }, spearman('t'), [{ q: 1, r: 0 }, { q: 2, r: 0 }])
+}
+
+// A grabs B, wins control of the group with a push, and declares moving it
+// along the way given, committed for third parties to answer.
+function moveGrabbedGroup(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): CombatState {
+  let s = onBoard(placements, fighter('a'), fighter('b'), third)
   s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction()(setTarget('b')(s))))
   s = declareAction('a', { kind: 'drag' }, newId)(s)
-  s = payAction(newId)(commitAction()(setTarget('b')(s)))
-  s = resolveAction(newId)(aimPush({ choice: 'push', direction: 0, steps: 2 })(s))
+  s = resolveAction(newId)(payAction(newId)(commitAction()(setTarget('b')(s))))
+  s = commitAction()(declareAction('a', { kind: 'displace', path }, newId)(s))
   expect(getOpenAction(s)?.kind).toBe('displace')
-  return everyoneAttacks(s, ['t'])
+  return everyoneAttacks(s, [third.id])
 }
 
 const scenarios = [
@@ -193,31 +199,26 @@ describe('an action broken by an opportunity attack', () => {
     expect(state.characters.def).toEqual(s.characters.def)
   })
 
-  // The table's ruling: only a stun of the pusher stops a push; one who is
-  // dragged and interrupted is still dragged all the way.
-  it('does not stop a push when the one it interrupts is dragged', () => {
+  // The table's ruling: only a stun of the controller stops the group
+  // moving; one who is dragged and interrupted is still dragged all the way.
+  it('does not stop a group moved when the one it interrupts is dragged', () => {
     const { state } = playOut(pushTowardsSpearman(), LAND)
     expect(state.actions.find((a) => a.kind === 'strike' && a.targetId === 'b' && a.step === 'done' && a.interruption !== 'none')).toBeDefined()
     expect(state.board?.placements.b?.cell).toEqual({ q: 3, r: 0 })
     expect(state.board?.placements.a?.cell).toEqual({ q: 2, r: 0 })
   })
 
-  // The table's ruling: the pusher goes along with the push, so like running
-  // and jumping it carries on through an interruption; only a stun of the
-  // pusher stops it, one step short of the stretch the attack fired on. A
-  // leaves [0, 0] pulling B from [1, 0] 2m away from the attacker, who
-  // strikes A on the second step.
+  // The table's ruling: the controller goes along with the group, so like
+  // running and jumping it carries on through an interruption; only a stun
+  // of the controller stops it, one step short of the stretch the attack
+  // fired on. A leaves [0, 0] pulling B from [1, 0] 2m towards the
+  // attacker, who strikes A on the second step.
   it.each([
     { weapon: 'Short Spear', a: { q: -2, r: 0 }, b: { q: -1, r: 0 } },
     { weapon: 'Greatsword', a: { q: -1, r: 0 }, b: { q: 0, r: 0 } },
-  ])('stops a push whose pusher a $weapon hits only if it stuns them', ({ weapon, a, b }) => {
-    let s = onBoard({ a: [0, 0], b: [1, 0], t: [-3, 0] }, fighter('a'), fighter('b'), wielder('t', weapon))
-    s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
-    s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction()(setTarget('b')(s))))
-    s = declareAction('a', { kind: 'drag' }, newId)(s)
-    s = payAction(newId)(commitAction()(setTarget('b')(s)))
-    s = resolveAction(newId)(aimPush({ choice: 'push', direction: 3, steps: 2 })(s))
-    const { state } = playOut(everyoneAttacks(s, ['t']), LAND)
+  ])('stops a group moved whose controller a $weapon hits only if it stuns them', ({ weapon, a, b }) => {
+    const s = moveGrabbedGroup({ a: [0, 0], b: [1, 0], t: [-3, 0] }, wielder('t', weapon), [{ q: -1, r: 0 }, { q: -2, r: 0 }])
+    const { state } = playOut(s, LAND)
     const strike = state.actions.find((x) => x.kind === 'strike' && x.actorId === 't')
     expect(strike?.kind === 'strike' && [strike.targetId, strike.interruption]).toEqual(['a', weapon === 'Greatsword' ? 'stunned' : 'interrupted'])
     expect(state.board?.placements.a?.cell).toEqual(a)

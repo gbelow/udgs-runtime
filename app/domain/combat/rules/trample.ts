@@ -1,112 +1,95 @@
-import type { Character, MoveKind } from '../../types'
-import type { CombatState, Coord, MoveAction, Placement, StrikeAction, Trample } from '../types'
+import type { Character } from '../../types'
+import type { CombatState, Coord, MoveAction, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
 import { hasAffliction } from '../../character/rules/afflictions'
-import { DIRECTIONS, add, directionTo, sameCell } from '../geometry'
-import { getFootprint, withPlacements } from './board'
 import { getMovementSpeed } from '../../character/rules/movement'
-import { canStandAt } from './ground'
-import { getMoveOrigin, getStepPlacements } from './waypoint'
-import { getReactionsTo } from './log'
+import { sameCell } from '../geometry'
+import { getFootprint } from './board'
+import { getMoveOrigin } from './waypoint'
+import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
+import { getMoveBlockCells } from './move'
 
-// combat.tex "Trample": "Happens when two characters hit each other at
-// speed. This is a Force vs Force comparison." Two ways into one here: a
-// move whose path comes into someone standing (combat.tex "Movement" —
-// "trample"), and a braced blow on a mover coming at the bracer (combat.tex
-// "Braced Attack": "The additional damage effect also triggers a trample").
+// combat.tex "Trample": "Happens when a character moves through a space
+// occupied by another character." Two ways into one here: a move whose path
+// comes into someone standing, and a braced blow or a catch on a mover
+// (combat.tex "Braced Attack": a hit "trigger[s] a trample"; "Catch").
 
-// "Trampling a prone character is an automatic success and allows free
-// passage" — nobody to compare against.
+// combat.tex "Crash": "The target can spend 2AP+1STA to get +3 in this
+// comparison (automatic from braced attack reaction)"; "A hit to the head
+// adds +3 to the crash"; "Catch": the catcher "receive[s] the +3 to the
+// crash".
+const BRACED = 3
+const HEAD = 3
+
+// "Is prone: free passage" — nobody to compare against.
 export function isTrampleable(state: CombatState, id: string): boolean {
   const c = state.characters[id]
   return !!c && !hasAffliction(c, 'prone')
 }
 
-// "Whoever is running or jumping gets a bonus equal to their running or
-// jumping speed to this."
-function getTrampleForce(c: Character, movement: MoveKind | null): number {
-  const speed = movement === 'run' || movement === 'jump' ? getMovementSpeed(c, movement) : 0
-  return getForce(c) + speed
+// "Whoever is running adds their movement speed to their Force" — and a
+// character is running only once the first 2 AP of the run are behind them
+// (combat.tex "running": "The first 2 AP worth of running must be
+// uninterrupted, otherwise, running cannot be started"). `at` is the path
+// step the crash comes on.
+function getMoverForce(c: Character, move: MoveAction, at: number): number {
+  const running = move.movement === 'run' && at > getMoveBlockCells(c, 'run', 2)
+  return getForce(c) + (running ? getMovementSpeed(c, 'run') : 0)
 }
 
-// "If the runner's Force is higher, the opponent moves back one space and is
-// stunned. If Force is 5 points higher or more, the opponent is stunned and
-// prone. ... If the defender's force is equal or higher, the runner is
-// stopped and stunned."
-function compare(runner: number, opponent: number): Trample['result'] {
-  if (opponent >= runner) return 'stopped'
-  return runner - opponent >= 5 ? 'knocked' : 'pushed'
+// "On force differences lower than 5, both are stunned and the higher force
+// gets to either block passage or pass through. A draw blocks passage. On
+// greater differences, the winner does not get stunned and the loser falls
+// prone if they are the target."
+function crash(moverId: string, targetId: string, at: number, mover: number, target: number): Trample {
+  const diff = mover - target
+  const result = diff > 0 ? 'passed' : 'blocked'
+  if (Math.abs(diff) < 5) return { id: targetId, at, diff, result, stunned: [moverId, targetId], prone: false }
+  return { id: targetId, at, diff, result, stunned: [diff > 0 ? targetId : moverId], prone: diff > 0 }
 }
 
-// The opponent moved back a space along the runner's heading, where their
-// footprint can come to rest; `to` stays null where it cannot, and a move
-// that would push someone there is not a legal path (the table's ruling:
-// pushing against a blocked cell is not possible).
-function outcome(state: CombatState, id: string, at: number, result: Trample['result'], from: Placement, heading: number): Trample {
-  if (result !== 'pushed') return { id, at, result, to: null }
-  const to = { ...from, cell: add(from.cell, DIRECTIONS[heading]) }
-  return { id, at, result, to: canStandAt(state, id, to) ? to : null }
-}
-
-// The move's path as walked against everyone standing in it who did not
-// evade it ("Evade: ... it always works automatically unless trample is a
-// directed attack"), step by step: each step whose footprint comes into one
-// is a comparison, at the mover's Force (and speed) against theirs. One
-// pushed further along the heading is met again on the next step into them;
-// one knocked down is prone, so passed over freely; the first comparison the
-// mover loses stops them a space short of it — `stop`, the steps walked.
-// `blocked`: a push on the way had nowhere to put its opponent.
-export function getMoveTramples(state: CombatState, action: MoveAction, path: Coord[]): { trampled: Trample[]; stop: number | null; blocked: boolean } {
+// The move's path as walked against everyone standing in it, step by step:
+// the first step whose footprint comes into one is their crash, at the
+// mover's Force against theirs. Passed, the mover goes on through them;
+// blocked, the mover stops a space short of them — `stop`, the steps
+// walked. Left out are whoever "Evades: ... free passage", whoever is prone,
+// and a bracer or catcher whose blow on this move was its crash already.
+export function getMoveTramples(state: CombatState, action: MoveAction, path: Coord[]): { trampled: Trample[]; stop: number | null } {
   const mover = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
   const board = state.board
-  if (!mover || !from || !board) return { trampled: [], stop: null, blocked: false }
-  const evaded = new Set(getReactionsTo(state, action.id).filter((a) => a.kind === 'evade').map((a) => a.actorId))
-  const standing = Object.keys(state.characters).filter((id) => id !== action.actorId && !evaded.has(id) && isTrampleable(state, id))
+  if (!mover || !from || !board) return { trampled: [], stop: null }
+  const reactions = getReactionsTo(state, action.id)
+  const evaded = new Set(reactions.filter((a) => a.kind === 'evade').map((a) => a.actorId))
+  const braced = new Set(reactions.filter((a) => a.kind === 'brace').map((a) => a.actorId))
+  const struck = new Set(getDrawnOpportunityAttacks(state, action).flatMap(({ spawned }) => (spawned?.kind === 'strike' && spawned.trample ? [spawned.actorId] : [])))
+  const standing = Object.keys(state.characters).filter((id) => id !== action.actorId && !evaded.has(id) && !struck.has(id) && isTrampleable(state, id) && board.placements[id])
 
-  const runner = getTrampleForce(mover, action.movement)
-  const where: Record<string, Placement> = {}
-  for (const id of standing) if (board.placements[id]) where[id] = board.placements[id]
-  const down = new Set<string>()
+  const met = new Set<string>()
   const trampled: Trample[] = []
-  let cursor = from.cell
   for (const [i, cell] of path.entries()) {
-    const heading = directionTo(cursor, cell)
     const footprint = getFootprint(mover, { ...from, cell })
-    for (const id of Object.keys(where)) {
+    for (const id of standing) {
       const other = state.characters[id]
-      if (!other || down.has(id)) continue
-      const theirs = getFootprint(other, where[id])
+      if (!other || met.has(id)) continue
+      const theirs = getFootprint(other, board.placements[id])
       if (!footprint.some((f) => theirs.some((t) => sameCell(f, t)))) continue
-      const now = withPlacements(state, where)
-      const result = outcome(now, id, i + 1, compare(runner, getForce(other)), where[id], heading)
+      met.add(id)
+      const result = crash(mover.id, id, i + 1, getMoverForce(mover, action, i + 1), getForce(other) + (braced.has(id) ? BRACED : 0))
       trampled.push(result)
-      if (result.result === 'stopped') return { trampled, stop: i, blocked: false }
-      if (result.result === 'pushed' && !result.to) return { trampled, stop: i, blocked: true }
-      if (result.to) where[id] = result.to
-      else down.add(id)
+      if (result.result === 'blocked') return { trampled, stop: i }
     }
-    cursor = cell
   }
-  return { trampled, stop: null, blocked: false }
+  return { trampled, stop: null }
 }
 
-// The trample a blow on a mover sets off — a braced one, or a catch: the
-// mover it met, at their Force and speed, against the striker — "If a
-// strike started this action, targeting the head increases attacker's force
-// by 3"; combat.tex "Catch": the catcher "add[s] their own running speed to
-// defend the trample". The striker is pushed back along the mover's heading
-// at the step the blow came on.
+// The crash a blow on a mover sets off — a braced one, or a catch: the mover
+// it met, at their Force (and speed), against the striker, braced either way
+// and more so for a hit to the head.
 export function getBlowTrample(state: CombatState, strike: StrikeAction, move: MoveAction, at: number): Trample | null {
   const mover = state.characters[move.actorId]
-  const bracer = state.characters[strike.actorId]
-  const placed = state.board?.placements[strike.actorId]
-  // a catch meets the runner on the step that brought them in reach, the
-  // one before the one it is fought ahead of
-  const step = strike.catch ? at - 1 : at
-  const walked = getStepPlacements(state, move, step)
-  if (!mover || !bracer || !placed || !walked) return null
-  const runner = getTrampleForce(mover, move.movement)
-  const opponent = getForce(bracer) + (strike.location === 'head' ? 3 : 0) + (strike.catch ? getMovementSpeed(bracer, 'run') : 0)
-  return outcome(state, bracer.id, at, compare(runner, opponent), placed, directionTo(walked.before.cell, walked.after.cell))
+  const striker = state.characters[strike.actorId]
+  if (!mover || !striker) return null
+  const target = getForce(striker) + BRACED + (strike.location === 'head' ? HEAD : 0)
+  return crash(mover.id, striker.id, at, getMoverForce(mover, move, at), target)
 }

@@ -110,9 +110,10 @@ function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'j
   return step && step.move.actorId === root.targetId && step.move.movement === 'run' ? 'running' : null
 }
 
-// combat.tex "Braced Attack": "The additional damage effect also triggers a
-// trample" — a braced hit, against the mover it met; combat.tex "Catch": so
-// does a catch that lands.
+// combat.tex "Braced Attack": "On a hit, spend an additional +2AP and +1STA
+// ... and trigger a trample" — against the mover it met; combat.tex
+// "Evades": against a directed strike "a hit in the strike causes a crash",
+// so does a catch that lands.
 function getStrikeTrample(state: CombatState, root: AttackAction): Trample | null {
   if (root.kind !== 'strike' || (!root.catch && (root.spent.braced ?? 0) === 0) || root.roll?.degree !== 'hit') return null
   const step = getOpportunityStep(state, root)
@@ -175,12 +176,14 @@ export function getInterruption(state: CombatState, root: AttackAction, facts: D
 // off, the grab it made, and where the target's evasive jump took them.
 // combat.tex "Initiate the Grab": "On a hit, the opponent is grappled, and
 // any movement initiated by them is stopped"; combat.tex "Catch": "If the
-// target is stopped, the catcher can decide to grapple them without further
-// tests".
+// target is not stopped, only a strike with 5 HOPs or more succeeds in the
+// grapple".
+const CATCH_HOP = 5
+
 export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
-  const grabbed = strike.catch && trample?.result !== 'stopped' ? null : getGrabFacts(state, strike)
+  const grabbed = strike.catch && trample?.result !== 'blocked' && (strike.roll?.HOP ?? 0) < CATCH_HOP ? null : getGrabFacts(state, strike)
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
   return {
     interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,

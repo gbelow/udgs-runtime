@@ -27,7 +27,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, aim } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -43,7 +43,7 @@ export function ActionPanel(){
   }
 
   const rolled = step === 'spend' || step === 'choose' || step === 'confirm'
-  const locked = step === 'react' || rolled || open.push !== null
+  const locked = step === 'react' || rolled
   // before the commit the action is free to drop; one a reaction opened is
   // withdrawn along with the reaction instead
   const declared = !locked
@@ -70,7 +70,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {open.push ? <PushAim push={open.push} onAim={aim} /> : null}
+      {open.push ? <Push push={open.push} onPay={(pay) => amend({ unpaid: !pay })} /> : null}
 
       {view.spells.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -443,24 +443,17 @@ function Cost({ cost }: { cost: ActionCost | null }){
   return <span className='font-mono text-muted'>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
 }
 
-const PUSH_WINNER = { attacker: 'the push wins', defender: 'pushed back', draw: 'a draw' } as const
-const PUSH_CHOICE = { push: 'push', circle: 'circle around', stay: 'stay' } as const
-
-// A settled push: who won, and the winner's way — push, circle round the
-// partner, or stay — pointed on the board.
-function PushAim({ push, onAim }: { push: PushView, onAim: (fields: { choice?: 'push' | 'circle' | 'stay'; steps?: number }) => void }){
+// A push: whether the pusher pays or takes the -5, while that is theirs to
+// say; once paid, who takes control of the group.
+function Push({ push, onPay }: { push: PushView, onPay: (pay: boolean) => void }){
   const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
   return (
-    <div className='flex flex-col gap-1'>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>{PUSH_WINNER[push.winner]}</SectionLabel>
-        {push.choices.map((c) =>
-          <Button key={c.choice} size='xs' {...toggle(push.choice === c.choice)} disabled={!c.available} onClick={() => onAim({ choice: c.choice })}>{PUSH_CHOICE[c.choice]}</Button>)}
-        {push.choice === 'push' ? push.distances.map((m) =>
-          <Button key={m} size='xs' {...toggle(push.steps === m)} onClick={() => onAim({ steps: m })}>{m}m</Button>) : null}
-      </div>
-      {push.choice === 'push' ? <span className='text-xs text-muted'>{push.aimed ? 'click the board to change the direction' : 'click a cell on the board to push towards'}</span> : null}
-      {push.choice === 'circle' ? <span className='text-xs text-muted'>{push.aimed ? 'click another marked cell to change it' : 'click a marked cell on the board to circle to'}</span> : null}
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      {push.editable ? <>
+        <Button size='xs' {...toggle(!push.unpaid)} onClick={() => onPay(true)}>pay</Button>
+        <Button size='xs' {...toggle(push.unpaid)} onClick={() => onPay(false)}>no pay (-5)</Button>
+      </> : null}
+      {push.settled ? <SectionLabel>{push.controller ? `${push.controller} controls the group · ${push.movement}` : 'nobody takes control'}</SectionLabel> : null}
     </div>
   )
 }

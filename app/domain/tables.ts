@@ -307,6 +307,9 @@ export const ACTION_COSTS = {
   evasiveJump: { AP: 3, STA: 1 },
   block:       { AP: 2, STA: 0 },
   intercept:   { AP: 3, STA: 0 },
+  // combat.tex "Crash": "The target can spend 2AP+1STA to get +3 in this
+  // comparison"
+  brace:       { AP: 2, STA: 1 },
   // abilities.tex "Defender": "spend 1 STA to move 1 basic movement";
   // "Defensive Advance": "Spend 1 STA to move forward" — on top of the
   // defense they are taken for
@@ -320,7 +323,7 @@ export const ACTION_COSTS = {
   grappleManeuver: { AP: 3, STA: 1 },
   grappleDefense:  { AP: 2, STA: 1 },
   catch:           { AP: 3, STA: 1 },
-  pushDrag:        { AP: 2, STA: 1 },
+  pushDrag:        { AP: 3, STA: 2 },
   // everything else — combat.tex "Rest", "Preparing a reaction", "Analyze",
   // "Standard Action", "Flanking", "Social actions"
   rest:           { AP: 4, STA: 0 },
@@ -337,9 +340,10 @@ export type ActionKind = keyof typeof ACTION_COSTS
 
 // combat.tex "Grapple": "Any skill test made by several characters uses the
 // highest skill value among them plus 3/2/1 for each additional character,
-// up to a maximum of 5. ... Characters of a smaller size category add a
-// maximum of 2." The bonus of the second, third and every further helper.
-export const ASSIST = { bonus: [3, 2, 1], max: 5, smallerMax: 2 } as const
+// up to a maximum of 5. ... Characters with force 5 points lower than their
+// opponent always add just +1." The bonus of the second, third and every
+// further helper, and what one that far weaker adds.
+export const ASSIST = { bonus: [3, 2, 1], max: 5, weaker: 1, weakerBy: 5 } as const
 
 // combat.tex "Shoot", "Quick Shot", "Snipe": the ways a shooting weapon is
 // fired, each named by the variation the attack list gives it and how far it

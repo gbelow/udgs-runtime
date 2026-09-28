@@ -2,24 +2,26 @@ import type { Interruption } from '../../types'
 import type { Action, CombatState } from '../types'
 import { getAction, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
+import { isManeuverWon } from './grapple'
 
 // combat.tex "Interruption": "an effect that interrupts any action from its
 // victim, making them lose its associated costs. [...] It happens when a
-// tier 1+ blunt or electric damage is inflicted or when the character is
-// pushed." The table's ruling: an interruption always breaks the action it
-// interrupts, except running, jumping and pushing, which carry on; a push is
-// stopped only by a stun of its pusher.
+// tier 1+ blunt or electric damage is inflicted." The table's ruling: an
+// interruption always breaks the action it interrupts, except running,
+// jumping and moving a grapple group, which carry on; a group moved is
+// stopped only by a stun of its controller.
 
 // What the landed action did to the victim: the interruption or stun a
-// strike landed on them, or the interruption of being pushed — or of
-// resisting a push actively, which "interrupt[s] itself" (combat.tex "Push
-// and drag").
+// strike landed on them; a grapple maneuver's, which "always interrupt[s]
+// when [it] hit[s]" (combat.tex "Grapple Maneuvers"); or a push's, where
+// only one who resists actively "interrupt[s] their action" (combat.tex
+// "Push and drag").
 export function getInterruptionOf(landed: Action | null | undefined, victimId: string): Interruption {
   if (landed?.step !== 'done') return 'none'
   switch (landed.kind) {
     case 'strike': return landed.targetId === victimId ? landed.interruption : 'none'
-    case 'drag':
-    case 'displace': return landed.facts?.interrupted.includes(victimId) ? 'interrupted' : 'none'
+    case 'grapple': return landed.targetId === victimId && isManeuverWon(landed) ? 'interrupted' : 'none'
+    case 'drag': return landed.facts?.interrupted.includes(victimId) ? 'interrupted' : 'none'
     default: return 'none'
   }
 }

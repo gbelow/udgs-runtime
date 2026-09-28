@@ -5,7 +5,7 @@ import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRoot
 import { isBroken } from './interruption'
 import { getMoveFacts, getMoveOverride } from './move'
 import { getMoveWaypoint } from './waypoint'
-import { getPushStop } from './drag'
+import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 
 export function isTriggeringAction(action: Action): action is TriggeringAction {
   return getActionDef(action.kind).triggering === true
@@ -18,7 +18,7 @@ export function isTriggeringAction(action: Action): action is TriggeringAction {
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = getRootOf(state, reaction)
   if (root?.kind === 'displace' && reaction.at !== null) {
-    const before = reaction.at > 1 ? root.path[reaction.at - 2] : root.from
+    const before = reaction.at > 1 ? getGroupSteps(state, root)?.[reaction.at - 2] : getGroupOrigin(state, root)
     return before ? withPlacements(state, before) : state
   }
   if (root?.kind !== 'move' || reaction.at === null) return state

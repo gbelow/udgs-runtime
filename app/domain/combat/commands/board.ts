@@ -11,7 +11,8 @@ import { getEvasiveJumpPlacements, getReachableCells, type ReachableCell } from 
 import { canStandAt } from '../rules/ground'
 import { getMoveOrigin } from '../rules/waypoint'
 import { amendAction, amendReaction, declareReaction } from './action'
-import { aimExplosion, aimPush } from './choices'
+import { aimExplosion } from './choices'
+import { getGroupReach } from '../rules/drag'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -78,9 +79,8 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // declared; aims an explosion being declared at the cell, or a rolled spray
 // towards it (combat.tex "Explosions", "Sprays"); or, against a committed
 // strike, names where the target's evasive jump lands (combat.tex "Evasive
-// Jump") — declaring the jump if it has not been; or, once a push is
-// settled, points it towards the cell or circles round to it (combat.tex
-// "Push and drag").
+// Jump") — declaring the jump if it has not been; or edits the way a
+// grapple group is being moved (combat.tex "Push and drag").
 export function pickCell(cell: Coord, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAction(state)
@@ -99,10 +99,9 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
       const from = state.board?.placements[open.actorId]
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
     }
-    if (open.kind === 'drag' && open.step === 'post') {
-      if (open.choice === 'circle') return aimPush({ to: cell })(state)
-      const from = state.board?.placements[open.actorId]
-      return open.choice === 'push' && from && !sameCell(from.cell, cell) ? aimPush({ direction: directionTo(from.cell, cell) })(state) : state
+    if (open.kind === 'displace' && open.step === 'define') {
+      const path = pickWayCell(state.board?.placements[open.actorId]?.cell ?? null, open.path, getGroupReach(state, open), cell)
+      return path ? amendAction({ path })(state) : state
     }
     const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
     if (guard) {
@@ -121,19 +120,17 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
 // back if it is the path's end, one more step if it is next to the end,
 // the shortest way there if it is reachable at all, and nothing otherwise.
 function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
-  const from = getMoveOrigin(state, action)
-  if (!from) return null
-  const end = action.path[action.path.length - 1] ?? from.cell
-  if (action.path.length > 0 && sameCell(end, cell)) return action.path.slice(0, -1)
-  const reachable = getReachableCells(state, action)
-  const there = findReachable(reachable, cell)
-  if (!there) return null
-  if (distance(end, cell) === 1 && there.steps > action.path.length) return [...action.path, cell]
-  return there.path
+  return pickWayCell(getMoveOrigin(state, action)?.cell ?? null, action.path, getReachableCells(state, action), cell)
 }
 
-function findReachable(cells: ReachableCell[], cell: Coord): ReachableCell | null {
-  return cells.find((r) => sameCell(r.cell, cell)) ?? null
+function pickWayCell(from: Coord | null, path: Coord[], reachable: Pick<ReachableCell, 'cell' | 'steps' | 'path'>[], cell: Coord): Coord[] | null {
+  if (!from) return null
+  const end = path[path.length - 1] ?? from
+  if (path.length > 0 && sameCell(end, cell)) return path.slice(0, -1)
+  const there = reachable.find((r) => sameCell(r.cell, cell))
+  if (!there) return null
+  if (distance(end, cell) === 1 && there.steps > path.length) return [...path, cell]
+  return there.path
 }
 
 // Turns the open move's ending one step clockwise from where it stands now.

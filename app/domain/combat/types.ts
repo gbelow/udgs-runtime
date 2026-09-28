@@ -135,16 +135,18 @@ const ActionBase = {
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
 
-// combat.tex "Trample": what one Force comparison came to — the runner
-// "stopped and stunned", the opponent pushed "back one space and ...
-// stunned", or at 5 more "stunned and prone" where they stand. `id` is
-// whoever the comparison was against, `to` where the push put them (null:
-// they did not move), `at` the path step it happened on.
+// combat.tex "Crash": what one Force comparison came to. `id` is the
+// target, the one moved into; `at` the path step it happened on; `diff` the
+// mover's Force less the target's. The higher passes or blocks, a draw
+// blocks; under 5 apart both are `stunned`, from 5 only the loser, and a
+// target who loses by 5 or more falls `prone`.
 export const TrampleSchema = z.object({
   id: str,
   at: num.default(0),
-  result: z.enum(['stopped', 'pushed', 'knocked']),
-  to: PlacementSchema.nullable().default(null),
+  diff: num.default(0),
+  result: z.enum(['passed', 'blocked']),
+  stunned: z.array(str).default([]),
+  prone: z.boolean().default(false),
 }).strip()
 export type Trample = z.infer<typeof TrampleSchema>
 
@@ -171,11 +173,27 @@ const AttackDeclaration = {
 // a weapon a disarm took hold of ("preventing them from using it until they
 // manage to escape"). It is a fact of the fight, not of either character, so
 // it lives on the fight.
+// combat.tex "Push and drag": "The stronger character gets control of
+// movement for the group that round" — who won the last push, in which
+// round, whether at "basic movement speed" (10 Force over the other side)
+// rather than careful, who paid for it, whom re-evaluating it when someone
+// joins does not charge again, and who chose to go along, paying their own
+// movement whenever the group is moved (the table's rulings). Written on every
+// grapple of the group, and good only in its round.
+export const GrappleControlSchema = z.object({
+  controller: str,
+  round: num,
+  basic: z.boolean().default(false),
+  paid: z.array(str).default([]),
+  carriers: z.array(str).default([]),
+}).strip()
+export type GrappleControl = z.infer<typeof GrappleControlSchema>
 export const GrappleSchema = z.object({
   members: z.tuple([str, str]),
   holders: z.array(str).default([]),
   immobile: z.array(str).default([]),
   seized: z.array(str).default([]),
+  control: GrappleControlSchema.nullable().default(null),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 
@@ -230,15 +248,15 @@ export const StrikeActionSchema = z.object({
   // what landing did to the target's action, written at the resolve: a move
   // an opportunity attack interrupted is cut short by it
   interruption: InterruptionSchema.default('none'),
-  // combat.tex "Braced Attack": "The additional damage effect also triggers
-  // a trample" — the mover against the bracer, written at the resolve
+  // combat.tex "Braced Attack": a hit "trigger[s] a trample" — the mover
+  // against the bracer, written at the resolve
   trample: TrampleSchema.nullable().default(null),
   // combat.tex "Initiate the Grab": made with a grapple row, a hit grapples
   // the target; what it came to is written at the resolve
   grab: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
-  // combat.tex "Catch": a grab made at a running target, "3 AP + 1STA",
-  // whose hit is a trample the catcher defends with their running speed
+  // combat.tex "Catch": a grab made at a running target, "3AP+1STA", whose
+  // hit is a crash the catcher gets +3 in
   catch: z.boolean().default(false),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
   // at the resolve
@@ -335,6 +353,9 @@ export const CastActionSchema = z.object({
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
+// combat.tex "Crash": the target of a trample standing firm — "The target
+// can spend 2AP+1STA to get +3 in this comparison"
+export const BraceActionSchema = z.object({ ...ActionBase, kind: z.literal('brace') }).strip()
 // An evasive jump names where it lands (combat.tex "Evasive Jump": "jump
 // away from the attack"); null on a fight without a board.
 export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal('evasiveJump'), to: PlacementSchema.nullable().default(null) }).strip()
@@ -469,64 +490,55 @@ export const GrappleActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Push and drag": a Force comparison that moves everyone locked
-// in the grapple — the winner's way. It is declared with nothing but who;
+// combat.tex "Push and drag": a Force comparison between the actor's side
+// and everyone else locked in the grapple, which gives the stronger control
+// of the group's movement for the round. It is declared with nothing but
+// who, and whether the actor pays: one who does not takes -5, and wins
+// control only if still 10 over the other side (the table's ruling). No die:
 // once the grapple has answered and the price is paid the outcome is
-// certain, and the winning side chooses (`choice`): to push everyone along
-// `direction`, one of the six hex directions, for `steps` metres ("up to
-// 1m", 2 on a difference of 5); for the actor, to circle round to `to`
-// without displacing anyone ("Moving within the grapple area"); or to stay.
-// Written at the resolve: who resisted actively and so interrupted
-// themselves, and who let go instead of being dragged. The way itself is
-// walked by the displacement the push generates.
+// certain. `recheck` is the comparison made again when someone joins a
+// group under control ("it reevaluates the comparison, but does not demand
+// extra costs from those who already paid"). Written at the resolve: who was
+// interrupted, who let go instead of being dragged, and the control won.
 export const DragFactsSchema = z.object({
   interrupted: z.array(str).default([]),
   released: z.array(str).default([]),
+  control: GrappleControlSchema.nullable().default(null),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
 const TermSchema = z.object({ label: str, value: num }).strip()
 export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
-  choice: z.enum(['push', 'circle', 'stay']).nullable().default(null),
-  direction: DirectionSchema.nullable().default(null),
-  steps: z.number().int().min(1).max(2).default(1),
-  to: CoordSchema.nullable().default(null),
+  unpaid: z.boolean().default(false),
+  recheck: z.boolean().default(false),
   // the comparison as it stood when the push was paid for — each side's
-  // terms, and whether the actor could circle — written once, like a die:
-  // once the grapple has answered and the price is paid the outcome is
-  // certain, whatever befalls either side while its attacks are fought
-  compared: z.object({ attacker: z.array(TermSchema), defender: z.array(TermSchema).nullable(), circling: z.boolean() }).nullable().default(null),
+  // terms — written once, like a die: once the grapple has answered and the
+  // price is paid the outcome is certain, whatever befalls either side
+  // while its attacks are fought
+  compared: z.object({ attacker: z.array(TermSchema), defender: z.array(TermSchema).nullable() }).nullable().default(null),
   opportunity: z.boolean().default(false),
   facts: DragFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Push and drag": the way a push was pointed, walked — the
-// follow-up a push generates when it lands on a way that moves someone. It
-// is its own action because third parties answer it: whoever the group is
-// moved towards may take an opportunity attack ("moving towards a melee
-// weapon while within its attack range"), fought along the way as a move's
-// are. `path` is where everyone moved stands after each step, `from` where
-// they set out; `pushed` is the side the push moves against, interrupted if
-// it moves at all; `carriers` went along passively and pay for the metres.
-// Written at the resolve: how far it went, where each ended, who it
-// interrupted and what each carrier paid.
+// combat.tex "Push and drag": the controller moving the whole group, "at
+// careful movement speed", or basic with 10 Force over the other side;
+// "movement costs are on top of" the push (the table's ruling). `path` is
+// the controller's way, cell by cell, and everyone in the group keeps where
+// they stand to them. Third parties answer it: whoever the group is moved
+// towards may take an opportunity attack, fought along the way as a move's
+// are. Written at the resolve: how far it went, where each ended, and what
+// each who went along paid for the metres.
 export const DisplaceFactsSchema = z.object({
   steps: num.default(0),
   to: z.record(str, PlacementSchema).default({}),
-  interrupted: z.array(str).default([]),
-  carried: z.record(str, num).default({}),
+  carried: z.record(str, ActionCostSchema).default({}),
 }).strip()
 export type DisplaceFacts = z.infer<typeof DisplaceFactsSchema>
 export const DisplaceActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('displace'),
-  path: z.array(z.record(str, PlacementSchema)).default([]),
-  from: z.record(str, PlacementSchema).default({}),
-  pushed: z.array(str).default([]),
-  carriers: z.array(str).default([]),
-  // made by a push that was itself an opportunity attack: it draws none
-  opportunity: z.boolean().default(false),
+  path: z.array(CoordSchema).default([]),
   facts: DisplaceFactsSchema.nullable().default(null),
 }).strip()
 
@@ -568,14 +580,17 @@ export const ThrowItemActionSchema = z.object({
 }).strip()
 
 // combat.tex "Grapple Maneuvers": "require the defender to interrupt itself
-// and spend 2 AP+1 STA or suffer a -5 penalty"; "Push and drag": the same
-// for the defender. Everyone else dragged along chooses too: to help the
-// push actively ("add to the test and spend AP+STA"), to go along with it
-// passively (paying the basic movement for the metres, not adding to it),
+// and spend 2 AP+1 STA or suffer a -5 penalty"; "Push and drag": "3AP
+// +2STA for both attacker and defender", or -5. Everyone else in the group
+// chooses too: to help the push, paying as the pusher does ("Use the same
+// rules for multiple characters as grapple"), to go along with it, on
+// neither side but paying their own movement whenever the group is moved,
 // or — held by nobody — to let go and stay. One who chooses nothing resists
 // passively.
 export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist') }).strip()
-export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist') }).strip()
+// A helper may leave the price unpaid and help at -5, as anyone in the push
+// may (the table's ruling).
+export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist'), unpaid: z.boolean().default(false) }).strip()
 export const CarryActionSchema = z.object({ ...ActionBase, kind: z.literal('carry') }).strip()
 export const LetGoActionSchema = z.object({ ...ActionBase, kind: z.literal('letGo') }).strip()
 export const ActionSchema = z.discriminatedUnion('kind', [
@@ -588,6 +603,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   GuardActionSchema,
   AvoidExplosionActionSchema,
   EvadeActionSchema,
+  BraceActionSchema,
   EvasiveJumpActionSchema,
   BlockActionSchema,
   InterceptActionSchema,

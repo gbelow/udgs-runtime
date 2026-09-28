@@ -27,6 +27,7 @@ export type Opener<K extends ReactionKind> = {
 
 export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   evade: {},
+  brace: {},
   evasiveJump: {},
   block: {},
   intercept: {},

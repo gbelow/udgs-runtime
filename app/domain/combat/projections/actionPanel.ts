@@ -1,6 +1,6 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
 
-import type { Area, MoveKind } from '../../types'
+import type { Area, MoveKind, MovementKind } from '../../types'
 import { isAttackAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -20,7 +20,7 @@ import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
-import { getDragChoices, getDragOutcome, getDragSides, needsDragAim } from '../rules/drag'
+import { getDragOutcome, getDragSides } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
@@ -152,8 +152,7 @@ export type OpenActionView = {
   opportunity: boolean
   // combat.tex "Grapple": a strike made as a grab; the maneuver declared and
   // whether a hit is to be bought by the attacker's own commitment (null
-  // where the maneuver has none); where a push goes, whether it has been
-  // pointed yet, and how far it means to
+  // where the maneuver has none); what a push comes to
   grab: boolean
   maneuver: GrappleManeuver | null
   // once a knockdown or an immobilization has hit: whether the attacker
@@ -180,16 +179,15 @@ export type OpenActionView = {
   roll: ActionRoll | null
 }
 
-// combat.tex "Push and drag", once settled: who won, what the winner may
-// choose, what they chose and how far, whether that is pointed yet, and
-// whether it can still be changed.
+// combat.tex "Push and drag": whether the actor pays, and whether that is
+// still theirs to change; once paid, who takes control of the group and at
+// which speed — null on a draw or an unpaid push that fell short.
 export type PushView = {
-  winner: 'attacker' | 'defender' | 'draw'
-  choices: { choice: 'push' | 'circle' | 'stay'; available: boolean }[]
-  choice: 'push' | 'circle' | 'stay' | null
-  distances: number[]
-  steps: number
-  aimed: boolean
+  unpaid: boolean
+  editable: boolean
+  settled: boolean
+  controller: string | null
+  movement: MovementKind
 }
 
 export type ActionPanelView = {
@@ -315,7 +313,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
         : [],
       to: open.kind === 'throwItem' ? open.to : null,
       throwCells: open.kind === 'throwItem' && open.step === 'define' ? getThrowCells(state, open.actorId) : [],
-      push: drag && drag.step === 'post' ? getPushView(state, drag) : null,
+      push: drag ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
       reactions: reactions.map((r) => ({
@@ -378,14 +376,12 @@ export const getActionPanelDigest = perState((state) => JSON.stringify(getAction
 
 function getPushView(state: CombatState, drag: DragAction): PushView {
   const outcome = getDragOutcome(state, drag)
-  const diff = outcome?.diff ?? 0
   return {
-    winner: diff > 0 ? 'attacker' : diff < 0 ? 'defender' : 'draw',
-    choices: getDragChoices(state, drag),
-    choice: drag.choice,
-    distances: Array.from({ length: outcome?.push ?? 0 }, (_, i) => i + 1),
-    steps: drag.steps,
-    aimed: !needsDragAim(state, drag),
+    unpaid: drag.unpaid,
+    editable: drag.step === 'define' && !drag.recheck,
+    settled: drag.step === 'post',
+    controller: outcome.controller ? getFightName(state, outcome.controller) : null,
+    movement: outcome.basic ? 'basic' : 'careful',
   }
 }
 

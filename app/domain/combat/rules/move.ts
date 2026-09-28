@@ -86,9 +86,9 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
 // character can run"). combat.tex "Grappled": "Movement requires pushing or
-// dragging the other participants in the grapple" — circling within the
-// grapple area is a push's choice too (combat.tex "Push and drag"); they get
-// up by escaping ("Escape is also used for trying to stand up while
+// dragging the other participants in the grapple" — the group is moved by
+// whoever controls it (combat.tex "Push and drag"); they get up by
+// escaping ("Escape is also used for trying to stand up while
 // grappled"); "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = hasAffliction(c, 'prone')
@@ -146,10 +146,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }
-  // combat.tex "Trample": the opponent "moves back one space" — not
-  // possible against a blocked cell, so neither is the path (the table's
-  // ruling)
-  return !getMoveTramples(state, action, action.path).blocked
+  return true
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -270,8 +267,9 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // attack has made a movement of their own, and it takes over from the one
 // declared, whatever the speed.
 // combat.tex "Hook Attack": a mover the hook's knockdown put down goes no
-// further, running or not. combat.tex "Trample": "If the defender's force is equal
-// or higher, the runner is stopped" — by a braced blow's trample too.
+// further, running or not. combat.tex "Crash": the higher force of the
+// target blocks passage, and "A draw blocks passage" — a braced blow's or a
+// catch's crash too.
 export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', 2) : 0
@@ -281,15 +279,15 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
     if ((stoppable && getInterruptionOf(strike, action.actorId) !== 'none') || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction' }
-    if (strike.trample?.result === 'stopped') return { step: reaction.at! - 1, stop: 'trample' }
+    if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample' }
   }
   return null
 }
 
 // The path as it will be walked and why it ends where it does: a run cut at
 // a turn, an opportunity attack that interrupted the mover or that they
-// jumped away from, a resister who stopped them (combat.tex "Movement" —
-// "trample"), a fall at the first difficult cell the test did not clear —
+// jumped away from, a target who blocked their passage (combat.tex
+// "Crash"), a fall at the first difficult cell the test did not clear —
 // whichever comes first. The tramples are those on the path as walked.
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
   const run = getRunPath(state, action)
@@ -311,7 +309,7 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, difficult)
     stop = 'fall'
   }
-  return { path, stop, fell, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'stopped' ? 1 : 0)) }
+  return { path, stop, fell, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
 // ---------------------------------------------------------------------------
@@ -400,8 +398,8 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   const affordable = (steps: number) => {
     return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
-  const enter = (cell: Coord, walked: Coord[]) => {
-    return isCrossable(getFootprint(c, { ...from, cell }), ground, kind) && !getMoveTramples(state, { ...action, path: walked }, walked).blocked
+  const enter = (cell: Coord) => {
+    return isCrossable(getFootprint(c, { ...from, cell }), ground, kind)
   }
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell }) => canRest(state, c, getFootprint(c, { ...from, cell }), ground))

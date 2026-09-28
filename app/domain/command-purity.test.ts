@@ -166,7 +166,6 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
-  aimPush: (s) => combatCommands.aimPush({ choice: 'stay' })(deepFreeze(settledPush(s))),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
@@ -175,14 +174,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: CombatState): CombatState {
-  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [] }] }
-}
-
-// A push by `a` on `b`, answered and paid for, its way still to choose, on
-// a frozen state each step along.
-function settledPush(s: CombatState): CombatState {
-  const declared = deepFreeze(combatCommands.setTarget('b')(deepFreeze(combatCommands.declareAction('a', { kind: 'drag' }, newId)(deepFreeze(grappling(s))))))
-  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
+  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [], control: null }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.

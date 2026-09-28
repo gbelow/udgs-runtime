@@ -16,7 +16,6 @@ import {
   withdrawSpawnedAction,
 } from "../domain/combat/commands/action";
 import {
-  aimPush,
   chooseManeuver,
   improveSpell,
   refundImprovement,
@@ -61,7 +60,6 @@ export function useCombatActions() {
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
   const grazeSave = () => update(saveGraze());
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
-  const aim = (fields: { choice?: 'push' | 'circle' | 'stay'; steps?: number }) => update(aimPush(fields));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, aim } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose } as const;
 }

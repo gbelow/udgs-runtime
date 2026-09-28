@@ -5,6 +5,7 @@ import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMelee
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
+import { getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
 import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
@@ -41,7 +42,7 @@ export type Trigger = {
 // opportunity attack from anyone.
 export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
-  const opportunity = getOpeningReaction(state, root) !== null || (root.kind === 'displace' && root.opportunity)
+  const opportunity = getOpeningReaction(state, root) !== null
   const riposte = root.kind === 'strike' && getRiposteDefense(state, root) !== null
   return opportunity || riposte ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
 }
@@ -133,9 +134,8 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
-// resistance". "Push and drag": everyone dragged along answers it — resists,
-// helps, goes along, or lets go — while committed; the third parties the way
-// it is pointed moves someone towards answer the displacement it generates.
+// resistance". "Push and drag": everyone in the group answers it — resists,
+// helps, goes along, or lets go — while committed.
 // combat.tex "Opportunity Attack": "standing up in melee range" triggers
 // one, an escape made to stand up as much as any — from the partner too,
 // who then answers with it instead of resisting (the table's ruling).
@@ -151,13 +151,15 @@ function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): 
 }
 
 // combat.tex "Opportunity Attack": "moving towards a melee weapon while
-// within its attack range" — a push moves everyone dragged, and a third
-// party gets the attack against the first of them it moves closer from
-// within range, at that step, on the way the winner pointed.
+// within its attack range" — moving the group moves everyone in it, and a
+// third party gets the attack against the first of them it moves closer
+// from within range, at that step.
 function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
-  if (root.path.length === 0) return []
-  const movers = Object.keys(root.path[0])
-  const start = (id: string) => root.from[id]
+  const steps = getGroupSteps(state, root)
+  if (!steps || steps.length === 0) return []
+  const origin = getGroupOrigin(state, root)
+  const movers = Object.keys(steps[0])
+  const start = (id: string) => origin[id]
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     const other = getPlacedFootprint(state, id)
@@ -167,7 +169,7 @@ function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
       const c = state.characters[m]
       const from = start(m)
       if (!c || !from) return []
-      const at = getApproachStep(getPathDistances(c, [from, ...root.path.map((step) => step[m])], other), range)
+      const at = getApproachStep(getPathDistances(c, [from, ...steps.map((step) => step[m])], other), range)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
     if (hit) triggers.push({ characterId: id, kind: 'opportunityAttack', ...hit })
@@ -224,12 +226,12 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (id === root.actorId) continue
     const other = getPlacedFootprint(state, id)
     if (!other) continue
-    // combat.tex "Movement" — "trample": whoever the path comes into gets
-    // trampled unless they get out of the way — "Evade: ... This can be used
-    // to avoid being trampled". "Trampling a prone character is an automatic
-    // success and allows free passage": nothing to evade.
+    // combat.tex "Trample": whoever the path comes into answers it — "Evades:
+    // costs 2 AP to allow free passage", or braces for the crash ("The
+    // target can spend 2AP+1STA to get +3"). "Is prone: free passage":
+    // nothing to answer.
     if (isTrampleable(state, id) && path.some((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))) {
-      triggers.push({ characterId: id, kind: 'evade', at: null })
+      triggers.push({ characterId: id, kind: 'evade', at: null }, { characterId: id, kind: 'brace', at: null })
     }
     const distances = getPathDistances(mover, [from, ...path.map((cell) => ({ ...from, cell }))], other)
     const range = getMeleeRange(state.characters[id])
