@@ -4,10 +4,10 @@ import { getGearPenalties } from "./gear"
 import { Term, sumTerms } from "./terms"
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
-// does not affect movement speeds, nor TGH. It affects all other usages of
-// attributes." The penalty therefore lives on the three attributes rather than
-// on a list of skills, and everything derived from them inherits it. The stated
-// exceptions read `getSTRBase` / `getAGIBase` below instead.
+// does not affect TGH. It affects all other usages of attributes." The penalty
+// therefore lives on the three attributes rather than on a list of skills, and
+// everything derived from them inherits it. The stated exception reads
+// `getSTRBase` below instead.
 export function getSTRTerms(c: Character): Term[] {
   return [
     { label: 'base', value: getSTRBase(c) },
@@ -40,8 +40,9 @@ export function getSTA(c: Character): number {
   return sumTerms(getSTATerms(c))
 }
 
-// The attribute values with the injury penalty left out. TGH and the movement
-// speeds are the rulebook's two stated exceptions to it. Burden reads
+// The attribute values with the injury penalty left out. TGH is the
+// rulebook's stated exception to it; `getAGIBase` has no reader since the
+// book dropped movement from the exception. Burden reads
 // `getSTRBase` for a second reason: the injury threshold is itself derived from
 // the affliction set, which includes an over-burden `lame`, so reading the
 // penalized STR here would close a loop.

@@ -13,7 +13,7 @@ import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findHeldItem } from './fighters'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, canStandByEscape, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
+import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
@@ -77,9 +77,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
     // combat.tex "Grapple Maneuvers": "performed during a grapple by any of
-    // the participants"; an escape made to stand up, by one who is down
+    // the participants"
     case 'grapple':
-      return !action.stand || canStandByEscape(state, c)
+      return true
     // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
@@ -371,7 +371,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     // and a disarm intercept opens, at whoever it intercepted ("Disarm")
     case 'grapple':
       if (root.hook || isInterceptDisarm(state, root)) return root.targetId ? [root.targetId] : []
-      return getManeuverTargets(state, root.actorId, root.maneuver, root.stand)
+      return getManeuverTargets(state, root.actorId, root.maneuver)
     case 'release':
       return getReleaseTargets(state, root.actorId)
     case 'holdBack':

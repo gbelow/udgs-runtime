@@ -45,7 +45,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall
-        // combat.tex "Movement": "getting up: Removes the prone condition" —
+        // combat.tex "Movement": "Stand up: Removes the prone condition" —
         // unless an opportunity attack cancelled it ("Interruption")
         if (action.kind === 'move') {
           const trampled = trampledBy(action.facts?.trampled ?? [], c)
@@ -120,12 +120,12 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
 }
 
 // combat.tex "Grapple Maneuvers": what the maneuver did to the character
-// beyond the grapple itself — knocked down or stood up, an item knocked out
-// of their hand — and what the holds dealt them. The grappled and immobile
+// beyond the grapple itself — knocked down, an item knocked out of their
+// hand — and what the holds dealt them. The grappled and immobile
 // afflictions follow the grapple, and are settled with it.
 function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): CampaignCharacter {
   if (!facts) return c
-  const down = facts.prone.includes(c.id) ? fallProne(c) : facts.stand.includes(c.id) ? standUp(c) : c
+  const down = facts.prone.includes(c.id) ? fallProne(c) : c
   const disarmed = facts.dropped?.ownerId === c.id ? dropItem(facts.dropped.itemId)(down) : down
   return deliverAll(facts.deliveries[c.id] ?? [])(disarmed)
 }

@@ -3,6 +3,7 @@ import type { CampaignCharacter } from '../../types'
 import { ASSIST } from '../../tables'
 import { PUSH_MOVEMENTS } from '../../lists'
 import { getForce } from '../../character/rules/skills'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { DIRECTIONS, add, directionTo, sameCell, setDistance, walkOut } from '../geometry'
@@ -10,7 +11,7 @@ import { getFootprint, placeAt, withPlacements } from './board'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getPartners, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './fighters'
-import { getMoveBlockCells, getMoveCost } from './move'
+import { getMoveBlockCells, getMoveCost, isLameBarred } from './move'
 import { canStandAt } from './ground'
 import { getInterruptions } from './interruption'
 import { dropHolders } from './grapple'
@@ -192,12 +193,14 @@ export function getPushAnswerCost(state: CombatState, root: DragAction, action: 
 // worth of movement" — a block is as many cells as 2 AP buys at its speed.
 const BLOCK_AP = 2
 
-// combat.tex "running": "Can only be initiated during a movement surge".
+// combat.tex "running": "Can only be initiated during a movement surge";
+// "Lame": "Cannot run ... or use basic movement".
 export type PushMovementOption = { kind: PushMovement; available: boolean; reason: string | null }
 
 export function getPushMovements(c: CampaignCharacter): PushMovementOption[] {
+  const lame = hasAffliction(c, 'lame')
   return PUSH_MOVEMENTS.map((kind) => {
-    const reason = kind === 'run' && c.usedSurge !== 'movement' ? 'needs a movement surge' : null
+    const reason = lame && isLameBarred(kind) ? 'lame' : kind === 'run' && c.usedSurge !== 'movement' ? 'needs a movement surge' : null
     return { kind, available: reason === null, reason }
   })
 }

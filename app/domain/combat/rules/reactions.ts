@@ -55,7 +55,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
     case 'throwItem': return opportunityTriggers(state, root.actorId)
-    case 'grapple': return grappleTriggers(state, root)
+    case 'grapple': return grappleTriggers(root)
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
     // nobody answers the blast: the reflexes were against the explosion
     case 'blast': return []
@@ -133,12 +133,8 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
 // resistance".
-// combat.tex "Opportunity Attack": "standing up in melee range" triggers
-// one, an escape made to stand up as much as any — from the partner too,
-// who then answers with it instead of resisting (the table's ruling).
-function grappleTriggers(state: CombatState, root: GrappleAction): Trigger[] {
-  const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
-  return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
+function grappleTriggers(root: GrappleAction): Trigger[] {
+  return root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
 }
 
 // combat.tex "Push and drag": everyone in the group answers the block while

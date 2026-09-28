@@ -1,6 +1,7 @@
 import type { Character } from '../../types'
 import type { CombatState, Coord, MoveAction, Placement } from '../types'
 import { getSize } from '../../character/rules/misc'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { coordKey } from '../geometry'
 import { getFootprint, getOccupancy } from './board'
 
@@ -49,4 +50,16 @@ export function canStandAt(state: CombatState, id: string, placement: Placement)
   if (!c || !ground) return false
   const footprint = getFootprint(c, placement)
   return !footprint.some(ground.blocked) && canRest(state, c, footprint, ground)
+}
+
+export function isInLiquid(state: CombatState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  return !!placement && getFootprint(c, placement).some((cell) => state.board?.terrain[coordKey(cell)]?.liquid)
+}
+
+// combat.tex "Movement": swimming "also applies the prone condition" — for
+// as long as the swimmer is in the water, on top of a prone they carry.
+export function isProne(state: CombatState, id: string): boolean {
+  const c = state.characters[id]
+  return !!c && (hasAffliction(c, 'prone') || isInLiquid(state, c))
 }

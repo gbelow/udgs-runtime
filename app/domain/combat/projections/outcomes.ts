@@ -41,7 +41,6 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
     ...((facts.on[id] ?? []).length > 0 ? [{ target: named(id), text: (facts.on[id] ?? []).join(', ') }] : []),
     ...((facts.off[id] ?? []).length > 0 ? [{ target: named(id), text: `no longer ${(facts.off[id] ?? []).join(', ')}` }] : []),
     ...(facts.prone.includes(id) ? [{ target: named(id), text: 'knocked down' }] : []),
-    ...(facts.stand.includes(id) ? [{ target: named(id), text: 'stands up' }] : []),
     ...(facts.dropped?.ownerId === id ? [{ target: named(id), text: `drops ${itemName(id, facts.dropped.itemId)}` }] : []),
   ])
   const taken = [

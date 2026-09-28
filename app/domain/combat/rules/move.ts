@@ -8,7 +8,7 @@ import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
-import { canRest, isCrossable, readGround } from './ground'
+import { canRest, isCrossable, isInLiquid, readGround } from './ground'
 import { getMoveOrigin } from './waypoint'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
@@ -46,10 +46,10 @@ export function isPosture(kind: MoveKind): kind is Posture {
   return (POSTURES as readonly string[]).includes(kind)
 }
 
-// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP"; going
-// prone is free.
+// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP", never
+// less than 1 AP (the table's ruling); going prone is free.
 function getPostureCost(c: Character, posture: Posture): ActionCost {
-  return posture === 'stand' ? { AP: getStandMovement(c), STA: 0 } : { AP: 0, STA: 0 }
+  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: 0 } : { AP: 0, STA: 0 }
 }
 
 // What the move as declared costs its actor, less what the reaction that
@@ -74,24 +74,20 @@ export type MovementOption = {
   reason: string | null
 }
 
-function isInLiquid(state: CombatState, c: Character): boolean {
-  const placement = state.board?.placements[c.id]
-  return !!placement && getFootprint(c, placement).some((cell) => state.board?.terrain[coordKey(cell)]?.liquid)
-}
-
 // combat.tex "Movement": crawling "is the only usable movement speed while
 // prone", swimming "the only usable movement speed while swimming", running
 // "can only be initiated during a movement surge" (combat.tex "Action
 // surge": the surge allows "running until the end of the turn"). A move a
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
-// character can run"). combat.tex "Grappled": "Movement requires pushing or
+// character can run"). combat.tex "Lame": "Cannot run, jump or use basic
+// movement". combat.tex "Grappled": "Movement requires pushing or
 // dragging the other participants in the grapple" — a block of push at a
-// time (combat.tex "Push and drag"); they get up by
-// escaping ("Escape is also used for trying to stand up while
-// grappled"); "Immobile: Cannot move".
+// time (combat.tex "Push and drag"), though standing up crosses no cells
+// and stays open to them. "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
   const prone = hasAffliction(c, 'prone')
+  const lame = hasAffliction(c, 'lame')
   const swimming = isInLiquid(state, c)
   const granted = action?.movements ?? null
   const held = isInGrapple(state, c.id)
@@ -99,25 +95,31 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, swimming, c.usedSurge === 'movement', granted)
+      : movementGate(kind, prone, lame, swimming, c.usedSurge === 'movement', granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : held && kind === 'stand' ? 'grappled: escape to stand up' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, swimming: boolean, surged: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, surged: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
-  if (prone && kind !== 'crawl') return { available: false, reason: 'prone' }
+  if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
+  if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
   if (kind === 'run' && granted === null && !surged) return { available: false, reason: 'needs a movement surge' }
   return { available: true, reason: null }
+}
+
+// combat.tex "Lame": "Cannot run, jump or use basic movement"
+export function isLameBarred(kind: MovementKind): boolean {
+  return kind === 'run' || kind === 'jump' || kind === 'basic'
 }
 
 // ---------------------------------------------------------------------------

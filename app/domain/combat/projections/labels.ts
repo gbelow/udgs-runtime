@@ -10,11 +10,11 @@ import { findWeaponRow } from '../rules/weaponRow'
 // the purchases a hit can make.
 
 // What the action is called where it is shown on its own: a strike made as
-// a grab is a grab, a maneuver goes by its name — standing up, when that is
-// what the escape is for — and the rest by the catalog's label.
+// a grab is a grab, a maneuver goes by its name, and the rest by the
+// catalog's label.
 export function getActionName(action: ActionDraft): string {
   if (action.kind === 'strike' && action.grab) return 'grab'
-  if (action.kind === 'grapple' && action.maneuver) return action.stand ? 'stand up' : action.maneuver
+  if (action.kind === 'grapple' && action.maneuver) return action.maneuver
   return ACTIONS[action.kind].label
 }
 

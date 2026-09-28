@@ -6,10 +6,11 @@ import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
+import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
 import { getChargeOptions, hasExplosionPayload } from './explosion'
 import { getTriggersFor } from './reactions'
-import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
+import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, isHeld } from './partners'
 import { canPickUp, canThrowItem, getReachableFloor } from './floor'
 import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './action'
@@ -41,11 +42,14 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
 // block attacks, only intercept." combat.tex "Evasive Jump": "only ... if
 // there is space to jump"; "jumping": a jump "cannot be voluntarily
-// interrupted in the middle".
+// interrupted in the middle". combat.tex "Prone": "Can only crawl and stand
+// up"; "Lame": "Cannot ... jump".
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
   if (!canAfford(defender, cost)) return 'cannot afford'
   if (isImmobile(defender)) return 'immobile'
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasAffliction(defender, 'grappled')) return 'grappled'
+  if (kind === 'evasiveJump' && isProne(state, defender.id)) return 'prone'
+  if (kind === 'evasiveJump' && hasAffliction(defender, 'lame')) return 'lame'
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
   if (kind === 'evasiveJump' && !hasJumpSpace(state, defender.id, root.actorId)) return 'no space to jump'
   return null
@@ -217,13 +221,12 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     return [
       ...GRAPPLE_MANEUVERS.map((m) =>
         option({ kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(c, maneuver))),
-      option({ kind: 'grapple', maneuver: 'escape', stand: true }, maneuver, canStandByEscape(state, c) ? afford(c, maneuver) : 'not prone'),
     ]
   },
   // combat.tex "Prone": "cannot push nor drag"
   drag: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []
-    return [option({ kind: 'drag' }, null, !isPlaced(state, c) ? 'not on the board' : hasAffliction(c, 'prone') ? 'prone' : null)]
+    return [option({ kind: 'drag' }, null, !isPlaced(state, c) ? 'not on the board' : isProne(state, c.id) ? 'prone' : null)]
   },
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []

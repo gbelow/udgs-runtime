@@ -1,8 +1,5 @@
 import { Character, Movement, MovementKind } from "../../types";
-// combat.tex "Afflictions" excludes movement speeds from the injury penalty,
-// so every speed below reads the unpenalized AGI base (gear burden still
-// applies — gear.tex puts that penalty on the attribute itself).
-import { getAGIBase } from "./characteristics";
+import { getAGI } from "./characteristics";
 import { getBuffBonus } from "./effects";
 
 // The stored value from character.movement plus whatever abilities add to it.
@@ -39,8 +36,11 @@ export function getJumpMovement(c: Character) {
 export function getRunningJumpMovement(c: Character) {
   return 3 + getRaw(c, "jump");
 }
+// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP", AGI
+// with the injury penalty on it (combat.tex "Afflictions": "It affects all
+// other usages of attributes").
 export function getStandMovement(c: Character) {
-  return 5 - Math.floor(getAGIBase(c)/ 5)+getRaw(c, "stand");
+  return 5 - Math.floor(getAGI(c) / 5) + getRaw(c, "stand");
 }
 
 export const movementGetters: Record<keyof Movement, (c: Character) => number> = {

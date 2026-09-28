@@ -159,7 +159,7 @@ export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim
 // combat.tex "Push and drag": the speeds a grapple moves at
 export const PUSH_MOVEMENTS = ['careful', 'basic', 'run'] as const
 
-// combat.tex "Movement": "getting up: Removes the prone condition", priced in
+// combat.tex "Movement": "Stand up: Removes the prone condition", priced in
 // the same table ("Stand up"); and going prone, which the table leaves free.
 // Moves that change posture and cross no cells.
 export const POSTURES = ['stand', 'prone'] as const

@@ -1,13 +1,13 @@
 import type { Character } from '../../types'
 import type { CombatState, Coord, MoveAction, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
-import { hasAffliction } from '../../character/rules/afflictions'
 import { getMovementSpeed } from '../../character/rules/movement'
 import { sameCell } from '../geometry'
 import { getFootprint } from './board'
 import { getMoveOrigin } from './waypoint'
 import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getMoveBlockCells } from './move'
+import { isProne } from './ground'
 
 // combat.tex "Trample": "Happens when a character moves through a space
 // occupied by another character." Two ways into one here: a move whose path
@@ -23,8 +23,7 @@ const HEAD = 3
 
 // "Is prone: free passage" — nobody to compare against.
 export function isTrampleable(state: CombatState, id: string): boolean {
-  const c = state.characters[id]
-  return !!c && !hasAffliction(c, 'prone')
+  return !!state.characters[id] && !isProne(state, id)
 }
 
 // "Whoever is running adds their movement speed to their Force" — and a

@@ -165,7 +165,7 @@ export const HEAD = { death: 4 } as const
 // `controlable` is whether the affliction can be toggled by hand. The rungs
 // that survival.tex derives from hunger, thirst and exhaustion are not: they
 // are owned by their resource and clicking them does nothing. Neither is
-// prone: it is taken and left by moving (combat.tex "Movement": "getting up:
+// prone: it is taken and left by moving (combat.tex "Movement": "Stand up:
 // Removes the prone condition").
 //
 // `category` is the heading the affliction sits under on the sheet. It is a UI

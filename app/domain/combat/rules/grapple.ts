@@ -2,16 +2,16 @@ import type { Character, WeaponAttack } from '../../types'
 import type { Action, CombatState, Deliveries, Grapple, GrappleAction, GrappleFacts, GrappleManeuver, HoldBackAction, ReleaseAction, StrikeAction } from '../types'
 import { GRAPPLE_AFFLICTIONS } from '../../lists'
 import { getStrikeDamage } from '../../character/rules/gear'
-import { hasAffliction } from '../../character/rules/afflictions'
 import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
 import { getAction, getReactionsTo } from './log'
-import { findGrapple, getGrapplesOf, isInGrapple, getPartner, holds } from './partners'
+import { findGrapple, getGrapplesOf, getPartner, holds } from './partners'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { delivering, getRowDamage } from './delivery'
 import { isAttackAction } from './actionCatalog'
 import { getMidActionTerm } from './opportunity'
+import { isProne } from './ground'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -111,7 +111,7 @@ export function replacePair(grapples: Grapple[], pair: readonly [string, string]
 
 function facts(state: CombatState, pair: [string, string], next: Grapple | null, extra: Partial<GrappleFacts> = {}): GrappleFacts {
   const after = replacePair(state.grapples, pair, next)
-  return { pair, grapple: next, prone: [], stand: [], dropped: null, seized: null, freed: [], deliveries: {}, ...extra, ...diffGrappleAfflictions(state, state.grapples, after, pair) }
+  return { pair, grapple: next, prone: [], dropped: null, seized: null, freed: [], deliveries: {}, ...extra, ...diffGrappleAfflictions(state, state.grapples, after, pair) }
 }
 
 // ---------------------------------------------------------------------------
@@ -164,17 +164,12 @@ export function getGrappleStrikeTerm(state: CombatState, strike: StrikeAction): 
 // Grapple Maneuvers
 
 // The partners a maneuver can be made against: an escape from the grapple
-// is from someone who holds the actor; everything else — standing up
-// included — at anyone the actor is in a grapple with.
-export function getManeuverTargets(state: CombatState, actorId: string, maneuver: GrappleManeuver, stand = false): string[] {
+// is from someone who holds the actor; everything else at anyone the actor
+// is in a grapple with.
+export function getManeuverTargets(state: CombatState, actorId: string, maneuver: GrappleManeuver): string[] {
   return getGrapplesOf(state, actorId)
-    .filter((g) => maneuver !== 'escape' || stand || holds(g, getPartner(g, actorId)))
+    .filter((g) => maneuver !== 'escape' || holds(g, getPartner(g, actorId)))
     .map((g) => getPartner(g, actorId))
-}
-
-// combat.tex "Escape is also used for trying to stand up while grappled".
-export function canStandByEscape(state: CombatState, c: Character): boolean {
-  return isInGrapple(state, c.id) && hasAffliction(c, 'prone')
 }
 
 function isResisted(state: CombatState, root: Action): boolean {
@@ -236,9 +231,8 @@ export function needsDisarmPick(state: CombatState, root: GrappleAction): boolea
   return root.maneuver === 'disarm' && isManeuverWon(root) && root.item === '' && getDisarmOptions(state, root).length > 0
 }
 
-// combat.tex "Escape": "Escapes from the grapple on criticals and hits ...
-// Escape is also used for trying to stand up while grappled, but does not
-// disolve the grapple when done that way." "Disarm: Removes something from
+// combat.tex "Escape": "Escapes from the grapple on criticals and hits."
+// "Disarm: Removes something from
 // the opponent's hands on a critical. It is possible to grab the opponent's
 // weapon on a hit, preventing them from using it until they manage to win
 // on a grapple maneuvre to release it or when they escape" — any maneuver
@@ -259,8 +253,8 @@ function freeSeized(state: CombatState, ownerId: string, done: GrappleFacts): Gr
   const owner = state.characters[ownerId]
   const freed = done.grapple && owner ? done.grapple.seized.filter((id) => owner.held.some((i) => i.id === id)) : []
   if (!done.grapple || freed.length === 0) return done
-  const { prone, stand, dropped, seized, deliveries } = done
-  return facts(state, done.pair, { ...done.grapple, seized: done.grapple.seized.filter((id) => !freed.includes(id)) }, { prone, stand, dropped, seized, deliveries, freed })
+  const { prone, dropped, seized, deliveries } = done
+  return facts(state, done.pair, { ...done.grapple, seized: done.grapple.seized.filter((id) => !freed.includes(id)) }, { prone, dropped, seized, deliveries, freed })
 }
 
 function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFacts | null {
@@ -279,11 +273,9 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
   const who = critical ? [root.targetId] : [root.targetId, root.actorId]
   switch (root.maneuver) {
     case 'escape':
-      if (root.stand) return facts(state, pair, g, { deliveries, stand: landed ? [root.actorId] : [] })
       return facts(state, pair, landed ? null : g, { deliveries })
     case 'knockdown': {
-      const actor = state.characters[root.actorId]
-      if (degree === 'hit' && actor && hasAffliction(actor, 'prone')) return facts(state, pair, g, { deliveries, prone: [root.targetId] })
+      if (degree === 'hit' && isProne(state, root.actorId)) return facts(state, pair, g, { deliveries, prone: [root.targetId] })
       return facts(state, pair, g, { deliveries, prone: along ? who : [] })
     }
     case 'immobilize':
@@ -302,7 +294,7 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
 // damage; the target falls on a critical ("Knockdown": "It is not possible
 // to throw oneself along during a hook attack").
 function getHookKnockdownFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
-  return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], stand: [], dropped: null, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+  return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], dropped: null, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
 }
 
 // combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
@@ -312,7 +304,7 @@ function getHookKnockdownFacts(state: CombatState, root: GrappleAction, pair: [s
 function getInterceptDisarmFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
   const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
   const dropped = item && root.roll?.degree === 'critical' ? { ownerId: pair[1], itemId: item } : null
-  return { pair, grapple: null, prone: [], stand: [], dropped, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+  return { pair, grapple: null, prone: [], dropped, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
 }
 
 // combat.tex "Disarm": whether this is that follow-up — opened by the

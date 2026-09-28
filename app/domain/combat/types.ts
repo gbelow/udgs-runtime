@@ -187,8 +187,8 @@ export type GrappleManeuver = z.infer<typeof GrappleManeuverSchema>
 
 // What an action did to one grapple, written at the resolve: the pair it
 // concerns, the grapple as it stands afterwards (null: it is over), what the
-// maneuver did to its members beyond the grapple itself — knocked down,
-// stood up, an item knocked out of a hand or taken hold of — and what the
+// maneuver did to its members beyond the grapple itself — knocked down, an
+// item knocked out of a hand or taken hold of — and what the
 // holds dealt
 // (combat.tex "Grapple Maneuvers": "If the grapple attack has any damage, it
 // deals that damage whenever a grapple maneuver is used"). `on` and `off`
@@ -197,7 +197,6 @@ export const GrappleFactsSchema = z.object({
   pair: z.tuple([str, str]),
   grapple: GrappleSchema.nullable().default(null),
   prone: z.array(str).default([]),
-  stand: z.array(str).default([]),
   dropped: z.object({ ownerId: str, itemId: str }).nullable().default(null),
   seized: str.nullable().default(null),
   // combat.tex "Disarm": what the owner won back out of the grappler's hold
@@ -453,9 +452,7 @@ export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('fol
 // a grapple partner, a grapple test against theirs. What a hit buys is the
 // attacker's call once the die is known: `along` is their own commitment —
 // "throw oneself along" for a knockdown, "stay immobilized yourself" for an
-// immobilization — and `item` what a disarm goes for. `stand` is an escape
-// made to get up, which "does not disolve the grapple when done that way".
-// `unresisted` is the escape "Being stunned allows for", "without the
+// immobilization — and `item` what a disarm goes for. `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
 // opportunity attack. `hook` is the knockdown a hook
 // attack opens (combat.tex "Hook Attack"): free, needing no grapple, and
@@ -464,7 +461,6 @@ export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
   maneuver: GrappleManeuverSchema.default('escape'),
-  stand: z.boolean().default(false),
   along: z.boolean().default(false),
   item: str.default(''),
   unresisted: z.boolean().default(false),

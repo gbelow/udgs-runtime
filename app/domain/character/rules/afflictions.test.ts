@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { getAfflictions, getAfflictionPenalty, getMentalAfflictionPenalty } from './afflictions'
-import { magicGetters, movementLenses, skillLenses } from '../lenses'
+import { magicGetters, skillLenses } from '../lenses'
 import { getTGH } from './misc'
 import { makeKnowledgeLens } from '../lenses/knowledge'
 import { addKnowledge } from '../commands'
 import { AFFLICTIONS } from '../../tables'
 import { knowledges_list } from '../../lists'
 import { makeCharacter, makeCampaignCharacter } from '../../factories'
-import type { AfflictionKey, CampaignCharacter, Movement, Skills } from '../../types'
+import type { AfflictionKey, CampaignCharacter, Skills } from '../../types'
 
 function campaign(overrides: Partial<CampaignCharacter> = {}): CampaignCharacter {
   const base = makeCampaignCharacter({})
@@ -21,7 +21,6 @@ function campaign(overrides: Partial<CampaignCharacter> = {}): CampaignCharacter
 
 const afflictionKeys = Object.keys(AFFLICTIONS) as AfflictionKey[]
 const skillKeys = Object.keys(skillLenses) as (keyof Skills)[]
-const movementKeys = Object.keys(movementLenses) as (keyof Movement)[]
 
 describe('getAfflictionPenalty is total', () => {
   // Afflictions live only on the campaign arm of the union, so this getter has
@@ -85,16 +84,12 @@ describe('severity ladders', () => {
 })
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
-// does not affect movement speeds, nor TGH." The exclusions are the part worth
-// pinning — they are why those getters read an unpenalized base.
+// does not affect TGH." The exclusion is the part worth pinning — it is why
+// that getter reads an unpenalized base.
 describe('the injury penalty', () => {
   const hurt = (injuryLevel: number) =>
     campaign({ injuries: { ...makeCampaignCharacter({}).injuries, injuryLevel } })
   const levels = [0, 5, 10, 25, 60]
-
-  it.each(movementKeys)('leaves the "%s" speed untouched at every injury level', (name) => {
-    expect(new Set(levels.map((level) => movementLenses[name].get(hurt(level)))).size).toBe(1)
-  })
 
   it('leaves TGH untouched at every injury level', () => {
     expect(new Set(levels.map((level) => getTGH(hurt(level)))).size).toBe(1)

@@ -76,7 +76,7 @@ export const ACTIONS = {
   // attack it answers and priced by the strike it opens
   counterattack: { label: 'counterattack', type: 'reaction', price: null,      reactsTo: ['strike'], die: true },
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
-  grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape', stand: false } },
+  grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape' } },
   // combat.tex "Push and drag": "a force vs force comparison to be able to
   // move", no die, priced by the block declared (rules/drag.ts
   // `getPushPrice`)

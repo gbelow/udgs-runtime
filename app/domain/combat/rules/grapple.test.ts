@@ -74,15 +74,6 @@ describe('grapple', () => {
     for (const id of ['a', 'b']) expect(after.characters[id].afflictions).toEqual(s.characters[id].afflictions)
   })
 
-  // combat.tex "Escape": standing up that way "does not disolve the grapple".
-  it.each(DEGREES)('an escape to stand up at %s leaves the grapple standing', (degree) => {
-    let s = grappling()
-    s = { ...s, characters: { ...s.characters, b: { ...s.characters.b, afflictions: ['prone'] } } }
-    s = declareAction('b', { kind: 'grapple', maneuver: 'escape', stand: true }, newId)(s)
-    s = resolveAction(newId)(rollOver(commitAction()(setTarget('a')(s)), OVER[degree]))
-    expect(s.grapples).toHaveLength(1)
-  })
-
   // combat.tex "Immobile": "Cannot move and cannot use any combat or
   // movement skills other than escape."
   it('leaves an immobile character nothing to declare but an escape', () => {
