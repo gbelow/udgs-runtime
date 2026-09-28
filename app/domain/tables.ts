@@ -323,7 +323,9 @@ export const ACTION_COSTS = {
   grappleManeuver: { AP: 3, STA: 1 },
   grappleDefense:  { AP: 2, STA: 1 },
   catch:           { AP: 3, STA: 1 },
-  pushDrag:        { AP: 3, STA: 2 },
+  // combat.tex "Push and drag": "spend 2 AP to gain 5 force in one
+  // comparison"
+  pushBoost:       { AP: 2, STA: 0 },
   // everything else — combat.tex "Rest", "Preparing a reaction", "Analyze",
   // "Standard Action", "Flanking", "Social actions"
   rest:           { AP: 4, STA: 0 },

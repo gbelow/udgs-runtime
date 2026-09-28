@@ -1,30 +1,68 @@
-import type { MovementKind } from '../../types'
-import type { Action, CombatState, Coord, DisplaceAction, DisplaceFacts, DragAction, DragFacts, GrappleControl, Placement } from '../types'
+import type { Action, CombatState, Coord, DragAction, DragFacts, Placement, PushMovement } from '../types'
+import type { CampaignCharacter } from '../../types'
 import { ASSIST } from '../../tables'
+import { PUSH_MOVEMENTS } from '../../lists'
 import { getForce } from '../../character/rules/skills'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
-import { canAfford } from '../../character/rules/cost'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { add, subtract, walkOut } from '../geometry'
-import { placeAt, withPlacements } from './board'
+import { DIRECTIONS, add, directionTo, sameCell, setDistance, walkOut } from '../geometry'
+import { getFootprint, placeAt, withPlacements } from './board'
 import { getOpeningReaction, getReactionsTo } from './log'
-import { getGrapplesOf, isHeld, getGrappleGroup } from './partners'
+import { getPartners, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './fighters'
-import { getMoveCost } from './move'
+import { getMoveBlockCells, getMoveCost } from './move'
 import { canStandAt } from './ground'
 import { getInterruptions } from './interruption'
 import { dropHolders } from './grapple'
 
 // ---------------------------------------------------------------------------
-// Push and drag
+// Push and drag: who is on which side
+
+// combat.tex "Push and drag": everyone locked in the grapple with the actor
+// answers the block, each as they chose — helping the actor, tagging along
+// on neither side, or, held by nobody, letting go and leaving the grapple.
+// Everyone else stays put on the other side, whether they spend on it
+// (`resist`) or not: one who does not answer, or has no AP left to move,
+// counts there at their Force ("help the losing side passively, which
+// prevents any movement").
+type Parties = {
+  // everyone in the group once whoever let go has, the actor included
+  movers: string[]
+  attackers: string[]
+  resisters: string[]
+  carriers: string[]
+  released: string[]
+}
+
+function getParties(state: CombatState, root: DragAction): Parties {
+  const reactions = getReactionsTo(state, root.id)
+  const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
+  const [assist, carry, letGo] = [chose('assist'), chose('carry'), chose('letGo')]
+  const released = [...letGo].filter((id) => !isHeld(state.grapples, id))
+  const grapples = dropHolders(state.grapples, (id) => released.includes(id))
+  const movers = getGrappleGroup(grapples, root.actorId)
+  const attackers = movers.filter((id) => id === root.actorId || assist.has(id))
+  const carriers = movers.filter((id) => carry.has(id) && !attackers.includes(id))
+  const resisters = movers.filter((id) => !attackers.includes(id) && !carriers.includes(id))
+  return { movers, attackers, resisters, carriers, released }
+}
+
+// "It is possible to spend 2 AP to gain 5 force in one comparison": the
+// actor as declared, a helper who chose to, a defender by resisting.
+const BOOST = 5
+
+function wantsBoost(state: CombatState, root: DragAction, id: string): boolean {
+  if (id === root.actorId) return root.boost
+  return getReactionsTo(state, root.id).some((r) => r.actorId === id && ((r.kind === 'assist' && r.boost) || r.kind === 'resist'))
+}
 
 // combat.tex "Push and drag": "Use the same rules for multiple characters as
-// grapple" — combat.tex "Grapple": "the highest skill value among them plus
-// 3/2/1 for each additional character, up to a maximum of 5 ... Characters
-// with force 5 points lower than their opponent always add just +1". Each
-// value is the Force left once its owner chose whether to pay, and the
-// opponent is the strongest of the other side so reckoned (the table's
-// ruling).
+// grapple, but use force instead of grapple as skill" — combat.tex
+// "Grapple": "the highest skill value among them plus 3/2/1 for each
+// additional character, up to a maximum of 5 ... Characters with force 5
+// points lower than their opponent always add just +1". Each value is the
+// Force with its +5 if it counts, and the opponent is the strongest of the
+// other side so reckoned (the table's ruling).
 type SideValue = { id: string; value: number; label: string }
 
 function sideTerms(values: SideValue[], opponent: number): Term[] {
@@ -38,174 +76,146 @@ function sideTerms(values: SideValue[], opponent: number): Term[] {
   return [{ label: lead.label, value: lead.value }, ...(bonus > 0 ? [{ label: 'help', value: bonus }] : [])]
 }
 
-function force(state: CombatState, id: string): number {
-  return state.characters[id] ? getForce(state.characters[id]) : 0
-}
-
 function strongest(values: SideValue[]): number {
   return Math.max(-Infinity, ...values.map((v) => v.value))
 }
 
-// combat.tex "Push and drag": "they can refuse to spend and take a -5
-// penalty to the comparison" — anyone in the push may (the table's ruling).
-const UNPAID = 5
+type Comparison = { attacker: Term[]; defender: Term[] | null; diff: number }
 
-export type DragSides = {
-  // everyone in the group once whoever let go has, the actor included
-  movers: string[]
-  attackers: string[]
-  resisters: string[]
-  active: string[]
-  carriers: string[]
-  released: string[]
-  attacker: Term[]
-  // null: nobody resists at all
-  defender: Term[] | null
-}
-
-// combat.tex "Push and drag": everyone locked in the grapple with the actor
-// answers, each as they chose — resisting actively (their Force) or
-// passively ("they can refuse to spend and take a -5 penalty"), helping on
-// the actor's side, paying or not, going along on neither, or, held by
-// nobody, letting go. An actor who does not pay takes the -5 too (the
-// table's ruling).
-export function getDragSides(state: CombatState, root: DragAction): DragSides {
-  const reactions = getReactionsTo(state, root.id)
-  const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
-  const [assist, carry, letGo, resist] = [chose('assist'), chose('carry'), chose('letGo'), chose('resist')]
-  const unpaidHelpers = new Set(reactions.flatMap((r) => (r.kind === 'assist' && r.unpaid && !hasPaid(state, root, r.actorId) ? [r.actorId] : [])))
-  const released = [...letGo].filter((id) => !isHeld(state.grapples, id))
-  const grapples = dropHolders(state.grapples, (id) => released.includes(id))
-  const movers = getGrappleGroup(grapples, root.actorId)
-  const attackers = movers.filter((id) => id === root.actorId || assist.has(id))
-  const carriers = movers.filter((id) => carry.has(id) && !attackers.includes(id))
-  const resisters = movers.filter((id) => !attackers.includes(id) && !carriers.includes(id))
-  const active = resisters.filter((id) => resist.has(id))
-  const sides = { movers, attackers, resisters, active, carriers, released }
-  if (root.compared) return { ...sides, attacker: root.compared.attacker, defender: root.compared.defender }
-  const value = (id: string, paid: boolean): SideValue => ({
-    id,
-    value: force(state, id) - (paid ? 0 : UNPAID),
-    label: `${getFightName(state, id)} force${paid ? '' : ' (not paid)'}`,
-  })
-  const pushing = attackers.map((id) => value(id, id === root.actorId ? !isUnpaid(state, root) : !unpaidHelpers.has(id)))
-  const resisting = resisters.map((id) => value(id, active.includes(id)))
+function compare(state: CombatState, parties: Parties, boosted: ReadonlySet<string>): Comparison {
+  const value = (id: string): SideValue => {
+    const c = state.characters[id]
+    const up = boosted.has(id)
+    return { id, value: (c ? getForce(c) : 0) + (up ? BOOST : 0), label: `${getFightName(state, id)} force${up ? ` +${BOOST}` : ''}` }
+  }
+  const pushing = parties.attackers.map(value)
+  const resisting = parties.resisters.map(value)
   const attacker = sideTerms(pushing, strongest(resisting))
-  const defender = resisters.length === 0 ? null : sideTerms(resisting, strongest(pushing))
-  return { ...sides, attacker, defender }
+  const defender = resisting.length === 0 ? null : sideTerms(resisting, strongest(pushing))
+  return { attacker, defender, diff: defender === null ? Infinity : sumTerms(attacker) - sumTerms(defender) }
 }
 
-// An actor who chose not to pay — but one who paid for the control being
-// re-evaluated counts as having paid.
-function isUnpaid(state: CombatState, root: DragAction): boolean {
-  return root.unpaid && !hasPaid(state, root, root.actorId)
+// combat.tex "Push and drag": "Having higher force allows moving forwards or
+// backwards with careful movement speed"; "A force difference smaller than
+// 5 allows moving around the grapple with basic movement ... A greater
+// difference allows that only for the stronger character"; "It is possible
+// to run and jump when force is 10 higher than the opponent."
+const CIRCLE_GAP = 5
+const RUN_LEAD = 10
+
+export function isPushAllowed(movement: PushMovement, diff: number): boolean {
+  switch (movement) {
+    case 'careful': return diff > 0
+    case 'basic': return diff > -CIRCLE_GAP
+    case 'run': return diff >= RUN_LEAD
+  }
 }
 
-// combat.tex "Push and drag": "The stronger character gets control of
-// movement for the group that round" — the actor, or the strongest of the
-// other side, passive or not; an actor who did not pay only 10 over (the
-// table's ruling). "It is possible to move at basic movement speed when a
-// group of characters have 10 force higher than the opponent group."
-export type DragOutcome = {
-  sides: DragSides
-  diff: number
-  // who controls the group; null on a draw or an unpaid push that fell short
-  controller: string | null
-  basic: boolean
+// combat.tex "Push and drag": "the losing side must decide first to spend or
+// not". The side the comparison goes against with nobody's +5 decides
+// first; the other side's +5 counts only if that turned the comparison
+// against them. A +5 declared by a side that never had to answer is neither
+// counted nor paid.
+function getBoosted(state: CombatState, root: DragAction, parties: Parties): string[] {
+  const allowed = (boosted: string[]) => isPushAllowed(root.movement, compare(state, parties, new Set(boosted)).diff)
+  const pushers = parties.attackers.filter((id) => wantsBoost(state, root, id))
+  const stayers = parties.resisters.filter((id) => wantsBoost(state, root, id))
+  const before = allowed([])
+  const [first, second] = before ? [stayers, pushers] : [pushers, stayers]
+  return allowed(first) === before ? first : [...first, ...second]
 }
 
-const UNPAID_MARGIN = 10
-const BASIC_MARGIN = 10
+export type DragSides = Parties & {
+  boosted: string[]
+  attacker: Term[]
+  // null: nobody stays put against it
+  defender: Term[] | null
+  // whether the block may be moved as declared
+  allowed: boolean
+}
 
-export function getDragOutcome(state: CombatState, root: DragAction): DragOutcome {
-  const sides = getDragSides(state, root)
-  const diff = sides.defender === null ? Infinity : sumTerms(sides.attacker) - sumTerms(sides.defender)
-  const pushed = diff > 0 && (!isUnpaid(state, root) || diff >= UNPAID_MARGIN)
-  const lead = sides.resisters.reduce<string | null>((best, id) => (best === null || force(state, id) > force(state, best) ? id : best), null)
-  const controller = pushed ? root.actorId : diff < 0 ? lead : null
-  return { sides, diff, controller, basic: controller !== null && Math.abs(diff) >= BASIC_MARGIN }
+export function getDragSides(state: CombatState, root: DragAction): DragSides {
+  const parties = getParties(state, root)
+  if (root.compared) return { ...parties, ...root.compared }
+  const boosted = getBoosted(state, root, parties)
+  const { attacker, defender, diff } = compare(state, parties, new Set(boosted))
+  return { ...parties, boosted, attacker, defender, allowed: isPushAllowed(root.movement, diff) }
 }
 
 // The comparison as it stands now, to be written on the push when it is
 // paid for: from then on its outcome is read off what was written.
 export function getDragComparison(state: CombatState, root: DragAction): NonNullable<DragAction['compared']> {
-  const { attacker, defender } = getDragSides(state, { ...root, compared: null })
-  return { attacker, defender }
+  const { attacker, defender, boosted, allowed } = getDragSides(state, { ...root, compared: null })
+  return { attacker, defender, boosted, allowed }
 }
 
-// Who paid for the push: the actor unless they chose not to, whoever helped,
-// whoever resisted actively — and, made again for someone joining, whoever
-// had paid for the control it re-evaluates.
-function getPaid(state: CombatState, root: DragAction, sides: DragSides): string[] {
-  const helpers = getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'assist' && !r.unpaid && sides.attackers.includes(r.actorId) ? [r.actorId] : []))
-  const now = [...(isUnpaid(state, root) ? [] : [root.actorId]), ...helpers, ...sides.active]
-  return [...new Set([...(root.recheck ? getLiveControl(state, root.actorId)?.paid ?? [] : []), ...now])]
+// ---------------------------------------------------------------------------
+// Prices
+
+const FREE: ActionCost = { AP: 0, STA: 0 }
+
+// Whether the character walks the block: the actor always, and on a push
+// along the line everyone who helps or tags along; circling moves the
+// actor alone ("as long as no other grapplers are displaced").
+function walksBlock(root: DragAction, action: Pick<Action, 'kind' | 'actorId'>): boolean {
+  if (action.kind === 'drag') return true
+  return root.movement !== 'basic' && (action.kind === 'assist' || action.kind === 'carry')
 }
 
-function hasPaid(state: CombatState, root: DragAction, id: string): boolean {
-  return root.recheck && (getLiveControl(state, root.actorId)?.paid ?? []).includes(id)
-}
-
-// combat.tex "Push and drag": "This costs 3AP +2STA for both attacker and
-// defender", and whoever helps; nothing for one who chose not to pay, nor,
-// made again for someone joining, for whoever already paid this round
-// (the table's ruling). `action` is the push itself or an answer to it.
-export function getPushPrice(state: CombatState, root: DragAction, action: Pick<Action, 'kind' | 'actorId'> & { unpaid?: boolean }): ActionCost {
+// What the block costs whoever takes part in it: "2 AP to gain 5 force"
+// for one whose +5 counted, and the metres of the block for one who walks
+// them, once the comparison lets it move. `action` is the push itself or an
+// answer to it.
+export function getPushPrice(state: CombatState, root: DragAction, action: Pick<Action, 'kind' | 'actorId'>): ActionCost {
   const c = state.characters[action.actorId]
-  if (!c || action.unpaid || hasPaid(state, root, action.actorId)) return { AP: 0, STA: 0 }
-  return getActionCost(c, 'pushDrag')
+  if (!c) return FREE
+  const sides = getDragSides(state, root)
+  const boost = sides.boosted.includes(action.actorId) ? getActionCost(c, 'pushBoost') : FREE
+  const walk = sides.allowed && walksBlock(root, action) ? getMoveCost(c, root.movement, root.path.length) : FREE
+  return { AP: boost.AP + walk.AP, STA: boost.STA + walk.STA }
 }
 
-// What the push came to, written at the resolve.
-export function getDragFacts(state: CombatState, root: DragAction): DragFacts {
-  const outcome = getDragOutcome(state, root)
-  const control = outcome.controller === null ? null : { controller: outcome.controller, round: state.round, basic: outcome.basic, paid: getPaid(state, root, outcome.sides), carriers: outcome.sides.carriers }
-  return { released: outcome.sides.released, control }
-}
-
-// ---------------------------------------------------------------------------
-// Control
-
-// The control over the character's group won this round, if any.
-export function getLiveControl(state: CombatState, id: string): GrappleControl | null {
-  return getGrapplesOf(state, id).find((g) => g.control && g.control.round === state.round)?.control ?? null
-}
-
-export function isInControl(state: CombatState, id: string): boolean {
-  return getLiveControl(state, id)?.controller === id
-}
-
-// combat.tex "Push and drag": "at careful movement speed", basic with 10
-// Force over the other side.
-export function getGroupMovement(state: CombatState, id: string): MovementKind {
-  return getLiveControl(state, id)?.basic ? 'basic' : 'careful'
-}
-
-// combat.tex "Push and drag": someone who has just joined a group under
-// control — a pair of the group with no control on it — "reevaluates the
-// comparison" (the table's ruling): the controller's, made again.
-export function getControlRecheck(state: CombatState, pair: readonly [string, string]): string | null {
-  const joined = state.grapples.find((g) => g.members.includes(pair[0]) && g.members.includes(pair[1]))
-  if (!joined || joined.control?.round === state.round) return null
-  const group = getGrappleGroup(state.grapples, pair[0])
-  const control = group.flatMap((id) => getGrapplesOf(state, id)).find((g) => g.control?.round === state.round)?.control
-  return control && group.includes(control.controller) ? control.controller : null
+// What answering the block could cost at most, the +5 counted and the block
+// moved: what an answer has to be able to pay to be open.
+export function getPushAnswerCost(state: CombatState, root: DragAction, action: Pick<Action, 'kind' | 'actorId'> & { boost?: boolean }): ActionCost {
+  const c = state.characters[action.actorId]
+  if (!c) return FREE
+  const boost = action.kind === 'resist' || action.boost ? getActionCost(c, 'pushBoost') : FREE
+  const walk = walksBlock(root, action) ? getMoveCost(c, root.movement, Math.max(1, root.path.length)) : FREE
+  return { AP: boost.AP + walk.AP, STA: boost.STA + walk.STA }
 }
 
 // ---------------------------------------------------------------------------
-// Moving the group
+// Moving the block
 
-// Where everyone in the group stands with the controller's anchor at `cell`,
-// each keeping where they stood to them.
-function groupAt(state: CombatState, controllerId: string, cell: Coord): Record<string, Placement> | null {
-  const board = state.board
-  const from = board?.placements[controllerId]
-  if (!board || !from) return null
-  const offset = subtract(cell, from.cell)
-  return Object.fromEntries(getGrappleGroup(state.grapples, controllerId).flatMap((id) => {
-    const p = board.placements[id]
-    return p ? [[id, placeAt(board, p, add(p.cell, offset))]] : []
-  }))
+// combat.tex "Push and drag": the comparison "is repeated for every 2 AP
+// worth of movement" — a block is as many cells as 2 AP buys at its speed.
+const BLOCK_AP = 2
+
+// combat.tex "running": "Can only be initiated during a movement surge".
+export type PushMovementOption = { kind: PushMovement; available: boolean; reason: string | null }
+
+export function getPushMovements(c: CampaignCharacter): PushMovementOption[] {
+  return PUSH_MOVEMENTS.map((kind) => {
+    const reason = kind === 'run' && c.usedSurge !== 'movement' ? 'needs a movement surge' : null
+    return { kind, available: reason === null, reason }
+  })
+}
+
+// "forwards or backwards": along the line from the actor through the target.
+function getAxis(state: CombatState, root: DragAction): Coord | null {
+  const from = state.board?.placements[root.actorId]
+  const to = root.targetId ? state.board?.placements[root.targetId] : undefined
+  return from && to ? DIRECTIONS[directionTo(from.cell, to.cell)] : null
+}
+
+function scale(d: Coord, n: number): Coord {
+  return { q: d.q * n, r: d.r * n }
+}
+
+function blockCells(state: CombatState, root: DragAction): number {
+  const c = state.characters[root.actorId]
+  return c ? Math.floor(getMoveBlockCells(c, root.movement, BLOCK_AP)) : 0
 }
 
 function canGroupStand(state: CombatState, placements: Record<string, Placement>): boolean {
@@ -213,62 +223,113 @@ function canGroupStand(state: CombatState, placements: Record<string, Placement>
   return Object.entries(placements).every(([id, p]) => canStandAt(moved, id, p))
 }
 
-// What moving the group the given cells costs the controller.
-export function getDisplaceCost(state: CombatState, root: DisplaceAction, cells: number): ActionCost | null {
+// Circling: the actor stepping on around the grapple, somewhere they may
+// stand still touching every partner, nobody else moved.
+function circledTo(state: CombatState, root: DragAction, cell: Coord): Record<string, Placement> | null {
+  const board = state.board
+  const from = board?.placements[root.actorId]
   const c = state.characters[root.actorId]
-  return c ? getMoveCost(c, getGroupMovement(state, root.actorId), cells) : null
+  if (!board || !from || !c) return null
+  const to = placeAt(board, from, cell)
+  const footprint = getFootprint(c, to)
+  const touching = getPartners(state, root.actorId).every((id) => {
+    const partner = state.characters[id]
+    const at = board.placements[id]
+    return !partner || !at || setDistance(footprint, getFootprint(partner, at)) <= 1
+  })
+  return touching && canStandAt(state, root.actorId, to) ? { [root.actorId]: to } : null
 }
 
-// Where everyone stands after each step of the controller's way; null when
-// some step leaves someone where they cannot stand, or is not a step.
-export function getGroupSteps(state: CombatState, root: DisplaceAction): Record<string, Placement>[] | null {
+// Along the line: everyone moving with the group shifted as far as the
+// actor has gone, if everyone can stand there.
+function shiftedTo(state: CombatState, root: DragAction, movers: string[], cell: Coord): Record<string, Placement> | null {
+  const board = state.board
+  const from = board?.placements[root.actorId]
+  if (!board || !from) return null
+  const offset = { q: cell.q - from.cell.q, r: cell.r - from.cell.r }
+  const placements = Object.fromEntries(movers.flatMap((id) => {
+    const p = board.placements[id]
+    return p ? [[id, placeAt(board, p, add(p.cell, offset))]] : []
+  }))
+  return canGroupStand(state, placements) ? placements : null
+}
+
+// Where everyone who moves stands after each step of the actor's way; null
+// when the way is not one the block allows — longer than the block, off the
+// line, or somewhere someone cannot stand.
+export function getGroupSteps(state: CombatState, root: DragAction): Record<string, Placement>[] | null {
+  const from = state.board?.placements[root.actorId]
+  if (!from || root.path.length > blockCells(state, root)) return null
+  if (root.movement === 'basic') {
+    const steps: Record<string, Placement>[] = []
+    for (const cell of root.path) {
+      const at = circledTo(withPlacements(state, steps.at(-1) ?? {}), root, cell)
+      if (!at) return null
+      steps.push(at)
+    }
+    return steps
+  }
+  if (root.path.length === 0) return []
+  const axis = getAxis(state, root)
+  const direction = axis ? [axis, scale(axis, -1)].find((d) => sameCell(add(from.cell, d), root.path[0])) : undefined
+  if (!direction) return null
+  const { movers } = getParties(state, root)
   const steps: Record<string, Placement>[] = []
-  for (const cell of root.path) {
-    const at = groupAt(state, root.actorId, cell)
-    if (!at || !canGroupStand(state, at)) return null
+  for (const [i, cell] of root.path.entries()) {
+    const at = sameCell(cell, add(from.cell, scale(direction, i + 1))) ? shiftedTo(state, root, movers, cell) : null
+    if (!at) return null
     steps.push(at)
   }
   return steps
 }
 
-// Where the group set out from.
-export function getGroupOrigin(state: CombatState, root: DisplaceAction): Record<string, Placement> {
+// Where everyone who moves with the block set out from.
+export function getGroupOrigin(state: CombatState, root: DragAction): Record<string, Placement> {
   const board = state.board
-  return Object.fromEntries(getGrappleGroup(state.grapples, root.actorId).flatMap((id) => (board?.placements[id] ? [[id, board.placements[id]]] : [])))
+  const ids = root.movement === 'basic' ? [root.actorId] : getParties(state, root).movers
+  return Object.fromEntries(ids.flatMap((id) => (board?.placements[id] ? [[id, board.placements[id]]] : [])))
 }
 
-// Every cell the controller can take the group to, as they can pay for it,
-// with the shortest way there.
-export function getGroupReach(state: CombatState, root: DisplaceAction): { cell: Coord; steps: number; path: Coord[] }[] {
-  const c = state.characters[root.actorId]
+// Every cell the actor can take the block to at its speed, with the way
+// there: around the grapple, or straight forwards or backwards.
+export function getDragReach(state: CombatState, root: DragAction): { cell: Coord; steps: number; path: Coord[] }[] {
   const from = state.board?.placements[root.actorId]
-  if (!c || !from) return []
-  const affordable = (steps: number) => canAfford(c, getDisplaceCost(state, root, steps) ?? { AP: Infinity, STA: 0 })
-  return walkOut(from.cell, affordable, (cell) => {
-    const at = groupAt(state, root.actorId, cell)
-    return !!at && canGroupStand(state, at)
+  if (!from) return []
+  const block = blockCells(state, root)
+  if (root.movement === 'basic') {
+    return walkOut(from.cell, (steps) => steps <= block, (_cell, path) => getGroupSteps(state, { ...root, path }) !== null)
+  }
+  const axis = getAxis(state, root)
+  if (!axis) return []
+  return [axis, scale(axis, -1)].flatMap((d) => {
+    const reach: { cell: Coord; steps: number; path: Coord[] }[] = []
+    for (let n = 1; n <= block; n++) {
+      const path = Array.from({ length: n }, (_, i) => add(from.cell, scale(d, i + 1)))
+      if (getGroupSteps(state, { ...root, path }) === null) break
+      reach.push({ cell: path[n - 1], steps: n, path })
+    }
+    return reach
   })
 }
 
-// Where the group was brought to a stop: one step short of the stretch on
-// which a third party's attack stunned the controller, where everyone stays,
-// as an interrupted mover does. The table's ruling: like running and
-// jumping it carries on through an interruption, and only a stun of the
-// controller stops it. Null while it goes on.
-export function getPushStop(state: CombatState, root: DisplaceAction): number | null {
+// Where the block was brought to a stop: nowhere when the comparison does
+// not let it move; one step short of the stretch on which a third party's
+// attack stunned the actor, where everyone stays, as an interrupted mover
+// does. The table's ruling: like running and jumping it carries on through
+// an interruption, and only a stun of the actor stops it. Null while it
+// goes on.
+export function getPushStop(state: CombatState, root: DragAction): number | null {
+  if (!getDragSides(state, root).allowed) return 0
   const stunned = getInterruptions(state, root).find(({ level }) => level === 'stunned')
   const reaction = stunned ? getOpeningReaction(state, stunned.by) : null
   return reaction ? Math.max(0, (reaction.at ?? 1) - 1) : null
 }
 
-// The way walked as far as it got, where each ended, and what each who
-// chose to go along paid for the metres, at the group's speed.
-export function getDisplaceFacts(state: CombatState, root: DisplaceAction): DisplaceFacts {
+// What the block came to: who let go instead of being moved, how far it
+// went, and where everyone who moved ended.
+export function getDragFacts(state: CombatState, root: DragAction): DragFacts {
   const stop = getPushStop(state, root)
   const steps = getGroupSteps(state, root) ?? []
   const walked = stop === null ? steps : steps.slice(0, stop)
-  const movement = getGroupMovement(state, root.actorId)
-  const carriers = walked.length > 0 ? getLiveControl(state, root.actorId)?.carriers ?? [] : []
-  const carried = Object.fromEntries(carriers.flatMap((id) => (state.characters[id] && walked[0][id] ? [[id, getMoveCost(state.characters[id], movement, walked.length)]] : [])))
-  return { steps: walked.length, to: walked.at(-1) ?? {}, carried }
+  return { released: getParties(state, root).released, steps: walked.length, to: walked.at(-1) ?? {} }
 }

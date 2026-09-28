@@ -5,8 +5,8 @@ import { GRAPPLE_MANEUVERS } from '../../lists'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { getMoveCost, getMovementOptions, hasJumpSpace, isMidJump } from './move'
-import { getPushPrice, isInControl } from './drag'
+import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
+import { getPushAnswerCost } from './drag'
 import { getChargeOptions, hasExplosionPayload } from './explosion'
 import { getTriggersFor } from './reactions'
 import { canStandByEscape, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
@@ -84,7 +84,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   return getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
-    const own = open.kind === 'drag' && (kind === 'resist' || kind === 'assist') ? getPushPrice(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
+    const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
     const cost = lessRepurposed(state, c.id, open.id, own)
     const gate = defenseGate(state, c, open, kind, cost)
     const answer = (draft: ActionDraft, own: ActionCost | null = cost, reason: string | null = gate): ActionOption =>
@@ -118,10 +118,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'avoidExplosion':
       case 'resist':
         return [answer({ kind })]
-      // combat.tex "Push and drag": a helper may leave the price unpaid and
-      // help at -5, as anyone in the push may (the table's ruling)
-      case 'assist':
-        return [answer({ kind }), answer({ kind, unpaid: true }, { AP: 0, STA: 0 }, isImmobile(c) ? 'immobile' : null)]
+      // combat.tex "Push and drag": a helper walks with the block, and may
+      // "spend 2 AP to gain 5 force" besides
+      case 'assist': {
+        if (open.kind !== 'drag') return []
+        const boosted = getPushAnswerCost(state, open, { kind, actorId: c.id, boost: true })
+        return [answer({ kind }), answer({ kind, boost: true }, boosted, gate ?? (canAfford(c, boosted) ? null : 'cannot afford'))]
+      }
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike, or,
       // against a grapple partner, for a maneuver (combat.tex "Grapple
@@ -134,13 +137,11 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
         return [answer({ kind, at: trigger.at }, null, reason)]
       }
-      // combat.tex "Push and drag": going along is paid in the movement of
-      // the metres whenever the group is moved, at least one to be open;
-      // letting go is only for one nobody holds
-      case 'carry': {
-        const least = getMoveCost(c, 'careful', 1)
-        return [answer({ kind }, least, gate ?? (canAfford(c, least) ? null : 'cannot afford'))]
-      }
+      // combat.tex "Push and drag": tagging along is paid in the movement of
+      // the block; one with no AP to move stays put and counts passively,
+      // or, held by nobody, lets go
+      case 'carry':
+        return [answer({ kind }, cost, gate ?? (canAfford(c, cost) ? null : 'cannot afford'))]
       case 'letGo': {
         return [answer({ kind }, cost, gate ?? (isHeld(state.grapples, c.id) ? 'held' : null))]
       }
@@ -219,18 +220,10 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       option({ kind: 'grapple', maneuver: 'escape', stand: true }, maneuver, canStandByEscape(state, c) ? afford(c, maneuver) : 'not prone'),
     ]
   },
-  // combat.tex "Prone": "cannot push nor drag"; one who cannot pay may
-  // still push without paying, at -5
+  // combat.tex "Prone": "cannot push nor drag"
   drag: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []
-    const drag = getActionCost(c, 'pushDrag')
-    return [option({ kind: 'drag' }, drag, !isPlaced(state, c) ? 'not on the board' : hasAffliction(c, 'prone') ? 'prone' : null)]
-  },
-  // combat.tex "Push and drag": the controller of the group moves it
-  displace: (state, c) => {
-    if (!isInAnyGrapple(state, c)) return []
-    const reason = !isPlaced(state, c) ? 'not on the board' : !isInControl(state, c.id) ? 'no control of the group' : null
-    return [option({ kind: 'displace' }, null, reason)]
+    return [option({ kind: 'drag' }, null, !isPlaced(state, c) ? 'not on the board' : hasAffliction(c, 'prone') ? 'prone' : null)]
   },
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []

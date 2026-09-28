@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, Deliveries, DisplaceFacts, DragFacts } from '../types'
+import type { Action, ActionRoll, CombatState, Deliveries, DragFacts } from '../types'
 import type { Delivery } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { isAttackAction } from '../rules/actionCatalog'
@@ -31,7 +31,6 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   const named = (id: string) => getFightName(state, id)
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
-  if (root.kind === 'displace') return root.facts ? displaceNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   if (root.kind === 'throwItem') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
   const facts = getGrappleFacts(root)
@@ -56,16 +55,10 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
 }
 
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
-  return [
-    ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
-    facts.control ? { target: named(facts.control.controller), text: `controls the group · ${facts.control.basic ? 'basic' : 'careful'}` } : { target: '', text: 'nobody controls the group' },
-  ]
-}
-
-function displaceNotes(facts: DisplaceFacts, named: (id: string) => string): { target: string; text: string }[] {
   const moved = Object.keys(facts.to)
   return [
-    moved.length > 0 ? { target: moved.map(named).join(', '), text: `moved ${facts.steps}m` } : { target: '', text: 'nobody moves' },
+    ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
+    moved.length > 0 && facts.steps > 0 ? { target: moved.map(named).join(', '), text: `moved ${facts.steps}m` } : { target: '', text: 'nobody moves' },
   ]
 }
 

@@ -60,10 +60,9 @@ export function BoardPanel(){
 
       <svg viewBox={view.viewBox} className='w-full select-none' role='img' aria-label='board'>
         <defs>
-          {(['fg', 'accent'] as const).map((tone) =>
-            <marker key={tone} id={`grip-${tone}`} viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
-              <path d='M 0 0 L 10 5 L 0 10 z' className={tone === 'accent' ? 'fill-accent' : 'fill-fg'} />
-            </marker>)}
+          <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
+            <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
+          </marker>
         </defs>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
@@ -163,15 +162,14 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
 }
 
 // Who holds whom: a link between the two tokens, an arrowhead at each one
-// held, drawn in the accent while a push controls the group.
+// held.
 function GrappleLink({ link }: { link: BoardGrappleView }){
-  const grip = link.controlled ? 'grip-accent' : 'grip-fg'
   return (
     <g>
       <title>{link.title}</title>
       <line x1={link.from.x} y1={link.from.y} x2={link.to.x} y2={link.to.y}
-        className={link.controlled ? 'stroke-accent' : 'stroke-fg'} strokeWidth={link.controlled ? 0.12 : 0.08} strokeLinecap='round'
-        markerStart={link.back ? `url(#${grip})` : undefined} markerEnd={link.forward ? `url(#${grip})` : undefined} />
+        className='stroke-fg' strokeWidth={0.08} strokeLinecap='round'
+        markerStart={link.back ? 'url(#grip)' : undefined} markerEnd={link.forward ? 'url(#grip)' : undefined} />
     </g>
   )
 }

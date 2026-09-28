@@ -14,7 +14,7 @@ import { findHeldItem } from './fighters'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
 import { canGrab, canStandByEscape, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
-import { getDisplaceCost, getGroupSteps, getPushPrice } from './drag'
+import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
 import { sameCell } from '../geometry'
@@ -91,12 +91,13 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const item = findThrowSource(state, action.actorId, action.itemId)
       return !!item && canThrowItem(c, item) && action.to !== null && getThrowCells(state, action.actorId).some((cell) => sameCell(cell, action.to!))
     }
-    // combat.tex "Push and drag": on the board
-    case 'drag':
-      return state.board !== null
-    // a way the whole group can take, cell by cell
-    case 'displace':
-      return action.path.length > 0 && getGroupSteps(state, action) !== null
+    // combat.tex "Push and drag": on the board, at a speed open to the
+    // actor, along a way the block allows
+    case 'drag': {
+      const actor = state.characters[action.actorId]
+      const speed = actor ? getPushMovements(actor).find((m) => m.kind === action.movement) : undefined
+      return state.board !== null && !!speed?.available && action.path.length > 0 && getGroupSteps(state, action) !== null
+    }
     // nothing more to declare; a blast is generated with its way already
     // walked out
     case 'blast':
@@ -180,7 +181,6 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'opportunityAttack':
     case 'follow':
     case 'drag':
-    case 'displace':
     case 'blast':
     case 'release':
     case 'holdBack':
@@ -230,7 +230,6 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
   const c = state.characters[action.actorId]
   if (!c) return null
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
-    : action.kind === 'displace' ? getDisplaceCost(state, action, action.path.length)
     : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
     : getDeclaredCost(c, action)
   const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : action.kind === 'grapple' ? getDisarmDiscount(state, action) : 0
@@ -238,10 +237,10 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
 }
 
-// The push an action pays for as its pusher, resister or helper.
+// The push an action pays for as its pusher, or as one who answers it.
 function getPushRoot(state: CombatState, action: Action): DragAction | null {
   if (action.kind === 'drag') return action
-  const root = action.kind === 'resist' || action.kind === 'assist' ? getRootOf(state, action) : null
+  const root = action.kind === 'resist' || action.kind === 'assist' || action.kind === 'carry' || action.kind === 'letGo' ? getRootOf(state, action) : null
   return root?.kind === 'drag' ? root : null
 }
 
@@ -312,6 +311,10 @@ export function getNextStep(state: CombatState): ActionStep | null {
   const actor = state.characters[open.actorId]
   if (!actor) return 'declare'
   if (open.kind === 'explosion') return getExplosionPayload(state, open) === null ? 'declare' : isAimed(state, open) ? 'commit' : 'aim'
+  // a push is aimed before its way is picked: the way runs along the line
+  // through the target (combat.tex "Push and drag": "forwards or backwards")
+  const aimed = open.targetId !== null && getTargetIds(state, open).includes(open.targetId)
+  if (open.kind === 'drag' && !aimed) return 'target'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
   if (!needsTarget(open)) return 'commit'
   if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
@@ -334,7 +337,6 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'explosion':
     case 'move':
     case 'drag':
-    case 'displace':
     case 'release':
     case 'holdBack':
     case 'pickUp':
@@ -380,7 +382,6 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'explosion':
     case 'blast':
     case 'move':
-    case 'displace':
     case 'pickUp':
     case 'throwItem':
       return []

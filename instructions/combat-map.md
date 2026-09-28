@@ -75,7 +75,7 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag`, `displace` (the controller moving a grapple group), `release`, `holdBack`, `pickUp` |
+| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp` |
 | Generated roots | `blast` (an explosion going off) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
@@ -93,8 +93,8 @@ lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReact
 | Step (`step`) | UI sub-step (`getNextStep`) | Commands (`commands/action.ts` unless noted) |
 |---|---|---|
 | `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `pickCell` / `turnMove` (`commands/board.ts`) |
-| `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`; then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
-| `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `aimPush`, `chooseManeuver`; then `resolveAction(newId)` |
+| `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`, `boostPush` (the pusher's +5, also at `define`); then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
+| `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `chooseManeuver`; then `resolveAction(newId)` |
 | `done` | — | — |
 
 - **define** — free to edit or cancel. Only one root can be declared at a time
@@ -127,7 +127,7 @@ payAll ──► advance ──► top at post? ──► openBefore: first reac
                                          REACTION_OPENERS[kind].before opens something
                                          → push it, stop (the table plays it out)
                           │ nothing left to open, and the top has nothing to decide
-                          │ (explosion, displace)
+                          │ (explosion, drag)
                           ▼
 resolveAction ─────────► land(top)
                           getSettled → applyPhase('resolve') → close
@@ -141,15 +141,14 @@ resolveAction ─────────► land(top)
 - **After the effect** — `getFollowUps` builds the list pushed over the landed action; the
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
-  counterattack), escapes a stun opens, a push made again when a grab brings someone into a
-  group under control, the explosion a cast opens,
+  counterattack), escapes a stun opens, the explosion a cast opens,
   a hook's knockdown, and a riposte on top. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
-  nothing). Follow-ups no reaction opens (blast, push re-evaluation, cast explosion, hook knockdown,
+  nothing). Follow-ups no reaction opens (blast, cast explosion, hook knockdown,
   stun escapes, riposte) live in `getFollowUps` itself.
-- **Auto-landing** — an explosion or a group moved (`displace`) has nothing to decide once its
+- **Auto-landing** — an explosion or a push (`drag`) has nothing to decide once its
   attacks are fought, so `advance` lands it.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
@@ -163,8 +162,8 @@ resolveAction ─────────► land(top)
   and `spawnedBy`) landed on its actor *before its own effect*, ordered by `history`. A
   counterattack's tied strike is skipped (a tie breaks neither).
 - `isBroken` — any such interruption, except for a move (cut short where caught,
-  `getMoveOverride` in `rules/move.ts`) or a group moved (stopped only by a stun of the
-  controller, `getPushStop` in `rules/drag.ts`).
+  `getMoveOverride` in `rules/move.ts`) or a push (stopped by its comparison, or only by a
+  stun of the pusher, `getPushStop` in `rules/drag.ts`).
 - `rules/opportunity.ts` — `getGivenUpFor` / `isCancelled` (the actor of any action but
   movement gives it up by answering an opportunity attack it drew with anything but the SD),
   `getMidActionTerm` (the -2 on that answer, or on one made while standing up) and
@@ -274,7 +273,7 @@ app/domain/combat/
 │   ├── ground.ts       crossable and restable cells
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
-│   ├── drag.ts         push and drag: sides, outcome, control of the group, moving it
+│   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, thrown
 │   └── fighters.ts     active character, fight names, who holds an item
 │

@@ -86,8 +86,8 @@ function isInLiquid(state: CombatState, c: Character): boolean {
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
 // character can run"). combat.tex "Grappled": "Movement requires pushing or
-// dragging the other participants in the grapple" — the group is moved by
-// whoever controls it (combat.tex "Push and drag"); they get up by
+// dragging the other participants in the grapple" — a block of push at a
+// time (combat.tex "Push and drag"); they get up by
 // escaping ("Escape is also used for trying to stand up while
 // grappled"); "Immobile: Cannot move".
 export function getMovementOptions(state: CombatState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {

@@ -9,8 +9,8 @@ import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
-import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
-import { getDisplaceCost, getDisplaceFacts, getGroupReach, getGroupSteps } from '../rules/drag'
+import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
+import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
@@ -84,16 +84,14 @@ export type BoardFloorItemView = {
 
 // A grapple pair, drawn as a link between the two tokens: `from`/`to` are
 // its ends at the rims of the two tokens, `forward` whether the first holds
-// the second and `back` the reverse (combat.tex "Grapple"), and
-// `controlled` whether a push has won control of the group this round
-// (combat.tex "Push and drag"). `title` says all of it in words.
+// the second and `back` the reverse (combat.tex "Grapple"). `title` says it
+// in words.
 export type BoardGrappleView = {
   key: string
   from: { x: number; y: number }
   to: { x: number; y: number }
   forward: boolean
   back: boolean
-  controlled: boolean
   title: string
 }
 
@@ -119,8 +117,8 @@ export type BoardView = {
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
   grapples: BoardGrappleView[]
-  // combat.tex "Push and drag": where everyone in a group being moved will
-  // stand once it lands, drawn over the board before it does
+  // combat.tex "Push and drag": where everyone a push moves will stand once
+  // it lands, drawn over the board before it does
   ghosts: BoardGhostView[]
   // who a click on a pickable floor item picks it up for
   picker: string | null
@@ -145,15 +143,16 @@ function buildBoardView(state: CombatState): BoardView {
   const open = getOpenAction(state)
   const step = getNextStep(state)
   // the move in play, whatever its phase: its path stays drawn throughout;
-  // so does the way a grapple group is moved (combat.tex "Push and drag")
-  const walking = findOpenRoot(state, 'displace')
+  // so does the way a push takes its block (combat.tex "Push and drag")
+  const walking = findOpenRoot(state, 'drag')
   const pending = findOpenRoot(state, 'move') ?? walking
   const move = open?.kind === 'move' && open.step === 'define' ? open : null
-  const group = open?.kind === 'displace' && open.step === 'define' ? open : null
+  const group = open?.kind === 'drag' && open.step === 'define' ? open : null
+  const pusher = group ? state.characters[group.actorId] : undefined
   const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
   const occupancy = getOccupancy(board, state.characters)
   const reachable = move ? getReachableCells(state, move)
-    : group ? getGroupReach(state, group).map((r) => ({ ...r, cost: getDisplaceCost(state, group, r.steps) ?? { AP: 0, STA: 0 } }))
+    : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))
     : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))
   const pathByKey = new Map((pending?.path ?? []).map((cell, i) => [coordKey(cell), i + 1]))
@@ -177,9 +176,9 @@ function buildBoardView(state: CombatState): BoardView {
   const blast = findOpenRoot(state, 'blast')
   const laid = blast ?? (explosion ? getBlastOf(state, explosion) : null)
   const aiming = (blast !== null && isAimable(state, blast)) || (explosion !== null && isAimable(state, explosion))
-  // combat.tex "Push and drag": where everyone in the group moved ends up,
-  // shown until the way is walked
-  const landed: Record<string, Placement> = walking ? (walking.step === 'define' ? getGroupSteps(state, walking)?.at(-1) ?? {} : getDisplaceFacts(state, walking).to) : {}
+  // combat.tex "Push and drag": where everyone the block moves ends up,
+  // shown until it is walked
+  const landed: Record<string, Placement> = walking ? (walking.step === 'post' ? getDragFacts(state, walking).to : getGroupSteps(state, walking)?.at(-1) ?? {}) : {}
   const ghosts: BoardGhostView[] = Object.entries(landed).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []
@@ -265,12 +264,8 @@ function buildBoardView(state: CombatState): BoardView {
     const pa = board.placements[a]
     const pb = board.placements[b]
     if (!pa || !pb) return []
-    const control = g.control?.round === state.round ? g.control : null
-    const title = [
-      ...g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} holds ${getFightName(state, getPartner(g, id))}`] : [])),
-      ...(control ? [`${getFightName(state, control.controller)} controls the group · ${control.basic ? 'basic' : 'careful'}`] : []),
-    ].join(' · ')
-    return [{ key: `${a}~${b}`, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), controlled: control !== null, title }]
+    const title = g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} holds ${getFightName(state, getPartner(g, id))}`] : [])).join(' · ')
+    return [{ key: `${a}~${b}`, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
   })
 
   const xs = cells.map((c) => c.x)

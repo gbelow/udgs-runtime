@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DisplaceAction, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
@@ -55,9 +55,8 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
     case 'throwItem': return opportunityTriggers(state, root.actorId)
-    case 'grapple':
-    case 'drag': return grappleTriggers(state, root)
-    case 'displace': return displaceTriggers(state, root)
+    case 'grapple': return grappleTriggers(state, root)
+    case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
     // nobody answers the blast: the reflexes were against the explosion
     case 'blast': return []
     // letting go and grappling back draw nothing
@@ -133,37 +132,42 @@ function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
 
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
 // an escape "Being stunned allows for", "without the possibility of active
-// resistance". "Push and drag": everyone in the group answers it — resists,
-// helps, goes along, or lets go — while committed.
+// resistance".
 // combat.tex "Opportunity Attack": "standing up in melee range" triggers
 // one, an escape made to stand up as much as any — from the partner too,
 // who then answers with it instead of resisting (the table's ruling).
-function grappleTriggers(state: CombatState, root: GrappleAction | DragAction): Trigger[] {
-  if (root.kind === 'grapple') {
-    const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
-    return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
-  }
+function grappleTriggers(state: CombatState, root: GrappleAction): Trigger[] {
+  const resist: Trigger[] = root.targetId && !root.unresisted ? [{ characterId: root.targetId, kind: 'resist', at: null }] : []
+  return root.stand ? [...resist, ...opportunityTriggers(state, root.actorId)] : resist
+}
+
+// combat.tex "Push and drag": everyone in the group answers the block while
+// committed — resists, helps, tags along, or lets go; circling displaces
+// nobody, so there is nothing to tag along with or leave.
+function dragAnswers(state: CombatState, root: DragAction): Trigger[] {
   if (root.step !== 'react') return []
+  const kinds = root.movement === 'basic' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
   return getGrappleGroup(state.grapples, root.actorId)
     .filter((id) => id !== root.actorId)
-    .flatMap((id) => (['resist', 'assist', 'carry', 'letGo'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
+    .flatMap((id) => kinds.map((kind): Trigger => ({ characterId: id, kind, at: null })))
 }
 
 // combat.tex "Opportunity Attack": "moving towards a melee weapon while
-// within its attack range" — moving the group moves everyone in it, and a
-// third party gets the attack against the first of them it moves closer
-// from within range, at that step.
-function displaceTriggers(state: CombatState, root: DisplaceAction): Trigger[] {
+// within its attack range" — the block moves everyone it moves, and a third
+// party gets the attack against the first of them it moves closer from
+// within range, at that step.
+function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
   const steps = getGroupSteps(state, root)
   if (!steps || steps.length === 0) return []
   const origin = getGroupOrigin(state, root)
   const movers = Object.keys(steps[0])
+  const group = getGrappleGroup(state.grapples, root.actorId)
   const start = (id: string) => origin[id]
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     const other = getPlacedFootprint(state, id)
     const range = getMeleeRange(state.characters[id])
-    if (movers.includes(id) || !other || range === 0) continue
+    if (group.includes(id) || !other || range === 0) continue
     const hit = movers.flatMap((m) => {
       const c = state.characters[m]
       const from = start(m)

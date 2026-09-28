@@ -7,8 +7,8 @@ import { isManeuverWon } from './grapple'
 // combat.tex "Interruption": "receiving a tier 1+ blunt or electric injury
 // causes any action and movement to be interrupted, except for running and
 // jumping. The AP and STA costs of the action or movement are lost." The
-// table's ruling: moving a grapple group carries on too, stopped only by a
-// stun of its controller.
+// table's ruling: a push carries on too, stopped only by a stun of its
+// pusher.
 
 // What the landed action did to the victim: the interruption or stun a
 // strike landed on them, or a grapple maneuver's, which "always
@@ -70,5 +70,5 @@ export function getInterruptions(state: CombatState, action: Action): LandedInte
 // cut short where it was caught instead (`getMoveOverride`), and a push
 // carries on unless its pusher is stunned (`getPushStop`).
 export function isBroken(state: CombatState, action: Action): boolean {
-  return action.kind !== 'move' && action.kind !== 'displace' && getInterruptions(state, action).length > 0
+  return action.kind !== 'move' && action.kind !== 'drag' && getInterruptions(state, action).length > 0
 }

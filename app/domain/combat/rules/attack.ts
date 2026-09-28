@@ -292,7 +292,6 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
       return getManeuverDLTerms(state, root)
     case 'move':
     case 'drag':
-    case 'displace':
     case 'blast':
     case 'release':
     case 'holdBack':
@@ -362,7 +361,6 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
     // rest are committed by paying
     case 'explosion':
     case 'drag':
-    case 'displace':
     case 'blast':
     case 'release':
     case 'holdBack':

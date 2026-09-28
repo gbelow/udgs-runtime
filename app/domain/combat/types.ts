@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, TerrainPatchSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES } from '../lists'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, PUSH_MOVEMENTS } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 
@@ -173,27 +173,11 @@ const AttackDeclaration = {
 // a weapon a disarm took hold of ("preventing them from using it until they
 // manage to escape"). It is a fact of the fight, not of either character, so
 // it lives on the fight.
-// combat.tex "Push and drag": "The stronger character gets control of
-// movement for the group that round" — who won the last push, in which
-// round, whether at "basic movement speed" (10 Force over the other side)
-// rather than careful, who paid for it, whom re-evaluating it when someone
-// joins does not charge again, and who chose to go along, paying their own
-// movement whenever the group is moved (the table's rulings). Written on every
-// grapple of the group, and good only in its round.
-export const GrappleControlSchema = z.object({
-  controller: str,
-  round: num,
-  basic: z.boolean().default(false),
-  paid: z.array(str).default([]),
-  carriers: z.array(str).default([]),
-}).strip()
-export type GrappleControl = z.infer<typeof GrappleControlSchema>
 export const GrappleSchema = z.object({
   members: z.tuple([str, str]),
   holders: z.array(str).default([]),
   immobile: z.array(str).default([]),
   seized: z.array(str).default([]),
-  control: GrappleControlSchema.nullable().default(null),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 
@@ -489,54 +473,44 @@ export const GrappleActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Push and drag": a Force comparison between the actor's side
-// and everyone else locked in the grapple, which gives the stronger control
-// of the group's movement for the round. It is declared with nothing but
-// who, and whether the actor pays: one who does not takes -5, and wins
-// control only if still 10 over the other side (the table's ruling). No die:
-// once the grapple has answered and the price is paid the outcome is
-// certain. `recheck` is the comparison made again when someone joins a
-// group under control ("it reevaluates the comparison, but does not demand
-// extra costs from those who already paid"). Written at the resolve: who let
-// go instead of being dragged, and the control won.
+// combat.tex "Push and drag": one block of movement within a grapple —
+// "The comparison is repeated for every 2 AP worth of movement" — decided
+// by a Force comparison between the actor's side and everyone else locked
+// in the grapple. `movement` is how it moves: pushing or dragging
+// "forwards or backwards with careful movement speed" along the line
+// through the target, circling around the grapple "with basic movement" by
+// the actor alone, or running along that line "when force is 10 higher".
+// `path` is the actor's way, cell by cell. `boost` is the actor's "spend 2
+// AP to gain 5 force in one comparison". No die: once the grapple has
+// answered, the comparison is written as the price is paid (`compared`),
+// and third parties answer the way as they answer a move. Written at the
+// resolve: who let go instead of being moved, and where everyone ended.
 export const DragFactsSchema = z.object({
   released: z.array(str).default([]),
-  control: GrappleControlSchema.nullable().default(null),
+  steps: num.default(0),
+  to: z.record(str, PlacementSchema).default({}),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
 const TermSchema = z.object({ label: str, value: num }).strip()
+export const PushMovementSchema = z.enum(PUSH_MOVEMENTS)
+export type PushMovement = z.infer<typeof PushMovementSchema>
 export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
-  unpaid: z.boolean().default(false),
-  recheck: z.boolean().default(false),
-  // the comparison as it stood when the push was paid for — each side's
-  // terms — written once, like a die: once the grapple has answered and the
-  // price is paid the outcome is certain, whatever befalls either side
-  // while its attacks are fought
-  compared: z.object({ attacker: z.array(TermSchema), defender: z.array(TermSchema).nullable() }).nullable().default(null),
-  facts: DragFactsSchema.nullable().default(null),
-}).strip()
-
-// combat.tex "Push and drag": the controller moving the whole group, "at
-// careful movement speed", or basic with 10 Force over the other side;
-// "movement costs are on top of" the push (the table's ruling). `path` is
-// the controller's way, cell by cell, and everyone in the group keeps where
-// they stand to them. Third parties answer it: whoever the group is moved
-// towards may take an opportunity attack, fought along the way as a move's
-// are. Written at the resolve: how far it went, where each ended, and what
-// each who went along paid for the metres.
-export const DisplaceFactsSchema = z.object({
-  steps: num.default(0),
-  to: z.record(str, PlacementSchema).default({}),
-  carried: z.record(str, ActionCostSchema).default({}),
-}).strip()
-export type DisplaceFacts = z.infer<typeof DisplaceFactsSchema>
-export const DisplaceActionSchema = z.object({
-  ...ActionBase,
-  kind: z.literal('displace'),
+  movement: PushMovementSchema.default('careful'),
   path: z.array(CoordSchema).default([]),
-  facts: DisplaceFactsSchema.nullable().default(null),
+  boost: z.boolean().default(false),
+  // the comparison as it stood when the push was paid for — each side's
+  // terms, whose +5 counted, and whether the block may be moved — written
+  // once, like a die, whatever befalls either side while its attacks are
+  // fought
+  compared: z.object({
+    attacker: z.array(TermSchema),
+    defender: z.array(TermSchema).nullable(),
+    boosted: z.array(str).default([]),
+    allowed: z.boolean().default(false),
+  }).nullable().default(null),
+  facts: DragFactsSchema.nullable().default(null),
 }).strip()
 
 // A holder letting go of a partner who does not hold them back.
@@ -576,18 +550,17 @@ export const ThrowItemActionSchema = z.object({
   thrown: ItemSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Grapple Maneuvers": "require the defender to interrupt itself
-// and spend 2 AP+1 STA or suffer a -5 penalty"; "Push and drag": "3AP
-// +2STA for both attacker and defender", or -5. Everyone else in the group
-// chooses too: to help the push, paying as the pusher does ("Use the same
-// rules for multiple characters as grapple"), to go along with it, on
-// neither side but paying their own movement whenever the group is moved,
-// or — held by nobody — to let go and stay. One who chooses nothing resists
-// passively.
+// combat.tex "Grapple Maneuvers": "require the defender to spend 2 AP+1 STA
+// or suffer a -5 penalty". combat.tex "Push and drag": resisting a push is
+// the defender's "spend 2 AP to gain 5 force"; one who chooses nothing
+// stays put at their Force, as does one with no AP left to move ("help the
+// losing side passively"). Everyone else in the group chooses too: to help
+// the push, walking with the group and paying its movement ("Use the same
+// rules for multiple characters as grapple"), boosting it or not; to "tag
+// along, spending movement AP to stay in the grapple, but not contributing
+// to either side"; or — held by nobody — to "let go and leave the grapple".
 export const ResistActionSchema = z.object({ ...ActionBase, kind: z.literal('resist') }).strip()
-// A helper may leave the price unpaid and help at -5, as anyone in the push
-// may (the table's ruling).
-export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist'), unpaid: z.boolean().default(false) }).strip()
+export const AssistActionSchema = z.object({ ...ActionBase, kind: z.literal('assist'), boost: z.boolean().default(false) }).strip()
 export const CarryActionSchema = z.object({ ...ActionBase, kind: z.literal('carry') }).strip()
 export const LetGoActionSchema = z.object({ ...ActionBase, kind: z.literal('letGo') }).strip()
 export const ActionSchema = z.discriminatedUnion('kind', [
@@ -610,7 +583,6 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   MoveActionSchema,
   GrappleActionSchema,
   DragActionSchema,
-  DisplaceActionSchema,
   ReleaseActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
@@ -636,7 +608,6 @@ export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
-export type DisplaceAction = z.infer<typeof DisplaceActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>

@@ -13,7 +13,6 @@ import { isAttackAction } from '../rules/actionCatalog'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
 import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
-import { getGrappleGroup } from '../rules/partners'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
@@ -77,12 +76,6 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) : delivered
         }
-        // combat.tex "Push and drag": going along is paid for in the
-        // movement of the metres moved
-        if (action.kind === 'displace') {
-          const cost = action.facts?.carried[c.id]
-          return cost ? payCost(cost)(c) : c
-        }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Standard Action": a thrown item leaves whichever hand
         // it was thrown from; one thrown off the floor was never in it
@@ -142,14 +135,11 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
 export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple[]) => Grapple[] {
   return (grapples: Grapple[]) => {
     if (phase !== 'resolve') return grapples
-    // combat.tex "Push and drag": one who let go instead of being dragged,
-    // and the control of the group's movement won — or, on a draw, lost
+    // combat.tex "Push and drag": one who let go "and leave[s] the grapple"
+    // instead of being moved
     if (action.kind === 'drag') {
-      if (!action.facts) return grapples
-      const { released, control } = action.facts
-      const held = released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
-      const group = new Set(getGrappleGroup(held, action.actorId))
-      return held.map((g) => (group.has(g.members[0]) ? { ...g, control } : g))
+      const released = action.facts?.released ?? []
+      return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
     }
     const facts = getGrappleFacts(action)
     return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples
@@ -212,8 +202,8 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       if (!action.jumpedTo || !action.targetId) return { ...board, placements }
       return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }
     }
-    // combat.tex "Push and drag": the pair where the push left them
-    if (action.kind === 'displace') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
+    // combat.tex "Push and drag": everyone moved where the block left them
+    if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas": what the explosion leaves on the ground, by zone
     if (action.kind === 'blast') {
       const terrain = { ...board.terrain }

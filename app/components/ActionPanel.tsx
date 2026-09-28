@@ -27,7 +27,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -70,7 +70,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {open.push ? <Push push={open.push} onPay={(pay) => amend({ unpaid: !pay })} /> : null}
+      {open.push ? <Push push={open.push} cost={open.cost} onMovement={(movement) => amend({ movement, path: [] })} onBoost={boostPush} /> : null}
 
       {view.spells.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -442,17 +442,31 @@ function Cost({ cost }: { cost: ActionCost | null }){
   return <span className='font-mono text-muted'>{cost.AP}AP{cost.STA ? ` ${cost.STA}STA` : ''}</span>
 }
 
-// A push: whether the pusher pays or takes the -5, while that is theirs to
-// say; once paid, who takes control of the group.
-function Push({ push, onPay }: { push: PushView, onPay: (pay: boolean) => void }){
+const PUSH_LABEL = { careful: 'push or drag', basic: 'circle', run: 'run' } as const
+
+// A block of a push: how it moves, while that is the pusher's to say; the
+// pusher's +5, and whether it counts; and whether the comparison lets it
+// move as it stands.
+function Push({ push, cost, onMovement, onBoost }: { push: PushView, cost: ActionCost | null, onMovement: (m: PushView['movement']) => void, onBoost: (boost: boolean) => void }){
   const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
   return (
-    <div className='flex flex-row flex-wrap gap-1 items-center'>
-      {push.editable ? <>
-        <Button size='xs' {...toggle(!push.unpaid)} onClick={() => onPay(true)}>pay</Button>
-        <Button size='xs' {...toggle(push.unpaid)} onClick={() => onPay(false)}>no pay (-5)</Button>
-      </> : null}
-      {push.settled ? <SectionLabel>{push.controller ? `${push.controller} controls the group · ${push.movement}` : 'nobody takes control'}</SectionLabel> : null}
+    <div className='flex flex-col gap-1'>
+      {push.movements.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>block</SectionLabel>
+          {push.movements.map((m) =>
+            <Button key={m.kind} size='xs' {...toggle(m.kind === push.movement)} disabled={!m.available} title={m.reason ?? undefined} onClick={() => onMovement(m.kind)}>{PUSH_LABEL[m.kind]}</Button>)}
+        </div>
+      ) : null}
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+        <span>cells <span className='font-mono'>{push.cells}</span> <Cost cost={cost} /></span>
+        {push.movements.length > 0 && push.cells === 0 ? <span>pick the way on the board</span> : null}
+        {push.canBoost ? (
+          <Button size='xs' {...toggle(push.boost)} title='spend 2 AP to gain 5 force; the losing side decides first' onClick={() => onBoost(!push.boost)}>+5 force</Button>
+        ) : null}
+        {push.boost && !push.boosted ? <span>+5 not needed yet</span> : null}
+        <span className={push.allowed ? 'text-good' : 'text-bad'}>{push.allowed ? 'moves' : 'held in place'}</span>
+      </div>
     </div>
   )
 }

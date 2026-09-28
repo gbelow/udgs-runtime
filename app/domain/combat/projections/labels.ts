@@ -36,7 +36,7 @@ export function getOptionLabel(state: CombatState, actorId: string, option: Acti
     case 'evasion':
       return draft.stay ? `${ACTIONS.evasion.label}, staying put` : ACTIONS.evasion.label
     case 'assist':
-      return draft.unpaid ? `${ACTIONS.assist.label}, not paying` : ACTIONS.assist.label
+      return draft.boost ? `${ACTIONS.assist.label} +5` : ACTIONS.assist.label
     case 'explosion':
       return draft.source === 'detonate' ? 'set off a charge' : ACTIONS.explosion.label
     case 'opportunityAttack':

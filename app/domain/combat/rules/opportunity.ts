@@ -17,11 +17,11 @@ export function isInterruptible(action: Action): action is InterruptibleAction {
 
 // The fight as it will stand when the opportunity attack is fought: against
 // a move, with the mover walked one space short of the stretch that fired
-// it; against a push, with everyone dragged pushed as far. Reach is judged
-// from there.
+// it; against a push, with everyone it moves one space short too. Reach is
+// judged from there.
 export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
   const root = getRootOf(state, reaction)
-  if (root?.kind === 'displace' && reaction.at !== null) {
+  if (root?.kind === 'drag' && reaction.at !== null) {
     const before = reaction.at > 1 ? getGroupSteps(state, root)?.[reaction.at - 2] : getGroupOrigin(state, root)
     return before ? withPlacements(state, before) : state
   }
@@ -32,13 +32,13 @@ export function getOpportunityState(state: CombatState, reaction: ActionOf<'oppo
 
 // Where the root's run of opportunity attacks was brought to a stop, as the
 // step the one stopped stands short of; null while it goes on. A move is
-// stopped by what `getMoveOverride` reads, a push by an attack that
-// interrupted the pusher (`getPushStop`). Anything else is never stopped:
+// stopped by what `getMoveOverride` reads, a push by the comparison or by an
+// attack that stunned the pusher (`getPushStop`). Anything else is never stopped:
 // every attack it drew is fought, even once one has cancelled it (the
 // table's ruling), since there is no later stretch it fails to reach.
 export function getOpportunityStop(state: CombatState, root: Action): number | null {
   if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
-  if (root.kind === 'displace') return getPushStop(state, root)
+  if (root.kind === 'drag') return getPushStop(state, root)
   return null
 }
 

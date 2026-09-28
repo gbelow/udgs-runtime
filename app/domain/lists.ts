@@ -156,6 +156,8 @@ export const HANDS = ['one', 'two'] as const
 // power, in the order of the "Movement Costs and Speeds" table. Standing up
 // is there too but moves nobody, and mounted movement is the mount's.
 export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim'] as const
+// combat.tex "Push and drag": the speeds a grapple moves at
+export const PUSH_MOVEMENTS = ['careful', 'basic', 'run'] as const
 
 // combat.tex "Movement": "getting up: Removes the prone condition", priced in
 // the same table ("Stand up"); and going prone, which the table leaves free.

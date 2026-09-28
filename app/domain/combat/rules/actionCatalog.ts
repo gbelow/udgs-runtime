@@ -77,28 +77,26 @@ export const ACTIONS = {
   counterattack: { label: 'counterattack', type: 'reaction', price: null,      reactsTo: ['strike'], die: true },
   // combat.tex "Grapple Maneuvers": a grapple test against the partner's
   grapple:     { label: 'grapple',      type: 'action',   price: 'grappleManeuver', reactsTo: [],     die: true, targeted: true, identity: { maneuver: 'escape', stand: false } },
-  // combat.tex "Push and drag": "a force vs force comparison", no die
-  drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: 'pushDrag',    reactsTo: [],         die: false, targeted: true },
-  // combat.tex "Push and drag": the controller moving the group, priced by
-  // the way declared
-  displace:    { label: 'move the group', type: 'action', price: null,        reactsTo: [],         die: false, movement: true },
+  // combat.tex "Push and drag": "a force vs force comparison to be able to
+  // move", no die, priced by the block declared (rules/drag.ts
+  // `getPushPrice`)
+  drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
   // combat.tex "Initiate the Grab": "It is possible to grapple back
   // automatically just by having a weapon with grappling property
   // equipped" — one who takes one up mid-grapple does so as a free action
   holdBack:    { label: 'grapple back', type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
-  // combat.tex "Grapple Maneuvers", "Push and drag": the defender's 2 AP +
-  // 1 STA that spares them the -5
+  // combat.tex "Grapple Maneuvers": the defender's 2 AP + 1 STA that spares
+  // them the -5; "Push and drag": the defender's 2 AP for +5
   resist:      { label: 'resist',       type: 'reaction', price: 'grappleDefense', reactsTo: ['grapple', 'drag'], die: false },
   // combat.tex "Push and drag": everyone else in the group may help the
-  // push, paying as the pusher does ("Use the same rules for multiple
-  // characters as grapple"), go along with it on neither side, paying their
-  // movement whenever the group is moved, or — held by nobody — let go and
-  // stay; a resister or helper's price is the push's
-  // (rules/drag.ts `getPushPrice`)
-  assist:      { label: 'help push',    type: 'reaction', price: 'pushDrag',    reactsTo: ['drag'],   die: false, identity: { unpaid: false } },
-  carry:       { label: 'go along',     type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
+  // push, walking with it ("Use the same rules for multiple characters as
+  // grapple"), tag along on neither side, or — held by nobody — let go and
+  // leave; against a push each is priced by the block (rules/drag.ts
+  // `getPushPrice`)
+  assist:      { label: 'help push',    type: 'reaction', price: null,          reactsTo: ['drag'],   die: false, identity: { boost: false } },
+  carry:       { label: 'tag along',    type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   letGo:       { label: 'let go',       type: 'reaction', price: null,          reactsTo: ['drag'],   die: false },
   // combat.tex "Standard Action"
   pickUp:      { label: 'pick up',      type: 'action',   price: 'standardAction', reactsTo: [],      die: false },

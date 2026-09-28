@@ -3,6 +3,7 @@ import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain
 import {
   amendAction,
   amendReaction,
+  boostPush as boostPushCommand,
   cancelAction,
   commitAction,
   declareAction,
@@ -60,6 +61,7 @@ export function useCombatActions() {
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
   const grazeSave = () => update(saveGraze());
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
+  const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } as const;
 }

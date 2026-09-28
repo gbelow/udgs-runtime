@@ -1,6 +1,6 @@
-import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop } from '../types'
+import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
-import type { Area, MoveKind, MovementKind } from '../../types'
+import type { Area, MoveKind } from '../../types'
 import { isAttackAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -20,7 +20,7 @@ import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
-import { getDragOutcome, getDragSides } from '../rules/drag'
+import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
@@ -179,15 +179,18 @@ export type OpenActionView = {
   roll: ActionRoll | null
 }
 
-// combat.tex "Push and drag": whether the actor pays, and whether that is
-// still theirs to change; once paid, who takes control of the group and at
-// which speed — null on a draw or an unpaid push that fell short.
+// combat.tex "Push and drag": the speed the block moves at, and while it is
+// declared the speeds open to the actor; how many cells its way takes; the
+// actor's "2 AP to gain 5 force" — declared, counted, and whether it is
+// theirs to say now; and whether the comparison lets the block move.
 export type PushView = {
-  unpaid: boolean
-  editable: boolean
-  settled: boolean
-  controller: string | null
-  movement: MovementKind
+  movement: PushMovement
+  movements: PushMovementOption[]
+  cells: number
+  boost: boolean
+  boosted: boolean
+  canBoost: boolean
+  allowed: boolean
 }
 
 export type ActionPanelView = {
@@ -375,13 +378,16 @@ function breakdown(terms: Term[]): { terms: Term[]; total: number } {
 export const getActionPanelDigest = perState((state) => JSON.stringify(getActionPanel(state)))
 
 function getPushView(state: CombatState, drag: DragAction): PushView {
-  const outcome = getDragOutcome(state, drag)
+  const sides = getDragSides(state, drag)
+  const actor = state.characters[drag.actorId]
   return {
-    unpaid: drag.unpaid,
-    editable: drag.step === 'define' && !drag.recheck,
-    settled: drag.step === 'post',
-    controller: outcome.controller ? getFightName(state, outcome.controller) : null,
-    movement: outcome.basic ? 'basic' : 'careful',
+    movement: drag.movement,
+    movements: drag.step === 'define' && actor ? getPushMovements(actor) : [],
+    cells: drag.path.length,
+    boost: drag.boost,
+    boosted: sides.boosted.includes(drag.actorId),
+    canBoost: drag.step === 'define' || drag.step === 'react',
+    allowed: sides.allowed,
   }
 }
 

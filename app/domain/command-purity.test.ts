@@ -163,6 +163,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
+  boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
@@ -174,7 +175,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: CombatState): CombatState {
-  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [], control: null }] }
+  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [] }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.
@@ -234,6 +235,17 @@ function declaredStrike(s: CombatState): CombatState {
 function declaredMove(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.amendAction({ movement: 'crawl', path: [{ q: 1, r: 0 }] })(declared)
+}
+
+// A push by `a`, grappling `b`, declared and aimed at them — `a` stood up,
+// since the prone "cannot push nor drag".
+function declaredPush(s: CombatState): CombatState {
+  const grappled = grappling(s)
+  const standing = { ...grappled, characters: { ...grappled.characters, a: { ...grappled.characters.a, afflictions: [] } } }
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'drag' }, newId)(deepFreeze(standing)))
+  const aimed = combatCommands.setTarget('b')(declared)
+  expect(getOpenAction(aimed)?.kind).toBe('drag')
+  return aimed
 }
 
 function combatSubject(): CombatState {

@@ -129,6 +129,19 @@ export function withdrawReaction(actorId: string): Updater {
   }
 }
 
+// combat.tex "Push and drag": the pusher's "spend 2 AP to gain 5 force",
+// said while the push is declared or once the grapple has answered — "the
+// losing side must decide first", so it counts only when the pusher's side
+// is the one the comparison goes against at its turn to decide
+// (rules/drag.ts).
+export function boostPush(boost: boolean): Updater {
+  return (state) => {
+    const open = getOpenAction(state)
+    if (open?.kind !== 'drag' || (open.step !== 'define' && open.step !== 'react')) return state
+    return replaceActions(state, [{ ...open, boost }])
+  }
+}
+
 // One step back: the reaction declared last is taken back, whoever's it was.
 export function withdrawLastReaction(): Updater {
   return (state) => {
