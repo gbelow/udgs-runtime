@@ -25,6 +25,7 @@ import { getCounterStrike } from './counter'
 import { isGuardPlaced } from './protect'
 import { getRiposteDiscount } from './riposte'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
+import { getFleeCost } from './flee'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -112,6 +113,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'evasion':
     case 'avoidExplosion':
     case 'follow':
+    case 'flee':
+    case 'fleeFollowUp':
       return true
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
@@ -180,6 +183,8 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'avoidExplosion':
     case 'opportunityAttack':
     case 'follow':
+    case 'flee':
+    case 'fleeFollowUp':
     case 'drag':
     case 'blast':
     case 'release':
@@ -225,10 +230,12 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 
 // What the action costs its actor as it stands, whether or not they can pay
 // it; null while it is too incomplete to price. A riposte comes cheaper
-// (abilities.tex "Riposte").
+// (abilities.tex "Riposte"); a flee costs the movement surge, and is null
+// once that cannot be made.
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
+  if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return getFleeCost(c)
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
     : getDeclaredCost(c, action)
@@ -341,6 +348,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'holdBack':
     case 'pickUp':
     case 'throwItem':
+    case 'fleeFollowUp':
       return 'confirm'
   }
 }
@@ -384,6 +392,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'move':
     case 'pickUp':
     case 'throwItem':
+    case 'fleeFollowUp':
       return []
   }
 }

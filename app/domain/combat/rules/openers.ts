@@ -36,6 +36,9 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   assist: {},
   carry: {},
   letGo: {},
+  // combat.tex "Flee": opens nothing; the fleer's turn comes once the
+  // action is played out (commands/turn.ts `handOverToFleers`)
+  flee: {},
   evasion: {
     after: (state, root, reaction, newId) => openMove(reaction, newId, getEvasionMove(root, reaction)),
   },

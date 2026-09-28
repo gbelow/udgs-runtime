@@ -125,6 +125,9 @@ const ActionBase = {
   // The reaction whose resolution opened this action — an opportunity attack
   // is declared as a reaction and fought as a strike of its own.
   spawnedBy: str.nullable().default(null),
+  // The landed action that left this one as a follow-up for its actor to
+  // take or pass up; null for anything else.
+  followUpOf: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
   // An action another opened that its actor chose not to take: closed
   // without landing, and kept so it is not offered again.
@@ -369,9 +372,9 @@ export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.lite
 
 // Where a move actually ended and why: the path as walked, cut short by a
 // turn at a run, by a reaction that interrupted it, by the mover's own jump
-// away from one (a movement of its own, which takes over), or by a fall on
-// difficult terrain.
-export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall', 'trample'])
+// away from one (a movement of its own, which takes over), by a fall on
+// difficult terrain, or by someone fleeing it.
+export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall', 'trample', 'flee'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 export const MoveFactsSchema = z.object({
@@ -450,6 +453,20 @@ export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.liter
 // the root resolves it opens a move of the follower's own, capped at what
 // the triggering move cost.
 export const FollowActionSchema = z.object({ ...ActionBase, kind: z.literal('follow') }).strip()
+
+// combat.tex "Flee": the movement surge made as a reaction to a move about
+// to come within 4 m of the fleer. It opens no action: once the move has
+// been played out, the fleer takes a turn of their own (rules/flee.ts).
+// `at` is the step of the move's path that fired it; the mover stops one
+// space short of it.
+export const FleeActionSchema = z.object({ ...ActionBase, kind: z.literal('flee'), at: num.nullable().default(null) }).strip()
+
+// combat.tex "Flee": "after receiving a melee attack" — the flee a landed
+// strike leaves its target, and the escape a missed shot leaves its evader
+// ("Evasion": "spend their movement surge immediately to escape"), for them
+// to take or pass up. Taken, it makes the movement surge, and the fleer's
+// turn comes once the stack is played out.
+export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.literal('fleeFollowUp') }).strip()
 
 // combat.tex "Grapple Maneuvers": escape, immobilize, disarm or knock down
 // a grapple partner, a grapple test against theirs. What a hit buys is the
@@ -579,6 +596,8 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   OpportunityAttackActionSchema,
   CounterattackActionSchema,
   FollowActionSchema,
+  FleeActionSchema,
+  FleeFollowUpActionSchema,
   MoveActionSchema,
   GrappleActionSchema,
   DragActionSchema,
@@ -643,6 +662,12 @@ export type ActionDraft = {
 export const ContestRollSchema = z.object({ id: z.string(), die: z.number(), skill: z.number(), score: z.number() })
 export const ContestSchema = z.object({ rolls: z.array(ContestRollSchema), winner: z.string() })
 export type ContestRoll = z.infer<typeof ContestRollSchema>
+
+// A turn waiting to be taken: whose, whether it is a flee, and — for one
+// that was interrupted — how long the log was when it first started, so it
+// resumes as the turn it was
+export const QueuedTurnSchema = z.object({ id: z.string(), fleeing: z.boolean().default(false), startedAt: z.number().nullable().default(null) })
+export type QueuedTurn = z.infer<typeof QueuedTurnSchema>
 export type Contest = z.infer<typeof ContestSchema>
 
 // The shape of a fight. This lives in the domain — not in the Zustand store —
@@ -666,6 +691,14 @@ export const CombatStateSchema = z.object({
   // contest once it is rolled — a turn is contested once
   contenders: z.array(z.string()).default([]),
   lastContest: ContestSchema.nullable().default(null),
+  // combat.tex "Flee": whether the turn being taken is a flee, and the turns
+  // waiting on it, the next first — each fleer's, then the turn the flee
+  // interrupted, resumed where it was ("which is resumed after the flee")
+  fleeing: z.boolean().default(false),
+  turnQueue: z.array(QueuedTurnSchema).default([]),
+  // the characters whose flee is due once what is being played out is
+  // done, in the order they declared it
+  fleers: z.array(z.string()).default([]),
   // Every action of the fight in the order it was declared, resolved ones
   // included: the open one is the last root still short of resolved, and the
   // rest is the fight's history.

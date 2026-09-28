@@ -104,7 +104,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
   it('a rolled action cannot be cancelled', () => {
     const rolled = rollAction(() => 5, newId)(declared(attack))
     expect(cancelAction()(rolled)).toEqual(rolled)
-    expect(getOpenAction(resolveAction(newId)(rolled))).toBeNull()
+    expect(getOpenAction(resolveAction(newId)(rolled))?.kind).not.toBe('strike')
   })
 
   // A price that cannot be paid stops the die: the state is left exactly as

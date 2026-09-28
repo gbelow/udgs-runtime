@@ -20,6 +20,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
 import { GRAZE_SAVE_COST } from '../rules/cast'
 import { getReactionsTo } from '../rules/log'
+import { actionSurge } from '../../character/commands/actionSurge'
 
 // The moments an action touches a character: `roll`, when the die is thrown
 // and the price leaves the actor in the same step; `save`, when a graze is
@@ -40,6 +41,8 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
     switch (phase) {
       case 'roll':
         if (c.id !== action.actorId || !action.cost) return c
+        // combat.tex "Flee": the movement surge, made as a reaction
+        if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c

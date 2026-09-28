@@ -18,6 +18,7 @@ import { amendAction, amendReaction, commitAction, declareAction as declareOwnAc
 import { aimExplosion, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
+import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 
@@ -83,8 +84,8 @@ function openedByOpportunity(s: CombatState, landed: Action[]): Action[] {
 }
 
 // Plays the open action out to the end with the die showing `face`, taking
-// every default a step offers and passing up any escape a stun opens or
-// disarm an intercept opens, and returns the order in which its root
+// every default a step offers and passing up any escape a stun opens, disarm
+// an intercept opens or flee a strike leaves, and returns the order in which its root
 // actions landed, and the triggers each action an opportunity attack opened
 // offered while it was open to answers.
 function playOut(start: CombatState, face: number): { state: CombatState; landed: Action[]; openedTriggers: string[] } {
@@ -95,7 +96,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const passedUp = open.kind === 'grapple' && open.step === 'define' && (open.maneuver === 'escape' || isInterceptDisarm(s, open))
+    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'grapple' && (open.maneuver === 'escape' || isInterceptDisarm(s, open))))
     const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
@@ -399,6 +400,16 @@ describe('a riposte', () => {
     return resolveAction(newId)(rollAction(() => MISS, newId)(s))
   }
 
+  // The table's rulings: follow-ups are a choice, one per character, and a
+  // melee attack leaves its target a flee (combat.tex "Flee").
+  it('is one choice with the flee: taken, no flee follows; passed up, the flee is offered', () => {
+    const offered = missedShieldBearer('evade')
+    expect(getOpenAction(withdrawSpawnedAction(newId)(offered))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
+    const [row] = getAttackOptions(offered.characters.def, 'strike')
+    const declared = commitAction()(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(offered))
+    expect(getOpenAction(resolveAction(newId)(rollAction(() => MISS, newId)(declared)))).toBeNull()
+  })
+
   // What each basic attack the riposter holds is cheaper by, split by
   // whether it is made with the shield.
   function discounts(s: CombatState): { shield: number[]; other: number[] } {
@@ -416,7 +427,7 @@ describe('a riposte', () => {
   })
 
   it('is not offered to one who stood on their SD', () => {
-    expect(getOpenAction(missedShieldBearer(null))).toBeNull()
+    expect(getOpenAction(missedShieldBearer(null))?.kind).not.toBe('strike')
   })
 
   it('costs 1 AP less only with an object other than the one that defended', () => {
@@ -627,5 +638,48 @@ describe('a spray', () => {
     const s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(flamesCast())))
     const blast = s.actions.find((a) => a.kind === 'blast')
     expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
+  })
+})
+
+// combat.tex "Flee": "This reaction interrupts the opponents turn, which is
+// resumed after the flee." The table's rulings: the mover stops where the
+// first flee was triggered, and everyone who fled gets their turn, in the
+// order they declared it.
+describe('flee', () => {
+  it('stops the move short of the first flee, then gives each fleer a turn in declaration order before the mover resumes', () => {
+    let s = onBoard({ m: [0, 0], near: [7, 0], far: [9, 0] }, fighter('m'), fighter('near'), fighter('far'))
+    s = declareAction('m', { kind: 'move' }, newId)(s)
+    s = commitAction()(amendAction({ movement: 'basic', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })) })(s))
+    for (const id of ['far', 'near']) {
+      const option = getAvailableActions(s, id).find((o) => o.draft.kind === 'flee' && o.available)!
+      s = declareReaction(id, option.draft, newId)(s)
+    }
+    s = playOut(s, MISS).state
+    expect(s.board!.placements.m.cell).toEqual({ q: 2, r: 0 })
+
+    const turns = [s.inTurnCharacter]
+    for (let i = 0; i < 2; i++) {
+      s = endTurn(s)
+      turns.push(s.inTurnCharacter)
+    }
+    expect(turns).toEqual(['far', 'near', 'm'])
+  })
+
+  // combat.tex "Flee": "after receiving a melee attack". The table's
+  // rulings: that flee is a follow-up to the strike, not a reaction beside
+  // the defense, and it is not offered to one who cannot pay the surge.
+  it('after a strike, comes once it lands, and only to a target who can pay the surge', () => {
+    const struck = (STA: number) => {
+      const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+      const def = fighter('def')
+      let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), { ...def, resources: { ...def.resources, STA } })
+      const [row] = getAttackOptions(s.characters.atk, 'strike')
+      s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+      return commitAction()(setTarget('def')(s))
+    }
+    const land = (s: CombatState) => resolveAction(newId)(rollAction(() => MISS, newId)(s))
+    expect(getAvailableActions(struck(6), 'def').some((o) => o.draft.kind === 'flee')).toBe(false)
+    expect(getOpenAction(land(struck(6)))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
+    expect(getOpenAction(land(struck(2)))).toBeNull()
   })
 })

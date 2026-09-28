@@ -43,6 +43,7 @@ export function getStartTurnBar(state: CombatState, id: string): string | null {
 // have declared nothing in it yet, and it must not have been contested.
 function getContestClosed(state: CombatState): string | null {
   if (!getTurnHolder(state)) return 'nobody is in turn'
+  if (state.fleeing) return 'the turn is a flee'
   if (state.lastContest) return 'the turn was contested'
   if (state.actions.length > state.turnStartedAt) return 'the turn is under way'
   return null
@@ -72,8 +73,10 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
 }
 
 // Why the character cannot make a movement or combat surge now, or null:
-// those are made only in the character's own turn.
+// those are made only in the character's own turn — and in a flee turn,
+// only the movement surge (combat.tex "Flee").
 export function getSurgeTurnBar(state: CombatState, id: string, kind: SurgeKind): string | null {
+  if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
 }
 

@@ -72,6 +72,10 @@ export const ACTIONS = {
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },
   follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
+  // combat.tex "Flee": priced by the movement surge it is made with — a
+  // reaction to a move, a follow-up to a strike
+  flee:        { label: 'flee',         type: 'reaction', price: null,          reactsTo: ['move'],   die: false, identity: { at: null } },
+  fleeFollowUp: { label: 'flee',        type: 'action',   price: null,          reactsTo: [],         die: false, generated: true },
   // abilities.tex "Counterattack": a strike of the target's, rolled with the
   // attack it answers and priced by the strike it opens
   counterattack: { label: 'counterattack', type: 'reaction', price: null,      reactsTo: ['strike'], die: true },

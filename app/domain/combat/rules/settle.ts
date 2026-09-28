@@ -39,5 +39,6 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
     case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
+    case 'fleeFollowUp': return { ...open, step: 'done' }
   }
 }

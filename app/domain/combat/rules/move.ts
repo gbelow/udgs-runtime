@@ -16,6 +16,7 @@ import { isInGrapple } from './partners'
 import { getInterruptionOf } from './interruption'
 import { isKnockedDownByHook } from './grapple'
 import { findOpenRoot, getDrawnOpportunityAttacks, getReactionsTo } from './log'
+import { getFleeStep } from './flee'
 
 // How a character crosses the board: what each kind of movement costs it,
 // which kinds it may use from where it stands, whether a declared path is
@@ -288,14 +289,21 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
 }
 
 // The path as it will be walked and why it ends where it does: a run cut at
-// a turn, an opportunity attack that interrupted the mover or that they
-// jumped away from, a target who blocked their passage (combat.tex
-// "Crash"), a fall at the first difficult cell the test did not clear —
-// whichever comes first. The tramples are those on the path as walked.
+// a turn, someone fleeing it (combat.tex "Flee": the mover stops where the
+// flee was triggered, and pays only for the steps walked), an opportunity
+// attack that interrupted the mover or that they jumped away from, a target
+// who blocked their passage (combat.tex "Crash"), a fall at the first
+// difficult cell the test did not clear — whichever comes first. The
+// tramples are those on the path as walked.
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
   const run = getRunPath(state, action)
   let path = run
   let stop: MoveFacts['stop'] = run.length < action.path.length ? 'turn' : 'end'
+  const flee = getFleeStep(state, action)
+  if (flee !== null && flee - 1 < path.length) {
+    path = path.slice(0, flee - 1)
+    stop = 'flee'
+  }
   const override = getMoveOverride(state, action)
   if (override !== null && override.step < path.length) {
     path = path.slice(0, override.step)

@@ -37,12 +37,12 @@ export function getFollowMove(root: Action): ReactionMove {
 // to 2 AP to move if not interrupted"; on a graze, "jump to try to gain
 // cover"; on a miss, "spend their movement surge immediately to escape or do
 // the same as in the graze". The move is bought with the AP the reflex
-// already paid; a miss leaves how far to the surge, and so to the evader.
-// One who declared they stay put gives the move up.
+// already paid; the escape on a miss is a flee (rules/flee.ts
+// `getFleersOf`). One who declared they stay put gives the move up.
 export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
   if (root.kind !== 'shoot' || root.interruption !== 'none' || reaction.stay) return null
   const AP = reaction.cost?.AP ?? 0
-  return { budget: root.roll?.degree === 'miss' ? null : AP, prepaid: AP }
+  return { budget: AP, prepaid: AP }
 }
 
 // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP after

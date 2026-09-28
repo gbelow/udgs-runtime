@@ -13,6 +13,8 @@ import { sameCell, setDistance } from '../geometry'
 import { getOpeningReaction } from './log'
 import { getRiposteDefense } from './riposte'
 import { getProtectors } from './protect'
+import { FLEE_PERIMETER } from './flee'
+import { isInTurn } from './turn'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -59,6 +61,8 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
     // nobody answers the blast: the reflexes were against the explosion
     case 'blast': return []
+    // the flee is its surge; what the fleer does with it comes in their turn
+    case 'fleeFollowUp': return []
     // letting go and grappling back draw nothing
     case 'release':
     case 'holdBack':
@@ -233,6 +237,12 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
       triggers.push({ characterId: id, kind: 'evade', at: null }, { characterId: id, kind: 'brace', at: null })
     }
     const distances = getPathDistances(mover, [from, ...path.map((cell) => ({ ...from, cell }))], other)
+    // combat.tex "Flee": "to prevent them from entering a 4m perimeter from
+    // the character" — the step that first brings the mover within it. The
+    // flee "interrupts the opponents turn", so it is never open to the one
+    // whose turn it is.
+    const enters = firstStep(distances, (previous, now) => previous > FLEE_PERIMETER && now <= FLEE_PERIMETER)
+    if (enters !== null && !isInTurn(state, id)) triggers.push({ characterId: id, kind: 'flee', at: enters })
     const range = getMeleeRange(state.characters[id])
     if (range > 0 && distances[0] <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
     if (range === 0) continue

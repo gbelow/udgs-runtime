@@ -91,3 +91,12 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
     })
 }
+
+// The table's ruling: follow-ups are a choice, and of those one landed
+// action leaves a character — a riposte or a flee, an evasion's move or a
+// flee — they take one at most. One still to be declared is forgone once
+// another of theirs from the same action has been taken.
+export function isForgone(state: CombatState, action: Action): boolean {
+  if (action.followUpOf === null || action.step !== 'define') return false
+  return state.actions.some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define' && !a.declined)
+}

@@ -76,11 +76,12 @@ and `ActionDraft` (what a click declares).
 | Group | Kinds |
 |---|---|
 | Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp` |
-| Generated roots | `blast` (an explosion going off) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
+| Generated roots | `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
 | Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move) |
+| Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
 Two links tie the log together: `reactionTo` (a reaction points at its root) and
@@ -150,8 +151,23 @@ resolveAction ─────────► land(top)
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
   nothing). Follow-ups no reaction opens (blast, cast explosion, hook knockdown,
   stun escapes, riposte) live in `getFollowUps` itself.
+- **One follow-up each** — `land` stamps every follow-up still to be declared with
+  `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
+  others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
+  riposte or a flee, an evasion's move or a flee.
 - **Auto-landing** — an explosion or a push (`drag`) has nothing to decide once its
   attacks are fought, so `advance` lands it.
+- **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
+  evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
+  (`getFleeFollowUps`), offered only to one who can flee (`getFleeBar`: not in turn, not
+  immobile or grappled, the surge affordable). Either is priced as the movement surge, made
+  at the payment. A move a flee answers stops one space short of the flee's step
+  (`getFleeStep`, read by `getMoveFacts`), so the mover pays only for what is walked. `land`
+  adds whoever the landed action sends fleeing to `state.fleers`; once the stack is empty,
+  `advance` calls `handOverToFleers`: the turn is put aside, not ended, and each fleer takes a flee turn in
+  declaration order (`state.turnQueue`), limited to what the movement surge allows
+  (`getFleeBarFor`), before the interrupted turn resumes. `endTurn` takes the next queued
+  turn.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.
@@ -237,7 +253,7 @@ app/domain/combat/
 ├── commands/                        the write side
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
-│   ├── sequence.ts     advance, land, openBefore, getFollowUps — the engine
+│   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
 │   ├── log.ts          setActions (only writer of log/stack/history), applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── grapple.ts      settleGrapples
@@ -254,7 +270,8 @@ app/domain/combat/
 │   ├── action.ts       declaration completeness, costs, getNextStep, needsDie, targets
 │   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not
 │   ├── turn.ts         whose turn it is; who may start, contest or end one, or surge
-│   ├── surge.ts        what an earmarked surge's AP allows
+│   ├── surge.ts        the actions behind each surge allowance in `SURGES` (tables.ts), and a flee turn
+│   ├── flee.ts         who may flee, its price, the stop it puts on a move, who a landed action offers or sends fleeing
 │   ├── reactions.ts    getTriggers: who may answer a committed action, with what
 │   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after
 │   ├── settle.ts       getSettled: an action as it lands

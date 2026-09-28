@@ -19,7 +19,9 @@ import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
 import { defRows, getAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
-import { getSurgeBarFor } from './surge'
+import { getFleeBarFor, getSurgeBarFor } from './surge'
+import { getFleeBar, getFleeCost } from './flee'
+import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 
 // What can be declared: every action and reaction open to a character right
@@ -82,13 +84,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOutOfTurn(state, c, closeBySurge(c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))
+  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c))))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -159,6 +161,10 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
         return [answer({ kind }, null, gate ?? reason)]
       }
+      // combat.tex "Flee": paid with the movement surge, made as it is
+      // paid
+      case 'flee':
+        return [answer({ kind, at: trigger.at }, getFleeCost(c) ?? { AP: 0, STA: SURGES.movement.STA }, getFleeBar(state, c))]
       // combat.tex "Follow": a move of the follower's own, so it is open only
       // to someone who can pay for one
       case 'follow': {
@@ -293,8 +299,13 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 
 // combat.tex "Action surge": an earmarked surge's AP is spent only on what
 // the surge allows, and until it is, nothing else can be done.
-function closeBySurge(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeWith(options, (o) => getSurgeBarFor(c, o.draft.kind))
+function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return closeWith(options, (o) => getSurgeBarFor(state, c, o.draft.kind))
+}
+
+// combat.tex "Flee": a flee turn allows only what the movement surge does.
+function closeWhileFleeing(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return closeWith(options, (o) => getFleeBarFor(state, c, o.draft.kind))
 }
 
 // play.tex "Combat": a character acts in their own turn; outside it, only

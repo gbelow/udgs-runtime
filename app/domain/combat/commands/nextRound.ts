@@ -38,5 +38,5 @@ function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
 
 export function nextRound(state: CombatState): CombatState {
   const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c)]))
-  return { ...state, characters, round: state.round + 1, inTurnCharacter: '', contenders: [], lastContest: null }
+  return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null }
 }

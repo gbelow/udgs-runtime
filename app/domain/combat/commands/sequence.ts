@@ -1,5 +1,5 @@
-import type { Action, CastAction, CombatState, ExplosionAction, RootAction } from '../types'
-import { getOpenAction } from '../rules/log'
+import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction } from '../types'
+import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { opensExplosion } from '../rules/cast'
 import { getAttackOptions } from '../rules/attack'
@@ -11,6 +11,8 @@ import { getRiposteOpening } from '../rules/riposte'
 import { getDisarmOptions, getInterceptDisarmOpening, getStunEscapes } from '../rules/grapple'
 import { getHookKnockdown } from '../rules/damage'
 import { makeAction } from '../factories'
+import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
+import { getTurnHolder } from '../rules/turn'
 import { appendActions, applyPhase, replaceActions } from './log'
 
 // What carries the fight on between the commands. Every action runs
@@ -25,22 +27,51 @@ import { appendActions, applyPhase, replaceActions } from './log'
 // opens the next of the actions its reactions opened before its effect. One
 // waiting on a declaration, an answer or a choice is left to it — except
 // those with nothing of their own left to decide, which land once their
-// attacks are fought: an explosion, and a push.
+// attacks are fought: an explosion, a push, and a flee. A follow-up forgone
+// for another its actor took is passed up. Once nothing is left on it, the
+// turn goes to whoever is due to flee.
 export function advance(state: CombatState, newId: () => string): CombatState {
   const top = getOpenAction(state)
-  if (!top) return state
+  if (!top) return handOverToFleers(state)
+  if (isForgone(state, top)) return advance(replaceActions(state, [{ ...top, step: 'done', declined: true }]), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  return opened === state && (top.kind === 'drag' || top.kind === 'explosion') ? land(state, top, newId) : opened
+  return opened === state && (top.kind === 'drag' || top.kind === 'explosion' || top.kind === 'fleeFollowUp') ? land(state, top, newId) : opened
 }
 
 // The action's effect: settled as it stands, landed on everyone it
 // concerns, and closed, with the follow-ups it generates pushed over the
-// action beneath, and the fight carried on from there.
+// action beneath, and the fight carried on from there. Whoever it sends
+// fleeing flees once everything on the stack has been played out.
 export function land(state: CombatState, open: RootAction, newId: () => string): CombatState {
   const resolved = getSettled(state, open)
   const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
-  return advance(appendActions(landed, getFollowUps(landed, resolved, newId)), newId)
+  const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
+  const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
+  return advance(appendActions(fled, followUps), newId)
+}
+
+// combat.tex "Flee": "This reaction interrupts the opponents turn, which is
+// resumed after the flee." Once nothing is being played out, the turn is
+// put aside — not ended, so what its surge left is kept — and everyone due
+// to flee takes a flee turn in the order they declared it, the interrupted
+// turn after them.
+export function handOverToFleers(state: CombatState): CombatState {
+  if (state.fleers.length === 0 || getOpenAction(state)) return state
+  const fleers = [...new Set(state.fleers)].map((id): QueuedTurn => ({ id, fleeing: true, startedAt: null }))
+  const holder = getTurnHolder(state)
+  const resumed: QueuedTurn[] = holder ? [{ id: holder, fleeing: state.fleeing, startedAt: state.turnStartedAt }] : []
+  return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, contenders: [], turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
+}
+
+// The next turn waiting in the queue is taken, passing over anyone no longer
+// able to take it: a flee as a fresh turn, an interrupted one as it was.
+export function takeQueuedTurn(state: CombatState): CombatState {
+  const [next, ...rest] = state.turnQueue
+  if (!next) return state
+  const queued = { ...state, turnQueue: rest }
+  if (!canTakeQueuedTurn(state, next.id)) return takeQueuedTurn(queued)
+  return { ...queued, inTurnCharacter: next.id, fleeing: next.fleeing, turnStartedAt: next.startedAt ?? state.actions.length, contenders: [], lastContest: null }
 }
 
 // What the root's reactions open before its effect, the next of them once
@@ -74,12 +105,13 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 }
 
 // The follow-ups the landed action generates, the last played out first:
-// the blast an explosion goes off as, beneath everything else; what its
-// reactions open after it (rules/openers.ts), in the order they were
-// declared; the escapes a stun opens, the explosion a cast that hit with an
-// area to it goes off as, aimed and
-// played out on its own (the caster's part is done), the knockdown a hook
-// opens, the disarm an intercept opens; and on top, a riposte.
+// the blast an explosion goes off as, beneath everything else; the flees it
+// leaves, decided once everything else is; what its reactions open after
+// it (rules/openers.ts), in the order they were declared; the escapes a stun
+// opens, the explosion a cast that hit with an area to it goes off as,
+// aimed and played out on its own (the caster's part is done), the
+// knockdown a hook opens, the disarm an intercept opens; and on top, a
+// riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`.
 export function getFollowUps(state: CombatState, root: RootAction, newId: () => string): Action[] {
@@ -92,6 +124,7 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
   if (voided) return opened
   return [
     ...blast,
+    ...openFlees(state, root, newId),
     ...opened,
     ...escapesOnStun(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
@@ -122,6 +155,13 @@ function openHookKnockdown(state: CombatState, root: RootAction, newId: () => st
 function escapesOnStun(state: CombatState, root: RootAction, newId: () => string): Action[] {
   return getStunEscapes(state, root).map(({ heldId, holderId }) =>
     makeAction('grapple', { maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
+}
+
+// combat.tex "Flee": "after receiving a melee attack" — the flee each one
+// the landed action leaves free to flee may take or pass up, the one who
+// answered first played out first.
+function openFlees(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  return getFleeFollowUps(state, root).reverse().map((id) => makeAction('fleeFollowUp', { id: newId(), actorId: id, spawnedBy: root.id }))
 }
 
 // combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
