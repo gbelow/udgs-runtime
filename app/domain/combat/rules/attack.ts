@@ -21,6 +21,7 @@ import { isDefense } from './actionCatalog'
 import { getCastTerms } from './cast'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRiposteDefense } from './riposte'
+import { getMidActionTerm } from './opportunity'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -78,13 +79,11 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
-// or against a grapple partner the maneuver or the push it was declared as
-// (combat.tex "Grapple Maneuvers", "Push and drag": "can be used like
-// opportunity attacks").
+// or against a grapple partner the maneuver it was declared as (combat.tex
+// "Grapple Maneuvers": "can be used like opportunity attacks").
 export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
-  if (reaction.mode === 'drag') return makeAction('drag', base)
   return getOpportunityStrike(state, reaction, id)
 }
 
@@ -191,10 +190,14 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
   ]
 }
 
-// abilities.tex "Counterattack": "The counterattack receives -2 to hit";
-// "Riposte": "an attack with a +2 bonus to hit".
+// abilities.tex "Counterattack": "The counterattack receives -2 to hit",
+// and -2 more made in the middle of an action of one's own (combat.tex
+// "Interruption"); "Riposte": "an attack with a +2 bonus to hit".
 function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
-  if (getOpeningCounter(state, strike)) return [{ label: 'counterattack', value: -2 }]
+  const counter = getOpeningCounter(state, strike)
+  const countered = counter ? getRootOf(state, counter) : null
+  const midAction = countered ? getMidActionTerm(state, countered, strike.actorId) : null
+  if (counter) return [{ label: 'counterattack', value: -2 }, ...(midAction ? [midAction] : [])]
   if (getRiposteDefense(state, strike)) return [{ label: 'riposte', value: 2 }]
   return []
 }
@@ -311,10 +314,8 @@ function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
   const reaction = getDefendingReaction(state, root)
   const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender) }]
   if (!reaction && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
-  // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
-  // it's the SD" — not against a braced attack (the table's ruling)
-  if (root.opportunity && root.variant !== 'braced' && reaction) terms.push({ label: 'opportunity', value: -2 })
-  return terms
+  const midAction = reaction ? getMidActionTerm(state, root, defender.id) : null
+  return midAction ? [...terms, midAction] : terms
 }
 
 // combat.tex "Accuracy": a shot is scored "against the opponent's reflexes

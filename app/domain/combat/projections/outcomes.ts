@@ -57,7 +57,6 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
 
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
   return [
-    ...(facts.interrupted.length > 0 ? [{ target: facts.interrupted.map(named).join(', '), text: 'interrupted' }] : []),
     ...(facts.released.length > 0 ? [{ target: facts.released.map(named).join(', '), text: 'let go' }] : []),
     facts.control ? { target: named(facts.control.controller), text: `controls the group · ${facts.control.basic ? 'basic' : 'careful'}` } : { target: '', text: 'nobody controls the group' },
   ]

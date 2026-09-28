@@ -69,9 +69,9 @@ export function getOpeningReaction(state: CombatState, action: Action): ActionOf
 }
 
 // What an opportunity attack opens: a strike, or against a grapple partner a
-// maneuver or a push.
+// maneuver.
 function isOpportunityAction(action: Action | null): action is OpportunityAction {
-  return action?.kind === 'strike' || action?.kind === 'grapple' || action?.kind === 'drag'
+  return action?.kind === 'strike' || action?.kind === 'grapple'
 }
 
 export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }

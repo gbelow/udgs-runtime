@@ -68,7 +68,6 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'opportunityAttack': {
       const partner = findGrapple(state.grapples, action.actorId, action.targetId ?? '') !== null
       if (action.mode === 'grapple') return partner && getManeuverTargets(state, action.actorId, action.maneuver).includes(action.targetId ?? '')
-      if (action.mode === 'drag') return partner && state.board !== null
       const strike = getOpportunityStrike(state, action, '')
       const fought = getOpportunityState(state, action)
       // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
@@ -246,12 +245,11 @@ function getPushRoot(state: CombatState, action: Action): DragAction | null {
   return root?.kind === 'drag' ? root : null
 }
 
-// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action and reuse the AP spent to defend against an opportunity attack" —
-// nothing comes back, but the AP the given-up action cost pays towards the
-// defense against the attack it was given up for, and that one only. STA
-// is paid in full, and AP the defense does not use is lost (the table's
-// ruling).
+// combat.tex "Interruption": "The AP from the interrupted action can be
+// repurposed for the reaction, but the amount spent must be the highest
+// between the action and the reaction" — the AP the given-up action cost
+// pays towards the answer to the attack it was given up for, and that one
+// only; AP it does not use is lost, and STA is paid in full.
 export function getRepurposedAP(state: CombatState, reactorId: string, rootId: string): number {
   const fought = getAction(state, rootId)
   const given = fought ? getCancellableRoot(state, fought, reactorId) : null

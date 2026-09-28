@@ -68,8 +68,7 @@ export type DragSides = {
 // passively ("they can refuse to spend and take a -5 penalty"), helping on
 // the actor's side, paying or not, going along on neither, or, held by
 // nobody, letting go. An actor who does not pay takes the -5 too (the
-// table's ruling). Made as an opportunity attack, an active defense is at
-// -2.
+// table's ruling).
 export function getDragSides(state: CombatState, root: DragAction): DragSides {
   const reactions = getReactionsTo(state, root.id)
   const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
@@ -92,10 +91,7 @@ export function getDragSides(state: CombatState, root: DragAction): DragSides {
   const pushing = attackers.map((id) => value(id, id === root.actorId ? !isUnpaid(state, root) : !unpaidHelpers.has(id)))
   const resisting = resisters.map((id) => value(id, active.includes(id)))
   const attacker = sideTerms(pushing, strongest(resisting))
-  const defender = resisters.length === 0 ? null : [
-    ...sideTerms(resisting, strongest(pushing)),
-    ...(root.opportunity && active.length > 0 ? [{ label: 'opportunity', value: -2 }] : []),
-  ]
+  const defender = resisters.length === 0 ? null : sideTerms(resisting, strongest(pushing))
   return { ...sides, attacker, defender }
 }
 
@@ -108,16 +104,13 @@ function isUnpaid(state: CombatState, root: DragAction): boolean {
 // combat.tex "Push and drag": "The stronger character gets control of
 // movement for the group that round" — the actor, or the strongest of the
 // other side, passive or not; an actor who did not pay only 10 over (the
-// table's ruling). Only a resister who pays is interrupted: "If the defender
-// spends the costs, they interrupt their action". "It is
-// possible to move at basic movement speed when a group of characters have
-// 10 force higher than the opponent group."
+// table's ruling). "It is possible to move at basic movement speed when a
+// group of characters have 10 force higher than the opponent group."
 export type DragOutcome = {
   sides: DragSides
   diff: number
   // who controls the group; null on a draw or an unpaid push that fell short
   controller: string | null
-  interrupted: string[]
   basic: boolean
 }
 
@@ -130,7 +123,7 @@ export function getDragOutcome(state: CombatState, root: DragAction): DragOutcom
   const pushed = diff > 0 && (!isUnpaid(state, root) || diff >= UNPAID_MARGIN)
   const lead = sides.resisters.reduce<string | null>((best, id) => (best === null || force(state, id) > force(state, best) ? id : best), null)
   const controller = pushed ? root.actorId : diff < 0 ? lead : null
-  return { sides, diff, controller, interrupted: sides.active, basic: controller !== null && Math.abs(diff) >= BASIC_MARGIN }
+  return { sides, diff, controller, basic: controller !== null && Math.abs(diff) >= BASIC_MARGIN }
 }
 
 // The comparison as it stands now, to be written on the push when it is
@@ -167,7 +160,7 @@ export function getPushPrice(state: CombatState, root: DragAction, action: Pick<
 export function getDragFacts(state: CombatState, root: DragAction): DragFacts {
   const outcome = getDragOutcome(state, root)
   const control = outcome.controller === null ? null : { controller: outcome.controller, round: state.round, basic: outcome.basic, paid: getPaid(state, root, outcome.sides), carriers: outcome.sides.carriers }
-  return { interrupted: outcome.interrupted, released: outcome.sides.released, control }
+  return { released: outcome.sides.released, control }
 }
 
 // ---------------------------------------------------------------------------

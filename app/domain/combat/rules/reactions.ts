@@ -37,8 +37,7 @@ export type Trigger = {
 
 // The table's rulings: opportunity attacks never trigger other opportunity
 // attacks, and a riposte draws none from those flanking the riposter. What
-// an opportunity attack opens — a strike, a maneuver, a push and the way it
-// is walked — and a riposte are still answered by their target, and draw no
+// an opportunity attack opens — a strike or a maneuver — and a riposte are still answered by their target, and draw no
 // opportunity attack from anyone.
 export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)

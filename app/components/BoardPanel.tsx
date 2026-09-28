@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
-import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardTokenView } from '../domain/combat/projections/boardView'
+import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardGrappleView, BoardTokenView } from '../domain/combat/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
@@ -59,8 +59,15 @@ export function BoardPanel(){
       ) : null}
 
       <svg viewBox={view.viewBox} className='w-full select-none' role='img' aria-label='board'>
+        <defs>
+          {(['fg', 'accent'] as const).map((tone) =>
+            <marker key={tone} id={`grip-${tone}`} viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
+              <path d='M 0 0 L 10 5 L 0 10 z' className={tone === 'accent' ? 'fill-accent' : 'fill-fg'} />
+            </marker>)}
+        </defs>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
+        {view.grapples.map((g) => <GrappleLink key={g.key} link={g} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId, f.pickable)} />)}
       </svg>
@@ -151,6 +158,20 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
       </g>
+    </g>
+  )
+}
+
+// Who holds whom: a link between the two tokens, an arrowhead at each one
+// held, drawn in the accent while a push controls the group.
+function GrappleLink({ link }: { link: BoardGrappleView }){
+  const grip = link.controlled ? 'grip-accent' : 'grip-fg'
+  return (
+    <g>
+      <title>{link.title}</title>
+      <line x1={link.from.x} y1={link.from.y} x2={link.to.x} y2={link.to.y}
+        className={link.controlled ? 'stroke-accent' : 'stroke-fg'} strokeWidth={link.controlled ? 0.12 : 0.08} strokeLinecap='round'
+        markerStart={link.back ? `url(#${grip})` : undefined} markerEnd={link.forward ? `url(#${grip})` : undefined} />
     </g>
   )
 }

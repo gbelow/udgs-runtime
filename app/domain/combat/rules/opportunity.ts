@@ -1,5 +1,6 @@
-import type { Action, ActionOf, CombatState, OpportunityAction, TriggeringAction } from '../types'
-import { getActionDef } from './actionCatalog'
+import type { Action, ActionOf, CombatState, InterruptibleAction, OpportunityAction } from '../types'
+import type { Term } from '../../character/rules/terms'
+import { getActionDef, isRootAction } from './actionCatalog'
 import { getDistanceBetween, getMeleeRange, withPlacements } from './board'
 import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
@@ -7,8 +8,11 @@ import { getMoveFacts, getMoveOverride } from './move'
 import { getMoveWaypoint } from './waypoint'
 import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 
-export function isTriggeringAction(action: Action): action is TriggeringAction {
-  return getActionDef(action.kind).triggering === true
+// combat.tex "Interruption": "If the character is in the middle of an
+// action that is not movement, it must interrupt itself in order to use a
+// reaction."
+export function isInterruptible(action: Action): action is InterruptibleAction {
+  return isRootAction(action) && getActionDef(action.kind).movement !== true
 }
 
 // The fight as it will stand when the opportunity attack is fought: against
@@ -57,37 +61,49 @@ export function isFlankInReach(state: CombatState, reaction: ActionOf<'opportuni
   return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
 }
 
-// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action and reuse the AP spent to defend against an opportunity attack." Its
-// actor gives it up by answering one of the attacks it drew with anything
-// but the SD (spells.tex "Concentration": "No other action or reaction can
-// be performed while concentrating"; the same for anything else that drew
-// one). The attack it was given up for is the first they answered; taking
-// the answer back before that attack's die keeps the action.
-export function getGivenUpFor(state: CombatState, action: TriggeringAction): OpportunityAction | null {
+// combat.tex "Interruption": "If the character is in the middle of an
+// action that is not movement, it must interrupt itself in order to use a
+// reaction" - its actor gives it up by answering one of the attacks it drew
+// before its effect with anything but the SD. The attack it was given up
+// for is the first they answered; taking the answer back before that
+// attack's die keeps the action.
+export function getGivenUpFor(state: CombatState, action: InterruptibleAction): OpportunityAction | null {
   return getDrawnOpportunityAttacks(state, action).find(({ spawned }) =>
     spawned !== null && getReactionsTo(state, spawned.id).some((r) => r.actorId === action.actorId))?.spawned ?? null
 }
 
-// A triggering action comes to nothing once its actor gives it up
-// (`getGivenUpFor`) or it is broken (`isBroken`).
-export function isCancelled(state: CombatState, action: TriggeringAction): boolean {
+// An action comes to nothing once its actor gives it up (`getGivenUpFor`)
+// or it is broken (`isBroken`).
+export function isCancelled(state: CombatState, action: InterruptibleAction): boolean {
   return getGivenUpFor(state, action) !== null || isBroken(state, action)
 }
 
-// Whether the action comes to nothing: a triggering action given up, or
-// anything broken by an interruption before its effect (`isBroken`).
+// Whether the action comes to nothing: one given up, or anything broken by
+// an interruption before its effect (`isBroken`).
 export function isVoided(state: CombatState, action: Action): boolean {
-  return isTriggeringAction(action) ? isCancelled(state, action) : isBroken(state, action)
+  return isInterruptible(action) ? isCancelled(state, action) : isBroken(state, action)
 }
 
-// The triggering action of the defender's that answering the opportunity
-// attack being fought with anything but the SD gives up (`getGivenUpFor`):
-// theirs, not yet given up for another attack. Null when there is none.
-export function getCancellableRoot(state: CombatState, fought: Action, defenderId: string): TriggeringAction | null {
+// The action of the defender's that answering the opportunity attack being
+// fought with anything but the SD gives up (`getGivenUpFor`): theirs, not
+// movement, and not yet given up for another attack. Null when there is
+// none.
+export function getCancellableRoot(state: CombatState, fought: Action, defenderId: string): InterruptibleAction | null {
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
-  if (!root || !isTriggeringAction(root) || root.actorId !== defenderId) return null
+  if (!root || !isInterruptible(root) || root.actorId !== defenderId) return null
   const given = getGivenUpFor(state, root)
   return given === null || given.id === fought.id ? root : null
+}
+
+// combat.tex "Interruption": "The reaction gets -2 to its skill value in
+// the event of an interruption"; "Stand up": "Any reactions done while
+// standing up get -2 penalty to the skill." The penalty on the reactor's
+// answer to the attack being fought, when answering it interrupts an action
+// of their own (`getCancellableRoot`) or comes while they stand up.
+export function getMidActionTerm(state: CombatState, fought: Action, reactorId: string): Term | null {
+  if (getCancellableRoot(state, fought, reactorId)) return { label: 'interrupting', value: -2 }
+  const reaction = getOpeningReaction(state, fought)
+  const root = reaction ? getRootOf(state, reaction) : null
+  return root?.kind === 'move' && root.movement === 'stand' && root.actorId === reactorId ? { label: 'standing up', value: -2 } : null
 }

@@ -12,6 +12,7 @@ import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells,
 import { getEvasiveJumpPlacements, getReachableCells } from '../rules/move'
 import { getDisplaceCost, getDisplaceFacts, getGroupReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
+import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 
 // The board as the simulation tool draws it: every cell with what is on it
@@ -81,6 +82,21 @@ export type BoardFloorItemView = {
   pickable: boolean
 }
 
+// A grapple pair, drawn as a link between the two tokens: `from`/`to` are
+// its ends at the rims of the two tokens, `forward` whether the first holds
+// the second and `back` the reverse (combat.tex "Grapple"), and
+// `controlled` whether a push has won control of the group this round
+// (combat.tex "Push and drag"). `title` says all of it in words.
+export type BoardGrappleView = {
+  key: string
+  from: { x: number; y: number }
+  to: { x: number; y: number }
+  forward: boolean
+  back: boolean
+  controlled: boolean
+  title: string
+}
+
 export type BoardGhostView = {
   id: string
   name: string
@@ -102,6 +118,7 @@ export type BoardView = {
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
+  grapples: BoardGrappleView[]
   // combat.tex "Push and drag": where everyone in a group being moved will
   // stand once it lands, drawn over the board before it does
   ghosts: BoardGhostView[]
@@ -114,7 +131,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], grapples: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 const HEX = Array.from({ length: 6 }, (_, i) => {
   const angle = (Math.PI / 180) * (60 * i - 30)
@@ -243,6 +260,19 @@ function buildBoardView(state: CombatState): BoardView {
     return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id) }]
   })
 
+  const grapples: BoardGrappleView[] = state.grapples.flatMap((g) => {
+    const [a, b] = g.members
+    const pa = board.placements[a]
+    const pb = board.placements[b]
+    if (!pa || !pb) return []
+    const control = g.control?.round === state.round ? g.control : null
+    const title = [
+      ...g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} holds ${getFightName(state, getPartner(g, id))}`] : [])),
+      ...(control ? [`${getFightName(state, control.controller)} controls the group · ${control.basic ? 'basic' : 'careful'}`] : []),
+    ].join(' · ')
+    return [{ key: `${a}~${b}`, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), controlled: control !== null, title }]
+  })
+
   const xs = cells.map((c) => c.x)
   const ys = cells.map((c) => c.y)
   const minX = Math.min(...xs) - 1
@@ -259,6 +289,7 @@ function buildBoardView(state: CombatState): BoardView {
     cells,
     tokens,
     floor,
+    grapples,
     ghosts,
     picker: pickable.size > 0 ? picker : null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
@@ -270,6 +301,18 @@ function buildBoardView(state: CombatState): BoardView {
 }
 
 export const getBoardView = perState(buildBoardView)
+
+// The segment between two token centres that lies outside both tokens'
+// circles; the centres themselves when the tokens overlap.
+const TOKEN_RIM = 0.66
+
+function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }): { from: { x: number; y: number }; to: { x: number; y: number } } {
+  const length = Math.hypot(to.x - from.x, to.y - from.y)
+  if (length <= 2 * TOKEN_RIM) return { from, to }
+  const ux = (to.x - from.x) / length
+  const uy = (to.y - from.y) / length
+  return { from: { x: from.x + ux * TOKEN_RIM, y: from.y + uy * TOKEN_RIM }, to: { x: to.x - ux * TOKEN_RIM, y: to.y - uy * TOKEN_RIM } }
+}
 
 function elevationLabel(elevation: number): string {
   return elevation > 0 ? `+${elevation}` : elevation < 0 ? `${elevation}` : ''

@@ -65,8 +65,8 @@ function getOpportunityLabel(state: CombatState, actorId: string, at: number | n
 // action of their own, that action is what defending actively gives up
 // (`getGivenUpFor`), named.
 export function getCancellableLabel(state: CombatState, root: Action, defenderId: string): string | null {
-  const triggering = getCancellableRoot(state, root, defenderId)
-  return triggering ? getActionNoun(triggering) : null
+  const own = getCancellableRoot(state, root, defenderId)
+  return own ? getActionNoun(own) : null
 }
 
 export const HOP_LABELS: Record<HOPPurchase, string> = {

@@ -65,13 +65,13 @@ own.
 `rules/actionCatalog.ts` `ACTIONS` is the one table of what each kind is, typed
 `satisfies { [K in ActionKind]: ActionDef<K> }` so a new kind in the union fails to compile
 until it has an entry. Flags: `type` (action | reaction), `price` (row of the action-cost
-table, or null when the declaration prices it), `reactsTo`, `die`, `triggering` (draws
-opportunity attacks and can be given up), `targeted`, `generated` (never declared by a
-player), `identity` (fields telling two options of a kind apart).
+table, or null when the declaration prices it), `reactsTo`, `die`, `movement` (goes on
+while its actor reacts; every other action is given up to react), `targeted`, `generated`
+(never declared by a player), `identity` (fields telling two options of a kind apart).
 
 Types derived from it in `types.ts`: `ReactionKind` / `ReactionAction`, `RootAction` (every
-non-reaction), `TriggeringAction`, `DeclarableKind`, and `ActionDraft` (what a click
-declares).
+non-reaction), `InterruptibleAction` (every non-reaction but movement), `DeclarableKind`,
+and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
@@ -165,8 +165,9 @@ resolveAction ─────────► land(top)
 - `isBroken` — any such interruption, except for a move (cut short where caught,
   `getMoveOverride` in `rules/move.ts`) or a group moved (stopped only by a stun of the
   controller, `getPushStop` in `rules/drag.ts`).
-- `rules/opportunity.ts` — `getGivenUpFor` / `isCancelled` (the actor of a triggering action
-  gives it up by answering an opportunity attack it drew with anything but the SD) and
+- `rules/opportunity.ts` — `getGivenUpFor` / `isCancelled` (the actor of any action but
+  movement gives it up by answering an opportunity attack it drew with anything but the SD),
+  `getMidActionTerm` (the -2 on that answer, or on one made while standing up) and
   `isVoided` (cancelled or broken). A voided action lands nothing at its resolve
   (`applyPhase` skips it), settles with no facts, generates no follow-ups, and its price is
   still paid.

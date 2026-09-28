@@ -124,14 +124,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         return [answer({ kind }), answer({ kind, unpaid: true }, { AP: 0, STA: 0 }, isImmobile(c) ? 'immobile' : null)]
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike, or,
-      // against a grapple partner, for a maneuver or a push (combat.tex
-      // "Grapple Maneuvers", "Push and drag": "can be used like opportunity
-      // attacks")
+      // against a grapple partner, for a maneuver (combat.tex "Grapple
+      // Maneuvers": "can be used like opportunity attacks")
       case 'opportunityAttack': {
         const strikes = getAttackOptions(c, 'strike')
         const partner = getPartners(state, c.id).includes(open.actorId)
         const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }))
-          || (partner && (canAfford(c, getActionCost(c, 'grappleManeuver')) || canAfford(c, getActionCost(c, 'pushDrag'))))
+          || (partner && canAfford(c, getActionCost(c, 'grappleManeuver')))
         const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
         return [answer({ kind, at: trigger.at }, null, reason)]
       }

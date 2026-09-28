@@ -4,24 +4,20 @@ import { getAction, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
 
-// combat.tex "Interruption": "an effect that interrupts any action from its
-// victim, making them lose its associated costs. [...] It happens when a
-// tier 1+ blunt or electric damage is inflicted." The table's ruling: an
-// interruption always breaks the action it interrupts, except running,
-// jumping and moving a grapple group, which carry on; a group moved is
-// stopped only by a stun of its controller.
+// combat.tex "Interruption": "receiving a tier 1+ blunt or electric injury
+// causes any action and movement to be interrupted, except for running and
+// jumping. The AP and STA costs of the action or movement are lost." The
+// table's ruling: moving a grapple group carries on too, stopped only by a
+// stun of its controller.
 
 // What the landed action did to the victim: the interruption or stun a
-// strike landed on them; a grapple maneuver's, which "always interrupt[s]
-// when [it] hit[s]" (combat.tex "Grapple Maneuvers"); or a push's, where
-// only one who resists actively "interrupt[s] their action" (combat.tex
-// "Push and drag").
+// strike landed on them, or a grapple maneuver's, which "always
+// interrupt[s] when [it] hit[s]" (combat.tex "Grapple Maneuvers").
 export function getInterruptionOf(landed: Action | null | undefined, victimId: string): Interruption {
   if (landed?.step !== 'done') return 'none'
   switch (landed.kind) {
     case 'strike': return landed.targetId === victimId ? landed.interruption : 'none'
     case 'grapple': return landed.targetId === victimId && isManeuverWon(landed) ? 'interrupted' : 'none'
-    case 'drag': return landed.facts?.interrupted.includes(victimId) ? 'interrupted' : 'none'
     default: return 'none'
   }
 }

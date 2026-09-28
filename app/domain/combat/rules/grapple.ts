@@ -11,6 +11,7 @@ import { findGrapple, getGrapplesOf, isInGrapple, getPartner, holds } from './pa
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { delivering, getRowDamage } from './delivery'
 import { isAttackAction } from './actionCatalog'
+import { getMidActionTerm } from './opportunity'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -181,18 +182,19 @@ function isResisted(state: CombatState, root: Action): boolean {
 }
 
 // combat.tex "Grapple Maneuvers": "must be defended with the grapple skill,
-// and require the defender to interrupt itself and spend 2 AP+1 STA or
-// suffer a -5 penalty"; made as an opportunity attack, "the -2 penalty to
-// defense" — on an active defense, as a strike's is.
+// and require the defender to spend 2 AP+1 STA or suffer a -5 penalty";
+// resisting one made in the middle of an action of the defender's own, or
+// while they stand up, at -2 (`getMidActionTerm`).
 export function getManeuverDLTerms(state: CombatState, root: GrappleAction): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const resisted = isResisted(state, root)
-  return [
+  const terms: Term[] = [
     { label: 'grapple', value: getGrapple(defender) },
     ...(resisted ? [] : [{ label: 'no resistance', value: -5 }]),
-    ...(resisted && root.opportunity ? [{ label: 'opportunity', value: -2 }] : []),
   ]
+  const midAction = resisted ? getMidActionTerm(state, root, defender.id) : null
+  return midAction ? [...terms, midAction] : terms
 }
 
 // combat.tex "Grapple Maneuvers": "If the grapple attack has any damage, it

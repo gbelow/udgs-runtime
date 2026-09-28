@@ -262,7 +262,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple' | 'drag'; maneuver?: GrappleManeuver }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver }
 
 function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
@@ -273,8 +273,8 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>{reactor.name}</SectionLabel>
         <span className='text-xs'>{chosen?.label ?? 'opportunity attack'}</span>
-        {strike.partner ? (['strike', 'grapple', 'drag'] as const).map((m) =>
-          <Button key={m} size='xs' {...toggle(strike.mode === m)} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : m === 'drag' ? 'push or drag' : 'strike'}</Button>) : null}
+        {strike.partner ? (['strike', 'grapple'] as const).map((m) =>
+          <Button key={m} size='xs' {...toggle(strike.mode === m)} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
       </div>
       {strike.mode === 'grapple' ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -282,7 +282,6 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
           {strike.maneuvers.map((m) => <Button key={m} size='xs' {...toggle(strike.maneuver === m)} onClick={() => onAmend({ maneuver: m })}>{m}</Button>)}
         </div>
       ) : null}
-      {strike.mode === 'drag' ? <span className='text-xs text-muted'>which way is chosen once the push is settled</span> : null}
       {strike.mode === 'strike' ? <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>

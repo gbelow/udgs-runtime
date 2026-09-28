@@ -244,11 +244,11 @@ it('reports the strike a flanker broke as cancelled once it closes', () => {
   expect(report?.notes.map((n) => n.text)).toContain('strike cancelled')
 })
 
-// combat.tex "Opportunity Attack": "It is possible to cancel the triggering
-// action and reuse the AP spent to defend against an opportunity attack."
-// The table's ruling: the AP is not refunded but pays towards the first
-// defense, the one against the attack the action was given up for; later
-// defenses pay in full.
+// combat.tex "Interruption": "The AP from the interrupted action can be
+// repurposed for the reaction, but the amount spent must be the highest
+// between the action and the reaction." The table's ruling: it pays towards
+// the first defense, the one against the attack the action was given up
+// for; later defenses pay in full.
 describe('giving up the action an opportunity attack answers', () => {
   // The shot between two threateners, rolled to land on its target, with the
   // shooter stood before the first attack it drew; the attacks will miss.

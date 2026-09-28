@@ -64,14 +64,14 @@ export type ReactorOptions = {
     complete: boolean
     grab: boolean
     grabbable: boolean
-    // combat.tex "Grapple Maneuvers", "Push and drag": against a grapple
-    // partner, a maneuver or a push instead of the strike
-    mode: 'strike' | 'grapple' | 'drag'
+    // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
+    // instead of the strike
+    mode: 'strike' | 'grapple'
     partner: boolean
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
   } | null
-  // combat.tex "Opportunity Attack": the action of theirs the attack answers,
+  // combat.tex "Interruption": the action of theirs the attack answers,
   // which answering with anything but the SD gives up (`getGivenUpFor`);
   // null when there is none
   cancellable: string | null
