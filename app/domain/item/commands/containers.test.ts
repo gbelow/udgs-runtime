@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { equipContainer, unequipContainer } from './containers'
+import { equipContainer, putOnFromHands, takeOffContainer } from './containers'
 import { makeCharacter } from '../../factories'
-import { ContainerKindSchema, ContainerSchema } from '../../types'
+import { ContainerKindSchema, ContainerSchema, ItemSchema } from '../../types'
 import type { Character, ContainerKind } from '../../types'
 
 const kinds = ContainerKindSchema.options
@@ -53,12 +53,16 @@ describe('equipContainer', () => {
   })
 })
 
-describe('unequipContainer', () => {
-  // Only from a character not already wearing that kind: equipping a worn kind
-  // evicts the one it replaces, and unequipping cannot bring it back.
-  it.each(kinds)('undoes equipping a %s', (kind) => {
-    const before = makeCharacter(null)
-    const after = unequipContainer('new')(equipContainer('new', container('New', kind))(before))
+// A container taken off is in the hands with what it carries, so putting it
+// back on from there leaves the character wearing what they wore. A quiver
+// is slung, never put on.
+describe('takeOffContainer', () => {
+  it.each(kinds.filter((kind) => kind !== 'quiver'))('is undone by putting the %s back on', (kind) => {
+    const stowed = ItemSchema.parse({ name: 'Rope', bulk: 1 })
+    const before = { ...makeCharacter(null), containers: { New: { ...container('New', kind), slots: { ...container('New', kind).slots, large: { numSlots: 1, slotBulk: 3, items: [stowed] } } } } }
+    const off = takeOffContainer('New')(before)
+    const after = putOnFromHands(off.held[0].id)(off)
     expect(after.containers).toEqual(before.containers)
+    expect(after.held).toEqual(before.held)
   })
 })

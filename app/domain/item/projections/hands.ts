@@ -3,6 +3,7 @@ import type { Character, Item, SlotKind } from '../../types'
 import { getWearView, WearView } from '../../character/rules/armor'
 import { getBulkName, getItemScale } from '../rules/items'
 import { getDrawCost, isCharged } from '../rules/costs'
+import { getPutOnView, PutOnView } from '../rules/containers'
 import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, isLamingHold } from '../rules/hands'
 
 export type HandView = {
@@ -27,6 +28,8 @@ export type HeldItemView = {
   canGrip: Record<Grip, boolean>
   // For an armor item, whether it could be put on from here; null otherwise.
   wear: WearView | null
+  // for a container, whether it could be put on from the hands
+  putOn: PutOnView | null
   // spells.tex "Charged": the spell loaded into it, by name; '' for none
   charge: string
 }
@@ -66,6 +69,7 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
         wear: getWearView(c, null, item),
+        putOn: getPutOnView(c, 'hand', item),
         charge: item.charge && isSpellKey(item.charge.key) ? SPELLS[item.charge.key].name : '',
       }
     }),

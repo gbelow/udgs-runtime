@@ -1,31 +1,31 @@
 import { useShallow } from "zustand/shallow";
-import { equipContainer, unequipContainer } from "../domain/item/commands";
-import { getCatalogContainer } from "../domain/item/rules/containers";
+import { putOnFromCatalog, takeOffContainer } from "../domain/item/commands";
+import { getPutOnView, PutOnView } from "../domain/item/rules/containers";
 import {
   BurdenView,
   ContainerPanelView,
   getBurden,
-  getContainerCatalogPanels,
   getContainerPanels,
 } from "../domain/item/projections/containers";
 import { Character } from "../domain/types";
+import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
 const NO_BURDEN: BurdenView = { penalty: 0, lame: false, label: 'none' };
 
-// The catalog is static, so it is projected once per module rather than once
-// per render.
-const CATALOG_PANELS: ContainerPanelView[] = getContainerCatalogPanels();
-
 // Reads and writes go through the active-character adapters, so the same hook
 // serves the edit sheet and a character in combat without knowing which.
+// Containers go on where the item is — a slot, the hands — or straight from
+// the catalog pick here, the way armor does (cf. useArmorLens).
 export function useContainerLens() {
   const update = useActiveCharacterUpdate();
+  const pending = useAppStore((s) => s.pendingItem);
   const pendingItem = usePendingItem();
+  const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
 
-  // Every equipped container, its slot groups and their stacks, in one shape
+  // Every open container, its slot groups and their stacks, in one shape
   // gated on a digest of itself (cf. useWeaponLens). The pending item is an
   // input to the projection — each group reports whether it would take it —
   // and the digest covers that too, so a change of selection re-renders.
@@ -36,15 +36,20 @@ export function useContainerLens() {
   const burden: BurdenView =
     useActiveCharacterSelector(useShallow((c: Character) => getBurden(c))) ?? NO_BURDEN;
 
-  const equip = (catalogKey: string) => {
-    const container = getCatalogContainer(catalogKey);
-    if (!container) return;
-    update(equipContainer(catalogKey, container));
+  // Whether the catalog pick could be put straight on; null when there is no
+  // pick or it is not a container one puts on.
+  const putOnView: PutOnView | null =
+    useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getPutOnView(c, null, fromCatalog) : null))) ?? null;
+
+  // Puts the catalog pick on. The pick stays pending, as it does when placed
+  // in a slot, so the same container can go on the next character too.
+  const putOn = () => {
+    if (fromCatalog) update(putOnFromCatalog(fromCatalog));
   };
 
-  const unequip = (key: string) => {
-    update(unequipContainer(key));
+  const takeOff = (key: string) => {
+    update(takeOffContainer(key));
   };
 
-  return { panels, burden, catalog: CATALOG_PANELS, equip, unequip } as const;
+  return { panels, burden, putOnView, putOn, takeOff } as const;
 }

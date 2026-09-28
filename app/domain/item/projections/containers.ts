@@ -8,9 +8,10 @@ import {
   canFitItem,
   getAvailableSlots,
   getBurdenPenalty,
-  getContainerCatalog,
   getContainerPenalty,
   getOpenContainers,
+  getPutOnView,
+  PutOnView,
   getSlungContainers,
   getSlotBulk,
   getSlotsNeeded,
@@ -33,6 +34,8 @@ export type ContainerItemView = {
   drawCost: number | null
   // For an armor item, whether it could be put on from here; null otherwise.
   wear: WearView | null
+  // For a container item, the same.
+  putOn: PutOnView | null
 }
 
 // One slot group as the Containers table prints it: the Quick column names the
@@ -100,6 +103,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
           ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
           wear: c ? getWearView(c, slot, item) : null,
+          putOn: c ? getPutOnView(c, slot, item) : null,
         })),
       })),
   }
@@ -110,15 +114,6 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
 // an item pending placement, each group also says whether it would take it.
 export function getContainerPanels(c: Character, pending?: Item): ContainerPanelView[] {
   return Object.entries(getOpenContainers(c)).map(([key, container]) => getContainerPanel(key, container, pending, c))
-}
-
-// The catalog in the same shape, so a sidebar row and an equipped card render
-// the same view. A quiver is not put on but slung on a belt (gear.tex
-// "Quiver"), so it is placed as an item instead.
-export function getContainerCatalogPanels(): ContainerPanelView[] {
-  return Object.entries(getContainerCatalog())
-    .filter(([, container]) => container.kind !== 'quiver')
-    .map(([key, container]) => getContainerPanel(key, container))
 }
 
 // gear.tex "Containers and burden": what the containers alone cost the

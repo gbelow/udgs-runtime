@@ -4,7 +4,7 @@ import { useItemLens } from '../hooks/useItemLens'
 import { Button, Panel, Row } from './ui'
 
 export function HandsPanel(){
-  const { panel, hold, regrip, drop, wear } = useHandsLens()
+  const { panel, hold, regrip, drop, wear, putOn } = useHandsLens()
   const { pending, selectHeld, clear } = useItemLens()
 
   return(
@@ -37,6 +37,7 @@ export function HandsPanel(){
               {item.canGrip[1] ? <Button size='xs' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)}>1h</Button> : null}
               {item.canGrip[2] ? <Button size='xs' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)}>2h</Button> : null}
               {item.wear ? <Button size='xs' variant='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>{item.wear.cost === null ? 'wear' : `wear (${item.wear.cost} AP)`}</Button> : null}
+              {item.putOn ? <Button size='xs' variant='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? '' : item.putOn.why} onClick={() => putOn(item.id)}>{item.putOn.cost === null ? 'put on' : `put on (${item.putOn.cost} AP)`}</Button> : null}
               <span className='ml-auto flex flex-row gap-1'>
                 {
                   putting ?

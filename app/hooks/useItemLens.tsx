@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { addItemToContainer, removeItemFromContainer, drawItem, storeItem } from "../domain/item/commands";
+import { addItemToContainer, removeItemFromContainer, drawItem, storeItem, putOnFromContainer } from "../domain/item/commands";
 import { doffArmor, wearFromContainer } from "../domain/character/commands";
 import { GEAR_SIZE, getCatalogItem } from "../domain/item/rules/items";
 import { getHeldItem } from "../domain/item/rules/hands";
@@ -112,5 +112,9 @@ export function useItemLens() {
     update(wearFromContainer(containerKey, itemId));
   };
 
-  return { catalog, pending, pendingItem, amount, scale, select, setAmount, setScale, selectHeld, selectWorn, clear, place, remove, draw, wear } as const;
+  const putOn = (containerKey: string, itemId: string) => {
+    update(putOnFromContainer(containerKey, itemId));
+  };
+
+  return { catalog, pending, pendingItem, amount, scale, select, setAmount, setScale, selectHeld, selectWorn, clear, place, remove, draw, wear, putOn } as const;
 }

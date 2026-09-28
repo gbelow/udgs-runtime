@@ -1,13 +1,11 @@
 'use client'
 import { useState } from 'react'
 import { CharacterSelector } from './CharacterSelector';
-import { ContainerSelector } from './ContainerSelector';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 
 const PANELS = {
-  Container: ContainerSelector,
   Item: ItemSelector,
   Ability: AbilitySelector,
   Spell: SpellSelector,

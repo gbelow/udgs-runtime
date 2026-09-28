@@ -1,4 +1,4 @@
-import { holdItem, regripItem, dropItem } from "../domain/item/commands";
+import { holdItem, regripItem, dropItem, putOnFromHands } from "../domain/item/commands";
 import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem } from "../domain/item/rules/items";
 import { Grip } from "../domain/item/rules/hands";
@@ -51,5 +51,10 @@ export function useHandsLens() {
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
-  return { panel, hold, regrip, drop, wear } as const;
+  const putOn = (itemId: string) => {
+    update(putOnFromHands(itemId));
+    if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
+  };
+
+  return { panel, hold, regrip, drop, wear, putOn } as const;
 }

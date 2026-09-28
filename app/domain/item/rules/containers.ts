@@ -1,7 +1,7 @@
-import { Character, Container, ContainerSchema, Item, SlotKind } from '../../types'
+import { Character, Container, ContainerKind, Item, ItemSchema, SlotKind } from '../../types'
 import { isSameItem } from './items'
+import { FREE, getDrawCost, isCharged } from './costs'
 import { getSize } from '../../character/rules/misc'
-import containersCatalog from '../../../assets/containers.json'
 
 // gear.tex "Quiver": "Can be slung on a belt" — a quiver in a quick slot of
 // a container the character has on is one more container to them, named by
@@ -21,6 +21,46 @@ export function getOpenContainers(c: Character): Record<string, Container> {
 
 export function getContainer(c: Character, key: string): Container | undefined {
   return getOpenContainers(c)[key]
+}
+
+// gear.tex "Containers": "A character can use only one backpack, one
+// bandolier and one belt at a time". Saddles and vehicles aren't limited.
+export const WORN_ONE_AT_A_TIME: ReadonlySet<ContainerKind> = new Set(['belt', 'bandolier', 'backpack'])
+
+// A container put on is filed under the catalog row it was stamped from, and
+// taken off it is that row's item again, with what it carries.
+export function getContainerKey(item: Item): string {
+  return item.refId || item.name
+}
+
+export function getContainerItem(key: string, container: Container): Item {
+  return ItemSchema.parse({ name: container.name, type: 'container', refId: key, bulk: container.bulk, container })
+}
+
+// The container already on that putting this one on would displace: one
+// filed under the same row, or one of a kind worn one at a time.
+export function getDisplacedContainer(c: Character, item: Item): Container | undefined {
+  const kind = item.container?.kind
+  const key = getContainerKey(item)
+  return Object.entries(c.containers).find(([k, on]) => k === key || (kind !== undefined && WORN_ONE_AT_A_TIME.has(kind) && on.kind === kind))?.[1]
+}
+
+// Whether a container item can be put on from where it is — the catalog
+// (null), the hands, or a slot — and what it costs a character in play: a
+// slot's draw price (combat.tex "Drawing items in combat"), from the hands
+// nothing. Only a catalog pick on the sheet goes over whatever it displaces,
+// which is how a character is dressed; anywhere else the other comes off
+// first. A quiver is not put on but slung (gear.tex "Quiver"). Null for an
+// item that is not a container one can put on.
+export type PutOnView = { able: boolean; cost: number | null; why: string }
+
+export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): PutOnView | null {
+  if (!item.container || item.container.kind === 'quiver') return null
+  const displaced = getDisplacedContainer(c, item)
+  if (displaced && (from !== null || isCharged(c))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }
+  if (!isCharged(c)) return { able: true, cost: null, why: '' }
+  const cost = from === null || from === 'hand' ? FREE : getDrawCost(c, from, item)
+  return { able: true, cost: cost.AP, why: '' }
 }
 
 export function getSlotBulk(container: Container, slot: SlotKind): number {
@@ -99,15 +139,3 @@ export function isLamedByBurden(c: Character): boolean {
   return Object.values(c.containers).some((container) => isLamingContainer(c, container))
 }
 
-// A catalog entry is a template with empty slots; equipping it stores a copy
-// on the character, so the same key can be drawn any number of times.
-export function getContainerCatalog(): Record<string, Container> {
-  return Object.fromEntries(
-    Object.entries(containersCatalog as Record<string, unknown>).map(([key, raw]) => [key, ContainerSchema.parse(raw)])
-  )
-}
-
-export function getCatalogContainer(key: string): Container | undefined {
-  const raw = (containersCatalog as Record<string, unknown>)[key]
-  return raw ? ContainerSchema.parse(raw) : undefined
-}

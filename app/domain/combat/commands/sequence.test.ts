@@ -4,8 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
 import { addItemToContainer } from '../../item/commands/items'
-import { equipContainer } from '../../item/commands/containers'
-import { getCatalogContainer } from '../../item/rules/containers'
+import { putOnFromCatalog } from '../../item/commands/containers'
 import { getCatalogItem } from '../../item/rules/items'
 import { getAvailableActions } from '../rules/options'
 import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
@@ -34,7 +33,7 @@ function archer(id: string): CampaignCharacter {
   const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
   const arrows = ItemSchema.parse({ id: 'arrows', name: 'Broadhead Arrow', type: 'ammo', refId: 'Broadhead Arrow', bulk: 0, amount: 20 })
   const quiver = getCatalogItem('Quiver')!
-  const belted = equipContainer('Belt', getCatalogContainer('Belt')!)(fighter(id))
+  const belted = putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))
   const { containers } = addItemToContainer(quiver.id, 'quick', arrows)(addItemToContainer('Belt', 'quick', quiver)(belted))
   return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
