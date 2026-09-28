@@ -83,10 +83,15 @@ export const ABILITY_SECTIONS = [
 export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 
 // gear.tex — the sections an item is filed under, in the book's order:
-// "Weapons", "Armors", then the "Tools of War" and "Special Items"
-// subsections. Groups the item catalog and names the catalog a refId
-// resolves in (weapons.json, armors.json).
-export const ITEM_TYPES = ['weapon', 'armor', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
+// "Weapons" (the arrows and bolts among them), "Armors", "Containers and
+// Burden", then the "Tools of War" and "Special Items" subsections. Groups
+// the item catalog and names the catalog a refId resolves in (weapons.json,
+// ammo.json, armors.json, containers.json).
+export const ITEM_TYPES = ['weapon', 'ammo', 'armor', 'container', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
+
+// gear.tex "Quiver": "carries 20 arrows or bolts" — the two kinds of
+// ammunition, each loaded by its own shooting weapons.
+export const AMMO_KINDS = ['arrow', 'bolt'] as const
 
 // gear.tex "Weapons Properties" — the vocabulary of an attack row's
 // properties cell, in the book's order, then the spelling its own tables add. One spelling per

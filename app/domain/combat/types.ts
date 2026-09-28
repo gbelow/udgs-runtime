@@ -261,6 +261,9 @@ export const ShootActionSchema = z.object({
   // combat.tex "Throw": what left the hand, one of it, to land where the
   // throw was aimed; written at the resolve, null for a shot
   thrown: ItemSchema.nullable().default(null),
+  // gear.tex "Quiver": the stack of arrows or bolts the shot is loaded
+  // from, declared with the row; '' for a row that loads nothing
+  ammoId: str.default(''),
 }).strip()
 
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": a ranged attack

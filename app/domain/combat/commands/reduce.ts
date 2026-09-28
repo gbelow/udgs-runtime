@@ -5,6 +5,8 @@ import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll } from '../../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
+import { findAmmoStack } from '../../item/rules/ammo'
+import { removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
 import { onFloor } from '../rules/floor'
@@ -96,7 +98,7 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
             return price ? payCost(price)(acc) : acc
           }, discharged)
           // combat.tex "Throw": what is thrown leaves the hand
-          if (action.kind === 'shoot') return releaseThrown(paid, action.weaponKey, action.attack)
+          if (action.kind === 'shoot') return spendAmmo(releaseThrown(paid, action.weaponKey, action.attack), action.ammoId)
           // combat.tex "Braced Attack": the crash it triggers, the mover the
           // blow met against the bracer
           return action.trample ? trampledBy([action.trample], paid) : paid
@@ -117,6 +119,13 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
   const row = findWeaponRow(c, weaponKey, attack)
   if (!row || row.wielded.natural || getAttackKind(row.atk.range) !== 'throw') return c
   return consumeItem(row.wielded.itemId)(c)
+}
+
+// gear.tex "Quiver": the shot takes one arrow or bolt from the stack it was
+// loaded from, and it is gone.
+function spendAmmo(c: CampaignCharacter, ammoId: string): CampaignCharacter {
+  const stack = findAmmoStack(c, ammoId)
+  return stack ? { ...c, containers: removeItemFromContainer(stack.containerKey, ammoId, 1)(c).containers } : c
 }
 
 // combat.tex "Grapple Maneuvers": what the maneuver did to the character

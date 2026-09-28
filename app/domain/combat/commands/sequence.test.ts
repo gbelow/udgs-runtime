@@ -3,6 +3,10 @@ import { CombatStateSchema, type Action, type CombatState, type Coord } from '..
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
+import { addItemToContainer } from '../../item/commands/items'
+import { equipContainer } from '../../item/commands/containers'
+import { getCatalogContainer } from '../../item/rules/containers'
+import { getCatalogItem } from '../../item/rules/items'
 import { getAvailableActions } from '../rules/options'
 import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
@@ -23,9 +27,16 @@ function fighter(id: string, abilities: string[] = []): CampaignCharacter {
   return { ...base, id, fightName: id, abilities, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
+// A shooter with a bow in both hands, the focus surge spent (combat.tex
+// "Focus surge": "required to use ranged attacks") and a quiver of arrows
+// slung on the belt (gear.tex "Quiver").
 function archer(id: string): CampaignCharacter {
   const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
-  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id)))), usedSurge: 'focus' }
+  const arrows = ItemSchema.parse({ id: 'arrows', name: 'Broadhead Arrow', type: 'ammo', refId: 'Broadhead Arrow', bulk: 0, amount: 20 })
+  const quiver = getCatalogItem('Quiver')!
+  const belted = equipContainer('Belt', getCatalogContainer('Belt')!)(fighter(id))
+  const { containers } = addItemToContainer(quiver.id, 'quick', arrows)(addItemToContainer('Belt', 'quick', quiver)(belted))
+  return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
 function wielder(id: string, weapon: string, abilities: string[] = []): CampaignCharacter {
@@ -95,7 +106,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
 // (combat.tex "Opportunity Attack": "ranged attacks" are triggering actions).
 function shotBetweenThreateners(): CombatState {
   let s = onBoard({ atk: [0, 0], def: [-3, 0], t1: [0, 1], t2: [1, -1] }, archer('atk'), fighter('def'), spearman('t1'), spearman('t2'))
-  s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic' }, newId)(s)
+  s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
   s = commitAction()(setTarget('def')(s))
   return everyoneAttacks(s, ['t1', 't2'])
 }

@@ -7,6 +7,8 @@ import { SPELL_KEYS } from '../../domain/spells'
 import { BULK_NAMES, HEAVY_MAX_DEGREE, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
+import ammo from '../../assets/ammo.json'
+import containers from '../../assets/containers.json'
 import items from '../../assets/items.json'
 
 const input = `${inputClass} text-sm w-full`
@@ -44,7 +46,8 @@ const requirementName = suggesting((parent) => {
 // An item's refId resolves in the catalog its type names.
 const itemRef = suggesting((parent) => {
   const type = String(parent.type ?? '')
-  return type === 'weapon' ? Object.keys(weapons) : type === 'armor' ? Object.keys(armors) : []
+  return type === 'weapon' ? Object.keys(weapons) : type === 'armor' ? Object.keys(armors)
+    : type === 'ammo' ? Object.keys(ammo) : type === 'container' ? Object.keys(containers) : []
 })
 
 // A bulk is stored as a number and picked by name while it has one; past the
@@ -111,12 +114,15 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   },
   weapons: { 'attacks.reload': reloadCost, 'attacks.heavy': heavyRange },
   armors: { notes: textarea },
+  ammo: {},
   items: {
     refId: itemRef,
     description: textarea,
     bulk: bulkSelect,
     // a catalog item is a template; the id is minted when a copy lands on a character
     id: hidden,
+    // a container item is drawn from the containers catalog, not written here
+    container: hidden,
   },
   containers: {
     'slots.quick.slotBulk': bulkSelect,

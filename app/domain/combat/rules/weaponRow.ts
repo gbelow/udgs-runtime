@@ -1,5 +1,6 @@
-import type { Character, Weapon, WeaponAttack } from '../../types'
+import type { Character, Weapon, WeaponAttack, WeaponProperty } from '../../types'
 import { getWieldedWeapons, isAttackUsable, type Wielded } from '../../item/rules/hands'
+import { getLoadableAmmo, type AmmoStack } from '../../item/rules/ammo'
 import { type AttackVariant, getAttacksList, isWieldable } from '../../character/rules/gear'
 
 // A weapon row is named the way the hands name it: the wielded key (an item
@@ -28,6 +29,24 @@ export function isRowUsable(c: Character, row: WeaponRow): boolean {
 // they stand.
 export function getRowVariants(c: Character, row: WeaponRow): AttackVariant[] {
   return getAttacksList({ atk: row.atk, weapon: row.weapon })(c)
+}
+
+// gear.tex "Quiver": a row that loads ammunition fires only with some in a
+// quick slot; the stack it was declared with, while it can still load it.
+export function isRowLoadable(c: Character, row: WeaponRow): boolean {
+  return !row.atk.ammo || getLoadableAmmo(c, row.weapon, row.atk).length > 0
+}
+
+export function getRowAmmo(c: Character, row: WeaponRow, ammoId: string): AmmoStack | null {
+  return getLoadableAmmo(c, row.weapon, row.atk).find((s) => s.item.id === ammoId) ?? null
+}
+
+// gear.tex "Bodkin: arrows are penetrating", "Broadhead: arrows are
+// bladed": a shot has its row's properties and those of what it is loaded
+// with.
+export function getRowProperties(c: Character, row: WeaponRow, ammoId: string): WeaponProperty[] {
+  const ammo = row.atk.ammo ? getRowAmmo(c, row, ammoId) : null
+  return [...row.atk.properties, ...(ammo?.ammo.properties ?? []).filter((p) => !row.atk.properties.includes(p))]
 }
 
 export function findRowVariant(c: Character, row: WeaponRow, variant: string): AttackVariant | null {

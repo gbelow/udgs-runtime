@@ -14,7 +14,7 @@ import { getHeldItem } from '../../item/rules/hands'
 import { hasProperty } from '../../weaponProperties'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
-import { findWeaponRow } from './weaponRow'
+import { findWeaponRow, getRowProperties } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getGrabFacts } from './grapple'
 
@@ -242,6 +242,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
   const row = attacker ? findWeaponRow(attacker, root.weaponKey, root.attack) : null
   if (!attacker || !target || !row || !root.roll || root.roll.degree !== 'hit') return []
   const remaining = getHOPRemaining(root, target)
+  const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
   const armor = getArmor(target)
   const { defense, shield } = getDefense(state, root)
 
@@ -252,7 +253,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const price = getHOPPrice(purchase, attacker)
     const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
-    if (property && !hasProperty(row.atk.properties, property)) return closed(`needs ${property}`)
+    if (property && !hasProperty(properties, property)) return closed(`needs ${property}`)
     if (purchase !== 'slice' && bought > 0) return closed('bought')
     // combat.tex "Assassinate": "requires a short range ... weapon attack",
     // "Can only be done against SD, not against active defense".

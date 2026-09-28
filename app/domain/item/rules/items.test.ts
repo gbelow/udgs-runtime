@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getCatalogItem, getItemWeapon, getItemArmor, getItemScale, GEAR_SIZE } from './items'
+import { getItemAmmo } from './ammo'
 import { ArmorSchema, ItemSchema, WeaponSchema } from '../../types'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
@@ -84,7 +85,7 @@ describe('items.json', () => {
   it.each(entries)('%s resolves whatever it references', (key, raw) => {
     const item = ItemSchema.parse(raw)
     if (!item.refId) return
-    const resolved = item.type === 'weapon' ? getItemWeapon(item) : item.type === 'armor' ? getItemArmor(item) : undefined
+    const resolved = item.type === 'weapon' ? getItemWeapon(item) : item.type === 'armor' ? getItemArmor(item) : item.type === 'ammo' ? getItemAmmo(item) : undefined
     expect(resolved, key).toBeDefined()
   })
 })

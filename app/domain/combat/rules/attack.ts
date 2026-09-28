@@ -1,4 +1,5 @@
-import type { AttackKind, CampaignCharacter, Character, WeaponAttack } from '../../types'
+import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
+import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction, WeaponAction } from '../types'
 import { LOCATIONS, QUICKEN_DL } from '../../tables'
@@ -15,7 +16,7 @@ import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
 import { getGrappleStrikeTerm, getManeuverDLTerms } from './grapple'
-import { findRowVariant, findWeaponRow, getRowVariants, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
+import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
 import { getCastTerms } from './cast'
@@ -53,10 +54,14 @@ function rowFits(atk: WeaponAttack, kind: WeaponAction['kind']): boolean {
 
 // Whether the character can fire the row as the attack's kind right now:
 // open, closed, or held of that kind and usable but for the focus surge
-// (combat.tex "Focus surge": "required to use ranged attacks").
-function getRowState(c: Character, row: WeaponRow, kind: WeaponAction['kind']): 'open' | 'unfocused' | 'closed' {
+// (combat.tex "Focus surge": "required to use ranged attacks") or for
+// anything to load it with (gear.tex "Quiver").
+type RowState = 'open' | 'unfocused' | 'unloaded' | 'closed'
+
+function getRowState(c: Character, row: WeaponRow, kind: WeaponAction['kind']): RowState {
   if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
-  return needsFocus(row.atk, c) ? 'unfocused' : 'open'
+  if (needsFocus(row.atk, c)) return 'unfocused'
+  return isRowLoadable(c, row) ? 'open' : 'unloaded'
 }
 
 // The variation an attack declared, priced against the attacker as they
@@ -162,6 +167,27 @@ export function getAttackOptions(c: Character, kind: WeaponAction['kind']): Atta
 // is keeping closed.
 export function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
   return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unfocused')
+}
+
+// Whether the character holds a row of the kind with nothing to load it.
+export function hasUnloadedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
+  return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unloaded')
+}
+
+// What the declared row of a shot can be loaded with, stack by stack, to
+// pick one from; empty while no row is declared or it loads nothing.
+export type AmmoOption = { itemId: string; name: string; amount: number; properties: WeaponProperty[] }
+
+export function getAmmoOptions(c: Character, action: ActionOf<'shoot'>): AmmoOption[] {
+  const row = findWeaponRow(c, action.weaponKey, action.attack)
+  return row ? getLoadableAmmo(c, row.weapon, row.atk).map((s) => ({ itemId: s.item.id, name: s.ammo.name || s.item.name, amount: s.item.amount, properties: s.ammo.properties })) : []
+}
+
+// Whether a shot names something its row can be loaded with, if it loads
+// anything (gear.tex "Quiver").
+export function isShotLoaded(c: Character, action: ActionOf<'shoot'>): boolean {
+  const row = findWeaponRow(c, action.weaponKey, action.attack)
+  return row !== null && (!row.atk.ammo || getRowAmmo(c, row, action.ammoId) !== null)
 }
 
 // ---------------------------------------------------------------------------

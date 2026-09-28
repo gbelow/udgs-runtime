@@ -1,10 +1,11 @@
 import { z } from 'zod'
-import { AbilityFamilySchema, ArmorSchema, ContainerSchema, ItemSchema, SpellSchema, WeaponSchema } from '../domain/types'
+import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerSchema, ItemSchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
 import abilities from '../assets/abilities.json'
 import spells from '../assets/spells.json'
 import weapons from '../assets/weapons.json'
 import armors from '../assets/armors.json'
+import ammo from '../assets/ammo.json'
 import items from '../assets/items.json'
 import containers from '../assets/containers.json'
 
@@ -40,6 +41,10 @@ export const CATALOGS = {
   armors: {
     label: 'Armors', file: 'armors.json', schema: ArmorSchema, data: armors,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: () => '',
+  },
+  ammo: {
+    label: 'Ammunition', file: 'ammo.json', schema: AmmoSchema, data: ammo,
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'kind'),
   },
   items: {
     label: 'Items', file: 'items.json', schema: ItemSchema, data: items,

@@ -3,6 +3,10 @@ import { BoardSchema, CombatStateSchema, type Action, type ActionKind, type Comb
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
+import { addItemToContainer } from '../../item/commands/items'
+import { equipContainer } from '../../item/commands/containers'
+import { getCatalogContainer } from '../../item/rules/containers'
+import { getCatalogItem } from '../../item/rules/items'
 import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/log'
@@ -24,18 +28,23 @@ function combat(...characters: CampaignCharacter[]): CombatState {
 let n = 0
 const newId = () => `a${++n}`
 
-// A shooter with a bow in both hands and the focus surge spent (combat.tex
-// "Focus surge": "required to use ranged attacks").
+// A shooter with a bow in both hands, the focus surge spent (combat.tex
+// "Focus surge": "required to use ranged attacks") and a quiver of arrows
+// slung on the belt (gear.tex "Quiver").
 function archer(id: string): CampaignCharacter {
   const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
-  return { ...(regripItem(bow.id, 2)(holdItem(bow)(fighter(id)))), usedSurge: 'focus' }
+  const arrows = ItemSchema.parse({ id: 'arrows', name: 'Broadhead Arrow', type: 'ammo', refId: 'Broadhead Arrow', bulk: 0, amount: 20 })
+  const quiver = getCatalogItem('Quiver')!
+  const belted = equipContainer('Belt', getCatalogContainer('Belt')!)(fighter(id))
+  const { containers } = addItemToContainer(quiver.id, 'quick', arrows)(addItemToContainer('Belt', 'quick', quiver)(belted))
+  return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
 // The two weapon attacks, each aimed at a defender who answers it: the
 // attacker, the declaration and the reaction that goes with it.
 const attacks = [
   { kind: 'strike', attacker: fighter, draft: { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, reaction: { kind: 'evade' } },
-  { kind: 'shoot', attacker: archer, draft: { kind: 'shoot', weaponKey: '', attack: 'shoot', variant: 'basic' }, reaction: { kind: 'evasion' } },
+  { kind: 'shoot', attacker: archer, draft: { kind: 'shoot', weaponKey: '', attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, reaction: { kind: 'evasion' } },
 ] as const
 
 function aimed(attack: (typeof attacks)[number]): CombatState {

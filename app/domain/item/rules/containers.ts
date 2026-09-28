@@ -3,6 +3,26 @@ import { isSameItem } from './items'
 import { getSize } from '../../character/rules/misc'
 import containersCatalog from '../../../assets/containers.json'
 
+// gear.tex "Quiver": "Can be slung on a belt" — a quiver in a quick slot of
+// a container the character has on is one more container to them, named by
+// the quiver's own id.
+export function getSlungContainers(c: Character): Record<string, Container> {
+  return Object.fromEntries(
+    Object.values(c.containers).flatMap((container) =>
+      container.slots.quick.items.flatMap((item) => (item.container?.kind === 'quiver' ? [[item.id, item.container]] : [])))
+  )
+}
+
+// Every container the character can put things into and take them out of:
+// the ones they have on, and the quivers slung on those.
+export function getOpenContainers(c: Character): Record<string, Container> {
+  return { ...c.containers, ...getSlungContainers(c) }
+}
+
+export function getContainer(c: Character, key: string): Container | undefined {
+  return getOpenContainers(c)[key]
+}
+
 export function getSlotBulk(container: Container, slot: SlotKind): number {
   return container.slots[slot].slotBulk
 }

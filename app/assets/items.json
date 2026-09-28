@@ -295,12 +295,36 @@
     "refId": "ReinforcedArmor",
     "charge": null
   },
-  "Quiver": {
-    "name": "Quiver",
-    "description": "Carries 20 arrows or bolts that cost nothing to draw. Can be slung on a belt.",
-    "type": "utility",
-    "bulk": 2,
-    "refId": "",
+  "Bodkin Arrow": {
+    "name": "Bodkin Arrow",
+    "description": "",
+    "type": "ammo",
+    "bulk": 0,
+    "refId": "Bodkin Arrow",
+    "charge": null
+  },
+  "Broadhead Arrow": {
+    "name": "Broadhead Arrow",
+    "description": "",
+    "type": "ammo",
+    "bulk": 0,
+    "refId": "Broadhead Arrow",
+    "charge": null
+  },
+  "Bodkin Bolt": {
+    "name": "Bodkin Bolt",
+    "description": "",
+    "type": "ammo",
+    "bulk": 0,
+    "refId": "Bodkin Bolt",
+    "charge": null
+  },
+  "Broadhead Bolt": {
+    "name": "Broadhead Bolt",
+    "description": "",
+    "type": "ammo",
+    "bulk": 0,
+    "refId": "Broadhead Bolt",
     "charge": null
   },
   "Alcohol": {

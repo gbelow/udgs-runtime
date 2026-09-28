@@ -19,7 +19,31 @@
         "items": []
       }
     },
-    "burden": 3
+    "burden": 3,
+    "bulk": 2
+  },
+  "Quiver": {
+    "name": "Quiver",
+    "kind": "quiver",
+    "slots": {
+      "quick": {
+        "numSlots": 20,
+        "slotBulk": 0,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 0,
+        "slotBulk": 2,
+        "items": []
+      },
+      "large": {
+        "numSlots": 0,
+        "slotBulk": 3,
+        "items": []
+      }
+    },
+    "burden": 0,
+    "bulk": 2
   },
   "Bandolier": {
     "name": "Bandolier",
@@ -41,7 +65,8 @@
         "items": []
       }
     },
-    "burden": 3
+    "burden": 3,
+    "bulk": 2
   },
   "Backpack": {
     "name": "Backpack",
@@ -63,7 +88,8 @@
         "items": []
       }
     },
-    "burden": 4
+    "burden": 4,
+    "bulk": 3
   },
   "Large Backpack": {
     "name": "Large Backpack",
@@ -85,7 +111,8 @@
         "items": []
       }
     },
-    "burden": 5
+    "burden": 5,
+    "bulk": 3
   },
   "Saddle": {
     "name": "Saddle",
@@ -107,7 +134,8 @@
         "items": []
       }
     },
-    "burden": 5
+    "burden": 5,
+    "bulk": 4
   },
   "Sled": {
     "name": "Sled",
@@ -129,7 +157,8 @@
         "items": []
       }
     },
-    "burden": 6
+    "burden": 6,
+    "bulk": 5
   },
   "One-Horse Cart": {
     "name": "One-Horse Cart",
@@ -151,7 +180,8 @@
         "items": []
       }
     },
-    "burden": 7
+    "burden": 7,
+    "bulk": 7
   },
   "Two-Horse Cart": {
     "name": "Two-Horse Cart",
@@ -173,6 +203,7 @@
         "items": []
       }
     },
-    "burden": 7
+    "burden": 7,
+    "bulk": 8
   }
 }

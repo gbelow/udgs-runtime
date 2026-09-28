@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -155,6 +155,9 @@ export type Range = z.infer<typeof RangeSchema>
 export type MeleeRange = (typeof MELEE_RANGES)[number]
 
 export const WeaponPropertySchema = z.enum(WEAPON_PROPERTIES)
+
+export const AmmoKindSchema = z.enum(AMMO_KINDS)
+export type AmmoKind = z.infer<typeof AmmoKindSchema>
 export type WeaponProperty = z.infer<typeof WeaponPropertySchema>
 
 // gear.tex "Heavy I/II/III": "Having a higher degree of heavy allows using any
@@ -201,6 +204,9 @@ export const WeaponAttackSchema = z.object({
   STRreq: num.optional(),
   // gear.tex "Heavy I/II/III": the degrees offered, absent when the row has none.
   heavy: HeavyRangeSchema.optional(),
+  // gear.tex "Quiver": what a shooting row is loaded with, absent on a row
+  // that needs nothing loaded.
+  ammo: AmmoKindSchema.optional(),
   // gear.tex "Explosion": what a mundane explosive does when it goes off,
   // in the shape a charged spell would give it; a row with the property and
   // nothing here explodes only once something is charged into it.
@@ -231,6 +237,16 @@ export const WeaponSchema = z.object({
 }).strip()
 
 export type Weapon = z.infer<typeof WeaponSchema>
+
+// gear.tex "Bows and crossbows can use different types of arrows": what the
+// arrow or bolt adds to the row that shoots it.
+export const AmmoSchema = z.object({
+  name: str.default(''),
+  kind: AmmoKindSchema.default('arrow'),
+  properties: z.array(WeaponPropertySchema).default([]),
+}).strip()
+
+export type Ammo = z.infer<typeof AmmoSchema>
 
 // gear.tex "Containers and Burden": an item's bulk is a size-like step —
 // tiny 0, small 1, medium 2, large 3, then numeric — and scaling an item
@@ -263,13 +279,17 @@ export const ItemSchema = z.object({
   // using it until they manage to escape" — still in hand, not usable.
   // Only a fight ever sets it, so a stored item carries none.
   seized: z.boolean().optional(),
+  // gear.tex "Containers and Burden": a container is an item too, and what
+  // it carries goes wherever it is put.
+  container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
 
 // gear.tex "Containers": belt, bandolier and backpack are worn one at a time;
-// a saddle rides an animal; vehicles are drawn by one.
-export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'saddle', 'vehicle'])
+// a saddle rides an animal; vehicles are drawn by one; a quiver is "slung on
+// a belt".
+export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'quiver', 'saddle', 'vehicle'])
 export type ContainerKind = z.infer<typeof ContainerKindSchema>
 
 // gear.tex "Containers": the Quick, Medium and Large columns.
@@ -287,7 +307,13 @@ const slotGroup = (slotBulk: number) => z.object({
 
 export const SlotGroupSchema = slotGroup(1)
 
-export type SlotGroup = z.infer<typeof SlotGroupSchema>
+// Written out rather than inferred: an item may carry a container, so the
+// two schemas refer to each other and inference cannot close the loop.
+export interface SlotGroup {
+  numSlots: number
+  slotBulk: number
+  items: Item[]
+}
 
 export const ContainerSchema = z.object({
   name: str.default(''),
@@ -300,9 +326,17 @@ export const ContainerSchema = z.object({
   // gear.tex "Containers": the Burden column, a size-like step compared to
   // the bearer's size; the penalty it becomes is derived, not stored.
   burden: num.default(3),
+  // gear.tex "Containers": the Bulk column — the container as an item.
+  bulk: num.default(2),
 }).strip()
 
-export type Container = z.infer<typeof ContainerSchema>
+export interface Container {
+  name: string
+  kind: ContainerKind
+  slots: Record<SlotKind, SlotGroup>
+  burden: number
+  bulk: number
+}
 
 // A hand is a limb that fights and, if it can grip, wields. Its natural weapon
 // is the weapons.json entry it attacks with while empty (gear.tex "Unarmed":

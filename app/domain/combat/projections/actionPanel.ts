@@ -8,7 +8,7 @@ import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
 import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
-import { AttackOption, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -162,6 +162,8 @@ export type OpenActionView = {
   // a disarm's hit: what it can go for, and what it went for
   disarm: { itemId: string; name: string }[]
   item: string
+  // the stack a shot is loaded from
+  ammoId: string
   // a pick up: what lies within reach, and what was picked; a standard-action
   // throw: what can be thrown, from a free hand or the floor
   floor: { itemId: string; name: string; available: boolean }[]
@@ -204,6 +206,8 @@ export type ActionPanelView = {
   // at `declare`: the rows and variations an attack can be made with, the
   // spells a cast can be of, or the charges that can be set off
   attacks: AttackOption[]
+  // while a shot is declared: the arrows or bolts its row can be loaded with
+  ammo: AmmoOption[]
   spells: SpellOptionView[]
   charges: ChargeView[]
   locations: LocationOption[]
@@ -245,7 +249,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -309,6 +313,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
       disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throwItem' ? open.itemId : ''),
+      ammoId: open.kind === 'shoot' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : open.kind === 'throwItem' && open.step === 'define' && actor
@@ -335,6 +340,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown')
       ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
       : [],
+    ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
       ? getChargeOptions(state).map((o) => ({

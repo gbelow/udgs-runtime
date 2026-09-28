@@ -1,0 +1,22 @@
+{
+  "Bodkin Arrow": {
+    "name": "Bodkin Arrow",
+    "kind": "arrow",
+    "properties": ["penetrating"]
+  },
+  "Broadhead Arrow": {
+    "name": "Broadhead Arrow",
+    "kind": "arrow",
+    "properties": ["bladed"]
+  },
+  "Bodkin Bolt": {
+    "name": "Bodkin Bolt",
+    "kind": "bolt",
+    "properties": ["penetrating"]
+  },
+  "Broadhead Bolt": {
+    "name": "Broadhead Bolt",
+    "kind": "bolt",
+    "properties": ["bladed"]
+  }
+}

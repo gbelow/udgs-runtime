@@ -1,10 +1,11 @@
-import { Armor, ArmorSchema, Character, Item, ItemSchema, Material, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Character, Container, ContainerSchema, Item, ItemSchema, Material, SlotGroup, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
 import { scaleArmor, scaleWeapon } from '../../character/rules/helpers'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
+import containersCatalog from '../../../assets/containers.json'
 
 // combat.tex "What cuts?": what a material can cut or break is decided by its
 // hardness, so every attack and armor reads it off its material.
@@ -24,7 +25,22 @@ export function getBulkName(bulk: number): string {
 // no template in the catalog has nothing to be measured against and is size 3.
 export const GEAR_SIZE = 3
 
-const templates: Item[] = Object.values(itemsCatalog as Record<string, unknown>).map((raw) => ItemSchema.parse(raw))
+// gear.tex "Containers and Burden": every container is an item as well, of
+// the bulk its row of the Containers table gives, carrying its empty slots.
+const containerItems: Record<string, unknown> = Object.fromEntries(
+  Object.entries(containersCatalog as Record<string, unknown>).map(([key, raw]) => {
+    const container = ContainerSchema.parse(raw)
+    return [key, { name: container.name, type: 'container', bulk: container.bulk, refId: key, container }]
+  })
+)
+
+const catalog: Record<string, unknown> = { ...(itemsCatalog as Record<string, unknown>), ...containerItems }
+
+export function getItemCatalog(): Record<string, unknown> {
+  return catalog
+}
+
+const templates: Item[] = Object.values(catalog).map((raw) => ItemSchema.parse(raw))
 
 // The template an item was stamped from: the one its refId names, or, for an
 // item that is only a name and a description, the one of the same name.
@@ -35,7 +51,21 @@ function getTemplate(item: Pick<Item, 'type' | 'refId' | 'name'>): Item | undefi
 }
 
 export function scaleItem(item: Item, scale: number): Item {
-  return { ...item, bulk: item.bulk + scale - GEAR_SIZE }
+  const steps = scale - GEAR_SIZE
+  return { ...item, bulk: item.bulk + steps, ...(item.container ? { container: scaleContainer(item.container, steps) } : {}) }
+}
+
+// gear.tex "Scaling a container": "increase the size of every slot and
+// increase burden by 1 to scale the container up a size".
+function scaleContainer(container: Container, steps: number): Container {
+  const { quick, medium, large } = container.slots
+  const moved = (group: SlotGroup): SlotGroup => ({ ...group, slotBulk: group.slotBulk + steps })
+  return {
+    ...container,
+    bulk: container.bulk + steps,
+    burden: container.burden + steps,
+    slots: { quick: moved(quick), medium: moved(medium), large: moved(large) },
+  }
 }
 
 export function getItemScale(item: Item): number {
@@ -46,17 +76,21 @@ export function getItemScale(item: Item): number {
 // A catalog entry is a template: stamping it yields an item with its own id
 // and a stack of `amount`, so the same key can be drawn from the catalog
 // any number of times without two stacks ever sharing an identity. Stamped
-// at `scale`, it is that size's copy of the printed item.
+// at `scale`, it is that size's copy of the printed item. A container is
+// always one: each carries contents of its own.
 export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item | undefined {
-  const raw = (itemsCatalog as Record<string, unknown>)[key]
-  return raw ? scaleItem(ItemSchema.parse({ ...(raw as object), amount }), scale) : undefined
+  const raw = catalog[key]
+  if (!raw) return undefined
+  const item = ItemSchema.parse(raw)
+  return scaleItem({ ...item, amount: item.container ? 1 : amount }, scale)
 }
 
 // gear.tex "Slot size and stacking": "only identical items can be stacked
 // together". Identity is everything a template says — `id` names a stack, not
-// an item, and `amount` is how big that stack is.
+// an item, and `amount` is how big that stack is. Two containers are never
+// identical: what each carries is its own.
 export function isSameItem(a: Item, b: Item): boolean {
-  return a.type === b.type && a.refId === b.refId && a.name === b.name
+  return !a.container && !b.container && a.type === b.type && a.refId === b.refId && a.name === b.name
     && a.description === b.description && a.bulk === b.bulk
 }
 
@@ -93,8 +127,13 @@ export function isGear(item: Item, name: string): boolean {
 }
 
 // Everything the character has on them: what is in their hands, what they
-// wear, and what their containers carry.
+// wear, and what their containers carry, down through the containers
+// carried in them.
 export function getCarriedItems(c: Character): Item[] {
-  const stowed = Object.values(c.containers).flatMap((container) => Object.values(container.slots).flatMap((slot) => slot.items))
-  return [...c.held, ...(c.worn ? [c.worn] : []), ...stowed]
+  const within = (items: Item[]): Item[] => items.flatMap((item) => [item, ...(item.container ? within(getContents(item.container)) : [])])
+  return within([...c.held, ...(c.worn ? [c.worn] : []), ...Object.values(c.containers).flatMap(getContents)])
+}
+
+function getContents(container: Container): Item[] {
+  return Object.values(container.slots).flatMap((slot) => slot.items)
 }

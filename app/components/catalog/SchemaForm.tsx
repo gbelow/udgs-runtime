@@ -154,6 +154,8 @@ function Value({ type, value, onChange, path, overrides, parent }: ValueProps) {
         </div>
       )
     }
+    case 'recursive':
+      return <span className='text-xs text-muted'>nested</span>
     case 'unknown':
       return <span className='text-xs text-bad'>unsupported field</span>
   }

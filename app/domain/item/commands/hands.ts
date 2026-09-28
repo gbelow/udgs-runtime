@@ -1,6 +1,6 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 import { canBeHeld, getDrawCost, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
-import { canFitItem } from '../rules/containers'
+import { canFitItem, getContainer } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
@@ -81,7 +81,7 @@ export function regripItem(itemId: string, hands: Grip): HeldUpdater {
 
 // The stack an id names in a container, and the slot group it sits in.
 export function findInContainer(c: Character, containerKey: string, itemId: string): { slot: SlotKind; item: Item } {
-  const container = c.containers[containerKey]
+  const container = getContainer(c, containerKey)
   if (!container) {
     throw new Error(`Container "${containerKey}" not found`)
   }
@@ -112,7 +112,7 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
   return (c: Character) => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
-    const container = c.containers[containerKey]
+    const container = getContainer(c, containerKey)
     if (!container) {
       throw new Error(`Container "${containerKey}" not found`)
     }

@@ -18,6 +18,9 @@ export type FieldType =
   // while it is set
   | { kind: 'optional'; inner: FieldType; innerSchema: z.ZodType }
   | { kind: 'union'; discriminator: string; options: { value: string; fields: Field[]; schema: z.ZodType }[] }
+  // a schema met again inside itself (an item's container of items): the
+  // form does not unfold it a second time
+  | { kind: 'recursive' }
   | { kind: 'unknown' }
 
 // A node keeps its schema so the form can ask `emptyValue` for a fresh
@@ -66,12 +69,16 @@ function minLength(d: Def): number {
   return d.checks?.find((c) => c._zod.def.check === 'min_length')?._zod.def.minimum ?? 0
 }
 
-function describeFields(shape: Record<string, z.ZodType>): Field[] {
-  return Object.entries(shape).map(([name, sub]) => ({ name, type: describeSchema(sub), schema: sub }))
+function describeFields(shape: Record<string, z.ZodType>, within: Set<z.ZodType>): Field[] {
+  return Object.entries(shape).map(([name, sub]) => ({ name, type: describeSchema(sub, within), schema: sub }))
 }
 
-export function describeSchema(schema: z.ZodType): FieldType {
+// A schema that contains itself (an item carrying a container of items) is
+// described down to where it recurs.
+export function describeSchema(schema: z.ZodType, within: Set<z.ZodType> = new Set()): FieldType {
   const s = unwrap(schema)
+  if (within.has(s)) return { kind: 'recursive' }
+  const inner = new Set(within).add(s)
   const d = def(s)
   switch (d.type) {
     case 'string': return { kind: 'string' }
@@ -79,13 +86,13 @@ export function describeSchema(schema: z.ZodType): FieldType {
     case 'boolean': return { kind: 'boolean' }
     case 'literal': return { kind: 'literal', value: String(d.values?.[0]) }
     case 'enum': return { kind: 'enum', options: Object.keys(d.entries ?? {}) }
-    case 'object': return { kind: 'object', fields: describeFields(d.shape ?? {}) }
+    case 'object': return { kind: 'object', fields: describeFields(d.shape ?? {}, inner) }
     case 'array':
-      return d.element ? { kind: 'array', element: describeSchema(d.element), elementSchema: d.element, min: minLength(d) } : { kind: 'unknown' }
+      return d.element ? { kind: 'array', element: describeSchema(d.element, inner), elementSchema: d.element, min: minLength(d) } : { kind: 'unknown' }
     case 'nullable':
-      return d.innerType ? { kind: 'nullable', inner: describeSchema(d.innerType), innerSchema: d.innerType } : { kind: 'unknown' }
+      return d.innerType ? { kind: 'nullable', inner: describeSchema(d.innerType, inner), innerSchema: d.innerType } : { kind: 'unknown' }
     case 'optional':
-      return d.innerType ? { kind: 'optional', inner: describeSchema(d.innerType), innerSchema: d.innerType } : { kind: 'unknown' }
+      return d.innerType ? { kind: 'optional', inner: describeSchema(d.innerType, inner), innerSchema: d.innerType } : { kind: 'unknown' }
     case 'union': {
       const discriminator = d.discriminator
       if (!discriminator) return { kind: 'unknown' }
@@ -93,7 +100,7 @@ export function describeSchema(schema: z.ZodType): FieldType {
         kind: 'union',
         discriminator,
         options: (d.options ?? []).map((option) => {
-          const fields = describeFields(def(unwrap(option)).shape ?? {})
+          const fields = describeFields(def(unwrap(option)).shape ?? {}, inner)
           const tag = fields.find((f) => f.name === discriminator)?.type
           return { value: tag?.kind === 'literal' ? tag.value : '', fields: fields.filter((f) => f.name !== discriminator), schema: option }
         }),

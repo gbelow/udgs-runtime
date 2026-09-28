@@ -27,7 +27,7 @@ export function ContainerPanel(){
               <span className='text-sm'>{panel.name}</span>
               <span className='text-muted'>{panel.kind} · burden {panel.burden}</span>
               {panel.penalty && panel.penalty.value > 0 ? <span className='text-bad font-mono'>−{panel.penalty.value}{panel.penalty.lame ? ' · lame' : ''}</span> : null}
-              <Button size='xs' variant='ghost' className='ml-auto' onClick={() => unequip(panel.key)}>unequip</Button>
+              {panel.slung ? <span className='ml-auto text-muted'>slung</span> : <Button size='xs' variant='ghost' className='ml-auto' onClick={() => unequip(panel.key)}>unequip</Button>}
             </div>
             {panel.slots.map((group) => <SlotGroupRow key={group.slot} containerKey={panel.key} group={group} />)}
           </div>

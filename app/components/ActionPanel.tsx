@@ -59,6 +59,17 @@ export function ActionPanel(){
 
       <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
+      {view.ammo.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>ammo</SectionLabel>
+          {view.ammo.map((a) =>
+            <Button key={a.itemId} size='xs' variant={a.itemId === open.ammoId ? 'primary' : 'default'} className={a.itemId === open.ammoId ? 'bg-accent/15' : ''}
+              title={a.properties.join(', ')} onClick={() => amend({ ammoId: a.itemId })}>
+              {a.name} <span className='font-mono text-muted'>×{a.amount}</span>
+            </Button>)}
+        </div>
+      ) : null}
+
       {open.floor.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>floor</SectionLabel>

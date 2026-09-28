@@ -2,7 +2,7 @@ import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../rules/armor'
 import { getHeldItem } from '../../item/rules/hands'
 import { FREE, isCharged } from '../../item/rules/costs'
-import { canFitItem } from '../../item/rules/containers'
+import { canFitItem, getContainer } from '../../item/rules/containers'
 import { findInContainer, pay } from '../../item/commands/hands'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from '../../item/commands/items'
 
@@ -71,7 +71,8 @@ export function doffArmor(into: { containerKey: string; slot: SlotKind } | null)
   return (c: Character) => {
     const worn = c.worn
     if (!worn) return c
-    if (into && !canFitItem(c.containers[into.containerKey], into.slot, worn)) {
+    const container = into ? getContainer(c, into.containerKey) : undefined
+    if (into && (!container || !canFitItem(container, into.slot, worn))) {
       throw new Error(`"${worn.name || worn.refId}" does not fit in the ${into.slot} slots of container "${into.containerKey}"`)
     }
     // On the clock, an armor that takes minutes to doff stays on.

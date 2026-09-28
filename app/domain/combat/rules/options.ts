@@ -17,7 +17,7 @@ import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './a
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
-import { defRows, getAttackOptions, guardRows, hasUnfocusedRow } from './attack'
+import { defRows, getAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
 
 // What can be declared: every action and reaction open to a character right
@@ -183,7 +183,11 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   },
   shoot: (_state, c) => {
     const shots = getAttackOptions(c, 'shoot')
-    return [option({ kind: 'shoot' }, null, shots.length > 0 ? null : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : 'no shooting weapon in hand')]
+    const reason = shots.length > 0 ? null
+      : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge'
+      : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot'
+      : 'no shooting weapon in hand'
+    return [option({ kind: 'shoot' }, null, reason)]
   },
   explosion: (state, c) => {
     const placed = isPlaced(state, c)

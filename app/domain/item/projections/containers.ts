@@ -10,6 +10,8 @@ import {
   getBurdenPenalty,
   getContainerCatalog,
   getContainerPenalty,
+  getOpenContainers,
+  getSlungContainers,
   getSlotBulk,
   getSlotsNeeded,
   getUsedSlots,
@@ -54,6 +56,9 @@ export type ContainerPanelView = {
   key: string
   name: string
   kind: ContainerKind
+  // slung on another container rather than put on: it comes off the way
+  // any item in a slot does
+  slung: boolean
   burden: number
   penalty: { value: number; lame: boolean } | null
   slots: ContainerSlotView[]
@@ -73,6 +78,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
     key,
     name: container.name,
     kind: container.kind,
+    slung: c ? key in getSlungContainers(c) : false,
     burden: container.burden,
     penalty: c ? { value: getContainerPenalty(c, container), lame: isLamingContainer(c, container) } : null,
     slots: SlotKindSchema.options
@@ -99,17 +105,20 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
   }
 }
 
-// The whole container panel in one shape: every equipped container, its slot
+// The whole container panel in one shape: every open container, its slot
 // groups and the stacks in each, with nothing left for the UI to count. With
 // an item pending placement, each group also says whether it would take it.
 export function getContainerPanels(c: Character, pending?: Item): ContainerPanelView[] {
-  return Object.entries(c.containers).map(([key, container]) => getContainerPanel(key, container, pending, c))
+  return Object.entries(getOpenContainers(c)).map(([key, container]) => getContainerPanel(key, container, pending, c))
 }
 
 // The catalog in the same shape, so a sidebar row and an equipped card render
-// the same view.
+// the same view. A quiver is not put on but slung on a belt (gear.tex
+// "Quiver"), so it is placed as an item instead.
 export function getContainerCatalogPanels(): ContainerPanelView[] {
-  return Object.entries(getContainerCatalog()).map(([key, container]) => getContainerPanel(key, container))
+  return Object.entries(getContainerCatalog())
+    .filter(([, container]) => container.kind !== 'quiver')
+    .map(([key, container]) => getContainerPanel(key, container))
 }
 
 // gear.tex "Containers and burden": what the containers alone cost the

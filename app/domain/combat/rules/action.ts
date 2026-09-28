@@ -19,7 +19,7 @@ import { findGrapple, getPartners } from './partners'
 import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
 import { sameCell } from '../geometry'
 import { findWeaponRow, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityStrike, guardRows, isVariantOpen } from './attack'
+import { getAttackVariant, getOpportunityStrike, guardRows, isShotLoaded, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
 import { getCounterStrike } from './counter'
 import { isGuardPlaced } from './protect'
@@ -41,7 +41,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'strike':
       return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack))
     case 'shoot':
-      return getAttackVariant(c, action) !== null
+      return getAttackVariant(c, action) !== null && isShotLoaded(c, action)
     // thrown, the row is declared and can be fired; cast, the spell was;
     // set off, a charged spell with something to go off is named
     case 'explosion':

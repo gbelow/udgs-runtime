@@ -323,7 +323,8 @@
     "type": "armor",
     "amount": 1,
     "bulk": 2,
-    "refId": "Gambeson"
+    "refId": "Gambeson",
+    "charge": null
   },
   "hands": [
     {
@@ -347,7 +348,8 @@
       "type": "weapon",
       "amount": 1,
       "bulk": 2,
-      "refId": "Short Bow"
+      "refId": "Short Bow",
+      "charge": null
     }
   ],
   "containers": {
@@ -366,7 +368,62 @@
               "type": "weapon",
               "amount": 1,
               "bulk": 2,
-              "refId": "Short Sword"
+              "refId": "Short Sword",
+              "charge": null
+            },
+            {
+              "id": "bcb1fceb-4b46-41a0-b7ab-e35753b59e9d",
+              "name": "Quiver",
+              "description": "",
+              "type": "container",
+              "amount": 1,
+              "bulk": 2,
+              "refId": "Quiver",
+              "charge": null,
+              "container": {
+                "name": "Quiver",
+                "kind": "quiver",
+                "slots": {
+                  "quick": {
+                    "numSlots": 20,
+                    "slotBulk": 0,
+                    "items": [
+                      {
+                        "id": "8e752305-a465-4ffb-beb4-0dd60da96da8",
+                        "name": "Bodkin Arrow",
+                        "description": "",
+                        "type": "ammo",
+                        "amount": 15,
+                        "bulk": 0,
+                        "refId": "Bodkin Arrow",
+                        "charge": null
+                      },
+                      {
+                        "id": "542bceac-3d78-4869-a929-224ff88f2cbb",
+                        "name": "Broadhead Arrow",
+                        "description": "",
+                        "type": "ammo",
+                        "amount": 5,
+                        "bulk": 0,
+                        "refId": "Broadhead Arrow",
+                        "charge": null
+                      }
+                    ]
+                  },
+                  "medium": {
+                    "numSlots": 0,
+                    "slotBulk": 2,
+                    "items": []
+                  },
+                  "large": {
+                    "numSlots": 0,
+                    "slotBulk": 3,
+                    "items": []
+                  }
+                },
+                "burden": 0,
+                "bulk": 2
+              }
             }
           ]
         },
@@ -381,7 +438,8 @@
           "items": []
         }
       },
-      "burden": 3
+      "burden": 3,
+      "bulk": 2
     }
   },
   "abilities": [
