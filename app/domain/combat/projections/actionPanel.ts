@@ -24,6 +24,7 @@ import { getDragSides, getPushMovements, type PushMovementOption } from '../rule
 import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
+import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, canThrowItem, findFloorItem, getReachableFloor, getThrowCells } from '../rules/floor'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
@@ -70,6 +71,11 @@ export type ReactorOptions = {
     partner: boolean
     maneuvers: GrappleManeuver[]
     maneuver: GrappleManeuver
+    // combat.tex "Coordinated Shots": a joined shot is picked among shooting
+    // rows and loaded from a stack
+    shot: boolean
+    ammo: AmmoOption[]
+    ammoId: string
   } | null
   // combat.tex "Interruption": the action of theirs the attack answers,
   // which answering with anything but the SD gives up (`getGivenUpFor`);
@@ -82,9 +88,14 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
       const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
-      const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack'
+      const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack' || declared?.kind === 'joinShot'
         ? {
-            options: getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
+            options: declared.kind === 'joinShot'
+              ? getAttackOptions(c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
+              : getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
+            shot: declared.kind === 'joinShot',
+            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
+            ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
             locations: getLocationOptions(),
             attack: declared.attack,
             variant: declared.variant,

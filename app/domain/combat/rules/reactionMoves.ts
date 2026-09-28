@@ -1,6 +1,7 @@
 import type { Action, ActionOf, BlastAction, CombatState, MoveAction } from '../types'
 import { MOVEMENT_KINDS } from '../../lists'
 import { outcomeOf } from './damage'
+import { getShotGroup } from './coordinated'
 
 // The moves a reaction opens for its reactor, as the fields of the move it
 // opens: `budget` the most AP it may cost, `prepaid` what the reaction
@@ -39,8 +40,10 @@ export function getFollowMove(root: Action): ReactionMove {
 // the same as in the graze". The move is bought with the AP the reflex
 // already paid; the escape on a miss is a flee (rules/flee.ts
 // `getFleersOf`). One who declared they stay put gives the move up.
-export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
-  if (root.kind !== 'shoot' || root.interruption !== 'none' || reaction.stay) return null
+// combat.tex "Coordinated Shots": the shots land together, so any of them
+// interrupting the evader takes the move away.
+export function getEvasionMove(state: CombatState, root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
+  if (root.kind !== 'shoot' || getShotGroup(state, root).some((shot) => shot.interruption !== 'none') || reaction.stay) return null
   const AP = reaction.cost?.AP ?? 0
   return { budget: AP, prepaid: AP }
 }

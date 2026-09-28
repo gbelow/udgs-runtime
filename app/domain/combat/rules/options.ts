@@ -21,6 +21,7 @@ import { defRows, getAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow }
 import { getSpellOptions } from './cast'
 import { getFleeBarFor, getSurgeBarFor } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
+import { isJoinInRange } from './coordinated'
 import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 
@@ -153,6 +154,16 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         return [answer({ kind }, cost, gate ?? (canAfford(c, cost) ? null : 'cannot afford'))]
       case 'letGo': {
         return [answer({ kind }, cost, gate ?? (isHeld(state.grapples, c.id) ? 'held' : null))]
+      }
+      // combat.tex "Coordinated Shots": a shot of their own, so it is open
+      // only to someone who can pay for one that reaches the target
+      case 'joinShot': {
+        const shots = getAttackOptions(c, 'shoot')
+        const reaching = shots.filter((s) => isJoinInRange(state, c.id, s, trigger.against ?? ''))
+        const reason = shots.length === 0 ? (hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot' : 'no shooting weapon in hand')
+          : reaching.length === 0 ? 'out of range'
+          : reaching.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a shot'
+        return [answer({ kind }, null, gate ?? reason)]
       }
       // abilities.tex "Counterattack": a strike of their own, so it is open
       // only to someone who can pay for one

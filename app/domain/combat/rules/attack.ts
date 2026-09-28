@@ -10,7 +10,7 @@ import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { getAttackKind, hasProperty } from '../../weaponProperties'
-import { isHighGround } from './board'
+import { isGuardingShot, isHighGround } from './board'
 import { getBalanceDL } from './move'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
@@ -23,6 +23,7 @@ import { getCastTerms } from './cast'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRiposteDefense } from './riposte'
 import { getMidActionTerm } from './opportunity'
+import { getShotLead } from './coordinated'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -163,6 +164,13 @@ export function getAttackOptions(c: Character, kind: WeaponAction['kind']): Atta
   })
 }
 
+// Whether the character holds a shooting row in hand, however it stands
+// for the moment: open, or held back by the focus surge or by nothing to
+// load it with.
+export function hasShootingRow(c: Character): boolean {
+  return getWeaponRows(c).some((row) => getRowState(c, row, 'shoot') !== 'closed')
+}
+
 // Whether the character holds a row of the kind that only the focus surge
 // is keeping closed.
 export function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
@@ -291,13 +299,24 @@ function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Ac
 
 // The reaction a shot is met with: the target's own, or a guard made for
 // them by someone adjacent (combat.tex "Guard": "block ranged attacks
-// against themselves or adjacent characters"). A shot has to beat every one
-// of them (the table's ruling), so the one it is scored against — and the
-// one whose defense the damage meets — is whichever puts up the most.
+// against themselves or adjacent characters"). The target's one defense is
+// declared against the lead shot and answers every shot joined to it
+// (combat.tex "Coordinated Shots"); a guard answers only the shots it stands
+// in front of, from where each is fired. A shot has to beat every one of
+// them (the table's ruling), so the one it is scored against — and the one
+// whose defense the damage meets — is whichever puts up the most.
 function getShotDefense(state: CombatState, root: Action): Action | null {
-  return getReactionsTo(state, root.id)
-    .filter((r) => r.kind === 'evasion' || r.kind === 'guard')
+  return getReactionsTo(state, getShotLead(state, root).id)
+    .filter((r) => r.kind === 'evasion' || (r.kind === 'guard' && guardsShot(state, root, r)))
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
+}
+
+// Whether the guard stands in front of this shot, and holds a row that
+// answers it.
+function guardsShot(state: CombatState, shot: Action, guard: Action): boolean {
+  const guardian = state.characters[guard.actorId]
+  return shot.targetId !== null && !!guardian && guard.kind === 'guard' && isGuardingShot(state, shot.actorId, shot.targetId, guard.actorId)
+    && guardRows(state, guardian, shot).some((row) => row.wielded.key === guard.weaponKey && row.atk.name === guard.attack)
 }
 
 // The DL the root is rolled against — by its own test, or for an explosion

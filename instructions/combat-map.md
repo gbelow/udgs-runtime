@@ -80,7 +80,7 @@ and `ActionDraft` (what a click declares).
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
-| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move) |
+| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
 | Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
@@ -168,6 +168,16 @@ resolveAction ─────────► land(top)
   declaration order (`state.turnQueue`), limited to what the movement surge allows
   (`getFleeBarFor`), before the interrupted turn resumes. `endTurn` takes the next queued
   turn.
+- **Coordinated shots** (`rules/coordinated.ts`) — any other shooter may answer a shot with
+  `joinShot`, declared with the row, way of shooting and ammo of the shot it opens, priced
+  by that shot. Each is opened before the lead shot's effect (`REACTION_OPENERS`), in the
+  order declared, so they land at the same point as the lead, and none is opened once the
+  lead is voided. A joined shot is a `shoot` root of its own with its own roll and
+  delivery. The target's one evasion is declared against the lead (`getShotLead`) and every
+  shot is scored against it; a guard answers only the shots it stands in front of
+  (`isGuardingShot`, per shooter). A joined shot triggers only the opportunity attacks its
+  shooter draws. The evader's flee follows the lead's roll; their move is lost if any shot
+  interrupted them (`getShotGroup`).
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.
@@ -277,6 +287,7 @@ app/domain/combat/
 │   ├── settle.ts       getSettled: an action as it lands
 │   ├── interruption.ts getInterruptions, isBroken
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
+│   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      counterattack slot (before / tie / after) and its strike
 │   ├── riposte.ts      when a riposte opens, its discount
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
@@ -332,7 +343,7 @@ effects) and `item/` (hands, items). The one call back is the character's effect
   (`playOut`, scenarios): opportunity attacks fought once and before the action that drew
   them, never chained; broken actions land nothing; giving up by defending; explosions and
   sprays reach only who is still in the area; counterattack orders; ripostes; hook
-  knockdowns; protecting.
+  knockdowns; protecting; coordinated shots.
 - `commands/action.test.ts`, `commands/combat.test.ts` — pipeline guards and round change.
 - `rules/*.test.ts` — boardless fights pass every gate; reach; moves; grapples; reactions.
 - `projections/outcomes.test.ts` — the preview is what the target takes.

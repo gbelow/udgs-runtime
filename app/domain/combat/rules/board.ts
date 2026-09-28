@@ -166,6 +166,17 @@ export function getShotReachOf(state: CombatState, action: ShootAction | Explosi
   return findRowVariant(shooter, row, action.variant)?.reach ?? null
 }
 
+// combat.tex "Guard": someone "adjacent" to the target may block a ranged
+// attack "as long as they are closer to the projectile source than the
+// adjacent character" — a fact about where the shot comes from, so each of
+// several shots at one target has its own guards.
+export function isGuardingShot(state: CombatState, shooterId: string, targetId: string, guardId: string): boolean {
+  if (guardId === shooterId || !getAdjacentIds(state, targetId).includes(guardId)) return false
+  const toGuard = getDistanceBetween(state, shooterId, guardId)
+  const toTarget = getDistanceBetween(state, shooterId, targetId)
+  return toGuard !== null && toTarget !== null && toGuard < toTarget
+}
+
 // Whether the shot can land on the target from where its actor stands: the
 // target within the shot's reach and in sight.
 export function isInShotRange(state: CombatState, action: ShootAction, targetId: string): boolean {

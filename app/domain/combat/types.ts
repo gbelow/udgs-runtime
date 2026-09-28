@@ -444,6 +444,17 @@ export const OpportunityAttackActionSchema = z.object({
   maneuver: GrappleManeuverSchema.default('immobilize'),
 }).strip()
 
+// combat.tex "Coordinated Shots": a shot at the target of one being made,
+// declared in full as a reaction to it — the row, the way of shooting, where
+// it aims and what it is loaded with — and opened as a shot of its own before
+// the shot it joins lands. It is aimed at the target of that shot.
+export const JoinShotActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('joinShot'),
+  ...AttackDeclaration,
+  ammoId: str.default(''),
+}).strip()
+
 // abilities.tex "Counterattack": the target's answer to a strike, declared
 // with the strike it opens in full. Its die is thrown with the attack's, and
 // the two results say which of them lands first (rules/counter.ts).
@@ -594,6 +605,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   BlockActionSchema,
   InterceptActionSchema,
   OpportunityAttackActionSchema,
+  JoinShotActionSchema,
   CounterattackActionSchema,
   FollowActionSchema,
   FleeActionSchema,

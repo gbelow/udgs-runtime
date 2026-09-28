@@ -71,6 +71,8 @@ export const ACTIONS = {
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },
+  // combat.tex "Coordinated Shots": priced by the shot it opens
+  joinShot:    { label: 'join shot',    type: 'reaction', price: null,          reactsTo: ['shoot'],  die: false },
   follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },
   // combat.tex "Flee": priced by the movement surge it is made with — a
   // reaction to a move, a follow-up to a strike

@@ -273,7 +273,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string }
 
 function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
@@ -283,7 +283,7 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>{reactor.name}</SectionLabel>
-        <span className='text-xs'>{chosen?.label ?? 'opportunity attack'}</span>
+        <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
         {strike.partner ? (['strike', 'grapple'] as const).map((m) =>
           <Button key={m} size='xs' {...toggle(strike.mode === m)} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
       </div>
@@ -302,11 +302,19 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
               title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}`}
               onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
-              {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />
+              {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.reach !== null ? <span className='ml-1 font-mono text-muted'>{s.reach}m</span> : null}
             </Button>
           )
         })}
       </div>
+      {strike.ammo.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>loaded with</SectionLabel>
+          {strike.ammo.map((a) =>
+            <Button key={a.itemId} size='xs' variant={a.itemId === strike.ammoId ? 'primary' : 'default'} className={a.itemId === strike.ammoId ? 'bg-accent/15' : ''}
+              onClick={() => onAmend({ ammoId: a.itemId })}>{a.name} <span className='font-mono text-muted'>×{a.amount}</span></Button>)}
+        </div>
+      ) : null}
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>aim</SectionLabel>
         {strike.locations.map((l) =>
@@ -323,7 +331,7 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             title='on a hit, the target is grappled' onClick={() => onAmend({ grab: !strike.grab })}>grab</Button>
         </div>
       ) : null}
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, nor a jumper in the air' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, nor a jumper in the air' : strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
       </> : null}
     </div>
   )

@@ -3,7 +3,8 @@ import { makeAction } from '../factories'
 import { isReactionAction } from './actionCatalog'
 import { getDrawnOpportunityAttacks, getOpenedBy, getReactionsTo } from './log'
 import { getOpportunityAction } from './attack'
-import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityReached } from './opportunity'
+import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityReached, isVoided } from './opportunity'
+import { getJoinedShot } from './coordinated'
 import { getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from './counter'
 import { getInterruptionOf } from './interruption'
 import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
@@ -40,7 +41,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   // action is played out (commands/turn.ts `handOverToFleers`)
   flee: {},
   evasion: {
-    after: (state, root, reaction, newId) => openMove(reaction, newId, getEvasionMove(root, reaction)),
+    after: (state, root, reaction, newId) => openMove(reaction, newId, getEvasionMove(state, root, reaction)),
   },
   follow: {
     after: (state, root, reaction, newId) => openMove(reaction, newId, getFollowMove(root)),
@@ -65,6 +66,13 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       const placed = getOpportunityState(state, reaction)
       return { state: placed, action: getOpportunityAction(placed, reaction, newId()) }
     },
+  },
+  // combat.tex "Coordinated Shots": the shots hit at the same point as the
+  // lead's — each joined shot is played out before its effect, in the order
+  // they were declared, and lands on the target's one defense. The table's
+  // ruling: a lead shot that is voided joins nothing.
+  joinShot: {
+    before: (state, root, reaction, newId) => (getOpenedBy(state, reaction) || isVoided(state, root) ? null : { state, action: getJoinedShot(reaction, newId()) }),
   },
   // abilities.tex "Counterattack": "The attack with the higher result hits
   // first" — the strike opened ahead of the attack's effect when it rolled

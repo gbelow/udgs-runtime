@@ -22,6 +22,7 @@ import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityStrike, guardRows, isShotLoaded, isVariantOpen } from './attack'
 import { isInCastRange, isTargeted } from './cast'
 import { getCounterStrike } from './counter'
+import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { getRiposteDiscount } from './riposte'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
@@ -76,6 +77,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       if (root && !action.grab && findTrigger(state, root, action)?.catchOnly) return false
       return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
+    }
+    // combat.tex "Coordinated Shots": a shot they can fire, from where they
+    // stand, at the target of the shot they join
+    case 'joinShot': {
+      const shot = getJoinedShot(action, '')
+      return getAttackVariant(c, shot) !== null && isShotLoaded(c, shot) && isJoinInRange(state, c.id, shot, action.targetId ?? '')
     }
     // combat.tex "Grapple Maneuvers": "performed during a grapple by any of
     // the participants"
@@ -182,6 +189,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'guard':
     case 'avoidExplosion':
     case 'opportunityAttack':
+    case 'joinShot':
     case 'follow':
     case 'flee':
     case 'fleeFollowUp':

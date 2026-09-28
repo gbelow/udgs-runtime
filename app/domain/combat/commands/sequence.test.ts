@@ -96,7 +96,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const open = getOpenAction(s)
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
-    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'grapple' && (open.maneuver === 'escape' || isInterceptDisarm(s, open))))
+    const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || isInterceptDisarm(s, open))))
     const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
@@ -681,5 +681,101 @@ describe('flee', () => {
     expect(getAvailableActions(struck(6), 'def').some((o) => o.draft.kind === 'flee')).toBe(false)
     expect(getOpenAction(land(struck(6)))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
     expect(getOpenAction(land(struck(2)))).toBeNull()
+  })
+})
+
+// combat.tex "Coordinated Shots": "Whenever an ally shoots a target, it is
+// possible to target the same target in the same action, as long as they are
+// in range. The target defends all shots with a single action." The table's
+// rulings: anyone with a shooting weapon may join, at their own price, and
+// the evasion's escape is the one the worst of the shots leaves.
+describe('coordinated shots', () => {
+  const bowOf = (s: CombatState, id: string) => s.characters[id].held[0].id
+  const shot = (s: CombatState, id: string) => ({ weaponKey: bowOf(s, id), attack: 'shoot', variant: 'basic', ammoId: 'arrows' })
+
+  // a1 shoots def, who evades; a2 joins with a shot of their own
+  function joined(): CombatState {
+    let s = onBoard({ a1: [0, 0], a2: [0, 1], def: [-6, 0] }, archer('a1'), archer('a2'), fighter('def'))
+    s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
+    s = commitAction()(setTarget('def')(s))
+    s = declareReaction('def', { kind: 'evasion' }, newId)(s)
+    s = declareReaction('a2', { kind: 'joinShot' }, newId)(s)
+    return amendReaction('a2', shot(s, 'a2'))(s)
+  }
+  const shots = (s: CombatState) => s.actions.filter((a) => a.kind === 'shoot')
+
+  it('is open to a shooter other than the target or the one shooting', () => {
+    let s = onBoard({ a1: [0, 0], a2: [0, 1], def: [-6, 0] }, archer('a1'), archer('a2'), fighter('def'))
+    s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
+    s = commitAction()(setTarget('def')(s))
+    const joins = (id: string) => getAvailableActions(s, id).some((o) => o.draft.kind === 'joinShot' && o.available)
+    expect(joins('a2')).toBe(true)
+    expect(joins('def')).toBe(false)
+    expect(joins('a1')).toBe(false)
+  })
+
+  it('has every shot rolled against the target\'s one defense, paid once, each landing on its own', () => {
+    const { state } = playOut(joined(), LAND)
+    const [lead, second] = shots(state)
+    const defenses = state.actions.filter((a) => a.kind === 'evasion')
+    expect(defenses).toHaveLength(1)
+    expect(getDefendingReaction(state, lead)?.id).toBe(defenses[0].id)
+    expect(getDefendingReaction(state, second)?.id).toBe(defenses[0].id)
+    expect(shots(state).every((a) => a.step === 'done' && a.facts !== null)).toBe(true)
+    expect(state.characters.a2.resources.AP).toBeLessThan(12)
+  })
+
+  // combat.tex "Evasion": "On a miss, the character does not take the attack
+  // and can spend their movement surge immediately to escape". The table's
+  // ruling: the lead shot's result is the one that counts.
+  it('offers the escape a miss leaves by the result of the lead shot', () => {
+    const played = (leadFace: number, joinedFace: number) => {
+      let s = rollAction(() => leadFace, newId)(joined())
+      s = resolveAction(newId)(rollAction(() => joinedFace, newId)(s))
+      return resolveAction(newId)(s)
+    }
+    const escapes = (s: CombatState) => s.actions.filter((a) => a.kind === 'fleeFollowUp')
+    expect(escapes(played(MISS, LAND))).toHaveLength(1)
+    expect(escapes(played(LAND, MISS))).toHaveLength(0)
+  })
+
+  // The table's ruling: the joined shots are played out in the order they
+  // were declared, before the lead's effect.
+  it('plays the joined shots in the order they were declared, ahead of the lead', () => {
+    let s = onBoard({ a1: [0, 0], a2: [0, 1], a3: [1, 1], def: [-6, 0] }, archer('a1'), archer('a2'), archer('a3'), fighter('def'))
+    s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
+    s = commitAction()(setTarget('def')(s))
+    for (const id of ['a3', 'a2']) s = amendReaction(id, shot(s, id))(declareReaction(id, { kind: 'joinShot' }, newId)(s))
+    const { landed } = playOut(s, MISS)
+    expect(landed.filter((a) => a.kind === 'shoot').map((a) => a.actorId)).toEqual(['a3', 'a2', 'a1'])
+  })
+
+  // The table's ruling: a lead shot voided by an opportunity attack joins
+  // nothing, and the evasion gets no move.
+  it('is not made, and the evasion does not move, when the lead shot is voided', () => {
+    let s = onBoard({ a1: [0, 0], a2: [3, 3], def: [-6, 0], t1: [0, 1], t2: [1, -1] }, archer('a1'), archer('a2'), fighter('def'), spearman('t1'), spearman('t2'))
+    s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
+    s = commitAction()(setTarget('def')(s))
+    s = declareReaction('def', { kind: 'evasion' }, newId)(s)
+    s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
+    const { state } = playOut(everyoneAttacks(s, ['t1', 't2']), LAND)
+    expect(state.actions.some((a) => a.kind === 'shoot' && a.actorId === 'a2')).toBe(false)
+    expect(state.actions.some((a) => a.kind === 'move')).toBe(false)
+  })
+
+  // combat.tex "Guard": someone adjacent to the target who is closer to the
+  // shooter than the target is. The table's ruling: each shot has its own
+  // angle, so the guard answers the lead's and not one from behind the target.
+  it('has a guard answer only the shots it stands in front of', () => {
+    const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 3 })
+    let s = onBoard({ a1: [0, 0], a2: [-10, 0], def: [-6, 0], g: [-5, 0] }, archer('a1'), archer('a2'), fighter('def'), holdItem(shield)(fighter('g')))
+    s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
+    s = commitAction()(setTarget('def')(s))
+    s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
+    s = declareReaction('g', getAvailableActions(s, 'g').find((o) => o.draft.kind === 'guard' && o.available)!.draft, newId)(s)
+    const { state } = playOut(s, MISS)
+    const [lead, second] = shots(state)
+    expect(getDefendingReaction(state, lead)?.actorId).toBe('g')
+    expect(getDefendingReaction(state, second)).toBeNull()
   })
 })

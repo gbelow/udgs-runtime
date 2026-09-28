@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
-import { getAdjacentIds, getDistanceBetween, getFlankers, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
+import { getAdjacentIds, getFlankers, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { getRunPath } from './move'
 import { isTrampleable } from './trample'
@@ -10,7 +10,9 @@ import { isGrappleRow } from './grapple'
 import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
-import { getOpeningReaction } from './log'
+import { getOpeningReaction, getReactionsTo } from './log'
+import { getJoinReaction } from './coordinated'
+import { hasShootingRow } from './attack'
 import { getRiposteDefense } from './riposte'
 import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
@@ -115,23 +117,32 @@ function opportunityTriggers(state: CombatState, actorId: string): Trigger[] {
 // adjacent characters, as long as they are closer to the projectile source
 // than the adjacent character". What they may guard with is the option's
 // to say, as it is for the target.
+// combat.tex "Coordinated Shots": "The target defends all shots with a
+// single action" — declared against the shot the others join, so a joined
+// shot draws no defense of its own, only the opportunity attacks its shooter
+// draws, and no further join.
 function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
   if (!root.targetId) return []
+  const opportunities = opportunityTriggers(state, root.actorId)
+  if (getJoinReaction(state, root)) return opportunities
   const own = (Object.keys(ACTIONS) as ActionKind[])
     .filter(isReaction)
-    .filter((kind) => reactsTo(kind, 'shoot'))
+    .filter((kind) => reactsTo(kind, 'shoot') && kind !== 'joinShot')
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
-  const toTarget = getDistanceBetween(state, root.actorId, root.targetId)
+  // combat.tex "Guard": each shot has its own angle, so one who guards any
+  // of the shots — the lead's or a joiner's — may be declared
+  const shooters = [root.actorId, ...getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'joinShot' ? [r.actorId] : []))]
   const guards = getAdjacentIds(state, root.targetId)
-    .filter((id) => id !== root.actorId)
-    .filter((id) => {
-      const toGuard = getDistanceBetween(state, root.actorId, id)
-      return toGuard !== null && toTarget !== null && toGuard < toTarget
-    })
+    .filter((id) => shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
+  // combat.tex "Coordinated Shots": anyone with a shooting weapon may join,
+  // whether or not they are in range of the target — that is declared
+  const joins = Object.values(state.characters)
+    .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c))
+    .map((c): Trigger => ({ characterId: c.id, kind: 'joinShot', at: null, against: root.targetId! }))
   // combat.tex "Opportunity Attack": "Triggering actions include ... ranged
   // attacks"
-  return [...own, ...guards, ...opportunityTriggers(state, root.actorId)]
+  return [...own, ...guards, ...joins, ...opportunities]
 }
 
 // combat.tex "Grapple Maneuvers": the partner may pay to resist — except
