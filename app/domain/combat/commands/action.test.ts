@@ -10,10 +10,14 @@ import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { reduceCharacter } from './reduce'
-import { amendAction, cancelAction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
+import { amendAction, cancelAction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
 import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })

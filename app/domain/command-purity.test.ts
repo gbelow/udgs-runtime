@@ -3,7 +3,7 @@ import * as characterCommands from './character/commands'
 import * as itemCommands from './item/commands'
 import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
-import * as startTurnModule from './combat/commands/startTurn'
+import * as turnModule from './combat/commands/turn'
 import * as actionsModule from './combat/commands/action'
 import * as choicesModule from './combat/commands/choices'
 import * as boardModule from './combat/commands/board'
@@ -18,7 +18,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...startTurnModule, ...actionsModule, ...choicesModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -60,7 +60,7 @@ function characterSubject(): CampaignCharacter {
     afflictions: ['prone'],
     pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
-    resources: { AP: 6, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
+    resources: { AP: 6, surgeAP: 2, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }
 
@@ -79,6 +79,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   cure: characterCommands.cure(['prone']),
   restCharacter: characterCommands.restCharacter,
   actionSurge: characterCommands.actionSurge('focus'),
+  endSurge: characterCommands.endSurge,
   wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareAndRested(c)),
   wearFromHands: (c) => {
     const suit = gambeson()
@@ -139,7 +140,11 @@ const newId = () => 'issued'
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound,
   resetCombat: combatCommands.resetCombat,
-  startTurn: combatCommands.startTurn,
+  startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
+  endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
+  toggleContest: (s) => combatCommands.toggleContest('b')(deepFreeze(cleared(s))),
+  rollContest: (s) => combatCommands.rollContest(() => 5)(deepFreeze(combatCommands.toggleContest('b')(deepFreeze(cleared(s))))),
+  surge: (s) => combatCommands.surge('a', 'combat')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, usedSurge: null } } })),
   declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(cleared(s))),
   amendAction: (s) => combatCommands.amendAction({ location: 'head' })(deepFreeze(declaredStrike(s))),
   setTarget: (s) => combatCommands.setTarget('b')(deepFreeze(declaredStrike(s))),
@@ -264,6 +269,7 @@ function combatSubject(): CombatState {
     }),
     characters: { a, b },
     activeCharacterId: 'a',
+    inTurnCharacter: 'a',
     round: 3,
   }
 }

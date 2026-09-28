@@ -271,16 +271,24 @@ export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 
 // combat.tex "Action surge" — one surge per round. Each kind prices its AP
 // in STA; the movement surge alone scales its yield with AGI, so the yield
-// column is a function of AGI rather than a number. The spending restriction
-// is recorded as prose for the UI. `forbiddenBy` is the affliction under which
-// the surge cannot be made voluntarily (combat.tex "Afflictions": afraid bars
-// the combat surge, enraged the reaction surge).
+// column is a function of AGI rather than a number. An `earmarked` surge's AP
+// is kept apart from the rest: until it is spent, ended or the turn ends,
+// only what that surge allows can be done; as the table rules it, such a
+// surge is made only in the character's own turn. The reaction surge's AP is free,
+// but no turn can be started after it. The restriction is recorded as prose
+// for the UI. `forbiddenBy` is the affliction under which the surge cannot be
+// made voluntarily (combat.tex "Afflictions": afraid bars the combat surge,
+// enraged the reaction surge).
 export const SURGES = {
-  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), restriction: 'AP must be spent on movement immediately; allows running until the end of the turn.' },
-  combat:   { STA: 3, AP: () => 4, restriction: 'AP must be spent immediately on attacks or movement. Not while afraid.', forbiddenBy: 'afraid' },
-  reaction: { STA: 3, AP: () => 4, restriction: 'AP can only be spent on reactions until the end of the round. Not while enraged.', forbiddenBy: 'enraged' },
-  focus:    { STA: 0, AP: () => 0, restriction: 'AP is free to use. Required for shooting weapons, spells and use items from containers.' },
-} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, restriction: 'Only in your own turn. Only movement until its AP is spent; a run must start with it.' },
+  combat:   { STA: 3, AP: () => 4, earmarked: true, restriction: 'Only in your own turn. Only melee strikes, defenses, reflexes, grapples and movement but running until its AP is spent. Not while afraid.', forbiddenBy: 'afraid' },
+  reaction: { STA: 3, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
+  focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
+} as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
+
+// combat.tex "running": the first 2 AP of a run "must be uninterrupted" —
+// the first block, which the movement surge has to pay.
+export const RUN_START_AP = 2
 
 // combat.tex — the AP/STA price of each named action, in the book's own
 // numbers. An attack variation is a delta on the weapon row's own AP

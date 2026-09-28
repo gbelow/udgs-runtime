@@ -10,7 +10,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState } from '../hooks/useCombatState';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useTurnControls } from '../hooks/useCombatState';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -23,7 +23,7 @@ import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
 import { useGameCommands } from '../hooks/useGameCommands';
-import { useActiveCharacterData, useSurgeOptions } from '../hooks/useCharacterData';
+import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 
@@ -45,7 +45,7 @@ const MIND: (keyof Skills)[] = ['cunning', 'explore', 'will', 'persuasion', 'dec
 export function PlayPanel(){
 
   const { rest } = useCharacterCommands()
-  const { nextRound, startTurn, resetCombat, killCharacter } = useCombatCommands()
+  const { nextRound, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
   const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction } = useCombatState()
@@ -68,7 +68,7 @@ export function PlayPanel(){
           <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
             <div className='flex flex-row flex-wrap gap-1.5 items-center'>
               <span className='text-base font-medium mr-2'>{fightName}</span>
-              <Button variant='primary' aria-label='startTurn' onClick={startTurn}>start turn</Button>
+              <TurnControl />
               <Button aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
               <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
               <SurgeControl />
@@ -80,6 +80,7 @@ export function PlayPanel(){
               <SectionLabel>Resources</SectionLabel>
               <div className='flex flex-row flex-wrap gap-1.5'>
                 <SimpleResource rssName={'AP'} />
+                <SimpleResource rssName={'surgeAP'} />
                 <SimpleResource rssName={'STA'} />
                 <SimpleResource rssName={'exhaustion'} />
                 <SimpleResource rssName={'hunger'} />
@@ -332,9 +333,49 @@ function AfflictionsPannel(){
   )
 }
 
+// play.tex "Combat": a turn is started by whoever asks first, and can be
+// contested before its holder declares anything — by as many as ask, all
+// rolling cunning at once.
+function TurnControl(){
+  const { startTurn, toggleContest, rollContest, endTurn } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result } = useTurnControls()
+
+  return(
+    <div className='flex flex-col gap-0.5'>
+      <div className='flex gap-1 items-center'>
+        {
+          inTurn ?
+          <Tooltip text={end ?? 'end the turn; movement and combat surge AP left is lost'}>
+            <Button variant='primary' aria-label='endTurn' disabled={end !== null} onClick={endTurn}>end turn</Button>
+          </Tooltip> :
+          <Tooltip text={start ?? 'start this turn for the active character'}>
+            <Button variant='primary' aria-label='startTurn' disabled={start !== null} onClick={startTurn}>start turn</Button>
+          </Tooltip>
+        }
+        {
+          holder && !inTurn ?
+          <Tooltip text={contesting ? 'stop contesting the turn' : contest ?? `contest ${holder}'s turn`}>
+            <Button aria-label='contestTurn' aria-pressed={contesting} active={contesting} disabled={!contesting && contest !== null} onClick={toggleContest}>contest</Button>
+          </Tooltip> : null
+        }
+        {
+          contenders ?
+          <Tooltip text={roll ?? 'everyone contesting and the holder roll cunning; the highest takes the turn'}>
+            <Button aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</Button>
+          </Tooltip> : null
+        }
+        {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
+      </div>
+      {result ? <span className='text-xs text-muted'>{result}</span> : null}
+    </div>
+  )
+}
+
 function SurgeControl(){
-  const { actionSurge } = useCharacterCommands()
-  const options = useSurgeOptions()
+  const { endSurge } = useCharacterCommands()
+  const { actionSurge } = useCombatCommands()
+  const options = useCombatSurgeOptions()
+  const binding = useBindingSurge()
 
   return(
     <div className='flex gap-1'>
@@ -353,6 +394,12 @@ function SurgeControl(){
             }
           </Tooltip>
         )
+      }
+      {
+        binding ?
+        <Tooltip text={`give up the ${binding} surge AP left, to do something it does not allow`}>
+          <Button aria-label='endSurge' variant='bad' onClick={endSurge}>end surge</Button>
+        </Tooltip> : null
       }
     </div>
   )

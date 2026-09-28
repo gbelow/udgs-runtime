@@ -14,12 +14,16 @@ import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { isInterceptDisarm } from '../rules/grapple'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
-import { amendAction, amendReaction, commitAction, declareAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
+import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { aimExplosion, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string, abilities: string[] = []): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -458,7 +462,8 @@ describe('a hook attack', () => {
   // A halberdier hooks, at `location`, a runner setting off away from them,
   // the hook hitting; with its damage bought or not, and landed.
   function hookRunner(location: 'leg' | 'chest', buy: boolean): CombatState {
-    let s = onBoard({ h: [0, 0], r: [1, 0] }, wielder('h', 'Halberd'), { ...fighter('r'), usedSurge: 'movement' as const })
+    const runner = fighter('r')
+    let s = onBoard({ h: [0, 0], r: [1, 0] }, wielder('h', 'Halberd'), { ...runner, usedSurge: 'movement' as const, resources: { ...runner.resources, surgeAP: 4 } })
     s = declareAction('r', { kind: 'move' }, newId)(s)
     s = commitAction()(amendAction({ movement: 'run', path: [{ q: 2, r: 0 }, { q: 3, r: 0 }, { q: 4, r: 0 }, { q: 5, r: 0 }] })(s))
     const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!

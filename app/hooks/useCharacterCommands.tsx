@@ -1,6 +1,6 @@
 import { useActiveCharacterUpdate } from "./useActiveCharacterSelector"
 import {
-  actionSurge as doActionSurge,
+  endSurge as doEndSurge,
   addAffliction,
   putGauntlets as doPutGauntlets,
   putHelm as doPutHelm,
@@ -10,15 +10,15 @@ import {
   updateIL as doUpdateIL,
   updateSTA as doUpdateSTA,
 } from "../domain/character/commands"
-import { AfflictionKey, Skills, SurgeKind } from "../domain/types"
+import { AfflictionKey, Skills } from "../domain/types"
 
 
 export function useCharacterCommands() {
 
   const update = useActiveCharacterUpdate()
 
-  const actionSurge = (kind: SurgeKind) => {
-    update(doActionSurge(kind))
+  const endSurge = () => {
+    update(doEndSurge)
   }
 
   const putAffliction = (affliction: AfflictionKey) => {
@@ -54,7 +54,7 @@ export function useCharacterCommands() {
   }
 
   return {
-    actionSurge,
+    endSurge,
     putAffliction,
     rest,
     updateIL,

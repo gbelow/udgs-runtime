@@ -1,10 +1,12 @@
 import { nextRound as passRound } from "../domain/combat/commands/nextRound"
-import { startTurn as beginTurn } from "../domain/combat/commands/startTurn"
+import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleContest as toggleTurnContest } from "../domain/combat/commands/turn"
+import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { useCombatStore } from "../stores/useCombatStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
+import { realDice } from "../components/utils"
 
 export function useCombatCommands() {
 
@@ -19,8 +21,29 @@ export function useCombatCommands() {
     if (c && isCampaignCharacter(c)) removeCharacter(c.id)
   }
 
+  // The turn buttons act for the active character; the commands refuse
+  // whatever the turn controls show as closed.
   const startTurn = () => {
-    updateCombatState(beginTurn)
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) updateCombatState(beginTurn(id))
+  }
+
+  const toggleContest = () => {
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) updateCombatState(toggleTurnContest(id))
+  }
+
+  const rollContest = () => {
+    updateCombatState(rollTurnContest(realDice))
+  }
+
+  const actionSurge = (kind: SurgeKind) => {
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) updateCombatState(surge(id, kind))
+  }
+
+  const endTurn = () => {
+    updateCombatState(closeTurn)
   }
 
   const nextRound = () => {
@@ -31,7 +54,5 @@ export function useCombatCommands() {
     updateCombatState(resetGame)
   }
 
-
-
-  return { killCharacter, startTurn, nextRound, resetCombat}
+  return { killCharacter, startTurn, toggleContest, rollContest, endTurn, actionSurge, nextRound, resetCombat}
 }

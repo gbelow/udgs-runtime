@@ -9,9 +9,13 @@ import { getDLTerms } from './attack'
 import { getTargetIds } from './action'
 import { getOpenAction } from './log'
 import { getStrikeReach } from './board'
-import { declareAction, setTarget } from '../commands/action'
+import { declareAction as declareOwnAction, setTarget } from '../commands/action'
 import { getCatalogItem, getItemScale } from '../../item/rules/items'
 import { getWieldedWeapons } from '../../item/rules/hands'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string, extra: Record<string, unknown> = {}): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id, ...extra })

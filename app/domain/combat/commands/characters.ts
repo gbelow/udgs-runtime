@@ -11,7 +11,7 @@ export function removeFromCombat(id: string): Updater {
     if (getOpenAction(state)) return state
     const { [id]: _, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
-    const left = { ...state, characters, board: state.board ? { ...state.board, placements } : null, grapples: state.grapples.filter((g) => !g.members.includes(id)) }
+    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, grapples: state.grapples.filter((g) => !g.members.includes(id)) }
     return settleGrapples(state.grapples)(left)
   }
 }

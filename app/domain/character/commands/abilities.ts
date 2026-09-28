@@ -5,6 +5,7 @@ import { canLearnAbility } from "../rules/abilities"
 import { effectsOn, isAbilityActive, lingers } from "../rules/effects"
 import { applyEffects } from "./effects"
 import { canAfford } from "../rules/cost"
+import { getSurgeBar } from "../rules/surge"
 import { payCost } from "./cost"
 
 export function learnAbility(key: AbilityKey): (c: Character) => Character {
@@ -71,7 +72,7 @@ export function useAbility(key: AbilityKey): (c: Character) => Character {
     if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
     const ability = ABILITIES[key]
     if (ability.activation !== 'active') return c
-    if (!canAfford(c, ability.cost)) return c
+    if (!canAfford(c, ability.cost) || getSurgeBar(c)) return c
     const fired = applyEffects(effectsOn(ability.effect, 'instant'))(payCost(ability.cost)(c))
     return lingers(ability) ? { ...fired, active: [...fired.active, { kind: 'ability', key }] } : fired
   }

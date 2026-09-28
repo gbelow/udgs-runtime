@@ -1,7 +1,10 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
+import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
+import type { SurgeOption } from "../domain/character/lenses/surge";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useShallow } from "zustand/shallow";
 
 // Fight-level primitives. Both go through the store selector, so a change to a
 // combatant's sheet does not re-render the round counter.
@@ -34,4 +37,21 @@ export function useCombatRoster(): {
   };
 
   return { roster, pick };
+}
+
+const NO_ONE = 'no active character'
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '' }
+
+// play.tex "Combat" — the turn buttons for the active character, flat
+// primitives gated shallowly.
+export function useTurnControls(): TurnControls {
+  return useCombatStore(useShallow((s) => (s.activeCharacterId ? getTurnControls(s, s.activeCharacterId) : NO_TURN)));
+}
+
+// combat.tex "Action surge" — one row per surge for the active character,
+// gated on a digest since the rows are freshly allocated.
+export function useCombatSurgeOptions(): SurgeOption[] {
+  useCombatStore((s) => (s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId).map((o) => `${o.kind}:${o.title}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|') : ''));
+  const s = useCombatStore.getState();
+  return s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId) : [];
 }

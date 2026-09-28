@@ -365,6 +365,9 @@ export type Injuries = z.infer<typeof InjuriesSchema>
 
 export const ResourcesSchema = z.object({
   AP: num.default(0),
+  // combat.tex "Action surge": what is left of a movement or combat surge,
+  // spent before AP and only on what that surge allows
+  surgeAP: num.default(0),
   STA: num.default(0),
   hunger: num.default(0),
   thirst: num.default(0),

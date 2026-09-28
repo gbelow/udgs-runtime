@@ -1,8 +1,9 @@
-import { CampaignCharacter, SurgeKind } from "../../types"
-import { SURGES } from "../../tables"
+import { CampaignCharacter, Character, SurgeKind } from "../../types"
+import { RUN_START_AP, SURGES } from "../../tables"
 import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
 import { hasAffliction } from "./afflictions"
+import { isCampaignCharacter } from "../../utils"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -26,4 +27,29 @@ export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
     if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
     return !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
+}
+
+export type EarmarkedSurge = { [K in SurgeKind]: (typeof SURGES)[K]['earmarked'] extends true ? K : never }[SurgeKind]
+
+function isEarmarked(kind: SurgeKind): kind is EarmarkedSurge {
+  return SURGES[kind].earmarked
+}
+
+// The earmarked surge whose AP is still unspent, if any: until it runs out
+// or ends, only what it allows can be done.
+export function getBindingSurge(c: Character): EarmarkedSurge | null {
+  if (!isCampaignCharacter(c) || c.resources.surgeAP <= 0 || c.usedSurge === null) return null
+  return isEarmarked(c.usedSurge) ? c.usedSurge : null
+}
+
+// The reason anything the binding surge does not allow is closed, or null.
+export function getSurgeBar(c: Character): string | null {
+  const surge = getBindingSurge(c)
+  return surge ? `${surge} surge AP left` : null
+}
+
+// Whether a run can be started now: out of movement-surge AP, enough of it
+// for the first block.
+export function canStartRun(c: CampaignCharacter): boolean {
+  return c.usedSurge === 'movement' && c.resources.surgeAP >= RUN_START_AP
 }

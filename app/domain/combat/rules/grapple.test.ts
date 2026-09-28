@@ -10,7 +10,11 @@ import { getOpenAction } from './log'
 import { getRootTest } from './attack'
 import { getMovementOptions } from './move'
 import { chooseManeuver } from '../commands/choices'
-import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { commitAction, declareAction as declareOwnAction, resolveAction, rollAction, setTarget } from '../commands/action'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
@@ -80,7 +84,7 @@ describe('grapple', () => {
     let s = grappling()
     s = declareAction('a', { kind: 'grapple', maneuver: 'immobilize' }, newId)(s)
     s = resolveAction(newId)(rollOver(commitAction()(setTarget('b')(s)), OVER.critical))
-    const open = getAvailableActions(s, 'b').filter((o) => o.available)
+    const open = getAvailableActions({ ...s, inTurnCharacter: 'b' }, 'b').filter((o) => o.available)
     expect(open.map((o) => o.draft)).toEqual([{ kind: 'grapple', maneuver: 'escape' }])
   })
 

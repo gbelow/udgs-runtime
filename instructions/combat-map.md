@@ -98,7 +98,9 @@ lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReact
 | `done` | — | — |
 
 - **define** — free to edit or cancel. Only one root can be declared at a time
-  (`declareAction` refuses while anything is open).
+  (`declareAction` refuses while anything is open), and only by the character whose turn
+  it is (`inTurnCharacter`, `rules/turn.ts`); while a movement or combat surge has AP left,
+  only what it allows (`rules/surge.ts`).
 - **commit** (`commitAction`) — checks the declaration is complete
   (`isDeclarationComplete`), aimed legally (`getTargetIds`) and affordable
   (`getPayableCost`), then locks it at `react`. A move records `from` here.
@@ -243,13 +245,16 @@ app/domain/combat/
 │   ├── floor.ts        dropToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: upkeep, gas, bleed, AP reset
-│   ├── startTurn.ts, resetCombat.ts
+│   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
+│   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
 │   ├── actionCatalog.ts ACTIONS, isReaction/isRootAction/isDefense
 │   ├── log.ts          open action, stack lookups, reactionTo/spawnedBy lookups
 │   ├── action.ts       declaration completeness, costs, getNextStep, needsDie, targets
 │   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not
+│   ├── turn.ts         whose turn it is; who may start, contest or end one, or surge
+│   ├── surge.ts        what an earmarked surge's AP allows
 │   ├── reactions.ts    getTriggers: who may answer a committed action, with what
 │   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after
 │   ├── settle.ts       getSettled: an action as it lands
@@ -278,7 +283,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts
     └── perState.ts     memoize once per state object
 ```
 

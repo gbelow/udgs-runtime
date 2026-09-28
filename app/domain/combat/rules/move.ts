@@ -5,6 +5,7 @@ import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
+import { canStartRun } from '../../character/rules/surge'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
@@ -76,8 +77,8 @@ export type MovementOption = {
 
 // combat.tex "Movement": crawling "is the only usable movement speed while
 // prone", swimming "the only usable movement speed while swimming", running
-// "can only be initiated during a movement surge" (combat.tex "Action
-// surge": the surge allows "running until the end of the turn"). A move a
+// "can only be initiated during a movement surge" — as the table rules it,
+// its first block paid out of the movement surge's AP (`canStartRun`). A move a
 // reaction opened may name the kinds it grants instead, a run among them
 // without the surge (combat.tex "Avoiding an Explosion": on a critical "the
 // character can run"). combat.tex "Lame": "Cannot run, jump or use basic
@@ -95,7 +96,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, c.usedSurge === 'movement', granted)
+      : movementGate(kind, prone, lame, swimming, canStartRun(c), granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
@@ -107,13 +108,13 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, surged: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, runnable: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
   if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
-  if (kind === 'run' && granted === null && !surged) return { available: false, reason: 'needs a movement surge' }
+  if (kind === 'run' && granted === null && !runnable) return { available: false, reason: 'needs movement surge AP' }
   return { available: true, reason: null }
 }
 

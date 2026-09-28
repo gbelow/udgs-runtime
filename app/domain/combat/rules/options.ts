@@ -19,6 +19,8 @@ import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
 import { defRows, getAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
+import { getSurgeBarFor } from './surge'
+import { isInTurn } from './turn'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -70,22 +72,23 @@ function guardOption(state: CombatState, c: CampaignCharacter, root: Action, gua
 }
 
 // Everything the character may declare right now: their own actions while no
-// action is open, and their reactions while a committed action triggers
-// something in them and is still waiting for its die. A reaction's options
-// are one per thing it can be done with, so a block names the weapon it
-// blocks with.
+// action is open and it is their turn, and their reactions while a committed
+// action triggers something in them and is still waiting for its die. A
+// reaction's options are one per thing it can be done with, so a block names
+// the weapon it blocks with. While a surge's AP is left, only what it allows
+// is open.
 export function getAvailableActions(state: CombatState, characterId: string): ActionOption[] {
   const c = state.characters[characterId]
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))
+  if (!open) return closeOutOfTurn(state, c, closeBySurge(c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -163,7 +166,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         return [answer({ kind }, null, reason)]
       }
     }
-  })
+  }))
 }
 
 // The actions a character may take on their own initiative, one entry per
@@ -279,6 +282,25 @@ function afford(c: CampaignCharacter, cost: ActionCost): string | null {
 function closeIfImmobile(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   if (!isImmobile(c)) return options
   return options.map((o) => (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape') ? o : { ...o, available: false, reason: 'immobile' })
+}
+
+function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => string | null): ActionOption[] {
+  return options.map((o) => {
+    const reason = o.available ? reasonFor(o) : null
+    return reason ? { ...o, available: false, reason } : o
+  })
+}
+
+// combat.tex "Action surge": an earmarked surge's AP is spent only on what
+// the surge allows, and until it is, nothing else can be done.
+function closeBySurge(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return closeWith(options, (o) => getSurgeBarFor(c, o.draft.kind))
+}
+
+// play.tex "Combat": a character acts in their own turn; outside it, only
+// reactions and what they open.
+function closeOutOfTurn(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return isInTurn(state, c.id) ? options : closeWith(options, () => 'not your turn')
 }
 
 // The option a draft would take, so a command can refuse exactly what the

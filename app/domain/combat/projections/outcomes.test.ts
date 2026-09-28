@@ -3,7 +3,11 @@ import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
 import { getActionPanel } from './actionPanel'
-import { commitAction, declareAction, resolveAction, rollAction, setTarget } from '../commands/action'
+import { commitAction, declareAction as declareOwnAction, resolveAction, rollAction, setTarget } from '../commands/action'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })

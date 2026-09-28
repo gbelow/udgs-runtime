@@ -638,6 +638,13 @@ export type ActionDraft = {
   [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
 }[ActionKind]
 
+// A contest for the turn as it was rolled: each contender's cunning roll, in
+// the order they asked, the holder first, and who took the turn.
+export const ContestRollSchema = z.object({ id: z.string(), die: z.number(), skill: z.number(), score: z.number() })
+export const ContestSchema = z.object({ rolls: z.array(ContestRollSchema), winner: z.string() })
+export type ContestRoll = z.infer<typeof ContestRollSchema>
+export type Contest = z.infer<typeof ContestSchema>
+
 // The shape of a fight. This lives in the domain — not in the Zustand store —
 // so the combat commands can be pure `(state) => state` updaters with no
 // dependency on the state layer. The store composes this with its actions.
@@ -650,7 +657,15 @@ export const CombatStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
   round: z.number().default(0),
+  // play.tex "Combat": whose turn it is, '' for nobody's, and how long the
+  // action log was when it started — the turn can be contested until
+  // something is declared in it
   inTurnCharacter: z.string().default(''),
+  turnStartedAt: z.number().default(0),
+  // who has asked to contest the turn, in the order they asked, and the
+  // contest once it is rolled — a turn is contested once
+  contenders: z.array(z.string()).default([]),
+  lastContest: ContestSchema.nullable().default(null),
   // Every action of the fight in the order it was declared, resolved ones
   // included: the open one is the last root still short of resolved, and the
   // rest is the fight's history.

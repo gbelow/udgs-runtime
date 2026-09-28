@@ -1,9 +1,9 @@
 import { getSTARegen } from "../domain/character/rules/characteristics";
-import { getSurgeAvailability, getSurgeOptions, SurgeOption } from "../domain/character/lenses/surge";
-import { getUsedSurge } from "../domain/character/rules/surge";
+import { getSurgeAvailability } from "../domain/character/lenses/surge";
+import { getBindingSurge, getUsedSurge } from "../domain/character/rules/surge";
 import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
-import { useActiveCharacterDerived, useActiveCharacterSelector } from "./useActiveCharacterSelector";
+import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
 export function useActiveCharacterData() {
@@ -43,14 +43,8 @@ export function useSTARegen(): number {
   return useActiveCharacterSelector((c: Character) => getSTARegen(c)) ?? 0;
 }
 
-// combat.tex "Action surge" — one row per surge, carrying the price/restriction
-// text already written out. The component renders these; it does not read the
-// surge table or assemble the label itself.
-export function useSurgeOptions(): SurgeOption[] {
-  return (
-    useActiveCharacterDerived(
-      (c: Character) => (isCampaignCharacter(c) ? getSurgeOptions(c) : []),
-      (options) => options.map((o) => `${o.kind}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|'),
-    ) ?? []
-  );
+// combat.tex "Action surge" — the surge whose AP is still unspent, which
+// binds what the character may do until it is spent or ended.
+export function useBindingSurge(): SurgeKind | null {
+  return useActiveCharacterSelector((c: Character) => getBindingSurge(c)) ?? null;
 }

@@ -4,6 +4,7 @@ import { canFitItem, getContainer } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
+import { getSurgeBar } from '../../character/rules/surge'
 import { getSpellFocus } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, produceEffects } from '../../character/rules/production'
@@ -13,9 +14,11 @@ type HeldUpdater = <C extends Character>(c: C) => C
 
 // A character in play pays the price or the move does not happen; on the sheet
 // nothing is charged. `null` is the refusal, so the caller returns the
-// character untouched.
+// character untouched. Nothing done with the hands is anything a surge's AP
+// allows, so none can be done while any is left.
 export function pay(c: Character, cost: ActionCost): Character | null {
   if (!isCharged(c)) return c
+  if (getSurgeBar(c)) return null
   if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
   const paid = cost.STA > 0 ? updateSTA(c.resources.STA - cost.STA)(c) : c
   return { ...paid, resources: { ...paid.resources, AP: paid.resources.AP - cost.AP } }

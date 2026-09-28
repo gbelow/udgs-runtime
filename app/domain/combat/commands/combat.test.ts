@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { nextRound } from './nextRound'
-import { startTurn } from './startTurn'
+import { startTurn } from './turn'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter, SurgeKind } from '../../types'
@@ -57,14 +57,14 @@ describe('nextRound', () => {
 
 // The in-turn marker is read straight back as a key into `characters`, so the
 // only safe values it can hold are an id that is in the fight or nothing at
-// all — including when the active id was left dangling by a removal.
+// all — including for an id left dangling by a removal.
 describe('startTurn', () => {
   const state = combat([fighter('a'), fighter('b')])
 
-  // A character in the fight, nobody at all, an id left dangling by a removal,
-  // and an empty id.
-  it.each(['b', null, 'gone', ''] as const)('resolves %s to a usable marker', (activeCharacterId) => {
-    const marked = startTurn({ ...state, activeCharacterId })
+  // A character in the fight, an id left dangling by a removal, and an empty
+  // id.
+  it.each(['b', 'gone', ''] as const)('resolves %s to a usable marker', (id) => {
+    const marked = startTurn(id)(state)
     expect(marked.inTurnCharacter === '' || marked.inTurnCharacter in marked.characters).toBe(true)
   })
 })

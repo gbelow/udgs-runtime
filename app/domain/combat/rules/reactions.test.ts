@@ -6,7 +6,11 @@ import { holdItem, regripItem } from '../../item/commands/hands'
 import { getAvailableActions } from './options'
 import { getOpenAction } from './log'
 import { getTriggers } from './reactions'
-import { amendAction, commitAction, declareAction } from '../commands/action'
+import { amendAction, commitAction, declareAction as declareOwnAction } from '../commands/action'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
 function fighter(id: string, AP: number): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })

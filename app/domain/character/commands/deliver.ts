@@ -6,7 +6,7 @@ import { Outcome, getOutcome } from '../rules/damage'
 import { skillLenses } from '../lenses'
 import { resolveTest } from '../../combat/rules/test'
 import type { Dice } from '../../combat/dice'
-import { payCost } from './cost'
+import { payCost, spendAP } from './cost'
 import { inflict } from './addAffliction'
 
 // The one place a delivered effect changes a character. A delivery whose
@@ -128,7 +128,7 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
         injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
         bleed: c.injuries.bleed + outcome.bleed,
       },
-      resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
+      resources: { ...c.resources, ...spendAP(c.resources, outcome.apLoss) },
     })
   }
 }
