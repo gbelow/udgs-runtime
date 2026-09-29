@@ -47,11 +47,10 @@ export function takesEffect(state: CombatState, root: CastAction): boolean {
 
 // A hit that still does nothing, its costs lost: short of the
 // amplifications its item asks for (spells.tex "Relationship between Size
-// and Sorcery": "it is necessary to amplify the spell to use it"), or of
-// the range to reach the target it was aimed at ("Extend Spell").
+// and Sorcery": "it is necessary to amplify the spell to use it").
 export function isFailedCast(state: CombatState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
-  return !!caster && root.roll?.degree === 'hit' && (isUnderAmplified(caster, root) || (root.improved.extend ?? 0) < getExtendNeeded(state, root))
+  return !!caster && root.roll?.degree === 'hit' && isUnderAmplified(caster, root)
 }
 
 export function isUnderAmplified(caster: CampaignCharacter, root: CastAction): boolean {
@@ -156,9 +155,8 @@ export function getCastHOPRemaining(root: CastAction): number {
 // spells.tex "Concentration": nothing left to spend overflow on once the
 // cast is cancelled — it produces nothing regardless of what is bought.
 // spells.tex "Amplify Spell": only a spell with something marked to scale,
-// and no further than its bounds; "Extend Spell": as many as the range
-// wants, the fewest to reach the target needed; "Effortless Spell": once,
-// and only if the caster can rest.
+// and no further than its bounds; "Effortless Spell": once, and only if
+// the caster can rest.
 export function getImprovementOptions(state: CombatState, root: CastAction): ImprovementOption[] {
   const caster = state.characters[root.actorId]
   if (!caster || !root.roll || root.roll.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return []
@@ -175,7 +173,7 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
       text: SPELL_MODIFICATIONS[name].text,
       times,
       available: open && SPELL_MODIFICATIONS[name].HOP <= remaining,
-      needed: name === 'amplify' ? amplify.min : name === 'extend' ? getExtendNeeded(state, root) : 0,
+      needed: name === 'amplify' ? amplify.min : 0,
     }
   })
 }
@@ -204,30 +202,16 @@ export function opensExplosion(state: CombatState, root: CastAction): boolean {
   return spell.detonate !== null || (spell.type !== 'charged' && spell.effects.some(isAreaEffect))
 }
 
-// Whether the cast can be aimed at the target: in sight, and adjacent for
-// a touch. A ranged effect may be aimed past its range — the range is
-// bought with HOP after the roll (spells.tex "Extend Spell"), and a cast
-// that does not buy enough fails (`getExtendNeeded`). True on a fight
-// without a board.
+// Whether every targeted effect of the spell reaches the target from where
+// the caster stands, at the range the cast was extended to (spells.tex
+// "Extend Spell") and the size cast at, in sight; touch reaches an adjacent
+// target. True on a fight without a board.
 export function canAimCast(state: CombatState, root: CastAction, targetId: string): boolean {
   const distance = getDistanceBetween(state, root.actorId, targetId)
-  if (distance === null || !isSpellKey(root.key)) return true
-  return getTargetEffects(SPELLS[root.key]).every((e) => e.range !== null || distance <= 1) && hasLineOfSight(state, root.actorId, targetId)
-}
-
-// spells.tex "Extend Spell": "increase the casting range of a spell by
-// +100%, then +200%, +300%" — the fewest extensions that put every
-// targeted effect's range, at the size cast at, over the distance to the
-// target. None without a target or a board, or for a touch.
-export function getExtendNeeded(state: CombatState, root: CastAction): number {
   const caster = state.characters[root.actorId]
-  const distance = root.targetId ? getDistanceBetween(state, root.actorId, root.targetId) : null
-  if (!caster || distance === null || !isSpellKey(root.key)) return 0
+  if (distance === null || !caster || !isSpellKey(root.key)) return true
   const size = getCastSizeOf(caster, root)
-  return Math.max(0, ...getTargetEffects(SPELLS[root.key]).map((e) => {
-    const range = getCastRange(e, {}, size)
-    return range === null || range <= 0 ? 0 : Math.max(0, Math.ceil(distance / range) - 1)
-  }))
+  return getTargetEffects(SPELLS[root.key]).every((e) => distance <= (getCastRange(e, root.extend, size) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
 }
 
 // spells.tex "Telepathic Link": who the cast of a spell worked through a

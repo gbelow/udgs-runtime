@@ -13,6 +13,7 @@ import {
   resolveAction,
   rollAction,
   setTarget,
+  stepExtend,
   withdrawLastReaction,
   withdrawReaction,
   withdrawSpawnedAction,
@@ -24,6 +25,7 @@ import {
   refundHOP,
   saveGraze,
   spendHOP,
+  moveWhileResting,
 } from "../domain/combat/commands/choices";
 import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
 import type { SpellModification } from "../domain/tables";
@@ -62,8 +64,10 @@ export function useCombatActions() {
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
   const grazeSave = () => update(saveGraze());
+  const restMove = () => update(moveWhileResting(newId));
+  const extend = (delta: 1 | -1) => update(stepExtend(delta));
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, choose, boostPush } as const;
 }

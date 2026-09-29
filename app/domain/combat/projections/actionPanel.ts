@@ -9,7 +9,7 @@ import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, get
 import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
 import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { LOCATIONS } from '../../tables'
+import { EXTEND, LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
@@ -18,7 +18,9 @@ import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getMoveDue, getMovementOptions, getReachableCells } from '../rules/move'
+import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { canMoveWhileResting } from '../rules/rest'
+import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
@@ -156,6 +158,8 @@ export type OpenActionView = {
   // the declaration a cast has made so far
   spell: string
   quicken: boolean
+  // spells.tex "Extend Spell": the extensions declared and the DL they add
+  extend: { times: number; DL: number } | null
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
@@ -242,6 +246,9 @@ export type ActionPanelView = {
   canAccept: boolean
   // an evasive jump is declared but has not picked its landing yet
   jumpPending: boolean
+  // combat.tex "Rest": whether the careful move made while resting is still
+  // to be had
+  restMove: boolean
   // who still has to pick on the board where they step to block or
   // intercept; null when nobody does
   stepPending: string | null
@@ -266,7 +273,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -292,10 +299,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
-  const own = getOwnCost(state, open)
-  const actorNow = state.characters[open.actorId]
-  // what a move takes out of AP, less what the rest's allowance covers
-  const cost = own && open.kind === 'move' && actorNow ? getMoveDue(actorNow, open.movement, own) : own
+  const cost = getOwnCost(state, open)
   // the action as the resolve would settle it now: what a move will walk, what
   // a rolled action will land
   const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
@@ -323,6 +327,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       itemId: explosion?.itemId ?? '',
       spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
       quicken: cast?.quicken ?? false,
+      extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -381,6 +386,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),
     canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open),
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
+    restMove: isRootAction(open) && canMoveWhileResting(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,

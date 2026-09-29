@@ -3,7 +3,9 @@ import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules
 import { getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
 import type { SpellModification } from '../../tables'
-import { applyPhase, getRolledOpen, replaceActions } from './log'
+import { appendActions, applyPhase, getRolledOpen, replaceActions } from './log'
+import { canMoveWhileResting, getRestMove, hasRestMove } from '../rules/rest'
+import { makeAction } from '../factories'
 
 // The choices made once the die is known and before the action lands: what
 // a hit's overflow buys, where a spray is pointed, what a
@@ -93,12 +95,24 @@ export function saveGraze(): Updater {
   }
 }
 
-// Takes one improvement back, while nothing has been produced yet.
+// Takes one improvement back, while nothing has been produced yet — the
+// rest of an Effortless Spell not once its move has been made.
 export function refundImprovement(name: SpellModification): Updater {
   return (state) => {
     const open = getRolledOpen(state, ['cast'])
-    if (!open) return state
+    if (!open || (name === 'effortless' && hasRestMove(state, open.id))) return state
     const improved = takeOne(open.improved, name)
     return improved ? replaceActions(state, [{ ...open, improved }]) : state
+  }
+}
+
+// combat.tex "Rest": the careful move made while resting, opened over the
+// rest (or the cast rested through) and played out before it lands.
+export function moveWhileResting(newId: () => string): Updater {
+  return (state) => {
+    const open = getRolledOpen(state, ['rest', 'cast'])
+    const c = open ? state.characters[open.actorId] : undefined
+    if (!open || !c || !canMoveWhileResting(state, open)) return state
+    return appendActions(state, [makeAction('move', { id: newId(), actorId: open.actorId, spawnedBy: open.id, ...getRestMove(c) })])
   }
 }

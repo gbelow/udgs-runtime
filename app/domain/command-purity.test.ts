@@ -61,7 +61,7 @@ function characterSubject(): CampaignCharacter {
     afflictions: ['prone'],
     pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
-    resources: { AP: 6, surgeAP: 2, restAP: 0, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
+    resources: { AP: 6, surgeAP: 2, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }
 
@@ -88,7 +88,6 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   cure: characterCommands.cure(['prone']),
   restCharacter: characterCommands.restCharacter,
   restWhileCasting: characterCommands.restWhileCasting({ AP: 1, STA: 0 }),
-  payCarefulMove: (c) => characterCommands.payCarefulMove({ AP: 2, STA: 0 })({ ...c, resources: { ...c.resources, restAP: 1 } }),
   actionSurge: characterCommands.actionSurge('focus'),
   endSurge: characterCommands.endSurge,
   wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareOnSheet(c)),
@@ -178,9 +177,11 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
-  improveSpell: (s) => combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))),
-  refundImprovement: (s) => combatCommands.refundImprovement('extend')(deepFreeze(combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))))),
+  improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),
+  refundImprovement: (s) => combatCommands.refundImprovement('enhance')(deepFreeze(combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))))),
   saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),
+  moveWhileResting: (s) => combatCommands.moveWhileResting(newId)(deepFreeze(paidRest(s))),
+  stepExtend: (s) => combatCommands.stepExtend(1)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
@@ -248,6 +249,12 @@ function openSpellTest(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'telepathic-link' }, newId)(deepFreeze(learned)))
   const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
   return combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 30, newId)(committed)))
+}
+
+// A's rest paid for, waiting to land, on a frozen state each step along.
+function paidRest(s: CombatState): CombatState {
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'rest' }, newId)(deepFreeze(cleared(s))))
+  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
 }
 
 // A's cast of sleep rolled to a graze the graze save carries to a hit.

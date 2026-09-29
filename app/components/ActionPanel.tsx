@@ -27,7 +27,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, choose, boostPush } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -90,6 +90,15 @@ export function ActionPanel(){
         </div>
       ) : null}
       {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
+      {open.spell && open.extend && !locked ? (
+        <div className='flex flex-row gap-1 items-center text-xs'>
+          <SectionLabel>extend</SectionLabel>
+          <Button size='xs' aria-label='extend less' disabled={open.extend.times === 0} onClick={() => extend(-1)}>−</Button>
+          <span className='font-mono'>×{open.extend.times}</span>
+          <Button size='xs' aria-label='extend more' onClick={() => extend(1)}>+</Button>
+          {open.extend.times > 0 ? <span className='text-muted'>+{open.extend.DL} DL</span> : null}
+        </div>
+      ) : null}
 
       {view.charges.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -240,7 +249,10 @@ export function ActionPanel(){
           ) : null}
           {open.grapple.map((n, i) => <div key={i} className='text-sm'>{n.target ? `${n.target}: ` : ''}<span className='text-muted'>{n.text}</span></div>)}
           {open.area && view.outcomes.length === 0 ? <div className='text-sm text-muted'>nobody in the area</div> : null}
-          <div><Button variant='primary' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button></div>
+          <div className='flex flex-row gap-1.5'>
+            {view.restMove ? <Button aria-label='move while resting' onClick={restMove}>move while resting</Button> : null}
+            <Button variant='primary' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button>
+          </div>
         </div>
       ) : null}
     </Panel>
@@ -355,7 +367,7 @@ function Test({ open }: { open: OpenActionView }){
   )
 }
 
-// A spell to cast, on the focus surge or quickened at +4 DL without it
+// A spell to cast, on the focus surge or quickened without it
 // (spells.tex "Quicken Spell").
 function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, onCast: () => void, onQuicken: () => void }){
   return (
@@ -363,7 +375,7 @@ function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, o
       <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.reason ?? undefined} onClick={onCast}>
         {option.name} <span className='font-mono text-muted'>DL {option.DL ?? '?'}</span> <Cost cost={option.cost} />
       </Button>
-      {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title='quicken: +4 DL, no surge' onClick={onQuicken}>quicken</Button> : null}
+      {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title={`quicken: DL ${option.quickenedDL ?? ''}, no surge`} onClick={onQuicken}>quicken</Button> : null}
     </span>
   )
 }

@@ -81,7 +81,6 @@ export function PlayPanel(){
               <div className='flex flex-row flex-wrap gap-1.5'>
                 <SimpleResource rssName={'AP'} />
                 <SimpleResource rssName={'surgeAP'} />
-                <SimpleResource rssName={'restAP'} />
                 <SimpleResource rssName={'STA'} />
                 <SimpleResource rssName={'exhaustion'} />
                 <SimpleResource rssName={'hunger'} />

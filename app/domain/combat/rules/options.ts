@@ -320,11 +320,9 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // spells.tex "Sustained Spells": a caster holding a spell does nothing but
 // cast what it lets them (rules/cast.ts `getSpellOptions` says which) — no
 // moving, no answering (abilities.tex "Battle Mage" is what would allow
-// either) — save the careful movement a rest while casting left them
-// (spells.tex "Effortless Spell").
+// either).
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  if (!isConcentrating(c)) return options
-  return closeWith(options, (o) => (o.draft.kind === 'cast' || (o.draft.kind === 'move' && c.resources.restAP > 0) ? null : 'concentrating'))
+  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' ? null : 'concentrating')) : options
 }
 
 function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {

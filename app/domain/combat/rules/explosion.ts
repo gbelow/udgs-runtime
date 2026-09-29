@@ -82,7 +82,7 @@ function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEf
 // lying on the floor — `holderId` null for the latter. The table sets off
 // any of them; a detonation a cast opened (spells.tex "Detonate
 // Explosive") reaches only those within the spell's range of the caster,
-// as far as the cast extended it ("Extend Spell").
+// as far as the cast was extended ("Extend Spell").
 export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | null; cell: Coord }
 
 function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
@@ -103,7 +103,7 @@ function getDetonationRange(state: CombatState, action: ExplosionAction): number
   const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
   if (cast?.kind !== 'cast' || !isSpellKey(cast.key)) return null
   const detonate = SPELLS[cast.key].detonate
-  return detonate ? detonate.range * (1 + (cast.improved.extend ?? 0)) : null
+  return detonate ? detonate.range * (1 + cast.extend) : null
 }
 
 function getAllCharges(state: CombatState): ChargeOption[] {

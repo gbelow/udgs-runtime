@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, Item, Requirement, Spell, SpellMethod } from '../../types'
 import { SPELLS, SpellKey } from '../../spells'
-import { HIT_MARGIN, QUICKEN_DL } from '../../tables'
+import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike } from './skills'
@@ -73,8 +73,8 @@ export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by
 // Quicken when the caster forgoes the focus surge, and by every link the
 // caster holds (spells.tex "Telepathic Link").
-export function getCastingDL(c: Character, spell: Spell, quicken: boolean): number | null {
-  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + getLinkDL(c)
+export function getCastingDL(c: Character, spell: Spell, quicken: boolean, extend = 0): number | null {
+  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + extend * EXTEND.DL + getLinkDL(c)
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5.

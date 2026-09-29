@@ -20,7 +20,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
 import { GRAZE_SAVE_COST, getCastSpentAP, isSpellTestBeaten } from '../rules/cast'
 import { getEffortlessCost } from '../../character/rules/spells'
-import { payCarefulMove, restCharacter, restWhileCasting } from '../../character/commands/rest'
+import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
@@ -60,7 +60,6 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (c.id !== action.actorId || !action.cost) return c
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
-        if (action.kind === 'move' && action.movement === 'careful') return payCarefulMove(action.cost)(c)
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c

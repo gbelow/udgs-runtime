@@ -255,18 +255,23 @@ export const magic_types = {
 export const HIT_MARGIN = 5
 
 // spells.tex "Types of Spells and Modifications" — what each improvement
-// costs in HOPs, chosen after the roll. Quicken is not here: it is decided
-// before the roll and moves the DL instead (QUICKEN_DL).
+// costs in HOPs, chosen after the roll. Quicken and Extend are not here:
+// they are decided before the roll and move the DL instead (QUICKEN_DL,
+// EXTEND).
 export const SPELL_MODIFICATIONS = {
-  extend:     { HOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
   enhance:    { HOP: 4, text: 'the special improvement described in the spell' },
   amplify:    { HOP: 5, text: 'cast one size larger: damage by DM, reach and area by RM; up to 1 size above the item' },
   effortless: { HOP: 6, text: 'rest while casting: STA/4 back, AP raised to the rest cost, careful movement; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { HOP: number; text: string }>
 
-// "Quicken Spell: Increases spell DL by 4 to allow it to be cast during any
+// "Quicken Spell: Increases spell DL by 3 to allow it to be cast during any
 // surge and not cause opportunity attacks."
 export const QUICKEN_DL = 3
+
+// "Extend Spell: Spend 3 HOPs to increase the casting range of a spell by
+// +100%, then +200%, +300%" — bought before the roll, not after it (the
+// table's ruling), its 3 HOPs as 3 DL per extension.
+export const EXTEND = { DL: 3, text: 'casting range +100% per extension' } as const
 
 // spells.tex "Casting spells": a graze in combat may "increase spell cost by
 // 2 AP to gain +3 once in the test".

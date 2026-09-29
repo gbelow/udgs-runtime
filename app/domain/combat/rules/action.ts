@@ -7,7 +7,7 @@ import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
-import { canPayMove, getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
+import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
 import { getExplosionPayload, isAimed, isSpray } from './explosion'
 import { getChargeOptions } from './explosion'
@@ -235,7 +235,6 @@ export function getPayableCost(state: CombatState, action: Action): ActionCost |
   const c = state.characters[action.actorId]
   if (!c || !cost) return null
   if (action.kind === 'rest') return canAffordRest(c) ? cost : null
-  if (action.kind === 'move') return canPayMove(c, action.movement, cost) ? cost : null
   return canAfford(c, cost) ? cost : null
 }
 

@@ -2,7 +2,7 @@ import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProp
 import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction, WeaponAction } from '../types'
-import { LOCATIONS, QUICKEN_DL } from '../../tables'
+import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
@@ -378,8 +378,9 @@ function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
 }
 
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
-// Increases spell DL by 4"; "Telepathic Link": "Each simultaneous link
-// increases the difficulty of spellcasting test by 3".
+// Increases spell DL by 3"; "Extend Spell", 3 per extension; "Telepathic
+// Link": "Each simultaneous link increases the difficulty of spellcasting
+// test by 3".
 function getSpellDLTerms(state: CombatState, root: ActionOf<'cast'>): Term[] {
   const caster = state.characters[root.actorId]
   if (!isSpellKey(root.key)) return []
@@ -387,6 +388,7 @@ function getSpellDLTerms(state: CombatState, root: ActionOf<'cast'>): Term[] {
   return [
     { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
     ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : []),
+    ...(root.extend > 0 ? [{ label: `extend ×${root.extend}`, value: root.extend * EXTEND.DL }] : []),
     ...(links > 0 ? [{ label: 'links', value: links }] : []),
   ]
 }

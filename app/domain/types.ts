@@ -415,9 +415,6 @@ export const ResourcesSchema = z.object({
   // combat.tex "Action surge": what is left of a movement or combat surge,
   // spent before AP and only on what that surge allows
   surgeAP: num.default(0),
-  // combat.tex "Rest": the careful movement a rest allows "during their own
-  // turn", spent before AP on careful moves only, gone when the turn ends
-  restAP: num.default(0),
   STA: num.default(0),
   hunger: num.default(0),
   thirst: num.default(0),

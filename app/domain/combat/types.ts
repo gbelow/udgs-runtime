@@ -333,8 +333,11 @@ export const CastActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('cast'),
   key: str.default(''),
-  // spells.tex "Quicken Spell": +4 DL to cast without the focus surge
+  // spells.tex "Quicken Spell": +3 DL to cast without the focus surge
   quicken: z.boolean().default(false),
+  // spells.tex "Extend Spell": how many times the casting range is
+  // extended, each +3 DL (EXTEND)
+  extend: num.default(0),
   // improvement -> times bought
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP

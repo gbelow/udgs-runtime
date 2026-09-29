@@ -81,11 +81,12 @@ export function produceOutcome(c: Character, spell: Spell, degree: Degree, size:
 
 // spells.tex "Extend Spell": "increase the casting range of a spell by
 // +100%, then +200%, +300%" — the metres the caster can put an effect at,
-// from the range at the spell's size; null is touch or self.
-export function getCastRange(effect: SpellEffect, improved: Improvements, size: number): number | null {
+// from the range at the spell's size and the extensions declared; null is
+// touch or self.
+export function getCastRange(effect: SpellEffect, extend: number, size: number): number | null {
   if (effect.range === null) return null
   const reach = effect.scales.reach ? Math.floor(effect.range * getRMAt(size)) : effect.range
-  return reach * (1 + (improved.extend ?? 0))
+  return reach * (1 + extend)
 }
 
 export function getSelfEffects(spell: Spell): SpellEffect[] {

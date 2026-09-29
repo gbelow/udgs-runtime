@@ -20,9 +20,9 @@ function breathe(state: CombatState, c: CampaignCharacter): CampaignCharacter {
 }
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
-// had. Any unspent AP is lost." — a surge's and a rest's among it.
+// had. Any unspent AP is lost." — a surge's among it.
 function resetAP(c: CampaignCharacter): CampaignCharacter {
-  return { ...c, resources: { ...c.resources, AP: Math.min(ROUND_AP, c.resources.AP + ROUND_AP), surgeAP: 0, restAP: 0 } }
+  return { ...c, resources: { ...c.resources, AP: Math.min(ROUND_AP, c.resources.AP + ROUND_AP), surgeAP: 0 } }
 }
 
 // Everything due at the round change lands on each character — the upkeep of

@@ -241,3 +241,14 @@ export function resolveAction(newId: () => string): Updater {
     return land(state, open, newId)
   }
 }
+
+// spells.tex "Extend Spell": one extension more or fewer on the cast being
+// declared, never fewer than none.
+export function stepExtend(delta: 1 | -1): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'define')
+    if (open?.kind !== 'cast') return state
+    const extend = Math.max(0, open.extend + delta)
+    return extend === open.extend ? state : amendAction({ extend })(state)
+  }
+}
