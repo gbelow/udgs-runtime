@@ -26,8 +26,8 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a wrongly-typed trainable', raw: { trainables: { STR: 'strong', bogus: { value: 1 } } } },
   { label: 'a null armor', raw: { armor: null } },
   { label: 'containers that are not a map', raw: { containers: 3 } },
-  { label: 'hands that are not a list', raw: { hands: 'two' } },
-  { label: 'a malformed hand', raw: { hands: [{ canHold: 'yes' }] } },
+  { label: 'a body that is not a list', raw: { body: 'two' } },
+  { label: 'a malformed body part', raw: { body: [{ grip: 'yes' }] } },
   { label: 'a malformed held item', raw: { held: [{ bulk: 'big' }] } },
   // knowledges are ingested as `z.any()` into an open record and merged raw, so
   // a malformed entry still reaches the character unchecked.
@@ -46,7 +46,7 @@ const populated = () =>
     abilities: ['sprinter-1', 'synesthesia-1'],
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
-    hands: [{ name: 'left', naturalWeapon: 'Unarmed', canHold: true, itemId: 'dagger-1' }, { name: 'right', naturalWeapon: 'Unarmed', canHold: true, itemId: '' }],
+    body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: 'dagger-1' }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '' }],
     held: [ItemSchema.parse({ id: 'dagger-1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })],
     containers: {
       belt: ContainerSchema.parse({

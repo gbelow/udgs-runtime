@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, HandSchema, ItemSchema, Hand, Item, LearnedSpell, LearnedSpellSchema, ShapeSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, LearnedSpell, LearnedSpellSchema, ShapeSchema } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -51,18 +51,31 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
     },
     containers: parsedCharacter.containers ?? emptyCharacter.containers,
     spells: mergeSpells(parsedCharacter.spells),
-    ...reconcileGrip(parsedCharacter.hands ?? emptyCharacter.hands, parsedCharacter.held ?? emptyCharacter.held),
+    stance: {
+      ...emptyCharacter.stance,
+      ...parsedCharacter.stance,
+    },
+    ...reconcileGrip(uniqueParts(parsedCharacter.body ?? emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
   }
 }
 
+// Wounds and grips point at a part by its id, so two parts sharing one would
+// be one part to them: the first keeps the id and the rest are dropped.
+function uniqueParts(body: BodyPart[]): BodyPart[] {
+  const seen = new Set<string>()
+  return body.filter((part) => !seen.has(part.id) && !!seen.add(part.id))
+}
+
 // A hand names the stack it holds and every held stack is in some hand. Data
-// that says otherwise â€” a hand on a stack that is not there, a stack no hand
-// is on â€” is read as the hand being free and the stack gone.
-function reconcileGrip(hands: Hand[], held: Item[]): { hands: Hand[]; held: Item[] } {
+// that says otherwise — a hand on a stack that is not there, a part that
+// cannot grip or is gone holding one, a stack no hand is on — is read as the
+// hand being free and the stack gone.
+function reconcileGrip(body: BodyPart[], held: Item[]): { body: BodyPart[]; held: Item[] } {
   const stacks = new Set(held.map((item) => item.id))
-  const gripped = new Set(hands.map((hand) => hand.itemId))
+  const gripping = body.map((part) => (part.grip && !part.lost && stacks.has(part.itemId) ? part : { ...part, itemId: '' }))
+  const gripped = new Set(gripping.map((part) => part.itemId))
   return {
-    hands: hands.map((hand) => (stacks.has(hand.itemId) ? hand : { ...hand, itemId: '' })),
+    body: gripping,
     held: held.filter((item) => gripped.has(item.id)),
   }
 }
@@ -137,7 +150,8 @@ const CharacterIngestValues = {
 
   armor: ArmorSchema.optional(),
   worn: ItemSchema.nullable().optional(),
-  hands: z.array(HandSchema).optional(),
+  body: z.array(BodyPartSchema).optional(),
+  stance: StanceSchema.partial().optional(),
   held: z.array(ItemSchema).optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),
 

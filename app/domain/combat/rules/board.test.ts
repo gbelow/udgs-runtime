@@ -80,7 +80,7 @@ describe('reach never falls under a cell', () => {
   it.each(daggers.map((item) => [getItemScale(item), item] as const))('a dagger of scale %i', (_scale, item) => {
     const atk = fighter('atk', {
       held: [item],
-      hands: [{ name: 'left', naturalWeapon: 'Unarmed', canHold: true, itemId: item.id }, { name: 'right', naturalWeapon: 'Unarmed', canHold: true, itemId: '' }],
+      body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: item.id, lost: false }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '', lost: false }],
     })
     const s = combat(null, atk, fighter('def'))
     const [row] = getWieldedWeapons(atk).filter((w) => w.key !== 'natural:Unarmed')

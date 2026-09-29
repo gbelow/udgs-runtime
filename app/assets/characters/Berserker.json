@@ -334,18 +334,60 @@
     "refId": "Brigandine",
     "charge": null
   },
-  "hands": [
+  "body": [
     {
-      "name": "hand",
-      "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183"
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     },
     {
-      "name": "hand",
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183",
       "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183"
+      "lost": false
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "b030cde0-1569-4ed9-87d7-6d9aae424183",
+      "naturalWeapon": "Unarmed",
+      "lost": false
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     }
   ],
   "held": [

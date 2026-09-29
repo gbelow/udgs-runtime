@@ -114,9 +114,10 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { wound } = outcome
-    const carried = wound && c.active.some((e) => e.kind === 'wound' && e.key === wound.key && (e.hand ?? null) === wound.hand)
+    const part = wound?.part?.id
+    const carried = wound && c.active.some((e) => e.kind === 'wound' && e.key === wound.key && e.part === part)
     const active = wound && !carried
-      ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(wound.hand !== null ? { hand: wound.hand } : {}) }]
+      ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(part !== undefined ? { part } : {}) }]
       : c.active
     const injuryLevel = c.injuries.injuryLevel + outcome.IL
     const wounded = wound ? WOUNDS[wound.key].affliction ?? null : null

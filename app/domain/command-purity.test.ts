@@ -51,7 +51,7 @@ function characterSubject(): CampaignCharacter {
     ...withKnowledge,
     armor,
     worn: gambeson(),
-    hands: [{ ...base.hands[0], itemId: daggerItem.id }, base.hands[1]],
+    body: base.body.map((part) => (part.id === 'handL' ? { ...part, itemId: daggerItem.id } : part)),
     held: [daggerItem],
     containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2, items: [coin, packedGambeson] } } }) },
     abilities: ['sprinter-1', 'synesthesia-1', 'tackle'],

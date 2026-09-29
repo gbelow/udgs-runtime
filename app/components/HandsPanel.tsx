@@ -21,7 +21,7 @@ export function HandsPanel(){
       }
       <div className='flex flex-row flex-wrap gap-1 text-xs'>
         {panel.hands.map((hand) => (
-          <span key={hand.index} className={`border border-line rounded px-1.5 py-0.5 ${hand.item ? '' : 'text-muted'}`} title={hand.canHold ? 'can hold gear' : 'cannot hold gear'}>
+          <span key={hand.id} className={`border border-line rounded px-1.5 py-0.5 ${hand.item ? '' : 'text-muted'}`} title={hand.grip ? 'can hold gear' : 'cannot hold gear'}>
             {hand.name}: {hand.item ? hand.item.name : (hand.naturalWeapon || 'free')}
           </span>
         ))}

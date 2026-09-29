@@ -448,7 +448,7 @@ function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
       <span className='font-medium text-bad'>T{outcome.tier}{outcome.bodyTier !== outcome.tier ? <span className='text-muted'> (body T{outcome.bodyTier})</span> : null}</span>
       <span>+<span className='font-mono'>{outcome.IL}</span> IL</span>
       {outcome.bleed ? <span>bleed +<span className='font-mono'>{outcome.bleed}</span></span> : null}
-      {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.hand !== null ? ` (hand ${outcome.wound.hand + 1})` : ''}{outcome.wound.heal !== null ? ` · heals at ${outcome.wound.heal} IL` : ' · no heal'}</span> : null}
+      {outcome.wound ? <span className='text-bad'>{outcome.wound.name}{outcome.wound.part ? ` (${outcome.wound.part.name})` : ''}{outcome.wound.heal !== null ? ` · heals at ${outcome.wound.heal} IL` : ' · no heal'}</span> : null}
       {outcome.afflictions.map((a) => <span key={a} className='text-bad'>{a}</span>)}
       {outcome.interruption !== 'none' ? <span>{outcome.interruption}{outcome.apLoss ? <> −<span className='font-mono'>{outcome.apLoss}</span> AP</> : null}</span> : null}
       {outcome.dead ? <span className='font-medium text-bad'>dead</span> : null}

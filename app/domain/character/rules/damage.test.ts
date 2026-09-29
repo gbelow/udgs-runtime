@@ -73,8 +73,8 @@ describe('hand wounds', () => {
   // the one holding what the target blocked with.
   it('land on the hand holding the blocking item', () => {
     const dagger = ItemSchema.parse({ id: 'd1', name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
-    const blocker = { ...target, hands: [target.hands[0], { ...target.hands[1], itemId: dagger.id }], held: [dagger] }
+    const blocker = { ...target, body: target.body.map((part) => (part.id === 'handR' ? { ...part, itemId: dagger.id } : part)), held: [dagger] }
     const outcome = blow({ blunt: 200, location: 'hand', defense: 'block', defenseWeaponKey: dagger.id }, blocker)
-    expect(outcome.wound?.hand).toBe(1)
+    expect(outcome.wound?.part?.id).toBe('handR')
   })
 })

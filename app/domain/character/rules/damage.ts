@@ -1,4 +1,4 @@
-import type { AfflictionKey, Armor, Character, Damage, DamageKind, Degree, Interruption } from '../../types'
+import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Interruption } from '../../types'
 import { HEAD, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor } from './armor'
 import { getTGH } from './misc'
@@ -28,8 +28,8 @@ export type Outcome = {
   bodyTier: number | null
   IL: number
   bleed: number
-  // combat.tex "Wounds": the wound the tier causes, and the hand it takes
-  wound: { key: WoundKey; name: string; heal: number | null; hand: number | null } | null
+  // combat.tex "Wounds": the wound the tier causes, and the part it takes
+  wound: { key: WoundKey; name: string; heal: number | null; part: { id: string; name: string } | null } | null
   afflictions: AfflictionKey[]
   // combat.tex "Interruption", "Stun": what cuts the target's action short,
   // and the AP a stun takes on top
@@ -151,13 +151,13 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
 // combat.tex "Hand": the hand a wound takes is "the hand used for defense" —
 // the one holding what the target blocked or intercepted with, or the free
 // hand that is the natural weapon. A hand aimed at with nothing in the way
-// is the first one.
-function woundedHand(facts: Damage, target: Character): number {
+// is the first one; a creature with no hand left has none to take.
+function woundedHand(facts: Damage, target: Character): BodyPart | null {
+  const hands = target.body.filter((part) => part.location === 'hand' && !part.lost)
   const wielded = getWieldedWeapons(target).find((w) => w.key === facts.defenseWeaponKey)
-  if (!wielded) return 0
-  const index = target.hands.findIndex((hand) =>
-    wielded.natural ? hand.itemId === '' && hand.naturalWeapon === wielded.weapon.name : hand.itemId === wielded.itemId)
-  return Math.max(0, index)
+  const defending = wielded && hands.find((part) =>
+    wielded.natural ? part.itemId === '' && part.naturalWeapon === wielded.weapon.name : part.itemId === wielded.itemId)
+  return defending ?? hands[0] ?? null
 }
 
 // combat.tex "Additional effects", "Localized damage", "Wounds": what the
@@ -185,9 +185,11 @@ function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcom
     .filter((w) => w.location === facts.location)
     .filter((w) => (w.smash ? facts.smash && bluntTier >= w.tier : tier >= w.tier))
     .filter((w) => !(piercing && w.amputation))
-  const worst = reached[reached.length - 1]
+  const hand = facts.location === 'hand' ? woundedHand(facts, target) : null
+  const takes = reached.filter((w) => w.location !== 'hand' || hand !== null)
+  const worst = takes[takes.length - 1]
   const wound: Outcome['wound'] = worst
-    ? { key: worst.key, name: worst.name, heal: worst.heal, hand: worst.location === 'hand' ? woundedHand(facts, target) : null }
+    ? { key: worst.key, name: worst.name, heal: worst.heal, part: hand ? { id: hand.id, name: hand.name } : null }
     : null
   if (worst?.affliction) afflictions.add(worst.affliction)
   if (facts.location === 'head') {

@@ -326,18 +326,60 @@
     "refId": "ChainShirt",
     "charge": null
   },
-  "hands": [
+  "body": [
     {
-      "name": "hand",
-      "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "e06e3485-c0b4-498a-8ec6-b88a068614fb"
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     },
     {
-      "name": "hand",
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "e06e3485-c0b4-498a-8ec6-b88a068614fb",
       "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "e06e3485-c0b4-498a-8ec6-b88a068614fb"
+      "lost": false
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "e06e3485-c0b4-498a-8ec6-b88a068614fb",
+      "naturalWeapon": "Unarmed",
+      "lost": false
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     }
   ],
   "held": [

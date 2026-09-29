@@ -338,19 +338,48 @@ export interface Container {
   bulk: number
 }
 
-// A hand is a limb that fights and, if it can grip, wields. Its natural weapon
-// is the weapons.json entry it attacks with while empty (gear.tex "Unarmed":
-// the hands of a humanoid); a paw or a mouth still has one but takes no gear.
-// `itemId` names the held stack in `held`, '' when free. Two hands naming the
-// same stack are a two-handed grip (gear.tex "Small/One/Two hands").
-export const HandSchema = z.object({
-  name: str.default('hand'),
-  naturalWeapon: str.default('Unarmed'),
-  canHold: z.boolean().default(true),
+export const HitLocationSchema = z.enum(HIT_LOCATIONS)
+export type HitLocation = z.infer<typeof HitLocationSchema>
+
+// combat.tex "Localized damage": "Each type of creature may have places that
+// can specifically be aimed at" — the body is those places, each a part with
+// a stable id that wounds and grips point at. `location` is the kind of place
+// it is, the row of the location and wound tables that applies to it. A part
+// that grips holds the stack `itemId` names in `held`, '' when free; two
+// parts naming the same stack are a two-handed grip (gear.tex "Small/One/Two
+// hands"). Its natural weapon is the weapons.json entry it attacks with while
+// empty (gear.tex "Unarmed": the hands of a humanoid); a paw or a jaw has one
+// but takes no gear. A `lost` part was cut off: the slot keeps its shape for
+// whatever puts it back.
+export const BodyPartSchema = z.object({
+  id: z.string().default(() => crypto.randomUUID()),
+  name: str.default(''),
+  location: HitLocationSchema.default('chest'),
+  grip: z.boolean().default(false),
   itemId: str.default(''),
+  naturalWeapon: str.default(''),
+  lost: z.boolean().default(false),
 }).strip()
 
-export type Hand = z.infer<typeof HandSchema>
+export type BodyPart = z.infer<typeof BodyPartSchema>
+
+const HUMANOID_BODY: z.input<typeof BodyPartSchema>[] = [
+  { id: 'chest', name: 'chest', location: 'chest' },
+  { id: 'head', name: 'head', location: 'head' },
+  { id: 'handL', name: 'left hand', location: 'hand', grip: true, naturalWeapon: 'Unarmed' },
+  { id: 'handR', name: 'right hand', location: 'hand', grip: true, naturalWeapon: 'Unarmed' },
+  { id: 'legL', name: 'left leg', location: 'leg' },
+  { id: 'legR', name: 'right leg', location: 'leg' },
+]
+
+// How many legs short — lost or wounded — leave the creature lame, and how
+// many leave it unable to stand; authored per creature, as a body is.
+export const StanceSchema = z.object({
+  lameAt: num.default(1),
+  proneAt: num.default(2),
+}).strip()
+
+export type Stance = z.infer<typeof StanceSchema>
 
 export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
@@ -480,9 +509,6 @@ export type Trigger = z.infer<typeof TriggerSchema>
 export const DEGREES = ['miss', 'graze', 'hit', 'critical'] as const
 export const DegreeSchema = z.enum(DEGREES)
 export type Degree = z.infer<typeof DegreeSchema>
-
-export const HitLocationSchema = z.enum(HIT_LOCATIONS)
-export type HitLocation = z.infer<typeof HitLocationSchema>
 
 // combat.tex "Interruption", "Stun": what a blow does to the action its
 // target was in the middle of; a stun is an interruption that also costs AP.
@@ -630,13 +656,13 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
 // wound carried until it is healed, a curse carried until it is beaten. The
 // character keeps only the reference; the effects are read off the owning
 // catalog, so nothing copied into state can go stale. A wound to a hand
-// names the hand (its index) it disables; a curse keeps the DL the test to
+// names the part it disables; a curse keeps the DL the test to
 // beat it is rolled against (spells.tex "Curse": "until the target shrugs
 // it off").
 export const ActiveEntrySchema = z.object({
   kind: z.enum(['ability', 'spell', 'wound', 'curse']),
   key: str,
-  hand: num.optional(),
+  part: str.optional(),
   DL: num.optional(),
 }).strip()
 
@@ -876,7 +902,8 @@ const CharacterValues = {
   armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
   // the armor item being worn over it, if any (gear.tex "Donning and Doffing armor")
   worn: ItemSchema.nullable().default(null),
-  hands: z.array(HandSchema).default(() => [HandSchema.parse({}), HandSchema.parse({})]),
+  body: z.array(BodyPartSchema).default(() => HUMANOID_BODY.map((part) => BodyPartSchema.parse(part))),
+  stance: StanceSchema.partial().default({}).transform(v => StanceSchema.parse(v)),
   held: z.array(ItemSchema).default([]),
   containers: z.record(z.string(), ContainerSchema).default({}),
 

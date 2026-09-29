@@ -6,10 +6,11 @@ import { getDrawCost, isCharged } from '../rules/costs'
 import { getPutOnView, PutOnView } from '../rules/containers'
 import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, isLamingHold } from '../rules/hands'
 
+// A part that holds or fights: a hand, a paw, a jaw.
 export type HandView = {
-  index: number
+  id: string
   name: string
-  canHold: boolean
+  grip: boolean
   naturalWeapon: string
   item: { id: string; name: string } | null
 }
@@ -47,13 +48,13 @@ export type HandsPanelView = {
 export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
   const freeHolding = getFreeHoldingHands(c).length
   return {
-    hands: c.hands.map((hand, index) => {
-      const item = hand.itemId ? getHeldItem(c, hand.itemId) : undefined
+    hands: c.body.filter((part) => !part.lost && (part.grip || part.naturalWeapon)).map((part) => {
+      const item = part.itemId ? getHeldItem(c, part.itemId) : undefined
       return {
-        index,
-        name: hand.name,
-        canHold: hand.canHold,
-        naturalWeapon: hand.naturalWeapon,
+        id: part.id,
+        name: part.name,
+        grip: part.grip,
+        naturalWeapon: part.naturalWeapon,
         item: item ? { id: item.id, name: item.name || item.refId } : null,
       }
     }),

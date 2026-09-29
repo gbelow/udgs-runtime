@@ -42,7 +42,7 @@ export function wearFromHands(itemId: string): CharacterUpdater {
     return {
       ...worn,
       held: worn.held.filter((held) => held.id !== itemId),
-      hands: worn.hands.map((hand) => (hand.itemId === itemId ? { ...hand, itemId: '' } : hand)),
+      body: worn.body.map((part) => (part.itemId === itemId ? { ...part, itemId: '' } : part)),
     }
   }
 }

@@ -325,18 +325,60 @@
     "bulk": 4,
     "refId": "Hauberk"
   },
-  "hands": [
+  "body": [
     {
-      "name": "hand",
-      "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "82df8e52-f97f-4e6d-81b5-0d325ab278f1"
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     },
     {
-      "name": "hand",
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "82df8e52-f97f-4e6d-81b5-0d325ab278f1",
       "naturalWeapon": "Unarmed",
-      "canHold": true,
-      "itemId": "e7d1bc41-72a4-4773-903a-92f713d776c6"
+      "lost": false
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "e7d1bc41-72a4-4773-903a-92f713d776c6",
+      "naturalWeapon": "Unarmed",
+      "lost": false
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     }
   ],
   "held": [

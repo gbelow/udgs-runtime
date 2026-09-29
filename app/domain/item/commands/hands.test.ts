@@ -4,7 +4,7 @@ import { getDrawCost, getStoreCost, getGrip } from '../rules/hands'
 import { canFitItem } from '../rules/containers'
 import { makeCharacter, makeCampaignCharacter } from '../../factories'
 import { isCampaignCharacter } from '../../utils'
-import { ContainerSchema, HandSchema, ItemSchema } from '../../types'
+import { ContainerSchema, BodyPartSchema, ItemSchema } from '../../types'
 import type { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 
 const coin = () => ItemSchema.parse({ name: 'Coin', bulk: 0 })
@@ -32,8 +32,8 @@ const ap = (c: Character) => (isCampaignCharacter(c) ? c.resources.AP : NaN)
 // has to as well.
 function expectGripConsistent(c: Character) {
   const stacks = new Set(c.held.map((item) => item.id))
-  for (const hand of c.hands) {
-    if (hand.itemId) expect(stacks.has(hand.itemId)).toBe(true)
+  for (const part of c.body) {
+    if (part.itemId) expect(stacks.has(part.itemId)).toBe(true)
   }
   for (const item of c.held) {
     expect(getGrip(c, item.id)).toBeGreaterThanOrEqual(1)
@@ -75,9 +75,9 @@ describe('hands take one stack each', () => {
   })
 
   it('never puts gear in a hand that cannot hold', () => {
-    const paws = makeCharacter({ hands: [HandSchema.parse({ name: 'paw', canHold: false }), HandSchema.parse({ name: 'maw', canHold: false })] })
+    const paws = makeCharacter({ body: [BodyPartSchema.parse({ name: 'paw', location: 'hand', naturalWeapon: 'Unarmed' }), BodyPartSchema.parse({ name: 'maw', location: 'head', naturalWeapon: 'Unarmed' })] })
     expect(() => holdItem(coin())(paws)).toThrow()
-    expect(paws.hands.every((hand) => hand.itemId === '')).toBe(true)
+    expect(paws.body.every((part) => part.itemId === '')).toBe(true)
   })
 
   it('needs a second free holding hand to grip with two', () => {
@@ -94,7 +94,7 @@ describe('a stack drawn and put back', () => {
     const drawn = drawItem('sash', before.id)(loaded)
     const after = storeItem(drawn.held[0].id, 'sash', 'quick')(drawn)
     expect(after.containers).toEqual(loaded.containers)
-    expect(after.hands).toEqual(loaded.hands)
+    expect(after.body).toEqual(loaded.body)
     expect(after.held).toEqual(loaded.held)
   })
 })
@@ -158,8 +158,8 @@ describe('drawing and storing charge what the lens prices', () => {
 // every stack in a hand.
 describe('ingestion reconciles the grip', () => {
   it('frees a hand on a stack that is not there', () => {
-    const c = makeCharacter({ hands: [{ itemId: 'ghost' }, {}] })
-    expect(c.hands.map((hand) => hand.itemId)).toEqual(['', ''])
+    const c = makeCharacter({ body: [{ id: 'l', grip: true, itemId: 'ghost' }, { id: 'r', grip: true }] })
+    expect(c.body.map((part) => part.itemId)).toEqual(['', ''])
   })
 
   it('drops a stack no hand is on', () => {
@@ -168,8 +168,8 @@ describe('ingestion reconciles the grip', () => {
   })
 
   it('keeps a stack a hand is on', () => {
-    const c = makeCharacter({ hands: [{ itemId: 'd' }, {}], held: [{ id: 'd', name: 'Dagger' }] })
+    const c = makeCharacter({ body: [{ id: 'l', grip: true, itemId: 'd' }, { id: 'r', grip: true }], held: [{ id: 'd', name: 'Dagger' }] })
     expect(c.held.map((item) => item.id)).toEqual(['d'])
-    expect(c.hands[0].itemId).toBe('d')
+    expect(c.body[0].itemId).toBe('d')
   })
 })

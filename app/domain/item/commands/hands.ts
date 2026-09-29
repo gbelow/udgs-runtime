@@ -1,5 +1,5 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { canBeHeld, getDrawCost, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
+import { canBeHeld, getDrawCost, getFreeHoldingHands, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
 import { canFitItem, getContainer } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
@@ -30,15 +30,15 @@ function grip<C extends Character>(c: C, item: Item, hands: Grip): C {
   if (!canBeHeld(c, item)) {
     throw new Error(`"${item.name || item.refId}" cannot be held`)
   }
-  const free = c.hands.flatMap((hand, index) => (hand.itemId === '' && hand.canHold ? [index] : []))
+  const free = getFreeHoldingHands(c)
   if (free.length < hands) {
     throw new Error(`Not enough free hands to hold "${item.name || item.refId}"`)
   }
-  const taking = new Set(free.slice(0, hands))
+  const taking = new Set(free.slice(0, hands).map((part) => part.id))
   return {
     ...c,
     held: [...c.held, item],
-    hands: c.hands.map((hand, index) => (taking.has(index) ? { ...hand, itemId: item.id } : hand)),
+    body: c.body.map((part) => (taking.has(part.id) ? { ...part, itemId: item.id } : part)),
   }
 }
 
@@ -46,7 +46,7 @@ function release<C extends Character>(c: C, itemId: string): C {
   return {
     ...c,
     held: c.held.filter((item) => item.id !== itemId),
-    hands: c.hands.map((hand) => (hand.itemId === itemId ? { ...hand, itemId: '' } : hand)),
+    body: c.body.map((part) => (part.itemId === itemId ? { ...part, itemId: '' } : part)),
   }
 }
 
@@ -66,19 +66,19 @@ export function regripItem(itemId: string, hands: Grip): HeldUpdater {
       let kept = false
       return {
         ...c,
-        hands: c.hands.map((hand) => {
-          if (hand.itemId !== itemId) return hand
-          if (kept) return { ...hand, itemId: '' }
+        body: c.body.map((part) => {
+          if (part.itemId !== itemId) return part
+          if (kept) return { ...part, itemId: '' }
           kept = true
-          return hand
+          return part
         }),
       }
     }
-    const joining = c.hands.findIndex((hand) => hand.itemId === '' && hand.canHold)
-    if (joining < 0) {
+    const joining = getFreeHoldingHands(c)[0]
+    if (!joining) {
       throw new Error('No free hand to grip with')
     }
-    return { ...c, hands: c.hands.map((hand, index) => (index === joining ? { ...hand, itemId } : hand)) }
+    return { ...c, body: c.body.map((part) => (part.id === joining.id ? { ...part, itemId } : part)) }
   }
 }
 

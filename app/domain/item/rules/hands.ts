@@ -1,8 +1,8 @@
-import { Character, Hand, Handed, Item, Weapon } from '../../types'
+import { BodyPart, Character, Handed, Item, Weapon } from '../../types'
 import { getCatalogWeapon, getItemWeapon } from './items'
 import { getSize } from '../../character/rules/misc'
 import { scaleWeapon } from '../../character/rules/helpers'
-import { isHandWounded } from '../../character/rules/wounds'
+import { getWorkingParts } from '../../character/rules/body'
 
 export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 
@@ -10,28 +10,22 @@ export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 // number of hands can be free, but no stack takes more than two.
 export type Grip = 1 | 2
 
-// The hands that are there to be used: combat.tex "Wounds" takes a broken
-// or amputated hand out of the count, whatever it was holding.
-function getSoundHands(c: Character): Hand[] {
-  return c.hands.filter((_, index) => !isHandWounded(c, index))
-}
-
 export function getGrip(c: Character, itemId: string): number {
-  return getSoundHands(c).filter((hand) => hand.itemId === itemId).length
+  return getWorkingParts(c).filter((part) => part.itemId === itemId).length
 }
 
 export function getHeldItem(c: Character, itemId: string): Item | undefined {
   return c.held.find((item) => item.id === itemId)
 }
 
-// A free hand fights with its natural weapon; a free hand that can hold is the
-// one that may take gear.
-export function getFreeHands(c: Character): Hand[] {
-  return getSoundHands(c).filter((hand) => hand.itemId === '')
+// A free part fights with its natural weapon, if it has one; a free part that
+// grips is a hand that may take gear.
+export function getFreeParts(c: Character): BodyPart[] {
+  return getWorkingParts(c).filter((part) => part.itemId === '')
 }
 
-export function getFreeHoldingHands(c: Character): Hand[] {
-  return getFreeHands(c).filter((hand) => hand.canHold)
+export function getFreeHoldingHands(c: Character): BodyPart[] {
+  return getFreeParts(c).filter((part) => part.grip)
 }
 
 // gear.tex "Hands": "can carry an item up to one bulk higher than the
@@ -64,8 +58,9 @@ export type Wielded = {
 }
 
 // Every weapon the character can attack with right now: the held stacks that
-// resolve to a catalog weapon, then the natural weapon of each free hand. Free
-// hands sharing a natural weapon pool into one entry gripped by all of them,
+// resolve to a catalog weapon, then the natural weapon of each free part —
+// a hand's fist, a head's jaws. Free parts sharing a natural weapon pool into
+// one entry gripped by all of them,
 // so a two-handed natural attack needs two free hands the way a two-handed
 // weapon needs two hands on it. A natural weapon is part of the creature, so
 // it is the creature's size (gear.tex "Scaling weapons"). A stack a
@@ -76,14 +71,14 @@ export function getWieldedWeapons(c: Character): Wielded[] {
     return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false }] : []
   })
   const natural = new Map<string, number>()
-  for (const hand of getFreeHands(c)) {
-    if (hand.naturalWeapon) natural.set(hand.naturalWeapon, (natural.get(hand.naturalWeapon) ?? 0) + 1)
+  for (const part of getFreeParts(c)) {
+    if (part.naturalWeapon) natural.set(part.naturalWeapon, (natural.get(part.naturalWeapon) ?? 0) + 1)
   }
-  const fromHands = [...natural].flatMap(([name, grip]) => {
+  const fromParts = [...natural].flatMap(([name, grip]) => {
     const weapon = getCatalogWeapon(name)
     return weapon ? [{ key: `natural:${name}`, weapon: scaleWeapon(weapon, getSize(c)), grip, itemId: '', natural: true }] : []
   })
-  return [...held, ...fromHands]
+  return [...held, ...fromParts]
 }
 
 // gear.tex "Small/One/Two hands": "Two-handed weapons require both hands".
