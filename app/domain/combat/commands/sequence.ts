@@ -1,3 +1,4 @@
+import { SPELLS, isSpellKey } from '../../spells'
 import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
@@ -138,9 +139,12 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
 
 // The explosion a cast goes off as: to be aimed, a disk; a spray has nothing
 // to aim before the reflexes, only a range to show them (combat.tex
-// "Sprays"), so it is committed as it opens.
+// "Sprays"), so it is committed as it opens. A detonating spell's is the
+// charge the caster picks next (spells.tex "Detonate Explosive").
 function castExplosion(state: CombatState, root: CastAction, newId: () => string): ExplosionAction {
-  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id })
+  const detonates = isSpellKey(root.key) && SPELLS[root.key].detonate !== null
+  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: detonates ? 'detonate' : 'cast', key: detonates ? '' : root.key, spawnedBy: root.id })
+  if (detonates) return explosion
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
 }
 

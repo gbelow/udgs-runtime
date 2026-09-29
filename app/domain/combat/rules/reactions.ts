@@ -67,9 +67,11 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'fleeFollowUp': return []
     // the target's test against the link: nothing to answer
     case 'spellTest': return []
-    // letting go and grappling back draw nothing
+    // letting go and grappling back draw nothing; nor does resting, which
+    // is no standard action (combat.tex "Opportunity Attack")
     case 'release':
     case 'holdBack':
+    case 'rest':
       return []
   }
 }

@@ -1,7 +1,7 @@
 export { heal, updateIL } from "./heal"
 export { bleed, updateSTA, suffocate } from "./bleed"
 export { addAffliction, inflict, cure } from "./addAffliction"
-export { restCharacter } from "./rest"
+export { restCharacter, restWhileCasting, payCarefulMove } from "./rest"
 export { actionSurge, endSurge } from "./actionSurge"
 export { wearFromContainer, wearFromHands, equipArmor, doffArmor, putGauntlets, putHelm, toggleVisor } from "./armor"
 export { resetSkill, resetAllSkills } from "./resetSkills"

@@ -79,7 +79,10 @@ function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEf
 
 // Every charge in the fight that can be set off from where it lies: one
 // with an area to it, in the hands of someone standing on the board, or
-// lying on the floor — `holderId` null for the latter.
+// lying on the floor — `holderId` null for the latter. The table sets off
+// any of them; a detonation a cast opened (spells.tex "Detonate
+// Explosive") reaches only those within the spell's range of the caster,
+// as far as the cast extended it ("Extend Spell").
 export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | null; cell: Coord }
 
 function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
@@ -87,7 +90,23 @@ function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['
   return !!key && isSpellKey(key) && (item.charge?.effects.some(isAreaEffect) ?? false)
 }
 
-export function getChargeOptions(state: CombatState): ChargeOption[] {
+export function getChargeOptions(state: CombatState, action?: ExplosionAction): ChargeOption[] {
+  const range = action ? getDetonationRange(state, action) : null
+  const footprint = action ? getPlacedFootprint(state, action.actorId) : null
+  const all = getAllCharges(state)
+  return range === null ? all : all.filter((o) => footprint !== null && setDistance([o.cell], footprint) <= range)
+}
+
+// The metres a detonation reaches from its caster: the spell's range, times
+// the extensions the cast bought; null when nothing bounds it.
+function getDetonationRange(state: CombatState, action: ExplosionAction): number | null {
+  const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  if (cast?.kind !== 'cast' || !isSpellKey(cast.key)) return null
+  const detonate = SPELLS[cast.key].detonate
+  return detonate ? detonate.range * (1 + (cast.improved.extend ?? 0)) : null
+}
+
+function getAllCharges(state: CombatState): ChargeOption[] {
   const held = Object.values(state.characters).flatMap((holder) => {
     const cell = state.board?.placements[holder.id]?.cell
     if (!cell) return []
@@ -267,7 +286,8 @@ export function isAvoidable(action: ExplosionAction): boolean {
 // Where a disk explosion may be aimed. Thrown: any cell within the row's
 // reach of the attacker's footprint that some cell of it sees (combat.tex
 // "Cover"), off blocking ground. Cast: within the effects' range of the
-// caster, in sight. Set off: where the charged object is — whoever holds
+// caster, in sight — the explosion is the spell's effect, which Extend
+// does not reach. Set off: where the charged object is — whoever holds
 // it stands, or the cell it lies on if it is on the floor. Nowhere for a
 // spray, which is aimed by direction.
 export function getExplosionCenters(state: CombatState, action: ExplosionAction): Coord[] {

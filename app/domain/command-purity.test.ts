@@ -61,7 +61,7 @@ function characterSubject(): CampaignCharacter {
     afflictions: ['prone'],
     pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
-    resources: { AP: 6, surgeAP: 2, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
+    resources: { AP: 6, surgeAP: 2, restAP: 0, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }
 
@@ -87,6 +87,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   inflict: characterCommands.inflict(['prone']),
   cure: characterCommands.cure(['prone']),
   restCharacter: characterCommands.restCharacter,
+  restWhileCasting: characterCommands.restWhileCasting({ AP: 1, STA: 0 }),
+  payCarefulMove: (c) => characterCommands.payCarefulMove({ AP: 2, STA: 0 })({ ...c, resources: { ...c.resources, restAP: 1 } }),
   actionSurge: characterCommands.actionSurge('focus'),
   endSurge: characterCommands.endSurge,
   wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareOnSheet(c)),

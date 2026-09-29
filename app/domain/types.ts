@@ -415,6 +415,9 @@ export const ResourcesSchema = z.object({
   // combat.tex "Action surge": what is left of a movement or combat surge,
   // spent before AP and only on what that surge allows
   surgeAP: num.default(0),
+  // combat.tex "Rest": the careful movement a rest allows "during their own
+  // turn", spent before AP on careful moves only, gone when the turn ends
+  restAP: num.default(0),
   STA: num.default(0),
   hunger: num.default(0),
   thirst: num.default(0),
@@ -883,6 +886,10 @@ export const SpellSchema = z.object({
   linkDL: num.nullable().default(null),
   castRange: str.default(''),
   castArea: str.default(''),
+  // spells.tex "Detonate Explosive": the spell sets off a charge already in
+  // an object, within this many metres of the caster; null for one that
+  // does not
+  detonate: z.object({ range: num.default(0) }).strip().nullable().default(null),
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),
   durationETs: num.default(0),
   description: str.default(''),

@@ -18,7 +18,7 @@ import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { MovementOption, ReachableCell, getMoveDue, getMovementOptions, getReachableCells } from '../rules/move'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
@@ -292,7 +292,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
-  const cost = getOwnCost(state, open)
+  const own = getOwnCost(state, open)
+  const actorNow = state.characters[open.actorId]
+  // what a move takes out of AP, less what the rest's allowance covers
+  const cost = own && open.kind === 'move' && actorNow ? getMoveDue(actorNow, open.movement, own) : own
   // the action as the resolve would settle it now: what a move will walk, what
   // a rolled action will land
   const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
@@ -360,7 +363,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
-      ? getChargeOptions(state).map((o) => ({
+      ? getChargeOptions(state, explosion).map((o) => ({
           ...o,
           name: SPELLS[o.key].name,
           item: (findHeldItem(state, o.itemId)?.item ?? findFloorItem(state, o.itemId)?.item)?.name ?? '',

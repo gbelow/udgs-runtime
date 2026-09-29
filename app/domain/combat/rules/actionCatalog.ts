@@ -112,6 +112,8 @@ export const ACTIONS = {
   // combat.tex "Standard Action": "throwing items with bulk smaller than
   // character size by up to 10m" — a free hand or the floor, to the floor
   throwItem:   { label: 'throw item',   type: 'action',   price: 'standardAction', reactsTo: [],      die: false },
+  // combat.tex "Rest"
+  rest:        { label: 'rest',         type: 'action',   price: 'rest',     reactsTo: [],         die: false },
 } as const satisfies { [K in ActionKind]: ActionDef<K> }
 
 // The flags as the catalog declares them, read through the general shape

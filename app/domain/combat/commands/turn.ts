@@ -43,14 +43,16 @@ export function rollContest(dice: Dice): Updater {
 }
 
 // The turn ends. The AP a movement or combat surge left unspent goes with it
-// (combat.tex "Action surge": "Ending the turn loses the surge AP"). The
+// (combat.tex "Action surge": "Ending the turn loses the surge AP"), and so
+// does the careful movement a rest allowed ("Rest": "during their own
+// turn"). The
 // next turn waiting in the queue is then taken: the next fleer's, or the
 // turn their flee interrupted.
 export function endTurn(state: CombatState): CombatState {
   const holder = getTurnHolder(state)
   if (getEndTurnBar(state) || !holder) return state
   const ended = { ...state, inTurnCharacter: '', fleeing: false, contenders: [] }
-  return takeQueuedTurn(updateCharacter(holder, (c) => (c.resources.surgeAP === 0 ? c : { ...c, resources: { ...c.resources, surgeAP: 0 } }))(ended))
+  return takeQueuedTurn(updateCharacter(holder, (c) => (c.resources.surgeAP === 0 && c.resources.restAP === 0 ? c : { ...c, resources: { ...c.resources, surgeAP: 0, restAP: 0 } }))(ended))
 }
 
 // combat.tex "Action surge", in the fight: the character's own gate — once a

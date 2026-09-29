@@ -25,6 +25,7 @@ import { isJoinInRange } from './coordinated'
 import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
+import { canAffordRest, mayRest } from '../../character/rules/rest'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -281,6 +282,11 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : afford(c, cost)
     return [option({ kind: 'throwItem' }, cost, reason)]
   },
+  // combat.tex "Rest"
+  rest: (_state, c) => {
+    const cost = getActionCost(c, 'rest')
+    return [option({ kind: 'rest' }, cost, !mayRest(c) ? 'cannot breathe' : canAffordRest(c) ? null : 'cannot afford')]
+  },
 }
 
 function isPlaced(state: CombatState, c: CampaignCharacter): boolean {
@@ -314,9 +320,11 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // spells.tex "Sustained Spells": a caster holding a spell does nothing but
 // cast what it lets them (rules/cast.ts `getSpellOptions` says which) — no
 // moving, no answering (abilities.tex "Battle Mage" is what would allow
-// either).
+// either) — save the careful movement a rest while casting left them
+// (spells.tex "Effortless Spell").
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' ? null : 'concentrating')) : options
+  if (!isConcentrating(c)) return options
+  return closeWith(options, (o) => (o.draft.kind === 'cast' || (o.draft.kind === 'move' && c.resources.restAP > 0) ? null : 'concentrating'))
 }
 
 function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {

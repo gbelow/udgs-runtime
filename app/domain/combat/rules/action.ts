@@ -7,10 +7,10 @@ import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
-import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
+import { canPayMove, getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
 import { getExplosionPayload, isAimed, isSpray } from './explosion'
-import { findHeldItem } from './fighters'
+import { getChargeOptions } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
 import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
@@ -20,7 +20,8 @@ import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCe
 import { sameCell } from '../geometry'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityStrike, guardRows, isShotLoaded, isVariantOpen } from './attack'
-import { isInCastRange, isTargeted } from './cast'
+import { canAimCast, isTargeted } from './cast'
+import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
@@ -49,7 +50,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'explosion':
       return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
         && (action.source !== 'cast' || isSpellKey(action.key))
-        && (action.source !== 'detonate' || findHeldItem(state, action.itemId) !== null)
+        && (action.source !== 'detonate' || getChargeOptions(state, action).some((o) => o.itemId === action.itemId))
         && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
@@ -87,6 +88,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // combat.tex "Grapple Maneuvers": "performed during a grapple by any of
     // the participants"
     case 'grapple':
+      return true
+    case 'rest':
       return true
     // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
@@ -205,6 +208,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'letGo':
     case 'pickUp':
     case 'throwItem':
+    case 'rest':
       return getCatalogCost(c, action.kind)
   }
 }
@@ -229,7 +233,10 @@ function getCatalogCost(c: CampaignCharacter, kind: ActionKind): ActionCost {
 export function getPayableCost(state: CombatState, action: Action): ActionCost | null {
   const cost = getOwnCost(state, action)
   const c = state.characters[action.actorId]
-  return c && cost && canAfford(c, cost) ? cost : null
+  if (!c || !cost) return null
+  if (action.kind === 'rest') return canAffordRest(c) ? cost : null
+  if (action.kind === 'move') return canPayMove(c, action.movement, cost) ? cost : null
+  return canAfford(c, cost) ? cost : null
 }
 
 // Whether the action and every reaction to it can be paid for now, priced as
@@ -359,6 +366,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'holdBack':
     case 'pickUp':
     case 'throwItem':
+    case 'rest':
     case 'fleeFollowUp':
     case 'spellTest':
       return 'confirm'
@@ -385,7 +393,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'shoot':
       return others.filter((id) => isInShotRange(state, root, id))
     case 'cast':
-      return others.filter((id) => isInCastRange(state, root, id))
+      return others.filter((id) => canAimCast(state, root, id))
     // combat.tex "Grapple": what is done in a grapple is done to a partner —
     // but the knockdown a hook opens, at whoever it hooked ("Hook Attack"),
     // and a disarm intercept opens, at whoever it intercepted ("Disarm")
@@ -404,6 +412,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'move':
     case 'pickUp':
     case 'throwItem':
+    case 'rest':
     case 'fleeFollowUp':
     case 'spellTest':
       return []

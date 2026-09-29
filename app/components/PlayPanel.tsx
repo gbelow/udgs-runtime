@@ -46,7 +46,6 @@ const MIND: (keyof Skills)[] = ['cunning', 'explore', 'will', 'persuasion', 'dec
 
 export function PlayPanel(){
 
-  const { rest } = useCharacterCommands()
   const { nextRound, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
@@ -74,7 +73,6 @@ export function PlayPanel(){
               <Button aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
               <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
               <SurgeControl />
-              <Button aria-label='rest' onClick={rest}>rest</Button>
             </div>
             <ActionPanel />
 
@@ -83,6 +81,7 @@ export function PlayPanel(){
               <div className='flex flex-row flex-wrap gap-1.5'>
                 <SimpleResource rssName={'AP'} />
                 <SimpleResource rssName={'surgeAP'} />
+                <SimpleResource rssName={'restAP'} />
                 <SimpleResource rssName={'STA'} />
                 <SimpleResource rssName={'exhaustion'} />
                 <SimpleResource rssName={'hunger'} />

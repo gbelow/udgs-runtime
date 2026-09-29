@@ -4,7 +4,7 @@ import { findThrowSource, getThrownItem, getReachableFloor } from './floor'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
-import { getCastFacts, getSpellTestFacts } from './cast'
+import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
 import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
 
@@ -30,6 +30,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
       return { ...open, step: 'done', facts, interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
+    case 'rest': return { ...open, step: 'done' }
     case 'pickUp': return { ...open, step: 'done', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
     case 'throwItem': return { ...open, step: 'done', thrown: findThrowSource(state, open.actorId, open.itemId) }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
@@ -37,7 +38,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
     case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
-    case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
+    case 'cast': return { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) }
     case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }

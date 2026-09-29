@@ -339,6 +339,9 @@ export const CastActionSchema = z.object({
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
   grazeSaved: z.boolean().default(false),
+  // a hit that did nothing, written when it lands: short of the
+  // amplifications or the range its HOP had to buy
+  failed: z.boolean().default(false),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -592,6 +595,13 @@ export const ThrowItemActionSchema = z.object({
   thrown: ItemSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Rest": "an action that costs 4 AP and recovers STA by an
+// amount equal to STA/4".
+export const RestActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('rest'),
+}).strip()
+
 // combat.tex "Grapple Maneuvers": "require the defender to spend 2 AP+1 STA
 // or suffer a -5 penalty". combat.tex "Push and drag": resisting a push is
 // the defender's "spend 2 AP to gain 5 force"; one who chooses nothing
@@ -633,6 +643,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   HoldBackActionSchema,
   PickUpActionSchema,
   ThrowItemActionSchema,
+  RestActionSchema,
   ResistActionSchema,
   AssistActionSchema,
   CarryActionSchema,
@@ -663,6 +674,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowItemAction = z.infer<typeof ThrowItemActionSchema>
+export type RestAction = z.infer<typeof RestActionSchema>
 // The actions, not reactions, the catalog does not mark `movement`
 // (rules/actionCatalog.ts): those a reaction made in their middle
 // interrupts.

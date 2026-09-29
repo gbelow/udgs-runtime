@@ -36,6 +36,10 @@ export const SkillPenaltyTable = {
   ],
 }
 
+// combat.tex "End of the round": "all characters get reset to 8 AP minus
+// any negative AP they had".
+export const ROUND_AP = 8
+
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 // creating.tex "Reach Multiplier (RM)": multiplies the range of all weapons.
@@ -257,7 +261,7 @@ export const SPELL_MODIFICATIONS = {
   extend:     { HOP: 3, text: 'casting range +100%, then +200%, +300%, ...' },
   enhance:    { HOP: 4, text: 'the special improvement described in the spell' },
   amplify:    { HOP: 5, text: 'cast one size larger: damage by DM, reach and area by RM; up to 1 size above the item' },
-  effortless: { HOP: 6, text: 'rest while casting; halves the exhaustion cost out of combat' },
+  effortless: { HOP: 6, text: 'rest while casting: STA/4 back, AP raised to the rest cost, careful movement; halves the exhaustion cost out of combat' },
 } as const satisfies Record<string, { HOP: number; text: string }>
 
 // "Quicken Spell: Increases spell DL by 4 to allow it to be cast during any

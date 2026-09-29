@@ -1,3 +1,4 @@
+import { isConcentrating } from '../../character/rules/concentration'
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
 import { MOVEMENT_BLOCK_COST } from '../../tables'
@@ -95,16 +96,20 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const granted = action?.movements ?? null
   const held = isInGrapple(state, c.id)
   const immobile = isImmobile(c)
+  const concentrating = isConcentrating(c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
+      // spells.tex "Effortless Spell": a concentrating caster moves only on
+      // the careful movement a rest left them
+      : concentrating && kind !== 'careful' ? { available: false, reason: 'concentrating' }
       : movementGate(kind, prone, lame, swimming, canStartRun(c), granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : concentrating ? 'concentrating' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
@@ -392,6 +397,26 @@ export function hasJumpSpace(state: CombatState, defenderId: string, attackerId:
 // ---------------------------------------------------------------------------
 // Reach of a move
 
+// combat.tex "Rest": "allowed to move 4 AP worth of careful movement while
+// resting" — how much of a move's price the rest's allowance covers.
+export function getRestCovered(c: CampaignCharacter, kind: MoveKind, price: ActionCost): number {
+  return kind === 'careful' ? Math.min(Math.max(0, c.resources.restAP), price.AP) : 0
+}
+
+// What the move takes out of AP once the rest's allowance has covered its
+// share.
+export function getMoveDue(c: CampaignCharacter, kind: MoveKind, price: ActionCost): ActionCost {
+  return { AP: price.AP - getRestCovered(c, kind, price), STA: price.STA }
+}
+
+// Whether the character can pay for the move: what AP is due, and for a
+// caster concentrating on a spell, nothing past the allowance — it is the
+// only movement they have (spells.tex "Effortless Spell").
+export function canPayMove(c: CampaignCharacter, kind: MoveKind, price: ActionCost): boolean {
+  if (isConcentrating(c) && getRestCovered(c, kind, price) < price.AP) return false
+  return canAfford(c, getMoveDue(c, kind, price))
+}
+
 export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[] }
 
 // Every anchor the character can walk to at the move's kind of movement
@@ -408,12 +433,12 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
   const affordable = (steps: number) => {
-    return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
+    return canPayMove(c, kind, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const enter = (cell: Coord) => {
     return isCrossable(getFootprint(c, { ...from, cell }), ground, kind)
   }
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell }) => canRest(state, c, getFootprint(c, { ...from, cell }), ground))
-    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
+    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMoveDue(c, kind, getMovePrice(c, action, steps)), path }))
 }

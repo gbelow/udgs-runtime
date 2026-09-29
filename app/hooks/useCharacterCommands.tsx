@@ -4,7 +4,6 @@ import {
   addAffliction,
   resetAllSkills as doResetAllSkills,
   resetSkill as doResetSkill,
-  restCharacter,
   updateIL as doUpdateIL,
   updateSTA as doUpdateSTA,
 } from "../domain/character/commands"
@@ -21,10 +20,6 @@ export function useCharacterCommands() {
 
   const putAffliction = (affliction: AfflictionKey) => {
     update(addAffliction(affliction))
-  }
-
-  const rest = () => {
-    update(restCharacter)
   }
 
   const updateIL = (newIL: number) => {
@@ -46,7 +41,6 @@ export function useCharacterCommands() {
   return {
     endSurge,
     putAffliction,
-    rest,
     updateIL,
     updateSTA,
     resetSkill,

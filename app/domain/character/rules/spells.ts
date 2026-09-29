@@ -1,4 +1,4 @@
-import { Character, Item, Requirement, Spell, SpellMethod } from '../../types'
+import { CampaignCharacter, Character, Item, Requirement, Spell, SpellMethod } from '../../types'
 import { SPELLS, SpellKey } from '../../spells'
 import { HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
@@ -8,6 +8,8 @@ import { MAX_SIZE, getSM } from './helpers'
 import { getSize } from './misc'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
+import { getActionCost, type ActionCost } from './actionCosts'
+import { mayRest } from './rest'
 import { getCarriedItems, getItemScale, isGear } from '../../item/rules/items'
 import { isCampaignCharacter } from '../../utils'
 import { getLinkDL, holdsSustaining, mayCastWhileConcentrating } from './concentration'
@@ -220,4 +222,17 @@ export function resolveDL(c: Character, dl: string, roll: string): ResolvedTest 
 
 export function resolveTest(c: Character, spell: Spell): ResolvedTest | null {
   return spell.test ? resolveDL(c, spell.test.dl, spell.test.roll) : null
+}
+
+// spells.tex "Effortless Spell": "The spell must spend the highest between
+// the rest's AP cost and the spell's AP cost" — what resting adds to the AP
+// the cast already spent.
+export function getEffortlessCost(c: Character, spentAP: number): ActionCost {
+  return { AP: Math.max(0, getActionCost(c, 'rest').AP - spentAP), STA: 0 }
+}
+
+// Whether the caster can rest while casting: not while unable to breathe
+// (combat.tex "Suffocation": "cannot Rest"), and never into negative AP.
+export function canRestWhileCasting(c: CampaignCharacter, spentAP: number): boolean {
+  return mayRest(c) && canAfford(c, getEffortlessCost(c, spentAP))
 }

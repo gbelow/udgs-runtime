@@ -18,7 +18,9 @@ import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST, isSpellTestBeaten, isUnderAmplified } from '../rules/cast'
+import { GRAZE_SAVE_COST, getCastSpentAP, isSpellTestBeaten } from '../rules/cast'
+import { getEffortlessCost } from '../../character/rules/spells'
+import { payCarefulMove, restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
@@ -58,6 +60,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (c.id !== action.actorId || !action.cost) return c
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
+        if (action.kind === 'move' && action.movement === 'careful') return payCarefulMove(action.cost)(c)
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
@@ -84,12 +87,13 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         }
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
-        // spells.tex "Sustained": a cast that hit, amplified as far as its
-        // item asks, is taken hold of by its caster, its upkeep due at the
-        // round change
+        // spells.tex "Sustained": a cast that hit and did not fail is taken
+        // hold of by its caster, its upkeep due at the round change;
+        // "Effortless Spell": the caster rested while casting it
         if (action.kind === 'cast') {
-          const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
-          if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || isUnderAmplified(c, action)) return delivered
+          const landed = deliverAll(action.facts?.[c.id] ?? [])(c)
+          if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || action.failed) return landed
+          const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)))(landed) : landed
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
@@ -108,6 +112,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           if (isSpellTestBeaten(action)) return unlinkTarget(link, action.targetId)(delivered)
           return link === action.key ? linkTarget(link, action.targetId)(delivered) : delivered
         }
+        if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Standard Action": a thrown item leaves whichever hand
         // it was thrown from; one thrown off the floor was never in it

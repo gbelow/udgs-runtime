@@ -75,7 +75,7 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp` |
+| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throwItem`, `rest` |
 | Generated roots | `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
@@ -171,7 +171,19 @@ resolveAction ─────────► land(top)
   Everything a cast produces — its facts, the explosion it opens, a charge, its spell
   tests — is made at the cast's size (`getCastSizeOf`): the caster's own, or the
   environment's for shamanism, one up per amplification, capped at its item's size + 1. A
-  cast short of the amplifications its item needs does nothing (`takesEffect`). Any interruption or stun ends every held spell: a
+  cast may be aimed at any target in sight (`canAimCast`); after the roll it has to buy
+  the Extend that reaches them (`getExtendNeeded`). A cast short of the amplifications
+  or the range it needs does nothing: `isFailedCast`, written onto the cast as `failed`
+  when it lands so the reducer need not measure. Extend never reaches an explosion's
+  area — the explosion is the effect — only the range a Detonate Explosive cast (catalog
+  `detonate`) sets off a charge at (`getChargeOptions` with the detonation it opened);
+  the table's own detonate reaches any charge.
+- **Rest** — `rest` is a root with no die, priced by the action-cost table; it may take
+  AP negative as long as the next round starts positive (`canAffordRest`). It lands as
+  `restCharacter`: STA back and a careful-movement allowance (`restAP`) careful moves
+  spend first (`getRestCovered`, `canPayMove`), gone when the turn ends. Effortless is
+  the same rest landing with the cast (`restWhileCasting`), the AP raised to the rest's;
+  its allowance is the only movement a concentrating caster has. Any interruption or stun ends every held spell: a
   won maneuver (`reduceCharacter`), a blow as it lands (`deliver.ts`), a crash
   (`trampledBy`).
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
