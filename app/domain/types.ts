@@ -779,10 +779,23 @@ export const SpellTestSchema = z.object({
 }).strip()
 export type SpellTest = z.infer<typeof SpellTestSchema>
 
+// spells.tex "Amplify Spell": which of an effect's numbers the book marks
+// to scale with the spell's size — "The damage is increased by DM, the
+// effect reach and area by RM". The multiplier each reads is the book's;
+// the mark is the spell's.
+export const SpellScalesSchema = z.object({
+  damage: z.boolean().default(false),
+  area: z.boolean().default(false),
+  reach: z.boolean().default(false),
+}).strip()
+export type SpellScales = z.infer<typeof SpellScalesSchema>
+
+const NO_SCALES = { damage: false, area: false, reach: false }
+
 // What a spell does, one effect at a time, each with its own reach: who it
 // lands on (the caster, the one target, everyone in an area), how far the
-// caster can put it (metres, xRM; null is touch or self), the area it
-// covers, whether its numbers scale with the caster's DM, the test it
+// caster can put it (metres; null is touch or self), the area it
+// covers, which of its numbers scale with the spell's size, the test it
 // leaves the target (the DL side in the book's words, resolved for the
 // caster at production), and how long it stays — gone once applied, held
 // by the caster with its upkeep (spells.tex "Sustained"), or locked on the
@@ -791,7 +804,7 @@ const SpellEffectEnvelope = {
   target: z.enum(['self', 'target', 'area']).default('target'),
   range: num.nullable().default(null),
   area: AreaSchema.nullable().default(null),
-  scaled: z.boolean().default(false),
+  scales: SpellScalesSchema.default(NO_SCALES),
   resist: z.object({ dl: str.default(''), roll: SkillKeySchema }).strip().nullable().default(null),
   duration: z.enum(['instant', 'held', 'locked']).default('instant'),
 }
@@ -810,13 +823,37 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
 ])
 export type SpellEffect = z.infer<typeof SpellEffectSchema>
 
-// What the defender's degree of success on the spell's test does to them.
-export const SpellOutcomesSchema = z.object({
-  miss: str.default(''),
-  graze: str.default(''),
-  hit: str.default(''),
-  crit: str.default(''),
+// An effect one degree of the spell's test lets through. The cast decided
+// who it reaches and the test whether it lands, so it carries neither —
+// only whether its damage scales with the spell's size.
+const OutcomeEffectEnvelope = {
+  scales: SpellScalesSchema.pick({ damage: true }).default({ damage: false }),
+}
+export const OutcomeEffectSchema = z.discriminatedUnion('type', [
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('cost'), effect: CostSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('buff'), effect: BuffSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }) }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
+])
+export type OutcomeEffect = z.infer<typeof OutcomeEffectSchema>
+
+// What one degree of the target's own result on the spell's test does to
+// them: the book's words, and the effects encoded from them so far.
+export const SpellOutcomeSchema = z.object({
+  text: str.default(''),
+  effects: z.array(OutcomeEffectSchema).default([]),
 }).strip()
+export type SpellOutcome = z.infer<typeof SpellOutcomeSchema>
+
+const NO_OUTCOME = { text: '', effects: [] }
+export const SpellOutcomesSchema = z.object({
+  miss: SpellOutcomeSchema.default(NO_OUTCOME),
+  graze: SpellOutcomeSchema.default(NO_OUTCOME),
+  hit: SpellOutcomeSchema.default(NO_OUTCOME),
+  critical: SpellOutcomeSchema.default(NO_OUTCOME),
+}).strip() satisfies z.ZodType<Record<Degree, SpellOutcome>>
 export type SpellOutcomes = z.infer<typeof SpellOutcomesSchema>
 
 export const SpellKnowledgeRequirementSchema = z.object({
@@ -850,8 +887,8 @@ export const SpellSchema = z.object({
   durationETs: num.default(0),
   description: str.default(''),
   enhance: str.default(''), // what one "Enhance Spell" buys, in the book's words
-  // the spell's target test as the book words it, for the effects still
-  // written as prose; an effect with mechanics carries its own `resist`
+  // the spell's target test as the book words it, whose degree picks the
+  // outcome; an effect the target dodges carries its own `resist` instead
   test: SpellTestSchema.nullable().default(null),
   outcomes: SpellOutcomesSchema.nullable().default(null),
   effects: z.array(SpellEffectSchema).default([]),

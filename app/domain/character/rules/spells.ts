@@ -4,10 +4,11 @@ import { HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike } from './skills'
-import { getSM } from './helpers'
+import { MAX_SIZE, getSM } from './helpers'
+import { getSize } from './misc'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
-import { getCarriedItems, isGear } from '../../item/rules/items'
+import { getCarriedItems, getItemScale, isGear } from '../../item/rules/items'
 import { isCampaignCharacter } from '../../utils'
 import { getLinkDL, holdsSustaining, mayCastWhileConcentrating } from './concentration'
 
@@ -88,29 +89,89 @@ export function getGearRequirements(key: SpellKey): Requirement[][] {
   return SPELLS[key].requirements.map((item) => item.filter((alt) => alt.kind === 'gear')).filter((item) => item.length > 0)
 }
 
+// spells.tex "Relationship between Size and Sorcery": "Any spell that has
+// DM, SM, RM or VM marked in it is scaled to character size". A shamanism
+// spell is scaled to its environment instead, which the fight does not
+// model yet: it stands at the standard size.
+const ENVIRONMENT_SIZE = 3
+
+export function getSpellBaseSize(c: Character, key: SpellKey): number {
+  return SPELLS[key].section === 'shamanism' ? ENVIRONMENT_SIZE : getSize(c)
+}
+
+// Whether anything in the spell is marked to scale — what "Amplify Spell"
+// asks before it can be bought.
+export function isScaledSpell(key: SpellKey): boolean {
+  const spell = SPELLS[key]
+  const outcomes = spell.outcomes ? Object.values(spell.outcomes).flatMap((o) => o.effects) : []
+  return spell.effects.some((e) => e.scales.damage || e.scales.area || e.scales.reach) || outcomes.some((e) => e.scales.damage)
+}
+
+// "It is possible to use an item requirement up to 1 size larger than the
+// character, but it is necessary to amplify the spell to use it" — so a
+// larger one only serves a spell that can be amplified.
+function fitsSpell(c: Character, key: SpellKey, item: Item): boolean {
+  return getItemScale(item) <= getSpellBaseSize(c, key) + (isScaledSpell(key) ? 1 : 0)
+}
+
 // The gear a spell is cast with, in the caster's own hands: what a charge
 // is loaded into (spells.tex "Charged"). Null when they are holding none of
-// what it asks for.
+// what it asks for at a size they can use.
 export function getSpellFocus(c: Character, key: SpellKey): Item | null {
   for (const item of getGearRequirements(key).flat()) {
-    const held = c.held.find((i) => isGear(i, item.name))
+    const held = c.held.find((i) => isGear(i, item.name) && fitsSpell(c, key, i))
     if (held) return held
   }
   return null
 }
 
+// The item whose size bounds the spell's: the focus in hand, or else the
+// largest usable one the caster carries. Null for a spell that asks for no
+// gear.
+export function getSpellGear(c: Character, key: SpellKey): Item | null {
+  const focus = getSpellFocus(c, key)
+  if (focus) return focus
+  const names = getGearRequirements(key).flat().filter((alt) => !alt.not).map((alt) => alt.name)
+  const usable = getCarriedItems(c).filter((i) => names.some((name) => isGear(i, name)) && fitsSpell(c, key, i))
+  return usable.reduce<Item | null>((best, i) => (best === null || getItemScale(i) > getItemScale(best) ? i : best), null)
+}
+
+// spells.tex "Amplify Spell": "It is possible to amplify up to 1 size larger
+// than the item requirement", and an item larger than the caster has to be
+// amplified to — the fewest and the most amplifications the cast can have.
+// Past the item's size + 1 the spell does not grow, so a small item holds
+// it there even below the caster's own size.
+export type AmplifyBounds = { min: number; max: number }
+
+export function getAmplifyBounds(c: Character, key: SpellKey): AmplifyBounds {
+  if (!isScaledSpell(key)) return { min: 0, max: 0 }
+  const base = getSpellBaseSize(c, key)
+  const gear = getSpellGear(c, key)
+  const top = gear ? Math.min(MAX_SIZE, getItemScale(gear) + 1) : MAX_SIZE
+  return { min: gear ? Math.max(0, getItemScale(gear) - base) : 0, max: Math.max(0, top - base) }
+}
+
+// The size the spell is cast at: its base, one up per amplification, and
+// never past the item's size + 1.
+export function getCastSize(c: Character, key: SpellKey, amplify: number): number {
+  const gear = getSpellGear(c, key)
+  const top = gear && isScaledSpell(key) ? getItemScale(gear) + 1 : MAX_SIZE
+  return Math.max(1, Math.min(getSpellBaseSize(c, key) + amplify, top, MAX_SIZE))
+}
+
 export function hasSpellGear(c: Character, key: SpellKey): boolean {
   const carried = getCarriedItems(c)
-  return getGearRequirements(key).every((item) => item.some((alt) => carried.some((i) => isGear(i, alt.name)) !== alt.not))
+  return getGearRequirements(key).every((item) => item.some((alt) => carried.some((i) => isGear(i, alt.name) && (alt.not || fitsSpell(c, key, i))) !== alt.not))
 }
 
 // What the caster is missing of what the spell asks for, in the book's
-// words, for the button that will not press.
+// words, for the button that will not press; gear they carry only in a
+// size too large to use says so.
 export function getMissingGear(c: Character, key: SpellKey): string {
   const carried = getCarriedItems(c)
   return getGearRequirements(key)
-    .filter((item) => !item.some((alt) => carried.some((i) => isGear(i, alt.name)) !== alt.not))
-    .map((item) => item.map((alt) => alt.name).join(' or '))
+    .filter((item) => !item.some((alt) => carried.some((i) => isGear(i, alt.name) && (alt.not || fitsSpell(c, key, i))) !== alt.not))
+    .map((item) => item.map((alt) => (!alt.not && carried.some((i) => isGear(i, alt.name)) ? `a smaller ${alt.name}` : alt.name)).join(' or '))
     .join(', ')
 }
 

@@ -166,7 +166,12 @@ resolveAction ─────────► land(top)
   or of one cast through it, that hits opens a committed `spellTest` per target
   (`openSpellTests`); the target's die against the caster's side of the spell's test links
   them on a miss or graze, and a hit or better breaks the link; a willing target may take
-  it without a die (`acceptSpellTest`). Any interruption or stun ends every held spell: a
+  it without a die (`acceptSpellTest`), as a miss. What lands on the target is the spell's
+  `outcomes` entry for their own degree (`getSpellTestFacts` → `produceOutcome`).
+  Everything a cast produces — its facts, the explosion it opens, a charge, its spell
+  tests — is made at the cast's size (`getCastSizeOf`): the caster's own, or the
+  environment's for shamanism, one up per amplification, capped at its item's size + 1. A
+  cast short of the amplifications its item needs does nothing (`takesEffect`). Any interruption or stun ends every held spell: a
   won maneuver (`reduceCharacter`), a blow as it lands (`deliver.ts`), a crash
   (`trampledBy`).
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an

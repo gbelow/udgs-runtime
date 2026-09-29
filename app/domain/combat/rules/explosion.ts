@@ -2,7 +2,7 @@ import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
-import { resolveDL } from '../../character/rules/spells'
+import { getCastSize, resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { hasProperty } from '../../weaponProperties'
@@ -12,6 +12,7 @@ import { findWeaponRow, type WeaponRow } from './weaponRow'
 import { getHeldItem } from '../../item/rules/hands'
 import { findHeldItem } from './fighters'
 import { findFloorItem } from './floor'
+import { getAction } from './log'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -54,7 +55,11 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
       const charge = findHeldItem(state, action.itemId)?.item.charge ?? findFloorItem(state, action.itemId)?.item.charge
       return charge?.effects.filter(isAreaEffect) ?? []
     }
-    return isSpellKey(action.key) ? produceEffects(producer, SPELLS[action.key].effects).filter(isAreaEffect) : []
+    if (!isSpellKey(action.key)) return []
+    // spells.tex "Amplify Spell": at the size the cast that opened it was made at
+    const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+    const size = getCastSize(producer, action.key, cast?.kind === 'cast' ? cast.improved.amplify ?? 0 : 0)
+    return produceEffects(producer, SPELLS[action.key].effects, size).filter(isAreaEffect)
   })()
   return effects.length > 0 ? { effects, producer } : null
 }

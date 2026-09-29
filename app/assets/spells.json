@@ -106,7 +106,11 @@
           "shape": "explosion",
           "radius": 5
         },
-        "scaled": false,
+        "scales": {
+          "damage": false,
+          "area": true,
+          "reach": false
+        },
         "resist": null,
         "duration": "instant"
       }
@@ -174,7 +178,11 @@
           "shape": "explosion",
           "radius": 3
         },
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": true,
+          "reach": false
+        },
         "resist": null,
         "duration": "instant"
       }
@@ -242,7 +250,11 @@
           "shape": "explosion",
           "radius": 3
         },
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": true,
+          "reach": false
+        },
         "resist": null,
         "duration": "instant"
       }
@@ -356,7 +368,11 @@
           "length": 4,
           "angle": 60
         },
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": true,
+          "reach": false
+        },
         "resist": {
           "dl": "Accuracy",
           "roll": "reflex"
@@ -553,7 +569,11 @@
         "target": "target",
         "range": null,
         "area": null,
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": false,
+          "reach": false
+        },
         "resist": {
           "dl": "Accuracy",
           "roll": "reflex"
@@ -621,7 +641,11 @@
         "target": "target",
         "range": null,
         "area": null,
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": false,
+          "reach": false
+        },
         "resist": null,
         "duration": "instant"
       }
@@ -773,7 +797,11 @@
         "target": "target",
         "range": null,
         "area": null,
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": false,
+          "reach": false
+        },
         "resist": {
           "dl": "Accuracy",
           "roll": "reflex"
@@ -983,10 +1011,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "memory modified",
-      "graze": "memory modified",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "memory modified",
+        "effects": []
+      },
+      "graze": {
+        "text": "memory modified",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1055,10 +1095,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "asleep",
-      "graze": "asleep if exhausted",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "asleep",
+        "effects": []
+      },
+      "graze": {
+        "text": "asleep if exhausted",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": [
       {
@@ -1071,7 +1123,11 @@
         "target": "target",
         "range": 15,
         "area": null,
-        "scaled": false,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
         "resist": {
           "dl": "Charisma",
           "roll": "will"
@@ -1113,10 +1169,22 @@
       "roll": "insight"
     },
     "outcomes": {
-      "miss": "+3 DL to persuasion and deception against them",
-      "graze": "+2 DL to persuasion and deception against them",
-      "hit": "notices the spell",
-      "crit": "notices the spell"
+      "miss": {
+        "text": "+3 DL to persuasion and deception against them",
+        "effects": []
+      },
+      "graze": {
+        "text": "+2 DL to persuasion and deception against them",
+        "effects": []
+      },
+      "hit": {
+        "text": "notices the spell",
+        "effects": []
+      },
+      "critical": {
+        "text": "notices the spell",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1153,10 +1221,22 @@
       "roll": "insight"
     },
     "outcomes": {
-      "miss": "distracted",
-      "graze": "distracted",
-      "hit": "notices the spell",
-      "crit": "notices the spell"
+      "miss": {
+        "text": "distracted",
+        "effects": []
+      },
+      "graze": {
+        "text": "distracted",
+        "effects": []
+      },
+      "hit": {
+        "text": "notices the spell",
+        "effects": []
+      },
+      "critical": {
+        "text": "notices the spell",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1413,10 +1493,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "Dominated",
-      "graze": "",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "Dominated",
+        "effects": []
+      },
+      "graze": {
+        "text": "",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1495,10 +1587,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "confused",
-      "graze": "confused",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "confused",
+        "effects": []
+      },
+      "graze": {
+        "text": "confused",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1535,10 +1639,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "paralyzed",
-      "graze": "paralyzed",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "paralyzed",
+        "effects": []
+      },
+      "graze": {
+        "text": "paralyzed",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1589,10 +1705,54 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "-6 AP",
-      "graze": "-4 AP",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "-6 AP",
+        "effects": [
+          {
+            "name": "Pain",
+            "trigger": "instant",
+            "type": "cost",
+            "effect": {
+              "AP": 6,
+              "STA": 0,
+              "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            },
+            "scales": {
+              "damage": false
+            }
+          }
+        ]
+      },
+      "graze": {
+        "text": "-4 AP",
+        "effects": [
+          {
+            "name": "Pain",
+            "trigger": "instant",
+            "type": "cost",
+            "effect": {
+              "AP": 4,
+              "STA": 0,
+              "exhaustion": 0,
+              "IL": 0,
+              "ET": 0
+            },
+            "scales": {
+              "damage": false
+            }
+          }
+        ]
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1643,10 +1803,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "blinded",
-      "graze": "blinded",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "blinded",
+        "effects": []
+      },
+      "graze": {
+        "text": "blinded",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1683,10 +1855,22 @@
       "roll": "SPI + 3xSM"
     },
     "outcomes": {
-      "miss": "stunned, -2 STA, -1 STA per 3 points under",
-      "graze": "interrupted, -1 STA",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "stunned, -2 STA, -1 STA per 3 points under",
+        "effects": []
+      },
+      "graze": {
+        "text": "interrupted, -1 STA",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1729,10 +1913,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "linked",
-      "graze": "linked",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "linked",
+        "effects": []
+      },
+      "graze": {
+        "text": "linked",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1862,10 +2058,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "Dominated",
-      "graze": "Dominated",
-      "hit": "",
-      "crit": ""
+      "miss": {
+        "text": "Dominated",
+        "effects": []
+      },
+      "graze": {
+        "text": "Dominated",
+        "effects": []
+      },
+      "hit": {
+        "text": "",
+        "effects": []
+      },
+      "critical": {
+        "text": "",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -1902,10 +2110,22 @@
       "roll": "will"
     },
     "outcomes": {
-      "miss": "",
-      "graze": "",
-      "hit": "wakes",
-      "crit": "wakes"
+      "miss": {
+        "text": "",
+        "effects": []
+      },
+      "graze": {
+        "text": "",
+        "effects": []
+      },
+      "hit": {
+        "text": "wakes",
+        "effects": []
+      },
+      "critical": {
+        "text": "wakes",
+        "effects": []
+      }
     },
     "effects": []
   },
@@ -2663,7 +2883,11 @@
         "target": "target",
         "range": 100,
         "area": null,
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": false,
+          "reach": true
+        },
         "resist": {
           "dl": "Accuracy",
           "roll": "reflex"
@@ -2734,7 +2958,11 @@
         "target": "target",
         "range": 100,
         "area": null,
-        "scaled": true,
+        "scales": {
+          "damage": true,
+          "area": false,
+          "reach": false
+        },
         "resist": {
           "dl": "7",
           "roll": "reflex"
@@ -2856,7 +3084,11 @@
         "target": "target",
         "range": 100,
         "area": null,
-        "scaled": false,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
         "resist": null,
         "duration": "instant"
       }

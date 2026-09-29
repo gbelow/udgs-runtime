@@ -1,9 +1,9 @@
 import { requirementsLabel } from './requirements'
-import type { Area, Character, Spell, SpellMethod } from '../../types'
+import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
-import { getDM } from '../rules/helpers'
-import { ResolvedTest, canLearnSpell, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
+import { produceEffects } from '../rules/production'
+import { ResolvedTest, canLearnSpell, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
 function knowledgeLabel(spell: Spell): string {
@@ -93,10 +93,9 @@ function areaLabel(area: Area | null): string {
   return area.shape === 'explosion' ? `${area.radius}m radius` : `${area.length}m spray, ${area.angle}°`
 }
 
-export function getSpellEffectRows(c: Character, spell: Spell): SpellEffectRow[] {
-  return spell.effects.map((e) => {
-    const scale = e.scaled ? getDM(c) : 1
-    const text = e.type === 'damage' ? e.effect.damage.map((d) => `${Math.floor(d.value * scale)} ${d.kind}`).join(' + ')
+export function getSpellEffectRows(c: Character, key: SpellKey): SpellEffectRow[] {
+  return produceEffects(c, SPELLS[key].effects, getCastSize(c, key, 0)).map((e) => {
+    const text = e.type === 'damage' ? e.effect.damage.map((d) => `${d.value} ${d.kind}`).join(' + ')
       : e.type === 'affliction' ? e.effect.key
       : e.type === 'cost' ? `${e.trigger} cost`
       : e.type
@@ -131,9 +130,9 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         DL,
         hitAt,
         test: resolveTest(c, spell),
-        effects: getSpellEffectRows(c, spell),
+        effects: getSpellEffectRows(c, key),
         outcomes: spell.outcomes === null ? [] :
-          (['miss', 'graze', 'hit', 'crit'] as const).filter((d) => spell.outcomes![d]).map((d) => ({ degree: d, text: spell.outcomes![d] })),
+          DEGREES.filter((d) => spell.outcomes![d].text).map((d) => ({ degree: d, text: spell.outcomes![d].text })),
         range: rangeLabel(spell),
         costText: spell.costText,
         description: spell.description,

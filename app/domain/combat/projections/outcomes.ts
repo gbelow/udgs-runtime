@@ -1,5 +1,5 @@
 import type { Action, ActionRoll, CombatState, Deliveries, DragFacts } from '../types'
-import type { Delivery } from '../../types'
+import type { Delivery, Effect } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getActionName } from './labels'
@@ -110,9 +110,16 @@ export function getLastReport(state: CombatState): ActionReport | null {
     notes: delivered.flatMap(({ id, delivery }) => {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
-      return [{ target: named(id), text: `${delivery.effect.name}${waiting}` }]
+      return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect)}${waiting}` }]
     }).concat(getChargeNote(state, root), getActionNotes(state, root)),
   }
+}
+
+// What a cost effect takes from whoever it lands on.
+function lossLabel(effect: Effect): string {
+  if (effect.type !== 'cost') return ''
+  const lost = (['AP', 'STA'] as const).filter((k) => effect.effect[k] > 0).map((k) => `-${effect.effect[k]} ${k}`)
+  return lost.length > 0 ? ` ${lost.join(' ')}` : ''
 }
 
 // spells.tex "Charged": a charged spell lands on an object rather than on

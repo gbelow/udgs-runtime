@@ -378,6 +378,7 @@ function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOpt
         disabled={!option.available} title={option.text} onClick={onBuy}>
         {option.name} <span className='font-mono text-muted'>{option.HOP}</span>
         {bought ? <span className='ml-1 font-mono'>×{option.times}</span> : null}
+        {option.needed > 0 ? <span className='ml-1 text-muted'>needs {option.needed}</span> : null}
       </Button>
       {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.name}`} onClick={onRefund}>−</Button> : null}
     </span>

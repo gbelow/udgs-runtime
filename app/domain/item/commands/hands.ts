@@ -5,7 +5,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
-import { getSpellFocus } from '../../character/rules/spells'
+import { getCastSize, getSpellFocus } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, produceEffects } from '../../character/rules/production'
 
@@ -142,7 +142,7 @@ export function chargeItem(key: string, improved: Improvements = {}): HeldUpdate
   return <C extends Character>(c: C): C => {
     const item = isSpellKey(key) ? getSpellFocus(c, key) : null
     if (!item || !isSpellKey(key)) return c
-    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, improved) }
+    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, getCastSize(c, key, improved.amplify ?? 0)) }
     return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
   }
 }

@@ -129,9 +129,11 @@ def extract(text: str) -> dict[str, dict]:
         test = parse_test(fields.get("test", ""))
         if test:
             entry["test"] = test
-        outcomes = {k: fields[k] for k in ("miss", "graze", "hit", "crit") if fields.get(k)}
-        if outcomes:
-            entry["outcomes"] = outcomes
+        if any(fields.get(k) for k in ("miss", "graze", "hit", "crit")):
+            entry["outcomes"] = {
+                degree: {"text": fields.get(k, ""), "effects": []}
+                for degree, k in (("miss", "miss"), ("graze", "graze"), ("hit", "hit"), ("critical", "crit"))
+            }
         key = slug(name)
         if key in entries:
             raise ValueError(f"duplicate spell {name!r}")

@@ -2,21 +2,25 @@ import { Armor, Character, Skills, Weapon } from '../../types'
 import { dmgArr, RMArr, SMArr } from '../../tables'
 import { getSize } from './misc'
 
-export const getSM = (c: Character): number => {
-  const size = getSize(c)
-  return SMArr[size-1]
+// creating.tex "Size": a row of the size table, read at any size — the
+// sizes run 1 to 7, and a size beyond them reads the nearest end.
+function atSize(table: readonly number[], size: number): number {
+  return table[Math.max(1, Math.min(table.length, size)) - 1]
 }
 
-export const getDM = (c: Character): number => {
-  const size = getSize(c)
-  return dmgArr[size-1]
-}
+export const getDMAt = (size: number): number => atSize(dmgArr, size)
 
 // creating.tex "Reach Multiplier (RM)": "multiplies the range of all weapons".
-export const getRM = (c: Character): number => {
-  const size = getSize(c)
-  return RMArr[size-1]
-}
+export const getRMAt = (size: number): number => atSize(RMArr, size)
+
+export const getSM = (c: Character): number => atSize(SMArr, getSize(c))
+
+export const getDM = (c: Character): number => getDMAt(getSize(c))
+
+export const getRM = (c: Character): number => getRMAt(getSize(c))
+
+// creating.tex "Size": the largest size the table has.
+export const MAX_SIZE = dmgArr.length
 
 
 export function scaleArmor(armor: Armor, scale: number): Armor {

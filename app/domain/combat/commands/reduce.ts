@@ -18,7 +18,7 @@ import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST, isSpellTestBeaten } from '../rules/cast'
+import { GRAZE_SAVE_COST, isSpellTestBeaten, isUnderAmplified } from '../rules/cast'
 import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
@@ -84,11 +84,12 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         }
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
-        // spells.tex "Sustained": a cast that hit is taken hold of by its
-        // caster, its upkeep due at the round change
+        // spells.tex "Sustained": a cast that hit, amplified as far as its
+        // item asks, is taken hold of by its caster, its upkeep due at the
+        // round change
         if (action.kind === 'cast') {
           const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
-          if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit') return delivered
+          if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || isUnderAmplified(c, action)) return delivered
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
