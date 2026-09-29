@@ -1,6 +1,7 @@
 import { realDice } from "../components/utils";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/projections/actionPanel";
 import {
+  acceptSpellTest,
   amendAction,
   amendReaction,
   boostPush as boostPushCommand,
@@ -54,6 +55,7 @@ export function useCombatActions() {
   const back = () => update(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));
   const pay = () => update(payAction(newId));
+  const accept = () => update(acceptSpellTest(newId));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const resolve = () => update(resolveAction(newId));
@@ -63,5 +65,5 @@ export function useCombatActions() {
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, choose, boostPush } as const;
 }

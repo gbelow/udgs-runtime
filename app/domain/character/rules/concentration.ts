@@ -1,0 +1,55 @@
+import type { Character } from '../../types'
+import { SPELLS, SpellKey, isSpellKey } from '../../spells'
+import { isCampaignCharacter } from '../../utils'
+import { getActiveSpellKeys, isSpellActive } from './effects'
+
+// spells.tex "Sustained Spells": "actions that can be performed continuously
+// while concentration is maintained" — a caster holding one is
+// concentrating, and does nothing but what the spell they hold allows.
+export function isConcentrating(c: Character): boolean {
+  return getActiveSpellKeys(c).length > 0
+}
+
+// Who a held spell links its caster to, by character id; none for a spell
+// that is not held or links nobody.
+export function getLinkedTargets(c: Character, key: SpellKey): string[] {
+  if (!isCampaignCharacter(c) || !isSpellActive(c, key) || SPELLS[key].linkDL === null) return []
+  return c.active.find((e) => e.kind === 'spell' && e.key === key)?.targets ?? []
+}
+
+// spells.tex "Telepathic Link": "Each simultaneous link increases the
+// difficulty of spellcasting test by 3."
+export function getLinkDL(c: Character): number {
+  return getActiveSpellKeys(c).reduce((sum, key) => sum + (SPELLS[key].linkDL ?? 0) * getLinkedTargets(c, key).length, 0)
+}
+
+// The spells a spell is cast through: what the caster must be holding to
+// cast it at all.
+export function getSustainingRequirements(key: SpellKey): SpellKey[] {
+  return SPELLS[key].requirements.flatMap((item) => item.filter((alt) => alt.kind === 'sustaining' && !alt.not).map((alt) => alt.name)).filter(isSpellKey)
+}
+
+export function holdsSustaining(c: Character, key: SpellKey): boolean {
+  return SPELLS[key].requirements
+    .map((item) => item.filter((alt) => alt.kind === 'sustaining'))
+    .filter((item) => item.length > 0)
+    .every((item) => item.some((alt) => isSpellKey(alt.name) && isSpellActive(c, alt.name) !== alt.not))
+}
+
+// The held spell whose links a cast of this one works through: the spell
+// itself when it links ("It is possible to cast the spell again to affect
+// multiple targets"), or the linking spell it has to be cast through
+// ("These spells are made against all targets affected by link
+// simultaneously"); null for a spell that works through no link.
+export function getLinkSpell(key: SpellKey): SpellKey | null {
+  if (SPELLS[key].linkDL !== null) return key
+  return getSustainingRequirements(key).find((held) => SPELLS[held].linkDL !== null) ?? null
+}
+
+// What a concentrating caster may still cast: the linking spell they hold,
+// again, and the spells cast through what they hold.
+export function mayCastWhileConcentrating(c: Character, key: SpellKey): boolean {
+  if (!isConcentrating(c)) return true
+  if (SPELLS[key].linkDL !== null && isSpellActive(c, key)) return true
+  return getSustainingRequirements(key).some((held) => isSpellActive(c, held))
+}

@@ -24,6 +24,7 @@ import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
+import { isConcentrating } from '../../character/rules/concentration'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -85,13 +86,13 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c))))))
+  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, c, closeWhileConcentrating(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -183,7 +184,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
         return [answer({ kind }, null, reason)]
       }
     }
-  }))
+  })))
 }
 
 // The actions a character may take on their own initiative, one entry per
@@ -310,6 +311,14 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 
 // combat.tex "Action surge": an earmarked surge's AP is spent only on what
 // the surge allows, and until it is, nothing else can be done.
+// spells.tex "Sustained Spells": a caster holding a spell does nothing but
+// cast what it lets them (rules/cast.ts `getSpellOptions` says which) — no
+// moving, no answering (abilities.tex "Battle Mage" is what would allow
+// either).
+function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' ? null : 'concentrating')) : options
+}
+
 function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   return closeWith(options, (o) => getSurgeBarFor(state, c, o.draft.kind))
 }

@@ -677,11 +677,13 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
 // curse carried until it is beaten. The character keeps only the reference;
 // the effects are read off the owning catalog, so nothing copied into state
 // can go stale. A curse keeps the DL the test to beat it is rolled against
-// (spells.tex "Curse": "until the target shrugs it off").
+// (spells.tex "Curse": "until the target shrugs it off"); a held spell that
+// links keeps who it is linked to, by character id.
 export const ActiveEntrySchema = z.object({
   kind: z.enum(['ability', 'spell', 'curse']),
   key: str,
   DL: num.optional(),
+  targets: z.array(str).optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>
@@ -703,8 +705,9 @@ export type Talent = z.infer<typeof TalentSchema>
 // it can be learned. `name` is a catalog key for an ability or spell, the
 // book's word for a trainable, gear or condition; `level` is the minimum for
 // a trainable and the threshold an attribute is compared against with `op`.
+// `sustaining` names a spell the caster must be holding to cast this one.
 export const RequirementSchema = z.object({
-  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition']),
+  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition', 'sustaining']),
   name: str.default(''),
   level: num.default(0),
   op: z.enum(['>', '<', '>=', '<=']).default('>='),
@@ -826,6 +829,9 @@ export const SpellSchema = z.object({
   section: str.default(''), // the book's school, lowercased: the fallback casting knowledge
   type: SpellTypeSchema.default('instant'),
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // paid before the roll
+  // spells.tex "Sustained Spells": what holding it costs at every round
+  // change; null is the casting cost again
+  upkeep: CostSchema.nullable().default(null),
   costText: str.default(''), // the book's cost field verbatim, for materials and charges the domain does not track
   knowledge: z.array(SpellKnowledgeRequirementSchema).default([]),
   // spells.tex "Requirements": what the spell cannot be had or cast without
@@ -834,6 +840,10 @@ export const SpellSchema = z.object({
   // satisfies it, as an ability's are.
   requirements: z.array(z.array(RequirementSchema)).default([]),
   DL: num.nullable().default(null), // casting DL; null while the book leaves it undecided
+  // a held spell that links its caster to its targets: what each link adds
+  // to the DL of every spell the caster casts while holding it; null for a
+  // spell that links nobody
+  linkDL: num.nullable().default(null),
   castRange: str.default(''),
   castArea: str.default(''),
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),

@@ -4,11 +4,12 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
 import { Outcome, getOutcome } from '../rules/damage'
 import { skillLenses } from '../lenses'
-import { resolveTest } from '../../combat/rules/test'
+import { resolveTest, resisted } from '../../combat/rules/test'
 import type { Dice } from '../../combat/dice'
 import { payCost, spendAP } from './cost'
 import { inflict } from './addAffliction'
 import { woundPart } from './wounds'
+import { loseConcentration } from './spells'
 
 // The one place a delivered effect changes a character. A delivery whose
 // degree is known lands now: the effect is applied, and what its landing
@@ -65,17 +66,6 @@ export function resistCurse(key: string, dice: Dice): (c: CampaignCharacter) => 
   }
 }
 
-// combat.tex "Evasion": a reflex test against what is coming turns the
-// target's degree against it — "On a graze ... only takes half damage", on
-// a miss the whole of it, on a hit or better none.
-export function resisted(degree: Degree): Degree {
-  switch (degree) {
-    case 'miss': return 'hit'
-    case 'graze': return 'graze'
-    default: return 'miss'
-  }
-}
-
 // The target's die on a pending delivery: their skill against the DL the
 // producer set, and the effect lands at the degree their result turns into,
 // or not at all. Either way the wait is over.
@@ -111,13 +101,14 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
 // head puts the level at the threshold that is death. A wound already
 // carried is not carried twice, and its affliction is read off it rather
 // than stored; what the damage inflicts beyond the wound — unconsciousness,
-// a burning — is written.
+// a burning — is written. A blow that interrupts or stuns ends the
+// concentration of whoever it lands on (spells.tex "Sustained Spells").
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { wound } = outcome
     const injuryLevel = c.injuries.injuryLevel + outcome.IL
     const wounded = wound ? WOUNDS[wound.key].affliction ?? null : null
-    const hurt = wound ? woundPart(wound.key, wound.part.id)(c) : c
+    const hurt = (outcome.interruption !== 'none' ? loseConcentration : (x: CampaignCharacter) => x)(wound ? woundPart(wound.key, wound.part.id)(c) : c)
     return inflict(outcome.afflictions.filter((a) => a !== wounded))({
       ...hurt,
       injuries: {

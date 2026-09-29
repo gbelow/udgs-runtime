@@ -7,6 +7,7 @@ import { isDead, isImmobile } from '../../character/rules/afflictions'
 import { getReactionsTo } from './log'
 import { isInGrapple } from './partners'
 import { isInTurn } from './turn'
+import { isConcentrating } from '../../character/rules/concentration'
 
 // combat.tex "Flee": "It is possible to activate the movement surge as a
 // reaction to prevent them from entering a 4m perimeter from the character,
@@ -28,6 +29,7 @@ export function getFleeCost(c: CampaignCharacter): ActionCost | null {
 export function getFleeBar(state: CombatState, c: CampaignCharacter): string | null {
   if (isInTurn(state, c.id)) return 'your turn'
   if (isImmobile(c)) return 'immobile'
+  if (isConcentrating(c)) return 'concentrating'
   if (isInGrapple(state, c.id)) return 'grappled'
   if (c.usedSurge !== null) return 'surge used this round'
   return canSurge('movement')(c) ? null : 'cannot afford the surge'

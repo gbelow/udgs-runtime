@@ -9,6 +9,8 @@ import { getGrappleFacts } from '../rules/grapple'
 import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/fighters'
 import { getAction } from '../rules/log'
+import { isSpellTestBeaten } from '../rules/cast'
+import { getLinkSpell } from '../../character/rules/concentration'
 
 // What the settled or resolved action's damage does to each character it
 // was delivered to, as they stand.
@@ -33,6 +35,7 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   if (root.kind === 'throwItem') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
+  if (root.kind === 'spellTest') return spellTestNotes(root, named)
   const facts = getGrappleFacts(root)
   if (!facts) return []
   const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name
@@ -53,6 +56,15 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   return all.length > 0 ? all : [{ target: facts.pair.map(named).join(' and '), text: 'no effect' }]
 }
 
+// spells.tex "Telepathic Link": whether the test left the target linked to
+// the caster, or broke the link.
+function spellTestNotes(root: Extract<Action, { kind: 'spellTest' }>, named: (id: string) => string): { target: string; text: string }[] {
+  const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  if (!root.targetId || (!root.roll && !root.accepted) || link === null) return []
+  if (isSpellTestBeaten(root)) return [{ target: named(root.targetId), text: link === root.key ? 'resists the link' : 'breaks the link' }]
+  return link === root.key ? [{ target: named(root.targetId), text: `linked to ${named(root.actorId)}` }] : []
+}
+
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {
   const moved = Object.keys(facts.to)
   return [
@@ -65,7 +77,7 @@ function dragNotes(facts: DragFacts, named: (id: string) => string): { target: s
 // target, everything an explosion or a cast produced to whoever it was
 // produced for. Empty before the action has anything to say.
 function getDeliveries(root: Action): { id: string; delivery: Delivery }[] {
-  if (root.kind === 'blast' || root.kind === 'cast') return flatten(root.facts ?? {})
+  if (root.kind === 'blast' || root.kind === 'cast' || root.kind === 'spellTest') return flatten(root.facts ?? {})
   if (root.kind === 'grapple') return flatten(root.facts?.deliveries ?? {})
   if (!isAttackAction(root) || !root.targetId || !root.facts) return []
   return [{ id: root.targetId, delivery: root.facts }]
@@ -92,7 +104,7 @@ export function getLastReport(state: CombatState): ActionReport | null {
   const delivered = getDeliveries(root)
   return {
     label: getActionLabel(root, delivered[0]?.delivery.effect.name),
-    actor: named(root.actorId),
+    actor: named(root.kind === 'spellTest' && root.targetId ? root.targetId : root.actorId),
     roll: root.roll,
     outcomes: getOutcomes(state, root).map(({ id, outcome }) => ({ target: named(id), outcome })),
     notes: delivered.flatMap(({ id, delivery }) => {
@@ -120,5 +132,6 @@ function getChargeNote(state: CombatState, root: Action): { target: string; text
 function getActionLabel(root: Action, delivered: string | undefined): string {
   if (root.kind !== 'grapple' && delivered) return delivered
   if ((root.kind === 'cast' || root.kind === 'explosion' || root.kind === 'blast') && isSpellKey(root.key)) return SPELLS[root.key].name
+  if (root.kind === 'spellTest' && isSpellKey(root.key)) return `${SPELLS[root.key].name} test`
   return getActionName(root)
 }

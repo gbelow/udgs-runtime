@@ -76,7 +76,7 @@ and `ActionDraft` (what a click declares).
 | Group | Kinds |
 |---|---|
 | Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp` |
-| Generated roots | `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
+| Generated roots | `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
@@ -144,7 +144,8 @@ resolveAction ─────────► land(top)
 - **After the effect** — `getFollowUps` builds the list pushed over the landed action; the
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
-  counterattack), escapes a stun opens, the explosion a cast opens,
+  counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
+  a cast opens,
   a hook's knockdown, and a riposte on top. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
@@ -155,8 +156,19 @@ resolveAction ─────────► land(top)
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
   riposte or a flee, an evasion's move or a flee.
-- **Auto-landing** — an explosion or a push (`drag`) has nothing to decide once its
-  attacks are fought, so `advance` lands it.
+- **Auto-landing** — an explosion, a push (`drag`), a flee follow-up or a spell test has
+  nothing to decide once its attacks are fought or its die is thrown, so `advance` lands it.
+- **Links and concentration** (`character/rules/concentration.ts`) — a caster holding a
+  sustained spell is concentrating: every option but a cast is closed (`options.ts`), and
+  only the linking spell they hold, again, or a spell whose `sustaining` requirement they
+  hold may be cast. A linking spell (catalog `linkDL`) keeps who it links on the caster's
+  held entry (`targets`), and each link raises every cast's DL. A cast of a linking spell,
+  or of one cast through it, that hits opens a committed `spellTest` per target
+  (`openSpellTests`); the target's die against the caster's side of the spell's test links
+  them on a miss or graze, and a hit or better breaks the link; a willing target may take
+  it without a die (`acceptSpellTest`). Any interruption or stun ends every held spell: a
+  won maneuver (`reduceCharacter`), a blow as it lands (`deliver.ts`), a crash
+  (`trampledBy`).
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
   evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
   (`getFleeFollowUps`), offered only to one who can flee (`getFleeBar`: not in turn, not

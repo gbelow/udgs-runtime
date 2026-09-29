@@ -342,6 +342,19 @@ export const CastActionSchema = z.object({
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
+// spells.tex "Telepathic Link": the test one target of a spell worked through
+// a link makes against it, opened by the cast once it hit — the caster's
+// action, the target's die. `accepted` is a target who takes it without a
+// test ("or with anyone who allows the link"). `facts` is what reaches the
+// target.
+export const SpellTestActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('spellTest'),
+  key: str.default(''),
+  accepted: z.boolean().default(false),
+  facts: DeliveriesSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
 export const EvadeActionSchema = z.object({ ...ActionBase, kind: z.literal('evade') }).strip()
 // combat.tex "Crash": the target of a trample standing firm — "The target
@@ -598,6 +611,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ExplosionActionSchema,
   BlastActionSchema,
   CastActionSchema,
+  SpellTestActionSchema,
   EvasionActionSchema,
   GuardActionSchema,
   AvoidExplosionActionSchema,
@@ -635,6 +649,7 @@ export type AttackAction = StrikeAction | ShootAction
 export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
 export type BlastAction = z.infer<typeof BlastActionSchema>
 export type CastAction = z.infer<typeof CastActionSchema>
+export type SpellTestAction = z.infer<typeof SpellTestActionSchema>
 // Everything made with a weapon row: the two attacks and an explosion.
 export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>

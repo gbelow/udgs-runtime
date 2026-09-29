@@ -51,6 +51,9 @@ export const ACTIONS = {
   blast:       { label: 'blast',        type: 'action',   price: null,          reactsTo: [],         die: false, generated: true },
   // spells.tex "Casting spells": the caster's test against the spell's DL
   cast:        { label: 'cast',         noun: 'spell', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  // spells.tex "Telepathic Link": a target's test against a spell worked
+  // through a link, opened by the cast; nobody answers it
+  spellTest:   { label: 'spell test',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
   // combat.tex "Movement"
   move:        { label: 'move',         type: 'action',   price: null,          reactsTo: [],         die: false, movement: true },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive

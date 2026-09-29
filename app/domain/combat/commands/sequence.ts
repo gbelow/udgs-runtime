@@ -1,7 +1,7 @@
 import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
-import { opensExplosion } from '../rules/cast'
+import { getSpellTestTargets, opensExplosion } from '../rules/cast'
 import { getAttackOptions } from '../rules/attack'
 import { isInReach } from '../rules/board'
 import { getBlastOf, isSpray } from '../rules/explosion'
@@ -27,7 +27,7 @@ import { appendActions, applyPhase, replaceActions } from './log'
 // opens the next of the actions its reactions opened before its effect. One
 // waiting on a declaration, an answer or a choice is left to it — except
 // those with nothing of their own left to decide, which land once their
-// attacks are fought: an explosion, a push, and a flee. A follow-up forgone
+// attacks are fought: an explosion, a push, a flee, and a spell's test. A follow-up forgone
 // for another its actor took is passed up. Once nothing is left on it, the
 // turn goes to whoever is due to flee.
 export function advance(state: CombatState, newId: () => string): CombatState {
@@ -36,7 +36,7 @@ export function advance(state: CombatState, newId: () => string): CombatState {
   if (isForgone(state, top)) return advance(replaceActions(state, [{ ...top, step: 'done', declined: true }]), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  return opened === state && (top.kind === 'drag' || top.kind === 'explosion' || top.kind === 'fleeFollowUp') ? land(state, top, newId) : opened
+  return opened === state && (top.kind === 'drag' || top.kind === 'explosion' || top.kind === 'fleeFollowUp' || top.kind === 'spellTest') ? land(state, top, newId) : opened
 }
 
 // The action's effect: settled as it stands, landed on everyone it
@@ -108,7 +108,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // the blast an explosion goes off as, beneath everything else; the flees it
 // leaves, decided once everything else is; what its reactions open after
 // it (rules/openers.ts), in the order they were declared; the escapes a stun
-// opens, the explosion a cast that hit with an area to it goes off as,
+// opens, the tests a cast worked through a link puts its targets to, the
+// explosion a cast that hit with an area to it goes off as,
 // aimed and played out on its own (the caster's part is done), the
 // knockdown a hook opens, the disarm an intercept opens; and on top, a
 // riposte.
@@ -127,6 +128,7 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
     ...openFlees(state, root, newId),
     ...opened,
     ...escapesOnStun(state, root, newId),
+    ...openSpellTests(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
     ...openHookKnockdown(state, root, newId),
     ...openInterceptDisarm(state, root, newId),
@@ -140,6 +142,14 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
 function castExplosion(state: CombatState, root: CastAction, newId: () => string): ExplosionAction {
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id })
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
+}
+
+// spells.tex "Telepathic Link": a test for each target of a cast worked
+// through a link, committed as it opens — nobody answers it, and it waits
+// only on the target's die.
+function openSpellTests(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  if (root.kind !== 'cast') return []
+  return getSpellTestTargets(state, root).map((targetId) => makeAction('spellTest', { id: newId(), actorId: root.actorId, targetId, key: root.key, spawnedBy: root.id, step: 'react' }))
 }
 
 // combat.tex "Hook Attack": the knockdown the hook opens, for the hooker to

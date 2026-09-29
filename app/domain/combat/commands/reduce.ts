@@ -18,7 +18,10 @@ import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST } from '../rules/cast'
+import { GRAZE_SAVE_COST, isSpellTestBeaten } from '../rules/cast'
+import { getInterruptionOf } from '../rules/interruption'
+import { getLinkSpell } from '../../character/rules/concentration'
+import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
 import { getReactionsTo } from '../rules/log'
 import { actionSurge } from '../../character/commands/actionSurge'
 
@@ -35,7 +38,19 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // what had to be looked up across two characters was written there by the
 // command that made the transition; what the action delivers is handed to
 // the character's own effect processor, which needs nothing but the record.
+// One the action interrupted stops concentrating, and every spell they held
+// ends with it (abilities.tex "Battle Mage": "When interrupted, instead of
+// losing the spell") — a won maneuver here; a blow that interrupts or stuns
+// ends it where it lands (character/commands/deliver.ts), as a crash does
+// (`trampledBy`).
 export function reduceCharacter(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    const reduced = reducePart(action, phase)(c)
+    return phase === 'resolve' && getInterruptionOf(action, c.id) !== 'none' ? loseConcentration(reduced) : reduced
+  }
+}
+
+function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
   return (before: CampaignCharacter) => {
     const c = phase === 'resolve' ? settleGrapple(getGrappleFacts(action), before) : before
     switch (phase) {
@@ -80,6 +95,17 @@ export function reduceCharacter(action: Action, phase: Phase): (c: CampaignChara
           }
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) : delivered
+        }
+        // spells.tex "Telepathic Link": what the test let through lands on
+        // the target; the caster holds a link to one who did not beat the
+        // linking spell's test, and loses one who beat any test the link
+        // put them to
+        if (action.kind === 'spellTest') {
+          const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
+          const link = isSpellKey(action.key) ? getLinkSpell(action.key) : null
+          if (c.id !== action.actorId || !action.targetId || link === null) return delivered
+          if (isSpellTestBeaten(action)) return unlinkTarget(link, action.targetId)(delivered)
+          return link === action.key ? linkTarget(link, action.targetId)(delivered) : delivered
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Standard Action": a thrown item leaves whichever hand
@@ -184,11 +210,12 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
 }
 
 // combat.tex "Crash": who it stunned, and the target it knocked prone —
-// "Stun: An interrupt in which the target also loses 2 AP".
+// "Stun: An interrupt in which the target also loses 2 AP" — and, being
+// interrupted, stops concentrating.
 function trampledBy(tramples: Trample[], c: CampaignCharacter): CampaignCharacter {
   const hit = tramples.filter((t) => t.stunned.includes(c.id))
   if (hit.length === 0) return c
-  const stunned = payCost({ AP: STUN_AP * hit.length, STA: 0 })(c)
+  const stunned = loseConcentration(payCost({ AP: STUN_AP * hit.length, STA: 0 })(c))
   return hit.some((t) => t.prone && t.id === c.id) ? fallProne(stunned) : stunned
 }
 

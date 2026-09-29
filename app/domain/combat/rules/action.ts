@@ -122,6 +122,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'follow':
     case 'flee':
     case 'fleeFollowUp':
+    case 'spellTest':
       return true
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
@@ -193,6 +194,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'follow':
     case 'flee':
     case 'fleeFollowUp':
+    case 'spellTest':
     case 'drag':
     case 'blast':
     case 'release':
@@ -315,6 +317,7 @@ export function isAnswerable(state: CombatState, open: Action): boolean {
 // an Explosion").
 export function needsDie(state: CombatState, action: Action): boolean {
   if (action.kind === 'move') return needsBalanceTest(state, action)
+  if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }
 
@@ -357,6 +360,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'pickUp':
     case 'throwItem':
     case 'fleeFollowUp':
+    case 'spellTest':
       return 'confirm'
   }
 }
@@ -401,6 +405,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'pickUp':
     case 'throwItem':
     case 'fleeFollowUp':
+    case 'spellTest':
       return []
   }
 }

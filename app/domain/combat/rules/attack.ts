@@ -19,7 +19,8 @@ import { getGrappleStrikeTerm, getManeuverDLTerms } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
-import { getCastTerms } from './cast'
+import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
+import { getLinkDL } from '../../character/rules/concentration'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRiposteDefense } from './riposte'
 import { getMidActionTerm } from './opportunity'
@@ -330,7 +331,9 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'shoot':
       return getShotDLTerms(state, root)
     case 'cast':
-      return getSpellDLTerms(root)
+      return getSpellDLTerms(state, root)
+    case 'spellTest':
+      return getSpellTestDLTerms(state, root)
     case 'explosion':
       return getExplosionDLTerms(state, root)
     case 'grapple':
@@ -374,10 +377,17 @@ function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
 }
 
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:
-// Increases spell DL by 4".
-function getSpellDLTerms(root: ActionOf<'cast'>): Term[] {
+// Increases spell DL by 4"; "Telepathic Link": "Each simultaneous link
+// increases the difficulty of spellcasting test by 3".
+function getSpellDLTerms(state: CombatState, root: ActionOf<'cast'>): Term[] {
+  const caster = state.characters[root.actorId]
   if (!isSpellKey(root.key)) return []
-  return [{ label: 'spell DL', value: SPELLS[root.key].DL ?? 0 }, ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : [])]
+  const links = caster ? getLinkDL(caster) : 0
+  return [
+    { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
+    ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : []),
+    ...(links > 0 ? [{ label: 'links', value: links }] : []),
+  ]
 }
 
 function getDL(state: CombatState, root: RootAction): number {
@@ -403,6 +413,9 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
       return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':
       return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
+    // spells.tex "Telepathic Link": the target's die, against the caster
+    case 'spellTest':
+      return { skill: getSpellTestSkillTerms(state, root), DL: getDLTerms(state, root) }
     // an explosion's tests are its reactors' (combat.tex "Explosions"); the
     // rest are committed by paying
     case 'explosion':
@@ -435,7 +448,8 @@ export function getRootTest(state: CombatState, root: RootAction): Test | null {
     case 'cast':
       return { ...base, scale: 'overflow', grazes: !root.quicken }
     default:
-      // a maneuver and a Balance test, the only other kinds with terms
+      // a maneuver, a Balance test and a spell's test, the only other kinds
+      // with terms
       return { ...base, scale: 'degrees' }
   }
 }

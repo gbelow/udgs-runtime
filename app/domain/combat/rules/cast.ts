@@ -1,15 +1,17 @@
-import type { CampaignCharacter } from '../../types'
-import type { ActionRoll, CastAction, CombatState, Deliveries } from '../types'
+import type { CampaignCharacter, Skills } from '../../types'
+import type { ActionRoll, CastAction, CombatState, Deliveries, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getEffectRange, getSelfEffects, getTargetEffects, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill } from '../../character/rules/spells'
+import { canCastSpell, getCastingDL, getMissingGear, getSpellSkill, resolveDL } from '../../character/rules/spells'
+import { getLinkSpell, getLinkedTargets, getSustainingRequirements, holdsSustaining, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { Term } from '../../character/rules/terms'
 import { getDistanceBetween, hasLineOfSight } from './board'
-import { resolveTest } from './test'
+import { resolveTest, resisted } from './test'
 import { isAreaEffect } from './explosion'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
@@ -17,7 +19,9 @@ import { isAreaEffect } from './explosion'
 // from a cast that failed or was cancelled. From here the caster is out of
 // it: each delivery is the one who holds it's to roll. A charged spell
 // produces nothing now: "activates an object that stays charged", and what
-// it does waits in the object until the charge is released.
+// it does waits in the object until the charge is released. One worked
+// through a link reaches its targets through the tests it opens
+// (sequence.ts `openSpellTests`), not here.
 export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   const caster = state.characters[root.actorId]
   if (!caster || root.roll?.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return {}
@@ -26,7 +30,7 @@ export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   const facts: Deliveries = {}
   const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, root.improved, root.key))
   if (own.length > 0) facts[root.actorId] = own
-  if (root.targetId && state.characters[root.targetId]) {
+  if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
     const theirs = getTargetEffects(spell).map((e) => produceSpellEffect(caster, e, root.improved, root.key))
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
@@ -80,6 +84,8 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   if (missing) return `needs ${missing}`
   if (!canAfford(c, spell.cost)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
+  if (!holdsSustaining(c, key)) return `needs ${getSustainingRequirements(key).map((held) => SPELLS[held].name).join(' or ')} held`
+  if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
   return canCastSpell(c, key, false) ? null : 'needs a focus surge'
 }
 
@@ -88,8 +94,8 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
     const spell = SPELLS[key]
     return {
       key,
-      DL: spell.DL,
-      quickenedDL: getCastingDL(spell, true),
+      DL: getCastingDL(c, spell, false),
+      quickenedDL: getCastingDL(c, spell, true),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: canCastSpell(c, key, false),
       quickenable: canCastSpell(c, key, true),
@@ -134,7 +140,11 @@ export function isTargeted(root: CastAction): boolean {
   return isSpellKey(root.key) && isTargetedSpell(root.key)
 }
 
+// A linking spell aims at the one it links; a spell cast through a link
+// aims at everyone linked, picked by nobody.
 function isTargetedSpell(key: SpellKey): boolean {
+  const link = getLinkSpell(key)
+  if (link !== null) return link === key
   return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key]).length > 0
 }
 
@@ -154,4 +164,67 @@ export function isInCastRange(state: CombatState, root: CastAction, targetId: st
   const distance = getDistanceBetween(state, root.actorId, targetId)
   if (distance === null || !isSpellKey(root.key)) return true
   return getTargetEffects(SPELLS[root.key]).every((e) => distance <= (getEffectRange(e, root.improved) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
+}
+
+// spells.tex "Telepathic Link": who the cast of a spell worked through a
+// link puts to the test — the one a linking spell aims at, or everyone the
+// link it is cast through holds ("These spells are made against all
+// targets affected by link simultaneously"). None for a cast that did not
+// hit, was cancelled, or has no test for its targets to make.
+export function getSpellTestTargets(state: CombatState, root: CastAction): string[] {
+  const caster = state.characters[root.actorId]
+  if (!caster || root.roll?.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root) || getSpellTestRoll(root.key) === null) return []
+  const link = getLinkSpell(root.key)
+  if (link === null) return []
+  const targets = link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(caster, link)
+  return targets.filter((id) => state.characters[id])
+}
+
+// The skill the spell's targets test with, as the book words the test
+// ("Charisma vs will"); null when it names none the sheet has.
+function getSpellTestRoll(key: SpellKey): keyof Skills | null {
+  const roll = SPELLS[key].test?.roll ?? ''
+  return roll in skillTermGetters ? roll as keyof Skills : null
+}
+
+export function getSpellTestSkillTerms(state: CombatState, action: SpellTestAction): Term[] {
+  const target = action.targetId ? state.characters[action.targetId] : undefined
+  const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
+  return target && roll ? skillTermGetters[roll](target) : []
+}
+
+// The caster's side of the test, resolved for the caster: the book's
+// "Charisma".
+export function getSpellTestDLTerms(state: CombatState, action: SpellTestAction): Term[] {
+  const caster = state.characters[action.actorId]
+  const test = isSpellKey(action.key) ? SPELLS[action.key].test : null
+  if (!caster || !test) return []
+  return [{ label: test.dl, value: resolveDL(caster, test.dl, test.roll).value ?? 0 }]
+}
+
+// What reaches the target, at the degree their test turns into, in full
+// when they took it: the spell's effects for a target, none on a hit or
+// better. The link itself
+// is the caster's to hold (commands/reduce.ts).
+export function getSpellTestFacts(state: CombatState, action: SpellTestAction): Deliveries {
+  const caster = state.characters[action.actorId]
+  if (!caster || !action.targetId || !isSpellKey(action.key)) return {}
+  if (!action.accepted && !action.roll) return {}
+  const degree = action.accepted || !action.roll ? 'hit' : resisted(action.roll.degree)
+  if (degree === 'miss') return {}
+  const theirs = getTargetEffects(SPELLS[action.key]).map((e) => ({ ...produceSpellEffect(caster, e, {}, action.key), degree, test: null }))
+  return theirs.length > 0 ? { [action.targetId]: theirs } : {}
+}
+
+// Whether the target beat the test: a hit or better breaks the link
+// ("The link is broken by hitting on any will test triggered by the
+// caster").
+export function isSpellTestBeaten(action: SpellTestAction): boolean {
+  return !action.accepted && action.roll !== null && resisted(action.roll.degree) === 'miss'
+}
+
+// spells.tex "Telepathic Link": "or with anyone who allows the link" — a
+// willing target takes the test's effects without rolling for it.
+export function canAcceptSpellTest(action: SpellTestAction): boolean {
+  return action.step === 'react' && !action.accepted
 }

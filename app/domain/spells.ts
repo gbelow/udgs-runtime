@@ -8,9 +8,9 @@ import catalog from '../assets/spells.json'
 //
 // "Sustained Spells: The cost must be paid at the beginning of the next round
 // to maintain the spell effect" — so a sustained spell's upkeep is its own
-// casting cost, charged at every round change while it is held. The round
-// change is combat's, where a spell costs only its AP and STA; what else it
-// asks is exploration's.
+// casting cost, charged at every round change while it is held, unless the
+// spell names an upkeep of its own. The round change is combat's, where a
+// spell costs only its AP and STA; what else it asks is exploration's.
 export type SpellKey = keyof typeof catalog
 
 const parsed: Record<SpellKey, Spell> = z.record(z.string(), SpellSchema).parse(catalog) as Record<SpellKey, Spell>
@@ -18,8 +18,9 @@ const parsed: Record<SpellKey, Spell> = z.record(z.string(), SpellSchema).parse(
 export const SPELLS: Record<SpellKey, Spell> = Object.fromEntries(
   (Object.keys(parsed) as SpellKey[]).map((key) => {
     const spell = parsed[key]
-    if (spell.type !== 'sustained') return [key, spell]
-    return [key, { ...spell, effects: [...spell.effects, SpellEffectSchema.parse({ name: 'upkeep', type: 'cost', trigger: 'end_round', effect: { AP: spell.cost.AP, STA: spell.cost.STA }, target: 'self', duration: 'held' })] }]
+    const { AP, STA } = spell.upkeep ?? spell.cost
+    if (spell.type !== 'sustained' || (AP === 0 && STA === 0)) return [key, spell]
+    return [key, { ...spell, effects: [...spell.effects, SpellEffectSchema.parse({ name: 'upkeep', type: 'cost', trigger: 'end_round', effect: { AP, STA }, target: 'self', duration: 'held' })] }]
   }),
 ) as Record<SpellKey, Spell>
 

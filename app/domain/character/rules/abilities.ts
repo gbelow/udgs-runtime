@@ -16,6 +16,7 @@ function holdsRequirement(c: Character, req: Requirement): boolean {
     case 'trainable':
     case 'gear':
     case 'condition':
+    case 'sustaining':
       return true
   }
 }

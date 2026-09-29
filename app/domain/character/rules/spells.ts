@@ -9,6 +9,7 @@ import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
 import { getCarriedItems, isGear } from '../../item/rules/items'
 import { isCampaignCharacter } from '../../utils'
+import { getLinkDL, holdsSustaining, mayCastWhileConcentrating } from './concentration'
 
 // spells.tex "Learning spells".
 
@@ -67,9 +68,10 @@ export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character
 }
 
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by
-// Quicken when the caster forgoes the focus surge.
-export function getCastingDL(spell: Spell, quicken: boolean): number | null {
-  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0)
+// Quicken when the caster forgoes the focus surge, and by every link the
+// caster holds (spells.tex "Telepathic Link").
+export function getCastingDL(c: Character, spell: Spell, quicken: boolean): number | null {
+  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + getLinkDL(c)
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5.
@@ -118,7 +120,7 @@ export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boo
   if (!isCampaignCharacter(c) || !(key in c.spells)) return false
   const spell = SPELLS[key]
   if (spell.DL === null || !canAfford(c, spell.cost)) return false
-  if (!hasSpellGear(c, key)) return false
+  if (!hasSpellGear(c, key) || !holdsSustaining(c, key) || !mayCastWhileConcentrating(c, key)) return false
   return quicken || c.usedSurge === 'focus'
 }
 

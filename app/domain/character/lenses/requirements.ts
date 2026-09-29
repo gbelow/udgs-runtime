@@ -7,6 +7,7 @@ import { SPELLS, SpellKey } from '../../spells'
 export function requirementLabel(req: Requirement): string {
   const name = req.kind === 'ability' ? ABILITIES[req.name as AbilityKey].name
     : req.kind === 'spell' ? SPELLS[req.name as SpellKey].name
+    : req.kind === 'sustaining' ? `${SPELLS[req.name as SpellKey].name} held`
     : req.kind === 'trainable' ? `${req.name} ${req.level}`
     : req.kind === 'attribute' ? `${req.name} ${req.op} ${req.level}`
     : req.name

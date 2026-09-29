@@ -65,6 +65,8 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'blast': return []
     // the flee is its surge; what the fleer does with it comes in their turn
     case 'fleeFollowUp': return []
+    // the target's test against the link: nothing to answer
+    case 'spellTest': return []
     // letting go and grappling back draw nothing
     case 'release':
     case 'holdBack':

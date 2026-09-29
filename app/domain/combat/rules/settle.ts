@@ -4,7 +4,7 @@ import { findThrowSource, getThrownItem, getReachableFloor } from './floor'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
-import { getCastFacts } from './cast'
+import { getCastFacts, getSpellTestFacts } from './cast'
 import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
 
@@ -38,6 +38,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
     case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
     case 'cast': return { ...open, step: 'done', facts: getCastFacts(state, open) }
+    case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }
   }

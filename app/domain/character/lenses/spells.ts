@@ -3,7 +3,7 @@ import type { Area, Character, Spell, SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
 import { getDM } from '../rules/helpers'
-import { ResolvedTest, canLearnSpell, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
+import { ResolvedTest, canLearnSpell, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
 function knowledgeLabel(spell: Spell): string {
@@ -116,7 +116,8 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
     .map((key) => {
       const spell = SPELLS[key]
       const learned = c.spells[key]
-      const hitAt = spell.DL === null ? null : spell.DL + HIT_MARGIN
+      const DL = getCastingDL(c, spell, false)
+      const hitAt = DL === null ? null : DL + HIT_MARGIN
       const active = isSpellActive(c, key)
       return {
         key,
@@ -127,7 +128,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
         practice: learned.practice,
         skill: getSpellSkill(c, key),
         miracle: getMiracleSkill(c, key),
-        DL: spell.DL,
+        DL,
         hitAt,
         test: resolveTest(c, spell),
         effects: getSpellEffectRows(c, spell),

@@ -8,6 +8,7 @@ import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getDragComparison } from '../rules/drag'
+import { canAcceptSpellTest } from '../rules/cast'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
 
@@ -203,6 +204,16 @@ export function payAction(newId: () => string): Updater {
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
     return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open, newId)
+  }
+}
+
+// spells.tex "Telepathic Link": a willing target takes the spell's test
+// without a die, as if they had missed it, and it lands.
+export function acceptSpellTest(newId: () => string): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'react')
+    if (!open || open.kind !== 'spellTest' || !canAcceptSpellTest(open)) return state
+    return payAll(state, { ...open, accepted: true }, newId)
   }
 }
 

@@ -7,7 +7,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
-import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
+import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -238,6 +238,8 @@ export type ActionPanelView = {
   compare: boolean
   canRoll: boolean
   canPay: boolean
+  // a spell's test its target may take without rolling
+  canAccept: boolean
   // an evasive jump is declared but has not picked its landing yet
   jumpPending: boolean
   // who still has to pick on the board where they step to block or
@@ -264,7 +266,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -375,6 +377,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     compare: drag !== null,
     canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),
     canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open),
+    canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,

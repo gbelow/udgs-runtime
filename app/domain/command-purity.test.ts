@@ -65,6 +65,13 @@ function characterSubject(): CampaignCharacter {
   }
 }
 
+// The subject holding a telepathic link to 'b'.
+const linking = (c: CampaignCharacter): CampaignCharacter => ({
+  ...c,
+  spells: { ...c.spells, 'telepathic-link': { method: 'intuitive', practice: 0 } },
+  active: [...c.active, { kind: 'spell', key: 'telepathic-link', targets: ['b'] }],
+})
+
 // The subject with nothing on, off the clock: gear.tex "Donning and Doffing
 // armor" allows no donning in a fight.
 const bareOnSheet = (c: CampaignCharacter): Character => ({ ...c, type: 'base', worn: null }) as unknown as Character
@@ -104,6 +111,9 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   forgetSpell: characterCommands.forgetSpell('sleep'),
   practiceSpell: characterCommands.practiceSpell('sleep', 1),
   releaseSpell: characterCommands.releaseSpell('sleep'),
+  linkTarget: (c) => characterCommands.linkTarget('telepathic-link', 'b')(linking(c)),
+  unlinkTarget: (c) => characterCommands.unlinkTarget('telepathic-link', 'b')(linking(c)),
+  loseConcentration: (c) => characterCommands.loseConcentration(linking(c)),
   suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
@@ -164,6 +174,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
   payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
+  acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))),
   refundImprovement: (s) => combatCommands.refundImprovement('extend')(deepFreeze(combatCommands.improveSpell('extend')(deepFreeze(rolledCast(s))))),
@@ -226,6 +237,15 @@ function rolledExplosion(s: CombatState): CombatState {
 function rolledCast(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.rollAction(() => 30, newId)(deepFreeze(combatCommands.commitAction()(declared)))
+}
+
+// A's telepathic link at `b` cast and landed, leaving `b`'s test against it
+// open, on a frozen state each step along.
+function openSpellTest(s: CombatState): CombatState {
+  const learned = { ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, spells: { ...s.characters.a.spells, 'telepathic-link': { method: 'intuitive' as const, practice: 0 } } } } }
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'telepathic-link' }, newId)(deepFreeze(learned)))
+  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
+  return combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 30, newId)(committed)))
 }
 
 // A's cast of sleep rolled to a graze the graze save carries to a hit.
