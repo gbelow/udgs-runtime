@@ -1,17 +1,17 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
-import { MOVEMENT_BLOCK_COST } from '../../tables'
+import { MOVEMENT_BLOCK_COST, RUN_START_AP } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
-import { canStartRun } from '../../character/rules/surge'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { canRest, isCrossable, isInLiquid, readGround } from './ground'
-import { getMoveOrigin } from './waypoint'
+import { getMoveOrigin, getStepPlacements } from './waypoint'
+import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
 import { getInterruptionOf } from './interruption'
@@ -57,13 +57,14 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 
 // What the move as declared costs its actor, less what the reaction that
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
-// move and does not need to be spent again, but any STA cost must be paid"),
-// plus what that reaction asks on top (combat.tex "Avoiding an Explosion":
-// "can run by spending one extra STA").
+// move and does not need to be spent again, but any STA cost must be paid").
+// combat.tex "Action surge": "Running costs no STA during a movement surge"
+// — for the rest of the turn it was made in; a push or a drag is not
+// movement for it.
 export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
   const cost = getMoveCost(c, action.movement, cells)
-  const surcharge = (action.surchargedMovements as readonly MoveKind[]).includes(action.movement) ? action.surcharge : { AP: 0, STA: 0 }
-  return { AP: Math.max(0, cost.AP - action.prepaid) + surcharge.AP, STA: cost.STA + surcharge.STA }
+  const free = action.movement === 'run' && isCampaignCharacter(c) && c.runsFree
+  return { AP: Math.max(0, cost.AP - action.prepaid), STA: free ? 0 : cost.STA }
 }
 
 // ---------------------------------------------------------------------------
@@ -78,12 +79,10 @@ export type MovementOption = {
 }
 
 // combat.tex "Movement": crawling "is the only usable movement speed while
-// prone", swimming "the only usable movement speed while swimming", running
-// "can only be initiated during a movement surge" — as the table rules it,
-// its first block paid out of the movement surge's AP (`canStartRun`). A move a
-// reaction opened may name the kinds it grants instead, a run among them
-// without the surge (combat.tex "Avoiding an Explosion": on a critical "the
-// character can run"). combat.tex "Lame": "Cannot run, jump or use basic
+// prone", swimming "the only usable movement speed while swimming". A move
+// a reaction opened may name the kinds it grants instead (combat.tex
+// "Avoiding an Explosion": on a critical "the character can run").
+// combat.tex "Lame": "Cannot run, jump or use basic
 // movement". combat.tex "Grappled": "Movement requires pushing or
 // dragging the other participants in the grapple" — a block of push at a
 // time (combat.tex "Push and drag"), though standing up crosses no cells
@@ -98,7 +97,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, canStartRun(c), granted)
+      : movementGate(kind, prone, lame, swimming, granted)
     return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
@@ -110,13 +109,12 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, runnable: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
   if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
-  if (kind === 'run' && granted === null && !runnable) return { available: false, reason: 'needs movement surge AP' }
   return { available: true, reason: null }
 }
 
@@ -161,48 +159,12 @@ function withinBudget(cost: ActionCost, budget: number | null): boolean {
 // ---------------------------------------------------------------------------
 // Where the move actually ends
 
-// combat.tex "running": "can continue running ... as long as no turns of 90
-// degrees or more are made per running block". Within a block (one running
-// speed of cells) the heading may stray one hex step (60 degrees) from the
-// block's first step; the path is cut where it would turn harder, and the
-// runner stops there. The table's ruling: turning while running stops the
-// move, and the path may still be drawn past it.
-export function getRunPath(state: CombatState, action: MoveAction): Coord[] {
-  const blocks = getRunBlocks(state, action)
-  if (!blocks) return action.path
-  const turn = blocks.findIndex((s) => !isWithinRunTurn(s.heading, s.direction))
-  return turn < 0 ? action.path : action.path.slice(0, turn)
-}
-
-function isWithinRunTurn(heading: number, direction: number): boolean {
-  return Math.min((direction - heading + 6) % 6, (heading - direction + 6) % 6) <= 1
-}
-
-// The heading a runner is held to after `steps` cells of the path: that of
-// the running block those steps are in, or null at the start of a block,
-// where the next step sets a new one, and for any movement but a run.
+// The way a runner is going after `steps` cells of the path: the way the
+// last of them went, or null before the first and for any movement but a
+// run.
 function getRunHeading(state: CombatState, action: MoveAction, steps: number): number | null {
-  const blocks = getRunBlocks(state, action)
-  if (!blocks || steps === 0 || blocks[steps - 1].endsBlock) return null
-  return blocks[steps - 1].heading
-}
-
-// Each step of a run's path in running blocks (one running speed of cells):
-// the way it goes, the heading of its block — the way the block's first step
-// went — and whether it ends the block. Null for any movement but a run.
-function getRunBlocks(state: CombatState, action: MoveAction): { direction: number; heading: number; endsBlock: boolean }[] | null {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
-  if (!c || !from || action.movement !== 'run') return null
-  const block = Math.max(1, Math.floor(getMovementSpeed(c, 'run')))
-  let cursor = from.cell
-  let heading = 0
-  return action.path.map((cell, i) => {
-    const direction = directionTo(cursor, cell)
-    if (i % block === 0) heading = direction
-    cursor = cell
-    return { direction, heading, endsBlock: (i + 1) % block === 0 }
-  })
+  const step = action.movement === 'run' ? getStepPlacements(state, action, steps) : null
+  return step ? directionTo(step.before.cell, step.after.cell) : null
 }
 
 // Whether a displacement keeps within a hex step of the heading: a
@@ -228,7 +190,7 @@ function firstDifficultStep(state: CombatState, action: MoveAction): number | nu
   const from = getMoveOrigin(state, action)
   const board = state.board
   if (!c || !from || !board) return null
-  const i = getRunPath(state, action).findIndex((cell) =>
+  const i = action.path.findIndex((cell) =>
     getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
   )
   return i === -1 ? null : i + 1
@@ -241,7 +203,7 @@ export function getBalanceDL(state: CombatState, action: MoveAction): number {
   const board = state.board
   const step = firstDifficultStep(state, action)
   if (!c || !from || !board || step === null) return 0
-  const cell = getRunPath(state, action)[step - 1]
+  const cell = action.path[step - 1]
   const DLs = getFootprint(c, { ...from, cell })
     .map((f) => board.terrain[coordKey(f)])
     .filter((t) => t?.difficult)
@@ -277,7 +239,7 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // catch's crash too.
 export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
   const mover = state.characters[action.actorId]
-  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', 2) : 0
+  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.step !== 'done') continue
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
@@ -289,17 +251,16 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
   return null
 }
 
-// The path as it will be walked and why it ends where it does: a run cut at
-// a turn, someone fleeing it (combat.tex "Flee": the mover stops where the
+// The path as it will be walked and why it ends where it does: someone
+// fleeing it (combat.tex "Flee": the mover stops where the
 // flee was triggered, and pays only for the steps walked), an opportunity
 // attack that interrupted the mover or that they jumped away from, a target
 // who blocked their passage (combat.tex "Crash"), a fall at the first
 // difficult cell the test did not clear — whichever comes first. The
 // tramples are those on the path as walked.
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
-  const run = getRunPath(state, action)
-  let path = run
-  let stop: MoveFacts['stop'] = run.length < action.path.length ? 'turn' : 'end'
+  let path = action.path
+  let stop: MoveFacts['stop'] = 'end'
   const flee = getFleeStep(state, action)
   if (flee !== null && flee - 1 < path.length) {
     path = path.slice(0, flee - 1)
@@ -355,11 +316,11 @@ export function isMidJump(state: CombatState, id: string): boolean {
 // in whole cells. Every other anchor within that many cells, in any
 // orientation, whose footprint may stand where it lands (creating.tex "Size
 // and Space Occupation", as `canStandAt` reads it) and ends at least one
-// cell further from the attacker than it began. A runner hit mid-block may
-// jump any way, but within a hex step of the block's heading the jump is a
-// forward one out of the run and reaches the running long jump ("jumping":
-// "If performed during a run ... match that of running"); the table's
-// ruling. One hit mid-jump cannot jump at all.
+// cell further from the attacker than it began. A runner hit mid-run may
+// jump any way, but within a hex step of the way they were going the jump
+// is a forward one out of the run and reaches the running long jump
+// ("Evasive Jump": "at a 60 degree angle of the direction of the run").
+// One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
   const defender = state.characters[defenderId]
   const from = state.board?.placements[defenderId]

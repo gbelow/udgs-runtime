@@ -17,6 +17,7 @@ export function actionSurge(kind: SurgeKind): (c: CampaignCharacter) => Campaign
     return {
       ...char,
       usedSurge: kind,
+      runsFree: kind === 'movement',
       resources: {
         ...char.resources,
         AP: earmarked ? char.resources.AP : char.resources.AP + AP,

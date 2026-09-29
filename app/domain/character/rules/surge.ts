@@ -1,5 +1,5 @@
 import { CampaignCharacter, Character, SurgeKind } from "../../types"
-import { RUN_START_AP, SURGES } from "../../tables"
+import { SURGES } from "../../tables"
 import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
 import { hasAffliction } from "./afflictions"
@@ -46,10 +46,4 @@ export function getBindingSurge(c: Character): EarmarkedSurge | null {
 export function getSurgeBar(c: Character): string | null {
   const surge = getBindingSurge(c)
   return surge ? `${surge} surge AP left` : null
-}
-
-// Whether a run can be started now: out of movement-surge AP, enough of it
-// for the first block.
-export function canStartRun(c: CampaignCharacter): boolean {
-  return c.usedSurge === 'movement' && c.resources.surgeAP >= RUN_START_AP
 }

@@ -77,7 +77,7 @@ export const FOOTPRINTS: Record<Shape, Record<FootprintCells, readonly Coord[]>>
 export const MOVEMENT_BLOCK_COST: Record<MovementKind, { AP: number; STA: number }> = {
   careful: { AP: 1, STA: 0 },
   basic:   { AP: 1, STA: 0 },
-  run:     { AP: 2, STA: 0 },
+  run:     { AP: 2, STA: 1 },
   jump:    { AP: 2, STA: 1 },
   crawl:   { AP: 1, STA: 0 },
   swim:    { AP: 1, STA: 0 },
@@ -306,14 +306,14 @@ export type SurgeAllowance = keyof typeof SURGE_ALLOWANCES
 // affliction under which the surge cannot be made voluntarily (combat.tex
 // "Afflictions": afraid bars the combat surge, enraged the reaction surge).
 export const SURGES = {
-  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here. A run must start with it.' },
-  combat:   { STA: 3, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. A run cannot start with it. Not while afraid.', forbiddenBy: 'afraid' },
+  movement: { STA: 3, AP: (AGI: number) => Math.floor(AGI / 2), earmarked: true, allows: ['movement', 'reactions'], restriction: 'Only in your own turn, or as a flee. A push or a drag is not movement here. Running costs no STA for the rest of the turn.' },
+  combat:   { STA: 3, AP: () => 4, earmarked: true, allows: ['attacks', 'movement', 'grapple', 'defenses', 'reflexes'], restriction: 'Only in your own turn. Not while afraid.', forbiddenBy: 'afraid' },
   reaction: { STA: 3, AP: () => 4, earmarked: false, restriction: 'No turn can be started this round. Not while enraged.', forbiddenBy: 'enraged' },
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 
-// combat.tex "running": the first 2 AP of a run "must be uninterrupted" —
-// the first block, which the movement surge has to pay.
+// combat.tex "running": "The first 2 AP worth of running must be
+// uninterrupted, otherwise, running cannot be started".
 export const RUN_START_AP = 2
 
 // combat.tex — the AP/STA price of each named action, in the book's own

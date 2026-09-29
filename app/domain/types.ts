@@ -921,6 +921,9 @@ const CampaignValues = {
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   usedSurge: SurgeKindSchema.nullable().default(null),
+  // combat.tex "Action surge": "Running costs no STA during a movement
+  // surge" — for the rest of the turn it was made in
+  runsFree: z.boolean().default(false),
   active: z.array(ActiveEntrySchema).default([]),
   // effects delivered and not yet applied: each waits on the target's own
   // test for its degree

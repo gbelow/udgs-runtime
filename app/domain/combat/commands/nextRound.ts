@@ -34,7 +34,7 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
   if (isDead(c)) return c
   const due = bleed(1)(suffocate(expireUsedAbilities(applyTrigger('end_round')(breathe(state, c)))))
-  return resetAP({ ...due, usedSurge: null })
+  return resetAP({ ...due, usedSurge: null, runsFree: false })
 }
 
 export function nextRound(state: CombatState): CombatState {

@@ -6,22 +6,22 @@ import { getShotGroup } from './coordinated'
 // The moves a reaction opens for its reactor, as the fields of the move it
 // opens: `budget` the most AP it may cost, `prepaid` what the reaction
 // already paid towards it, and whatever kinds of movement it grants.
-export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid' | 'surcharge' | 'surchargedMovements'>>
+export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid'>>
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
 // by spending one extra STA. On a hit, they can spend an extra STA to jump
 // in any direction before the explosion occurs. On a graze, they can move 1
 // AP before the explosion." Each degree unlocks what a lesser one would have
 // too, so a critical can still take a graze's plain move instead of paying
-// to run. The reaction's AP buys the move, as an evasion's does, and the
-// run's extra STA is on top, the jump's the jump's own (combat.tex "Movement
-// Costs and Speeds" prices a jump in STA already). A miss moves after the
-// blast instead (`getEscapeAfterBlast`).
+// to run. The reaction's AP buys the move, as an evasion's does; the extra
+// STA is the run's or the jump's own (combat.tex "Movement Costs and
+// Speeds" prices both in STA already). A miss moves after the blast instead
+// (`getEscapeAfterBlast`).
 export function getEscapeBeforeBlast(reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
   if (!reaction.roll) return null
   const AP = reaction.cost?.AP ?? 0
   switch (reaction.roll.degree) {
-    case 'critical': return { budget: AP, prepaid: AP, movement: 'run', movements: [...MOVEMENT_KINDS], surchargedMovements: ['run'], surcharge: { AP: 0, STA: 1 } }
+    case 'critical': return { budget: AP, prepaid: AP, movement: 'run', movements: [...MOVEMENT_KINDS] }
     case 'hit': return { budget: AP, prepaid: AP, movement: 'jump', movements: MOVEMENT_KINDS.filter((k) => k !== 'run') }
     case 'graze': return { budget: 1, prepaid: AP }
     default: return null

@@ -125,6 +125,7 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
       wounds: readWounds(parsed.data?.injuries?.wounds, based.body),
     },
     usedSurge: parsed.data.usedSurge ?? campaignCharacter.usedSurge,
+    runsFree: parsed.data.runsFree ?? campaignCharacter.runsFree,
   }
 }
 
@@ -186,6 +187,7 @@ export const ResourceIngestValues = {
   afflictions: z.array(z.any()).optional(),
   resources: z.any().optional(),
   usedSurge: SurgeKindSchema.nullable().optional(),
+  runsFree: z.boolean().optional(),
   active: z.array(z.any()).optional(),
 };
 

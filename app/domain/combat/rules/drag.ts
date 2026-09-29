@@ -1,6 +1,5 @@
 import type { Action, CombatState, Coord, DragAction, DragFacts, Placement, PushMovement } from '../types'
 import type { CampaignCharacter } from '../../types'
-import { canStartRun } from '../../character/rules/surge'
 import { ASSIST } from '../../tables'
 import { PUSH_MOVEMENTS } from '../../lists'
 import { getForce } from '../../character/rules/skills'
@@ -194,14 +193,13 @@ export function getPushAnswerCost(state: CombatState, root: DragAction, action: 
 // worth of movement" — a block is as many cells as 2 AP buys at its speed.
 const BLOCK_AP = 2
 
-// combat.tex "running": "Can only be initiated during a movement surge", its
-// first block out of the surge's AP (`canStartRun`); "Lame": "Cannot run ... or use basic movement".
+// combat.tex "Lame": "Cannot run ... or use basic movement".
 export type PushMovementOption = { kind: PushMovement; available: boolean; reason: string | null }
 
 export function getPushMovements(c: CampaignCharacter): PushMovementOption[] {
   const lame = hasAffliction(c, 'lame')
   return PUSH_MOVEMENTS.map((kind) => {
-    const reason = lame && isLameBarred(kind) ? 'lame' : kind === 'run' && !canStartRun(c) ? 'needs movement surge AP' : null
+    const reason = lame && isLameBarred(kind) ? 'lame' : null
     return { kind, available: reason === null, reason }
   })
 }

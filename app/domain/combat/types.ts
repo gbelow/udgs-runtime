@@ -392,10 +392,10 @@ export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guar
 export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.literal('avoidExplosion') }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a
-// turn at a run, by a reaction that interrupted it, by the mover's own jump
+// reaction that interrupted it, by the mover's own jump
 // away from one (a movement of its own, which takes over), by a fall on
 // difficult terrain, or by someone fleeing it.
-export const MoveStopSchema = z.enum(['end', 'turn', 'reaction', 'jump', 'fall', 'trample', 'flee'])
+export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
 export const MoveFactsSchema = z.object({
@@ -431,11 +431,6 @@ export const MoveActionSchema = z.object({
   // so the mover is never forced into the privileged one; null is the
   // mover's usual choice
   movements: z.array(MovementKindSchema).nullable().default(null),
-  // what the reaction asks on top of the path for one of `surchargedMovements`
-  // (combat.tex "Avoiding an Explosion": "can run by spending one extra
-  // STA") — nothing extra for falling back to a kind not in that list
-  surcharge: ActionCostSchema.default({ AP: 0, STA: 0 }),
-  surchargedMovements: z.array(MovementKindSchema).default([]),
   // where the mover set out from, written at the commit: the path is read
   // from here even once an opportunity attack has the mover standing part
   // of the way along it

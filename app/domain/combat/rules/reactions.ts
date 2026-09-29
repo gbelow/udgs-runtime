@@ -3,7 +3,6 @@ import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DragActi
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getFlankers, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
-import { getRunPath } from './move'
 import { isTrampleable } from './trample'
 import { getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
@@ -238,7 +237,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
   const mover = state.characters[root.actorId]
   const from = state.board?.placements[root.actorId]
   if (!mover || !from || !state.board) return []
-  const path = getRunPath(state, root)
+  const path = root.path
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     if (id === root.actorId) continue
