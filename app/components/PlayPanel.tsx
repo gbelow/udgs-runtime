@@ -49,7 +49,7 @@ export function PlayPanel(){
   const { nextRound, resetCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
-  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction } = useCombatState()
+  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction, nextRoundBar } = useCombatState()
   const { notes, fightName } = useActiveCharacterData()
 
   const [dice10, setDice10] = useState(1)
@@ -60,7 +60,7 @@ export function PlayPanel(){
       <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
         <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
         <CharacterList />
-        <Button aria-label='nextRound' onClick={nextRound}>next round</Button>
+        <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>next round</Button>
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       {

@@ -58,13 +58,16 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 // What the move as declared costs its actor, less what the reaction that
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
-// combat.tex "Action surge": "Running costs no STA during a movement surge"
-// — for the rest of the turn it was made in; a push or a drag is not
-// movement for it.
 export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
   const cost = getMoveCost(c, action.movement, cells)
-  const free = action.movement === 'run' && isCampaignCharacter(c) && c.runsFree
-  return { AP: Math.max(0, cost.AP - action.prepaid), STA: free ? 0 : cost.STA }
+  return { AP: Math.max(0, cost.AP - action.prepaid), STA: runsFree(c, action.movement) ? 0 : cost.STA }
+}
+
+// combat.tex "Action surge": "Running costs no STA during a movement surge"
+// — for the rest of the turn it was made in. A character's own move only:
+// a push or a drag is not movement for it.
+function runsFree(c: Character, kind: MoveKind): boolean {
+  return kind === 'run' && isCampaignCharacter(c) && c.runsFree
 }
 
 // ---------------------------------------------------------------------------
@@ -98,7 +101,8 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
       : movementGate(kind, prone, lame, swimming, granted)
-    return { kind, speed: getMovementSpeed(c, kind), block: MOVEMENT_BLOCK_COST[kind], ...gate }
+    const block = MOVEMENT_BLOCK_COST[kind]
+    return { kind, speed: getMovementSpeed(c, kind), block: runsFree(c, kind) ? { ...block, STA: 0 } : block, ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants

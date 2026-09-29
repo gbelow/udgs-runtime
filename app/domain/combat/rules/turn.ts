@@ -32,11 +32,16 @@ function getTurnlessReason(state: CombatState, id: string): string | null {
 // Why the character cannot start a turn now, or null: nobody else may hold
 // one and nothing may be being played out.
 export function getStartTurnBar(state: CombatState, id: string): string | null {
+  if (getTurnHolder(state) === id) return 'already in turn'
+  return getFightBusy(state) ?? getTurnlessReason(state, id)
+}
+
+// What the fight is busy with, if anything: someone's turn, or an action
+// being played out.
+function getFightBusy(state: CombatState): string | null {
   const holder = getTurnHolder(state)
-  if (holder === id) return 'already in turn'
   if (holder) return `${getFightName(state, holder)}'s turn`
-  if (getOpenAction(state)) return 'an action is being played out'
-  return getTurnlessReason(state, id)
+  return getOpenAction(state) ? 'an action is being played out' : null
 }
 
 // Why the turn cannot be contested now, by anyone: someone must hold it,
@@ -78,6 +83,12 @@ export function getContestWinner(rolls: ContestRoll[]): string | null {
 export function getSurgeTurnBar(state: CombatState, id: string, kind: SurgeKind): string | null {
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
+}
+
+// Why the round cannot be passed now, or null: a turn under way has to be
+// ended first, the table's ruling.
+export function getNextRoundBar(state: CombatState): string | null {
+  return getFightBusy(state)
 }
 
 // Why the turn cannot be ended now, or null.

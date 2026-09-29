@@ -7,6 +7,7 @@ import { cure, inflict } from '../../character/commands/addAffliction'
 import { isDead } from '../../character/rules/afflictions'
 import type { CombatState } from '../types'
 import { getPlacedFootprint } from '../rules/board'
+import { getNextRoundBar } from '../rules/turn'
 import { coordKey } from '../geometry'
 
 // combat.tex "Gas": "anyone that starts the round inside a suffocating gas
@@ -34,10 +35,11 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
   if (isDead(c)) return c
   const due = bleed(1)(suffocate(expireUsedAbilities(applyTrigger('end_round')(breathe(state, c)))))
-  return resetAP({ ...due, usedSurge: null, runsFree: false })
+  return resetAP({ ...due, usedSurge: null })
 }
 
 export function nextRound(state: CombatState): CombatState {
+  if (getNextRoundBar(state)) return state
   const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c)]))
-  return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null }
+  return { ...state, characters, round: state.round + 1, lastContest: null }
 }

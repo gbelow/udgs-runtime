@@ -1,6 +1,7 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
+import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -14,8 +15,9 @@ export function useCombatState() {
   // An action being played out holds the fight: whoever it names must stay
   // in it until it resolves.
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
+  const nextRoundBar = useCombatStore(getNextRoundBar);
 
-  return { round, hasActiveCharacter, hasOpenAction } as const;
+  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar } as const;
 }
 
 export function useCombatRoster(): {
