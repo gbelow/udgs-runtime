@@ -1,6 +1,6 @@
 import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Interruption } from '../../types'
 import { HEAD, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
-import { getArmor } from './armor'
+import { getArmor, isVisorClosed } from './armor'
 import { getTGH } from './misc'
 import { getForce } from './skills'
 import { getHardness } from '../../item/rules/items'
@@ -81,11 +81,13 @@ function afterDefense(facts: Damage, degree: Degree, target: Character, damage: 
 
 // combat.tex "Hand": "Hands have no armor unless the character is wearing
 // gauntlets"; "Head": "Armor bypass at the head hits flesh, which ignores all
-// armor". Bare flesh is the armor schema's own default.
+// armor" — unless a closed helmet's visor is down (gear.tex "Closed helmet":
+// "armor bypass is impossible in the head"). Bare flesh is the armor
+// schema's own default.
 function armorAt(target: Character, facts: Damage): Armor {
   const armor = getArmor(target)
   if (facts.location === 'hand' && !target.hasGauntlets) return { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] }
-  if (facts.location === 'head' && facts.bypass) return { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] }
+  if (facts.location === 'head' && facts.bypass && !isVisorClosed(target)) return { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] }
   return armor
 }
 
@@ -149,17 +151,19 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   }
 }
 
-// The part a blow at the location lands on. combat.tex "Hand": the hand a
-// wound takes is "the hand used for defense" — the one holding what the
-// target blocked or intercepted with, or the free hand that is the natural
-// weapon. Anywhere else, and a hand with nothing in the way, it is the first
-// part there still whole. A creature with no such part left has none to take.
+// The part a blow at the location lands on: the one it was aimed at, while
+// it is still there. combat.tex "Hand": otherwise the hand a wound takes is
+// "the hand used for defense" — the one holding what the target blocked or
+// intercepted with, or the free hand that is the natural weapon. Anywhere
+// else, and a hand with nothing in the way, it is the first part there still
+// whole. A creature with no such part left has none to take.
 function woundedPart(facts: Damage, target: Character): BodyPart | null {
   const there = target.body.filter((part) => part.location === facts.location && !part.lost)
+  const aimed = there.find((part) => part.id === facts.part)
   const wielded = facts.location === 'hand' ? getWieldedWeapons(target).find((w) => w.key === facts.defenseWeaponKey) : undefined
   const defending = wielded && there.find((part) =>
     wielded.natural ? part.itemId === '' && part.naturalWeapon === wielded.weapon.name : part.itemId === wielded.itemId)
-  return defending ?? there.find((part) => !isPartWounded(target, part.id)) ?? there[0] ?? null
+  return aimed ?? defending ?? there.find((part) => !isPartWounded(target, part.id)) ?? there[0] ?? null
 }
 
 // combat.tex "Additional effects", "Localized damage", "Wounds": what the

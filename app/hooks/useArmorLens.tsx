@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/shallow";
-import { doffArmor, equipArmor } from "../domain/character/commands";
-import { ArmorPanelView, getArmorPanel } from "../domain/character/lenses/armor";
+import { doffArmor, equipArmor, toggleVisor } from "../domain/character/commands";
+import { ArmorPanelView, VisorView, getArmorPanel, getVisorView } from "../domain/character/lenses/armor";
 import { getEquipView, WearView } from "../domain/character/rules/armor";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
 import { getHardness } from "../domain/item/rules/items";
@@ -51,4 +51,12 @@ export function useDamageTiers(): DamageTierRow[] {
   // the table happens to read today, so a tier that starts depending on
   // something else stays fresh without anyone remembering to subscribe to it.
   return useActiveCharacterDerived(getDamageTiers, JSON.stringify) ?? [];
+}
+
+// The closed helmet's visor, and the standard action that raises or lowers it.
+export function useVisorLens() {
+  const update = useActiveCharacterUpdate();
+  const visor: VisorView | null = useActiveCharacterDerived(getVisorView, JSON.stringify) ?? null;
+  const toggle = () => update(toggleVisor);
+  return { visor, toggle } as const;
 }

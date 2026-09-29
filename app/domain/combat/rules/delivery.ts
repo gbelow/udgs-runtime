@@ -17,13 +17,16 @@ export function delivering(name: string, damage: Damage, degree: Delivery['degre
 // A row's damage as it leaves the weapon, nothing yet bought: the
 // components given, the row's hardness and properties, its wielder's force,
 // where it lands and what met it there.
-export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageComponent[], location: Damage['location'], defense: Defense = UNDEFENDED): Damage {
+export type Aim = Pick<Damage, 'location' | 'part'>
+export const AT_CHEST: Aim = { location: 'chest', part: null }
+
+export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageComponent[], aim: Aim, defense: Defense = UNDEFENDED): Damage {
   return {
     damage,
     hardness: getHardness(row.atk.material),
     force: getForce(wielder),
     properties: row.atk.properties,
-    location,
+    ...aim,
     ...defense,
     bypass: false,
     bust: false,

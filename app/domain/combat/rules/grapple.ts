@@ -8,7 +8,7 @@ import { hasProperty } from '../../weaponProperties'
 import { getAction, getReactionsTo } from './log'
 import { findGrapple, getGrapplesOf, getPartner, holds } from './partners'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
-import { delivering, getRowDamage } from './delivery'
+import { AT_CHEST, delivering, getRowDamage } from './delivery'
 import { isAttackAction } from './actionCatalog'
 import { getMidActionTerm } from './opportunity'
 import { isProne } from './ground'
@@ -204,7 +204,7 @@ function getHoldDeliveries(state: CombatState, g: Grapple): Deliveries {
     if (!row || !holder) continue
     const { blunt, cut } = getStrikeDamage(row.atk, row.weapon, holder)
     if (blunt <= 0 && cut <= 0) continue
-    const damage = getRowDamage(holder, row, [{ kind: 'blunt', value: blunt }, { kind: 'cut', value: cut }], 'chest')
+    const damage = getRowDamage(holder, row, [{ kind: 'blunt', value: blunt }, { kind: 'cut', value: cut }], AT_CHEST)
     const heldId = getPartner(g, holderId)
     out[heldId] = [...(out[heldId] ?? []), delivering(`${row.weapon.name} ${row.atk.name}`, damage, 'hit')]
   }

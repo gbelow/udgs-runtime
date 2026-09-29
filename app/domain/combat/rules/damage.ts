@@ -3,7 +3,7 @@ import type { AttackAction, CombatState, HOPPurchase, Interruption, MoveAction, 
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
-import { getArmor } from '../../character/rules/armor'
+import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -69,7 +69,7 @@ const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer:
   smash: (d, times, { attacker }) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(attacker))), smash: true }),
   bypass: (d) => ({ ...d, bypass: true }),
   bust: (d) => ({ ...d, bust: true }),
-  handSwitch: (d) => ({ ...d, location: 'hand' }),
+  handSwitch: (d) => ({ ...d, location: 'hand', part: null }),
   // combat.tex "Assassinate": "It automatically applies bypass."
   assassinate: (d) => ({ ...d, bypass: true }),
   braced: (d, _, { attacker, weapon }) => addPhysical(d, getBracedBonus(weapon, attacker)),
@@ -141,7 +141,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const variant = getAttackVariant(attacker, root)
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
-  const base = getRowDamage(attacker, row, [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)], root.location, getDefense(state, root))
+  const base = getRowDamage(attacker, row, [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)], { location: root.location, part: root.part }, getDefense(state, root))
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
@@ -267,6 +267,9 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     if (purchase === 'braced' && !isBracedChance(state, root)) return closed('target not moving towards the weapon')
     if (purchase === 'hook' && !isHookChance(state, root)) return closed('not an action or a runner moving away')
     if ((purchase === 'bypass' && (root.spent.assassinate ?? 0) > 0) || (purchase === 'assassinate' && (root.spent.bypass ?? 0) > 0)) return closed('already bypassing')
+    // gear.tex "Closed helmet": "armor bypass is impossible in the head",
+    // while the visor is down
+    if ((purchase === 'bypass' || purchase === 'assassinate') && root.location === 'head' && isVisorClosed(target)) return closed('closed helmet')
     // combat.tex "Armor Bypass": "can only be done against rigid armor".
     if ((purchase === 'bypass' || purchase === 'assassinate') && !armor.properties.includes('rigid')) return closed('armor is not rigid')
     // combat.tex "Penetrating": cutting "against objects with the same hardness".

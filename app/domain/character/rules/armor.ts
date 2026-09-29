@@ -11,6 +11,11 @@ export function getArmor(c: Character): Armor {
   return (c.worn && getItemArmor(c.worn)) || c.armor
 }
 
+// gear.tex "Closed helmet": a helmet worn with its visor down.
+export function isVisorClosed(c: Character): boolean {
+  return !!c.hasHelm && !c.visorOpen
+}
+
 // Armor has no oversize allowance: it fits only a wearer of the size it is
 // made for. The creature's own hide is its own size by definition.
 export function armorFits(c: Character): boolean {

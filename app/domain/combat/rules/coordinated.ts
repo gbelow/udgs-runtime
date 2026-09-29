@@ -42,6 +42,6 @@ export function isJoinInRange(state: CombatState, actorId: string, shot: { weapo
 // The shot a join opens, as declared on the reaction: committed already,
 // since the reaction was, and aimed at the target of the shot it joins.
 export function getJoinedShot(reaction: ActionOf<'joinShot'>, id: string): ShootAction {
-  const { weaponKey, attack, variant, location, ammoId } = reaction
-  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, ammoId, spawnedBy: reaction.id, step: 'react' })
+  const { weaponKey, attack, variant, location, part, ammoId } = reaction
+  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, part, ammoId, spawnedBy: reaction.id, step: 'react' })
 }

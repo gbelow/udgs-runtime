@@ -1,4 +1,5 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
+import { getActionCost } from '../rules/actionCosts'
 import { getWearView, getWearCost, getDoffCost, getEquipView, getDonCost } from '../rules/armor'
 import { getHeldItem } from '../../item/rules/hands'
 import { FREE, isCharged } from '../../item/rules/costs'
@@ -99,4 +100,12 @@ export function putHelm(character: Character): Character {
     ...character,
     ['hasHelm']: character.hasHelm ? 0 : 1
   })
+}
+
+// gear.tex "Closed helmet": "Opening and closing the visor of a closed helmet
+// is a standard action" — paid in play, free on the sheet.
+export function toggleVisor(c: Character): Character {
+  if (!c.hasHelm) return c
+  const paid = pay(c, getActionCost(c, 'standardAction'))
+  return paid ? { ...paid, visorOpen: !c.visorOpen } : c
 }

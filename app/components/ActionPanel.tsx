@@ -122,11 +122,11 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
           {view.locations.map((l) =>
-            <Button key={l.location} size='xs' variant={l.location === open.location ? 'primary' : 'default'}
-              className={l.location === open.location ? 'bg-accent/15' : ''}
+            <Button key={l.part ?? l.location} size='xs' variant={l.selected ? 'primary' : 'default'}
+              className={l.selected ? 'bg-accent/15' : ''}
               title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
-              onClick={() => amend({ location: l.location })}>
-              {l.location}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
+              onClick={() => amend({ location: l.location, part: l.part })}>
+              {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
             </Button>)}
         </div>
       ) : null}
@@ -273,7 +273,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string }
 
 function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
@@ -318,11 +318,11 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>aim</SectionLabel>
         {strike.locations.map((l) =>
-          <Button key={l.location} size='xs' variant={l.location === strike.location ? 'primary' : 'default'}
-            className={l.location === strike.location ? 'bg-accent/15' : ''}
+          <Button key={l.part ?? l.location} size='xs' variant={l.selected ? 'primary' : 'default'}
+            className={l.selected ? 'bg-accent/15' : ''}
             title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
-            onClick={() => onAmend({ location: l.location })}>
-            {l.location}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
+            onClick={() => onAmend({ location: l.location, part: l.part })}>
+            {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
           </Button>)}
       </div>
       {strike.grabbable || strike.grab ? (

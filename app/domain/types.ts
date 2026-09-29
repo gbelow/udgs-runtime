@@ -563,6 +563,9 @@ export const DamageSchema = z.object({
   force: num.default(0),
   properties: z.array(WeaponPropertySchema).default([]),
   location: HitLocationSchema.default('chest'),
+  // the target's part the blow was aimed at, by id; null leaves it to land
+  // on whichever part is there (combat.tex "Localized damage")
+  part: str.nullable().default(null),
   defense: DefenseKindSchema.default('none'),
   // the AP the defender spent on the reaction
   defenseAP: num.default(0),
@@ -911,6 +914,9 @@ const CharacterValues = {
   
   hasGauntlets: z.number().default(0),
   hasHelm: z.number().default(0),
+  // gear.tex "Closed helmet": the visor raised; the helmet's penalties and its
+  // guard against a bypass at the head hold only while it is down
+  visorOpen: z.boolean().default(false),
   
   // what the creature is under anything it wears — skin, fur, hide; the rows
   // of the gear.tex "Armors" table with no bulk, which are not items

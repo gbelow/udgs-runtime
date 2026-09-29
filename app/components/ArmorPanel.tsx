@@ -1,6 +1,6 @@
 'use client'
 import { useActiveCharacterSelector } from '../hooks/useActiveCharacterSelector'
-import { useArmorLens, useDamageTiers } from '../hooks/useArmorLens'
+import { useArmorLens, useDamageTiers, useVisorLens } from '../hooks/useArmorLens'
 import { useCharacterCommands } from '../hooks/useCharacterCommands'
 import { useItemLens } from '../hooks/useItemLens'
 import { Button, Panel } from './ui'
@@ -84,6 +84,7 @@ function ArmorAddons (){
   const { toggleGauntlets, toggleHelm } = useCharacterCommands()
   const hasGauntlets = useActiveCharacterSelector((c) => !!c.hasGauntlets) ?? false
   const hasHelm = useActiveCharacterSelector((c) => !!c.hasHelm) ?? false
+  const { visor, toggle: toggleVisor } = useVisorLens()
 
   return(
     <div className='flex flex-row gap-4 text-xs'>
@@ -95,6 +96,13 @@ function ArmorAddons (){
         <input type='checkbox' className='accent-accent' aria-label={'helm'} name={'helm'} checked={hasHelm} onChange={toggleHelm} />
         full helm
       </label>
+      {visor ?
+        <Button size='xs' variant={visor.open ? 'default' : 'primary'} aria-label={visor.open ? 'close visor' : 'open visor'}
+          title={visor.open ? 'visor up: no helmet penalties, the head can be bypassed' : 'visor down: -2 reflex and detection, no bypass at the head'}
+          onClick={toggleVisor}>
+          {visor.open ? 'visor up' : 'visor down'}{visor.cost !== null ? <span className='ml-1 font-mono text-muted'>{visor.cost} AP</span> : null}
+        </Button>
+      : null}
     </div>
   )
 }

@@ -161,6 +161,7 @@ const CharacterIngestValues = {
 
   hasGauntlets: z.number().optional(),
   hasHelm: z.number().optional(),
+  visorOpen: z.boolean().optional(),
 
   armor: ArmorSchema.optional(),
   worn: ItemSchema.nullable().optional(),

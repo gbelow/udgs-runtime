@@ -42,13 +42,15 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
   }
 }
 
-// Aims the open action.
+// Aims the open action. A part picked on the old target is not one of the
+// new target's: the aim goes back to the kind of place alone.
 export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
     if (!getTargetIds(state, open).includes(targetId)) return state
-    return replaceActions(state, [{ ...open, targetId }])
+    const retargeted = 'part' in open && open.targetId !== targetId ? { part: null } : {}
+    return replaceActions(state, [{ ...open, targetId, ...retargeted }])
   }
 }
 

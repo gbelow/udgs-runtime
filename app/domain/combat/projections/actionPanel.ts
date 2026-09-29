@@ -1,6 +1,6 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
-import type { Area, MoveKind } from '../../types'
+import type { Area, Character, MoveKind } from '../../types'
 import { isAttackAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -31,12 +31,16 @@ import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 
-export type LocationOption = { location: HitLocation; penalty: number }
+export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
-// combat.tex "Localized damage", as a picker: each location and what aiming
-// there costs the attack test.
-function getLocationOptions(): LocationOption[] {
-  return HIT_LOCATIONS.map((location) => ({ location, penalty: LOCATIONS[location].penalty }))
+// combat.tex "Localized damage", as a picker: each place the attack can be
+// aimed at and what aiming there costs the attack test — the target's own
+// parts still there, or, with no target yet, the kinds of place.
+function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null }): LocationOption[] {
+  const places = target
+    ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name }))
+    : HIT_LOCATIONS.map((location) => ({ location, part: null, name: location }))
+  return places.map((p) => ({ ...p, penalty: LOCATIONS[p.location].penalty, selected: p.location === aim.location && p.part === aim.part }))
 }
 
 // Everyone with a reaction to the open action, each with their options —
@@ -96,7 +100,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             shot: declared.kind === 'joinShot',
             ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
             ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
-            locations: getLocationOptions(),
+            locations: getLocationOptions(declared.targetId ? state.characters[declared.targetId] : undefined, declared),
             attack: declared.attack,
             variant: declared.variant,
             location: declared.location,
@@ -361,7 +365,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
           holder: o.holderId ? getFightName(state, o.holderId) : '',
         }))
       : [],
-    locations: attack ? getLocationOptions() : [],
+    locations: attack ? getLocationOptions(target, attack) : [],
     targets: step === 'target' ? getTargetIds(state, open).map((id) => ({ id, name: getFightName(state, id) })) : [],
     noTargets: step === 'target' && getTargetIds(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')

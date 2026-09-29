@@ -1,3 +1,4 @@
+import { getActionCost } from '../rules/actionCosts'
 import type { ArmorProperty, Character, Material } from '../../types'
 import { getHardness, getItemScale } from '../../item/rules/items'
 import { isCharged } from '../../item/rules/costs'
@@ -37,4 +38,13 @@ export function getArmorPanel(c: Character): ArmorPanelView {
     properties: armor.properties,
     notes: armor.notes,
   }
+}
+
+// gear.tex "Closed helmet": the visor, when there is a helmet to have one —
+// whether it is up, and the AP moving it costs in play (null on the sheet).
+export type VisorView = { open: boolean; cost: number | null }
+
+export function getVisorView(c: Character): VisorView | null {
+  if (!c.hasHelm) return null
+  return { open: c.visorOpen, cost: isCharged(c) ? getActionCost(c, 'standardAction').AP : null }
 }

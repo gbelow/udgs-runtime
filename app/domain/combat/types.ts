@@ -162,11 +162,13 @@ const WeaponRowRef = {
 }
 
 // An attack as declared before the die: the row, the variation it is made
-// as, and where it is aimed.
+// as, and where it is aimed — the kind of place, and the target's part there
+// when one was picked (combat.tex "Localized damage").
 const AttackDeclaration = {
   ...WeaponRowRef,
   variant: str.default(''),
   location: HitLocationSchema.default('chest'),
+  part: str.nullable().default(null),
 }
 
 // combat.tex "Grapple": two characters locked together, and which of them

@@ -90,6 +90,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   doffArmor: characterCommands.doffArmor(null),
   putGauntlets: characterCommands.putGauntlets,
   putHelm: characterCommands.putHelm,
+  toggleVisor: (c) => characterCommands.toggleVisor({ ...c, hasHelm: 1 }),
   resetSkill: characterCommands.resetSkill('strike'),
   resetAllSkills: characterCommands.resetAllSkills(),
   addKnowledge: characterCommands.addKnowledge('navigation'),

@@ -4,6 +4,7 @@ import { getAfflictionPenalty, hasAffliction } from './afflictions'
 import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
+import { isVisorClosed } from './armor'
 
 export { sumTerms }
 export type { Term }
@@ -50,7 +51,7 @@ export function getReflexTerms(c: Character): Term[] {
   return [
     { label: 'awareness', value: getAwareness(c) },
     { label: 'ranged', value: getRanged(c) },
-    { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 reflexes
+    { label: 'gear', value: isVisorClosed(c) ? -2 : 0 }, // gear.tex "Closed helmet": -2 reflexes
     { label: 'size', value: -SM },
     { label: 'reflex', value: skill(c, 'reflex').value },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'reflex') },
@@ -159,7 +160,7 @@ export function getDetectionTerms(c: Character): Term[] {
   return [
     { label: 'detection', value: skill(c, 'detection').value },
     { label: 'awareness', value: getAwareness(c) },
-    { label: 'gear', value: -2 * c.hasHelm }, // gear.tex "Closed helmet": -2 detection
+    { label: 'gear', value: isVisorClosed(c) ? -2 : 0 }, // gear.tex "Closed helmet": -2 detection
     { label: 'affliction', value: -getAfflictionPenalty(c, 'detection') },
     { label: 'abilities', value: getBuffBonus(c, 'skill:detection') },
   ]

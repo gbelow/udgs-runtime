@@ -14,8 +14,8 @@ import { getAction, getOpenedBy } from './log'
 // at the attacker it answers: rolled with that attack, and paid for by the
 // reaction.
 export function getCounterStrike(reaction: ActionOf<'counterattack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, location } = reaction
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, spawnedBy: reaction.id, step: 'post', roll: reaction.roll })
+  const { weaponKey, attack, variant, location, part } = reaction
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, part, spawnedBy: reaction.id, step: 'post', roll: reaction.roll })
 }
 
 // Where the counterattack's strike lands against the attack: ahead of it on
