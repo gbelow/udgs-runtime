@@ -22,6 +22,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
+import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { useWoundLens } from '../hooks/useWoundLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
@@ -101,6 +102,7 @@ export function PlayPanel(){
                 <div className='flex flex-col gap-2 min-w-48'>
                   <WoundPanel />
                   <CursePanel />
+                  <SustainedPanel />
                 </div>
               </div>
             </div>
@@ -302,6 +304,29 @@ function WoundPanel(){
             <Button size='xs' aria-label={`heal ${r.name}`} onClick={() => heal(r.index, 1)}>−</Button>
             <Button size='xs' aria-label={`reopen ${r.name}`} onClick={() => heal(r.index, -1)}>+</Button>
           </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// spells.tex "Sustained Spells": what the character is holding, what it
+// costs each round, and who it links them to.
+function SustainedPanel(){
+  const { rows, release } = useSustainedPanel()
+  if (rows.length === 0) return null
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <SectionLabel>sustaining</SectionLabel>
+      {rows.map((r) => (
+        <div key={r.key} className='flex flex-col gap-0.5'>
+          <div className='flex flex-row flex-wrap gap-x-3 items-center'>
+            <span className='text-accent'>{r.name}</span>
+            <span className='text-muted'>{r.upkeep ? <>upkeep <span className='font-mono'>{r.upkeep}</span> a round</> : 'no upkeep'}</span>
+            {r.linkDL > 0 ? <span className='text-muted'>casting <span className='font-mono text-fg'>+{r.linkDL}</span> DL</span> : null}
+            <Button size='xs' className='ml-auto' aria-label={`release ${r.name}`} onClick={() => release(r.key)}>release</Button>
+          </div>
+          {r.linked.length > 0 ? <span className='text-muted'>linked to {r.linked.map((t) => t.name).join(', ')}</span> : null}
         </div>
       ))}
     </div>

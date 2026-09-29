@@ -18,9 +18,14 @@ export function getLinkedTargets(c: Character, key: SpellKey): string[] {
 }
 
 // spells.tex "Telepathic Link": "Each simultaneous link increases the
-// difficulty of spellcasting test by 3."
+// difficulty of spellcasting test by 3." — what one held spell's links add,
+// and what all of them do.
+export function getLinkDLOf(c: Character, key: SpellKey): number {
+  return (SPELLS[key].linkDL ?? 0) * getLinkedTargets(c, key).length
+}
+
 export function getLinkDL(c: Character): number {
-  return getActiveSpellKeys(c).reduce((sum, key) => sum + (SPELLS[key].linkDL ?? 0) * getLinkedTargets(c, key).length, 0)
+  return getActiveSpellKeys(c).reduce((sum, key) => sum + getLinkDLOf(c, key), 0)
 }
 
 // The spells a spell is cast through: what the caster must be holding to

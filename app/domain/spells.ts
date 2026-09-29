@@ -13,12 +13,17 @@ import catalog from '../assets/spells.json'
 // spell costs only its AP and STA; what else it asks is exploration's.
 export type SpellKey = keyof typeof catalog
 
+export function getSpellUpkeep(spell: Spell): { AP: number; STA: number } {
+  const { AP, STA } = spell.upkeep ?? spell.cost
+  return { AP, STA }
+}
+
 const parsed: Record<SpellKey, Spell> = z.record(z.string(), SpellSchema).parse(catalog) as Record<SpellKey, Spell>
 
 export const SPELLS: Record<SpellKey, Spell> = Object.fromEntries(
   (Object.keys(parsed) as SpellKey[]).map((key) => {
     const spell = parsed[key]
-    const { AP, STA } = spell.upkeep ?? spell.cost
+    const { AP, STA } = getSpellUpkeep(spell)
     if (spell.type !== 'sustained' || (AP === 0 && STA === 0)) return [key, spell]
     return [key, { ...spell, effects: [...spell.effects, SpellEffectSchema.parse({ name: 'upkeep', type: 'cost', trigger: 'end_round', effect: { AP, STA }, target: 'self', duration: 'held' })] }]
   }),
