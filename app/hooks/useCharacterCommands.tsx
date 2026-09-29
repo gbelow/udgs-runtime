@@ -2,8 +2,6 @@ import { useActiveCharacterUpdate } from "./useActiveCharacterSelector"
 import {
   endSurge as doEndSurge,
   addAffliction,
-  putGauntlets as doPutGauntlets,
-  putHelm as doPutHelm,
   resetAllSkills as doResetAllSkills,
   resetSkill as doResetSkill,
   restCharacter,
@@ -37,14 +35,6 @@ export function useCharacterCommands() {
     update(doUpdateSTA(newSTA))
   }
 
-  const toggleGauntlets = () => {
-    update(doPutGauntlets)
-  }
-
-  const toggleHelm = () => {
-    update(doPutHelm)
-  }
-
   const resetSkill = (skillName: keyof Skills) => {
     update(doResetSkill(skillName))
   }
@@ -59,8 +49,6 @@ export function useCharacterCommands() {
     rest,
     updateIL,
     updateSTA,
-    toggleGauntlets,
-    toggleHelm,
     resetSkill,
     resetAllSkills,
   }

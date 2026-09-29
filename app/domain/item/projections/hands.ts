@@ -4,7 +4,7 @@ import { getWearView, WearView } from '../../character/rules/armor'
 import { getBulkName, getItemScale } from '../rules/items'
 import { getDrawCost, isCharged } from '../rules/costs'
 import { getPutOnView, PutOnView } from '../rules/containers'
-import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, isLamingHold } from '../rules/hands'
+import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, getNaturalWeapon, isLamingHold } from '../rules/hands'
 
 // A part that holds or fights: a hand, a paw, a jaw.
 export type HandView = {
@@ -54,7 +54,7 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         id: part.id,
         name: part.name,
         grip: part.grip,
-        naturalWeapon: part.naturalWeapon,
+        naturalWeapon: getNaturalWeapon(c, part),
         item: item ? { id: item.id, name: item.name || item.refId } : null,
       }
     }),
@@ -69,7 +69,7 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         grip,
         laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
-        wear: getWearView(c, null, item),
+        wear: getWearView(c, item),
         putOn: getPutOnView(c, 'hand', item),
         charge: item.charge && isSpellKey(item.charge.key) ? SPELLS[item.charge.key].name : '',
       }

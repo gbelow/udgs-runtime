@@ -16,7 +16,7 @@ import { getRootTest } from './combat/rules/attack'
 import { makeCampaignCharacter } from './factories'
 import { severPart } from './character/commands/wounds'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
-import type { CampaignCharacter } from './types'
+import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
@@ -65,8 +65,9 @@ function characterSubject(): CampaignCharacter {
   }
 }
 
-// The subject with nothing on and the AP to put something on.
-const bareAndRested = (c: CampaignCharacter): CampaignCharacter => ({ ...c, worn: null, resources: { ...c.resources, AP: 12 } })
+// The subject with nothing on, off the clock: gear.tex "Donning and Doffing
+// armor" allows no donning in a fight.
+const bareOnSheet = (c: CampaignCharacter): Character => ({ ...c, type: 'base', worn: null }) as unknown as Character
 
 // Keyed by the export name so the completeness check below can tell a command
 // that has no purity case from one that is deliberately not an updater.
@@ -81,12 +82,12 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   restCharacter: characterCommands.restCharacter,
   actionSurge: characterCommands.actionSurge('focus'),
   endSurge: characterCommands.endSurge,
-  wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareAndRested(c)),
+  wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareOnSheet(c)),
   wearFromHands: (c) => {
     const suit = gambeson()
-    return characterCommands.wearFromHands(suit.id)(itemCommands.holdItem(suit)(bareAndRested(c)))
+    return characterCommands.wearFromHands(suit.id)(itemCommands.holdItem(suit)(bareOnSheet(c)))
   },
-  equipArmor: (c) => characterCommands.equipArmor(gambeson())(bareAndRested(c)),
+  equipArmor: (c) => characterCommands.equipArmor(gambeson())(bareOnSheet(c)),
   doffArmor: characterCommands.doffArmor(null),
   putGauntlets: characterCommands.putGauntlets,
   putHelm: characterCommands.putHelm,

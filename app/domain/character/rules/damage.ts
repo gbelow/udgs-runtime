@@ -4,7 +4,7 @@ import { getArmor, isVisorClosed } from './armor'
 import { getTGH } from './misc'
 import { getForce } from './skills'
 import { getHardness } from '../../item/rules/items'
-import { getWieldedWeapons } from '../../item/rules/hands'
+import { getNaturalWeapon, getWieldedWeapons } from '../../item/rules/hands'
 import { isPartWounded } from './wounds'
 import { hasProperty } from '../../weaponProperties'
 
@@ -162,7 +162,7 @@ function woundedPart(facts: Damage, target: Character): BodyPart | null {
   const aimed = there.find((part) => part.id === facts.part)
   const wielded = facts.location === 'hand' ? getWieldedWeapons(target).find((w) => w.key === facts.defenseWeaponKey) : undefined
   const defending = wielded && there.find((part) =>
-    wielded.natural ? part.itemId === '' && part.naturalWeapon === wielded.weapon.name : part.itemId === wielded.itemId)
+    wielded.natural ? part.itemId === '' && getNaturalWeapon(target, part) === wielded.weapon.name : part.itemId === wielded.itemId)
   return aimed ?? defending ?? there.find((part) => !isPartWounded(target, part.id)) ?? there[0] ?? null
 }
 

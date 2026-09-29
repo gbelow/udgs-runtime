@@ -102,7 +102,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
           bulkName: getBulkName(item.bulk),
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
           ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
-          wear: c ? getWearView(c, slot, item) : null,
+          wear: c ? getWearView(c, item) : null,
           putOn: c ? getPutOnView(c, slot, item) : null,
         })),
       })),

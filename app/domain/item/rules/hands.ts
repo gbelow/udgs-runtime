@@ -14,6 +14,12 @@ export function getGrip(c: Character, itemId: string): number {
   return getWorkingParts(c).filter((part) => part.itemId === itemId).length
 }
 
+// gear.tex "Gauntlet": a hand that fights unarmed fights with the gauntlet
+// while gauntlets are worn.
+export function getNaturalWeapon(c: Character, part: BodyPart): string {
+  return c.hasGauntlets && part.location === 'hand' && part.naturalWeapon === 'Unarmed' ? 'Gauntlet' : part.naturalWeapon
+}
+
 export function getHeldItem(c: Character, itemId: string): Item | undefined {
   return c.held.find((item) => item.id === itemId)
 }
@@ -72,7 +78,8 @@ export function getWieldedWeapons(c: Character): Wielded[] {
   })
   const natural = new Map<string, number>()
   for (const part of getFreeParts(c)) {
-    if (part.naturalWeapon) natural.set(part.naturalWeapon, (natural.get(part.naturalWeapon) ?? 0) + 1)
+    const name = getNaturalWeapon(c, part)
+    if (name) natural.set(name, (natural.get(name) ?? 0) + 1)
   }
   const fromParts = [...natural].flatMap(([name, grip]) => {
     const weapon = getCatalogWeapon(name)

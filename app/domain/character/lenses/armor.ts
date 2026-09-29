@@ -2,7 +2,7 @@ import { getActionCost } from '../rules/actionCosts'
 import type { ArmorProperty, Character, Material } from '../../types'
 import { getHardness, getItemScale } from '../../item/rules/items'
 import { isCharged } from '../../item/rules/costs'
-import { armorFits, getArmor, getDoffCost } from '../rules/armor'
+import { armorFits, getArmor, getDoffCost, getPieceCost } from '../rules/armor'
 
 export type ArmorPanelView = {
   name: string
@@ -40,11 +40,19 @@ export function getArmorPanel(c: Character): ArmorPanelView {
   }
 }
 
-// gear.tex "Closed helmet": the visor, when there is a helmet to have one —
-// whether it is up, and the AP moving it costs in play (null on the sheet).
+// gear.tex "Donning and Doffing armor", "Closed helmet": the gauntlets and
+// the closed helmet, each worn or not and what putting it on or taking it
+// off costs in play (null on the sheet), and the helmet's visor while it is
+// worn.
+export type PieceView = { worn: boolean; cost: number | null }
 export type VisorView = { open: boolean; cost: number | null }
+export type ArmorPiecesView = { gauntlets: PieceView; helm: PieceView; visor: VisorView | null }
 
-export function getVisorView(c: Character): VisorView | null {
-  if (!c.hasHelm) return null
-  return { open: c.visorOpen, cost: isCharged(c) ? getActionCost(c, 'standardAction').AP : null }
+export function getArmorPiecesView(c: Character): ArmorPiecesView {
+  const cost = (worn: boolean) => (isCharged(c) ? getPieceCost(c, worn).AP : null)
+  return {
+    gauntlets: { worn: !!c.hasGauntlets, cost: cost(!!c.hasGauntlets) },
+    helm: { worn: !!c.hasHelm, cost: cost(!!c.hasHelm) },
+    visor: c.hasHelm ? { open: c.visorOpen, cost: isCharged(c) ? getActionCost(c, 'standardAction').AP : null } : null,
+  }
 }

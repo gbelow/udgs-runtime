@@ -1,6 +1,6 @@
 import { Armor, Character, Item, SlotKind } from '../../types'
 import { GEAR_SIZE, getItemArmor, getItemScale } from '../../item/rules/items'
-import { getDrawCost, getStoreCost, isCharged } from '../../item/rules/costs'
+import { getStoreCost, isCharged } from '../../item/rules/costs'
 import { ActionCost, getActionCost } from './actionCosts'
 import { getSize } from './misc'
 
@@ -9,6 +9,13 @@ import { getSize } from './misc'
 // that resolves to nothing is treated as not there.
 export function getArmor(c: Character): Armor {
   return (c.worn && getItemArmor(c.worn)) || c.armor
+}
+
+// gear.tex "Donning and Doffing armor": "a standard action to doff helmet
+// and gauntlets", and "Donning anything takes twice as much time as doffing".
+export function getPieceCost(c: Character, worn: boolean): ActionCost {
+  const doff = getActionCost(c, 'standardAction')
+  return worn ? doff : { AP: doff.AP * 2, STA: doff.STA * 2 }
 }
 
 // gear.tex "Closed helmet": a helmet worn with its visor down.
@@ -26,65 +33,53 @@ export function isArmorItem(item: Item): boolean {
   return getItemArmor(item) !== undefined
 }
 
-// gear.tex "Donning and Doffing armor": "a standard action to don/doff helmet,
-// gauntlets and small armor. Costs 6 AP to don/doff medium armors and several
-// minutes to don/doff large ones." Small, medium and large are the Bulk column
-// as printed, so an armor is classed by its template's bulk whatever size it
-// has been scaled to. Null is "several minutes": nothing a turn can pay for.
-export function getDonCost(c: Character, item: Item): ActionCost | null {
+// gear.tex "Donning and Doffing armor": "Costs 8 AP to doff non rigid armor
+// and several minutes to doff large ones." Large is the Bulk column as
+// printed, so an armor is classed by its template's bulk whatever size it has
+// been scaled to. A rigid armor has no price a turn pays either: in a fight it
+// comes off only by being cut away. Null is nothing a turn can pay for.
+function getArmorDoffCost(c: Character, item: Item): ActionCost | null {
   const printedBulk = item.bulk - getItemScale(item) + GEAR_SIZE
-  if (printedBulk <= 1) return getActionCost(c, 'standardAction')
-  if (printedBulk === 2) return getActionCost(c, 'donMedium')
-  return null
+  if (printedBulk >= 3) return null
+  if (getItemArmor(item)?.properties.includes('rigid')) return null
+  return getActionCost(c, 'doffArmor')
 }
 
 const add = (a: ActionCost, b: ActionCost): ActionCost => ({ AP: a.AP + b.AP, STA: a.STA + b.STA })
 
-// Armor out of a container passes through the hands on the way on, so it is
-// drawn from its slot and then donned; from the hands it is only donned.
-export function getWearCost(c: Character, from: SlotKind | null, item: Item): ActionCost | null {
-  const don = getDonCost(c, item)
-  return don && (from ? add(getDrawCost(c, from, item), don) : don)
-}
-
-// And doffed then put away on the way off; dropping it is free after the doff.
+// Doffed then put away on the way off; dropping it is free after the doff.
 export function getDoffCost(c: Character, into: SlotKind | null): ActionCost | null {
   if (!c.worn) return null
-  const doff = getDonCost(c, c.worn)
+  const doff = getArmorDoffCost(c, c.worn)
   return doff && (into ? add(doff, getStoreCost(c, into, c.worn)) : doff)
 }
 
 export type WearView = {
   wearable: boolean
-  // What a character in play pays; null on the sheet, or when there is no
-  // price a turn can pay.
-  cost: number | null
   // Why not, when not; '' when wearable.
   why: string
 }
 
-// Whether this item could be put on right now, and for how much. A character
-// on the sheet is not on the clock, so only the fit is asked of them.
-export function getWearView(c: Character, from: SlotKind | null, item: Item): WearView | null {
+// Whether this item could be put on right now. gear.tex "Donning and Doffing
+// armor": "It is not possible to don armor during combat"; on the sheet, off
+// the clock, only the fit is asked.
+export function getWearView(c: Character, item: Item): WearView | null {
   if (!isArmorItem(item)) return null
-  if (c.worn) return { wearable: false, cost: null, why: `already wearing ${c.worn.name || c.worn.refId}` }
+  if (c.worn) return { wearable: false, why: `already wearing ${c.worn.name || c.worn.refId}` }
   const scale = getItemScale(item)
-  if (scale !== getSize(c)) return { wearable: false, cost: null, why: `made for size ${scale}` }
-  if (!isCharged(c)) return { wearable: true, cost: null, why: '' }
-  const cost = getWearCost(c, from, item)
-  if (!cost) return { wearable: false, cost: null, why: 'takes several minutes' }
-  return { wearable: true, cost: cost.AP, why: '' }
+  if (scale !== getSize(c)) return { wearable: false, why: `made for size ${scale}` }
+  if (isCharged(c)) return { wearable: false, why: 'armor cannot be donned in combat' }
+  return { wearable: true, why: '' }
 }
 
 // Whether an item that is nowhere yet — a catalog pick — could be put straight
 // on. On the sheet only the fit is asked: it replaces whatever is worn and
-// costs nothing, the way holding a catalog pick does. On the clock it is a don
-// like any other (gear.tex "Donning and Doffing armor"): over nothing, at the
-// don price, with no slot to draw from.
+// costs nothing, the way holding a catalog pick does. In a fight it is a don
+// like any other, and there is none (gear.tex "Donning and Doffing armor").
 export function getEquipView(c: Character, item: Item): WearView | null {
-  if (isCharged(c)) return getWearView(c, null, item)
+  if (isCharged(c)) return getWearView(c, item)
   if (!isArmorItem(item)) return null
   const scale = getItemScale(item)
-  if (scale !== getSize(c)) return { wearable: false, cost: null, why: `made for size ${scale}` }
-  return { wearable: true, cost: null, why: '' }
+  if (scale !== getSize(c)) return { wearable: false, why: `made for size ${scale}` }
+  return { wearable: true, why: '' }
 }

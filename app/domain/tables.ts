@@ -357,8 +357,8 @@ export const ACTION_COSTS = {
   prepare:        { AP: 1, STA: 0 },
   analyze:        { AP: 4, STA: 1 },
   standardAction: { AP: 3, STA: 0 },
-  // gear.tex "Donning and Doffing armor": "6 AP to don/doff medium armors"
-  donMedium:      { AP: 6, STA: 0 },
+  // gear.tex "Donning and Doffing armor": "8 AP to doff non rigid armor"
+  doffArmor:      { AP: 8, STA: 0 },
   switchFocus:    { AP: 1, STA: 0 },
   socialAction:   { AP: 4, STA: 1 },
 } as const satisfies Record<string, { AP: number; STA: number }>

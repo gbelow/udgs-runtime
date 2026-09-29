@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/shallow";
-import { doffArmor, equipArmor, toggleVisor } from "../domain/character/commands";
-import { ArmorPanelView, VisorView, getArmorPanel, getVisorView } from "../domain/character/lenses/armor";
+import { doffArmor, equipArmor, putGauntlets, putHelm, toggleVisor } from "../domain/character/commands";
+import { ArmorPanelView, ArmorPiecesView, getArmorPanel, getArmorPiecesView } from "../domain/character/lenses/armor";
 import { getEquipView, WearView } from "../domain/character/rules/armor";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
 import { getHardness } from "../domain/item/rules/items";
@@ -53,10 +53,13 @@ export function useDamageTiers(): DamageTierRow[] {
   return useActiveCharacterDerived(getDamageTiers, JSON.stringify) ?? [];
 }
 
-// The closed helmet's visor, and the standard action that raises or lowers it.
-export function useVisorLens() {
+// The gauntlets and the closed helmet, put on or taken off, and the helmet's
+// visor raised or lowered.
+export function useArmorPieces() {
   const update = useActiveCharacterUpdate();
-  const visor: VisorView | null = useActiveCharacterDerived(getVisorView, JSON.stringify) ?? null;
-  const toggle = () => update(toggleVisor);
-  return { visor, toggle } as const;
+  const pieces: ArmorPiecesView | null = useActiveCharacterDerived(getArmorPiecesView, JSON.stringify) ?? null;
+  const gauntlets = () => update(putGauntlets);
+  const helm = () => update(putHelm);
+  const visor = () => update(toggleVisor);
+  return { pieces, gauntlets, helm, visor } as const;
 }

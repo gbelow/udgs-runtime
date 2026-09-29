@@ -36,7 +36,7 @@ export function HandsPanel(){
               <span className='text-muted'>size {item.scale} · {item.bulkName} · {item.grip}h{item.laming ? <span className='text-bad'> · lame</span> : null}</span>
               {item.canGrip[1] ? <Button size='xs' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)}>1h</Button> : null}
               {item.canGrip[2] ? <Button size='xs' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)}>2h</Button> : null}
-              {item.wear ? <Button size='xs' variant='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>{item.wear.cost === null ? 'wear' : `wear (${item.wear.cost} AP)`}</Button> : null}
+              {item.wear ? <Button size='xs' variant='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>wear</Button> : null}
               {item.putOn ? <Button size='xs' variant='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? '' : item.putOn.why} onClick={() => putOn(item.id)}>{item.putOn.cost === null ? 'put on' : `put on (${item.putOn.cost} AP)`}</Button> : null}
               <span className='ml-auto flex flex-row gap-1'>
                 {

@@ -1,7 +1,5 @@
 'use client'
-import { useActiveCharacterSelector } from '../hooks/useActiveCharacterSelector'
-import { useArmorLens, useDamageTiers, useVisorLens } from '../hooks/useArmorLens'
-import { useCharacterCommands } from '../hooks/useCharacterCommands'
+import { useArmorLens, useArmorPieces, useDamageTiers } from '../hooks/useArmorLens'
 import { useItemLens } from '../hooks/useItemLens'
 import { Button, Panel } from './ui'
 
@@ -31,7 +29,7 @@ export function ArmorPanel(){
       {
         equipView ?
         equipView.wearable ?
-        <Button size='xs' variant='good' aria-label='equip pending armor' onClick={equip}>{equipView.cost === null ? 'equip' : `don (${equipView.cost} AP)`}</Button> :
+        <Button size='xs' variant='good' aria-label='equip pending armor' onClick={equip}>equip</Button> :
         <span className='text-xs text-muted'>{equipView.why}</span>
         : null
       }
@@ -80,27 +78,29 @@ export function ArmorPanel(){
   )
 }
 
+// The gauntlets and the closed helmet: each put on or taken off, and the
+// helmet's visor raised or lowered, with what that costs in play.
 function ArmorAddons (){
-  const { toggleGauntlets, toggleHelm } = useCharacterCommands()
-  const hasGauntlets = useActiveCharacterSelector((c) => !!c.hasGauntlets) ?? false
-  const hasHelm = useActiveCharacterSelector((c) => !!c.hasHelm) ?? false
-  const { visor, toggle: toggleVisor } = useVisorLens()
+  const { pieces, gauntlets, helm, visor } = useArmorPieces()
+  if (!pieces) return null
 
   return(
-    <div className='flex flex-row gap-4 text-xs'>
-      <label className='flex flex-row items-center gap-1.5 cursor-pointer'>
-        <input type='checkbox' className='accent-accent' aria-label={'gaunt'} name={'gaunt'} checked={hasGauntlets} onChange={toggleGauntlets} />
-        gauntlets
-      </label>
-      <label className='flex flex-row items-center gap-1.5 cursor-pointer'>
-        <input type='checkbox' className='accent-accent' aria-label={'helm'} name={'helm'} checked={hasHelm} onChange={toggleHelm} />
-        full helm
-      </label>
-      {visor ?
-        <Button size='xs' variant={visor.open ? 'default' : 'primary'} aria-label={visor.open ? 'close visor' : 'open visor'}
-          title={visor.open ? 'visor up: no helmet penalties, the head can be bypassed' : 'visor down: -2 reflex and detection, no bypass at the head'}
-          onClick={toggleVisor}>
-          {visor.open ? 'visor up' : 'visor down'}{visor.cost !== null ? <span className='ml-1 font-mono text-muted'>{visor.cost} AP</span> : null}
+    <div className='flex flex-row flex-wrap gap-2 items-center text-xs'>
+      <Button size='xs' variant={pieces.gauntlets.worn ? 'primary' : 'default'} aria-label={pieces.gauntlets.worn ? 'doff gauntlets' : 'don gauntlets'}
+        title={pieces.gauntlets.worn ? 'gauntlets on: -3 prestidigitation, accuracy and climbing; the hands are armored and fight with the gauntlet' : 'no gauntlets'}
+        onClick={gauntlets}>
+        {pieces.gauntlets.worn ? 'doff gauntlets' : 'don gauntlets'}{pieces.gauntlets.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.gauntlets.cost} AP</span> : null}
+      </Button>
+      <Button size='xs' variant={pieces.helm.worn ? 'primary' : 'default'} aria-label={pieces.helm.worn ? 'doff helm' : 'don helm'}
+        title={pieces.helm.worn ? 'closed helmet on' : 'no helmet'}
+        onClick={helm}>
+        {pieces.helm.worn ? 'doff helm' : 'don helm'}{pieces.helm.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.helm.cost} AP</span> : null}
+      </Button>
+      {pieces.visor ?
+        <Button size='xs' variant={pieces.visor.open ? 'default' : 'primary'} aria-label={pieces.visor.open ? 'close visor' : 'open visor'}
+          title={pieces.visor.open ? 'visor up: no helmet penalties, the head can be bypassed' : 'visor down: -2 reflex and detection, no bypass at the head'}
+          onClick={visor}>
+          {pieces.visor.open ? 'visor up' : 'visor down'}{pieces.visor.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.visor.cost} AP</span> : null}
         </Button>
       : null}
     </div>
