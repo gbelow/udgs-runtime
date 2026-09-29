@@ -22,6 +22,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useAfflictionBoard } from '../hooks/useAfflictionLens';
 import { useCurseLens, usePendingLens } from '../hooks/usePendingLens';
+import { useWoundLens } from '../hooks/useWoundLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
@@ -90,11 +91,17 @@ export function PlayPanel(){
 
             <div className='flex flex-col gap-1'>
               <SectionLabel>Injury</SectionLabel>
-              <div className='flex flex-row flex-wrap gap-3 items-end'>
-                <InjuryControl type='potion' />
-                <InjuryControl type='injuryLevel' />
-                <InjuryControl type='bleed' />
-                <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+              <div className='flex flex-row flex-wrap gap-x-6 gap-y-3 items-start'>
+                <div className='flex flex-row flex-wrap gap-3 items-end'>
+                  <InjuryControl type='potion' />
+                  <InjuryControl type='injuryLevel' />
+                  <InjuryControl type='bleed' />
+                  <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
+                </div>
+                <div className='flex flex-col gap-2 min-w-48'>
+                  <WoundPanel />
+                  <CursePanel />
+                </div>
               </div>
             </div>
 
@@ -128,7 +135,6 @@ export function PlayPanel(){
           <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
             <BoardPanel />
             <PendingPanel />
-            <CursePanel />
             <AfflictionsPannel />
             <ArmorPanel />
             <HandsPanel />
@@ -274,6 +280,28 @@ function PendingPanel(){
             <span className='text-muted'>{r.roll} <span className='font-mono text-fg'>{r.total}</span> vs DL <span className='font-mono text-fg'>{r.DL}</span></span>
           </SkillTooltip>
           <Button size='xs' variant='primary' aria-label={`roll ${r.name || r.kind}`} onClick={() => roll(r.index)}>roll</Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// combat.tex "Wounds": each wound carried, the part it took, what it does,
+// and the IL wound still to heal — healed here a point at a time.
+function WoundPanel(){
+  const { rows, heal } = useWoundLens()
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <SectionLabel>wounds</SectionLabel>
+      {rows.length === 0 ? <span className='text-muted'>none</span> : rows.map((r) => (
+        <div key={r.index} className='flex flex-row flex-wrap gap-x-3 items-center'>
+          <span className='text-bad'>{r.name}</span>
+          <span className='text-muted'>{r.part} · {r.consequence}</span>
+          <span className='flex flex-row items-center gap-1 ml-auto'>
+            <span className='font-mono text-fg'>{r.IL}</span><span className='text-muted'>IL to heal</span>
+            <Button size='xs' aria-label={`heal ${r.name}`} onClick={() => heal(r.index, 1)}>−</Button>
+            <Button size='xs' aria-label={`reopen ${r.name}`} onClick={() => heal(r.index, -1)}>+</Button>
+          </span>
         </div>
       ))}
     </div>

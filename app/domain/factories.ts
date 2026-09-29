@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, LearnedSpell, LearnedSpellSchema, ShapeSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -106,8 +106,9 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     return campaignCharacter
   }
 
+  const based = addBaseValues(campaignCharacter, parsed.data)
   return{
-    ...addBaseValues(campaignCharacter, parsed.data),
+    ...based,
     type: 'campaign',
     afflictions: parsed.data.afflictions ?? campaignCharacter.afflictions,
     // a fresh character starts full; whatever the raw carries overrides that
@@ -119,10 +120,23 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
       ...knownNumbers(parsed.data.resources, campaignCharacter.resources),
     },
     injuries: {
-      ...parsed.data?.injuries ?? campaignCharacter.injuries,
+      ...campaignCharacter.injuries,
+      ...parsed.data?.injuries,
+      wounds: readWounds(parsed.data?.injuries?.wounds, based.body),
     },
     usedSurge: parsed.data.usedSurge ?? campaignCharacter.usedSurge,
   }
+}
+
+// A wound is on a part: one whose part the body does not have, or has lost,
+// is on nothing and is read as healed.
+function readWounds(raw: unknown, body: BodyPart[]): Wound[] {
+  const whole = new Set(body.filter((part) => !part.lost).map((part) => part.id))
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((entry) => {
+    const wound = WoundSchema.safeParse(entry)
+    return wound.success && whole.has(wound.data.part) ? [wound.data] : []
+  })
 }
 
 const safeNumber = z.preprocess(

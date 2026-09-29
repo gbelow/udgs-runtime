@@ -14,6 +14,7 @@ import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
 import { makeCampaignCharacter } from './factories'
+import { severPart } from './character/commands/wounds'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter } from './types'
 import armorsCatalog from '../assets/armors.json'
@@ -108,6 +109,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   resistCurse: (c) => characterCommands.resistCurse('sleep', () => 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
   deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }),
   deliverAll: characterCommands.deliverAll([{ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }]),
+  healWound: (c) => characterCommands.healWound(0, 3)({ ...c, injuries: { ...c.injuries, wounds: [{ key: 'brokenLeg', part: 'legL', IL: 20 }] } }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
 }
 
@@ -174,6 +176,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
   settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
+  settleSevered: (s) => combatCommands.settleSevered(s, 'x')(deepFreeze({ ...s, characters: { ...s.characters, a: severPart('handL')(s.characters.a) } })),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),

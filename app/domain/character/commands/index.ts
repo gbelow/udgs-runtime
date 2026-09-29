@@ -10,3 +10,4 @@ export { learnAbility, forgetAbility, toggleAbility, useAbility, expireUsedAbili
 export { applyEffects, applyTrigger } from "./effects"
 export { deliver, deliverAll, resolvePending, resistCurse } from "./deliver"
 export { learnSpell, forgetSpell, practiceSpell, releaseSpell } from "./spells"
+export { healWound } from "./wounds"

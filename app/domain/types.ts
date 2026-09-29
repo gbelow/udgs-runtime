@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
-import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind } from './tables'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -282,6 +282,9 @@ export const ItemSchema = z.object({
   // gear.tex "Containers and Burden": a container is an item too, and what
   // it carries goes wherever it is put.
   container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),
+  // a body part cut off, kept whole so it can be put back (spells.tex
+  // "Reattach Limb")
+  part: z.lazy(() => BodyPartSchema).optional(),
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
@@ -381,8 +384,23 @@ export const StanceSchema = z.object({
 
 export type Stance = z.infer<typeof StanceSchema>
 
+export const WoundKeySchema = z.enum(Object.keys(WOUNDS) as [WoundKey, ...WoundKey[]])
+
+// combat.tex "Wounds": a wound carried until it is healed, on the part it
+// took. `IL` is the healing it still needs — its "IL wound", "tracked
+// separately from the main IL" — which starts at the table's value unless
+// what caused it says otherwise; healed to none, it is gone.
+export const WoundSchema = z.object({
+  key: WoundKeySchema,
+  part: str,
+  IL: num.default(0),
+}).strip()
+
+export type Wound = z.infer<typeof WoundSchema>
+
 export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
+  wounds: z.array(WoundSchema).default([]),
   bleed: z.number().default(0),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
@@ -653,16 +671,13 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
 }).strip()) as unknown as z.ZodType<Delivery, Delivery>
 
 // Something switched on and held: a toggle ability, a held spell, or a
-// wound carried until it is healed, a curse carried until it is beaten. The
-// character keeps only the reference; the effects are read off the owning
-// catalog, so nothing copied into state can go stale. A wound to a hand
-// names the part it disables; a curse keeps the DL the test to
-// beat it is rolled against (spells.tex "Curse": "until the target shrugs
-// it off").
+// curse carried until it is beaten. The character keeps only the reference;
+// the effects are read off the owning catalog, so nothing copied into state
+// can go stale. A curse keeps the DL the test to beat it is rolled against
+// (spells.tex "Curse": "until the target shrugs it off").
 export const ActiveEntrySchema = z.object({
-  kind: z.enum(['ability', 'spell', 'wound', 'curse']),
+  kind: z.enum(['ability', 'spell', 'curse']),
   key: str,
-  part: str.optional(),
   DL: num.optional(),
 }).strip()
 

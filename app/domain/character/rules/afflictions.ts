@@ -4,6 +4,7 @@ import { isCampaignCharacter } from '../../utils'
 import { isLamedByBurden } from '../../item/rules/containers'
 import { isLamedByHeld } from '../../item/rules/hands'
 import { getWoundAfflictions } from './wounds'
+import { getStanceAfflictions } from './body'
 import { getCurseAfflictions } from './curses'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
@@ -44,9 +45,11 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   // makes them lame; gear.tex "Hands": so does holding more than 1 bulk over it.
   if (isLamedByBurden(character) || isLamedByHeld(character)) afflictions.add('lame')
 
-  // combat.tex "Wounds": a carried wound's consequence, for as long as it is;
+  // combat.tex "Wounds": a carried wound's consequence, for as long as it is,
+  // and the legs lost or broken, as many as the stance can bear;
   // spells.tex "Curse": a carried curse's, the same
   for (const key of getWoundAfflictions(character)) afflictions.add(key)
+  for (const key of getStanceAfflictions(character)) afflictions.add(key)
   for (const key of getCurseAfflictions(character)) afflictions.add(key)
 
   return worstOfEachGroup(dropSupersededGroups([...afflictions]))

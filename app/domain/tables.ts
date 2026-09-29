@@ -129,19 +129,20 @@ export const STUN_TIER = 3
 // character size by up to 10m"
 export const THROW_ITEM_RANGE = 10
 
-// combat.tex "Wounds" table. A wound is a permanent effect the character
-// carries in `active` until healed: `heal` is the IL wound to heal it away
-// (null for "no heal" — an amputation is for good), `affliction` its
-// consequence on the sheet, `tier` the lowest tier at the location that
-// causes it. Shocked alone needs the blunt type and a smash. A hand's
-// consequence is carried by the hand itself (hands.ts), not by an affliction.
+// combat.tex "Wounds" table. A wound is carried in the injuries until
+// healed: `heal` is the IL wound to heal it away, `consequence` the table's
+// own words for what it does, `tier` the lowest tier at the location that
+// causes it. Shocked alone needs the blunt type and a smash. An amputation
+// ("no heal") is not carried: the part it takes is lost. A wound puts its
+// part out of use, so a hand's or a leg's consequence is read off the body
+// (body.ts); `affliction` is only what reaches past the part.
 export const WOUNDS = {
-  brokenHand:    { name: 'broken hand',    location: 'hand',  tier: 2, heal: 10,   affliction: null,       amputation: false, smash: false },
-  amputatedHand: { name: 'amputated hand', location: 'hand',  tier: 4, heal: null, affliction: null,       amputation: true,  smash: false },
-  brokenLeg:     { name: 'broken leg',     location: 'leg',   tier: 3, heal: 20,   affliction: 'lame',     amputation: false, smash: false },
-  amputatedLeg:  { name: 'amputated leg',  location: 'leg',   tier: 5, heal: null, affliction: 'lame',     amputation: true,  smash: false },
-  shocked:       { name: 'shocked',        location: 'chest', tier: 3, heal: 5,    affliction: 'immobile', amputation: false, smash: true },
-} as const satisfies Record<string, { name: string; location: (typeof HIT_LOCATIONS)[number]; tier: number; heal: number | null; affliction: AfflictionKey | null; amputation: boolean; smash: boolean }>
+  brokenHand:    { name: 'broken hand',    location: 'hand',  tier: 2, heal: 10,   consequence: 'useless hand', affliction: null,       amputation: false, smash: false },
+  amputatedHand: { name: 'amputated hand', location: 'hand',  tier: 4, heal: null, consequence: 'loses hand',   affliction: null,       amputation: true,  smash: false },
+  brokenLeg:     { name: 'broken leg',     location: 'leg',   tier: 3, heal: 20,   consequence: 'lame',         affliction: null,       amputation: false, smash: false },
+  amputatedLeg:  { name: 'amputated leg',  location: 'leg',   tier: 5, heal: null, consequence: 'loses leg',    affliction: null,       amputation: true,  smash: false },
+  shocked:       { name: 'shocked',        location: 'chest', tier: 3, heal: 5,    consequence: 'immobile',     affliction: 'immobile', amputation: false, smash: true },
+} as const satisfies Record<string, { name: string; location: (typeof HIT_LOCATIONS)[number]; tier: number; heal: number | null; consequence: string; affliction: AfflictionKey | null; amputation: boolean; smash: boolean }>
 export type WoundKey = keyof typeof WOUNDS
 // combat.tex "Head": "Getting stunned in the head causes unconsciousness";
 // "Tier 4 damage causes instant death".

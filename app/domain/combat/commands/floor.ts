@@ -1,6 +1,8 @@
 import type { Updater } from '../types'
 import { dropItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
+import { getSeveredItem } from '../../character/rules/body'
+import type { CombatState } from '../types'
 import { onFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
 import { amendAction, declareAction } from './action'
@@ -41,5 +43,27 @@ export function pickThrowItem(characterId: string, itemId: string, newId: () => 
     const open = getOpenAction(state)
     if (open?.kind === 'throwItem' && open.actorId === characterId) return amendAction({ itemId })(state)
     return declareAction(characterId, { kind: 'throwItem', itemId }, newId)(state)
+  }
+}
+
+// combat.tex "Wounds": a part cut off falls where its owner stands, and so
+// does what it was holding when no other hand still has it. Read off what the
+// fight was before the action landed and what it came to; the severed part
+// is named after the action that took it.
+export function settleSevered(before: CombatState, actionId: string): Updater {
+  return (state) => {
+    const fallen = Object.values(state.characters).flatMap((c) => {
+      const was = before.characters[c.id]
+      if (!was) return []
+      const cell = state.board?.placements[c.id]?.cell ?? null
+      return was.body
+        .filter((part) => !part.lost && c.body.some((p) => p.id === part.id && p.lost))
+        .flatMap((part) => {
+          const held = part.itemId && !c.held.some((i) => i.id === part.itemId) ? getHeldItem(was, part.itemId) : undefined
+          const limb = getSeveredItem(part, `severed:${actionId}:${c.id}:${part.id}`)
+          return [onFloor(limb, cell), ...(held ? [onFloor(held, cell)] : [])]
+        })
+    })
+    return fallen.length === 0 ? state : { ...state, floor: [...state.floor, ...fallen] }
   }
 }

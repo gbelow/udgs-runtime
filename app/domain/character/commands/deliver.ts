@@ -8,6 +8,7 @@ import { resolveTest } from '../../combat/rules/test'
 import type { Dice } from '../../combat/dice'
 import { payCost, spendAP } from './cost'
 import { inflict } from './addAffliction'
+import { woundPart } from './wounds'
 
 // The one place a delivered effect changes a character. A delivery whose
 // degree is known lands now: the effect is applied, and what its landing
@@ -105,8 +106,8 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
-// lands on the level, the bleed on its intensity, the wound joins what the
-// character carries in `active` until it is healed, and a death from the
+// lands on the level, the bleed on its intensity, the wound on the part it
+// took until it is healed, or takes the part off, and a death from the
 // head puts the level at the threshold that is death. A wound already
 // carried is not carried twice, and its affliction is read off it rather
 // than stored; what the damage inflicts beyond the wound — unconsciousness,
@@ -114,18 +115,13 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { wound } = outcome
-    const part = wound?.part?.id
-    const carried = wound && c.active.some((e) => e.kind === 'wound' && e.key === wound.key && e.part === part)
-    const active = wound && !carried
-      ? [...c.active, { kind: 'wound' as const, key: wound.key, ...(part !== undefined ? { part } : {}) }]
-      : c.active
     const injuryLevel = c.injuries.injuryLevel + outcome.IL
     const wounded = wound ? WOUNDS[wound.key].affliction ?? null : null
+    const hurt = wound ? woundPart(wound.key, wound.part.id)(c) : c
     return inflict(outcome.afflictions.filter((a) => a !== wounded))({
-      ...c,
-      active,
+      ...hurt,
       injuries: {
-        ...c.injuries,
+        ...hurt.injuries,
         injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
         bleed: c.injuries.bleed + outcome.bleed,
       },

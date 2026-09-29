@@ -1,24 +1,14 @@
-import type { AfflictionKey, Character } from '../../types'
-import { WOUNDS, WoundKey } from '../../tables'
+import type { AfflictionKey, Character, Wound } from '../../types'
+import { WOUNDS } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
 
-export function isWoundKey(key: string): key is WoundKey {
-  return key in WOUNDS
+// combat.tex "Wounds": the wounds the character carries.
+export function getWounds(c: Character): Wound[] {
+  return isCampaignCharacter(c) ? c.injuries.wounds : []
 }
 
-export type CarriedWound = { key: WoundKey; part: string | null }
-
-// combat.tex "Wounds": the wounds the character carries, read as permissively
-// as the abilities — an entry whose key the table no longer has is skipped.
-export function getWounds(c: Character): CarriedWound[] {
-  if (!isCampaignCharacter(c)) return []
-  return c.active
-    .filter((entry) => entry?.kind === 'wound' && isWoundKey(entry.key))
-    .map((entry) => ({ key: entry.key as WoundKey, part: entry.part ?? null }))
-}
-
-// What the wounds do to the sheet: each one's affliction, for as long as it
-// is carried.
+// What the wounds do past the part they took: each one's affliction, for as
+// long as it is carried.
 export function getWoundAfflictions(c: Character): AfflictionKey[] {
   return getWounds(c).flatMap(({ key }) => {
     const { affliction } = WOUNDS[key]

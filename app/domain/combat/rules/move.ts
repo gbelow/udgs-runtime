@@ -6,6 +6,7 @@ import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
 import { canStartRun } from '../../character/rules/surge'
+import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
@@ -103,7 +104,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (prone ? null : 'not prone') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
