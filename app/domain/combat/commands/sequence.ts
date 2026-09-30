@@ -5,7 +5,7 @@ import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
 import { getAttackOptions } from '../rules/attack'
 import { isInReach } from '../rules/board'
-import { getBlastOf, getExplosionPayload, goesOffOnImpact, isSpray } from '../rules/explosion'
+import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
@@ -154,9 +154,8 @@ function castExplosion(state: CombatState, root: CastAction, newId: () => string
 // goes off where it landed, committed as it opens — there is nothing to
 // aim — for everyone its area reaches to answer with their reflexes.
 function impactExplosion(state: CombatState, root: ThrowAction, newId: () => string): ExplosionAction[] {
-  if (!root.thrown || !root.to || !goesOffOnImpact(root.thrown)) return []
-  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'thrown', itemId: root.thrown.id, center: root.to, spawnedBy: root.id, step: 'react' })
-  return getExplosionPayload(state, explosion) ? [explosion] : []
+  const explosion = root.thrown && root.to ? getImpactExplosion(state, root.actorId, root.thrown, root.to, { id: newId(), spawnedBy: root.id, step: 'react' }) : null
+  return explosion ? [explosion] : []
 }
 
 // spells.tex "Telepathic Link": a test for each target of a cast worked

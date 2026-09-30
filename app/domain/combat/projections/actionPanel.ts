@@ -1,12 +1,12 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
 import type { Area, Character, MoveKind } from '../../types'
-import { isAttackAction } from '../rules/actionCatalog'
+import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
-import { canAnswer, getOpenAction, getReactionsTo } from '../rules/log'
+import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, LOCATIONS } from '../../tables'
@@ -28,7 +28,7 @@ import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
-import { canThrowItem, getThrowables, getThrowCells } from '../rules/throw'
+import { canThrowItem, getThrowables } from '../rules/throw'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
@@ -187,14 +187,14 @@ export type OpenActionView = {
   // a pick up: what lies within reach, and what was picked; a throw: what
   // can be thrown, from a hand or the floor
   floor: { itemId: string; name: string; available: boolean }[]
-  // a throw: where it may be aimed, and where it has been
-  to: Coord | null
-  throwCells: Coord[]
   // once rolled or compared: what it does to the grapple
   grapple: { target: string; text: string }[]
   cost: ActionCost | null
   // every reaction declared so far, by whom, and its own test once thrown
   reactions: { actor: string; label: string; cost: ActionCost | null; roll: ActionRoll | null }[]
+  // the reaction that opened it, with the test that decided what it may
+  // do, and for a move the most AP the reaction lets it spend
+  openedBy: { label: string; roll: ActionRoll | null; budget: number | null } | null
   // the test as it stands: the attacker's side and the defender's
   score: { terms: Term[]; total: number }
   DL: { terms: Term[]; total: number }
@@ -309,6 +309,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const dragTerms = drag ? getDragSides(state, drag) : null
   const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
   const hit = grapple?.step === 'post' && isManeuverWon(grapple)
+  const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
 
   return {
     step,
@@ -344,11 +345,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
         : open.kind === 'throw' && open.step === 'define' && actor
         ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
         : [],
-      to: open.kind === 'throw' ? open.to : null,
-      throwCells: open.kind === 'throw' && open.step === 'define' ? getThrowCells(state, open.actorId, open.itemId) : [],
       push: drag ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
+      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' ? open.budget : null } : null,
       reactions: reactions.map((r) => ({
         actor: getFightName(state, r.actorId),
         label: getActionName(r),

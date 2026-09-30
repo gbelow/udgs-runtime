@@ -8,7 +8,8 @@ import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
-import { getBlastOf, getExplosionCenters, getExplosionZones, getThreatenedCells, isAimable } from '../rules/explosion'
+import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells, isAimable } from '../rules/explosion'
+import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -176,11 +177,15 @@ function buildBoardView(state: CombatState): BoardView {
   // threatens, and its zones once it is pointed. It stays aimable for as
   // long as it can be re-aimed — a disk until its actor commits, a spray
   // until the blast is confirmed (combat.tex "Sprays": the direction is
-  // chosen after the movement).
+  // chosen after the movement). A throw being declared is aimed at where it
+  // may land, and shows the area it would go off over there.
   const explosion = findOpenRoot(state, 'explosion')
   const blast = findOpenRoot(state, 'blast')
-  const laid = blast ?? (explosion ? getBlastOf(state, explosion) : null)
-  const aiming = (blast !== null && isAimable(state, blast)) || (explosion !== null && isAimable(state, explosion))
+  const throwing = open?.kind === 'throw' && open.step === 'define' ? open : null
+  const laid = blast ?? (explosion ? getBlastOf(state, explosion) : throwing ? getImpactBlast(state, throwing) : null)
+  const aim = getAim(state, open)
+  const aiming = (blast !== null && isAimable(state, blast)) || aim !== null
+  const aimedAt = laid?.center ?? throwing?.to ?? null
   // combat.tex "Push and drag": where everyone the block moves ends up,
   // shown until it is walked
   const landed: Record<string, Placement> = walking ? (walking.step === 'post' ? getDragFacts(state, walking).to : getGroupSteps(state, walking)?.at(-1) ?? {}) : {}
@@ -189,7 +194,7 @@ function buildBoardView(state: CombatState): BoardView {
     if (!c) return []
     return [{ id, name: getFightName(state, id), ...toPlane(placement.cell), cells: getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) })) }]
   })
-  const centers = new Set(explosion && explosion.step === 'define' ? getExplosionCenters(state, explosion).map(coordKey) : [])
+  const centers = new Set(aim ? aim.cells.map(coordKey) : [])
   const threatened = new Set(laid ? getThreatenedCells(state, laid).map(coordKey) : [])
   const zones = new Map(laid ? getExplosionZones(state, laid).map((z) => [coordKey(z.cell), z.degree]) : [])
 
@@ -225,7 +230,7 @@ function buildBoardView(state: CombatState): BoardView {
       isJumpTo: jumpTo !== null && sameCell(jumpTo, cell),
       step: steps.has(key),
       center: centers.has(key),
-      isCenter: laid?.center !== null && laid?.center !== undefined && sameCell(laid.center, cell),
+      isCenter: aimedAt !== null && sameCell(aimedAt, cell),
       threatened: threatened.has(key),
       zone: zones.get(key) ?? null,
       items: state.floor.filter((f) => f.cell !== null && sameCell(f.cell, cell)).map((f) => f.item.name),

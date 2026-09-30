@@ -96,12 +96,13 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const lame = hasAffliction(c, 'lame')
   const swimming = isInLiquid(state, c)
   const granted = action?.movements ?? null
+  const budget = action?.budget ?? null
   const held = isInGrapple(state, c.id)
   const immobile = isImmobile(state, c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, granted)
+      : movementGate(kind, prone, lame, swimming, granted, budget)
     const block = MOVEMENT_BLOCK_COST[kind]
     return { kind, speed: getMovementSpeed(c, kind), block: runsFree(c, kind) ? { ...block, STA: 0 } : block, ...gate }
   })
@@ -114,8 +115,9 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, granted: MovementKind[] | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
+  if (!withinBudget(MOVEMENT_BLOCK_COST[kind], budget)) return { available: false, reason: 'more AP than the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
   if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }

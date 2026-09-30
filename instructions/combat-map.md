@@ -367,6 +367,7 @@ app/domain/combat/
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
+│   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters

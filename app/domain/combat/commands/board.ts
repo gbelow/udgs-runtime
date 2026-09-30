@@ -4,8 +4,7 @@ import { makeBoard } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
 import { getOpenAction } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
-import { getExplosionCenters } from '../rules/explosion'
-import { isThrowCell } from '../rules/throw'
+import { getAim } from '../rules/aim'
 import { placeAt, withPlacements } from '../rules/board'
 import { getEvasiveJumpPlacements, getReachableCells, type ReachableCell } from '../rules/move'
 import { canStandAt } from '../rules/ground'
@@ -89,11 +88,9 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
       const path = pickPathCell(state, open, cell)
       return path ? amendAction({ path })(state) : state
     }
-    if (open.kind === 'explosion' && open.step === 'define') {
-      return getExplosionCenters(state, open).some((c) => sameCell(c, cell)) ? amendAction({ center: cell })(state) : state
-    }
-    if (open.kind === 'throw' && open.step === 'define') {
-      return isThrowCell(state, open.actorId, open.itemId, cell) ? amendAction({ to: cell })(state) : state
+    const aim = getAim(state, open)
+    if (aim) {
+      return aim.cells.some((c) => sameCell(c, cell)) ? amendAction(aim.field === 'center' ? { center: cell } : { to: cell })(state) : state
     }
     if (open.kind === 'blast' && open.step === 'post') {
       const from = state.board?.placements[open.actorId]

@@ -9,13 +9,12 @@ import { getShotGroup } from './coordinated'
 export type ReactionMove = Partial<Pick<MoveAction, 'movement' | 'movements' | 'budget' | 'prepaid'>>
 
 // combat.tex "Avoiding an Explosion": "On a critical, the character can run
-// by spending one extra STA. On a hit, they can spend an extra STA to jump
-// in any direction before the explosion occurs. On a graze, they can move 1
-// AP before the explosion." Each degree unlocks what a lesser one would have
-// too, so a critical can still take a graze's plain move instead of paying
-// to run. The reaction's AP buys the move, as an evasion's does; the extra
-// STA is the run's or the jump's own (combat.tex "Movement Costs and
-// Speeds" prices both in STA already). A miss moves after the blast instead
+// once. On a hit, they can jump once in any direction before the explosion
+// occurs. On a graze, they can move 1 AP before the explosion ... It is
+// possible to downgrade the movement action. Movement stamina costs for
+// running and jumping are standard." The reaction's 3 AP buys the move, as
+// an evasion's does, so a run or a jump (2 AP a block) fits once; its STA
+// is paid as usual. A miss moves after the blast instead
 // (`getEscapeAfterBlast`).
 export function getEscapeBeforeBlast(reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
   if (!reaction.roll) return null

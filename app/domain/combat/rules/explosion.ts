@@ -1,5 +1,6 @@
 import type { Area, CampaignCharacter, ChargeTrigger, Delivery, Item, SpellEffect } from '../../types'
-import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard } from '../types'
+import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
+import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
@@ -37,6 +38,21 @@ function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
 }
 
 type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
+
+// spells.tex "Charged": the explosion a thrown item opens where it lands,
+// as the fields given open it; null when it would not go off there.
+export function getImpactExplosion(state: CombatState, actorId: string, item: Item, center: Coord, fields: Pick<ExplosionAction, 'id'> & Partial<ExplosionAction> = { id: '' }): ExplosionAction | null {
+  if (!goesOffOnImpact(item)) return null
+  const explosion = makeAction('explosion', { ...fields, actorId, source: 'thrown', itemId: item.id, center })
+  return getExplosionPayload(state, explosion) ? explosion : null
+}
+
+// The explosion a throw as declared would open, laid out before the commit.
+export function getImpactBlast(state: CombatState, action: ThrowAction): BlastShape | null {
+  const item = findObject(state, action.itemId)
+  const explosion = item && action.to ? getImpactExplosion(state, action.actorId, item, action.to) : null
+  return explosion ? getBlastOf(state, explosion) : null
+}
 
 // What the explosion is made of: the area effects of the object it goes
 // off in — its charge (spells.tex "Charged"), or a mundane explosive's own
@@ -80,7 +96,7 @@ function hasTrigger(charge: NonNullable<Item['charge']>, trigger: ChargeTrigger)
 // Whether the object goes off where it lands when thrown, if it has
 // anything to go off with: a charge with the impact trigger, or a mundane
 // explosive (gear.tex "Grenade": "ignited by a mundane fuse or impact").
-export function goesOffOnImpact(item: Item): boolean {
+function goesOffOnImpact(item: Item): boolean {
   return !item.charge || hasTrigger(item.charge, 'impact')
 }
 

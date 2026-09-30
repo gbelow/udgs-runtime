@@ -7,7 +7,7 @@ import type { ActionOptionView, HOPOptionView, OpenActionView, PushView, Reactor
 import type { ActionReport } from '../domain/combat/projections/outcomes'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { GrappleManeuver, HitLocation } from '../domain/combat/types'
+import type { ActionRoll, GrappleManeuver, HitLocation } from '../domain/combat/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
@@ -113,6 +113,12 @@ export function ActionPanel(){
       ) : null}
       {open.source && open.source !== 'thrown' ? <div className='text-xs text-muted'>{open.source === 'cast' ? 'from the spell' : 'set off — no test'}</div> : null}
 
+      {open.openedBy ? (
+        <RollLine roll={open.openedBy.roll} label={open.openedBy.label} className='text-xs text-muted'>
+          {open.openedBy.budget !== null ? <span>up to <span className='font-mono'>{open.openedBy.budget}</span> AP</span> : null}
+        </RollLine>
+      ) : null}
+
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
@@ -191,12 +197,9 @@ export function ActionPanel(){
         <div className='flex flex-col gap-1'>
           {open.roll || view.compare ? <Test open={open} /> : null}
           {open.roll ? (
-            <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-sm'>
-              <span>die <span className='font-mono'>{open.roll.die}</span></span>
-              <span>score <span className='font-mono'>{open.roll.score}</span> vs <span className='font-mono'>{open.roll.DL}</span></span>
-              <span className={`font-medium ${open.roll.degree === 'miss' ? 'text-bad' : open.roll.degree === 'hit' ? 'text-good' : ''}`}>{open.roll.degree}</span>
+            <RollLine roll={open.roll} className='text-sm'>
               {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
-            </div>
+            </RollLine>
           ) : null}
           {open.walked ? (
             <div className='text-xs text-muted'>{open.movement} · walks <span className='font-mono'>{open.walked.cells}</span> of <span className='font-mono'>{open.path.length}</span>{open.walked.stop !== 'end' ? <span className='text-bad'> · {open.walked.stop}</span> : null} <Cost cost={open.cost} /></div>
@@ -221,12 +224,7 @@ export function ActionPanel(){
           ) : null}
           {open.spell && open.roll?.degree !== 'hit' ? <div className='text-sm text-muted'>the spell fails</div> : null}
           {open.reactions.filter((r) => r.roll).map((r) => (
-            <div key={`${r.actor}:${r.label}`} className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
-              <span>{r.actor} {r.label}</span>
-              <span>die <span className='font-mono'>{r.roll!.die}</span></span>
-              <span>score <span className='font-mono'>{r.roll!.score}</span> vs <span className='font-mono'>{r.roll!.DL}</span></span>
-              <span className={`font-medium ${r.roll!.degree === 'miss' ? 'text-bad' : r.roll!.degree === 'hit' || r.roll!.degree === 'critical' ? 'text-good' : ''}`}>{r.roll!.degree}</span>
-            </div>
+            <RollLine key={`${r.actor}:${r.label}`} roll={r.roll} label={`${r.actor} ${r.label}`} className='text-xs text-muted' />
           ))}
           {view.outcomes.map(({ target, outcome }) => <OutcomeLine key={target} outcome={outcome} target={target} />)}
           {open.along !== null ? (
@@ -466,6 +464,22 @@ function OutcomeLine({ outcome, target }: { outcome: Outcome, target: string }){
       {outcome.afflictions.map((a) => <span key={a} className='text-bad'>{a}</span>)}
       {outcome.interruption !== 'none' ? <span>{outcome.interruption}{outcome.apLoss ? <> −<span className='font-mono'>{outcome.apLoss}</span> AP</> : null}</span> : null}
       {outcome.dead ? <span className='font-medium text-bad'>dead</span> : null}
+    </div>
+  )
+}
+
+// A test as thrown: who made it, the die, the score against the DL and the
+// degree, then whatever follows from it.
+function RollLine({ roll, label, className, children }: { roll: ActionRoll | null, label?: string, className: string, children?: React.ReactNode }){
+  return (
+    <div className={`flex flex-row flex-wrap gap-x-3 items-baseline ${className}`}>
+      {label ? <span>{label}</span> : null}
+      {roll ? <>
+        <span>die <span className='font-mono'>{roll.die}</span></span>
+        <span>score <span className='font-mono'>{roll.score}</span> vs <span className='font-mono'>{roll.DL}</span></span>
+        <span className={`font-medium ${roll.degree === 'miss' ? 'text-bad' : roll.degree === 'hit' || roll.degree === 'critical' ? 'text-good' : ''}`}>{roll.degree}</span>
+      </> : null}
+      {children}
     </div>
   )
 }
