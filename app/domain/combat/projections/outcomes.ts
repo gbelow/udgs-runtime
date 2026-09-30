@@ -46,14 +46,9 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
     ...(facts.prone.includes(id) ? [{ target: named(id), text: 'knocked down' }] : []),
     ...(facts.dropped?.ownerId === id ? [{ target: named(id), text: `drops ${itemName(id, facts.dropped.itemId)}` }] : []),
   ])
-  const taken = [
-    ...(facts.seized ? [{ target: named(facts.pair[1]), text: `${itemName(facts.pair[1], facts.seized)} seized` }] : []),
-    ...facts.freed.map((itemId) => ({ target: named(facts.pair[0]), text: `frees ${itemName(facts.pair[0], itemId)}` })),
-  ]
   if (facts.grapple === null) return [...lines, { target: facts.pair.map(named).join(' and '), text: 'apart' }]
   if (root.kind === 'strike') return [{ target: named(facts.pair[1]), text: 'grabbed' }, ...lines]
-  const all = [...lines, ...taken]
-  return all.length > 0 ? all : [{ target: facts.pair.map(named).join(' and '), text: 'no effect' }]
+  return lines.length > 0 ? lines : [{ target: facts.pair.map(named).join(' and '), text: 'no effect' }]
 }
 
 // spells.tex "Telepathic Link": whether the test left the target linked to

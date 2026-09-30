@@ -236,15 +236,21 @@ resolveAction ─────────► land(top)
   interruption and trample for a strike, the thrown item for a shot, grapple facts for a
   maneuver, path facts for a move, zone deliveries and terrain paint for a blast, cast
   deliveries per character.
-- `applyPhase(state, actions, phase)` (`commands/log.ts`) — runs every character through
-  `reduceCharacter`, then the floor, grapples and board reducers, then `settleGrapples`.
+- `applyPhase(state, actions, phase)` (`commands/log.ts`) — lands the board, reads the fire
+  it left the turn holder in, runs every character through `reduceCharacter`, then the floor
+  and grapples reducers, then `settleGrapples`.
   Phases: `roll` (the price leaves the actor), `save` (a cast's graze bought up), `resolve`
   (the action lands).
 - `reduceCharacter` hands deliveries to the character domain's own effect processor
   (`character/commands/deliver.ts`); combat never computes damage on the target side.
-- `settleGrapples` (`commands/grapple.ts`) re-derives grapple afflictions and seized items
-  after anything that could change who holds whom — also called by `updateCharacter`,
+- `settleGrapples` (`commands/grapple.ts`) lets go for any holder left with no grapple row,
+  after anything that could take it from them — also called by `updateCharacter`,
   `dropToFloor` and `removeFromCombat`.
+- What the fight puts on a character is never stored on them: `rules/situational.ts`
+  reads suffocation off the gas they stand in and grappled/immobile off `state.grapples`
+  (`getSituationalAfflictions`, `hasFightAffliction`, `isSuffocating`, `isImmobile`). Combat
+  rules ask these, not the character's own afflictions; the SD getter and the affliction
+  board take them as a `situational` argument.
 
 ## The board
 
@@ -254,17 +260,17 @@ resolveAction ─────────► land(top)
 - `rules/board.ts` — footprints and occupancy by size, distance between characters, reach
   and shot range, line of sight, high ground, flankers, melee threateners.
 - `rules/ground.ts` — where a footprint may cross and where it may come to rest.
-- `rules/hazard.ts`, `commands/hazard.ts` — fire and gas left on the ground. A blast paints
+- `rules/hazard.ts` — fire and gas left on the ground. A blast paints
   a `HazardLayer` onto each cell it covers (`TerrainCell.layers`). The layer holds the fire
   its own burn deals in that zone, whether the gas suffocates, and the visibility it leaves.
   A layer from a sustained spell names its holder and the explosion that cast it; it is
   read as gone while they do not hold the spell (`isLayerLive`), and a new cast of the
   spell paints over it (`isSupersededBy`). What leaves the fight takes only the live layers
   (`getLiveBoard`). A footprint takes the worst of its cells (`getHazardAt`). Suffocation
-  from gas is never stored: `isSuffocating` and `getSituationalAfflictions` read it off
-  where the character stands, so no command has to settle it. `touchFireInTurn` raises the
-  turn holder's `scorch` to the worst fire they stand in or walk through (a jump touches
-  only where it lands). `endTurn` deals the scorch as burning damage, and
+  from gas is never stored: `rules/situational.ts` reads it off where the character
+  stands, so no command has to settle it. `getFireTouched` reads, off
+  the board an action landed, the worst fire the turn holder stands in or walked through (a
+  jump touches only where it lands), and `reduceCharacter` raises their `scorch` to it. `endTurn` deals the scorch as burning damage, and
   `nextRound` burns the counter with the fire each character stands in added, as one
   instance. Every burn and radiant hit goes through the counter the same way
   (`getOutcome`).
@@ -315,7 +321,6 @@ app/domain/combat/
 │   ├── floor.ts        dropToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: upkeep, gas, burning, bleed, AP reset
-│   ├── hazard.ts       touchFireInTurn
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── resetCombat.ts
 │
@@ -349,9 +354,10 @@ app/domain/combat/
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
 │   ├── ground.ts       crossable and restable cells
-│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through
+│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
+│   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, thrown
 │   └── fighters.ts     active character, fight names, who holds an item

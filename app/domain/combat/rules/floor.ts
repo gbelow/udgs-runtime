@@ -8,10 +8,8 @@ import { findWeaponRow } from './weaponRow'
 import { coordKey, disk, distance } from '../geometry'
 import { getPlacedFootprint } from './board'
 
-// Something put down: lying on the floor it is nobody's, so nothing a
-// grappler seized stays seized.
 export function onFloor(item: Item, cell: Coord | null): FloorItem {
-  return { item: { ...item, seized: false }, cell }
+  return { item, cell }
 }
 
 // What can be picked up: what lies on the character's own cells or next

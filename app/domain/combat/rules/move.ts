@@ -4,7 +4,8 @@ import { MOVEMENT_BLOCK_COST, RUN_START_AP } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
+import { hasAffliction } from '../../character/rules/afflictions'
+import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
@@ -96,7 +97,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const swimming = isInLiquid(state, c)
   const granted = action?.movements ?? null
   const held = isInGrapple(state, c.id)
-  const immobile = isImmobile(c)
+  const immobile = isImmobile(state, c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }

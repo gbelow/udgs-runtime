@@ -1,6 +1,6 @@
 import type { AfflictionKey, Character } from '../../types'
 import { AFFLICTIONS, AFFLICTION_CATEGORIES, AfflictionCategory } from '../../tables'
-import { combineAfflictions, getForcedAfflictions, getStoredAfflictions } from '../rules/afflictions'
+import { getAfflictions, getForcedAfflictions } from '../rules/afflictions'
 
 export type AfflictionRow = {
   key: AfflictionKey
@@ -18,7 +18,7 @@ type Rung = AfflictionRow & { forced: boolean }
 // on them.
 function getRungs(c: Character, situational: readonly AfflictionKey[]): Rung[] {
   const forced = new Set([...getForcedAfflictions(c), ...situational])
-  const active = new Set(combineAfflictions(getStoredAfflictions(c), forced))
+  const active = new Set(getAfflictions(c, situational))
   return (Object.keys(AFFLICTIONS) as AfflictionKey[]).map((key) => ({
     key,
     controlable: AFFLICTIONS[key].controlable,

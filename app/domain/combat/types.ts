@@ -196,15 +196,12 @@ const AttackDeclaration = {
 // combat.tex "Grapple": two characters locked together, and which of them
 // hold the other — a hold both ways is a grab answered by "grapple back". A
 // holder keeps the hold only while they have a grapple row to hold with.
-// Who a maneuver left immobile stays so while the grapple lasts, and so does
-// a weapon a disarm took hold of ("preventing them from using it until they
-// manage to escape"). It is a fact of the fight, not of either character, so
-// it lives on the fight.
+// Who a maneuver left immobile stays so while the grapple lasts. It is a
+// fact of the fight, not of either character, so it lives on the fight.
 export const GrappleSchema = z.object({
   members: z.tuple([str, str]),
   holders: z.array(str).default([]),
   immobile: z.array(str).default([]),
-  seized: z.array(str).default([]),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 
@@ -215,8 +212,7 @@ export type GrappleManeuver = z.infer<typeof GrappleManeuverSchema>
 // What an action did to one grapple, written at the resolve: the pair it
 // concerns, the grapple as it stands afterwards (null: it is over), what the
 // maneuver did to its members beyond the grapple itself — knocked down, an
-// item knocked out of a hand or taken hold of — and what the
-// holds dealt
+// item knocked out of a hand — and what the holds dealt
 // (combat.tex "Grapple Maneuvers": "If the grapple attack has any damage, it
 // deals that damage whenever a grapple maneuver is used"). `on` and `off`
 // are what the change puts on and takes off each member, for the report.
@@ -225,9 +221,6 @@ export const GrappleFactsSchema = z.object({
   grapple: GrappleSchema.nullable().default(null),
   prone: z.array(str).default([]),
   dropped: z.object({ ownerId: str, itemId: str }).nullable().default(null),
-  seized: str.nullable().default(null),
-  // combat.tex "Disarm": what the owner won back out of the grappler's hold
-  freed: z.array(str).default([]),
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   deliveries: DeliveriesSchema.default({}),

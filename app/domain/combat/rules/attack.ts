@@ -6,6 +6,7 @@ import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
@@ -361,7 +362,7 @@ function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
-  const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender) }]
+  const terms: Term[] = reaction ? strikeDefenseTerms(state, root, reaction) : [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }]
   if (!reaction && isHighGround(state, root.actorId, defender.id)) terms.push({ label: 'high ground', value: 2 })
   const midAction = reaction ? getMidActionTerm(state, root, defender.id) : null
   return midAction ? [...terms, midAction] : terms
@@ -374,7 +375,7 @@ function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
-  return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender) }]
+  return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }]
 }
 
 // spells.tex "Casting spells": the DL is the spell's own; "Quicken Spell:

@@ -1,11 +1,12 @@
-import type { AfflictionKey, CampaignCharacter, Visibility } from '../../types'
+import type { Visibility } from '../../types'
 import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction, Placement } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isSpellActive } from '../../character/rules/effects'
-import { hasAffliction } from '../../character/rules/afflictions'
 import { coordKey } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { getMoveOrigin, getMoveWaypoint, touchesGround } from './waypoint'
+import { getTurnHolder } from './turn'
+import { findOpenRoot } from './log'
 
 // combat.tex "Environmental Hazards": what the ground does to whoever stands
 // on it — the fire and the gas actions left on each cell, and the gas the
@@ -82,19 +83,6 @@ export function getHazardOf(state: CombatState, id: string): Hazard {
   return footprint ? getHazardAt(state, footprint) : NO_HAZARD
 }
 
-// What the fight puts on the character on top of what they carry: suffocation
-// while their footprint is inside a suffocating gas (combat.tex "Gas":
-// "anyone that is inside a suffocating gas is suffocating by default").
-export function getSituationalAfflictions(state: CombatState, id: string): AfflictionKey[] {
-  return getHazardOf(state, id).suffocating ? ['suffocating'] : []
-}
-
-// combat.tex "Suffocation": cannot breathe — by the gas they stand in, or by
-// what the sheet says — so "cannot Rest".
-export function isSuffocating(state: CombatState, c: CampaignCharacter): boolean {
-  return getHazardOf(state, c.id).suffocating || hasAffliction(c, 'suffocating')
-}
-
 // The footprints a move `touchesGround` on, from where it set out to where
 // it landed.
 export function getWalkedFootprints(state: CombatState, action: MoveAction): Coord[][] {
@@ -105,4 +93,25 @@ export function getWalkedFootprints(state: CombatState, action: MoveAction): Coo
   return [from, ...path.map((_, i) => getMoveWaypoint(state, action, i + 1))]
     .filter((p, i): p is Placement => p !== null && touchesGround(action.movement, i === path.length))
     .map((p) => getFootprint(c, p))
+}
+
+// combat.tex "Fire": "The fire damage taken at the end of the turn is the
+// worst environmental fire the character has touched during their turn" —
+// only in their own turn, so what moves them outside it touches nothing.
+// Read off the fight with the action's board landed: the holder of the turn
+// has touched what they stand in now — unless a move of their own is still
+// being played out, which has them only part of the way — and, for a move
+// of their own, every cell it walked through. A jump opening the turn so
+// clears the fire they started in (combat.tex "Fire": "they can jump once to
+// attempt to avoid its effects"), even when an opportunity attack lands
+// before it. Null when there is no fire to touch.
+export type FireTouched = { id: string; fire: number }
+
+export function getFireTouched(state: CombatState, action: Action): FireTouched | null {
+  const holder = getTurnHolder(state)
+  if (!holder || !state.characters[holder]) return null
+  const moving = findOpenRoot(state, 'move', (m) => m.actorId === holder) !== null
+  const walked = action.kind === 'move' && action.actorId === holder ? getWalkedFootprints(state, action) : []
+  const fire = Math.max(moving ? 0 : getHazardOf(state, holder).fire, ...walked.map((f) => getHazardAt(state, f).fire))
+  return fire > 0 ? { id: holder, fire } : null
 }

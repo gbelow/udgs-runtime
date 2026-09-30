@@ -8,11 +8,12 @@ import { getStanceAfflictions } from './body'
 import { getCurseAfflictions } from './curses'
 
 // The full affliction set: what the GM toggled by hand, plus everything the
-// character's own state forces on them. survival.tex states each resource's
-// effects as exclusive bands, so a resource contributes exactly one rung of its
-// ladder and `worstOfEachGroup` keeps a hand-set rung from stacking on top.
-export function getAfflictions(character: Character): AfflictionKey[] {
-  return combineAfflictions(getStoredAfflictions(character), getForcedAfflictions(character))
+// character's own state forces on them, plus what their surroundings put on
+// them (`situational`). survival.tex states each resource's effects as
+// exclusive bands, so a resource contributes exactly one rung of its ladder
+// and `worstOfEachGroup` keeps a hand-set rung from stacking on top.
+export function getAfflictions(character: Character, situational: readonly AfflictionKey[] = []): AfflictionKey[] {
+  return combineAfflictions(getStoredAfflictions(character), [...getForcedAfflictions(character), ...situational])
 }
 
 // What the hand, or a hit, put on the character. Stored afflictions come
@@ -68,14 +69,8 @@ export function getForcedAfflictions(character: Character): AfflictionKey[] {
   return [...afflictions]
 }
 
-export function hasAffliction(c: Character, key: AfflictionKey): boolean {
-  return getAfflictions(c).includes(key)
-}
-
-// combat.tex "Immobile": "Cannot move and cannot use any combat or movement
-// skills other than escape."
-export function isImmobile(c: Character): boolean {
-  return hasAffliction(c, 'immobile')
+export function hasAffliction(c: Character, key: AfflictionKey, situational: readonly AfflictionKey[] = []): boolean {
+  return getAfflictions(c, situational).includes(key)
 }
 
 // An affliction that `supersedes` a ladder removes every rung of it. No entry

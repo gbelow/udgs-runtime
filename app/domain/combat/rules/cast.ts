@@ -14,7 +14,7 @@ import { Term } from '../../character/rules/terms'
 import { getDistanceBetween, hasLineOfSight } from './board'
 import { resolveTest, resisted } from './test'
 import { isAreaEffect } from './explosion'
-import { isSuffocating } from './hazard'
+import { getSituationalAfflictions, isSuffocating } from './situational'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -239,7 +239,7 @@ function getSpellTestRoll(key: SpellKey): keyof Skills | null {
 export function getSpellTestSkillTerms(state: CombatState, action: SpellTestAction): Term[] {
   const target = action.targetId ? state.characters[action.targetId] : undefined
   const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
-  return target && roll ? skillTermGetters[roll](target) : []
+  return target && roll ? skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)) : []
 }
 
 // The caster's side of the test, resolved for the caster: the book's

@@ -61,7 +61,7 @@ describe('grapple', () => {
     const s = grappling()
     const sword = () => ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
     const full = holdItem(sword())(holdItem(sword())(s.characters.a))
-    const settled = settleGrapples(s.grapples)({ ...s, characters: { ...s.characters, a: full } })
+    const settled = settleGrapples({ ...s, characters: { ...s.characters, a: full } })
     expect(settled.grapples.flatMap((g) => g.holders)).not.toContain('a')
   })
 

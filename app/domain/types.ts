@@ -275,10 +275,6 @@ export const ItemSchema = z.object({
   // releases the charge is not who made it, so the numbers the caster's
   // size and skill decided are carried here rather than looked up again.
   charge: ChargeSchema.nullable().default(null),
-  // combat.tex "Disarm": taken hold of by a grappler, "preventing them from
-  // using it until they manage to escape" — still in hand, not usable.
-  // Only a fight ever sets it, so a stored item carries none.
-  seized: z.boolean().optional(),
   // gear.tex "Containers and Burden": a container is an item too, and what
   // it carries goes wherever it is put.
   container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),

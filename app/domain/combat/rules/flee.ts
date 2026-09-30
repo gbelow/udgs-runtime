@@ -3,7 +3,8 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import type { CombatState, MoveAction, RootAction } from '../types'
 import { SURGES } from '../../tables'
 import { canSurge } from '../../character/rules/surge'
-import { isDead, isImmobile } from '../../character/rules/afflictions'
+import { isDead } from '../../character/rules/afflictions'
+import { isImmobile } from './situational'
 import { getReactionsTo } from './log'
 import { isInGrapple } from './partners'
 import { isInTurn } from './turn'
@@ -28,7 +29,7 @@ export function getFleeCost(c: CampaignCharacter): ActionCost | null {
 // by a maneuver (combat.tex "Escape"), not by fleeing (the table's ruling).
 export function getFleeBar(state: CombatState, c: CampaignCharacter): string | null {
   if (isInTurn(state, c.id)) return 'your turn'
-  if (isImmobile(c)) return 'immobile'
+  if (isImmobile(state, c)) return 'immobile'
   if (isConcentrating(c)) return 'concentrating'
   if (isInGrapple(state, c.id)) return 'grappled'
   if (c.usedSurge !== null) return 'surge used this round'

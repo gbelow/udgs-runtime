@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Grapple, type GrappleFacts, type Trample } from '../types'
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { deliver, deliverAll } from '../../character/commands/deliver'
+import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
 import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { findAmmoStack } from '../../item/rules/ammo'
@@ -25,7 +25,7 @@ import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
-import { filterLayers, getHolderOf, isSupersededBy } from '../rules/hazard'
+import { filterLayers, getHolderOf, isSupersededBy, type FireTouched } from '../rules/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -45,11 +45,14 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // ends with it (abilities.tex "Battle Mage": "When interrupted, instead of
 // losing the spell") — a won maneuver here; a blow that interrupts or stuns
 // ends it where it lands (character/commands/deliver.ts), as a crash does
-// (`trampledBy`).
-export function reduceCharacter(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
+// (`trampledBy`). The holder of the turn touches the fire the landing left
+// them in (`getFireTouched`), read off the board the action put them on.
+export function reduceCharacter(action: Action, phase: Phase, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const reduced = reducePart(action, phase)(c)
-    return phase === 'resolve' && getInterruptionOf(action, c.id) !== 'none' ? loseConcentration(reduced) : reduced
+    if (phase !== 'resolve') return reduced
+    const touched = fire?.id === c.id ? touchFire(fire.fire)(reduced) : reduced
+    return getInterruptionOf(action, c.id) !== 'none' ? loseConcentration(touched) : touched
   }
 }
 
@@ -166,7 +169,7 @@ function spendAmmo(c: CampaignCharacter, ammoId: string): CampaignCharacter {
 // combat.tex "Grapple Maneuvers": what the maneuver did to the character
 // beyond the grapple itself — knocked down, an item knocked out of their
 // hand — and what the holds dealt them. The grappled and immobile
-// afflictions follow the grapple, and are settled with it.
+// afflictions are read off the grapple (`getGrappleAfflictionsOf`).
 function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): CampaignCharacter {
   if (!facts) return c
   const down = facts.prone.includes(c.id) ? fallProne(c) : c

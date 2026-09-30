@@ -6,7 +6,8 @@ import { suffocate, bleed } from '../../character/commands/bleed'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
 import { isDead } from '../../character/rules/afflictions'
 import type { CombatState } from '../types'
-import { getHazardOf, isSuffocating } from '../rules/hazard'
+import { getHazardOf } from '../rules/hazard'
+import { isSuffocating } from '../rules/situational'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.

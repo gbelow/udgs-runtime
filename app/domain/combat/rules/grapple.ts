@@ -64,9 +64,15 @@ function getGrappleAfflictions(state: CombatState, grapples: Grapple[], id: stri
   ]
 }
 
+// What the fight's grapples put on the character (combat.tex "Initiate the
+// Grab", "Immobilize"): read off the grapples, never stored on them.
+export function getGrappleAfflictionsOf(state: CombatState, id: string): GrappleAffliction[] {
+  return getGrappleAfflictions(state, state.grapples, id)
+}
+
 // What going from one set of grapples to another puts on and takes off each
 // of `ids`.
-export function diffGrappleAfflictions(state: CombatState, before: Grapple[], after: Grapple[], ids: readonly string[]): Pick<GrappleFacts, 'on' | 'off'> {
+function diffGrappleAfflictions(state: CombatState, before: Grapple[], after: Grapple[], ids: readonly string[]): Pick<GrappleFacts, 'on' | 'off'> {
   const on: GrappleFacts['on'] = {}
   const off: GrappleFacts['off'] = {}
   for (const id of ids) {
@@ -83,13 +89,14 @@ export function diffGrappleAfflictions(state: CombatState, before: Grapple[], af
 // The grapples as they stand once every holder with nothing left to hold
 // with has let go ("the grapplers must have a grapple property attack at
 // all times"), and every grapple nobody holds any more is over.
-export function getHeldGrapples(state: CombatState, grapples: Grapple[]): Grapple[] {
-  return dropHolders(grapples, (id) => !state.characters[id] || !hasGrappleRow(state.characters[id]))
+export function getHeldGrapples(state: CombatState): Grapple[] {
+  return dropHolders(state.grapples, (id) => !state.characters[id] || !hasGrappleRow(state.characters[id]))
 }
 
 // The grapples once every holder `letsGo` says lets go has, and any grapple
-// nobody holds any more is over.
+// nobody holds any more is over; the same list when nobody lets go.
 export function dropHolders(grapples: Grapple[], letsGo: (id: string) => boolean): Grapple[] {
+  if (!grapples.some((g) => g.holders.some(letsGo))) return grapples
   return grapples
     .map((g) => ({ ...g, holders: g.holders.filter((id) => !letsGo(id)) }))
     .filter((g) => g.holders.length > 0)
@@ -111,7 +118,7 @@ export function replacePair(grapples: Grapple[], pair: readonly [string, string]
 
 function facts(state: CombatState, pair: [string, string], next: Grapple | null, extra: Partial<GrappleFacts> = {}): GrappleFacts {
   const after = replacePair(state.grapples, pair, next)
-  return { pair, grapple: next, prone: [], dropped: null, seized: null, freed: [], deliveries: {}, ...extra, ...diffGrappleAfflictions(state, state.grapples, after, pair) }
+  return { pair, grapple: next, prone: [], dropped: null, deliveries: {}, ...extra, ...diffGrappleAfflictions(state, state.grapples, after, pair) }
 }
 
 // ---------------------------------------------------------------------------
@@ -128,7 +135,7 @@ export function getGrabFacts(state: CombatState, strike: StrikeAction): GrappleF
   const pair: [string, string] = [strike.actorId, strike.targetId]
   const was = findGrapple(state.grapples, ...pair)
   const holders = [...new Set([...(was?.holders ?? []), strike.actorId, ...(hasGrappleRow(target) ? [target.id] : [])])]
-  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], seized: was?.seized ?? [] })
+  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [] })
 }
 
 // Whether the strike may be a grab at the target: made with a grapple row,
@@ -225,39 +232,22 @@ export function isManeuverWon(root: GrappleAction): boolean {
   return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
 }
 
-// Whether a rolled maneuver's hit or critical still waits on the attacker's
-// pick of what a disarm takes.
+// Whether a rolled disarm's critical still waits on the attacker's pick of
+// what it knocks loose.
 export function needsDisarmPick(state: CombatState, root: GrappleAction): boolean {
-  return root.maneuver === 'disarm' && isManeuverWon(root) && root.item === '' && getDisarmOptions(state, root).length > 0
+  return root.maneuver === 'disarm' && root.roll?.degree === 'critical' && root.item === '' && getDisarmOptions(state, root).length > 0
 }
 
 // combat.tex "Escape": "Escapes from the grapple on criticals and hits."
-// "Disarm: Removes something from
-// the opponent's hands on a critical. It is possible to grab the opponent's
-// weapon on a hit, preventing them from using it until they manage to win
-// on a grapple maneuvre to release it or when they escape" — any maneuver
-// its owner wins frees it, on top of what the maneuver does (the table's
-// ruling). "Knockdown: The opponent falls to the ground on a critical. It
-// is possible to throw oneself along to achieve a knockdown on a hit. Also
-// works on a hit when knockdown is done from a prone position" — nobody
-// else goes down with them then, the actor being down already.
+// "Disarm: Removes something from the opponent's hands on a critical."
+// "Knockdown: The opponent falls to the ground on a critical. It is possible
+// to throw oneself along to achieve a knockdown on a hit. Also works on a hit
+// when knockdown is done from a prone position" — nobody else goes down with
+// them then, the actor being down already.
 // "Immobilize: The opponent becomes immobilized on a critical. It is
 // possible to stay immobilized yourself to achieve immobilization on a
 // hit." "If a grapple maneuvre grazes or misses, it simply has no effect."
 export function getManeuverFacts(state: CombatState, root: GrappleAction): GrappleFacts | null {
-  const done = getManeuverOutcome(state, root)
-  return done && isManeuverWon(root) ? freeSeized(state, root.actorId, done) : done
-}
-
-function freeSeized(state: CombatState, ownerId: string, done: GrappleFacts): GrappleFacts {
-  const owner = state.characters[ownerId]
-  const freed = done.grapple && owner ? done.grapple.seized.filter((id) => owner.held.some((i) => i.id === id)) : []
-  if (!done.grapple || freed.length === 0) return done
-  const { prone, dropped, seized, deliveries } = done
-  return facts(state, done.pair, { ...done.grapple, seized: done.grapple.seized.filter((id) => !freed.includes(id)) }, { prone, dropped, seized, deliveries, freed })
-}
-
-function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFacts | null {
   if (!root.targetId || !root.roll) return null
   const pair: [string, string] = [root.actorId, root.targetId]
   const found = findGrapple(state.grapples, root.actorId, root.targetId)
@@ -282,9 +272,8 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
       return facts(state, pair, along ? { ...g, immobile: [...new Set([...g.immobile, ...who])] } : g, { deliveries })
     case 'disarm': {
       const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
-      if (!item || !landed) return facts(state, pair, g, { deliveries })
-      if (critical) return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item } })
-      return facts(state, pair, { ...g, seized: [...new Set([...g.seized, item])] }, { deliveries, seized: item })
+      if (!item || !critical) return facts(state, pair, g, { deliveries })
+      return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item } })
     }
   }
 }
@@ -294,17 +283,16 @@ function getManeuverOutcome(state: CombatState, root: GrappleAction): GrappleFac
 // damage; the target falls on a critical ("Knockdown": "It is not possible
 // to throw oneself along during a hook attack").
 function getHookKnockdownFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
-  return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], dropped: null, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+  return { pair, grapple: null, prone: root.roll?.degree === 'critical' ? [pair[1]] : [], dropped: null, on: {}, off: {}, deliveries: {} }
 }
 
 // combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
-// stops an attack" — no grapple between the two to seize a hit into, so
-// only a critical does anything: the item falls loose (the table's ruling,
-// mirroring the hook's own knockdown with nothing to hold).
+// stops an attack" — as within a grapple, only a critical does anything:
+// the item falls loose.
 function getInterceptDisarmFacts(state: CombatState, root: GrappleAction, pair: [string, string]): GrappleFacts {
   const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
   const dropped = item && root.roll?.degree === 'critical' ? { ownerId: pair[1], itemId: item } : null
-  return { pair, grapple: null, prone: [], dropped, seized: null, freed: [], on: {}, off: {}, deliveries: {} }
+  return { pair, grapple: null, prone: [], dropped, on: {}, off: {}, deliveries: {} }
 }
 
 // combat.tex "Disarm": whether this is that follow-up — opened by the

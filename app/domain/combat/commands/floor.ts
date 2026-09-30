@@ -21,7 +21,7 @@ export function dropToFloor(characterId: string, itemId: string): Updater {
       characters: { ...state.characters, [characterId]: dropItem(itemId)(c) },
       floor: [...state.floor, onFloor(item, state.board?.placements[characterId]?.cell ?? null)],
     }
-    return settleGrapples(state.grapples)(dropped)
+    return settleGrapples(dropped)
   }
 }
 

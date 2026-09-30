@@ -336,7 +336,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
       along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
-      disarm: grapple && hit && grapple.maneuver === 'disarm' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
+      disarm: grapple && hit && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throwItem' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor

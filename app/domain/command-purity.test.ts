@@ -191,7 +191,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
-  settleGrapples: (s) => combatCommands.settleGrapples([])(deepFreeze(grappling(s))),
+  settleGrapples: (s) => combatCommands.settleGrapples(deepFreeze(grappling(s))),
   settleSevered: (s) => combatCommands.settleSevered(s, 'x')(deepFreeze({ ...s, characters: { ...s.characters, a: severPart('handL')(s.characters.a) } })),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
@@ -202,7 +202,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: CombatState): CombatState {
-  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], seized: [] }] }
+  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [] }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.

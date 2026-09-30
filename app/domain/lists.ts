@@ -174,7 +174,7 @@ export const GRAPPLE_MANEUVERS = ['escape', 'immobilize', 'disarm', 'knockdown']
 
 // The afflictions a grapple puts on and takes off: "grappled", and what the
 // immobilize and knockdown maneuvers leave.
-export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile', 'prone'] as const
+export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.

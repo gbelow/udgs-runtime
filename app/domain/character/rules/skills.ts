@@ -1,4 +1,4 @@
-import { Character, Skills } from '../../types'
+import { AfflictionKey, Character, Skills } from '../../types'
 import { getSM, skill } from './helpers'
 import { getAfflictionPenalty, hasAffliction } from './afflictions'
 import { getBuffBonus } from './effects'
@@ -89,18 +89,19 @@ export function getCunning(c: Character) {
   return sumTerms(getCunningTerms(c))
 }
 
-export function getSDTerms(c: Character): Term[] {
+// `situational` is what the fight puts on the character beyond the sheet.
+export function getSDTerms(c: Character, situational: readonly AfflictionKey[] = []): Term[] {
   const SM = getSM(c)
   return [
     { label: 'base', value: -2 },
     { label: 'size', value: -SM },
     { label: 'SD', value: skill(c, 'SD').value },
-    { label: 'immobile', value: hasAffliction(c, 'immobile') ? -3 : 0 },
+    { label: 'immobile', value: hasAffliction(c, 'immobile', situational) ? -3 : 0 },
     { label: 'abilities', value: getBuffBonus(c, 'skill:SD') },
   ]
 }
-export function getSD(c: Character) {
-  return sumTerms(getSDTerms(c))
+export function getSD(c: Character, situational: readonly AfflictionKey[] = []) {
+  return sumTerms(getSDTerms(c, situational))
 }
 
 export function getForceTerms(c: Character): Term[] {
@@ -282,7 +283,7 @@ export function getInsight(c: Character) {
 }
 
 
-export const skillTermGetters: Record<keyof Skills, (c: Character) => Term[]> = {
+export const skillTermGetters: Record<keyof Skills, (c: Character, situational?: readonly AfflictionKey[]) => Term[]> = {
   strike: getStrikeTerms,
   accuracy: getAccuracyTerms,
   defend: getDefendTerms,

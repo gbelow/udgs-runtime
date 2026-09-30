@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { Action, ActionDraft, ActionKind, ActionOf, CombatState, DeclarableKind } from '../types'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
-import { isImmobile, hasAffliction } from '../../character/rules/afflictions'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
@@ -26,7 +26,7 @@ import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canAffordRest } from '../../character/rules/rest'
-import { isSuffocating } from './hazard'
+import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -54,8 +54,8 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // up"; "Lame": "Cannot ... jump".
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
   if (!canAfford(defender, cost)) return 'cannot afford'
-  if (isImmobile(defender)) return 'immobile'
-  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasAffliction(defender, 'grappled')) return 'grappled'
+  if (isImmobile(state, defender)) return 'immobile'
+  if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
   if (kind === 'evasiveJump' && isProne(state, defender.id)) return 'prone'
   if (kind === 'evasiveJump' && hasAffliction(defender, 'lame')) return 'lame'
   if (kind === 'evasiveJump' && isMidJump(state, defender.id)) return 'mid-jump'
@@ -88,7 +88,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))))
+  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
@@ -304,8 +304,8 @@ function afford(c: CampaignCharacter, cost: ActionCost): string | null {
 
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
 // skills other than escape."
-function closeIfImmobile(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  if (!isImmobile(c)) return options
+function closeIfImmobile(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  if (!isImmobile(state, c)) return options
   return options.map((o) => (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape') ? o : { ...o, available: false, reason: 'immobile' })
 }
 

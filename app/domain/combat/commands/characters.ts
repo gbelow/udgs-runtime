@@ -12,7 +12,7 @@ export function removeFromCombat(id: string): Updater {
     const { [id]: _, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, grapples: state.grapples.filter((g) => !g.members.includes(id)) }
-    return settleGrapples(state.grapples)(left)
+    return settleGrapples(left)
   }
 }
 
@@ -23,6 +23,6 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
   return (state) => {
     const c = state.characters[id]
     if (!c) return state
-    return settleGrapples(state.grapples)({ ...state, characters: { ...state.characters, [id]: updater(c) } })
+    return settleGrapples({ ...state, characters: { ...state.characters, [id]: updater(c) } })
   }
 }
