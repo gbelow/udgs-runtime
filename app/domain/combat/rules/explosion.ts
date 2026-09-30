@@ -1,5 +1,6 @@
-import type { Area, CampaignCharacter, Delivery, Item, SpellEffect, TerrainPatch } from '../../types'
-import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction } from '../types'
+import type { Area, CampaignCharacter, Delivery, Item, SpellEffect } from '../../types'
+import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard } from '../types'
+import { getUndefendedDamage } from '../../character/rules/damage'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { getCastSize, resolveDL } from '../../character/rules/spells'
@@ -253,13 +254,36 @@ export function getExplosionFacts(state: CombatState, action: BlastShape): Deliv
   return facts
 }
 
-// combat.tex "Gas": what the explosion leaves on the ground, cell by cell —
-// each terrain effect's patch for the zone the cell is in.
-export function getTerrainPaint(state: CombatState, action: BlastShape): { cell: Coord; patch: TerrainPatch }[] {
+// combat.tex "Gas", "Fire": what the explosion leaves on the ground, cell
+// by cell — each terrain effect's patch for the zone the cell is in. A patch
+// that ignites leaves a surface burning with what the explosion's own burn
+// deals there (spells.tex "Flamethrower": the surface deals the same damage
+// as the initial hit, the table's ruling).
+export function getTerrainPaint(state: CombatState, action: BlastShape): { cell: Coord; hazard: Hazard }[] {
+  const burns = getBurns(state, action)
   return action.effects.flatMap((e) => {
     if (e.type !== 'terrain' || !e.area) return []
-    return getAreaZones(state, action, e.area).flatMap((z) => (z.degree === 'miss' ? [] : [{ cell: z.cell, patch: e.effect[z.degree] }]))
+    return getAreaZones(state, action, e.area).flatMap((z) => {
+      if (z.degree === 'miss') return []
+      const patch = e.effect[z.degree]
+      return [{ cell: z.cell, hazard: { fire: patch.ignite ? burns.get(coordKey(z.cell)) ?? 0 : 0, suffocating: patch.suffocating, visibility: patch.visibility } }]
+    })
   })
+}
+
+// The burn the explosion's damage effects deal on each cell, each at the
+// zone the cell is in for its own area.
+function getBurns(state: CombatState, action: BlastShape): Map<string, number> {
+  const burns = new Map<string, number>()
+  for (const e of action.effects) {
+    if (e.type !== 'damage' || !e.area) continue
+    const burn = e.effect.damage.filter((d) => d.kind === 'burn').reduce((total, d) => total + d.value, 0)
+    for (const z of getAreaZones(state, action, e.area)) {
+      const key = coordKey(z.cell)
+      burns.set(key, (burns.get(key) ?? 0) + getUndefendedDamage(burn, z.degree))
+    }
+  }
+  return burns
 }
 
 // combat.tex "Explosions": "If the explosion comes from a projectile, the DL

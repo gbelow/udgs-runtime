@@ -13,6 +13,7 @@ import { getMoveOrigin } from '../rules/waypoint'
 import { amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion } from './choices'
 import { getDragReach } from '../rules/drag'
+import { settleHazards } from './hazard'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -27,7 +28,7 @@ export function createBoard(radius: number): Updater {
 // same best-effort reading every board gets, replacing whatever was there.
 // Refused while an action is open, for the same reason painting is.
 export function importBoard(raw: unknown): Updater {
-  return (state) => (getOpenAction(state) ? state : { ...state, board: makeBoard(raw) })
+  return (state) => (getOpenAction(state) ? state : settleHazards({ ...state, board: makeBoard(raw) }))
 }
 
 // Puts a character down where the table says, as they are oriented, at the
@@ -38,7 +39,7 @@ export function placeCharacter(id: string, cell: Coord): Updater {
     if (!state.board || !state.characters[id] || getOpenAction(state)) return state
     const placement = placeAt(state.board, state.board.placements[id] ?? PlacementSchema.parse({}), cell)
     if (!canStandAt(state, id, placement)) return state
-    return withPlacements(state, { [id]: placement })
+    return settleHazards(withPlacements(state, { [id]: placement }))
   }
 }
 
@@ -49,13 +50,13 @@ export function turnCharacter(id: string): Updater {
     if (!state.board || !current || getOpenAction(state)) return state
     const placement = { ...current, orientation: turn(current.orientation) }
     if (!canStandAt(state, id, placement)) return state
-    return withPlacements(state, { [id]: placement })
+    return settleHazards(withPlacements(state, { [id]: placement }))
   }
 }
 
 // Paints one cell. `raise` and `lower` step the elevation a metre (combat.tex
 // "High Ground"); the others set what the cell is, and `clear` returns it to
-// open ground by forgetting it.
+// open ground by forgetting it, putting out whatever burns or hangs there.
 export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
   return (state) => {
     if (!state.board || getOpenAction(state)) return state
@@ -71,7 +72,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
         case 'clear': return null
       }
     })()
-    return { ...state, board: { ...state.board, terrain: painted ? { ...rest, [key]: painted } : rest } }
+    return settleHazards({ ...state, board: { ...state.board, terrain: painted ? { ...rest, [key]: painted } : rest } })
   }
 }
 

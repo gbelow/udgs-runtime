@@ -7,6 +7,7 @@ import { isVoided } from '../rules/opportunity'
 import { isAnswerable } from '../rules/action'
 import { settleGrapples } from './grapple'
 import { settleSevered } from './floor'
+import { settleHazards, touchFireInTurn } from './hazard'
 
 // The bookkeeping the action commands share: replacing and appending
 // records in the fight's action log, landing a phase of an action on
@@ -43,7 +44,8 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
     const next = mapCharacters(s, reduceCharacter(action, phase))
     const grappled = { ...next, floor: reduceFloor(s, action, phase)(s.floor), grapples: reduceGrapples(action, phase)(next.grapples) }
     const placed = grappled.board ? { ...grappled, board: reduceBoard(next, action, phase)(grappled.board) } : grappled
-    return settleSevered(s, action.id)(settleGrapples(s.grapples)(placed))
+    const settled = settleSevered(s, action.id)(settleGrapples(s.grapples)(placed))
+    return phase === 'resolve' ? touchFireInTurn(settleHazards(settled), action) : settled
   }, state)
 }
 

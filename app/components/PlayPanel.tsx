@@ -95,6 +95,7 @@ export function PlayPanel(){
                   <InjuryControl type='potion' />
                   <InjuryControl type='injuryLevel' />
                   <InjuryControl type='bleed' />
+                  <InjuryControl type='burning' />
                   <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
                 </div>
                 <div className='flex flex-col gap-2 min-w-48'>
@@ -160,7 +161,7 @@ function DamageButton({amount}: {amount: number}){
   return <Button size='xs' variant='bad' className='font-mono w-8' aria-label={`cause${amount}Injury`} onClick={dealDamage}>{amount}</Button>
 }
 
-const INJURY_TITLES = { injuryLevel: 'injury level', bleed: 'bleed', potion: 'potion' } as const
+const INJURY_TITLES = { injuryLevel: 'injury level', bleed: 'bleed', burning: 'burning', potion: 'potion' } as const
 
 // The injury dial's ring and digits, one colour per stage.
 const INJURY_STAGE_CLASS = {
@@ -172,7 +173,7 @@ const INJURY_STAGE_CLASS = {
   5: 'border-injury-5 bg-injury-5/70 text-fg',
 } as const
 
-function InjuryControl({type}: {type: 'injuryLevel' | 'bleed' | 'potion'}){
+function InjuryControl({type}: {type: keyof typeof INJURY_TITLES}){
 
   const {injuries, setInjury, injuryStage} = useInjuryLens()
   const { updateIL } = useCharacterCommands()
@@ -181,6 +182,7 @@ function InjuryControl({type}: {type: 'injuryLevel' | 'bleed' | 'potion'}){
   const ring =
     type === 'injuryLevel' ? INJURY_STAGE_CLASS[injuryStage] :
     type === 'bleed' && value > 0 ? 'border-bad bg-bad/15 text-bad' :
+    type === 'burning' && value > 0 ? 'border-injury-2 bg-injury-2/15 text-injury-2' :
     'border-line bg-surface'
   return(
     <div className='flex flex-col items-center gap-1'>

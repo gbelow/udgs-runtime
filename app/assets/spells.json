@@ -93,15 +93,18 @@
         "effect": {
           "critical": {
             "visibility": "zero",
-            "suffocating": true
+            "suffocating": true,
+            "ignite": false
           },
           "hit": {
             "visibility": "zero",
-            "suffocating": true
+            "suffocating": true,
+            "ignite": false
           },
           "graze": {
             "visibility": "bad",
-            "suffocating": false
+            "suffocating": false,
+            "ignite": false
           }
         },
         "target": "area",
@@ -385,6 +388,42 @@
           "dl": "Accuracy",
           "roll": "reflex"
         },
+        "duration": "held"
+      },
+      {
+        "name": "Flamethrower fire",
+        "trigger": "instant",
+        "type": "terrain",
+        "effect": {
+          "critical": {
+            "visibility": null,
+            "suffocating": false,
+            "ignite": true
+          },
+          "hit": {
+            "visibility": null,
+            "suffocating": false,
+            "ignite": true
+          },
+          "graze": {
+            "visibility": null,
+            "suffocating": false,
+            "ignite": true
+          }
+        },
+        "target": "area",
+        "range": null,
+        "area": {
+          "shape": "spray",
+          "length": 4,
+          "angle": 60
+        },
+        "scales": {
+          "damage": false,
+          "area": true,
+          "reach": false
+        },
+        "resist": null,
         "duration": "held"
       }
     ]

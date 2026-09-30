@@ -24,7 +24,8 @@ import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
-import { getReactionsTo } from '../rules/log'
+import { getAction, getReactionsTo } from '../rules/log'
+import { getHolderOf } from '../rules/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -248,13 +249,16 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
     }
     // combat.tex "Push and drag": everyone moved where the block left them
     if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
-    // combat.tex "Gas": what the explosion leaves on the ground, by zone
+    // combat.tex "Gas", "Fire": what the explosion leaves on the ground, by
+    // zone, kept by its caster when it is a sustained spell's
     if (action.kind === 'blast') {
+      const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+      const heldBy = getHolderOf(action.key, opener?.kind === 'explosion' && opener.source === 'cast', action.actorId)
       const terrain = { ...board.terrain }
-      for (const { cell, patch } of action.paint) {
+      for (const { cell, hazard } of action.paint) {
         const key = coordKey(cell)
         const was = terrain[key] ?? TerrainCellSchema.parse({})
-        terrain[key] = { ...was, visibility: patch.visibility ?? was.visibility, suffocating: was.suffocating || patch.suffocating }
+        terrain[key] = { ...was, layers: [...was.layers, { ...hazard, heldBy }] }
       }
       return { ...board, terrain }
     }

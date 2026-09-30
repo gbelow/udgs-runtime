@@ -6,6 +6,8 @@ import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { takeQueuedTurn } from './sequence'
+import { getHazardOf } from '../rules/hazard'
+import { burnScorch, touchFire } from '../../character/commands/deliver'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
 // to contest it yet.
@@ -44,14 +46,16 @@ export function rollContest(dice: Dice): Updater {
 
 // The turn ends. The AP a movement or combat surge left unspent goes with it
 // (combat.tex "Action surge": "Ending the turn loses the surge AP"), and so
-// does the movement surge's free running. The
+// does the movement surge's free running; the worst fire touched in it,
+// where they stand now among it, burns (combat.tex "Fire"). The
 // next turn waiting in the queue is then taken: the next fleer's, or the
 // turn their flee interrupted.
 export function endTurn(state: CombatState): CombatState {
   const holder = getTurnHolder(state)
   if (getEndTurnBar(state) || !holder) return state
   const ended = { ...state, inTurnCharacter: '', fleeing: false, contenders: [] }
-  return takeQueuedTurn(updateCharacter(holder, (c) => ({ ...endSurge(c), runsFree: false }))(ended))
+  const fire = getHazardOf(state, holder).fire
+  return takeQueuedTurn(updateCharacter(holder, (c) => ({ ...burnScorch(touchFire(fire)(endSurge(c))), runsFree: false }))(ended))
 }
 
 // combat.tex "Action surge", in the fight: the character's own gate — once a

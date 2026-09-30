@@ -122,12 +122,16 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     : cell.zone ? ZONE_FILL[cell.zone]
     : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
     : cell.threatened ? 'fill-bad/10'
+    : cell.fire > 0 ? 'fill-injury-2/30'
+    : cell.suffocating ? 'fill-fg/25'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
     cell.terrain !== 'open' ? cell.terrain : null,
     cell.elevation ? `${cell.elevation} m` : null,
+    cell.fire > 0 ? `fire ${cell.fire}` : null,
+    cell.suffocating ? 'suffocating gas' : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,
     cell.step ? 'step here' : null,
@@ -141,6 +145,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
       <polygon points={hex} className={`${fill} ${stroke} hover:stroke-fg`} strokeWidth={0.06} />
       {TERRAIN_GLYPH[cell.terrain] ? <text textAnchor='middle' dominantBaseline='central' className='fill-muted pointer-events-none' fontSize={0.7}>{TERRAIN_GLYPH[cell.terrain]}</text> : null}
       {cell.elevationLabel ? <text x={0} y={-0.45} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.4}>{cell.elevationLabel}</text> : null}
+      {cell.fire > 0 && cell.pathStep === null ? <text x={0} y={0.45} textAnchor='middle' className='fill-injury-2 pointer-events-none' fontSize={0.35}>{`🔥${cell.fire}`}</text> : null}
       {cell.pathStep !== null ? <text x={0} y={0.45} textAnchor='middle' className='fill-fg pointer-events-none' fontSize={0.4}>{cell.pathStep}</text> : null}
     </g>
   )

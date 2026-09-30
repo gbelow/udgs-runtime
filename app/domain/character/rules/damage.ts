@@ -7,6 +7,7 @@ import { getHardness } from '../../item/rules/items'
 import { getNaturalWeapon, getWieldedWeapons } from '../../item/rules/hands'
 import { isPartWounded } from './wounds'
 import { hasProperty } from '../../weaponProperties'
+import { isCampaignCharacter } from '../../utils'
 
 // What damage does to this character: the one place the injury rules are
 // read. It takes the damage as delivered and the degree it lands at, and
@@ -37,9 +38,13 @@ export type Outcome = {
   interruption: Interruption
   apLoss: number
   dead: boolean
+  // combat.tex "Burning and radiant damage": the burning counter once the
+  // burn received has been added and the damage applied; null when no burn
+  // was received
+  burning: number | null
 }
 
-const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false }
+const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false, burning: null }
 
 // combat.tex "Types of damage": the armor value each kind is defended by —
 // "Blunt damage: is defended by armor protection", "Cutting damage: is
@@ -64,18 +69,32 @@ function armorValue(armor: Armor, kind: DamageKind): number {
 // critical" — the one attack whose degree can be the critical, the zone at
 // its centre.
 function afterDefense(facts: Damage, degree: Degree, target: Character, damage: number): { damage: number; stopped: boolean } {
-  if (degree === 'hit') return { damage, stopped: false }
-  if (degree === 'critical') return { damage: Math.floor(1.5 * damage), stopped: false }
-  switch (facts.defense) {
-    case 'block':
-    case 'guard':
-      return { damage: Math.max(0, damage - (degree === 'graze' ? facts.block : Math.floor(1.5 * facts.block))), stopped: false }
-    case 'intercept': {
-      const margin = degree === 'graze' ? 5 : 8
-      return facts.force >= getForce(target) + margin ? { damage, stopped: false } : { damage: 0, stopped: true }
+  if (degree === 'graze' || degree === 'miss') {
+    switch (facts.defense) {
+      case 'block':
+      case 'guard':
+        return { damage: Math.max(0, damage - (degree === 'graze' ? facts.block : Math.floor(1.5 * facts.block))), stopped: false }
+      case 'intercept': {
+        const margin = degree === 'graze' ? 5 : 8
+        return facts.force >= getForce(target) + margin ? { damage, stopped: false } : { damage: 0, stopped: true }
+      }
     }
-    default:
-      return { damage: degree === 'graze' ? Math.floor(damage / 2) : 0, stopped: false }
+  }
+  return { damage: getUndefendedDamage(damage, degree), stopped: false }
+}
+
+// The kinds dealt through the burning counter.
+function isBurning(kind: DamageKind): boolean {
+  return kind === 'burn' || kind === 'radiant'
+}
+
+// What a degree leaves of damage nothing was put in the way of.
+export function getUndefendedDamage(damage: number, degree: Degree): number {
+  switch (degree) {
+    case 'critical': return Math.floor(1.5 * damage)
+    case 'hit': return damage
+    case 'graze': return Math.floor(damage / 2)
+    case 'miss': return 0
   }
 }
 
@@ -108,6 +127,12 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
 // cuts?": harder than the target; combat.tex "Penetrating" buys the same
 // hardness. "Armor Bypass" adds half the armor value to the damage.
 // combat.tex "Electric damage": "only deals half IL damage per tier".
+// combat.tex "Burning and radiant damage": "Every time burning damage is
+// received, the burning counter is updated with the current burning value +
+// incoming burning damage, and that total is used against INS to determine
+// the injury. After the damage is applied, the burning counter is halved.
+// Burning damage causes only half IL injury." Radiant damage is dealt the
+// same way (the table's ruling); only its defense may differ.
 export function getOutcome(facts: Damage, degree: Degree, target: Character): Outcome {
   const armor = armorAt(target, facts)
   const TGH = getTGH(target)
@@ -115,18 +140,22 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   const canCut = facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
 
   const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
+  const counter = isCampaignCharacter(target) ? target.injuries.burning : 0
   const measured = facts.damage
     .filter(({ kind }) => kind !== 'cut' || canCut)
     .map(({ kind, value }) => {
       const against = armorValue(armor, kind)
       const left = afterDefense(facts, degree, target, value + bypass(against))
-      return { type: kind, damage: left.damage, armor: against, tier: tierOf(left.damage, against, TGH), stopped: left.stopped }
+      const damage = isBurning(kind) && left.damage > 0 ? left.damage + counter : left.damage
+      return { type: kind, damage, armor: against, tier: tierOf(damage, against, TGH), stopped: left.stopped }
     })
   if (measured.some((m) => m.stopped)) return { ...NOTHING, stopped: true }
 
+  const burnt = measured.find((m) => isBurning(m.type) && m.damage > 0)
+  const burning = burnt ? Math.floor(burnt.damage / 2) : null
   const tiers = Object.fromEntries(measured.map((m) => [m.type, m.tier])) as Outcome['tiers']
   const best = measured.reduce<(typeof measured)[number] | null>((b, m) => (b === null || m.damage - m.armor > b.damage - b.armor ? m : b), null)
-  if (!best || best.tier === null) return { ...NOTHING, ...(best ? { type: best.type, damage: best.damage, armor: best.armor } : {}), tiers }
+  if (!best || best.tier === null) return { ...NOTHING, ...(best ? { type: best.type, damage: best.damage, armor: best.armor } : {}), tiers, burning }
 
   const cap = LOCATIONS[facts.location].maxTier
   const bodyTier = cap === null ? best.tier : Math.min(best.tier, cap)
@@ -134,7 +163,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   // gear.tex "Piercing": "half the amount of IL damage per tier to body and
   // limb and cannot amputate"
   const piercing = hasProperty(facts.properties, 'piercing')
-  const halved = piercing || best.type === 'electric'
+  const halved = piercing || best.type === 'electric' || isBurning(best.type)
 
   return {
     type: best.type,
@@ -148,6 +177,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
     // combat.tex "Bleed": "is caused by blunt and cutting damage"
     bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed : 0,
     ...effectsOf(facts, target, best.tier, tiers, piercing),
+    burning,
   }
 }
 
@@ -173,8 +203,7 @@ function woundedPart(facts: Damage, target: Character): BodyPart | null {
 // the worst one the tier reaches (Shocked is measured on the blunt tier and
 // needs a smash); the head knocks out on a stun and kills at T4. A stun's AP
 // comes off whatever the target has, on top of what the reaction cost.
-// combat.tex "Burn, radiant": "Dealing Tier 0 injury or higher leaves the
-// target burning"; "Corrosive": "Tiers 0 to I of damage leaves the target
+// combat.tex "Corrosive": "Tiers 0 to I of damage leaves the target
 // corroding at that tier of damage" — and past T1, still at that (the table's ruling).
 function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcome['tiers'], piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
   const bluntTier = Math.max(tiers.blunt ?? -1, tiers.electric ?? -1)
@@ -182,7 +211,6 @@ function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcom
   const stunned = bluntTier >= STUN_TIER || (facts.smash && interrupted)
   const afflictions = new Set<AfflictionKey>()
   let dead = false
-  if (Math.max(tiers.burn ?? -1, tiers.radiant ?? -1) >= 0) afflictions.add('burning')
   if (tiers.corrosive === 0) afflictions.add('corroding0')
   if ((tiers.corrosive ?? -1) >= 1) afflictions.add('corroding1')
 

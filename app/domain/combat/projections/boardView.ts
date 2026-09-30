@@ -14,6 +14,7 @@ import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
+import { getCellHazard } from '../rules/hazard'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -30,6 +31,10 @@ export type BoardCellView = {
   terrain: CellTerrain
   elevation: number
   elevationLabel: string
+  // what is left on the ground here (combat.tex "Fire", "Gas"): the burn of
+  // a fire surface, 0 for none, and a gas that suffocates
+  fire: number
+  suffocating: boolean
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -201,6 +206,7 @@ function buildBoardView(state: CombatState): BoardView {
     const terrain = board.terrain[key]
     const { x, y } = toPlane(cell)
     const there = reachableByKey.get(key)
+    const hazard = getCellHazard(state, cell)
     return {
       key,
       cell,
@@ -209,6 +215,8 @@ function buildBoardView(state: CombatState): BoardView {
       terrain: terrain?.blocking ? 'wall' : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
       elevation: terrain?.elevation ?? 0,
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
+      fire: hazard.fire,
+      suffocating: hazard.suffocating,
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,

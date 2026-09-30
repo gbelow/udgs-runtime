@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, TerrainPatchSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, PUSH_MOVEMENTS } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -63,12 +63,32 @@ export const PlacementSchema = z.object({
 }).strip()
 export type Placement = z.infer<typeof PlacementSchema>
 
+// combat.tex "Fire", "Gas": what an area leaves on a cell for whoever stands
+// in it — the burn a fire surface deals, a gas that suffocates, the
+// visibility smoke leaves (null leaves the cell's own).
+export const HazardSchema = z.object({
+  fire: num.default(0),
+  suffocating: z.boolean().default(false),
+  visibility: VisibilitySchema.nullable().default(null),
+}).strip()
+export type Hazard = z.infer<typeof HazardSchema>
+
+// A hazard an action left on a cell. One a sustained spell keeps names the
+// caster and the spell in `heldBy`, and goes when they stop holding it (spells.tex "Sustained Spells"); the rest last until they
+// are put out or the fight ends (combat.tex "Fire": "A burning surface lasts
+// at minimum until the end of combat, or until extinguished").
+export const HazardLayerSchema = HazardSchema.extend({
+  heldBy: z.object({ id: str.default(''), key: str.default('') }).strip().nullable().default(null),
+}).strip()
+export type HazardLayer = z.infer<typeof HazardLayerSchema>
+
 // combat.tex "Positioning and Visibility": what a cell does to what crosses
 // it. A blocking cell is cover and, unless transparent, breaks vision;
 // difficult terrain asks for a Balance test (combat.tex "Balance"); the
 // visibility is what the terrain grants whoever stands in it; a suffocating
-// cell is gas (combat.tex "Gas": "anyone that starts the round inside a
-// suffocating gas is suffocating").
+// cell is gas the map was drawn with (combat.tex "Gas": "anyone that is
+// inside a suffocating gas is suffocating"). What actions leave on it comes
+// in `layers`.
 export const TerrainCellSchema = z.object({
   blocking: z.boolean().default(false),
   transparent: z.boolean().default(false),
@@ -80,6 +100,7 @@ export const TerrainCellSchema = z.object({
   // combat.tex "Balance": the DL of the difficult terrain test, "based on how
   // slippery, unstable, long, and narrow the path is" — the table's call
   DL: num.default(5),
+  layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 
 // The spatial facts of a fight, in game units. The real grid is a VTT's; this
@@ -317,8 +338,8 @@ export const BlastActionSchema = z.object({
   center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
-  // combat.tex "Gas": what it leaves on the ground, cell by cell
-  paint: z.array(z.object({ cell: CoordSchema, patch: TerrainPatchSchema })).default([]),
+  // combat.tex "Gas", "Fire": what it leaves on the ground, cell by cell
+  paint: z.array(z.object({ cell: CoordSchema, hazard: HazardSchema })).default([]),
 }).strip()
 
 // spells.tex "Casting spells": a spell cast in the fight. The caster's test

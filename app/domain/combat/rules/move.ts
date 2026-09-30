@@ -9,7 +9,7 @@ import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
-import { canRest, isCrossable, isInLiquid, readGround } from './ground'
+import { canRest, isCrossable, isInLiquid, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements } from './waypoint'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
@@ -133,7 +133,9 @@ export function isLameBarred(kind: MovementKind): boolean {
 // Whether the move as declared is one its actor can make: every step a
 // neighbour of the last, every footprint along the way off blocking cells
 // and in the water exactly when swimming, and the last one somewhere it may
-// come to rest.
+// come to rest. A jump only passes over the cells between (the table's
+// ruling), so the water there does not matter, but it clears nothing as high
+// as its vertical reach (`getJumpCeiling`).
 export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
@@ -143,17 +145,35 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   if (!from || !ground || action.path.length === 0) return false
   if (!withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
 
+  const ceiling = getJumpCeiling(c, from)
   let cursor = from.cell
   for (const [i, cell] of action.path.entries()) {
     if (distance(cursor, cell) !== 1) return false
     const last = i === action.path.length - 1
     const orientation = last && action.orientation !== null ? action.orientation : from.orientation
     const footprint = getFootprint(c, { ...from, cell, orientation })
-    if (!isCrossable(footprint, ground, action.movement)) return false
+    if (!canPass(action.movement, footprint, ground, last, ceiling)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }
   return true
+}
+
+// combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
+// to half the horizontal distance"; it clears only ground lower than that
+// above where it sets out (the table's ruling).
+function getJumpCeiling(c: Character, from: Placement): number {
+  return from.elevation + getMovementSpeed(c, 'jump') / 2
+}
+
+function clears(footprint: Coord[], ground: Ground, ceiling: number): boolean {
+  return footprint.every((cell) => ground.elevation(cell) < ceiling)
+}
+
+function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number): boolean {
+  if (kind !== 'jump') return isCrossable(footprint, ground, kind)
+  if (!clears(footprint, ground, ceiling)) return false
+  return lands ? isCrossable(footprint, ground, kind) : !footprint.some(ground.blocked)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -184,7 +204,8 @@ function isWithinCone(offset: Coord, heading: number): boolean {
 }
 
 // combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
-// move whose path enters a difficult cell is committed by a die.
+// move whose path enters a difficult cell is committed by a die — for a
+// jump, only the cell it lands on.
 export function needsBalanceTest(state: CombatState, action: MoveAction): boolean {
   return firstDifficultStep(state, action) !== null
 }
@@ -194,8 +215,8 @@ function firstDifficultStep(state: CombatState, action: MoveAction): number | nu
   const from = getMoveOrigin(state, action)
   const board = state.board
   if (!c || !from || !board) return null
-  const i = action.path.findIndex((cell) =>
-    getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
+  const i = action.path.findIndex((cell, at) =>
+    (action.movement !== 'jump' || at === action.path.length - 1) && getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
   )
   return i === -1 ? null : i + 1
 }
@@ -324,7 +345,8 @@ export function isMidJump(state: CombatState, id: string): boolean {
 // jump any way, but within a hex step of the way they were going the jump
 // is a forward one out of the run and reaches the running long jump
 // ("Evasive Jump": "at a 60 degree angle of the direction of the run").
-// One hit mid-jump cannot jump at all.
+// It lands only on ground its vertical reach clears (`getJumpCeiling`). One
+// hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
   const defender = state.characters[defenderId]
   const from = state.board?.placements[defenderId]
@@ -343,7 +365,7 @@ export function getEvasiveJumpPlacements(state: CombatState, defenderId: string,
     for (const orientation of ROTATIONS) {
       const to = { ...from, cell, orientation }
       const footprint = getFootprint(defender, to)
-      if (!footprint.some(ground.blocked) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
+      if (!footprint.some(ground.blocked) && clears(footprint, ground, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
     }
   }
   return placements
@@ -375,10 +397,12 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   const affordable = (steps: number) => {
     return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
-  const enter = (cell: Coord) => {
-    return isCrossable(getFootprint(c, { ...from, cell }), ground, kind)
-  }
+  const ceiling = getJumpCeiling(c, from)
+  const enter = (cell: Coord) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling)
   return walkOut(from.cell, affordable, enter)
-    .filter(({ cell }) => canRest(state, c, getFootprint(c, { ...from, cell }), ground))
+    .filter(({ cell }) => {
+      const footprint = getFootprint(c, { ...from, cell })
+      return isCrossable(footprint, ground, kind) && canRest(state, c, footprint, ground)
+    })
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
 }

@@ -2,6 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { settleGrapples } from './grapple'
+import { settleHazards } from './hazard'
 
 // Takes a character out of the fight: their place on the board goes with
 // them, and so does every grapple they were in. Refused while an action is
@@ -18,11 +19,12 @@ export function removeFromCombat(id: string): Updater {
 
 // Changes one character outside any action — an edit made on the sheet
 // mid-fight — and brings the grapples back into line with it: a holder whose
-// hands no longer hold a grapple row lets go.
+// hands no longer hold a grapple row lets go; a spell released takes what it
+// kept on the ground with it.
 export function updateCharacter(id: string, updater: (c: CampaignCharacter) => CampaignCharacter): Updater {
   return (state) => {
     const c = state.characters[id]
     if (!c) return state
-    return settleGrapples(state.grapples)({ ...state, characters: { ...state.characters, [id]: updater(c) } })
+    return settleHazards(settleGrapples(state.grapples)({ ...state, characters: { ...state.characters, [id]: updater(c) } }))
   }
 }

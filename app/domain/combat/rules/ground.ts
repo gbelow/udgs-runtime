@@ -13,6 +13,7 @@ import { getFootprint, getOccupancy } from './board'
 export type Ground = {
   blocked: (cell: Coord) => boolean
   liquid: (cell: Coord) => boolean
+  elevation: (cell: Coord) => number
   sharedBy: (cell: Coord) => string[]
 }
 
@@ -23,6 +24,7 @@ export function readGround(state: CombatState, mover: string): Ground | null {
   return {
     blocked: (cell) => !!board.terrain[coordKey(cell)]?.blocking,
     liquid: (cell) => !!board.terrain[coordKey(cell)]?.liquid,
+    elevation: (cell) => board.terrain[coordKey(cell)]?.elevation ?? 0,
     sharedBy: (cell) => (occupancy[coordKey(cell)] ?? []).filter((id) => id !== mover),
   }
 }

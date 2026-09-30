@@ -254,6 +254,18 @@ resolveAction ─────────► land(top)
 - `rules/board.ts` — footprints and occupancy by size, distance between characters, reach
   and shot range, line of sight, high ground, flankers, melee threateners.
 - `rules/ground.ts` — where a footprint may cross and where it may come to rest.
+- `rules/hazard.ts`, `commands/hazard.ts` — fire and gas left on the ground. A blast paints
+  a `HazardLayer` onto each cell it covers (`TerrainCell.layers`). The layer holds the fire
+  its own burn deals in that zone, whether the gas suffocates, and the visibility it leaves.
+  A layer from a sustained spell names its holder and is pruned once they stop holding the
+  spell. A footprint takes the worst of its cells (`getHazardAt`). `settleHazards`, run
+  after every landing, board edit and character edit, prunes the layers and keeps
+  `suffocating` in line with where each character stands. `touchFireInTurn` raises the
+  turn holder's `scorch` to the worst fire they stand in or walk through (a jump touches
+  only where it lands). `endTurn` deals the scorch as burning damage, and
+  `nextRound` burns the counter with the fire each character stands in added, as one
+  instance. Every burn and radiant hit goes through the counter the same way
+  (`getOutcome`).
 - `rules/move.ts`, `rules/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
   runs, Balance tests, reachable cells, where the mover stands along a path, where a move
   was cut short, tramples.
@@ -300,7 +312,8 @@ app/domain/combat/
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── floor.ts        dropToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
-│   ├── nextRound.ts    round change: upkeep, gas, bleed, AP reset
+│   ├── nextRound.ts    round change: upkeep, gas, burning, bleed, AP reset
+│   ├── hazard.ts       settleHazards, touchFireInTurn
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── resetCombat.ts
 │
@@ -334,6 +347,7 @@ app/domain/combat/
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
 │   ├── ground.ts       crossable and restable cells
+│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach

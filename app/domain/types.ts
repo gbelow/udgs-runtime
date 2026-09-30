@@ -402,6 +402,11 @@ export const InjuriesSchema = z.object({
   injuryLevel: z.number().default(0),
   wounds: z.array(WoundSchema).default([]),
   bleed: z.number().default(0),
+  // combat.tex "Burning and radiant damage": the burning counter
+  burning: z.number().default(0),
+  // combat.tex "Fire": the worst fire surface touched during the character's
+  // own turn, dealt as burning damage when the turn ends
+  scorch: z.number().default(0),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
   unconsciousThreshold: z.number().default(40),
@@ -600,16 +605,18 @@ export const AfflictionEffectSchema = z.object({
 export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
 export type Visibility = z.infer<typeof VisibilitySchema>
 
-// combat.tex "Gas": what an area does to the ground it covers, by zone —
-// black smoke "affects visibility and also cause suffocation". A patch says
-// what it sets; null leaves the cell's visibility as it was.
+// combat.tex "Gas", "Fire": what an area does to the ground it covers, by
+// zone — black smoke "affects visibility and also cause suffocation"; a
+// patch that ignites leaves a fire surface burning with the damage the
+// area's own burn deals in that zone. A patch says what it sets; null
+// leaves the cell's visibility as it was.
 export const TerrainPatchSchema = z.object({
   visibility: VisibilitySchema.nullable().default(null),
   suffocating: z.boolean().default(false),
+  ignite: z.boolean().default(false),
 }).strip()
-export type TerrainPatch = z.infer<typeof TerrainPatchSchema>
 
-const NO_PATCH = { visibility: null, suffocating: false }
+const NO_PATCH = { visibility: null, suffocating: false, ignite: false }
 export const TerrainEffectSchema = z.object({
   critical: TerrainPatchSchema.default(NO_PATCH),
   hit: TerrainPatchSchema.default(NO_PATCH),

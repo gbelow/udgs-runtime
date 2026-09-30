@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Condition, Degree, Delivery } from '../../types'
+import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery } from '../../types'
 import { WOUNDS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
@@ -115,8 +115,58 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
         ...hurt.injuries,
         injuryLevel: outcome.dead ? Math.max(injuryLevel, c.injuries.deathThreshold) : injuryLevel,
         bleed: c.injuries.bleed + outcome.bleed,
+        burning: outcome.burning ?? c.injuries.burning,
       },
       resources: { ...c.resources, ...spendAP(c.resources, outcome.apLoss) },
     })
   }
+}
+
+// Burn damage from nothing but the fire itself.
+function burnDamage(value: number) {
+  return DamageSchema.parse({ damage: [{ kind: 'burn', value }] })
+}
+
+function burnDelivery(value: number): Delivery {
+  return { effect: { name: 'burning', trigger: 'instant', type: 'damage', effect: burnDamage(value) }, degree: 'hit', test: null, when: null, then: [], locks: null }
+}
+
+// The counter taken as burn damage and halved, nothing added to it.
+function burnCounter(c: CampaignCharacter): CampaignCharacter {
+  const total = c.injuries.burning
+  if (total <= 0) return c
+  const outcome = getOutcome(burnDamage(total), 'hit', { ...c, injuries: { ...c.injuries, burning: 0 } })
+  return takeOutcome(outcome)(c)
+}
+
+// combat.tex "Burning": "At every beginning of round, every burning
+// character takes burning damage from their burning counter and halve its
+// value"; combat.tex "Fire": a fire surface they stand on burns them then
+// too, in the same instance — added to the counter before the damage.
+export function burnAtRoundStart(fire: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => (fire > 0 ? deliver(burnDelivery(fire))(c) : burnCounter(c))
+}
+
+// combat.tex "Extinguishing": "Extinguishing fire on a character causes the
+// burning damage once and sets burning to 0" — and so does the end of the
+// fight ("Burning": "At the end of combat, burning damage is caused once
+// and the counter is set to 0").
+export function extinguish(c: CampaignCharacter): CampaignCharacter {
+  const burnt = burnCounter(c)
+  return { ...burnt, injuries: { ...burnt.injuries, burning: 0 } }
+}
+
+// combat.tex "Fire": the worst fire surface the character touches during
+// their own turn.
+export function touchFire(fire: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => (fire > c.injuries.scorch ? { ...c, injuries: { ...c.injuries, scorch: fire } } : c)
+}
+
+// combat.tex "Fire": "Fire surfaces causes burning damage at the end of a
+// character's turn" — the worst touched in it, received like any burn.
+export function burnScorch(c: CampaignCharacter): CampaignCharacter {
+  const fire = c.injuries.scorch
+  if (fire <= 0) return c
+  const burnt = deliver(burnDelivery(fire))(c)
+  return { ...burnt, injuries: { ...burnt.injuries, scorch: 0 } }
 }
