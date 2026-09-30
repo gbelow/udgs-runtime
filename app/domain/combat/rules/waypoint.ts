@@ -1,9 +1,18 @@
+import type { MoveKind } from '../../types'
 import type { CombatState, Coord, MoveAction, Placement } from '../types'
 import { setDistance } from '../geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 
 // Where the mover stands along a move: where it sets out from, each step of
 // the path, and where it ends.
+
+// Whether a move touches the ground at a step of its way — where it sets
+// out, a cell it passes, or where it `lands`: all of them for a walk, only
+// the landing for a jump. combat.tex "Movement" — the table's ruling: a jump
+// skips the cells in between.
+export function touchesGround(kind: MoveKind, lands: boolean): boolean {
+  return kind !== 'jump' || lands
+}
 
 // Where the move sets out from: the placement the commit wrote down, or
 // while it is still being declared, where the actor stands.

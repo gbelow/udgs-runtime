@@ -10,7 +10,7 @@ import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { canRest, isCrossable, isInLiquid, readGround, type Ground } from './ground'
-import { getMoveOrigin, getStepPlacements } from './waypoint'
+import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
@@ -133,9 +133,9 @@ export function isLameBarred(kind: MovementKind): boolean {
 // Whether the move as declared is one its actor can make: every step a
 // neighbour of the last, every footprint along the way off blocking cells
 // and in the water exactly when swimming, and the last one somewhere it may
-// come to rest. A jump only passes over the cells between (the table's
-// ruling), so the water there does not matter, but it clears nothing as high
-// as its vertical reach (`getJumpCeiling`).
+// come to rest. The cells a jump only passes over (`touchesGround`) need
+// just be unblocked, but it clears nothing as high as its vertical reach
+// (`getJumpCeiling`).
 export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
@@ -171,9 +171,8 @@ function clears(footprint: Coord[], ground: Ground, ceiling: number): boolean {
 }
 
 function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number): boolean {
-  if (kind !== 'jump') return isCrossable(footprint, ground, kind)
-  if (!clears(footprint, ground, ceiling)) return false
-  return lands ? isCrossable(footprint, ground, kind) : !footprint.some(ground.blocked)
+  if (kind === 'jump' && !clears(footprint, ground, ceiling)) return false
+  return touchesGround(kind, lands) ? isCrossable(footprint, ground, kind) : !footprint.some(ground.blocked)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -216,7 +215,7 @@ function firstDifficultStep(state: CombatState, action: MoveAction): number | nu
   const board = state.board
   if (!c || !from || !board) return null
   const i = action.path.findIndex((cell, at) =>
-    (action.movement !== 'jump' || at === action.path.length - 1) && getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
+    touchesGround(action.movement, at === action.path.length - 1) && getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
   )
   return i === -1 ? null : i + 1
 }

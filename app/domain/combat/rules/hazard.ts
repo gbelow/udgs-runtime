@@ -1,11 +1,11 @@
 import type { AfflictionKey, CampaignCharacter, Visibility } from '../../types'
-import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction } from '../types'
+import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction, Placement } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isSpellActive } from '../../character/rules/effects'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { coordKey } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
-import { getMoveOrigin, getMoveWaypoint } from './waypoint'
+import { getMoveOrigin, getMoveWaypoint, touchesGround } from './waypoint'
 
 // combat.tex "Environmental Hazards": what the ground does to whoever stands
 // on it — the fire and the gas actions left on each cell, and the gas the
@@ -95,14 +95,14 @@ export function isSuffocating(state: CombatState, c: CampaignCharacter): boolean
   return getHazardOf(state, c.id).suffocating || hasAffliction(c, 'suffocating')
 }
 
-// The footprints a move touches on its way, besides where it ends: where it
-// set out and every cell walked through. combat.tex "Movement" — a jump
-// touches nothing but where it lands (the table's ruling: a jump skips the
-// cells in between).
+// The footprints a move `touchesGround` on, from where it set out to where
+// it landed.
 export function getWalkedFootprints(state: CombatState, action: MoveAction): Coord[][] {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
-  if (!c || !from || action.movement === 'jump' || !action.facts) return []
-  const steps = action.facts.path.map((_, i) => getMoveWaypoint(state, action, i + 1)).filter((p) => p !== null)
-  return [from, ...steps].map((p) => getFootprint(c, p))
+  if (!c || !from || !action.facts) return []
+  const { path } = action.facts
+  return [from, ...path.map((_, i) => getMoveWaypoint(state, action, i + 1))]
+    .filter((p, i): p is Placement => p !== null && touchesGround(action.movement, i === path.length))
+    .map((p) => getFootprint(c, p))
 }
