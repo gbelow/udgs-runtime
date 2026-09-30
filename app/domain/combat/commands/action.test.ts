@@ -10,7 +10,7 @@ import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { reduceCharacter } from './reduce'
-import { amendAction, cancelAction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
+import { cancelAction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
 import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
@@ -168,11 +168,11 @@ describe('a charge set off', () => {
       ...combat({ ...base, fightName: 'a', held: [{ ...bomb, charge }] }),
       board: BoardSchema.parse({ placements: { a: { cell: { q: 0, r: 0 } } } }),
     }
-    s = amendAction({ center: { q: 0, r: 0 } })(declareAction('a', { kind: 'explosion', source: 'detonate', itemId: 'bomb' }, newId)(s))
+    s = resolveAction(newId)(payAction(newId)(commitAction()(declareAction('a', { kind: 'throw', itemId: 'bomb', to: { q: 0, r: 2 } }, newId)(s))))
     const open = getOpenAction(s)
     const painted = open?.kind === 'explosion' ? getTerrainPaint(s, getBlastOf(s, open)).length : 0
     expect(painted).toBeGreaterThan(0)
-    const after = resolveAction(newId)(payAction(newId)(commitAction()(s)))
+    const after = resolveAction(newId)(payAction(newId)(s))
     expect(Object.keys(after.board?.terrain ?? {})).toHaveLength(painted)
   })
 })

@@ -1,11 +1,9 @@
 import type { Character, Item } from '../../types'
 import type { CombatState, Coord, FloorItem, ShootAction } from '../types'
 import { canHoldWith, getHeldItem } from '../../item/rules/hands'
-import { getSize } from '../../character/rules/misc'
-import { THROW_ITEM_RANGE } from '../../tables'
 import { getAttackKind } from '../../weaponProperties'
 import { findWeaponRow } from './weaponRow'
-import { coordKey, disk, distance } from '../geometry'
+import { distance } from '../geometry'
 import { getPlacedFootprint } from './board'
 
 export function onFloor(item: Item, cell: Coord | null): FloorItem {
@@ -35,7 +33,13 @@ export function getThrownItem(state: CombatState, shot: ShootAction): Item | nul
   const row = shooter ? findWeaponRow(shooter, shot.weaponKey, shot.attack) : null
   const item = shooter && row && !row.wielded.natural ? getHeldItem(shooter, row.wielded.itemId) : undefined
   if (!item || !row || getAttackKind(row.atk.range) !== 'throw') return null
-  return item.amount > 1 ? { ...item, id: `${item.id}:${shot.id}`, amount: 1, charge: null } : item
+  return item.amount > 1 ? { ...takeOne(item, shot.id), charge: null } : item
+}
+
+// One of a stack, split off under an id of its own named after the action
+// that took it; the item itself when it is the last.
+export function takeOne(item: Item, actionId: string): Item {
+  return item.amount > 1 ? { ...item, id: `${item.id}:${actionId}`, amount: 1 } : item
 }
 
 // Whether the item can go into a free hand.
@@ -43,25 +47,9 @@ export function canPickUp(c: Character, item: Item): boolean {
   return canHoldWith(c, item, 1)
 }
 
-// combat.tex "Standard Action": what can be thrown as one — a free hand's,
-// or lying in reach on the floor already — and what its bulk allows.
-export function findThrowSource(state: CombatState, actorId: string, itemId: string): Item | null {
-  if (!itemId) return null
-  const held = state.characters[actorId]?.held.find((i) => i.id === itemId)
-  return held ?? getReachableFloor(state, actorId).find((f) => f.item.id === itemId)?.item ?? null
-}
-
-// combat.tex "Standard Action": "bulk smaller than character size".
-export function canThrowItem(c: Character, item: Item): boolean {
-  return item.bulk < getSize(c)
-}
-
-// Every cell within 10m of the actor's footprint they can throw to — open
-// ground, on the board.
-export function getThrowCells(state: CombatState, actorId: string): Coord[] {
-  const board = state.board
-  const from = board?.placements[actorId]
-  const footprint = getPlacedFootprint(state, actorId)
-  if (!board || !from || !footprint) return []
-  return disk(from.cell, THROW_ITEM_RANGE).filter((cell) => !board.terrain[coordKey(cell)]?.blocking)
+// One of a floor stack gone — thrown away, or destroyed by the charge it
+// went off with; what is left of the stack carries no charge (spells.tex
+// "Charged": the spell activates one object).
+export function withoutOne(floor: FloorItem[], itemId: string): FloorItem[] {
+  return floor.flatMap((f) => (f.item.id !== itemId ? [f] : f.item.amount > 1 ? [{ ...f, item: { ...f.item, amount: f.item.amount - 1, charge: null } }] : []))
 }

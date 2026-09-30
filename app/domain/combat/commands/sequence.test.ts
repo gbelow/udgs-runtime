@@ -306,16 +306,15 @@ describe('giving up the action an opportunity attack answers', () => {
 // with reflexes to leave the area").
 describe('an explosion', () => {
   // A grenade charged with a shock explosive (radius 3) thrown between two
-  // who stand beside its centre, both clearing the reflex.
+  // who stand beside where it lands, both clearing the reflex.
   function grenadeAtTwo(): CombatState {
     const base = fighter('t')
     const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
     const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
     const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
     let s = onBoard({ t: [-5, 0], x: [0, -1], y: [0, 1] }, thrower, fighter('x'), fighter('y'))
-    const [row] = getAttackOptions(s.characters.t, 'explosion')
-    s = declareAction('t', { kind: 'explosion', source: 'thrown', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
-    s = commitAction()(amendAction({ center: { q: 0, r: 0 } })(s))
+    s = declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s)
+    s = resolveAction(newId)(payAction(newId)(commitAction()(s)))
     for (const id of ['x', 'y']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
     return rollAction(() => 50, newId)(s)
   }

@@ -75,8 +75,8 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `explosion`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throwItem`, `rest` |
-| Generated roots | `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
+| Declarable roots | `strike`, `shoot`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
+| Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
@@ -145,12 +145,11 @@ resolveAction ─────────► land(top)
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
   counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
-  a cast opens,
-  a hook's knockdown, and a riposte on top. A voided root generates only what an
+  a cast opens, the explosion a thrown object goes off as where it lands, a hook's knockdown, and a riposte on top. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
-  nothing). Follow-ups no reaction opens (blast, cast explosion, hook knockdown,
+  nothing). Follow-ups no reaction opens (blast, cast and impact explosions, hook knockdown,
   stun escapes, riposte) live in `getFollowUps` itself.
 - **One follow-up each** — `land` stamps every follow-up still to be declared with
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
@@ -158,6 +157,13 @@ resolveAction ─────────► land(top)
   riposte or a flee, an evasion's move or a flee.
 - **Auto-landing** — an explosion, a push (`drag`), a flee follow-up or a spell test has
   nothing to decide once its attacks are fought or its die is thrown, so `advance` lands it.
+- **Charges and throws** — what releases a charge (`Item.charge`) is read off its spell's
+  catalog `triggers`: `impact`, `fire`, `detonate`. A `throw` lands the item on the floor,
+  one of a stack, charge and all; if it goes off on impact (`goesOffOnImpact`: an `impact`
+  charge, or a mundane explosive's row `payload`) the throw opens an `explosion` at the
+  landing cell, committed and waiting on the reflexes, DL the thrower's Accuracy. A
+  detonation sets off only `detonate` charges. Nothing reads the `fire` trigger yet.
+  Whatever the charge went off in is destroyed as the explosion lands, held or on the floor.
 - **Links and concentration** (`character/rules/concentration.ts`) — a caster holding a
   sustained spell is concentrating: every option but a cast is closed (`options.ts`), and
   only the linking spell they hold, again, or a spell whose `sustaining` requirement they
@@ -177,7 +183,7 @@ resolveAction ─────────► land(top)
   a target must be within the extended range to be aimed at (`canAimCast`). It never
   reaches an explosion's area — the explosion is the effect — only the range a Detonate
   Explosive cast (catalog `detonate`) sets off a charge at (`getChargeOptions` with the
-  detonation it opened); the table's own detonate reaches any charge. Any interruption
+  detonation it opened). Any interruption
   or stun ends every held spell: a won maneuver (`reduceCharacter`), a blow as it lands
   (`deliver.ts`), a crash (`trampledBy`).
 - **Rest** — `rest` is a root with no die, priced by the action-cost table; it may take
@@ -359,7 +365,8 @@ app/domain/combat/
 │   ├── partners.ts     who is grappled with whom
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
-│   ├── floor.ts        items on the floor, reachable, thrown
+│   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
+│   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters

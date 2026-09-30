@@ -17,7 +17,7 @@ import { ActionReport, getActionNotes, getLastReport, getOutcomes } from './outc
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
-import { ChargeOption, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
+import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
@@ -27,7 +27,8 @@ import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
 import { getRiposteDefense } from '../rules/riposte'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
-import { canPickUp, canThrowItem, findFloorItem, getReachableFloor, getThrowCells } from '../rules/floor'
+import { canPickUp, getReachableFloor } from '../rules/floor'
+import { canThrowItem, getThrowables, getThrowCells } from '../rules/throw'
 import { getPendingGuardStep } from '../rules/protect'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
@@ -144,7 +145,7 @@ export type OpenActionView = {
   actor: string
   target: string | null
   targetId: string | null
-  // the declaration a strike, a shot or an explosion has made so far
+  // the declaration a strike or a shot has made so far
   weapon: string
   attack: string
   variant: string
@@ -152,7 +153,7 @@ export type OpenActionView = {
   // an explosion's area, whether it is pointed where it goes off yet, and
   // whether it can still be pointed somewhere else
   area: { shape: Area['shape']; aimed: boolean; aimable: boolean } | null
-  // where the explosion comes from, and the charged object it is set off in
+  // where the explosion comes from, and the object it goes off in
   source: 'thrown' | 'cast' | 'detonate' | null
   itemId: string
   // the declaration a cast has made so far
@@ -183,10 +184,10 @@ export type OpenActionView = {
   item: string
   // the stack a shot is loaded from
   ammoId: string
-  // a pick up: what lies within reach, and what was picked; a standard-action
-  // throw: what can be thrown, from a free hand or the floor
+  // a pick up: what lies within reach, and what was picked; a throw: what
+  // can be thrown, from a hand or the floor
   floor: { itemId: string; name: string; available: boolean }[]
-  // a standard-action throw: where it may be aimed, and where it has been
+  // a throw: where it may be aimed, and where it has been
   to: Coord | null
   throwCells: Coord[]
   // once rolled or compared: what it does to the grapple
@@ -293,7 +294,6 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const attack = isAttackAction(open) ? open : null
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
-  const weaponAction = attack ?? explosion
   const blast = open.kind === 'blast' ? open : null
   const laid = explosion ? getBlastOf(state, explosion) : blast
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
@@ -318,9 +318,9 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       actor: getFightName(state, open.actorId),
       target: target?.fightName ?? null,
       targetId: open.targetId,
-      weapon: weaponAction?.weaponKey ?? '',
-      attack: weaponAction?.attack ?? '',
-      variant: weaponAction?.variant ?? '',
+      weapon: attack?.weaponKey ?? '',
+      attack: attack?.attack ?? '',
+      variant: attack?.variant ?? '',
       location: attack?.location ?? 'chest',
       area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
       source: explosion?.source ?? null,
@@ -337,15 +337,15 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       maneuver: grapple?.maneuver ?? null,
       along: grapple && hit && !grapple.hook && grapple.roll?.degree === 'hit' && (grapple.maneuver === 'knockdown' || grapple.maneuver === 'immobilize') ? grapple.along : null,
       disarm: grapple && hit && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
-      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throwItem' ? open.itemId : ''),
+      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
-        : open.kind === 'throwItem' && open.step === 'define' && actor
-        ? [...actor.held, ...getReachableFloor(state, actor.id).map((f) => f.item)].map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
+        : open.kind === 'throw' && open.step === 'define' && actor
+        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
         : [],
-      to: open.kind === 'throwItem' ? open.to : null,
-      throwCells: open.kind === 'throwItem' && open.step === 'define' ? getThrowCells(state, open.actorId) : [],
+      to: open.kind === 'throw' ? open.to : null,
+      throwCells: open.kind === 'throw' && open.step === 'define' ? getThrowCells(state, open.actorId, open.itemId) : [],
       push: drag ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,
@@ -362,8 +362,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     report: null,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    attacks: weaponAction && step === 'declare' && actor && !(explosion && explosion.source !== 'thrown')
-      ? getAttackOptions(actor, weaponAction.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
+    attacks: attack && step === 'declare' && actor
+      ? getAttackOptions(actor, attack.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
@@ -371,7 +371,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       ? getChargeOptions(state, explosion).map((o) => ({
           ...o,
           name: SPELLS[o.key].name,
-          item: (findHeldItem(state, o.itemId)?.item ?? findFloorItem(state, o.itemId)?.item)?.name ?? '',
+          item: findObject(state, o.itemId)?.name ?? '',
           holder: o.holderId ? getFightName(state, o.holderId) : '',
         }))
       : [],

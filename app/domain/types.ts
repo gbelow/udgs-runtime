@@ -254,6 +254,12 @@ export type Ammo = z.infer<typeof AmmoSchema>
 export const ItemTypeSchema = z.enum(ITEM_TYPES)
 export type ItemType = z.infer<typeof ItemTypeSchema>
 
+// spells.tex "Charged": "The charge can be released when a trigger is
+// activated if there is one" — landing where it was thrown, touching fire,
+// or the Detonate Explosive spell.
+export const ChargeTriggerSchema = z.enum(['impact', 'fire', 'detonate'])
+export type ChargeTrigger = z.infer<typeof ChargeTriggerSchema>
+
 export const ChargeSchema = z.object({
   key: str.default(''),
   effects: z.array(z.lazy(() => SpellEffectSchema)).default([]),
@@ -890,6 +896,9 @@ export const SpellSchema = z.object({
   // an object, within this many metres of the caster; null for one that
   // does not
   detonate: z.object({ range: num.default(0) }).strip().nullable().default(null),
+  // spells.tex "Charged": what releases the charge a charged spell leaves in
+  // its object; empty for any other spell
+  triggers: z.array(ChargeTriggerSchema).default([]),
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),
   durationETs: num.default(0),
   description: str.default(''),

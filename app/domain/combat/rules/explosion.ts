@@ -1,4 +1,4 @@
-import type { Area, CampaignCharacter, Delivery, Item, SpellEffect } from '../../types'
+import type { Area, CampaignCharacter, ChargeTrigger, Delivery, Item, SpellEffect } from '../../types'
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard } from '../types'
 import { getUndefendedDamage } from '../../character/rules/damage'
 import { produceEffects, produceSpellEffect } from '../../character/rules/production'
@@ -6,18 +6,17 @@ import { getAccuracy } from '../../character/rules/skills'
 import { getCastSize, resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
-import { hasProperty } from '../../weaponProperties'
+import { explodes } from '../../weaponProperties'
 import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from '../geometry'
-import { getPlacedFootprint, getShotReachOf, seesAcross } from './board'
-import { findWeaponRow, type WeaponRow } from './weaponRow'
-import { getHeldItem } from '../../item/rules/hands'
+import { getAimableCells, getPlacedFootprint } from './board'
+import { getItemWeapon } from '../../item/rules/items'
 import { findHeldItem } from './fighters'
 import { findFloorItem } from './floor'
 import { getAction } from './log'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
-// — the charge in a thrown item, a mundane explosive's own, a spell — and
+// — the charge in an object, a mundane explosive's own, a spell — and
 // each of its effects covers its own area; the zones off where it is aimed;
 // who is in which zone off the board as it stands, so the same rules
 // answer before the reactions move and after.
@@ -39,22 +38,17 @@ function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
 
 type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
 
-// What the explosion is made of: the area effects of the charge a thrown
-// item carries (spells.tex "Charged"), of the row itself for a mundane
-// explosive (gear.tex "Explosion"), or of the spell for a cast or a charge
-// set off; and who made them, whose size scales them. Empty while the
-// source is not declared or has nothing to go off with.
+// What the explosion is made of: the area effects of the object it goes
+// off in — its charge (spells.tex "Charged"), or a mundane explosive's own
+// (gear.tex "Explosion") — or of the spell for a cast; and who made them,
+// whose size scales them. Empty while there is nothing to go off with.
 export function getExplosionPayload(state: CombatState, action: ExplosionAction): Payload | null {
   const producer = state.characters[action.actorId]
   if (!producer) return null
   const effects = (() => {
-    if (action.source === 'thrown') {
-      const row = findWeaponRow(producer, action.weaponKey, action.attack)
-      return row && hasProperty(row.atk.properties, 'explosion') ? getRowAreaEffects(producer, row) : []
-    }
-    if (action.source === 'detonate') {
-      const charge = findHeldItem(state, action.itemId)?.item.charge ?? findFloorItem(state, action.itemId)?.item.charge
-      return charge?.effects.filter(isAreaEffect) ?? []
+    if (action.source !== 'cast') {
+      const item = findObject(state, action.itemId)
+      return item ? getObjectEffects(producer, item).filter(isAreaEffect) : []
     }
     if (!isSpellKey(action.key)) return []
     // spells.tex "Amplify Spell": at the size the cast that opened it was made at
@@ -65,35 +59,53 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
   return effects.length > 0 ? { effects, producer } : null
 }
 
+// The object a charge is in, held or lying on the floor.
+export function findObject(state: CombatState, itemId: string): Item | null {
+  return findHeldItem(state, itemId)?.item ?? findFloorItem(state, itemId)?.item ?? null
+}
+
+// What an object goes off with: its charge, or else what its exploding rows
+// carry of their own.
+function getObjectEffects(producer: CampaignCharacter, item: Item): SpellEffect[] {
+  if (item.charge) return item.charge.effects
+  const rows = getItemWeapon(item)?.attacks.filter(explodes) ?? []
+  return rows.flatMap((a) => produceEffects(producer, a.payload))
+}
+
+// spells.tex "Charged": what releases a charge — what its spell says.
+function hasTrigger(charge: NonNullable<Item['charge']>, trigger: ChargeTrigger): boolean {
+  return isSpellKey(charge.key) && SPELLS[charge.key].triggers.includes(trigger)
+}
+
+// Whether the object goes off where it lands when thrown, if it has
+// anything to go off with: a charge with the impact trigger, or a mundane
+// explosive (gear.tex "Grenade": "ignited by a mundane fuse or impact").
+export function goesOffOnImpact(item: Item): boolean {
+  return !item.charge || hasTrigger(item.charge, 'impact')
+}
+
 // An effect that covers an area rather than one character (combat.tex
 // "Explosions").
 export function isAreaEffect(e: SpellEffect): boolean {
   return e.target === 'area' && e.area !== null
 }
 
-// What a thrown row goes off with: the charge its item carries, or a
-// mundane explosive's own payload.
-function getRowAreaEffects(producer: CampaignCharacter, row: WeaponRow): SpellEffect[] {
-  const charge = getHeldItem(producer, row.wielded.itemId)?.charge
-  return (charge ? charge.effects : produceEffects(producer, row.atk.payload)).filter(isAreaEffect)
-}
-
-// Every charge in the fight that can be set off from where it lies: one
-// with an area to it, in the hands of someone standing on the board, or
-// lying on the floor — `holderId` null for the latter. The table sets off
-// any of them; a detonation a cast opened (spells.tex "Detonate
-// Explosive") reaches only those within the spell's range of the caster,
-// as far as the cast was extended ("Extend Spell").
+// Every charge in the fight a detonation can set off from where it lies:
+// one with an area to it and the detonate trigger, in the hands of someone
+// standing on the board, or lying on the floor — `holderId` null for the
+// latter. A detonation a cast opened (spells.tex "Detonate Explosive")
+// reaches only those within the spell's range of the caster, as far as the
+// cast was extended ("Extend Spell").
 export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | null; cell: Coord }
 
 function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
-  const key = item.charge?.key
-  return !!key && isSpellKey(key) && (item.charge?.effects.some(isAreaEffect) ?? false)
+  const charge = item.charge
+  return !!charge && isSpellKey(charge.key) && hasTrigger(charge, 'detonate') && charge.effects.some(isAreaEffect)
 }
 
-export function getChargeOptions(state: CombatState, action?: ExplosionAction): ChargeOption[] {
-  const range = action ? getDetonationRange(state, action) : null
-  const footprint = action ? getPlacedFootprint(state, action.actorId) : null
+export function getChargeOptions(state: CombatState, action: ExplosionAction): ChargeOption[] {
+  const range = getDetonationRange(state, action)
+  const footprint = getPlacedFootprint(state, action.actorId)
   const all = getAllCharges(state)
   return range === null ? all : all.filter((o) => footprint !== null && setDistance([o.cell], footprint) <= range)
 }
@@ -115,12 +127,6 @@ function getAllCharges(state: CombatState): ChargeOption[] {
   })
   const onFloor = state.floor.flatMap((f): ChargeOption[] => (f.cell && hasChargedArea(f.item) ? [{ itemId: f.item.id, key: f.item.charge.key, holderId: null, cell: f.cell }] : []))
   return [...held, ...onFloor]
-}
-
-// Whether a thrown row has anything with an area to go off with.
-export function hasExplosionPayload(c: CampaignCharacter, weaponKey: string, attack: string): boolean {
-  const row = findWeaponRow(c, weaponKey, attack)
-  return row !== null && getRowAreaEffects(c, row).length > 0
 }
 
 // The areas the effects cover, one per effect that has one, in cells —
@@ -288,8 +294,8 @@ function getBurns(state: CombatState, action: BlastShape): Map<string, number> {
 
 // combat.tex "Explosions": "If the explosion comes from a projectile, the DL
 // of the explosion is equal to the shooting skill." A cast's is what its
-// effects say the target rolls against (the worst of them); a charge set
-// off from hiding leaves no test at all.
+// effects say the target rolls against (the worst of them); a detonation
+// leaves no test at all.
 export function getExplosionDLTerms(state: CombatState, action: ExplosionAction): Term[] {
   const payload = getExplosionPayload(state, action)
   if (!payload) return []
@@ -307,34 +313,24 @@ export function isAvoidable(action: ExplosionAction): boolean {
   return action.source !== 'detonate'
 }
 
-// Where a disk explosion may be aimed. Thrown: any cell within the row's
-// reach of the attacker's footprint that some cell of it sees (combat.tex
-// "Cover"), off blocking ground. Cast: within the effects' range of the
-// caster, in sight — the explosion is the spell's effect, which Extend
-// does not reach. Set off: where the charged object is — whoever holds
-// it stands, or the cell it lies on if it is on the floor. Nowhere for a
-// spray, which is aimed by direction.
+// Where a disk explosion may be aimed. Cast: within the effects' range of
+// the caster, in sight, off blocking ground — the explosion is the spell's
+// effect, which Extend does not reach. Thrown or detonated: where the
+// object is — whoever holds it stands, or the cell it lies on if it is on
+// the floor. Nowhere for a spray, which is aimed by direction.
 export function getExplosionCenters(state: CombatState, action: ExplosionAction): Coord[] {
   return getCentersOf(state, action, getExplosionPayload(state, action))
 }
 
 function getCentersOf(state: CombatState, action: ExplosionAction, payload: Payload | null): Coord[] {
-  const board = state.board
-  const from = board?.placements[action.actorId]
-  const footprint = getPlacedFootprint(state, action.actorId)
-  if (!board || !from || !footprint || !payload || isSpray(toBlast(action, payload))) return []
-  const open = (cell: Coord) => !board.terrain[coordKey(cell)]?.blocking
-  if (action.source === 'detonate') {
+  if (!state.board || !payload || isSpray(toBlast(action, payload))) return []
+  if (action.source !== 'cast') {
     const held = findHeldItem(state, action.itemId)
     if (held) return getPlacedFootprint(state, held.holder.id) ?? []
     const floored = findFloorItem(state, action.itemId)
     return floored?.cell ? [floored.cell] : []
   }
-  const reach = action.source === 'thrown'
-    ? getShotReachOf(state, action)
-    : Math.min(...payload.effects.map((e) => e.range ?? 1))
-  if (reach === null) return []
-  return disk(from.cell, reach).filter((cell) => setDistance([cell], footprint) <= reach && open(cell) && seesAcross(board, footprint, [cell]))
+  return getAimableCells(state, action.actorId, Math.min(...payload.effects.map((e) => e.range ?? 1)))
 }
 
 // Whether the area is still its actor's to point, and can be pointed

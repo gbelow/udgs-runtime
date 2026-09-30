@@ -57,7 +57,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
-    case 'throwItem': return opportunityTriggers(state, root.actorId)
+    case 'throw': return opportunityTriggers(state, root.actorId)
     case 'grapple': return grappleTriggers(root)
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
     // nobody answers the blast: the reflexes were against the explosion
@@ -200,12 +200,9 @@ function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
 // threatens its whole range — may avoid it, the one who set it off as much
 // as anyone: a bomb is no respecter of the hand that threw it, and whoever
 // stands in the area is a target of it.
-// combat.tex "Opportunity Attack": a thrown one is a ranged attack, and
-// draws what any does.
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
-  const opportunity = root.source === 'thrown' ? opportunityTriggers(state, root.actorId) : []
-  if (!isAvoidable(root)) return opportunity
-  return [...getThreatenedIds(state, getBlastOf(state, root)).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null })), ...opportunity]
+  if (!isAvoidable(root)) return []
+  return getThreatenedIds(state, getBlastOf(state, root)).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
 }
 
 // combat.tex "Opportunity Attack": "Triggering actions include casting

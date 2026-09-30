@@ -14,6 +14,8 @@ import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
 import { makeCampaignCharacter } from './factories'
+import { produceEffects } from './character/rules/production'
+import { SPELLS } from './spells'
 import { severPart } from './character/commands/wounds'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
@@ -40,7 +42,7 @@ function deepFreeze<T>(value: T): T {
 
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
-const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1, charge: { key: 'shock-explosive', effects: [] } })
+const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()
@@ -227,12 +229,14 @@ function spawnedFollow(s: CombatState): CombatState {
   return combatCommands.payAction(newId)(followed)
 }
 
-// A charged grenade of `a`'s, thrown past the wall with nobody avoiding it
-// and waiting to go off, on a frozen state a few commands along.
+// A charged grenade of `a`'s, thrown past the wall, landed with nobody
+// avoiding it and waiting to go off, on a frozen state a few commands along.
 function rolledExplosion(s: CombatState): CombatState {
-  const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(grenadeItem)(s.characters.a) } })
-  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'explosion', weaponKey: grenadeItem.id, attack: 'throw', variant: 'basic', center: { q: 0, r: 3 } }, newId)(armed))
-  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
+  const charged = { ...grenadeItem, charge: { key: 'shock-explosive', effects: produceEffects(s.characters.a, SPELLS['shock-explosive'].effects) } }
+  const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(charged)(s.characters.a) } })
+  const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 3 } }, newId)(armed))
+  const landed = deepFreeze(combatCommands.resolveAction(newId)(deepFreeze(combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared))))))
+  return combatCommands.payAction(newId)(landed)
 }
 
 // A cast of `a`'s sleep, rolled high enough to have HOP to spend, on a

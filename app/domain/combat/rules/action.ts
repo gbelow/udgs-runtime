@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, CombatState, DragAction, RootAction, WeaponAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, DragAction, RootAction } from '../types'
 import { ACTIONS, getActionDef } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -9,15 +9,14 @@ import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
-import { getExplosionPayload, isAimed, isSpray } from './explosion'
-import { getChargeOptions } from './explosion'
+import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
 import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
-import { canPickUp, canThrowItem, findThrowSource, getReachableFloor, getThrowCells } from './floor'
-import { sameCell } from '../geometry'
+import { canPickUp, getReachableFloor } from './floor'
+import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityStrike, guardRows, isShotLoaded, isVariantOpen } from './attack'
 import { canAimCast, isTargeted } from './cast'
@@ -35,7 +34,7 @@ import { getFleeCost } from './flee'
 
 // Whether everything the action needs declared has been, and names things
 // its actor can actually use: a strike or a shot a variation of a row in
-// hand, an explosion one aimed where it can land, a block or intercept a DEF
+// hand, an explosion aimed where it can go off, a block or intercept a DEF
 // row (gear.tex "DEF"), a guard a shield (combat.tex "Guard": "If using a
 // shield"), an opportunity attack a strike that reaches its target from
 // where it will be fought.
@@ -45,11 +44,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack))
     case 'shoot':
       return getAttackVariant(c, action) !== null && isShotLoaded(c, action)
-    // thrown, the row is declared and can be fired; cast, the spell was;
-    // set off, a charged spell with something to go off is named
+    // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
-      return (action.source !== 'thrown' || getAttackVariant(c, action) !== null)
-        && (action.source !== 'cast' || isSpellKey(action.key))
+      return (action.source !== 'cast' || isSpellKey(action.key))
         && (action.source !== 'detonate' || getChargeOptions(state, action).some((o) => o.itemId === action.itemId))
         && isAimed(state, action)
     case 'cast':
@@ -96,11 +93,11 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
       return !!found && canPickUp(c, found.item)
     }
-    // combat.tex "Standard Action": "throwing items with bulk smaller than
-    // character size by up to 10m" — from a free hand or off the floor
-    case 'throwItem': {
+    // combat.tex "Throw", "Standard Action": something it can throw, to a
+    // cell the throw reaches
+    case 'throw': {
       const item = findThrowSource(state, action.actorId, action.itemId)
-      return !!item && canThrowItem(c, item) && action.to !== null && getThrowCells(state, action.actorId).some((cell) => sameCell(cell, action.to!))
+      return !!item && canThrowItem(c, item) && action.to !== null && isThrowCell(state, action.actorId, action.itemId, action.to)
     }
     // combat.tex "Push and drag": on the board, at a speed open to the
     // actor, along a way the block allows
@@ -166,10 +163,11 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
       return getVariantCost(c, action)
     case 'shoot':
       return getVariantCost(c, action)
-    // a cast's explosion was paid for by the cast; a charge set off costs
-    // whoever sets it off nothing
+    // paid for by the throw, the cast or the detonation that opened it
     case 'explosion':
-      return action.source === 'thrown' ? getVariantCost(c, action) : { AP: 0, STA: 0 }
+      return { AP: 0, STA: 0 }
+    case 'throw':
+      return getThrowCost(c, action.itemId)
     case 'counterattack':
       return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
@@ -207,14 +205,13 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'carry':
     case 'letGo':
     case 'pickUp':
-    case 'throwItem':
     case 'rest':
       return getCatalogCost(c, action.kind)
   }
 }
 
 // What the weapon row and variation the attack is declared with cost.
-function getVariantCost(c: CampaignCharacter, action: WeaponAction): ActionCost | null {
+function getVariantCost(c: CampaignCharacter, action: AttackAction): ActionCost | null {
   const variant = getAttackVariant(c, action)
   return variant ? { AP: variant.AP, STA: variant.STA } : null
 }
@@ -364,7 +361,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'release':
     case 'holdBack':
     case 'pickUp':
-    case 'throwItem':
+    case 'throw':
     case 'rest':
     case 'fleeFollowUp':
     case 'spellTest':
@@ -410,7 +407,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'blast':
     case 'move':
     case 'pickUp':
-    case 'throwItem':
+    case 'throw':
     case 'rest':
     case 'fleeFollowUp':
     case 'spellTest':

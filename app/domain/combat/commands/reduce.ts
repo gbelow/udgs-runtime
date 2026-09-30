@@ -9,7 +9,7 @@ import { findAmmoStack } from '../../item/rules/ammo'
 import { removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
-import { onFloor } from '../rules/floor'
+import { onFloor, withoutOne } from '../rules/floor'
 import { getMoveDestination } from '../rules/waypoint'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
@@ -80,14 +80,9 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           if (action.movement === 'prone') return fallProne(c)
           return action.facts?.fell ? fallProne(trampled) : trampled
         }
-        // combat.tex "Explosions": what went off is gone — the thrower's row
-        // left their hand, and the object a charge was set off in was
-        // destroyed by it
-        if (action.kind === 'explosion') {
-          if (c.id === action.actorId && action.source === 'thrown') return releaseThrown(c, action.weaponKey, action.attack)
-          if (action.source === 'detonate' && c.held.some((i) => i.id === action.itemId)) return consumeItem(action.itemId)(c)
-          return c
-        }
+        // combat.tex "Explosions": the object a charge went off in is
+        // destroyed by it, in whoever's hand it was
+        if (action.kind === 'explosion') return action.source !== 'cast' && c.held.some((i) => i.id === action.itemId) ? consumeItem(action.itemId)(c) : c
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
         // spells.tex "Sustained": a cast that hit and did not fail is taken
@@ -117,9 +112,9 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         }
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
-        // combat.tex "Standard Action": a thrown item leaves whichever hand
-        // it was thrown from; one thrown off the floor was never in it
-        if (action.kind === 'throwItem') return c.id === action.actorId && action.thrown && c.held.some((i) => i.id === action.thrown!.id) ? dropItem(action.thrown.id)(c) : c
+        // combat.tex "Throw": one of what was thrown leaves whichever hand it
+        // was thrown from; one thrown off the floor was never in it
+        if (action.kind === 'throw') return c.id === action.actorId && action.thrown && c.held.some((i) => i.id === action.itemId) ? consumeItem(action.itemId)(c) : c
         if (!isAttackAction(action)) return c
         // spells.tex "Charged": the charge goes off with the blow that
         // lands — "discharges on the first object it comes into contact
@@ -196,9 +191,10 @@ export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple
 // The one place an action changes what lies on the floor: what a disarm
 // knocked out of a hand, where its owner stands (combat.tex "Disarm"); what
 // was thrown, one of it, where the throw was aimed; what was picked up,
-// gone from it; what a standard-action throw moved, gone from wherever it
-// lay and landed where it was aimed (combat.tex "Standard Action"). Read off
-// the fight as it stood before the action landed.
+// gone from it; what a throw moved, gone from wherever it lay and landed
+// where it was aimed (combat.tex "Throw"); what a charge went off in,
+// destroyed (combat.tex "Explosions"). Read off the fight as it stood
+// before the action landed.
 export function reduceFloor(state: CombatState, action: Action, phase: Phase): (floor: FloorItem[]) => FloorItem[] {
   return (floor: FloorItem[]) => {
     if (phase !== 'resolve') return floor
@@ -211,9 +207,10 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     }
     if (action.kind === 'shoot') return action.thrown ? [...floor, onFloor(action.thrown, cellOf(action.targetId))] : floor
     if (action.kind === 'pickUp') return floor.filter((f) => f.item.id !== action.itemId)
-    // combat.tex "Standard Action": lands where it was thrown, gone from
-    // wherever it lay before — a free hand leaves nothing behind on the floor
-    if (action.kind === 'throwItem') return action.thrown ? [...floor.filter((f) => f.item.id !== action.itemId), onFloor(action.thrown, action.to)] : floor
+    // lands where it was thrown, gone from wherever it lay before — a hand
+    // leaves nothing behind on the floor
+    if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), onFloor(action.thrown, action.to)] : floor
+    if (action.kind === 'explosion' && action.source !== 'cast') return withoutOne(floor, action.itemId)
     return floor
   }
 }

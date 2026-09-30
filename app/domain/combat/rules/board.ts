@@ -1,10 +1,10 @@
 import type { Character, MeleeRange, Weapon, WeaponAttack } from '../../types'
-import type { Board, CombatState, Coord, ExplosionAction, Placement, ShootAction, StrikeAction } from '../types'
+import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/misc'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, line, rotate, setDistance } from '../geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance } from '../geometry'
 import { findRowVariant, findWeaponRow } from './weaponRow'
 
 // The board rules read the spatial facts of a fight off `state.board`.
@@ -146,6 +146,22 @@ export function seesAcross(board: Board, from: readonly Coord[], to: readonly Co
   return from.some((a) => to.some((b) => !line(a, b).slice(1, -1).some(opaque)))
 }
 
+// Whether something can be aimed at the cell from the footprint: within
+// `reach` of some cell of it, off blocking ground, and seen from it
+// (combat.tex "Cover").
+export function isAimableCell(board: Board, footprint: readonly Coord[], reach: number, cell: Coord): boolean {
+  return setDistance([cell], footprint) <= reach && !board.terrain[coordKey(cell)]?.blocking && seesAcross(board, footprint, [cell])
+}
+
+// Every cell around the actor something can be aimed at within `reach`.
+export function getAimableCells(state: CombatState, actorId: string, reach: number): Coord[] {
+  const board = state.board
+  const from = board?.placements[actorId]
+  const footprint = getPlacedFootprint(state, actorId)
+  if (!board || !from || !footprint) return []
+  return disk(from.cell, reach).filter((cell) => isAimableCell(board, footprint, reach, cell))
+}
+
 // Whether some cell of one character's footprint sees some cell of the
 // other's. True on a fight without a board.
 export function hasLineOfSight(state: CombatState, a: string, b: string): boolean {
@@ -159,7 +175,7 @@ export function hasLineOfSight(state: CombatState, a: string, b: string): boolea
 // The metres the shot as declared carries: the variation's reach for this
 // shooter and weapon (combat.tex "Shoot", "Quick Shot", "Snipe"; "Throw").
 // Null while the row or the variation is not declared.
-export function getShotReachOf(state: CombatState, action: ShootAction | ExplosionAction): number | null {
+export function getShotReachOf(state: CombatState, action: ShootAction): number | null {
   const shooter = state.characters[action.actorId]
   const row = shooter ? findWeaponRow(shooter, action.weaponKey, action.attack) : null
   if (!shooter || !row) return null

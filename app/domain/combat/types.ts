@@ -286,27 +286,25 @@ export const ShootActionSchema = z.object({
   ammoId: str.default(''),
 }).strip()
 
-// combat.tex "Explosions", "Sprays"; gear.tex "Explosion": a ranged attack
-// with an area, made with an exploding row. It is aimed at ground, not at a
-// character: a disk at the `center` it lands on, picked before the commit;
-// a cone from the attacker, pointed on the blast it goes off as. When it
-// lands, what carried it is gone — the thrown row out of the hand, the
-// object a charge was set off in destroyed — and it generates the escapes
-// the reflexes that cleared it open, and the blast.
+// combat.tex "Explosions", "Sprays"; gear.tex "Explosion": an area going
+// off, aimed at ground rather than at a character — a disk at the `center`
+// it goes off at, a cone from its actor pointed on the blast it goes off
+// as. Nobody declares one: a throw opens it where a charge that goes off on
+// impact lands, a cast with an area opens it, and so does a detonation
+// (spells.tex "Detonate Explosive"). When it lands, the object a charge
+// went off in is destroyed, and it generates the escapes the reflexes that
+// cleared it open, and the blast.
 
 // Where an explosion comes from decides its test: thrown, the reflex is
 // against the thrower's Accuracy; cast, against what the spell's effects
-// say; set off — a charge or a trap going off where nobody could react —
-// there is none (the table's ruling: the test was spotting it). `key` is
-// the spell whose effects go off for a cast; a thrown item's and a
-// detonation's is the charge the object carries, and `itemId` names that
-// object — a charge is set off in something, wherever that something is.
+// say; detonated, there is none (the table's ruling: the test was spotting
+// it). `key` is the spell whose effects go off for a cast; a thrown or
+// detonated one goes off with what the object `itemId` names carries,
+// wherever that object is.
 export const ExplosionActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('explosion'),
-  source: z.enum(['thrown', 'cast', 'detonate']).default('thrown'),
-  ...WeaponRowRef,
-  variant: str.default(''),
+  source: z.enum(['thrown', 'cast', 'detonate']).default('cast'),
   key: str.default(''),
   itemId: str.default(''),
   center: CoordSchema.nullable().default(null),
@@ -596,12 +594,13 @@ export const PickUpActionSchema = z.object({
   picked: ItemSchema.nullable().default(null),
 }).strip()
 
-// combat.tex "Standard Action": "throwing items with bulk smaller than
-// character size by up to 10m" — from a free hand or off the floor, to
-// another cell on the floor.
-export const ThrowItemActionSchema = z.object({
+// combat.tex "Throw", "Standard Action": an item thrown to a cell on the
+// floor — a held weapon with a throwing row thrown with that row, anything
+// else "with bulk smaller than character size by up to 10m", from a free
+// hand or off the floor. One of a stack goes.
+export const ThrowActionSchema = z.object({
   ...ActionBase,
-  kind: z.literal('throwItem'),
+  kind: z.literal('throw'),
   itemId: str.default(''),
   to: CoordSchema.nullable().default(null),
   // what was thrown, written at the resolve
@@ -655,7 +654,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ReleaseActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
-  ThrowItemActionSchema,
+  ThrowActionSchema,
   RestActionSchema,
   ResistActionSchema,
   AssistActionSchema,
@@ -674,8 +673,6 @@ export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
 export type BlastAction = z.infer<typeof BlastActionSchema>
 export type CastAction = z.infer<typeof CastActionSchema>
 export type SpellTestAction = z.infer<typeof SpellTestActionSchema>
-// Everything made with a weapon row: the two attacks and an explosion.
-export type WeaponAction = AttackAction | ExplosionAction
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
@@ -686,7 +683,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // maneuver (combat.tex "Grapple Maneuvers").
 export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
-export type ThrowItemAction = z.infer<typeof ThrowItemActionSchema>
+export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
 // The actions, not reactions, the catalog does not mark `movement`
 // (rules/actionCatalog.ts): those a reaction made in their middle

@@ -8,11 +8,11 @@ import { canAfford } from '../../character/rules/cost'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
-import { getChargeOptions, hasExplosionPayload } from './explosion'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, isHeld } from './partners'
-import { canPickUp, canThrowItem, getReachableFloor } from './floor'
+import { canPickUp, getReachableFloor } from './floor'
+import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
@@ -212,22 +212,6 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : 'no shooting weapon in hand'
     return [option({ kind: 'shoot' }, null, reason)]
   },
-  explosion: (state, c) => {
-    const placed = isPlaced(state, c)
-    const explosions = getAttackOptions(c, 'explosion').filter((o) => hasExplosionPayload(c, o.weaponKey, o.attack))
-    const reason = explosions.length > 0 ? (placed ? null : 'not on the board')
-      : hasUnfocusedRow(c, 'explosion') ? 'needs a focus surge'
-      : getAttackOptions(c, 'explosion').length > 0 ? 'nothing charged into it'
-      : 'no exploding weapon in hand'
-    return [
-      // an explosion is aimed at ground, so it needs a board to land on
-      option({ kind: 'explosion', source: 'thrown' }, null, reason),
-      // combat.tex "Explosions": "If the explosion occurs before being
-      // perceived, no test can be made" — a charge or a trap set off by the
-      // table, from wherever the active character stands
-      option({ kind: 'explosion', source: 'detonate' }, null, !placed ? 'not on the board' : getChargeOptions(state).length > 0 ? null : 'nothing is charged'),
-    ]
-  },
   move: (state, c) => {
     const movable = getMovementOptions(state, c).some((m) => m.available)
     return [option({ kind: 'move' }, null, !isPlaced(state, c) ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move')]
@@ -273,15 +257,14 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : canAfford(c, cost) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]
   },
-  // combat.tex "Standard Action": "throwing items with bulk smaller than
-  // character size by up to 10m" — from a free hand or the floor.
-  throwItem: (state, c) => {
-    const cost = getActionCost(c, 'standardAction')
-    const throwable = [...c.held, ...getReachableFloor(state, c.id).map((f) => f.item)].filter((item) => canThrowItem(c, item))
+  // combat.tex "Throw", "Standard Action": something held or on the floor
+  // in reach, at its throwing row's price or a standard action's
+  throw: (state, c) => {
+    const throwable = getThrowables(state, c).filter((item) => canThrowItem(c, item))
     const reason = !isPlaced(state, c) ? 'not on the board'
-      : throwable.length === 0 ? 'nothing small enough to throw'
-      : afford(c, cost)
-    return [option({ kind: 'throwItem' }, cost, reason)]
+      : throwable.length === 0 ? 'nothing it can throw'
+      : throwable.some((item) => canAfford(c, getThrowCost(c, item.id))) ? null : 'cannot afford'
+    return [option({ kind: 'throw' }, null, reason)]
   },
   // combat.tex "Rest"
   rest: (state, c) => {

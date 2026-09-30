@@ -1,7 +1,7 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
 import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
-import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction, WeaponAction } from '../types'
+import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction } from '../types'
 import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
@@ -10,7 +10,7 @@ import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { getAttackKind, hasProperty } from '../../weaponProperties'
+import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
 import { isGuardingShot, isHighGround } from './board'
 import { getBalanceDL } from './move'
 import { getStepDelta, isHookedRunner } from './waypoint'
@@ -34,24 +34,15 @@ import { getShotLead } from './coordinated'
 // ---------------------------------------------------------------------------
 // Weapon rows named by an action
 
-// gear.tex "Explosion": a row that "resolves like an explosion" — it has
-// the property. Whether it has anything to go off with is the charge's.
-function explodes(atk: WeaponAttack): boolean {
-  return hasProperty(atk.properties, 'explosion')
-}
-
-// The kind of weapon row each action is made with: a strike a melee row
+// The kind of weapon row each attack is made with: a strike a melee row
 // (combat.tex "Strike"), a shot a shooting or a throwing one (combat.tex
-// "Accuracy": "a throw or shot directed at a target"), an
-// explosion any ranged row that explodes (combat.tex "Explosions": "If the
-// explosion comes from a projectile") — and a row that explodes is fired as
-// nothing else.
-function rowFits(atk: WeaponAttack, kind: WeaponAction['kind']): boolean {
+// "Accuracy": "a throw or shot directed at a target") — but not one that
+// explodes, which is thrown at ground (rules/throw.ts).
+function rowFits(atk: WeaponAttack, kind: AttackAction['kind']): boolean {
   const rowKind: AttackKind = getAttackKind(atk.range)
   switch (kind) {
     case 'strike': return rowKind === 'melee'
     case 'shoot': return rowKind !== 'melee' && !explodes(atk)
-    case 'explosion': return rowKind !== 'melee' && explodes(atk)
   }
 }
 
@@ -61,7 +52,7 @@ function rowFits(atk: WeaponAttack, kind: WeaponAction['kind']): boolean {
 // anything to load it with (gear.tex "Quiver").
 type RowState = 'open' | 'unfocused' | 'unloaded' | 'closed'
 
-function getRowState(c: Character, row: WeaponRow, kind: WeaponAction['kind']): RowState {
+function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind']): RowState {
   if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
   if (needsFocus(row.atk, c)) return 'unfocused'
   return isRowLoadable(c, row) ? 'open' : 'unloaded'
@@ -70,7 +61,7 @@ function getRowState(c: Character, row: WeaponRow, kind: WeaponAction['kind']): 
 // The variation an attack declared, priced against the attacker as they
 // stand; null while it names no row of the attack's kind the attacker can
 // fire.
-export function getAttackVariant(c: Character, action: WeaponAction): AttackVariant | null {
+export function getAttackVariant(c: Character, action: AttackAction): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   if (!row || getRowState(c, row, action.kind) !== 'open') return null
   return findRowVariant(c, row, action.variant)
@@ -148,7 +139,7 @@ export type AttackOption = {
   reach: number | null
 }
 
-export function getAttackOptions(c: Character, kind: WeaponAction['kind']): AttackOption[] {
+export function getAttackOptions(c: Character, kind: AttackAction['kind']): AttackOption[] {
   return getWeaponRows(c).flatMap((row) => {
     if (getRowState(c, row, kind) !== 'open') return []
     return getRowVariants(c, row).map((v) => ({
@@ -175,12 +166,12 @@ export function hasShootingRow(c: Character): boolean {
 
 // Whether the character holds a row of the kind that only the focus surge
 // is keeping closed.
-export function hasUnfocusedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
+export function hasUnfocusedRow(c: CampaignCharacter, kind: AttackAction['kind']): boolean {
   return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unfocused')
 }
 
 // Whether the character holds a row of the kind with nothing to load it.
-export function hasUnloadedRow(c: CampaignCharacter, kind: WeaponAction['kind']): boolean {
+export function hasUnloadedRow(c: CampaignCharacter, kind: AttackAction['kind']): boolean {
   return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unloaded')
 }
 
@@ -345,7 +336,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'release':
     case 'holdBack':
     case 'pickUp':
-    case 'throwItem':
+    case 'throw':
     case 'rest':
     case 'fleeFollowUp':
       return []
@@ -428,7 +419,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
     case 'release':
     case 'holdBack':
     case 'pickUp':
-    case 'throwItem':
+    case 'throw':
     case 'rest':
     case 'fleeFollowUp':
       return null

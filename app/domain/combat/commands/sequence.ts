@@ -1,11 +1,11 @@
 import { SPELLS, isSpellKey } from '../../spells'
-import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction } from '../types'
+import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
 import { getAttackOptions } from '../rules/attack'
 import { isInReach } from '../rules/board'
-import { getBlastOf, isSpray } from '../rules/explosion'
+import { getBlastOf, getExplosionPayload, goesOffOnImpact, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
@@ -111,7 +111,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // it (rules/openers.ts), in the order they were declared; the escapes a stun
 // opens, the tests a cast worked through a link puts its targets to, the
 // explosion a cast that hit with an area to it goes off as,
-// aimed and played out on its own (the caster's part is done), the
+// aimed and played out on its own (the caster's part is done), the one a
+// thrown object goes off as where it lands, the
 // knockdown a hook opens, the disarm an intercept opens; and on top, a
 // riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
@@ -131,6 +132,7 @@ export function getFollowUps(state: CombatState, root: RootAction, newId: () => 
     ...escapesOnStun(state, root, newId),
     ...openSpellTests(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
+    ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
     ...openHookKnockdown(state, root, newId),
     ...openInterceptDisarm(state, root, newId),
     ...openRiposte(state, root, newId),
@@ -146,6 +148,15 @@ function castExplosion(state: CombatState, root: CastAction, newId: () => string
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: detonates ? 'detonate' : 'cast', key: detonates ? '' : root.key, spawnedBy: root.id })
   if (detonates) return explosion
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
+}
+
+// spells.tex "Charged": a thrown object whose charge goes off on impact
+// goes off where it landed, committed as it opens — there is nothing to
+// aim — for everyone its area reaches to answer with their reflexes.
+function impactExplosion(state: CombatState, root: ThrowAction, newId: () => string): ExplosionAction[] {
+  if (!root.thrown || !root.to || !goesOffOnImpact(root.thrown)) return []
+  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'thrown', itemId: root.thrown.id, center: root.to, spawnedBy: root.id, step: 'react' })
+  return getExplosionPayload(state, explosion) ? [explosion] : []
 }
 
 // spells.tex "Telepathic Link": a test for each target of a cast worked

@@ -34,7 +34,7 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
-  if (root.kind === 'throwItem') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
+  if (root.kind === 'throw') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
   if (root.kind === 'spellTest') return spellTestNotes(root, named)
   const facts = getGrappleFacts(root)
   if (!facts) return []

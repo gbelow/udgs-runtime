@@ -7,6 +7,13 @@ export function hasProperty(properties: readonly WeaponProperty[], property: Wea
 }
 
 // The heavy degrees an attack offers, or null when it has no heavy property.
+// gear.tex "Explosion": a row that "resolves like an explosion" — it has
+// the property. Whether it has anything to go off with is its payload's or
+// the charge's.
+export function explodes(atk: Pick<WeaponAttack, 'properties'>): boolean {
+  return hasProperty(atk.properties, 'explosion')
+}
+
 export function getHeavyRange(atk: Pick<WeaponAttack, 'heavy'>): HeavyRange | null {
   return atk.heavy ?? null
 }
