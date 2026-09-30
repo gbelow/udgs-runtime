@@ -5,7 +5,7 @@ import { getAction } from './log'
 import { getCastRange, getSelfEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canCastSpell, canRestWhileCasting, getAmplifyBounds, getCastSize, getCastingDL, getMissingGear, getSpellSkill, resolveDL } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastSize, getCastingDL, getMissingGear, getSpellSkill, resolveDL } from '../../character/rules/spells'
 import { getLinkSpell, getLinkedTargets, getSustainingRequirements, holdsSustaining, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -14,6 +14,7 @@ import { Term } from '../../character/rules/terms'
 import { getDistanceBetween, hasLineOfSight } from './board'
 import { resolveTest, resisted } from './test'
 import { isAreaEffect } from './explosion'
+import { isSuffocating } from './hazard'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -165,7 +166,7 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => {
     const times = root.improved[name] ?? 0
     const open = name === 'amplify' ? times < amplify.max
-      : name === 'effortless' ? times === 0 && canRestWhileCasting(caster, getCastSpentAP(root))
+      : name === 'effortless' ? times === 0 && !isSuffocating(state, caster) && canAffordRestWhileCasting(caster, getCastSpentAP(root))
       : true
     return {
       name,

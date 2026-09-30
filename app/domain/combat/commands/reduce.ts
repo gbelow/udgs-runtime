@@ -25,7 +25,7 @@ import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
-import { getHolderOf } from '../rules/hazard'
+import { filterLayers, getHolderOf, isSupersededBy } from '../rules/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -250,11 +250,12 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
     // combat.tex "Push and drag": everyone moved where the block left them
     if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board
     // combat.tex "Gas", "Fire": what the explosion leaves on the ground, by
-    // zone, kept by its caster when it is a sustained spell's
+    // zone, kept by its caster when it is a sustained spell's, in place of
+    // what their last cast of it left
     if (action.kind === 'blast') {
       const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
-      const heldBy = getHolderOf(action.key, opener?.kind === 'explosion' && opener.source === 'cast', action.actorId)
-      const terrain = { ...board.terrain }
+      const heldBy = getHolderOf(action, opener)
+      const terrain = heldBy ? filterLayers(board.terrain, (l) => !isSupersededBy(l, heldBy)) : { ...board.terrain }
       for (const { cell, hazard } of action.paint) {
         const key = coordKey(cell)
         const was = terrain[key] ?? TerrainCellSchema.parse({})

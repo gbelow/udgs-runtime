@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { fetchBoard, publishBoard } from "../actions";
 import { importBoard } from "../domain/combat/commands/board";
+import { getLiveBoard } from "../domain/combat/rules/hazard";
 import { isSnapshot, toSnapshot } from "../vtt/snapshot";
 import { useCombatStore } from "../stores/useCombatStore";
 
@@ -18,7 +19,8 @@ export function useVttLink() {
 
   const snapshot = () => {
     const state = useCombatStore.getState();
-    return state.board ? toSnapshot(state, state.board) : null;
+    const board = getLiveBoard(state);
+    return board ? toSnapshot(state, board) : null;
   };
 
   const push = async () => {

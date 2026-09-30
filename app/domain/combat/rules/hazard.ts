@@ -1,7 +1,8 @@
-import type { Visibility } from '../../types'
-import type { CombatState, Coord, Hazard, HazardLayer, MoveAction } from '../types'
+import type { AfflictionKey, CampaignCharacter, Visibility } from '../../types'
+import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isSpellActive } from '../../character/rules/effects'
+import { hasAffliction } from '../../character/rules/afflictions'
 import { coordKey } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { getMoveOrigin, getMoveWaypoint } from './waypoint'
@@ -37,8 +38,29 @@ export function isLayerLive(state: CombatState, layer: HazardLayer): boolean {
 
 // Whether what a blast leaves is kept by its caster: a sustained spell cast
 // (spells.tex "Sustained Spells"), as opposed to a charge or a thrown row.
-export function getHolderOf(key: string, cast: boolean, casterId: string): HazardLayer['heldBy'] {
-  return cast && isSpellKey(key) && SPELLS[key].type === 'sustained' ? { id: casterId, key } : null
+export function getHolderOf(blast: BlastAction, opener: Action | null): HazardLayer['heldBy'] {
+  const cast = opener?.kind === 'explosion' && opener.source === 'cast'
+  return cast && isSpellKey(blast.key) && SPELLS[blast.key].type === 'sustained' ? { id: blast.actorId, key: blast.key, explosionId: opener.id } : null
+}
+
+// Whether a layer was left by an earlier cast of the same held spell than
+// `heldBy`'s: a caster holds one of each spell, so a new cast replaces
+// what the last one left, and a spell let go and cast again does not bring
+// the old one back.
+export function isSupersededBy(layer: HazardLayer, heldBy: NonNullable<HazardLayer['heldBy']>): boolean {
+  return !!layer.heldBy && layer.heldBy.id === heldBy.id && layer.heldBy.key === heldBy.key && layer.heldBy.explosionId !== heldBy.explosionId
+}
+
+// The terrain with only the layers `keep` says stay; a cell that loses none
+// is the same cell.
+export function filterLayers(terrain: Board['terrain'], keep: (layer: HazardLayer) => boolean): Board['terrain'] {
+  return Object.fromEntries(Object.entries(terrain).map(([key, cell]) => [key, cell.layers.every(keep) ? cell : { ...cell, layers: cell.layers.filter(keep) }]))
+}
+
+// The board with only the layers still there, for whatever reads it without
+// the fight to tell which are: a VTT, a clipboard.
+export function getLiveBoard(state: CombatState): Board | null {
+  return state.board ? { ...state.board, terrain: filterLayers(state.board.terrain, (l) => isLayerLive(state, l)) } : null
 }
 
 // What one cell does to whoever stands in it.
@@ -58,6 +80,19 @@ export function getHazardAt(state: CombatState, cells: Coord[]): Hazard {
 export function getHazardOf(state: CombatState, id: string): Hazard {
   const footprint = getPlacedFootprint(state, id)
   return footprint ? getHazardAt(state, footprint) : NO_HAZARD
+}
+
+// What the fight puts on the character on top of what they carry: suffocation
+// while their footprint is inside a suffocating gas (combat.tex "Gas":
+// "anyone that is inside a suffocating gas is suffocating by default").
+export function getSituationalAfflictions(state: CombatState, id: string): AfflictionKey[] {
+  return getHazardOf(state, id).suffocating ? ['suffocating'] : []
+}
+
+// combat.tex "Suffocation": cannot breathe — by the gas they stand in, or by
+// what the sheet says — so "cannot Rest".
+export function isSuffocating(state: CombatState, c: CampaignCharacter): boolean {
+  return getHazardOf(state, c.id).suffocating || hasAffliction(c, 'suffocating')
 }
 
 // The footprints a move touches on its way, besides where it ends: where it

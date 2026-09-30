@@ -3,7 +3,13 @@ import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows
 import { getAfflictions } from "../domain/character/rules/afflictions";
 import { AfflictionKey, Character } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
+import { getSituationalAfflictions } from "../domain/combat/rules/hazard";
+import type { CombatState } from "../domain/combat/types";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+
+function situational(c: Character, fight: CombatState | null): AfflictionKey[] {
+  return fight ? getSituationalAfflictions(fight, c.id) : [];
+}
 
 export function useAfflictionLens() {
   const update = useActiveCharacterUpdate();
@@ -26,16 +32,15 @@ export function useAfflictionLens() {
   return [value, setValue] as const;
 }
 
-// The whole affliction board: every key the UI can offer, with whether it is
-// hand-settable and whether it is currently on. `controlable` is fixed per
-// affliction, so only the active flags need to reach the digest.
+// The whole affliction board: every key the UI can offer, with whether a
+// click can change it and whether it is currently on.
 export function useAfflictionRows(): { rows: AfflictionRow[]; setAffliction: (a: AfflictionKey) => void } {
   const update = useActiveCharacterUpdate();
 
   const rows =
     useActiveCharacterDerived(
-      (c: Character) => getAfflictionRows(c),
-      (list) => list.map((r) => (r.active ? '1' : '0')).join(''),
+      (c, fight) => getAfflictionRows(c, situational(c, fight)),
+      (list) => list.map((r) => (r.active ? '1' : '0') + (r.controlable ? '1' : '0')).join(''),
     ) ?? [];
 
   const setAffliction = (affliction: AfflictionKey) => {
@@ -46,16 +51,16 @@ export function useAfflictionRows(): { rows: AfflictionRow[]; setAffliction: (a:
 }
 
 // The board sectioned by category with ladders folded into one entry each.
-// Sections are fixed by the table, so only which rung each entry shows, and
-// whether it is lit, need to reach the digest — a one-rung ladder keeps the
-// same label on and off.
+// Sections are fixed by the table, so only which rung each entry shows,
+// whether it is lit and whether it can be clicked need to reach the digest —
+// a one-rung ladder keeps the same label on and off.
 export function useAfflictionBoard(): { sections: AfflictionSection[]; setAffliction: (a: AfflictionKey) => void } {
   const update = useActiveCharacterUpdate();
 
   const sections =
     useActiveCharacterDerived(
-      (c: Character) => getAfflictionBoard(c),
-      (list) => list.map((s) => s.entries.map((e) => (e.active ? '+' : '-') + e.label).join(',')).join('|'),
+      (c, fight) => getAfflictionBoard(c, situational(c, fight)),
+      (list) => list.map((s) => s.entries.map((e) => (e.active ? '+' : '-') + (e.controlable ? '' : '!') + e.label).join(',')).join('|'),
     ) ?? [];
 
   const setAffliction = (affliction: AfflictionKey) => {

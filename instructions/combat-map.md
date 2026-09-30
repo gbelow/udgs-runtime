@@ -257,10 +257,12 @@ resolveAction ─────────► land(top)
 - `rules/hazard.ts`, `commands/hazard.ts` — fire and gas left on the ground. A blast paints
   a `HazardLayer` onto each cell it covers (`TerrainCell.layers`). The layer holds the fire
   its own burn deals in that zone, whether the gas suffocates, and the visibility it leaves.
-  A layer from a sustained spell names its holder and is pruned once they stop holding the
-  spell. A footprint takes the worst of its cells (`getHazardAt`). `settleHazards`, run
-  after every landing, board edit and character edit, prunes the layers and keeps
-  `suffocating` in line with where each character stands. `touchFireInTurn` raises the
+  A layer from a sustained spell names its holder and the explosion that cast it; it is
+  read as gone while they do not hold the spell (`isLayerLive`), and a new cast of the
+  spell paints over it (`isSupersededBy`). What leaves the fight takes only the live layers
+  (`getLiveBoard`). A footprint takes the worst of its cells (`getHazardAt`). Suffocation
+  from gas is never stored: `isSuffocating` and `getSituationalAfflictions` read it off
+  where the character stands, so no command has to settle it. `touchFireInTurn` raises the
   turn holder's `scorch` to the worst fire they stand in or walk through (a jump touches
   only where it lands). `endTurn` deals the scorch as burning damage, and
   `nextRound` burns the counter with the fire each character stands in added, as one
@@ -313,7 +315,7 @@ app/domain/combat/
 │   ├── floor.ts        dropToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: upkeep, gas, burning, bleed, AP reset
-│   ├── hazard.ts       settleHazards, touchFireInTurn
+│   ├── hazard.ts       touchFireInTurn
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── resetCombat.ts
 │

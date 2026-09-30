@@ -6,8 +6,7 @@ import { suffocate, bleed } from '../../character/commands/bleed'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
 import { isDead } from '../../character/rules/afflictions'
 import type { CombatState } from '../types'
-import { getHazardOf } from '../rules/hazard'
-import { settleHazards } from './hazard'
+import { getHazardOf, isSuffocating } from '../rules/hazard'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -26,14 +25,14 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
   if (isDead(c)) return c
   const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(c)))
-  const due = bleed(1)(suffocate(expireUsedAbilities(burnt)))
+  const spent = expireUsedAbilities(burnt)
+  const due = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
   return resetAP({ ...due, usedSurge: null })
 }
 
 // combat.tex "Environmental and ongoing effects": "applied at the beginning
 // of the round", to whoever stands in them as the ground is now.
 export function nextRound(state: CombatState): CombatState {
-  const settled = settleHazards(state)
-  const characters = Object.fromEntries(Object.entries(settled.characters).map(([id, c]) => [id, endRound(settled, c)]))
-  return { ...settled, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null }
+  const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c)]))
+  return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null }
 }

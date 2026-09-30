@@ -372,7 +372,8 @@ function AfflictionsPannel(){
               // A ladder is one button showing only the rung the character is
               // on; a click steps it up and wraps to off from the top.
               // Non-controlable entries are derived from hunger, thirst and
-              // exhaustion — they still light up, but they aren't hand-settable.
+              // exhaustion, or held on by a wound, a curse or the ground —
+              // they still light up, but a click cannot switch them off.
               section.entries.map((entry) => (
                 <Button key={entry.name} size='xs' disabled={!entry.controlable} title={entry.name}
                   variant={entry.active ? 'bad' : 'default'} className={`text-left ${entry.active ? 'bg-bad/15' : ''}`}

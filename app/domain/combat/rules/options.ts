@@ -25,7 +25,8 @@ import { isJoinInRange } from './coordinated'
 import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
-import { canAffordRest, mayRest } from '../../character/rules/rest'
+import { canAffordRest } from '../../character/rules/rest'
+import { isSuffocating } from './hazard'
 
 // What can be declared: every action and reaction open to a character right
 // now, each available or closed with the reason, so a command can refuse
@@ -283,9 +284,9 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     return [option({ kind: 'throwItem' }, cost, reason)]
   },
   // combat.tex "Rest"
-  rest: (_state, c) => {
+  rest: (state, c) => {
     const cost = getActionCost(c, 'rest')
-    return [option({ kind: 'rest' }, cost, !mayRest(c) ? 'cannot breathe' : canAffordRest(c) ? null : 'cannot afford')]
+    return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : canAffordRest(c) ? null : 'cannot afford')]
   },
 }
 

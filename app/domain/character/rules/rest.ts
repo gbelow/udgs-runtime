@@ -1,12 +1,6 @@
-import type { CampaignCharacter, Character } from '../../types'
+import type { CampaignCharacter } from '../../types'
 import { ROUND_AP } from '../../tables'
 import { getActionCost } from './actionCosts'
-import { hasAffliction } from './afflictions'
-
-// combat.tex "Suffocation": a character who cannot breathe "cannot Rest".
-export function mayRest(c: Character): boolean {
-  return !hasAffliction(c, 'suffocating')
-}
 
 // combat.tex "Rest": resting "can make AP negative, as long as it starts
 // next round positive" — and the round starts at ROUND_AP less what is owed

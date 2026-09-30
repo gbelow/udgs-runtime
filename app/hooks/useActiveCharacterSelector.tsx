@@ -1,4 +1,5 @@
 import { CampaignCharacter, Character } from "../domain/types";
+import type { CombatState } from "../domain/combat/types";
 import { GameTabs, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -18,20 +19,21 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // render. `sel` therefore runs exactly once per render, against exactly one
 // character, which is what lets a caller pass a useShallow-wrapped selector for
 // non-primitive results: a single wrapper holds one memo cache, and only one
-// store ever drives it.
+// store ever drives it. `sel` is handed the fight the character is in too —
+// null on the edit tab, where there is none.
 export function useActiveCharacterSelector<T>(
-  sel: (c: Character) => T,
+  sel: (c: Character, fight: CombatState | null) => T,
 ): T | null {
   const tab = useAppStore((s) => s.selectedGameTab);
   const editVal = useCharacterStore((s) =>
-    tab === "edit" ? sel(s.character) : null,
+    tab === "edit" ? sel(s.character, null) : null,
   );
   const combatVal = useCombatStore((s) => {
     if (tab === "edit") return null;
     const id = s.activeCharacterId;
     if (!id) return null;
     const c = s.characters[id];
-    return c ? sel(c) : null;
+    return c ? sel(c, s) : null;
   });
   return tab === "edit" ? editVal : combatVal;
 }
@@ -76,11 +78,11 @@ export function useActiveCharacterUpdate() {
 // point — an input list has to be kept in step with the derivation by hand, and
 // silently goes stale the day the derivation grows a dependency.
 export function useActiveCharacterDerived<T>(
-  compute: (c: Character) => T,
+  compute: (c: Character, fight: CombatState | null) => T,
   digest: (value: T) => string,
 ): T | null {
   const tab = useAppStore((s) => s.selectedGameTab);
-  useActiveCharacterSelector((c) => digest(compute(c)));
+  useActiveCharacterSelector((c, fight) => digest(compute(c, fight)));
   const c = readActiveCharacter(tab);
-  return c ? compute(c) : null;
+  return c ? compute(c, tab === "edit" ? null : useCombatStore.getState()) : null;
 }

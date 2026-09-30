@@ -9,7 +9,6 @@ import { getSize } from './misc'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
 import { getActionCost, type ActionCost } from './actionCosts'
-import { mayRest } from './rest'
 import { getCarriedItems, getItemScale, isGear } from '../../item/rules/items'
 import { isCampaignCharacter } from '../../utils'
 import { getLinkDL, holdsSustaining, mayCastWhileConcentrating } from './concentration'
@@ -231,8 +230,8 @@ export function getEffortlessCost(c: Character, spentAP: number): ActionCost {
   return { AP: Math.max(0, getActionCost(c, 'rest').AP - spentAP), STA: 0 }
 }
 
-// Whether the caster can rest while casting: not while unable to breathe
-// (combat.tex "Suffocation": "cannot Rest"), and never into negative AP.
-export function canRestWhileCasting(c: CampaignCharacter, spentAP: number): boolean {
-  return mayRest(c) && canAfford(c, getEffortlessCost(c, spentAP))
+// Whether the caster can pay for resting while casting: never into negative
+// AP. Whether they can breathe to rest is the fight's to say.
+export function canAffordRestWhileCasting(c: CampaignCharacter, spentAP: number): boolean {
+  return canAfford(c, getEffortlessCost(c, spentAP))
 }

@@ -74,11 +74,12 @@ export const HazardSchema = z.object({
 export type Hazard = z.infer<typeof HazardSchema>
 
 // A hazard an action left on a cell. One a sustained spell keeps names the
-// caster and the spell in `heldBy`, and goes when they stop holding it (spells.tex "Sustained Spells"); the rest last until they
+// caster, the spell and the explosion that cast it in `heldBy`, and goes when
+// they stop holding it (spells.tex "Sustained Spells"); the rest last until they
 // are put out or the fight ends (combat.tex "Fire": "A burning surface lasts
 // at minimum until the end of combat, or until extinguished").
 export const HazardLayerSchema = HazardSchema.extend({
-  heldBy: z.object({ id: str.default(''), key: str.default('') }).strip().nullable().default(null),
+  heldBy: z.object({ id: str.default(''), key: str.default(''), explosionId: str.default('') }).strip().nullable().default(null),
 }).strip()
 export type HazardLayer = z.infer<typeof HazardLayerSchema>
 

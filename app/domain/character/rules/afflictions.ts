@@ -12,13 +12,26 @@ import { getCurseAfflictions } from './curses'
 // effects as exclusive bands, so a resource contributes exactly one rung of its
 // ladder and `worstOfEachGroup` keeps a hand-set rung from stacking on top.
 export function getAfflictions(character: Character): AfflictionKey[] {
-  if (!isCampaignCharacter(character)) return []
+  return combineAfflictions(getStoredAfflictions(character), getForcedAfflictions(character))
+}
 
-  // Stored afflictions come through a permissive ingest (`z.array(z.any())`),
-  // so a character saved before a rename can still carry a retired key.
-  const afflictions = new Set<AfflictionKey>(
-    character.afflictions.filter((key): key is AfflictionKey => key in AFFLICTIONS)
-  )
+// What the hand, or a hit, put on the character. Stored afflictions come
+// through a permissive ingest (`z.array(z.any())`), so a character saved
+// before a rename can still carry a retired key.
+export function getStoredAfflictions(character: Character): AfflictionKey[] {
+  if (!isCampaignCharacter(character)) return []
+  return character.afflictions.filter((key): key is AfflictionKey => key in AFFLICTIONS)
+}
+
+// One set out of what was stored and what is forced, one rung per ladder.
+export function combineAfflictions(stored: readonly AfflictionKey[], forced: Iterable<AfflictionKey>): AfflictionKey[] {
+  return worstOfEachGroup(dropSupersededGroups([...new Set([...stored, ...forced])]))
+}
+
+// What the character's own state keeps on them, whatever the hand set.
+export function getForcedAfflictions(character: Character): AfflictionKey[] {
+  if (!isCampaignCharacter(character)) return []
+  const afflictions = new Set<AfflictionKey>()
   const rss = character.resources
 
   // survival.tex "Hunger": = 30 malnourished, 15-29 weakened.
@@ -52,7 +65,7 @@ export function getAfflictions(character: Character): AfflictionKey[] {
   for (const key of getStanceAfflictions(character)) afflictions.add(key)
   for (const key of getCurseAfflictions(character)) afflictions.add(key)
 
-  return worstOfEachGroup(dropSupersededGroups([...afflictions]))
+  return [...afflictions]
 }
 
 export function hasAffliction(c: Character, key: AfflictionKey): boolean {

@@ -115,7 +115,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   linkTarget: (c) => characterCommands.linkTarget('telepathic-link', 'b')(linking(c)),
   unlinkTarget: (c) => characterCommands.unlinkTarget('telepathic-link', 'b')(linking(c)),
   loseConcentration: (c) => characterCommands.loseConcentration(linking(c)),
-  suffocate: (c) => characterCommands.suffocate({ ...c, afflictions: ['suffocating'] }),
+  suffocate: characterCommands.suffocate,
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),
   applyEffects: characterCommands.applyEffects([{ name: '', trigger: 'instant', type: 'cost', effect: { AP: 1, STA: 1, exhaustion: 0, IL: 0, ET: 0 } }]),
   resolvePending: characterCommands.resolvePending(0, () => 3),
