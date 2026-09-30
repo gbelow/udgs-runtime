@@ -6,6 +6,7 @@ import {
   amendReaction,
   boostPush as boostPushCommand,
   cancelAction,
+  chooseSpell,
   commitAction,
   declareAction,
   declareReaction,
@@ -66,8 +67,9 @@ export function useCombatActions() {
   const grazeSave = () => update(saveGraze());
   const restMove = () => update(moveWhileResting(newId));
   const extend = (delta: 1 | -1) => update(stepExtend(delta));
+  const cast = (key: string, quicken: boolean) => update(chooseSpell(key, quicken));
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
 }

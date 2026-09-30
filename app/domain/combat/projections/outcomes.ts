@@ -11,6 +11,7 @@ import { getFightName } from '../rules/fighters'
 import { getAction } from '../rules/log'
 import { isSpellTestBeaten } from '../rules/cast'
 import { getLinkSpell } from '../../character/rules/concentration'
+import { getReadyItems } from '../../item/rules/containers'
 
 // What the settled or resolved action's damage does to each character it
 // was delivered to, as they stand.
@@ -122,7 +123,7 @@ function lossLabel(effect: Effect): string {
 function getChargeNote(state: CombatState, root: Action): { target: string; text: string }[] {
   if (root.kind !== 'cast' || root.roll?.degree !== 'hit' || !isSpellKey(root.key) || SPELLS[root.key].type !== 'charged') return []
   const caster = state.characters[root.actorId]
-  const item = caster?.held.find((i) => i.charge?.key === root.key)
+  const item = caster ? getReadyItems(caster).find((i) => i.charge?.key === root.key) : undefined
   return item ? [{ target: getFightName(state, caster.id), text: `charged into ${item.name}` }] : []
 }
 

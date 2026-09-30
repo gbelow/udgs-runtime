@@ -184,6 +184,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   saveGraze: (s) => combatCommands.saveGraze()(deepFreeze(grazedCast(s))),
   moveWhileResting: (s) => combatCommands.moveWhileResting(newId)(deepFreeze(paidRest(s))),
   stepExtend: (s) => combatCommands.stepExtend(1)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))),
+  chooseSpell: (s) => combatCommands.chooseSpell('sleep', true)(deepFreeze(combatCommands.declareAction('a', { kind: 'cast' }, newId)(deepFreeze(cleared(s))))),
   createBoard: (s) => combatCommands.createBoard(4)(deepFreeze({ ...s, board: null })),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),

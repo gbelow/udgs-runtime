@@ -1,4 +1,4 @@
-import { requirementsLabel } from './requirements'
+import { requirementsLabel } from '../rules/requirements'
 import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
@@ -19,6 +19,7 @@ export type SpellCatalogRow = {
   DL: number | null
   costText: string
   requirements: string
+  castRequirements: string
   description: string
   enhance: string
   learned: boolean
@@ -37,6 +38,7 @@ export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
       DL: spell.DL,
       costText: spell.costText,
       requirements: requirementsLabel(spell.requirements),
+      castRequirements: requirementsLabel(spell.castRequirements),
       description: spell.description,
       enhance: spell.enhance,
       learned: key in c.spells,

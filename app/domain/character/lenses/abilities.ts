@@ -1,4 +1,4 @@
-import { requirementsLabel } from './requirements'
+import { requirementsLabel } from '../rules/requirements'
 import type { Character, Cost } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'

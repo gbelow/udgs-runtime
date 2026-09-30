@@ -7,7 +7,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
-import { GRAZE_SAVE_COST, ImprovementOption, SpellOption, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
+import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -161,6 +161,8 @@ export type OpenActionView = {
   quicken: boolean
   // spells.tex "Extend Spell": the extensions declared and the DL they add
   extend: { times: number; DL: number } | null
+  // the gear the cast is made with: the one picked, or else the first at hand
+  castItemId: string
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
@@ -229,6 +231,8 @@ export type ActionPanelView = {
   // while a shot is declared: the arrows or bolts its row can be loaded with
   ammo: AmmoOption[]
   spells: SpellOptionView[]
+  // the gear at hand the declared cast can be made with, when there is a choice
+  gear: CastGearOption[]
   charges: ChargeView[]
   locations: LocationOption[]
   targets: { id: string; name: string }[]
@@ -274,7 +278,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -294,6 +298,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const attack = isAttackAction(open) ? open : null
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
+  const gear = cast && actor ? getCastGear(actor, cast) : null
   const blast = open.kind === 'blast' ? open : null
   const laid = explosion ? getBlastOf(state, explosion) : blast
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
@@ -329,6 +334,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
       quicken: cast?.quicken ?? false,
       extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
+      castItemId: gear?.itemId ?? '',
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -367,6 +373,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
+    gear: gear && step === 'declare' ? gear.options : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
       ? getChargeOptions(state, explosion).map((o) => ({
           ...o,

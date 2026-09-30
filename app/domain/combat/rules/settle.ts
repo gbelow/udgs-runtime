@@ -1,6 +1,6 @@
 import type { CombatState, RootAction } from '../types'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
-import { getThrownItem, getReachableFloor } from './floor'
+import { getThrownItem, getReachableFloor, takeOne } from './floor'
 import { getThrownUnit } from './throw'
 import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts } from './drag'
@@ -32,7 +32,10 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest': return { ...open, step: 'done' }
-    case 'pickUp': return { ...open, step: 'done', picked: getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item ?? null }
+    case 'pickUp': {
+      const lying = getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item
+      return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }
+    }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }

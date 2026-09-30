@@ -11,7 +11,8 @@ import { explodes } from '../../weaponProperties'
 import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from '../geometry'
 import { getAimableCells, getPlacedFootprint } from './board'
 import { getItemWeapon } from '../../item/rules/items'
-import { findHeldItem } from './fighters'
+import { getReadyItems } from '../../item/rules/containers'
+import { findReadyObject } from './fighters'
 import { findFloorItem } from './floor'
 import { getAction } from './log'
 
@@ -68,16 +69,17 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
     }
     if (!isSpellKey(action.key)) return []
     // spells.tex "Amplify Spell": at the size the cast that opened it was made at
-    const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
-    const size = getCastSize(producer, action.key, cast?.kind === 'cast' ? cast.improved.amplify ?? 0 : 0)
+    const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+    const cast = opener?.kind === 'cast' ? opener : null
+    const size = getCastSize(producer, action.key, cast?.improved.amplify ?? 0, cast?.itemId)
     return produceEffects(producer, SPELLS[action.key].effects, size).filter(isAreaEffect)
   })()
   return effects.length > 0 ? { effects, producer } : null
 }
 
-// The object a charge is in, held or lying on the floor.
+// The object a charge is in, at someone's hand or lying on the floor.
 export function findObject(state: CombatState, itemId: string): Item | null {
-  return findHeldItem(state, itemId)?.item ?? findFloorItem(state, itemId)?.item ?? null
+  return findReadyObject(state, itemId)?.item ?? findFloorItem(state, itemId)?.item ?? null
 }
 
 // What an object goes off with: its charge, or else what its exploding rows
@@ -108,8 +110,9 @@ export function isAreaEffect(e: SpellEffect): boolean {
 
 // Every charge in the fight a detonation can set off from where it lies:
 // one with an area to it and the detonate trigger, in the hands of someone
-// standing on the board, or lying on the floor — `holderId` null for the
-// latter. A detonation a cast opened (spells.tex "Detonate Explosive")
+// standing on the board or the detonator's own quick slots, or lying on the
+// floor — `holderId` null for the latter. What others carry in their slots
+// is not known to the detonator. A detonation a cast opened (spells.tex "Detonate Explosive")
 // reaches only those within the spell's range of the caster, as far as the
 // cast was extended ("Extend Spell").
 export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | null; cell: Coord }
@@ -122,7 +125,7 @@ function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['
 export function getChargeOptions(state: CombatState, action: ExplosionAction): ChargeOption[] {
   const range = getDetonationRange(state, action)
   const footprint = getPlacedFootprint(state, action.actorId)
-  const all = getAllCharges(state)
+  const all = getAllCharges(state, action.actorId)
   return range === null ? all : all.filter((o) => footprint !== null && setDistance([o.cell], footprint) <= range)
 }
 
@@ -135,11 +138,11 @@ function getDetonationRange(state: CombatState, action: ExplosionAction): number
   return detonate ? detonate.range * (1 + cast.extend) : null
 }
 
-function getAllCharges(state: CombatState): ChargeOption[] {
+function getAllCharges(state: CombatState, actorId: string): ChargeOption[] {
   const held = Object.values(state.characters).flatMap((holder) => {
     const cell = state.board?.placements[holder.id]?.cell
     if (!cell) return []
-    return holder.held.flatMap((item): ChargeOption[] => (hasChargedArea(item) ? [{ itemId: item.id, key: item.charge.key, holderId: holder.id, cell }] : []))
+    return (holder.id === actorId ? getReadyItems(holder) : holder.held).flatMap((item): ChargeOption[] => (hasChargedArea(item) ? [{ itemId: item.id, key: item.charge.key, holderId: holder.id, cell }] : []))
   })
   const onFloor = state.floor.flatMap((f): ChargeOption[] => (f.cell && hasChargedArea(f.item) ? [{ itemId: f.item.id, key: f.item.charge.key, holderId: null, cell: f.cell }] : []))
   return [...held, ...onFloor]
@@ -341,7 +344,7 @@ export function getExplosionCenters(state: CombatState, action: ExplosionAction)
 function getCentersOf(state: CombatState, action: ExplosionAction, payload: Payload | null): Coord[] {
   if (!state.board || !payload || isSpray(toBlast(action, payload))) return []
   if (action.source !== 'cast') {
-    const held = findHeldItem(state, action.itemId)
+    const held = findReadyObject(state, action.itemId)
     if (held) return getPlacedFootprint(state, held.holder.id) ?? []
     const floored = findFloorItem(state, action.itemId)
     return floored?.cell ? [floored.cell] : []

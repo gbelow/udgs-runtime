@@ -1,4 +1,4 @@
-import { Character, CharacterUpdater, Container, Item, SlotGroup, SlotKind } from '../../types'
+import { Character, Container, Item, SlotGroup, SlotKind } from '../../types'
 import { canFitItem, getContainer, stackInto } from '../rules/containers'
 
 export function duplicateItem(item: Item, overrides: Partial<Pick<Item, 'amount'>> = {}): Item {
@@ -7,7 +7,7 @@ export function duplicateItem(item: Item, overrides: Partial<Pick<Item, 'amount'
 
 // The character with the open container `key` changed: one they have on, or
 // a quiver slung on one of those.
-function withContainer(character: Character, key: string, change: (container: Container) => Container): Character {
+function withContainer<C extends Character>(character: C, key: string, change: (container: Container) => Container): C {
   const own = character.containers[key]
   if (own) return { ...character, containers: { ...character.containers, [key]: change(own) } }
   const sling = (container: Container): Container => ({
@@ -25,8 +25,8 @@ function withContainer(character: Character, key: string, change: (container: Co
 
 // gear.tex "Slot size and stacking": an identical stack already in the group
 // absorbs the item rather than taking a slot of its own.
-export function addItemToContainer(containerKey: string, slot: SlotKind, item: Item): CharacterUpdater {
-  return (character: Character) => {
+export function addItemToContainer(containerKey: string, slot: SlotKind, item: Item): <C extends Character>(character: C) => C {
+  return <C extends Character>(character: C): C => {
     const container = getContainer(character, containerKey)
     if (!container) {
       throw new Error(`Container "${containerKey}" not found`)
@@ -44,8 +44,8 @@ export function addItemToContainer(containerKey: string, slot: SlotKind, item: I
 // An item id is unique across the character, so the slot group it sits in
 // need not be named to take it out. With an `amount` only that much of the
 // stack leaves; the whole stack goes when it is omitted or not exceeded.
-export function removeItemFromContainer(containerKey: string, itemId: string, amount?: number): CharacterUpdater {
-  return (character: Character) => {
+export function removeItemFromContainer(containerKey: string, itemId: string, amount?: number): <C extends Character>(character: C) => C {
+  return <C extends Character>(character: C): C => {
     if (!getContainer(character, containerKey)) return character
 
     const without = (group: SlotGroup): SlotGroup => ({

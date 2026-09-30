@@ -88,9 +88,10 @@ export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item
 // gear.tex "Slot size and stacking": "only identical items can be stacked
 // together". Identity is everything a template says — `id` names a stack, not
 // an item, and `amount` is how big that stack is. Two containers are never
-// identical: what each carries is its own.
+// identical: what each carries is its own. Nor are two charged items: what a
+// charge holds was worked out for its caster, and can be charged over.
 export function isSameItem(a: Item, b: Item): boolean {
-  return !a.container && !b.container && a.type === b.type && a.refId === b.refId && a.name === b.name
+  return !a.container && !b.container && !a.charge && !b.charge && a.type === b.type && a.refId === b.refId && a.name === b.name
     && a.description === b.description && a.bulk === b.bulk
 }
 

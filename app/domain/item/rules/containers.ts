@@ -23,6 +23,24 @@ export function getContainer(c: Character, key: string): Container | undefined {
   return getOpenContainers(c)[key]
 }
 
+// What the character has at hand: what is in their hands and in the quick
+// slots of their open containers — where a spell's gear has to be to cast it.
+export function getReadyItems(c: Character): Item[] {
+  return [...c.held, ...Object.values(getOpenContainers(c)).flatMap((container) => container.slots.quick.items)]
+}
+
+// Where a ready item sits: in the hands, or the quick slots of the container
+// under that key.
+export function findReadyItem(c: Character, itemId: string): { item: Item; containerKey: string | null } | null {
+  const held = c.held.find((i) => i.id === itemId)
+  if (held) return { item: held, containerKey: null }
+  for (const [containerKey, container] of Object.entries(getOpenContainers(c))) {
+    const item = container.slots.quick.items.find((i) => i.id === itemId)
+    if (item) return { item, containerKey }
+  }
+  return null
+}
+
 // gear.tex "Containers": "A character can use only one backpack, one
 // bandolier and one belt at a time". Saddles and vehicles aren't limited.
 export const WORN_ONE_AT_A_TIME: ReadonlySet<ContainerKind> = new Set(['belt', 'bandolier', 'backpack'])

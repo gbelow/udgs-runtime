@@ -1,11 +1,11 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 import { canBeHeld, getDrawCost, getFreeHoldingHands, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
-import { canFitItem, getContainer } from '../rules/containers'
+import { canFitItem, findReadyItem, getContainer } from '../rules/containers'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
-import { getCastSize, getSpellFocus } from '../../character/rules/spells'
+import { getCastSize, getSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, produceEffects } from '../../character/rules/production'
 
@@ -50,10 +50,11 @@ function release<C extends Character>(c: C, itemId: string): C {
   }
 }
 
-// Takes a stack that is nowhere yet — stamped from the catalog — into the
-// hands. Nothing is charged: it did not come out of a slot.
+// Takes an item that is nowhere yet — stamped from the catalog — into the
+// hands. Nothing is charged: it did not come out of a slot. A hand holds one
+// of a stack, never the stack.
 export function holdItem(item: Item, hands: Grip = 1): HeldUpdater {
-  return <C extends Character>(c: C): C => grip(c, item, hands)
+  return <C extends Character>(c: C): C => grip(c, item.amount > 1 ? { ...item, amount: 1 } : item, hands)
 }
 
 // gear.tex "Small/One/Two hands": a held stack moves between one hand and two
@@ -136,14 +137,20 @@ export function dropItem(itemId: string): HeldUpdater {
 
 // spells.tex "Charged": "activates an object that stays charged" — the
 // object being the gear the spell is cast on (spells.tex "Requirements"),
-// held in the caster's own hand. Nothing in hand to take it, nothing
-// happens; what a hand already carries is charged over.
-export function chargeItem(key: string, improved: Improvements = {}): HeldUpdater {
+// at hand in the caster's hands or a quick slot. Nothing at hand to take
+// it, nothing happens; what an object already carries is charged over. One
+// of a stack in a quick slot is charged, and leaves the stack to take a
+// slot of its own.
+export function chargeItem(key: string, improved: Improvements = {}, itemId = ''): HeldUpdater {
   return <C extends Character>(c: C): C => {
-    const item = isSpellKey(key) ? getSpellFocus(c, key) : null
-    if (!item || !isSpellKey(key)) return c
-    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, getCastSize(c, key, improved.amplify ?? 0)) }
-    return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
+    if (!isSpellKey(key)) return c
+    const found = findReadyItem(c, getSpellGear(c, key, itemId)?.id ?? '')
+    if (!found) return c
+    const { item, containerKey } = found
+    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, getCastSize(c, key, improved.amplify ?? 0, item.id)) }
+    if (containerKey === null) return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
+    const unit = { ...duplicateItem(item, { amount: 1 }), charge }
+    return addItemToContainer(containerKey, 'quick', unit)(removeItemFromContainer(containerKey, item.id, 1)(c))
   }
 }
 
@@ -157,9 +164,12 @@ export function dischargeItem(itemId: string): HeldUpdater {
 // stack is gone — thrown, or gone off where it stood. The last one takes the
 // stack with it; there is no floor yet, so it lands nowhere. The charge went
 // with that unit (spells.tex "Charged": the spell activates one object), so
-// what is left of the stack carries none.
+// what is left of the stack carries none. A charge that goes off in a quick
+// slot takes its object with it the same way.
 export function consumeItem(itemId: string): HeldUpdater {
   return <C extends Character>(c: C): C => {
+    const found = findReadyItem(c, itemId)
+    if (found?.containerKey) return removeItemFromContainer(found.containerKey, itemId, 1)(c)
     const item = getHeldItem(c, itemId)
     if (!item) return c
     if (item.amount <= 1) return release(c, itemId)

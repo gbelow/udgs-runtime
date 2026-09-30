@@ -5,8 +5,9 @@ import { getAction } from './log'
 import { getCastRange, getSelfEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastSize, getCastingDL, getMissingGear, getSpellSkill, resolveDL } from '../../character/rules/spells'
-import { getLinkSpell, getLinkedTargets, getSustainingRequirements, holdsSustaining, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getSpellGearOptions, getSpellSkill, getUnmetCastLabel, pickSpellGear, resolveDL } from '../../character/rules/spells'
+import { getHeldItem } from '../../item/rules/hands'
+import { getLinkSpell, getLinkedTargets, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -55,12 +56,12 @@ export function isFailedCast(state: CombatState, root: CastAction): boolean {
 }
 
 export function isUnderAmplified(caster: CampaignCharacter, root: CastAction): boolean {
-  return isSpellKey(root.key) && (root.improved.amplify ?? 0) < getAmplifyBounds(caster, root.key).min
+  return isSpellKey(root.key) && (root.improved.amplify ?? 0) < getAmplifyBounds(caster, root.key, root.itemId).min
 }
 
 // The size the cast works at, its amplifications bought.
 export function getCastSizeOf(caster: CampaignCharacter, root: CastAction): number {
-  return isSpellKey(root.key) ? getCastSize(caster, root.key, root.improved.amplify ?? 0) : caster.size
+  return isSpellKey(root.key) ? getCastSize(caster, root.key, root.improved.amplify ?? 0, root.itemId) : caster.size
 }
 
 // The AP the cast has spent: its price, and the graze save's if bought
@@ -105,18 +106,19 @@ export type SpellOption = {
   reason: string | null
   // whether it aims at someone
   targeted: boolean
+  // what the table has to judge it is cast under, empty for none
+  conditions: string
 }
 
 // spells.tex "Requirements", "Casting spells": what stands between the
-// caster and the spell, the missing gear first — it is the one the caster
-// can do something about from here.
+// caster and the spell, what it is cast with first — the one the caster can
+// do something about from here.
 function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   const spell = SPELLS[key]
-  const missing = getMissingGear(c, key)
-  if (missing) return `needs ${missing}`
+  const unmet = getUnmetCastLabel(c, key)
+  if (unmet) return `needs ${unmet}`
   if (!canAfford(c, spell.cost)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
-  if (!holdsSustaining(c, key)) return `needs ${getSustainingRequirements(key).map((held) => SPELLS[held].name).join(' or ')} held`
   if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
   return canCastSpell(c, key, false) ? null : 'needs a focus surge'
 }
@@ -133,8 +135,24 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
       quickenable: canCastSpell(c, key, true),
       reason: reasonAgainst(c, key),
       targeted: isTargetedSpell(key),
+      conditions: getCastConditions(key),
     }
   })
+}
+
+// spells.tex "Requirements": the gear the cast is made with, and the gear
+// at hand it could be made with instead, what is in the hands first — the
+// choice only there is more than one.
+export type CastGearOption = { itemId: string; name: string; held: boolean }
+export type CastGear = { itemId: string; options: CastGearOption[] }
+
+export function getCastGear(c: CampaignCharacter, root: CastAction): CastGear {
+  if (!isSpellKey(root.key)) return { itemId: '', options: [] }
+  const items = getSpellGearOptions(c, root.key)
+  return {
+    itemId: pickSpellGear(items, root.itemId)?.id ?? '',
+    options: items.length > 1 ? items.map((i) => ({ itemId: i.id, name: i.name, held: !!getHeldItem(c, i.id) })) : [],
+  }
 }
 
 // spells.tex "Spell Improvements": what the cast's overflow can still buy,
@@ -162,7 +180,7 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
   const caster = state.characters[root.actorId]
   if (!caster || !root.roll || root.roll.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return []
   const remaining = getCastHOPRemaining(root)
-  const amplify = getAmplifyBounds(caster, root.key)
+  const amplify = getAmplifyBounds(caster, root.key, root.itemId)
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => {
     const times = root.improved[name] ?? 0
     const open = name === 'amplify' ? times < amplify.max

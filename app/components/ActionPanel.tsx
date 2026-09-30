@@ -27,7 +27,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, choose, boostPush } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -86,7 +86,18 @@ export function ActionPanel(){
       {view.spells.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>spell</SectionLabel>
-          {view.spells.map((s) => <SpellButton key={s.key} option={s} onCast={() => amend({ key: s.key, quicken: false })} onQuicken={() => amend({ key: s.key, quicken: true })} />)}
+          {view.spells.map((s) => <SpellButton key={s.key} option={s} onCast={() => cast(s.key, false)} onQuicken={() => cast(s.key, true)} />)}
+        </div>
+      ) : null}
+      {view.gear.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>with</SectionLabel>
+          {view.gear.map((g) => (
+            <Button key={g.itemId} size='xs' variant={g.itemId === open.castItemId ? 'primary' : 'default'} className={g.itemId === open.castItemId ? 'bg-accent/15' : ''}
+              onClick={() => amend({ itemId: g.itemId })}>
+              {g.name} <span className='text-muted'>{g.held ? 'in hand' : 'quick slot'}</span>
+            </Button>
+          ))}
         </div>
       ) : null}
       {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
@@ -372,6 +383,7 @@ function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, o
     <span className='inline-flex items-stretch'>
       <Button size='xs' className={option.quickenable ? 'rounded-r-none' : ''} disabled={!option.castable} title={option.reason ?? undefined} onClick={onCast}>
         {option.name} <span className='font-mono text-muted'>DL {option.DL ?? '?'}</span> <Cost cost={option.cost} />
+        {option.conditions ? <span className='text-muted'> · if {option.conditions}</span> : null}
       </Button>
       {option.quickenable ? <Button size='xs' className='rounded-l-none border-l-0' title={`quicken: DL ${option.quickenedDL ?? ''}, no surge`} onClick={onQuicken}>quicken</Button> : null}
     </span>

@@ -351,6 +351,9 @@ export const CastActionSchema = z.object({
   // spells.tex "Extend Spell": how many times the casting range is
   // extended, each +3 DL (EXTEND)
   extend: num.default(0),
+  // spells.tex "Requirements": the gear at hand the spell is cast with,
+  // and a charged spell charged into; empty picks the first at hand
+  itemId: str.default(''),
   // improvement -> times bought
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP

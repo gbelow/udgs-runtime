@@ -41,6 +41,7 @@
 - starting combat
 - require start turn to act
 - feint
+- analyse: identify items others carry (then detonate can reach charges in their quick slots)
 
 # movement
 - climbing

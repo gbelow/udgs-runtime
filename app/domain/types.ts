@@ -714,9 +714,11 @@ export type Talent = z.infer<typeof TalentSchema>
 // it can be learned. `name` is a catalog key for an ability or spell, the
 // book's word for a trainable, gear or condition; `level` is the minimum for
 // a trainable and the threshold an attribute is compared against with `op`.
-// `sustaining` names a spell the caster must be holding to cast this one.
+// `sustaining` names a spell the caster must be holding to cast this one,
+// `active` an ability that must be in effect: a toggle switched on, or a
+// passive one learned.
 export const RequirementSchema = z.object({
-  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition', 'sustaining']),
+  kind: z.enum(['ability', 'spell', 'gear', 'trainable', 'attribute', 'condition', 'sustaining', 'active']),
   name: str.default(''),
   level: num.default(0),
   op: z.enum(['>', '<', '>=', '<=']).default('>='),
@@ -880,11 +882,13 @@ export const SpellSchema = z.object({
   upkeep: CostSchema.nullable().default(null),
   costText: str.default(''), // the book's cost field verbatim, for materials and charges the domain does not track
   knowledge: z.array(SpellKnowledgeRequirementSchema).default([]),
-  // spells.tex "Requirements": what the spell cannot be had or cast without
-  // — gear the caster must have on them, the knowledge and the spells it is
-  // learned from. Every outer item is needed, any inner alternative
-  // satisfies it, as an ability's are.
+  // spells.tex "Requirements": what the spell cannot be learned without —
+  // the spells, abilities and training it is learned from — and what it
+  // cannot be cast without: the gear at hand, the spell held, the ability
+  // in effect, the condition met. Every outer item is needed, any inner
+  // alternative satisfies it, as an ability's are.
   requirements: z.array(z.array(RequirementSchema)).default([]),
+  castRequirements: z.array(z.array(RequirementSchema)).default([]),
   DL: num.nullable().default(null), // casting DL; null while the book leaves it undecided
   // a held spell that links its caster to its targets: what each link adds
   // to the DL of every spell the caster casts while holding it; null for a

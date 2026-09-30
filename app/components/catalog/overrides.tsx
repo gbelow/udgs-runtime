@@ -40,7 +40,7 @@ function suggesting(options: (parent: Record<string, unknown>) => readonly strin
 // free words.
 const requirementName = suggesting((parent) => {
   const kind = String(parent.kind ?? '')
-  return kind === 'ability' ? ABILITY_KEYS : kind === 'spell' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : []
+  return kind === 'ability' || kind === 'active' ? ABILITY_KEYS : kind === 'spell' || kind === 'sustaining' ? SPELL_KEYS : kind === 'gear' ? Object.keys(items) : []
 })
 
 // An item's refId resolves in the catalog its type names.
@@ -105,6 +105,7 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   spells: {
     'knowledge.name': suggesting(() => knowledges_list),
     'requirements.name': requirementName,
+    'castRequirements.name': requirementName,
     description: textarea,
     enhance: textarea,
     'outcomes.miss.text': textarea,

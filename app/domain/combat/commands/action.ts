@@ -242,6 +242,16 @@ export function resolveAction(newId: () => string): Updater {
   }
 }
 
+// The spell the cast being declared is of, on the focus surge or quickened
+// without it; the gear picked for another spell is not this one's.
+export function chooseSpell(key: string, quicken: boolean): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'define')
+    if (open?.kind !== 'cast') return state
+    return amendAction({ key, quicken, itemId: key === open.key ? open.itemId : '' })(state)
+  }
+}
+
 // spells.tex "Extend Spell": one extension more or fewer on the cast being
 // declared, never fewer than none.
 export function stepExtend(delta: 1 | -1): Updater {

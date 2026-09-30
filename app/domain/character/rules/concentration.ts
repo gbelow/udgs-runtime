@@ -31,14 +31,7 @@ export function getLinkDL(c: Character): number {
 // The spells a spell is cast through: what the caster must be holding to
 // cast it at all.
 export function getSustainingRequirements(key: SpellKey): SpellKey[] {
-  return SPELLS[key].requirements.flatMap((item) => item.filter((alt) => alt.kind === 'sustaining' && !alt.not).map((alt) => alt.name)).filter(isSpellKey)
-}
-
-export function holdsSustaining(c: Character, key: SpellKey): boolean {
-  return SPELLS[key].requirements
-    .map((item) => item.filter((alt) => alt.kind === 'sustaining'))
-    .filter((item) => item.length > 0)
-    .every((item) => item.some((alt) => isSpellKey(alt.name) && isSpellActive(c, alt.name) !== alt.not))
+  return SPELLS[key].castRequirements.flatMap((item) => item.filter((alt) => alt.kind === 'sustaining' && !alt.not).map((alt) => alt.name)).filter(isSpellKey)
 }
 
 // The held spell whose links a cast of this one works through: the spell

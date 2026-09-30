@@ -82,7 +82,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         }
         // combat.tex "Explosions": the object a charge went off in is
         // destroyed by it, in whoever's hand it was
-        if (action.kind === 'explosion') return action.source !== 'cast' && c.held.some((i) => i.id === action.itemId) ? consumeItem(action.itemId)(c) : c
+        if (action.kind === 'explosion') return action.source !== 'cast' ? consumeItem(action.itemId)(c) : c
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
         // spells.tex "Sustained": a cast that hit and did not fail is taken
@@ -97,7 +97,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
-          return spell.type === 'charged' ? chargeItem(action.key, action.improved)(delivered) : delivered
+          return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId)(delivered) : delivered
         }
         // spells.tex "Telepathic Link": what the test let through lands on
         // the target; the caster holds a link to one who did not beat the
@@ -206,7 +206,7 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
       return item ? [...floor, onFloor(item, cellOf(ownerId))] : floor
     }
     if (action.kind === 'shoot') return action.thrown ? [...floor, onFloor(action.thrown, cellOf(action.targetId))] : floor
-    if (action.kind === 'pickUp') return floor.filter((f) => f.item.id !== action.itemId)
+    if (action.kind === 'pickUp') return withoutOne(floor, action.itemId)
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor
     if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), onFloor(action.thrown, action.to)] : floor
