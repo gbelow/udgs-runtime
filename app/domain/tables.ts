@@ -202,7 +202,6 @@ const AFFLICTION_DEFS = {
   blind: { controlable: true, category: "sensory" },
   deaf: { controlable: true, category: "sensory" },
 
-  burning: { controlable: true, category: "damage" },
   corroding0: { group: 'corroding', rank: 1, controlable: true, category: "damage" },
   corroding1: { group: 'corroding', rank: 2, controlable: true, category: "damage" },
 

@@ -101,7 +101,7 @@ function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c
 // head puts the level at the threshold that is death. A wound already
 // carried is not carried twice, and its affliction is read off it rather
 // than stored; what the damage inflicts beyond the wound — unconsciousness,
-// a burning — is written. A blow that interrupts or stuns ends the
+// a corrosion — is written. A blow that interrupts or stuns ends the
 // concentration of whoever it lands on (spells.tex "Sustained Spells").
 function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {

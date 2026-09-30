@@ -595,7 +595,7 @@ const EffectBase = {
 }
 
 // combat.tex "Afflictions": a condition put on the character — poison, a
-// blindness, a burning. It joins the afflictions the character carries, the
+// blindness, a corrosion. It joins the afflictions the character carries, the
 // worst of its group winning, as the affliction rules say.
 export const AfflictionEffectSchema = z.object({
   key: AfflictionKeySchema,
