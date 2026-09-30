@@ -2,12 +2,6 @@
 
 ## character creation calculator
 
-## add convictions 
-- selection within the options -- DONE
-- auto add abilities
-- conviction requirements not firing
-- convictions must be one worldview and one temperament
-
 ## XP tracking
 - spells - intuitive requires XP track
 - add half learned abilities - XP track
@@ -18,30 +12,30 @@
 ## add senses
 - list senses and bonus
 - decide interface
+- stealth test
 
 ## weapons/armor
 - add customization options to weapons
 - add customization options to armors
 
-## hands
+## body
 - auto track spending charges
-- localized damage
 
 # terrain
 - items on the ground, containers in terrain
-- 
+- environmental effects
 
 ## add abilities 
 - add tex generator from catalogue
+- finish melee combat abilities
+- finish ranged combat abilities
 
 ## spells
 - add tex generator from catalogue
 
 ## cunning
-- starting combat
-- require start turn to act
 - feint
-- analyse: identify items others carry (then detonate can reach charges in their quick slots)
+- preparing actions
 
 # movement
 - climbing
@@ -49,10 +43,11 @@
 - balance tests
 - swimming tests
 - jumping over things
-- trample, drag and drop
 
 # morale test
 -add it
+
+## healing
 
 ## simulation
 - build ai strategies
@@ -98,23 +93,28 @@
 - must show effects
 - slim down right panel
 - left panel colapsible
+- actions becomes main game interface
 
 # technical
 - separate actions in combat rules - organize by skills
 
 ## issues
-flee isnt implemented
-flamethrower - sustain doesn t work. spray must leave effect. start of next turn auto recast. environmental effects
-amplify is doing nothing, nor any other enhancements
-flamethrower needs charges - transform into weapon
-wound and wound healing is undefined - possession healing neither
-select items to charge + do not stack items in quick slots
-blast scaling - scale to scale of the item. 1 amplify is allowed over item size.
+flamethrower needs charges 
+wound healing is undefined - possession healing neither
 
 clean up redundant clicks in actions, like spray and movement.
-option to strike must not exist when no strikes are available.
-
-surge AP usage - 
-running must start in movement surge
 
 soft grapple weapons - whip is not grapple, nor is net
+donning doffing gauntlets and helmets
+swimming in armor
+sweeping attack
+
+
+# left for combat
+- stealth
+- movement
+- sweeping attack
+- abilities and spells
+- morale
+- give item to ally - 1 standard action from each
+- analyse to find items
