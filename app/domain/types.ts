@@ -766,10 +766,13 @@ export const RecipeOpensSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('grapple'), maneuver: z.enum(GRAPPLE_MANEUVERS), along: z.boolean().default(false) }).strip(),
 ])
 
-// `opens` is what the follow-up is; the rest is what it gets: `hit` to its
-// attack, `cost` added to its price or set in place of it (when `costWhen`
+// `followUp`: what a landed strike offers. `opens` is what the follow-up
+// is; the rest is what it gets: `hit` to its attack, `cost` (when `costWhen`
 // holds, or always), unresisted when `unresistedWhen` holds, and whether it
 // draws opportunity attacks.
+// `contestedReaction`: a strike of its holder's own in answer to a strike
+// aimed at them, its die thrown with the attack's and the higher landing
+// first (combat/rules/counter.ts); `hit` is what it gets.
 export const RecipeSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('followUp'),
@@ -780,6 +783,10 @@ export const RecipeSchema = z.discriminatedUnion('type', [
     costWhen: RecipeConditionSchema.nullable().default(null),
     unresistedWhen: RecipeConditionSchema.nullable().default(null),
     drawsOpportunity: z.boolean().default(true),
+  }).strip(),
+  z.object({
+    type: z.literal('contestedReaction'),
+    hit: num.default(0),
   }).strip(),
 ])
 export type Recipe = z.infer<typeof RecipeSchema>

@@ -12,7 +12,7 @@ import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
 import { hasShootingRow } from './attack'
-import { drawsOpportunity } from './recipes'
+import { drawsOpportunity, getContestRecipe } from './recipes'
 import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
@@ -37,6 +37,8 @@ export type Trigger = {
   against?: string
   // combat.tex "Catch": an opportunity to grab a runner and nothing else
   catchOnly?: boolean
+  // the recipe the reaction is made under, by id (rules/recipes.ts)
+  recipe?: string
 }
 
 // The table's rulings: opportunity attacks never trigger other opportunity
@@ -98,13 +100,15 @@ export function findTrigger(state: CombatState, root: RootAction, reaction: Trig
 }
 
 // combat.tex "Defend": the target may answer with any of the four defenses,
-// or with a counterattack if they know it (abilities.tex "Counterattack").
+// or with a contested strike if a recipe gives them one (abilities.tex
+// "Counterattack"), made under that recipe.
 // combat.tex "Flanking": everyone flanking the attacker gets an opportunity
 // attack.
 function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   if (!root.targetId) return []
-  const counters = state.characters[root.targetId]?.abilities.includes('counterattack') ?? false
-  const defenses = [...(Object.keys(ACTIONS) as ActionKind[]).filter(isDefense), ...(counters ? ['counterattack' as const] : [])]
+  const target = state.characters[root.targetId]
+  const contest = target ? getContestRecipe(target) : null
+  const defenses = (Object.keys(ACTIONS) as ActionKind[]).filter(isDefense)
     .map((kind): Trigger => ({ characterId: root.targetId!, kind, at: null }))
   const flankers = getFlankers(state, root.actorId, root.targetId)
     .filter((id) => getMeleeRange(state.characters[id]) > 0)
@@ -112,7 +116,8 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   // combat.tex "Protect": whoever stands by the line may block or intercept
   const protectors = getProtectors(state, root)
     .flatMap((id) => (['block', 'intercept'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
-  return [...defenses, ...protectors, ...flankers]
+  const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
+  return [...defenses, ...counters, ...protectors, ...flankers]
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by

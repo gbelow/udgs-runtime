@@ -11,12 +11,24 @@ import { isInReach } from './board'
 import { getHookedMotion } from './damage'
 import { getDisarmOptions } from './grapple'
 
-// Follow-ups as data. A recipe (RecipeSchema) says when a landed strike
-// offers someone an action, what that action is, and what it gets; this file
-// is the one reader of every word a recipe can be written in. A fighter has
-// the rules' recipes and those of the abilities they know.
+// Actions as data. A recipe (RecipeSchema) says when a fighter may make an
+// action the rules give nobody else — a follow-up a landed strike offers, a
+// strike contested with the one aimed at them — and what that action gets;
+// this file is the one reader of every word a recipe can be written in. A
+// fighter has the rules' recipes and those of the abilities they know.
 
-export type RecipeEntry = { id: string; label: string; recipe: Recipe }
+type FollowUpRecipe = Extract<Recipe, { type: 'followUp' }>
+export type RecipeEntry<R extends Recipe = Recipe> = { id: string; label: string; recipe: R }
+
+function isFollowUp(entry: RecipeEntry): entry is RecipeEntry<FollowUpRecipe> {
+  return entry.recipe.type === 'followUp'
+}
+
+// The follow-up recipe the action was opened under; null for any other.
+function getFollowUpRecipe(state: CombatState, action: Action): FollowUpRecipe | null {
+  const entry = getRecipeOf(state, action)
+  return entry && isFollowUp(entry) ? entry.recipe : null
+}
 
 const RULE_RECIPES = {
   // combat.tex "Hook Attack": "If the attack was aimed at the legs or head,
@@ -111,7 +123,7 @@ function getOpening(state: CombatState, root: StrikeAction, actorId: string, on:
 // one and they can make it: a strike some attack they hold reaches the
 // target with, aimed at the target's chest; a disarm with something to
 // take.
-function openRecipe(state: CombatState, root: StrikeAction, actorId: string, entry: RecipeEntry, newId: () => string): Action | null {
+function openRecipe(state: CombatState, root: StrikeAction, actorId: string, entry: RecipeEntry<FollowUpRecipe>, newId: () => string): Action | null {
   const opening = getOpening(state, root, actorId, entry.recipe.on)
   const c = state.characters[actorId]
   if (!opening || !c) return null
@@ -138,13 +150,20 @@ export function getRecipeFollowUps(state: CombatState, root: RootAction, newId: 
   const actorIds = [...new Set([root.actorId, ...getReactionsTo(state, root.id).map((r) => r.actorId)])]
   const open = (recipesOf: (c: Character) => RecipeEntry[]) => actorIds.flatMap((id) => {
     const c = state.characters[id]
-    return c ? recipesOf(c).flatMap((entry) => openRecipe(state, root, id, entry, newId) ?? []) : []
+    return c ? recipesOf(c).filter(isFollowUp).flatMap((entry) => openRecipe(state, root, id, entry, newId) ?? []) : []
   })
   return [...open(() => RULE_ENTRIES), ...open(getLearnedRecipes)]
 }
 
-// The recipe that opened the action, as its actor has it; null for an action
-// no recipe opened, or one whose recipe its actor has since lost.
+// The recipe the fighter makes a contested strike with, if any
+// (abilities.tex "Counterattack"): the first they have, the one kind of
+// contested strike there is being the counterattack.
+export function getContestRecipe(c: Character): RecipeEntry | null {
+  return [...RULE_ENTRIES, ...getLearnedRecipes(c)].find((e) => e.recipe.type === 'contestedReaction') ?? null
+}
+
+// The recipe the action was made under, as its actor has it; null for an
+// action no recipe gave, or one whose recipe its actor has since lost.
 export function getRecipeOf(state: CombatState, action: Action): RecipeEntry | null {
   const id = action.recipe
   if (!id) return null
@@ -159,19 +178,19 @@ function getRecipeContext(state: CombatState, action: Action): RecipeContext | n
   return opener && root?.kind === 'strike' ? { state, root, opener, opened: action } : null
 }
 
-// What the recipe adds to the follow-up's attack.
+// What the recipe adds to the attack.
 export function getRecipeHitTerms(state: CombatState, strike: StrikeAction): Term[] {
   const entry = getRecipeOf(state, strike)
   return entry && entry.recipe.hit !== 0 ? [{ label: entry.label, value: entry.recipe.hit }] : []
 }
 
-// The follow-up's price as its recipe makes it: added to what it would cost,
-// or set in its place, where the recipe's condition holds.
+// The follow-up's price as its recipe makes it: added to what it would
+// cost, or set in its place, where the recipe's condition holds.
 export function getRecipeCost(state: CombatState, action: Action, cost: ActionCost): ActionCost {
-  const entry = getRecipeOf(state, action)
-  const change = entry?.recipe.cost
-  if (!entry || !change) return cost
-  const when = entry.recipe.costWhen
+  const recipe = getFollowUpRecipe(state, action)
+  const change = recipe?.cost
+  if (!recipe || !change) return cost
+  const when = recipe.costWhen
   const ctx = when ? getRecipeContext(state, action) : null
   if (when && (!ctx || !CONDITIONS[when](ctx))) return cost
   return change.operation === 'set'
@@ -182,11 +201,12 @@ export function getRecipeCost(state: CombatState, action: Action, cost: ActionCo
 // Whether the follow-up's actor may throw themselves along with its
 // maneuver; one no recipe opened is a grapple's own, and may.
 export function allowsAlong(state: CombatState, action: Action): boolean {
-  const opens = getRecipeOf(state, action)?.recipe.opens
-  return !opens || (opens.kind === 'grapple' && opens.along)
+  if (!action.recipe) return true
+  const opens = getFollowUpRecipe(state, action)?.opens
+  return opens?.kind === 'grapple' && opens.along
 }
 
 // Whether the action draws opportunity attacks as any other would.
 export function drawsOpportunity(state: CombatState, action: Action): boolean {
-  return getRecipeOf(state, action)?.recipe.drawsOpportunity ?? true
+  return getFollowUpRecipe(state, action)?.drawsOpportunity ?? true
 }

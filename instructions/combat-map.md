@@ -166,15 +166,20 @@ resolveAction ─────────► land(top)
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
   nothing). Follow-ups no reaction opens (blast, cast and impact explosions, stun escapes)
   live in `getFollowUps` itself.
-- **Recipes** (`rules/recipes.ts`) — a follow-up a landed strike offers, written as data
-  (`RecipeSchema`, `domain/types.ts`): when it fires (`defended`, `struck`), what it opens
-  (a strike, a maneuver), and what that gets (a hit term, a price added or set, unresisted
-  under a condition, whether it draws opportunity attacks). Every fighter has the rules'
-  recipes (`RULE_RECIPES`: hook knockdown, intercept disarm); an ability adds its own in
-  `abilities.json` (a stage's `recipes`: riposte). The opened action carries the recipe's id
-  (`recipe`), and the hit terms, the price, the triggers and the panel label read it from
-  there. A new event, condition or opened kind is a word added to the schema and read here;
-  the `Record`s over them do not compile until it is.
+- **Recipes** (`rules/recipes.ts`) — actions the rules give a fighter only by a recipe,
+  written as data (`RecipeSchema`, `domain/types.ts`), of two types. A `followUp` is what a
+  landed strike offers: when it fires (`defended`, `struck`), what it opens (a strike, a
+  maneuver), and what that gets (a hit term, a price added or set, unresisted under a
+  condition, whether it draws opportunity attacks, whether its maneuver may be gone along
+  with). A `contestedReaction` lets its holder answer a strike aimed at them with the
+  `counterattack` reaction — the pipeline is `counter.ts` and its opener — and says what its
+  strike gets (a hit term). Every fighter has the rules' recipes (`RULE_RECIPES`:
+  hook knockdown, intercept disarm); an ability adds its own in `abilities.json` (a stage's
+  `recipes`: riposte, counterattack). The action carries the recipe's id (`recipe`): a
+  follow-up from when it is opened, a counterattack from its trigger when it is declared,
+  passed on to the strike it opens. The hit terms, the price, the triggers and the panel
+  label read it from there. A new event, condition or opened kind is a word added to the
+  schema and read here; the `Record`s over them do not compile until it is.
 - **One follow-up each** — `land` stamps every follow-up still to be declared with
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
@@ -397,8 +402,8 @@ app/domain/combat/
 │   ├── interruption.ts getInterruptions, isBroken
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
-│   ├── counter.ts      counterattack slot (before / tie / after) and its strike
-│   ├── recipes.ts      follow-ups as data: when each opens, and its hit, price and opportunity attacks
+│   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
+│   ├── recipes.ts      follow-ups and contested strikes as data: who may make them, their hit, price and opportunity attacks
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction

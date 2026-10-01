@@ -114,7 +114,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     if (!findOption(state, actorId, draft)?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
     const targetId = trigger?.against ?? open.actorId
-    const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id })
+    const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
     const reaction = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
     return pruneReactions(setActions(state, [...withoutLiveReaction(state, open.id, actorId), reaction]))
   }

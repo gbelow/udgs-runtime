@@ -24,7 +24,6 @@ import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
-import { getOpeningCounter } from '../rules/counter'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -128,10 +127,9 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
     .filter((r) => r.options.length > 0)
 }
 
-// What the open action is called: a strike a counterattack or a recipe
-// opened goes by that name (abilities.tex "Counterattack", rules/recipes.ts).
+// What the open action is called: a strike made under a recipe goes by its
+// name (rules/recipes.ts).
 function getOpenLabel(state: CombatState, open: Action): string {
-  if (open.kind === 'strike' && getOpeningCounter(state, open)) return 'counterattack'
   if (open.kind === 'strike') return getRecipeOf(state, open)?.label ?? getActionName(open)
   return getActionName(open)
 }

@@ -150,8 +150,9 @@ const ActionBase = {
   // The landed action that left this one as a follow-up for its actor to
   // take or pass up; null for anything else.
   followUpOf: str.nullable().default(null),
-  // The recipe that opened this action as a follow-up, by id
-  // (rules/recipes.ts); null for one no recipe opened.
+  // The recipe this action was made under, by id (rules/recipes.ts): the
+  // follow-up it opened, or the contested strike it was declared as; null
+  // for one no recipe gave.
   recipe: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
   // An action another opened that its actor chose not to take: closed

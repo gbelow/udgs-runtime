@@ -1333,7 +1333,12 @@
         "requirements": [],
         "description": "You can attack in response to an attack, as long as you are within range. Both attacks are made against the opponent's SD. The attack with the higher result hits first, having the chance to interrupt the opponent. The counterattack receives -2 to hit.",
         "effect": [],
-        "recipes": []
+        "recipes": [
+          {
+            "type": "contestedReaction",
+            "hit": -2
+          }
+        ]
       }
     ]
   },

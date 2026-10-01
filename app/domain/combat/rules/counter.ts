@@ -11,11 +11,11 @@ import { getAction, getOpenedBy } from './log'
 // (the table's ruling).
 
 // The strike a counterattack opens, as declared on the reaction, aimed back
-// at the attacker it answers: rolled with that attack, and paid for by the
-// reaction.
+// at the attacker it answers: rolled with that attack, paid for by the
+// reaction, and made under the reaction's recipe (rules/recipes.ts).
 export function getCounterStrike(reaction: ActionOf<'counterattack'>, id: string): StrikeAction {
   const { weaponKey, attack, variant, sweepDirection, location, part } = reaction
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, spawnedBy: reaction.id, step: 'post', roll: reaction.roll })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, spawnedBy: reaction.id, recipe: reaction.recipe, step: 'post', roll: reaction.roll })
 }
 
 // Where the counterattack's strike lands against the attack: ahead of it on
