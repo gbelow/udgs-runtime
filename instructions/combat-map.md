@@ -168,6 +168,12 @@ resolveAction ─────────► land(top)
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
   riposte or a flee, an evasion's move or a flee.
+- **None for the interrupted** — `getFollowUps` offers no follow-up still to be declared
+  to one the landed action interrupted (`isInterruptedBy`, `rules/interruption.ts`): what
+  it landed on them, a shot with the shots joined to it, a crash, an area's or a spell's
+  deliveries, or, for its own actor, a tied counterattack's strike. What opens already
+  committed (explosions, spell tests, a counterattack's strike) is not a choice and is
+  not gated here.
 - **Auto-landing** — a root at `post` with nothing to choose (`hasPostChoice`: no HOP to
   spend, spray to point, pick to make, graze to save, rest move or along to decide) is
   landed by `advance` once its attacks are fought. `resolveAction` is only pressed where a

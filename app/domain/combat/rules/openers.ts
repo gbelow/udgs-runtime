@@ -41,7 +41,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   // action is played out (commands/turn.ts `handOverToFleers`)
   flee: {},
   evasion: {
-    after: (state, root, reaction, newId) => openMove(reaction, newId, getEvasionMove(state, root, reaction)),
+    after: (state, root, reaction, newId) => openMove(reaction, newId, getEvasionMove(root, reaction)),
   },
   follow: {
     after: (state, root, reaction, newId) => openMove(reaction, newId, getFollowMove(root)),
@@ -50,7 +50,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   // a miss leaves after it (combat.tex "Avoiding an Explosion")
   avoidExplosion: {
     after: (state, root, reaction, newId) => openMove(reaction, newId,
-      root.kind === 'explosion' ? getEscapeBeforeBlast(reaction) : root.kind === 'blast' ? getEscapeAfterBlast(state, root, reaction) : null),
+      root.kind === 'explosion' ? getEscapeBeforeBlast(reaction) : root.kind === 'blast' ? getEscapeAfterBlast(reaction) : null),
   },
   // combat.tex "Opportunity Attack": each attack the root drew is opened in
   // the order it comes to them; a move or a push has everyone it carries

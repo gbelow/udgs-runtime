@@ -3,6 +3,8 @@ import type { Action, CombatState } from '../types'
 import { getAction, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
+import { getDeliveryInterruption } from './damage'
+import { getShotGroup } from './coordinated'
 
 // combat.tex "Interruption": "receiving a tier 1+ blunt or electric injury
 // causes any action and movement to be interrupted, except for running and
@@ -55,15 +57,42 @@ export type LandedInterruption = { by: Action; level: Exclude<Interruption, 'non
 // counterattack that rolled lower, a riposte, a follow-up — comes too late
 // to break it.
 export function getInterruptions(state: CombatState, action: Action): LandedInterruption[] {
+  return getLandedBefore(state, action).filter(({ by }) => !isTiedCounterStrike(state, by))
+}
+
+function getLandedBefore(state: CombatState, action: Action): LandedInterruption[] {
   const descendants = getDescendantIds(state, action)
   const landedAt = state.history.indexOf(action.id)
   const before = landedAt === -1 ? state.history : state.history.slice(0, landedAt)
   return before.flatMap((id): LandedInterruption[] => {
     const by = descendants.has(id) ? getAction(state, id) : null
-    if (!by || isTiedCounterStrike(state, by)) return []
+    if (!by) return []
     const level = getInterruptionOf(by, action.actorId)
     return level === 'none' ? [] : [{ by, level }]
   })
+}
+
+// Whether the landed action interrupted the character, who then gets no
+// follow-up of it to choose (the table's ruling): whatever it landed on
+// them — a shot together with the shots joined to it, which land as one
+// (combat.tex "Coordinated Shots"), the crash it set off, the deliveries of
+// an area or a spell — or, for its own actor, whatever landed on them while
+// it was played out, a tied counterattack's strike.
+export function isInterruptedBy(state: CombatState, landed: Action, id: string): boolean {
+  if (landed.actorId === id && getLandedBefore(state, landed).length > 0) return true
+  if (getInterruptionOf(landed, id) !== 'none') return true
+  switch (landed.kind) {
+    case 'shoot': return getShotGroup(state, landed).some((shot) => shot.targetId === id && shot.interruption !== 'none')
+    case 'strike': return landed.trample?.stunned.includes(id) ?? false
+    case 'move': return landed.facts?.trampled.some((t) => t.stunned.includes(id)) ?? false
+    case 'blast':
+    case 'cast':
+    case 'spellTest': {
+      const c = state.characters[id]
+      return !!c && (landed.facts?.[id] ?? []).some((d) => getDeliveryInterruption(d, c) !== 'none')
+    }
+    default: return false
+  }
 }
 
 // Whether the action is broken: interrupted before its effect. A move is

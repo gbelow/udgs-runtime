@@ -105,7 +105,6 @@ flamethrower retarget as reaction - cost rework.
 flamethrower require focus surge to sustain
 
 wound healing is undefined - possession healing neither
-clean up redundant clicks in actions, like spray and movement.
 shield equipping - guige
 
 soft grapple weapons - whip is not grapple, nor is net
@@ -114,9 +113,7 @@ swimming in armor
 sweeping attack
 mark place where reflexes lands - didnt work with 2 characters using reflexes
 think corrosive damage
-duplicated select body part
 automatic flee on evasive jump - only give option if not interrupted
-show all information before commiting in a single screen. 
 
 
 # left for combat

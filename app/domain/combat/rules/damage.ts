@@ -168,7 +168,12 @@ function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] 
 // What the attack's delivery does to its target's own action.
 export function getInterruption(state: CombatState, root: AttackAction, facts: Delivery | null): Interruption {
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  return (facts && target ? outcomeOf(facts, target)?.interruption : undefined) ?? 'none'
+  return facts && target ? getDeliveryInterruption(facts, target) : 'none'
+}
+
+// What a delivery does to the own action of the one it lands on.
+export function getDeliveryInterruption(delivery: Delivery, target: Character): Interruption {
+  return outcomeOf(delivery, target)?.interruption ?? 'none'
 }
 
 // What a strike's landing did beyond its damage, written at the resolve:

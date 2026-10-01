@@ -8,6 +8,7 @@ import { hasPostChoice } from '../rules/action'
 import { isInReach } from '../rules/board'
 import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
+import { isInterruptedBy } from '../rules/interruption'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getRiposteOpening } from '../rules/riposte'
 import { getDisarmOptions, getInterceptDisarmOpening, getStunEscapes } from '../rules/grapple'
@@ -116,8 +117,13 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // knockdown a hook opens, the disarm an intercept opens; and on top, a
 // riposte.
 // A voided action generates nothing (the table's ruling: no follow-ups for
-// an interrupted action) but what a reaction opens `evenIfVoided`.
+// an interrupted action) but what a reaction opens `evenIfVoided`, and none
+// is offered to one the action interrupted (`isInterruptedBy`).
 export function getFollowUps(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  return generateFollowUps(state, root, newId).filter((a) => a.step !== 'define' || !isInterruptedBy(state, root, a.actorId))
+}
+
+function generateFollowUps(state: CombatState, root: RootAction, newId: () => string): Action[] {
   const voided = isVoided(state, root)
   const blast = root.kind === 'explosion' && !voided ? [goOff(root, newId)] : []
   const opened = getAnsweringReactions(state, root).flatMap((reaction) => {

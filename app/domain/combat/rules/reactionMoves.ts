@@ -1,7 +1,5 @@
-import type { Action, ActionOf, BlastAction, CombatState, MoveAction } from '../types'
+import type { Action, ActionOf, MoveAction } from '../types'
 import { MOVEMENT_KINDS } from '../../lists'
-import { outcomeOf } from './damage'
-import { getShotGroup } from './coordinated'
 
 // The moves a reaction opens for its reactor, as the fields of the move it
 // opens: `budget` the most AP it may cost, `prepaid` what the reaction
@@ -38,11 +36,11 @@ export function getFollowMove(root: Action): ReactionMove {
 // cover"; on a miss, "spend their movement surge immediately to escape or do
 // the same as in the graze". The move is bought with the AP the reflex
 // already paid; the escape on a miss is a flee (rules/flee.ts
-// `getFleersOf`). One who declared they stay put gives the move up.
-// combat.tex "Coordinated Shots": the shots land together, so any of them
-// interrupting the evader takes the move away.
-export function getEvasionMove(state: CombatState, root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
-  if (root.kind !== 'shoot' || getShotGroup(state, root).some((shot) => shot.interruption !== 'none') || reaction.stay) return null
+// `getFleersOf`). One who declared they stay put gives the move up; one any
+// of the shots interrupted is offered none (commands/sequence.ts
+// `getFollowUps`).
+export function getEvasionMove(root: Action, reaction: ActionOf<'evasion'>): ReactionMove | null {
+  if (root.kind !== 'shoot' || reaction.stay) return null
   const AP = reaction.cost?.AP ?? 0
   return { budget: AP, prepaid: AP }
 }
@@ -50,11 +48,8 @@ export function getEvasionMove(state: CombatState, root: Action, reaction: Actio
 // combat.tex "Avoiding an Explosion": "On a miss, they can move 2 AP after
 // the explosion" — bought with the AP the reflex paid, and not at all by one
 // the blast interrupted (combat.tex "Interruption": "Movement is
-// cancelled").
-export function getEscapeAfterBlast(state: CombatState, root: BlastAction, reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
+// cancelled"; commands/sequence.ts `getFollowUps`).
+export function getEscapeAfterBlast(reaction: ActionOf<'avoidExplosion'>): ReactionMove | null {
   if (reaction.roll?.degree !== 'miss') return null
-  const reactor = state.characters[reaction.actorId]
-  const hit = root.facts?.[reaction.actorId] ?? []
-  if (reactor && hit.some((d) => (outcomeOf(d, reactor)?.interruption ?? 'none') !== 'none')) return null
   return { budget: 2, prepaid: reaction.cost?.AP ?? 0 }
 }

@@ -723,15 +723,22 @@ describe('coordinated shots', () => {
   // combat.tex "Evasion": "On a miss, the character does not take the attack
   // and can spend their movement surge immediately to escape". The table's
   // ruling: the lead shot's result is the one that counts.
+  const playedJoined = (leadFace: number, joinedFace: number) => {
+    let s = rollAction(() => leadFace, newId)(joined())
+    s = resolveAction(newId)(rollAction(() => joinedFace, newId)(s))
+    return resolveAction(newId)(s)
+  }
+  const escapes = (s: CombatState) => s.actions.filter((a) => a.kind === 'fleeFollowUp')
+
   it('offers the escape a miss leaves by the result of the lead shot', () => {
-    const played = (leadFace: number, joinedFace: number) => {
-      let s = rollAction(() => leadFace, newId)(joined())
-      s = resolveAction(newId)(rollAction(() => joinedFace, newId)(s))
-      return resolveAction(newId)(s)
-    }
-    const escapes = (s: CombatState) => s.actions.filter((a) => a.kind === 'fleeFollowUp')
-    expect(escapes(played(MISS, LAND))).toHaveLength(1)
-    expect(escapes(played(LAND, MISS))).toHaveLength(0)
+    expect(escapes(playedJoined(MISS, MISS))).toHaveLength(1)
+    expect(escapes(playedJoined(LAND, MISS))).toHaveLength(0)
+  })
+
+  // An evader a joined arrow interrupted was offered the flee the lead's miss
+  // leaves.
+  it('offers no escape to an evader a joined shot interrupted', () => {
+    expect(escapes(playedJoined(MISS, LAND))).toHaveLength(0)
   })
 
   // The table's ruling: the joined shots are played out in the order they
