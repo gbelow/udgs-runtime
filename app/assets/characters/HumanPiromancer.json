@@ -320,6 +320,7 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "visorOpen": false,
   "armor": {
     "name": "Skin",
     "material": "flesh",
@@ -397,6 +398,10 @@
       "lost": false
     }
   ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  },
   "held": [
     {
       "id": "0bd42162-c2a6-475f-9069-196887aa12dd",
@@ -440,7 +445,8 @@
           "items": []
         }
       },
-      "burden": 3
+      "burden": 3,
+      "bulk": 2
     },
     "Bandolier": {
       "name": "Bandolier",
@@ -473,7 +479,8 @@
           "items": []
         }
       },
-      "burden": 3
+      "burden": 3,
+      "bulk": 2
     }
   },
   "abilities": [
@@ -495,6 +502,10 @@
       "practice": 0
     },
     "sleep": {
+      "method": "wizard",
+      "practice": 0
+    },
+    "detonate-explosive": {
       "method": "wizard",
       "practice": 0
     }

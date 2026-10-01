@@ -36,6 +36,7 @@
 ## cunning
 - feint
 - preparing actions
+- analyse
 
 # movement
 - climbing
@@ -100,21 +101,35 @@
 
 ## issues
 flamethrower needs charges 
-wound healing is undefined - possession healing neither
+flamethrower retarget as reaction - cost rework.
+flamethrower require focus surge to sustain
 
+wound healing is undefined - possession healing neither
 clean up redundant clicks in actions, like spray and movement.
+shield equipping - guige
 
 soft grapple weapons - whip is not grapple, nor is net
 donning doffing gauntlets and helmets
 swimming in armor
 sweeping attack
+mark place where reflexes lands - didnt work with 2 characters using reflexes
+think corrosive damage
+duplicated select body part
+automatic flee on evasive jump - only give option if not interrupted
+show all information before commiting in a single screen. 
 
 
 # left for combat
-- stealth
-- movement
+- stealth/senses
+- movement 
 - sweeping attack
 - abilities and spells
 - morale
-- give item to ally - 1 standard action from each
-- analyse to find items
+- give item to ally - 1 standard action from each - catching mid air
+- analyse to find items, feint
+
+# no map combat 
+- explosions
+- rough terrain tests
+- senses
+- 
