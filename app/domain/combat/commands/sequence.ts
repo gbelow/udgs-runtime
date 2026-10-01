@@ -4,7 +4,8 @@ import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
 import { getDefaultAim, getFreeAttackOptions } from '../rules/attack'
-import { hasPostChoice } from '../rules/action'
+import { getTargetIds, hasPostChoice } from '../rules/action'
+import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
 import { isInReach } from '../rules/board'
 import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
@@ -114,8 +115,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // explosion a cast that hit with an area to it goes off as,
 // aimed and played out on its own (the caster's part is done), the one a
 // thrown object goes off as where it lands, the
-// knockdown a hook opens, the disarm an intercept opens; and on top, a
-// riposte.
+// knockdown a hook opens, the disarm an intercept opens, a riposte; and on
+// top, the sweep's next target, so the swing is finished first.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
 // is offered to one the action interrupted (`isInterruptedBy`).
@@ -142,7 +143,28 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...openHookKnockdown(state, root, newId),
     ...openInterceptDisarm(state, root, newId),
     ...openRiposte(state, root, newId),
+    ...openSweepLink(state, root, newId),
   ]
+}
+
+// combat.tex "Sweeping Attack": the strike at the sweep's next target, with
+// what is left of the blow once past this one (combat.tex "Damage
+// absorption"); nothing once nothing is left — an intercept stopped it, or
+// it was absorbed — or nobody is. On a board it is committed at the next
+// the arc reaches; on a fight without one, it is the attacker's to aim at
+// anyone not yet swept, or to pass up to end the sweep.
+function openSweepLink(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  if (root.kind !== 'strike' || !isSweep(root)) return []
+  const share = getNextShare(state, root)
+  if (share === 0) return []
+  const { weaponKey, attack, variant, sweepDirection } = root
+  const base = { id: newId(), actorId: root.actorId, weaponKey, attack, variant, sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id }
+  if (state.board) {
+    const next = getNextSwept(state, root)
+    return next ? [makeAction('strike', { ...base, ...next, ...getDefaultAim(state.characters[next.targetId]), step: 'react' })] : []
+  }
+  const link = makeAction('strike', base)
+  return getTargetIds(state, link).length > 0 ? [link] : []
 }
 
 // The explosion a cast goes off as: to be aimed, a disk; a spray has nothing

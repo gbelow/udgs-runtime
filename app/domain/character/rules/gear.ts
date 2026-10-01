@@ -66,14 +66,20 @@ export function getAPSurcharge(weapon: Weapon, c: Character): number {
   return isOversize(weapon, c) ? 1 : 0
 }
 
-// gear.tex "DEF": "The blocking value is equal to STR if weapon is one handed,
-// and 2x STR if two handed or a shield. This value scales with weapon size."
-// — by the weapon's own DM. A row without DEF cannot block at all, which null
-// carries out to the panel.
+// gear.tex "DEF": "The blocking value is equal to 2x STR if weapon is one
+// handed, and 4x STR if two handed or a shield. This value scales with weapon
+// size" — by the weapon's own DM. It serves block and guard alike. A row
+// without DEF cannot block at all, which null carries out to the panel.
 export function getBlockValue(atk: WeaponAttack, weapon: Weapon, c: Character): number | null {
   if (!hasProperty(atk.properties, 'DEF')) return null
-  const hands = atk.handed === 'two' || weapon.shield !== undefined ? 2 : 1
-  return Math.floor(hands * getSTR(c) * dmgArr[weapon.scale - 1])
+  const multiplier = atk.handed === 'two' || weapon.shield !== undefined ? 4 : 2
+  return Math.floor(multiplier * getSTR(c) * dmgArr[weapon.scale - 1])
+}
+
+// The most a shield absorbs, whatever its block value comes to: its RES (the
+// table's ruling); null for anything that is not a shield.
+export function getBlockCap(atk: WeaponAttack, weapon: Weapon): number | null {
+  return weapon.shield ? atk.RES : null
 }
 
 // combat.tex "Strike": a strike is a melee weapon attack, and it is the strike
@@ -145,6 +151,15 @@ const HEAVY_DEGREES: Record<number, { penalty: number; STRmul: number }> = {
 }
 const HEAVY_ACTIONS = ['heavy1', 'heavy2', 'heavy3'] as const
 
+// combat.tex "Sweeping Attack", made as the normal attack or as any heavy
+// one the row offers ("The variations can be combined, but braced and hook
+// attack cannot be combined with anything").
+const SWEEP = 'sweep'
+
+export function isSweepVariant(variant: string): boolean {
+  return variant === SWEEP || variant.endsWith(`+${SWEEP}`)
+}
+
 export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: Weapon }): (c: Character) => AttackVariant[] {
   const heavyRange = getHeavyRange(atk)
   const kind = getAttackKind(atk.range)
@@ -204,6 +219,11 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
       }
     }
 
+    // combat.tex "Sweeping Attack": "spends 1 additional AP on the attack"
+    if (kind === 'melee' && hasProperty(atk.properties, 'sweeping')) {
+      const sweepCost = getActionCost(c, 'sweep')
+      attacks.push(...attacks.map((v) => ({ ...v, name: v.name === basic.name ? SWEEP : `${v.name}+${SWEEP}`, AP: v.AP + sweepCost.AP, STA: v.STA + sweepCost.STA })))
+    }
     if (hasProperty(atk.properties, 'braced')) attacks.push(braced)
     if (hasProperty(atk.properties, 'hook')) attacks.push(hook)
     // combat.tex "Snipe", "Quick Shot" modify Shoot; gear.tex "STR x": "Cannot

@@ -158,7 +158,7 @@ resolveAction ─────────► land(top)
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
   counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
-  a cast opens, the explosion a thrown object goes off as where it lands, a hook's knockdown, and a riposte on top. A voided root generates only what an
+  a cast opens, the explosion a thrown object goes off as where it lands, a hook's knockdown, a riposte, and on top a sweep's next target. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
@@ -237,6 +237,20 @@ resolveAction ─────────► land(top)
   (`isGuardingShot`, per shooter). A joined shot triggers only the opportunity attacks its
   shooter draws. The evader's flee follows the lead's roll; their move is lost if any shot
   interrupted them (`getShotGroup`).
+- **Sweeps** (`rules/sweep.ts`) — a sweeping variation (`isSweepVariant`, the normal or any
+  heavy attack plus the sweep's AP) is a chain of strikes, one per target, each rolled and
+  defended on its own. The first is declared with a `sweepDirection` — on a strike, or on the
+  opportunity attack or counterattack that opens one; on a board its commit, or its opening,
+  writes the `arc` it reaches after its target (`getSweepArc`: in reach, within the
+  semicircle, or the full turn with Death Spin, not fallen, not behind another). When a
+  strike of the sweep lands, `getFollowUps` opens the next on top of everything else, carrying
+  `share`, what is left of the blow (`getNextShare`: the block, then the body at T2 damage,
+  absorb it, `getPassedShare` in `character/rules/damage.ts`). Nothing opens once the share is
+  0 — an intercept stopped it, or it was absorbed — or the arc is spent. On a fight without a
+  board the next strike opens at `define`, for the attacker to aim at anyone not yet swept or
+  pass up. A later strike (`isSweepLink`: its `sweepOf` names the first) is prepaid, keeps the sweep's row
+  and variation, carries no charge, and draws no opportunity attack; the first draws none from
+  any of the sweep's targets. None of the sweep's targets may protect another.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.
@@ -374,6 +388,7 @@ app/domain/combat/
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      counterattack slot (before / tie / after) and its strike
 │   ├── riposte.ts      when a riposte opens, its discount
+│   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
 │   ├── test.ts         resolveTest: skill vs DL → degree and HOP
@@ -431,7 +446,7 @@ effects) and `item/` (hands, items). The one call back is the character's effect
   (`playOut`, scenarios): opportunity attacks fought once and before the action that drew
   them, never chained; broken actions land nothing; giving up by defending; explosions and
   sprays reach only who is still in the area; counterattack orders; ripostes; hook
-  knockdowns; protecting; coordinated shots.
+  knockdowns; protecting; coordinated shots; sweeps.
 - `commands/action.test.ts`, `commands/combat.test.ts` — pipeline guards and round change.
 - `rules/*.test.ts` — boardless fights pass every gate; reach; moves; grapples; reactions.
 - `projections/outcomes.test.ts` — the preview is what the target takes.

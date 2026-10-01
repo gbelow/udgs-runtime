@@ -5,7 +5,7 @@ import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
+import { getBlockCap, getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
@@ -17,6 +17,7 @@ import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHo
 import { findWeaponRow, getRowProperties } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getGrabFacts } from './grapple'
+import { isSweepLink } from './sweep'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -39,6 +40,7 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
       defenseAP,
       defenseWeaponKey: reaction.weaponKey,
       block: row ? getBlockValue(row.atk, row.weapon, reactor) ?? 0 : 0,
+      blockCap: row ? getBlockCap(row.atk, row.weapon) : null,
       shield: row?.weapon.shield !== undefined,
     }
   }
@@ -132,16 +134,21 @@ export function getHookKnockdown(state: CombatState, root: StrikeAction): { unre
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP
-// are spent: the variation's damage as the row and the variation make it,
-// where it was aimed, what it met — then each purchase bought, applied in
-// turn — and the degree the test came to.
+// are spent: the variation's damage as the row and the variation make it —
+// what is left of it, for a sweep past its first target (combat.tex "Damage
+// absorption"), which the charge already went off on — where it was aimed,
+// what it met — then each purchase bought, applied in turn — and the degree
+// the test came to.
 export function getAttackFacts(state: CombatState, root: AttackAction): Delivery | null {
   const attacker = state.characters[root.actorId]
   if (!attacker || !root.roll) return null
   const variant = getAttackVariant(attacker, root)
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
-  const base = getRowDamage(attacker, row, [{ kind: 'blunt', value: variant.blunt }, { kind: 'cut', value: variant.cut }, ...getChargeDamage(attacker, root)], { location: root.location, part: root.part }, getDefense(state, root))
+  const link = root.kind === 'strike' && isSweepLink(root)
+  const share = root.kind === 'strike' ? root.share : 1
+  const physical: DamageComponent[] = [{ kind: 'blunt', value: Math.floor(variant.blunt * share) }, { kind: 'cut', value: Math.floor(variant.cut * share) }]
+  const base = getRowDamage(attacker, row, [...physical, ...(link ? [] : getChargeDamage(attacker, root))], { location: root.location, part: root.part }, getDefense(state, root))
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)

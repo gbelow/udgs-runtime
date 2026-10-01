@@ -29,6 +29,7 @@ import { isGuardPlaced } from './protect'
 import { getRiposteDiscount } from './riposte'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
+import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -44,7 +45,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
   if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack)) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && isSweepRowKept(state, action, action) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack)) && isAimOnTarget(state, action)
     case 'shoot':
       return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
@@ -255,11 +256,13 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 // What the action costs its actor as it stands, whether or not they can pay
 // it; null while it is too incomplete to price. A riposte comes cheaper
 // (abilities.tex "Riposte"); a flee costs the movement surge, and is null
-// once that cannot be made.
+// once that cannot be made; a sweep is paid once, by the strike at its first
+// target (combat.tex "Sweeping Attack").
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
   if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return getFleeCost(c)
+  if (action.kind === 'strike' && isSweepLink(action)) return { AP: 0, STA: 0 }
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
     : getDeclaredCost(c, action)
@@ -418,13 +421,17 @@ export function needsTarget(action: Action): boolean {
 // those the way of shooting carries to and that are in sight. A target the
 // declaration has since put out of reach (a change of location on the high
 // ground, a change from snipe to quick shot) drops off this list and has to
-// be aimed at again.
+// be aimed at again. A sweep meets nobody fallen, and nobody twice
+// (combat.tex "Sweeping Attack").
 export function getTargetIds(state: CombatState, root: RootAction): string[] {
   if (!needsTarget(root)) return []
   const others = Object.keys(state.characters).filter((id) => id !== root.actorId)
   switch (root.kind) {
-    case 'strike':
-      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id))
+    case 'strike': {
+      const swept = isSweep(root) ? getSwept(state, root) : null
+      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
+        && (swept === null || canBeSwept(state, swept, id)))
+    }
     case 'shoot':
       return others.filter((id) => isInShotRange(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id))
     case 'cast':

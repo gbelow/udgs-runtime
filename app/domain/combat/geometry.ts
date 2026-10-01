@@ -185,6 +185,14 @@ export function angleBetween(from: { x: number; y: number }, to: { x: number; y:
   return angle < 0 ? angle + 2 * Math.PI : angle
 }
 
+// How far one turns from `from` to reach `to` going one way round, in
+// [0, 2π). Clockwise on the board is DIRECTIONS' order, a turn the plane's
+// angle falls through.
+export function directedTurn(from: number, to: number, clockwise: boolean): number {
+  const delta = clockwise ? from - to : to - from
+  return ((delta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+}
+
 // The smaller turn between two directions.
 export function angularGap(a: number, b: number): number {
   const gap = Math.abs(a - b) % (2 * Math.PI)

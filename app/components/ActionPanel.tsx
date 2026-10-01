@@ -6,7 +6,7 @@ import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView,
 import type { ActionReport } from '../domain/combat/projections/outcomes'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { ActionRoll, GrappleManeuver, HitLocation } from '../domain/combat/types'
+import type { ActionRoll, GrappleManeuver, HitLocation, StrikeAction } from '../domain/combat/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
@@ -68,6 +68,17 @@ export function ActionPanel(){
 
       <Declaration open={open} attacks={view.attacks}
         onAttack={(s) => amend(s.selected ? { weaponKey: '', attack: '', variant: '' } : { weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
+
+      {open.sweep ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center text-xs'>
+          <SectionLabel>sweep</SectionLabel>
+          {open.sweep.turnable
+            ? <SweepDirections direction={open.sweep.direction} onTurn={(sweepDirection) => amend({ sweepDirection })} />
+            : <span className='text-muted'>{open.sweep.direction}</span>}
+          {open.sweep.next.length > 0 ? <span className='text-muted'>then {open.sweep.next.join(' → ')}</span> : null}
+          {open.sweep.left !== null ? <span className='font-mono text-bad'>{open.sweep.left}% of the blow left</span> : null}
+        </div>
+      ) : null}
 
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -307,7 +318,16 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string; sweepDirection?: SweepDirection }
+
+type SweepDirection = StrikeAction['sweepDirection']
+
+// combat.tex "Sweeping Attack": "Decide whether to attack from right to left
+// or vice versa".
+function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onTurn: (direction: SweepDirection) => void }){
+  return <>{(['clockwise', 'counterclockwise'] as const).map((d) =>
+    <Button key={d} size='xs' {...toggle(direction === d)} onClick={() => onTurn(d)}>{d}</Button>)}</>
+}
 
 function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
@@ -340,6 +360,12 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
           )
         })}
       </div>
+      {strike.sweepDirection ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>sweep</SectionLabel>
+          <SweepDirections direction={strike.sweepDirection} onTurn={(sweepDirection) => onAmend({ sweepDirection })} />
+        </div>
+      ) : null}
       {strike.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>loaded with</SectionLabel>

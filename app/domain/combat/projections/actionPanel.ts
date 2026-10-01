@@ -30,6 +30,8 @@ import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { canThrowItem, getThrowables } from '../rules/throw'
 import { getPendingGuardStep } from '../rules/protect'
+import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
+import { isSweepVariant } from '../../character/rules/gear'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
@@ -84,6 +86,9 @@ export type ReactorOptions = {
     shot: boolean
     ammo: AmmoOption[]
     ammoId: string
+    // combat.tex "Sweeping Attack": the way a sweep declared here turns;
+    // null for any other attack
+    sweepDirection: StrikeAction['sweepDirection'] | null
   } | null
   // combat.tex "Interruption": the action of theirs the attack answers,
   // which answering with anything but the SD gives up (`getGivenUpFor`);
@@ -115,6 +120,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             partner: findGrapple(state.grapples, c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
+            sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
         : null
       return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id) }
@@ -204,6 +210,11 @@ export type OpenActionView = {
   score: { terms: Term[]; total: number }
   DL: { terms: Term[]; total: number }
   roll: ActionRoll | null
+  // combat.tex "Sweeping Attack": the way the arc turns and whether it can
+  // still be turned the other way, who it reaches after this target, and
+  // the percentage of the blow left by the time it reaches this one (null
+  // at full)
+  sweep: { direction: StrikeAction['sweepDirection']; turnable: boolean; next: string[]; left: number | null } | null
 }
 
 // combat.tex "Push and drag": the speed the block moves at, and while it is
@@ -369,13 +380,14 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
       DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
       roll: open.roll,
+      sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
     },
     report,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: attack && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, attack.kind)
-          .filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
+          .filter((o) => isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o))))
           .map((o) => ({ ...o, selected: o.weaponKey === attack.weaponKey && o.attack === attack.attack && o.variant === attack.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
@@ -413,6 +425,18 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
     grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
     deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
+  }
+}
+
+// While the first strike of a sweep is declared, the arc it would reach as
+// everyone stands; once committed, the arc it was swung through.
+function getSweepView(state: CombatState, strike: StrikeAction): NonNullable<OpenActionView['sweep']> {
+  const declared = strike.step === 'define' && !isSweepLink(strike)
+  return {
+    direction: strike.sweepDirection,
+    turnable: declared,
+    next: (declared ? getSweepArc(state, strike) : strike.arc).map((id) => getFightName(state, id)),
+    left: strike.share < 1 ? Math.round(strike.share * 100) : null,
   }
 }
 

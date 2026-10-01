@@ -57,30 +57,68 @@ function armorValue(armor: Armor, kind: DamageKind): number {
   }
 }
 
+// combat.tex "Damage absorption": "The attack's damage is zero if absorption
+// value >= damage, halved if absorption value >= damage/2, and full if
+// absorption value < damage/2" — the share of the damage that gets past.
+function getAbsorbedShare(damage: number, value: number): number {
+  if (value >= damage) return 0
+  if (value >= damage / 2) return 0.5
+  return 1
+}
+
+// combat.tex "Block", "Guard": the share of the measured damage a block or a
+// guard that met the blow lets past — the block value absorbs a graze, and
+// "A miss increases block value by 50%", a shield absorbing no more than its
+// RES however it was met (the table's ruling); null when no block met it.
+function getBlockShare(facts: Damage, degree: Degree, measured: number): number | null {
+  if ((degree !== 'graze' && degree !== 'miss') || (facts.defense !== 'block' && facts.defense !== 'guard')) return null
+  const value = degree === 'miss' ? Math.floor(1.5 * facts.block) : facts.block
+  return getAbsorbedShare(measured, facts.blockCap === null ? value : Math.min(value, facts.blockCap))
+}
+
+// combat.tex "Intercept": a graze or a miss intercepted stops the blow,
+// unless the attacker's Force outdoes the defender's by 5 on a graze or 8 on
+// a miss.
+function isIntercepted(facts: Damage, degree: Degree, target: Character): boolean {
+  if (facts.defense !== 'intercept' || (degree !== 'graze' && degree !== 'miss')) return false
+  return facts.force < getForce(target) + (degree === 'graze' ? 5 : 8)
+}
+
+// Each kind the blow carries as it arrives — "Armor Bypass" adds half the
+// armor value — against its own armor value, and the measured one: the kind
+// that gets furthest past its armor, which the injury and the absorption
+// are read off (combat.tex "Physical attacks").
+type Arriving = { type: DamageKind; value: number; against: number }
+
+function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; measured: Arriving | null } {
+  const armor = armorAt(target, facts)
+  const armorHardness = getHardness(armor.material)
+  const canCut = facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
+  const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
+  const arriving = facts.damage
+    .filter(({ kind }) => kind !== 'cut' || canCut)
+    .map(({ kind, value }) => {
+      const against = armorValue(armor, kind)
+      return { type: kind, value: value + bypass(against), against }
+    })
+  const measured = arriving.reduce<Arriving | null>((b, a) => (b === null || a.value - a.against > b.value - b.against ? a : b), null)
+  return { arriving, measured }
+}
+
 // combat.tex "Strike", "Defend": what the degree and the defense leave of the
 // damage. A hit is always full. Without an object in the way a graze is half
-// and a miss nothing; a block takes its value off a graze and one and a half
-// times that off a miss; an intercept stops the blow outright unless the
-// attacker's Force outdoes the defender's by 5 on a graze or 8 on a miss.
+// and a miss nothing; a block absorbs the measured damage at its block value
+// (combat.tex "Damage absorption"), every kind at once; an intercept stops
+// the blow outright, or lets it through whole.
 // combat.tex "Accuracy", "Reflex": a shot the same — "Grazes deal 50%
-// damage and misses do nothing"; a guard is a block ("On graze, the attack
-// damage is reduced by the block value. On a miss, by 1.5x as much").
+// damage and misses do nothing"; a guard is a block.
 // combat.tex "Explosions": "The damage from explosions is 150% on a
 // critical" — the one attack whose degree can be the critical, the zone at
 // its centre.
-function afterDefense(facts: Damage, degree: Degree, target: Character, damage: number): { damage: number; stopped: boolean } {
-  if (degree === 'graze' || degree === 'miss') {
-    switch (facts.defense) {
-      case 'block':
-      case 'guard':
-        return { damage: Math.max(0, damage - (degree === 'graze' ? facts.block : Math.floor(1.5 * facts.block))), stopped: false }
-      case 'intercept': {
-        const margin = degree === 'graze' ? 5 : 8
-        return facts.force >= getForce(target) + margin ? { damage, stopped: false } : { damage: 0, stopped: true }
-      }
-    }
-  }
-  return { damage: getUndefendedDamage(damage, degree), stopped: false }
+function afterDefense(facts: Damage, degree: Degree, damage: number, blockShare: number | null): number {
+  if (blockShare !== null) return Math.floor(damage * blockShare)
+  if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) return damage
+  return getUndefendedDamage(damage, degree)
 }
 
 // The kinds dealt through the burning counter.
@@ -110,9 +148,14 @@ function armorAt(target: Character, facts: Damage): Armor {
   return armor
 }
 
-// combat.tex "Damage Tiers": tier N is met at armor + N x TGH; below the
-// armor there is no injury, and neither is there from a blow that carries no
-// damage at all — a miss, a grapple — however bare the target.
+// combat.tex "Damage Tiers": tier N is met at armor + N x TGH.
+export function getTierThreshold(armor: number, TGH: number, tier: number): number {
+  return armor + tier * TGH
+}
+
+// The tier the damage reaches: below the armor there is no injury, and
+// neither is there from a blow that carries no damage at all — a miss, a
+// grapple — however bare the target.
 function tierOf(damage: number, armor: number, TGH: number): number | null {
   if (damage <= 0 || damage < armor) return null
   if (TGH <= 0) return MAX_TIER
@@ -134,22 +177,16 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
 // Burning damage causes only half IL injury." Radiant damage is dealt the
 // same way (the table's ruling); only its defense may differ.
 export function getOutcome(facts: Damage, degree: Degree, target: Character): Outcome {
-  const armor = armorAt(target, facts)
   const TGH = getTGH(target)
-  const armorHardness = getHardness(armor.material)
-  const canCut = facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
-
-  const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
   const counter = isCampaignCharacter(target) ? target.injuries.burning : 0
-  const measured = facts.damage
-    .filter(({ kind }) => kind !== 'cut' || canCut)
-    .map(({ kind, value }) => {
-      const against = armorValue(armor, kind)
-      const left = afterDefense(facts, degree, target, value + bypass(against))
-      const damage = isBurning(kind) && left.damage > 0 ? left.damage + counter : left.damage
-      return { type: kind, damage, armor: against, tier: tierOf(damage, against, TGH), stopped: left.stopped }
-    })
-  if (measured.some((m) => m.stopped)) return { ...NOTHING, stopped: true }
+  if (isIntercepted(facts, degree, target)) return { ...NOTHING, stopped: true }
+  const { arriving, measured: top } = getArriving(facts, target)
+  const blockShare = getBlockShare(facts, degree, top?.value ?? 0)
+  const measured = arriving.map(({ type, value, against }) => {
+    const left = afterDefense(facts, degree, value, blockShare)
+    const damage = isBurning(type) && left > 0 ? left + counter : left
+    return { type, damage, armor: against, tier: tierOf(damage, against, TGH) }
+  })
 
   const burnt = measured.find((m) => isBurning(m.type) && m.damage > 0)
   const burning = burnt ? Math.floor(burnt.damage / 2) : null
@@ -179,6 +216,22 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
     ...effectsOf(facts, target, best.tier, tiers, piercing),
     burning,
   }
+}
+
+// combat.tex "Damage absorption": the share of a blow that hits several
+// targets in a sequence still left once it is past this one. A block that
+// met it absorbs first and the body second (the table's ruling), the body at
+// its T2 damage — "For a character, the value equals to T2 damage", the
+// measured kind's armor value and twice TGH. A blow that never touched them
+// (a miss with nothing in its way) passes on whole; one an intercept stopped
+// passes nothing on.
+export function getPassedShare(facts: Damage, degree: Degree, target: Character): number {
+  const { measured } = getArriving(facts, target)
+  if (!measured || isIntercepted(facts, degree, target)) return 0
+  const blockShare = getBlockShare(facts, degree, measured.value)
+  if (degree === 'miss' && blockShare === null && facts.defense !== 'intercept') return 1
+  const share = blockShare ?? 1
+  return share * getAbsorbedShare(Math.floor(measured.value * share), getTierThreshold(measured.against, getTGH(target), 2))
 }
 
 // The part a blow at the location lands on: the one it was aimed at, while

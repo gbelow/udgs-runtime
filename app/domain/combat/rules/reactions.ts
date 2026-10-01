@@ -16,6 +16,7 @@ import { getRiposteDefense } from './riposte'
 import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
+import { getSweepTargets, isSweep, isSweepLink } from './sweep'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -41,12 +42,17 @@ export type Trigger = {
 // The table's rulings: opportunity attacks never trigger other opportunity
 // attacks, and a riposte draws none from those flanking the riposter. What
 // an opportunity attack opens — a strike or a maneuver — and a riposte are still answered by their target, and draw no
-// opportunity attack from anyone.
+// opportunity attack from anyone. combat.tex "Sweeping Attack": the sweep
+// draws what it draws once, at its first target, and "do not draw attacks of
+// opportunity from any of its targets" — who answer it each on their own
+// strike, never on another's (no Protect either).
 export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null
-  const riposte = root.kind === 'strike' && getRiposteDefense(state, root) !== null
-  return opportunity || riposte ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+  const drawsNone = opportunity || (root.kind === 'strike' && (getRiposteDefense(state, root) !== null || isSweepLink(root)))
+  const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+  const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(state, root).filter((id) => id !== root.targetId) : []
+  return drawn.filter((t) => !others.includes(t.characterId))
 }
 
 function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {

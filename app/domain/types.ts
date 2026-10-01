@@ -580,6 +580,8 @@ export const DamageSchema = z.object({
   // wielded key: names the hand a wound lands on
   defenseWeaponKey: str.default(''),
   block: num.default(0), // gear.tex "DEF": what the blocking object absorbs
+  // the most a shield absorbs, its RES; null for anything else
+  blockCap: num.nullable().default(null),
   shield: z.boolean().default(false),
   bypass: z.boolean().default(false),
   bust: z.boolean().default(false),

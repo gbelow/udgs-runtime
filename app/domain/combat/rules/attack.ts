@@ -87,10 +87,10 @@ export function isAimOnTarget(state: CombatState, action: { targetId: string | n
 // committed already, since the reaction was, and aimed at whoever it
 // answers — a catch, when it is a grab at a runner (combat.tex "Catch").
 export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, location, part, grab } = reaction
+  const { weaponKey, attack, variant, location, part, grab, sweepDirection } = reaction
   const root = getRootOf(state, reaction)
   const caught = grab && root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, part, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, step: 'react' })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,

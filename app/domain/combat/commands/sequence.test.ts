@@ -608,6 +608,65 @@ describe('a disarm an intercept opens', () => {
   })
 })
 
+// combat.tex "Sweeping Attack": "hits everything in a semicircle. Decide
+// whether to attack from right to left or vice versa and attack the enemies
+// in that order in a 180-degree arc ... If one character is behind another,
+// only the closest is hit ... Sweeping attacks do not draw attacks of
+// opportunity from any of its targets." The table's ruling: one roll per
+// target, the sweep paid once.
+describe('a sweeping attack', () => {
+  // A longsword (reach 2) swung clockwise from `t1`, east of the attacker:
+  // `t2` and `t3` a sixth and a third of a turn on, `hidden` behind `t2`,
+  // `back` two thirds of a turn round, outside the semicircle.
+  function sweepAt(t1: CampaignCharacter = fighter('t1')): CombatState {
+    let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], t3: [0, -1], hidden: [2, -2], back: [-1, 1] },
+      wielder('atk', 'Longsword'), t1, fighter('t2'), fighter('t3'), fighter('hidden'), fighter('back'))
+    s = declareAction('atk', { kind: 'strike', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'clockwise' }, newId)(s)
+    return commitAction(() => 5, newId)(setTarget('t1')(s))
+  }
+
+  it('strikes each target in the arc in turn, never one behind another or outside it, and is paid once', () => {
+    const start = sweepAt()
+    const cost = getOwnCost(start, getOpenAction(start)!)!
+    const { state, landed } = playOut(start, MISS)
+    expect(landed.filter((a) => a.kind === 'strike').map((a) => a.targetId)).toEqual(['t1', 't2', 't3'])
+    expect(start.characters.atk.resources.AP - state.characters.atk.resources.AP).toBe(cost.AP)
+  })
+
+  it('draws no opportunity attack from its targets, only from those it does not reach', () => {
+    const opportunities = getTriggers(sweepAt(), getOpenAction(sweepAt())!).filter((t) => t.kind === 'opportunityAttack')
+    expect(opportunities.map((t) => t.characterId)).toEqual(['back'])
+  })
+
+  // Broke: a target next to another was offered Protect on that one's
+  // strike, so they chose a defense twice in one sweep.
+  it('asks each target for a defense only on their own strike', () => {
+    const start = sweepAt()
+    const blockers = getTriggers(start, getOpenAction(start)!).filter((t) => t.kind === 'block').map((t) => t.characterId)
+    expect(blockers.filter((id) => ['t2', 't3'].includes(id))).toEqual([])
+  })
+
+  // The table's ruling: an opportunity attack may sweep; only the one who
+  // drew it answers at the interruption's -2 (combat.tex "Interruption").
+  it('made as an opportunity attack, goes on through the arc from the one who drew it', () => {
+    let s = onBoard({ atk: [0, 0], t1: [1, 0], t2: [1, -1], far: [5, 0] }, wielder('atk', 'Longsword'), archer('t1'), fighter('t2'), fighter('far'))
+    s = declareAction('t1', { kind: 'shoot', weaponKey: s.characters.t1.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('far')(s))
+    s = declareReaction('atk', { kind: 'opportunityAttack', weaponKey: s.characters.atk.held[0].id, attack: 'cut', variant: 'sweep', sweepDirection: 'clockwise' }, newId)(s)
+    const { landed } = playOut(s, MISS)
+    expect(landed.filter((a) => a.kind === 'strike').map((a) => a.targetId)).toEqual(['t1', 't2'])
+  })
+
+  // combat.tex "Intercept": "interrupts the attack"
+  it('goes no further once an intercept stops it', () => {
+    const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+    const start = sweepAt(holdItem(shield)(fighter('t1')))
+    const intercept = getAvailableActions(start, 't1').find((o) => o.draft.kind === 'intercept')!
+    const { landed } = playOut(declareReaction('t1', intercept.draft, newId)(start), MISS)
+    expect(landed.filter((a) => a.kind === 'strike').map((a) => a.targetId)).toEqual(['t1'])
+  })
+})
+
 // combat.tex "Sprays": "Sprays target all characters in range, which their
 // reflex saves to escape ... The attacker can choose the exact direction of
 // the cone after the movement." The table's ruling: nothing is aimed before

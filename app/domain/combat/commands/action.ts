@@ -9,6 +9,7 @@ import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getDragComparison } from '../rules/drag'
 import { canAcceptSpellTest } from '../rules/cast'
+import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
 
@@ -59,7 +60,8 @@ export function setTarget(targetId: string): Updater {
 // be, affordable, and from here on locked — what everyone else answers is
 // exactly this. Nothing is paid yet; that waits for the die. A move writes
 // down where it sets out from, since the mover may be stood part of the way
-// along it before it resolves. When nobody has an answer open to it, nothing
+// along it before it resolves; a sweep, who its arc reaches after its target,
+// as they stand when it is swung. When nobody has an answer open to it, nothing
 // waits between the commit and the die, so it is rolled or paid at once. A
 // flee committed as passed up is withdrawn.
 export function commitAction(dice: Dice, newId: () => string): Updater {
@@ -73,6 +75,8 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (!getPayableCost(state, open)) return state
     const committed: Action = open.kind === 'move'
       ? { ...open, step: 'react', from: state.board?.placements[open.actorId] ?? null }
+      : open.kind === 'strike'
+      ? { ...withSweepArc(state, open), step: 'react' }
       : { ...open, step: 'react' }
     const locked = replaceActions(state, [committed])
     if (hasOpenAnswer(locked)) return locked

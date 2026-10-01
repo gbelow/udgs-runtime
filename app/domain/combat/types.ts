@@ -193,6 +193,14 @@ const AttackDeclaration = {
   part: str.nullable().default(null),
 }
 
+// combat.tex "Sweeping Attack": "Decide whether to attack from right to left
+// or vice versa" — the way the arc turns from the target, declared with a
+// sweeping variation by whoever strikes: a strike, or the opportunity attack
+// or counterattack that opens one.
+const SweepDeclaration = {
+  sweepDirection: z.enum(['clockwise', 'counterclockwise']).default('clockwise'),
+}
+
 // combat.tex "Grapple": two characters locked together, and which of them
 // hold the other — a hold both ways is a grab answered by "grapple back". A
 // holder keeps the hold only while they have a grapple row to hold with.
@@ -267,6 +275,16 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Evasive Jump": where the target's jump landed them, written
   // at the resolve
   jumpedTo: PlacementSchema.nullable().default(null),
+  ...SweepDeclaration,
+  // combat.tex "Sweeping Attack": who the sweep still reaches after this
+  // target, in order, written on a board when it is committed or opened;
+  // and what is left of the blow when it comes to this target (combat.tex
+  // "Damage absorption"), 1 for the first. Each target after the first is
+  // a strike of its own, opened by the one before it, naming the sweep's
+  // first strike in `sweepOf` (null on the first, and on any other strike).
+  arc: z.array(str).default([]),
+  sweepOf: str.nullable().default(null),
+  share: num.default(1),
 }).strip()
 
 // combat.tex "Accuracy", "Shoot": a ranged weapon attack, "a throw or shot
@@ -471,6 +489,7 @@ export const OpportunityAttackActionSchema = z.object({
   kind: z.literal('opportunityAttack'),
   at: num.nullable().default(null),
   ...AttackDeclaration,
+  ...SweepDeclaration,
   grab: z.boolean().default(false),
   // combat.tex "Grapple Maneuvers": "can be used like opportunity attacks"
   // — against a grapple partner, what is opened is a maneuver instead of a
@@ -493,7 +512,7 @@ export const JoinShotActionSchema = z.object({
 // abilities.tex "Counterattack": the target's answer to a strike, declared
 // with the strike it opens in full. Its die is thrown with the attack's, and
 // the two results say which of them lands first (rules/counter.ts).
-export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...AttackDeclaration }).strip()
+export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...AttackDeclaration, ...SweepDeclaration }).strip()
 
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
 // the root resolves it opens a move of the follower's own, capped at what

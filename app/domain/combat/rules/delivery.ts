@@ -6,8 +6,8 @@ import type { WeaponRow } from './weaponRow'
 // What an attack delivers, as a damage effect with the degree its test came
 // to, before anything is bought on it.
 
-export type Defense = Pick<Damage, 'defense' | 'defenseAP' | 'defenseWeaponKey' | 'block' | 'shield'>
-export const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '', block: 0, shield: false }
+export type Defense = Pick<Damage, 'defense' | 'defenseAP' | 'defenseWeaponKey' | 'block' | 'blockCap' | 'shield'>
+export const UNDEFENDED: Defense = { defense: 'none', defenseAP: 0, defenseWeaponKey: '', block: 0, blockCap: null, shield: false }
 
 // A damage effect on its way, at a degree already decided by the producer.
 export function delivering(name: string, damage: Damage, degree: Delivery['degree']): Delivery {

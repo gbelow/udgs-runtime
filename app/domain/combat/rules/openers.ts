@@ -7,6 +7,7 @@ import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityR
 import { getJoinedShot } from './coordinated'
 import { getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from './counter'
 import { getInterruptionOf } from './interruption'
+import { withSweepArc } from './sweep'
 import { getEscapeAfterBlast, getEscapeBeforeBlast, getEvasionMove, getFollowMove, type ReactionMove } from './reactionMoves'
 
 // What each reaction opens, and when. `before` is played out between the
@@ -64,7 +65,8 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       if (getOpportunityStop(state, root) !== null || !isOpportunityReached(state, root, reaction)) return null
       if (root.kind === 'strike' && !isFlankInReach(state, reaction, root)) return null
       const placed = getOpportunityState(state, reaction)
-      return { state: placed, action: getOpportunityAction(placed, reaction, newId()) }
+      const action = getOpportunityAction(placed, reaction, newId())
+      return { state: placed, action: action.kind === 'strike' ? withSweepArc(placed, action) : action }
     },
   },
   // combat.tex "Coordinated Shots": the shots hit at the same point as the
@@ -114,10 +116,12 @@ export function getAnsweringReactions(state: CombatState, root: RootAction): Rea
   return getReactionsTo(state, answered).filter(isReactionAction)
 }
 
+// The counterattack's strike, with the arc a sweep reaches as everyone
+// stands when it opens.
 function openCounter(state: CombatState, root: RootAction, reaction: ActionOf<'counterattack'>, slots: CounterSlot[], newId: () => string): Action | null {
   const slot = getCounterSlot(root, reaction)
   if (!slot || !slots.includes(slot) || getCounterStrikeOf(state, reaction)) return null
-  return getCounterStrike(reaction, newId())
+  return withSweepArc(state, getCounterStrike(reaction, newId()))
 }
 
 // The move a reaction opens for its reactor.

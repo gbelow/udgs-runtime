@@ -7,6 +7,7 @@ import { getActionCost } from '../rules/actionCosts'
 import { getArmor } from '../rules/armor'
 import { AttackVariant, getAPSurcharge, getAttacksList, getBlockValue, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
 import { getTGH } from '../rules/misc'
+import { getTierThreshold } from '../rules/damage'
 
 // Read-side projection of one row of a weapon's attack table. Every number is
 // final — the component renders it, it does not compute it.
@@ -80,9 +81,9 @@ export function getDamageTiers(c: Character): DamageTierRow[] {
     const tier = Number(key.slice(1))
     return {
       tier,
-      blunt: armor.protection + tier * TGH,
-      RES: armor.RES + tier * TGH,
-      INS: armor.INS + tier * TGH,
+      blunt: getTierThreshold(armor.protection, TGH, tier),
+      RES: getTierThreshold(armor.RES, TGH, tier),
+      INS: getTierThreshold(armor.INS, TGH, tier),
       IL: effect.IL,
     }
   })
