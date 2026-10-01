@@ -1,7 +1,8 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
-import { canBeHeld, getDrawCost, getFreeHoldingHands, getGrip, getHeldItem, getStoreCost, Grip, isCharged } from '../rules/hands'
+import { canBeHeld, getDrawCost, getFreeHoldingHands, getGrip, getHeldItem, getSlingView, getStoreCost, getUnslingView, Grip, isCharged } from '../rules/hands'
 import { canFitItem, findReadyItem, getContainer } from '../rules/containers'
-import { ActionCost } from '../../character/rules/actionCosts'
+import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
+import { MoveView } from '../rules/costs'
 import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
@@ -16,7 +17,7 @@ type HeldUpdater = <C extends Character>(c: C) => C
 // nothing is charged. `null` is the refusal, so the caller returns the
 // character untouched. Nothing done with the hands is anything a surge's AP
 // allows, so none can be done while any is left.
-export function pay(c: Character, cost: ActionCost): Character | null {
+export function pay<C extends Character>(c: C, cost: ActionCost): C | null {
   if (!isCharged(c)) return c
   if (getSurgeBar(c)) return null
   if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
@@ -126,6 +127,45 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
     const paid = pay(c, getStoreCost(c, slot, item))
     if (!paid) return c
     return addItemToContainer(containerKey, slot, item)(release(paid, itemId))
+  }
+}
+
+// gear.tex "Shields": each move to or from the back is a standard action,
+// once its view allows it.
+function payBackMove<C extends Character>(c: C, view: MoveView | null, what: string): C | null {
+  if (!view) return null
+  if (!view.able) {
+    throw new Error(`Cannot ${what}: ${view.why}`)
+  }
+  return pay(c, getActionCost(c, 'standardAction'))
+}
+
+// The held shield is slid to the back.
+export function slingShield(itemId: string): HeldUpdater {
+  return <C extends Character>(c: C): C => {
+    const item = getHeldItem(c, itemId)
+    if (!item) return c
+    const paid = payBackMove(c, getSlingView(c, item), `sling "${item.name || item.refId}"`)
+    return paid ? { ...release(paid, itemId), onBack: item } : c
+  }
+}
+
+// The shield on the back is slid to the front, into one hand.
+export function unslingShield(): HeldUpdater {
+  return <C extends Character>(c: C): C => {
+    const item = c.onBack
+    if (!item) return c
+    const paid = payBackMove(c, getUnslingView(c, item), 'unsling the shield')
+    return paid ? grip({ ...paid, onBack: null }, item, 1) : c
+  }
+}
+
+// gear.tex "Shields": "Throwing the shield out also costs a standard action".
+// There is no floor off the combat board, so it is gone.
+export function throwOffShield(): HeldUpdater {
+  return <C extends Character>(c: C): C => {
+    const paid = c.onBack && pay(c, getActionCost(c, 'standardAction'))
+    return paid ? { ...paid, onBack: null } : c
   }
 }
 

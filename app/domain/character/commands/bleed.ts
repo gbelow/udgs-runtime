@@ -1,15 +1,15 @@
 import { CampaignCharacter } from "../../types"
 
 
-export function bleed( amount: number): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
+export function bleed( amount: number): <C extends CampaignCharacter>(c: C) => C {
+  return <C extends CampaignCharacter>(c: C): C => {
     const damage = amount*c.injuries.bleed
     return {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel + damage}}
   }
 }
 
-export function updateSTA( newSTA: number): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
+export function updateSTA( newSTA: number): <C extends CampaignCharacter>(c: C) => C {
+  return <C extends CampaignCharacter>(c: C): C => {
     const currentSTA = c.resources.STA
     const damage = Math.max(0, currentSTA - newSTA)
     if(damage > 0) return bleed(damage)({...c, resources:{...c.resources, STA: newSTA}})

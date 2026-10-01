@@ -169,6 +169,7 @@ const CharacterIngestValues = {
   body: z.array(BodyPartSchema).optional(),
   stance: StanceSchema.partial().optional(),
   held: z.array(ItemSchema).optional(),
+  onBack: ItemSchema.nullable().optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),
 
   abilities: z.array(z.string()).optional(),

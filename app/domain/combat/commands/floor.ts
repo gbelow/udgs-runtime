@@ -1,28 +1,43 @@
 import type { Updater } from '../types'
-import { dropItem } from '../../item/commands/hands'
+import { dropItem, throwOffShield } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { getSeveredItem } from '../../character/rules/body'
 import type { CombatState } from '../types'
+import type { Character, Item } from '../../types'
 import { onFloor } from '../rules/floor'
 import { settleGrapples } from './grapple'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
 
-// combat.tex "Putting items away": "Dropping items on the floor costs 0 AP"
-// — in a fight, the stack lands where the character stands, and a holder
-// who dropped the last thing they could grapple with lets go.
+// What a character lets go of lands where they stand, and a holder who let
+// go of the last thing they could grapple with lets go of the grapple. A
+// move refused leaves the character as it was, and nothing lands.
+function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C) => C): Updater {
+  return (state) => {
+    const c = state.characters[characterId]
+    if (!c || !item) return state
+    const after = letGo(c)
+    if (after === c) return state
+    return settleGrapples({
+      ...state,
+      characters: { ...state.characters, [characterId]: after },
+      floor: [...state.floor, onFloor(item, state.board?.placements[characterId]?.cell ?? null)],
+    })
+  }
+}
+
+// combat.tex "Putting items away": "Dropping items on the floor costs 0 AP".
 export function dropToFloor(characterId: string, itemId: string): Updater {
   return (state) => {
     const c = state.characters[characterId]
-    const item = c ? getHeldItem(c, itemId) : undefined
-    if (!c || !item) return state
-    const dropped = {
-      ...state,
-      characters: { ...state.characters, [characterId]: dropItem(itemId)(c) },
-      floor: [...state.floor, onFloor(item, state.board?.placements[characterId]?.cell ?? null)],
-    }
-    return settleGrapples(dropped)
+    return landOnFloor(characterId, c && getHeldItem(c, itemId), dropItem(itemId))(state)
   }
+}
+
+// gear.tex "Shields": the shield thrown off the back, once the standard
+// action is paid.
+export function throwOffShieldToFloor(characterId: string): Updater {
+  return (state) => landOnFloor(characterId, state.characters[characterId]?.onBack, throwOffShield())(state)
 }
 
 // An item on the floor chosen for picking up: declares the pick up with it,

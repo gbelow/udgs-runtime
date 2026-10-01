@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/shallow";
 import { putOnFromCatalog, takeOffContainer } from "../domain/item/commands";
-import { getPutOnView, PutOnView } from "../domain/item/rules/containers";
+import { getPutOnView } from "../domain/item/rules/containers";
+import type { MoveView } from "../domain/item/rules/costs";
 import {
   BurdenView,
   ContainerPanelView,
@@ -38,7 +39,7 @@ export function useContainerLens() {
 
   // Whether the catalog pick could be put straight on; null when there is no
   // pick or it is not a container one puts on.
-  const putOnView: PutOnView | null =
+  const putOnView: MoveView | null =
     useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getPutOnView(c, null, fromCatalog) : null))) ?? null;
 
   // Puts the catalog pick on. The pick stays pending, as it does when placed

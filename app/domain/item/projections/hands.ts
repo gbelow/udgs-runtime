@@ -2,9 +2,9 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { Character, Item, SlotKind } from '../../types'
 import { getWearView, WearView } from '../../character/rules/armor'
 import { getBulkName, getItemScale } from '../rules/items'
-import { getDrawCost, isCharged } from '../rules/costs'
-import { getPutOnView, PutOnView } from '../rules/containers'
-import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, getNaturalWeapon, isLamingHold } from '../rules/hands'
+import { MoveView, getDrawCost, isCharged } from '../rules/costs'
+import { getPutOnView } from '../rules/containers'
+import { Grip, canHoldWith, getBackMoveCost, getFreeHoldingHands, getGrip, getHeldItem, getNaturalWeapon, getSlingView, getUnslingView, isLamingHold } from '../rules/hands'
 
 // A part that holds or fights: a hand, a paw, a jaw.
 export type HandView = {
@@ -30,14 +30,25 @@ export type HeldItemView = {
   // For an armor item, whether it could be put on from here; null otherwise.
   wear: WearView | null
   // for a container, whether it could be put on from the hands
-  putOn: PutOnView | null
+  putOn: MoveView | null
+  // for a shield, whether it could be slid to the back
+  sling: MoveView | null
   // spells.tex "Charged": the spell loaded into it, by name; '' for none
   charge: string
+}
+
+// gear.tex "Shields": the shield slid to the back, and what bringing it to
+// the front or throwing it off would take.
+export type BackView = {
+  name: string
+  unsling: MoveView
+  throwOffCost: number | null
 }
 
 export type HandsPanelView = {
   hands: HandView[]
   held: HeldItemView[]
+  back: BackView | null
   freeHolding: number
   // For the item being placed, whether the hands could take it as is, and
   // whether taking it would lame the holder.
@@ -71,13 +82,21 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
         wear: getWearView(c, item),
         putOn: getPutOnView(c, 'hand', item),
+        sling: getSlingView(c, item),
         charge: item.charge && isSpellKey(item.charge.key) ? SPELLS[item.charge.key].name : '',
       }
     }),
+    back: getBackView(c),
     freeHolding,
     canHold: pending ? { 1: canHoldWith(c, pending, 1), 2: canHoldWith(c, pending, 2) } : null,
     lamingHold: pending ? isLamingHold(c, pending) : false,
   }
+}
+
+function getBackView(c: Character): BackView | null {
+  const item = c.onBack
+  if (!item) return null
+  return { name: item.name || item.refId, unsling: getUnslingView(c, item), throwOffCost: getBackMoveCost(c) }
 }
 
 // A container's stack as the hands see it: whether it could be drawn right

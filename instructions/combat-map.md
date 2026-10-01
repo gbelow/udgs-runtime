@@ -352,7 +352,7 @@ app/domain/combat/
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── grapple.ts      settleGrapples
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
-│   ├── floor.ts        dropToFloor, pickFloorItem
+│   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: upkeep, gas, burning, bleed, AP reset
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)

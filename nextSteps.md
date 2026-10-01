@@ -105,7 +105,6 @@ flamethrower retarget as reaction - cost rework.
 flamethrower require focus surge to sustain
 
 wound healing is undefined - possession healing neither
-shield equipping - guige
 
 soft grapple weapons - whip is not grapple, nor is net
 donning doffing gauntlets and helmets

@@ -1,16 +1,17 @@
-import { holdItem, regripItem, dropItem, putOnFromHands } from "../domain/item/commands";
+import { holdItem, regripItem, dropItem, putOnFromHands, slingShield, unslingShield, throwOffShield } from "../domain/item/commands";
 import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem } from "../domain/item/rules/items";
 import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
-import { Character } from "../domain/types";
+import type { Character, CharacterUpdater } from "../domain/types";
+import type { Updater } from "../domain/combat/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
-import { dropToFloor } from "../domain/combat/commands/floor";
+import { dropToFloor, throwOffShieldToFloor } from "../domain/combat/commands/floor";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
-const EMPTY: HandsPanelView = { hands: [], held: [], freeHolding: 0, canHold: null, lamingHold: false };
+const EMPTY: HandsPanelView = { hands: [], held: [], back: null, freeHolding: 0, canHold: null, lamingHold: false };
 
 // The hands and what they hold, in one shape gated on a digest of itself (cf.
 // useContainerLens). The pending catalog item is an input — the panel says
@@ -38,11 +39,15 @@ export function useHandsLens() {
     update(regripItem(itemId, grip));
   };
 
-  // in a fight what is dropped lands on the floor; on the sheet it is gone
-  const drop = (itemId: string) => {
+  // in a fight what is let go of lands on the floor; on the sheet it is gone
+  const letGo = (toFloor: (characterId: string) => Updater, gone: CharacterUpdater) => {
     const combat = useCombatStore.getState();
-    if (tab !== "edit" && combat.activeCharacterId) combat.updateCombatState(dropToFloor(combat.activeCharacterId, itemId));
-    else update(dropItem(itemId));
+    if (tab !== "edit" && combat.activeCharacterId) combat.updateCombatState(toFloor(combat.activeCharacterId));
+    else update(gone);
+  };
+
+  const drop = (itemId: string) => {
+    letGo((id) => dropToFloor(id, itemId), dropItem(itemId));
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
@@ -56,5 +61,18 @@ export function useHandsLens() {
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
-  return { panel, hold, regrip, drop, wear, putOn } as const;
+  const sling = (itemId: string) => {
+    update(slingShield(itemId));
+    if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
+  };
+
+  const unsling = () => {
+    update(unslingShield());
+  };
+
+  const throwOff = () => {
+    letGo(throwOffShieldToFloor, throwOffShield());
+  };
+
+  return { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } as const;
 }

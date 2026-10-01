@@ -996,6 +996,9 @@ const CharacterValues = {
   body: z.array(BodyPartSchema).default(() => HUMANOID_BODY.map((part) => BodyPartSchema.parse(part))),
   stance: StanceSchema.partial().default({}).transform(v => StanceSchema.parse(v)),
   held: z.array(ItemSchema).default([]),
+  // gear.tex "Shields": a shield carries its own strap and is slid to the
+  // back rather than stored in a container; one back, one shield
+  onBack: ItemSchema.nullable().default(null),
   containers: z.record(z.string(), ContainerSchema).default({}),
 
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog

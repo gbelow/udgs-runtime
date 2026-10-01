@@ -3,8 +3,10 @@ import { useHandsLens } from '../hooks/useHandsLens'
 import { useItemLens } from '../hooks/useItemLens'
 import { Button, Panel, Row } from './ui'
 
+const withCost = (label: string, cost: number | null) => (cost === null ? label : `${label} (${cost} AP)`)
+
 export function HandsPanel(){
-  const { panel, hold, regrip, drop, wear, putOn } = useHandsLens()
+  const { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } = useHandsLens()
   const { pending, selectHeld, clear } = useItemLens()
 
   return(
@@ -37,7 +39,8 @@ export function HandsPanel(){
               {item.canGrip[1] ? <Button size='xs' aria-label={`grip ${item.name} with one hand`} onClick={() => regrip(item.id, 1)}>1h</Button> : null}
               {item.canGrip[2] ? <Button size='xs' aria-label={`grip ${item.name} with two hands`} onClick={() => regrip(item.id, 2)}>2h</Button> : null}
               {item.wear ? <Button size='xs' variant='good' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? '' : item.wear.why} onClick={() => wear(item.id)}>wear</Button> : null}
-              {item.putOn ? <Button size='xs' variant='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? '' : item.putOn.why} onClick={() => putOn(item.id)}>{item.putOn.cost === null ? 'put on' : `put on (${item.putOn.cost} AP)`}</Button> : null}
+              {item.sling ? <Button size='xs' aria-label={`sling ${item.name} to the back`} disabled={!item.sling.able} title={item.sling.why} onClick={() => sling(item.id)}>{withCost('to back', item.sling.cost)}</Button> : null}
+              {item.putOn ? <Button size='xs' variant='good' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.why} onClick={() => putOn(item.id)}>{withCost('put on', item.putOn.cost)}</Button> : null}
               <span className='ml-auto flex flex-row gap-1'>
                 {
                   putting ?
@@ -50,6 +53,15 @@ export function HandsPanel(){
           )
         })}
       </div> : null}
+      {panel.back ?
+      <Row>
+        <span>{panel.back.name}</span>
+        <span className='text-muted'>on back</span>
+        <Button size='xs' variant='good' aria-label={`bring ${panel.back.name} to the front`} disabled={!panel.back.unsling.able} title={panel.back.unsling.why} onClick={unsling}>{withCost('to front', panel.back.unsling.cost)}</Button>
+        <span className='ml-auto flex flex-row gap-1'>
+          <Button size='xs' variant='ghost' aria-label={`throw off ${panel.back.name}`} onClick={throwOff}>{withCost('drop', panel.back.throwOffCost)}</Button>
+        </span>
+      </Row> : null}
     </Panel>
   )
 }

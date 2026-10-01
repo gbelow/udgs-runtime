@@ -3,6 +3,8 @@ import { getCatalogWeapon, getItemWeapon } from './items'
 import { getSize } from '../../character/rules/misc'
 import { scaleWeapon } from '../../character/rules/helpers'
 import { getWorkingParts } from '../../character/rules/body'
+import { getActionCost } from '../../character/rules/actionCosts'
+import { MoveView, isCharged } from './costs'
 
 export { hasDraw, getDrawCost, getStoreCost, isCharged, FREE } from './costs'
 
@@ -90,4 +92,31 @@ export function getWieldedWeapons(c: Character): Wielded[] {
 // gear.tex "Small/One/Two hands": "Two-handed weapons require both hands".
 export function isAttackUsable(handed: Handed, grip: number): boolean {
   return handed === 'two' ? grip >= 2 : grip >= 1
+}
+
+// gear.tex "Burden penalties": a shield's penalty counts wherever it is
+// carried, in the hands or on the back.
+export function getShieldBurden(c: Character): number {
+  return [...c.held, ...(c.onBack ? [c.onBack] : [])].reduce((total, item) => total + (getItemWeapon(item)?.shield?.burdenPenalty ?? 0), 0)
+}
+
+// gear.tex "Shields": a shield "carries its own" strap, so it is slid to the
+// back or back to the front with a standard action, and "throwing the shield
+// out also costs a standard action". On the sheet each is free.
+export function getBackMoveCost(c: Character): number | null {
+  return isCharged(c) ? getActionCost(c, 'standardAction').AP : null
+}
+
+function backMove(c: Character, why: string): MoveView {
+  return { able: why === '', cost: getBackMoveCost(c), why }
+}
+
+// Null for a held item that is not a shield.
+export function getSlingView(c: Character, item: Item): MoveView | null {
+  if (getItemWeapon(item)?.shield === undefined) return null
+  return backMove(c, c.onBack ? `the ${c.onBack.name || c.onBack.refId} is on the back` : '')
+}
+
+export function getUnslingView(c: Character, item: Item): MoveView {
+  return backMove(c, canHoldWith(c, item, 1) ? '' : 'no free hand')
 }

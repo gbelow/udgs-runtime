@@ -1,6 +1,6 @@
 import { AttackType, Character, Weapon, WeaponAttack } from "../../types";
 import { getBurdenPenalty } from "../../item/rules/containers";
-import { getWieldedWeapons } from "../../item/rules/hands";
+import { getShieldBurden } from "../../item/rules/hands";
 import { getSTR, getSTRBase } from "./characteristics";
 import { getSize } from "./misc";
 import { BOWS, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
@@ -21,7 +21,7 @@ import { isCampaignCharacter } from "../../utils";
 // injury penalty already reduces on its own.
 export function getGearPenalties(c: Character){
   const gear = getArmor(c).burdenPenalty +
-    getWieldedWeapons(c).reduce((acc: number, { weapon }) => acc + (weapon.shield?.burdenPenalty ?? 0), 0) +
+    getShieldBurden(c) +
     getBurdenPenalty(c)
 
   const strMod = Math.trunc((getSTRBase(c) - 10) / 5)

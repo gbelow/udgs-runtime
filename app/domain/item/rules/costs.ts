@@ -11,6 +11,10 @@ export function hasDraw(item: Item): boolean {
 const times = (cost: ActionCost, n: number): ActionCost => ({ AP: cost.AP * n, STA: cost.STA * n })
 const plusAP = (cost: ActionCost, ap: number): ActionCost => ({ AP: cost.AP + ap, STA: cost.STA })
 
+// Whether a move with an item can be made, what it costs a character in play
+// (null on the sheet), and why not.
+export type MoveView = { able: boolean; cost: number | null; why: string }
+
 export const FREE: ActionCost = { AP: 0, STA: 0 }
 
 // combat.tex "Drawing items in combat": from any slot but a quick one, 4 AP on

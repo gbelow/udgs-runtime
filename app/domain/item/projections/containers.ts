@@ -2,7 +2,7 @@ import type { Character, Container, ContainerKind, Item, SlotKind } from '../../
 import { SlotKindSchema } from '../../types'
 import { getWearView, WearView } from '../../character/rules/armor'
 import { getBulkName } from '../rules/items'
-import { getStoreCost, isCharged } from '../rules/costs'
+import { MoveView, getStoreCost, isCharged } from '../rules/costs'
 import { getHeldItem } from '../rules/hands'
 import {
   canFitItem,
@@ -11,7 +11,6 @@ import {
   getContainerPenalty,
   getOpenContainers,
   getPutOnView,
-  PutOnView,
   getSlungContainers,
   getSlotBulk,
   getSlotsNeeded,
@@ -35,7 +34,7 @@ export type ContainerItemView = {
   // For an armor item, whether it could be put on from here; null otherwise.
   wear: WearView | null
   // For a container item, the same.
-  putOn: PutOnView | null
+  putOn: MoveView | null
 }
 
 // One slot group as the Containers table prints it: the Quick column names the

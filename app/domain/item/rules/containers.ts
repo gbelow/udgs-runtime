@@ -1,6 +1,6 @@
 import { Character, Container, ContainerKind, Item, ItemSchema, SlotKind } from '../../types'
 import { isSameItem } from './items'
-import { FREE, getDrawCost, isCharged } from './costs'
+import { FREE, MoveView, getDrawCost, isCharged } from './costs'
 import { getSize } from '../../character/rules/misc'
 
 // gear.tex "Quiver": "Can be slung on a belt" — a quiver in a quick slot of
@@ -70,9 +70,7 @@ export function getDisplacedContainer(c: Character, item: Item): Container | und
 // which is how a character is dressed; anywhere else the other comes off
 // first. A quiver is not put on but slung (gear.tex "Quiver"). Null for an
 // item that is not a container one can put on.
-export type PutOnView = { able: boolean; cost: number | null; why: string }
-
-export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): PutOnView | null {
+export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): MoveView | null {
   if (!item.container || item.container.kind === 'quiver') return null
   const displaced = getDisplacedContainer(c, item)
   if (displaced && (from !== null || isCharged(c))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }

@@ -43,6 +43,7 @@ function deepFreeze<T>(value: T): T {
 const armor = ArmorSchema.parse((armorsCatalog as Record<string, unknown>).Gambeson)
 const daggerItem = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
 const grenadeItem = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+const shieldItem = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 3 })
 const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()
@@ -145,6 +146,9 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   chargeItem: (c) => itemCommands.chargeItem('shock-explosive')(itemCommands.holdItem(ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 }))(c)),
   consumeItem: itemCommands.consumeItem(daggerItem.id),
   dischargeItem: itemCommands.dischargeItem(daggerItem.id),
+  slingShield: (c) => itemCommands.slingShield(shieldItem.id)(itemCommands.holdItem(shieldItem)(c)),
+  unslingShield: (c) => itemCommands.unslingShield()({ ...c, onBack: shieldItem }),
+  throwOffShield: (c) => itemCommands.throwOffShield()({ ...c, onBack: shieldItem }),
 }
 
 const NOT_UPDATERS = new Set<string>()
@@ -197,6 +201,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   settleGrapples: (s) => combatCommands.settleGrapples(deepFreeze(grappling(s))),
   settleSevered: (s) => combatCommands.settleSevered(s, 'x')(deepFreeze({ ...s, characters: { ...s.characters, a: severPart('handL')(s.characters.a) } })),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
+  throwOffShieldToFloor: (s) => combatCommands.throwOffShieldToFloor('a')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, onBack: shieldItem } } })),
   pickFloorItem: (s) => combatCommands.pickFloorItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   pickThrowItem: (s) => combatCommands.pickThrowItem('a', daggerItem.id, newId)(deepFreeze({ ...cleared(s), floor: [{ item: daggerItem, cell: null }] })),
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
