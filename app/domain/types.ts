@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
@@ -728,6 +728,62 @@ export const RequirementSchema = z.object({
 }).strip()
 export type Requirement = z.infer<typeof RequirementSchema>
 
+// A follow-up as data: what a landed strike offers someone, read by
+// combat/rules/recipes.ts. Every word a recipe is written in is closed, and
+// each is read there.
+//
+// `on` is when it fires. `defended`: a defense of `defenses` (any of the four
+// when empty) made the strike come to one of `degrees`; the defender acts, at
+// the attacker — only the strike's target, unless `defender` is `any`.
+// `struck`: the strike came to one of `degrees` with `spent` bought, aimed at
+// one of `locations`; its attacker acts, at its target. An empty list allows
+// any.
+export const RecipeEventSchema = z.discriminatedUnion('event', [
+  z.object({
+    event: z.literal('defended'),
+    defenses: z.array(z.enum(DEFENSES)).default([]),
+    degrees: z.array(DegreeSchema).default([]),
+    defender: z.enum(['target', 'any']).default('target'),
+  }).strip(),
+  z.object({
+    event: z.literal('struck'),
+    degrees: z.array(DegreeSchema).default([]),
+    spent: z.enum(HOP_PURCHASES).nullable().default(null),
+    locations: z.array(HitLocationSchema).default([]),
+  }).strip(),
+])
+export type RecipeEvent = z.infer<typeof RecipeEventSchema>
+
+// What a recipe asks of the fight for one of its terms to apply: the opened
+// strike made with another object than the defense it is opened from, or the
+// struck target running or jumping.
+export const RecipeConditionSchema = z.enum(['differentObjectFromOpener', 'targetInMotion'])
+export type RecipeCondition = z.infer<typeof RecipeConditionSchema>
+
+export const RecipeOpensSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('strike') }).strip(),
+  // `along`: whether its actor may throw themselves along on a hit
+  z.object({ kind: z.literal('grapple'), maneuver: z.enum(GRAPPLE_MANEUVERS), along: z.boolean().default(false) }).strip(),
+])
+
+// `opens` is what the follow-up is; the rest is what it gets: `hit` to its
+// attack, `cost` added to its price or set in place of it (when `costWhen`
+// holds, or always), unresisted when `unresistedWhen` holds, and whether it
+// draws opportunity attacks.
+export const RecipeSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('followUp'),
+    on: RecipeEventSchema,
+    opens: RecipeOpensSchema,
+    hit: num.default(0),
+    cost: z.object({ operation: z.enum(['+', 'set']).default('+'), AP: num.default(0), STA: num.default(0) }).nullable().default(null),
+    costWhen: RecipeConditionSchema.nullable().default(null),
+    unresistedWhen: RecipeConditionSchema.nullable().default(null),
+    drawsOpportunity: z.boolean().default(true),
+  }).strip(),
+])
+export type Recipe = z.infer<typeof RecipeSchema>
+
 // What one level of an ability states for itself: its price, what it asks
 // for, what it does. Shared between the stored family shape and the
 // expanded per-stage catalog entry.
@@ -738,6 +794,7 @@ const AbilityStageValues = {
   requirements: z.array(z.array(RequirementSchema)).default([]), // every outer item is needed, any inner alternative satisfies it
   description: str.default(''),
   effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
+  recipes: z.array(RecipeSchema).default([]), // the follow-ups this stage offers in a fight
 }
 
 export const AbilityStageSchema = z.object(AbilityStageValues).strip()

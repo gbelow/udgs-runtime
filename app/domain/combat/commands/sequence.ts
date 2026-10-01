@@ -3,17 +3,15 @@ import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, Root
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
-import { getDefaultAim, getFreeAttackOptions } from '../rules/attack'
+import { getDefaultAim } from '../rules/attack'
 import { getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
-import { isInReach } from '../rules/board'
 import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
 import { isInterruptedBy } from '../rules/interruption'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
-import { getRiposteOpening } from '../rules/riposte'
-import { getDisarmOptions, getInterceptDisarmOpening, getStunEscapes } from '../rules/grapple'
-import { getHookKnockdown } from '../rules/damage'
+import { getStunEscapes } from '../rules/grapple'
+import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
 import { getTurnHolder } from '../rules/turn'
@@ -88,18 +86,6 @@ function openBefore(state: CombatState, root: RootAction, newId: () => string): 
   return state
 }
 
-// abilities.tex "Riposte": the defender's attack after a melee attack their
-// defense made miss or graze, aimed back at the attacker "if in range" —
-// some strike they hold reaches — for them to declare or pass up.
-function openRiposte(state: CombatState, root: RootAction, newId: () => string): Action[] {
-  const defense = getRiposteOpening(state, root)
-  const riposter = defense ? state.characters[defense.actorId] : undefined
-  if (!defense || !riposter) return []
-  const strike = makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id, ...getDefaultAim(state.characters[root.actorId]) })
-  const reaches = getFreeAttackOptions(state, riposter, 'strike').some((o) => isInReach(state, { ...strike, ...o }, root.actorId))
-  return reaches ? [strike] : []
-}
-
 // combat.tex "Avoiding an Explosion": the explosion goes off as a blast,
 // once the escapes the reflexes that cleared it open have been walked — so
 // it goes beneath them.
@@ -114,9 +100,10 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // opens, the tests a cast worked through a link puts its targets to, the
 // explosion a cast that hit with an area to it goes off as,
 // aimed and played out on its own (the caster's part is done), the one a
-// thrown object goes off as where it lands, the
-// knockdown a hook opens, the disarm an intercept opens, a riposte; and on
-// top, the sweep's next target, so the swing is finished first.
+// thrown object goes off as where it lands, what
+// the strike's recipes open (rules/recipes.ts: a hook's knockdown, an
+// intercept's disarm, a riposte); and on top, the sweep's next target, so the
+// swing is finished first.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
 // is offered to one the action interrupted (`isInterruptedBy`).
@@ -140,9 +127,7 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...openSpellTests(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
     ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
-    ...openHookKnockdown(state, root, newId),
-    ...openInterceptDisarm(state, root, newId),
-    ...openRiposte(state, root, newId),
+    ...getRecipeFollowUps(state, root, newId),
     ...openSweepLink(state, root, newId),
   ]
 }
@@ -194,14 +179,6 @@ function openSpellTests(state: CombatState, root: RootAction, newId: () => strin
   return getSpellTestTargets(state, root).map((targetId) => makeAction('spellTest', { id: newId(), actorId: root.actorId, targetId, key: root.key, spawnedBy: root.id, step: 'react' }))
 }
 
-// combat.tex "Hook Attack": the knockdown the hook opens, for the hooker to
-// take or skip, unresisted against one running or jumping.
-function openHookKnockdown(state: CombatState, root: RootAction, newId: () => string): Action[] {
-  const knockdown = root.kind === 'strike' ? getHookKnockdown(state, root) : null
-  if (!knockdown || root.kind !== 'strike') return []
-  return [makeAction('grapple', { maneuver: 'knockdown', hook: true, unresisted: knockdown.unresisted, id: newId(), actorId: root.actorId, targetId: root.targetId, spawnedBy: root.id })]
-}
-
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held
 // one's that nobody may resist, for them to take or skip.
 function escapesOnStun(state: CombatState, root: RootAction, newId: () => string): Action[] {
@@ -214,15 +191,4 @@ function escapesOnStun(state: CombatState, root: RootAction, newId: () => string
 // answered first played out first.
 function openFlees(state: CombatState, root: RootAction, newId: () => string): Action[] {
   return getFleeFollowUps(state, root).reverse().map((id) => makeAction('fleeFollowUp', { id: newId(), actorId: id, spawnedBy: root.id }))
-}
-
-// combat.tex "Disarm": "Can be used by spending +1AP+1STA when intercept
-// stops an attack" — a disarm the interceptor may declare or pass up, at
-// whoever they intercepted, with something of theirs to take.
-function openInterceptDisarm(state: CombatState, root: RootAction, newId: () => string): Action[] {
-  if (root.kind !== 'strike') return []
-  const intercept = getInterceptDisarmOpening(state, root)
-  if (!intercept) return []
-  const draft = makeAction('grapple', { maneuver: 'disarm', id: newId(), actorId: intercept.actorId, targetId: root.actorId, spawnedBy: intercept.id })
-  return getDisarmOptions(state, draft).length > 0 ? [draft] : []
 }

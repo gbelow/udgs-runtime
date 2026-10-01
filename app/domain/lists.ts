@@ -172,6 +172,10 @@ export const POSTURES = ['stand', 'prone'] as const
 // combat.tex "Grapple Maneuvers": "escape, immobilize, disarm, or knock down".
 export const GRAPPLE_MANEUVERS = ['escape', 'immobilize', 'disarm', 'knockdown'] as const
 
+// combat.tex "Defend": "There are four types of defense: Evade, Evasive
+// Jump, Intercept, and Block."
+export const DEFENSES = ['evade', 'evasiveJump', 'block', 'intercept'] as const
+
 // The afflictions a grapple puts on and takes off: "grappled", and what the
 // immobilize and knockdown maneuvers leave.
 export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const

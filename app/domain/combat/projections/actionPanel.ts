@@ -25,7 +25,7 @@ import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuv
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple } from '../rules/partners'
 import { getOpeningCounter } from '../rules/counter'
-import { getRiposteDefense } from '../rules/riposte'
+import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { canThrowItem, getThrowables } from '../rules/throw'
@@ -128,11 +128,11 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
     .filter((r) => r.options.length > 0)
 }
 
-// What the open action is called: a strike a counterattack or a riposte
-// opened goes by that name (abilities.tex "Counterattack", "Riposte").
+// What the open action is called: a strike a counterattack or a recipe
+// opened goes by that name (abilities.tex "Counterattack", rules/recipes.ts).
 function getOpenLabel(state: CombatState, open: Action): string {
   if (open.kind === 'strike' && getOpeningCounter(state, open)) return 'counterattack'
-  if (open.kind === 'strike' && getRiposteDefense(state, open)) return 'riposte'
+  if (open.kind === 'strike') return getRecipeOf(state, open)?.label ?? getActionName(open)
   return getActionName(open)
 }
 
@@ -358,7 +358,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       opportunity: open.kind === 'strike' && open.opportunity,
       grab: open.kind === 'strike' && open.grab,
       maneuver: grapple?.maneuver ?? null,
-      along: grapple && isAlongOffered(grapple) ? grapple.along : null,
+      along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' ? open.ammoId : '',

@@ -150,6 +150,9 @@ const ActionBase = {
   // The landed action that left this one as a follow-up for its actor to
   // take or pass up; null for anything else.
   followUpOf: str.nullable().default(null),
+  // The recipe that opened this action as a follow-up, by id
+  // (rules/recipes.ts); null for one no recipe opened.
+  recipe: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
   // An action another opened that its actor chose not to take: closed
   // without landing, and kept so it is not offered again.
@@ -540,9 +543,7 @@ export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.litera
 // "throw oneself along" for a knockdown, "stay immobilized yourself" for an
 // immobilization — and `item` what a disarm goes for. `unresisted` is the escape "Being stunned allows for", "without the
 // possibility of active resistance". `opportunity` is one made as an
-// opportunity attack. `hook` is the knockdown a hook
-// attack opens (combat.tex "Hook Attack"): free, needing no grapple, and
-// with no throwing oneself along ("Knockdown").
+// opportunity attack.
 export const GrappleActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('grapple'),
@@ -551,7 +552,6 @@ export const GrappleActionSchema = z.object({
   item: str.default(''),
   unresisted: z.boolean().default(false),
   opportunity: z.boolean().default(false),
-  hook: z.boolean().default(false),
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 

@@ -106,7 +106,7 @@ function isHookChance(state: CombatState, root: AttackAction): boolean {
 
 // What the hooked target was doing: jumping clear of the blow, running, or
 // neither.
-function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'jumping' | null {
+export function getHookedMotion(state: CombatState, root: AttackAction): 'running' | 'jumping' | null {
   if (root.targetId && getReactionsTo(state, root.id).some((r) => r.actorId === root.targetId && r.kind === 'evasiveJump')) return 'jumping'
   const step = getOpportunityStep(state, root)
   return step && step.move.actorId === root.targetId && step.move.movement === 'run' ? 'running' : null
@@ -120,17 +120,6 @@ function getStrikeTrample(state: CombatState, root: AttackAction): Trample | nul
   if (root.kind !== 'strike' || (!root.catch && (root.spent.braced ?? 0) === 0) || root.roll?.degree !== 'hit') return null
   const step = getOpportunityStep(state, root)
   return step ? getBlowTrample(state, root, step.move, step.at) : null
-}
-
-// combat.tex "Hook Attack": "If the attack was aimed at the legs or head,
-// the post hit effect is a knockdown attempt which cannot be reacted against
-// if they are running or jumping" — a knockdown of the hooker's, made only
-// once the hook's damage was bought (the table's ruling). Null when the
-// strike opens none; otherwise whether the target may resist it.
-export function getHookKnockdown(state: CombatState, root: StrikeAction): { unresisted: boolean } | null {
-  if (!root.targetId || (root.spent.hook ?? 0) === 0 || root.roll?.degree !== 'hit') return null
-  if (root.location !== 'head' && root.location !== 'leg') return null
-  return { unresisted: getHookedMotion(state, root) !== null }
 }
 
 // The attack as the attacker delivers it, once the die is known and the HOP

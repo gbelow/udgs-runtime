@@ -12,7 +12,7 @@ import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
 import { hasShootingRow } from './attack'
-import { getRiposteDefense } from './riposte'
+import { drawsOpportunity } from './recipes'
 import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
@@ -49,7 +49,7 @@ export type Trigger = {
 export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null
-  const drawsNone = opportunity || (root.kind === 'strike' && (getRiposteDefense(state, root) !== null || isSweepLink(root)))
+  const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
   const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(state, root).filter((id) => id !== root.targetId) : []
   return drawn.filter((t) => !others.includes(t.characterId))

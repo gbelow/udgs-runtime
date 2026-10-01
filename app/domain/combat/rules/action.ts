@@ -12,7 +12,7 @@ import { canAfford } from '../../character/rules/cost'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
 import { getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
@@ -26,7 +26,7 @@ import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
-import { getRiposteDiscount } from './riposte'
+import { allowsAlong, getRecipeCost } from './recipes'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
@@ -193,10 +193,6 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'block':
     case 'intercept':
       return withGuardStep(c, action, getActionCost(c, action.kind))
-    // the knockdown a hook opens is the hook's post-hit effect, not a
-    // maneuver of its own (the table's ruling)
-    case 'grapple':
-      return action.hook ? { AP: 0, STA: 0 } : getCatalogCost(c, action.kind)
     case 'evade':
     case 'brace':
     case 'evasiveJump':
@@ -218,6 +214,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'letGo':
     case 'pickUp':
     case 'rest':
+    case 'grapple':
       return getCatalogCost(c, action.kind)
   }
 }
@@ -254,8 +251,8 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 }
 
 // What the action costs its actor as it stands, whether or not they can pay
-// it; null while it is too incomplete to price. A riposte comes cheaper
-// (abilities.tex "Riposte"); a flee costs the movement surge, and is null
+// it; null while it is too incomplete to price. A follow-up is priced as
+// its recipe says (rules/recipes.ts); a flee costs the movement surge, and is null
 // once that cannot be made; a sweep is paid once, by the strike at its first
 // target (combat.tex "Sweeping Attack").
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
@@ -266,8 +263,7 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
     : getDeclaredCost(c, action)
-  const discount = action.kind === 'strike' ? getRiposteDiscount(state, action) : action.kind === 'grapple' ? getDisarmDiscount(state, action) : 0
-  const cost = declared && discount > 0 ? { AP: Math.max(0, declared.AP - discount), STA: declared.STA } : declared
+  const cost = declared && getRecipeCost(state, action, declared)
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
 }
 
@@ -392,13 +388,13 @@ export function hasPostChoice(state: CombatState, open: RootAction): boolean {
   return getPostStep(state, open) !== 'confirm'
     || canMoveWhileResting(state, open)
     || (open.kind === 'cast' && canSaveGraze(state, open))
-    || (open.kind === 'grapple' && isAlongOffered(open))
+    || (open.kind === 'grapple' && isAlongOffered(state, open))
 }
 
 // Whether a knockdown or an immobilize that hit asks its actor to go along
-// with it for it to land.
-export function isAlongOffered(open: GrappleAction): boolean {
-  return open.step === 'post' && isManeuverWon(open) && !open.hook && open.roll?.degree === 'hit' && (open.maneuver === 'knockdown' || open.maneuver === 'immobilize')
+// with it for it to land, where whatever opened it allows going along.
+export function isAlongOffered(state: CombatState, open: GrappleAction): boolean {
+  return open.step === 'post' && isManeuverWon(open) && allowsAlong(state, open) && open.roll?.degree === 'hit' && (open.maneuver === 'knockdown' || open.maneuver === 'immobilize')
 }
 
 // Who the action may be aimed at: retargeted freely until the commit, nobody
@@ -437,10 +433,10 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'cast':
       return others.filter((id) => canAimCast(state, root, id))
     // combat.tex "Grapple": what is done in a grapple is done to a partner —
-    // but the knockdown a hook opens, at whoever it hooked ("Hook Attack"),
-    // and a disarm intercept opens, at whoever it intercepted ("Disarm")
+    // but a maneuver a follow-up opens, at whoever its recipe aimed it at
+    // (rules/recipes.ts)
     case 'grapple':
-      if (root.hook || isInterceptDisarm(state, root)) return root.targetId ? [root.targetId] : []
+      if (root.recipe !== null) return root.targetId ? [root.targetId] : []
       return getManeuverTargets(state, root.actorId, root.maneuver)
     case 'release':
       return getReleaseTargets(state, root.actorId)

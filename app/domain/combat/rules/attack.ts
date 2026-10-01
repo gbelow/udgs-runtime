@@ -24,7 +24,7 @@ import { isDefense } from './actionCatalog'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
 import { getLinkDL } from '../../character/rules/concentration'
 import { getCounterStrike, getOpeningCounter } from './counter'
-import { getRiposteDefense } from './riposte'
+import { getRecipeHitTerms } from './recipes'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
 
@@ -241,14 +241,13 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
 
 // abilities.tex "Counterattack": "The counterattack receives -2 to hit",
 // and -2 more made in the middle of an action of one's own (combat.tex
-// "Interruption"); "Riposte": "an attack with a +2 bonus to hit".
+// "Interruption"); a follow-up, what its recipe adds (rules/recipes.ts).
 function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
   const counter = getOpeningCounter(state, strike)
   const countered = counter ? getRootOf(state, counter) : null
   const midAction = countered ? getMidActionTerm(state, countered, strike.actorId) : null
   if (counter) return [{ label: 'counterattack', value: -2 }, ...(midAction ? [midAction] : [])]
-  if (getRiposteDefense(state, strike)) return [{ label: 'riposte', value: 2 }]
-  return []
+  return getRecipeHitTerms(state, strike)
 }
 
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the

@@ -158,12 +158,23 @@ resolveAction ─────────► land(top)
   **last pushed is played first**. Bottom to top: the blast (under everything), whatever
   reactions open `after` (evasion and follow moves, explosion escapes, a lower-rolled
   counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
-  a cast opens, the explosion a thrown object goes off as where it lands, a hook's knockdown, a riposte, and on top a sweep's next target. A voided root generates only what an
+  a cast opens, the explosion a thrown object goes off as where it lands, what the strike's
+  recipes open (a hook's knockdown, an intercept's disarm, then the abilities': a riposte),
+  and on top a sweep's next target. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
-  nothing). Follow-ups no reaction opens (blast, cast and impact explosions, hook knockdown,
-  stun escapes, riposte) live in `getFollowUps` itself.
+  nothing). Follow-ups no reaction opens (blast, cast and impact explosions, stun escapes)
+  live in `getFollowUps` itself.
+- **Recipes** (`rules/recipes.ts`) — a follow-up a landed strike offers, written as data
+  (`RecipeSchema`, `domain/types.ts`): when it fires (`defended`, `struck`), what it opens
+  (a strike, a maneuver), and what that gets (a hit term, a price added or set, unresisted
+  under a condition, whether it draws opportunity attacks). Every fighter has the rules'
+  recipes (`RULE_RECIPES`: hook knockdown, intercept disarm); an ability adds its own in
+  `abilities.json` (a stage's `recipes`: riposte). The opened action carries the recipe's id
+  (`recipe`), and the hit terms, the price, the triggers and the panel label read it from
+  there. A new event, condition or opened kind is a word added to the schema and read here;
+  the `Record`s over them do not compile until it is.
 - **One follow-up each** — `land` stamps every follow-up still to be declared with
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
@@ -387,12 +398,12 @@ app/domain/combat/
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      counterattack slot (before / tie / after) and its strike
-│   ├── riposte.ts      when a riposte opens, its discount
+│   ├── recipes.ts      follow-ups as data: when each opens, and its hit, price and opportunity attacks
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
 │   ├── test.ts         resolveTest: skill vs DL → degree and HOP
-│   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hook knockdown
+│   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hooked motion
 │   ├── delivery.ts     a row's damage as it leaves the weapon
 │   ├── weaponRow.ts    rows in hand, usable rows, variants
 │   ├── cast.ts         spells: options, facts, improvements, graze save, explosion a cast opens
