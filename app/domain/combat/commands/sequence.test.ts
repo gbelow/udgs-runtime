@@ -111,7 +111,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
 function shotBetweenThreateners(): CombatState {
   let s = onBoard({ atk: [0, 0], def: [-3, 0], t1: [0, 1], t2: [1, -1] }, archer('atk'), fighter('def'), spearman('t1'), spearman('t2'))
   s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
-  s = commitAction()(setTarget('def')(s))
+  s = commitAction(() => 5, newId)(setTarget('def')(s))
   return everyoneAttacks(s, ['t1', 't2'])
 }
 
@@ -121,7 +121,7 @@ function shotBetweenThreateners(): CombatState {
 function walkPastSpearmen(): CombatState {
   let s = onBoard({ m: [0, 0], r1: [4, 0], r2: [4, -1] }, fighter('m'), spearman('r1'), spearman('r2'))
   s = declareAction('m', { kind: 'move' }, newId)(s)
-  s = commitAction()(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s))
+  s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s))
   return everyoneAttacks(s, ['r1', 'r2'])
 }
 
@@ -138,7 +138,7 @@ const LAND = 5
 function strikeFlankedTwice(): CombatState {
   let s = onBoard({ atk: [0, 0], def: [1, 0], f1: [-1, 0], f2: [-2, 0] }, fighter('atk'), fighter('def'), spearman('f1'), spearman('f2'))
   s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(s)
-  s = commitAction()(setTarget('def')(s))
+  s = commitAction(() => 5, newId)(setTarget('def')(s))
   return everyoneAttacks(s, ['f1', 'f2'])
 }
 
@@ -156,9 +156,9 @@ function pushTowardsSpearman(): CombatState {
 function moveGrabbedGroup(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): CombatState {
   let s = onBoard(placements, fighter('a'), fighter('b'), third)
   s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
-  s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction()(setTarget('b')(s))))
+  s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s))))
   s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
-  s = commitAction()(amendAction({ path })(setTarget('b')(s)))
+  s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
   expect(getOpenAction(s)?.kind).toBe('drag')
   expect(getOpenAction(s)?.step).toBe('react')
   return everyoneAttacks(s, [third.id])
@@ -314,7 +314,7 @@ describe('an explosion', () => {
     const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
     let s = onBoard({ t: [-5, 0], x: [0, -1], y: [0, 1] }, thrower, fighter('x'), fighter('y'))
     s = declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s)
-    s = resolveAction(newId)(payAction(newId)(commitAction()(s)))
+    s = commitAction(() => 5, newId)(s)
     for (const id of ['x', 'y']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
     return rollAction(() => 50, newId)(s)
   }
@@ -325,11 +325,10 @@ describe('an explosion', () => {
     const escaping = () => getOpenAction(s)!.actorId
     for (let i = 0; i < 5 && getOpenAction(s)?.kind === 'move'; i++) {
       s = escaping() === 'x'
-        ? resolveAction(newId)(payAction(newId)(commitAction()(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))))
+        ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))
         : withdrawSpawnedAction(newId)(s)
     }
-    expect(getOpenAction(s)?.kind).toBe('blast')
-    const blast = resolveAction(newId)(s).actions.find((a) => a.kind === 'blast')
+    const blast = s.actions.find((a) => a.kind === 'blast')
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
     expect(facts.x).toBeUndefined()
     expect(facts.y?.length).toBeGreaterThan(0)
@@ -341,7 +340,7 @@ function thrustAt(target: CampaignCharacter): CombatState {
   let s = onBoard({ atk: [0, 0], [target.id]: [1, 0] }, spearman('atk'), target)
   const [row] = getAttackOptions(s.characters.atk, 'strike')
   s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
-  return commitAction()(setTarget(target.id)(s))
+  return commitAction(() => 5, newId)(setTarget(target.id)(s))
 }
 
 // abilities.tex "Counterattack": "Both attacks are made against the
@@ -405,7 +404,7 @@ describe('a riposte', () => {
     const offered = missedShieldBearer('evade')
     expect(getOpenAction(withdrawSpawnedAction(newId)(offered))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
     const [row] = getAttackOptions(offered.characters.def, 'strike')
-    const declared = commitAction()(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(offered))
+    const declared = commitAction(() => 5, newId)(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(offered))
     expect(getOpenAction(resolveAction(newId)(rollAction(() => MISS, newId)(declared)))).toBeNull()
   })
 
@@ -451,9 +450,9 @@ describe('a riposte', () => {
     const start = onBoard({ atk: [0, 0], def: [1, 0], f: [2, 0] }, spearman('atk'), fighter('def', ['riposte']), spearman('f'))
     const [row] = getAttackOptions(start.characters.atk, 'strike')
     let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
-    s = declareReaction('def', { kind: 'evade' }, newId)(commitAction()(setTarget('def')(s)))
-    s = commitAction()(amendAction(punch)(resolveAction(newId)(rollAction(() => MISS, newId)(s))))
-    const own = commitAction()(setTarget('atk')(declareAction('def', { kind: 'strike', ...punch }, newId)(start)))
+    s = declareReaction('def', { kind: 'evade' }, newId)(commitAction(() => 5, newId)(setTarget('def')(s)))
+    s = commitAction(() => 5, newId)(amendAction(punch)(resolveAction(newId)(rollAction(() => MISS, newId)(s))))
+    const own = commitAction(() => 5, newId)(setTarget('atk')(declareAction('def', { kind: 'strike', ...punch }, newId)(start)))
     const kinds = (state: CombatState) => getTriggers(state, getOpenAction(state)!).map((t) => t.kind)
     expect(kinds(own)).toContain('opportunityAttack')
     expect(kinds(s)).not.toContain('opportunityAttack')
@@ -474,7 +473,7 @@ describe('a hook attack', () => {
   function hookRunner(location: 'leg' | 'chest', buy: boolean): CombatState {
     let s = onBoard({ h: [0, 0], r: [1, 0] }, wielder('h', 'Halberd'), fighter('r'))
     s = declareAction('r', { kind: 'move' }, newId)(s)
-    s = commitAction()(amendAction({ movement: 'run', path: [{ q: 2, r: 0 }, { q: 3, r: 0 }, { q: 4, r: 0 }, { q: 5, r: 0 }] })(s))
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'run', path: [{ q: 2, r: 0 }, { q: 3, r: 0 }, { q: 4, r: 0 }, { q: 5, r: 0 }] })(s))
     const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
     s = declareReaction('h', option.draft, newId)(s)
     s = amendReaction('h', { weaponKey: s.characters.h.held[0].id, attack: 'hook', variant: 'hook', location })(s)
@@ -484,12 +483,11 @@ describe('a hook attack', () => {
   }
 
   it('knocks a runner hooked at the legs down, unresisted, and the run stops there', () => {
-    let s = commitAction()(hookRunner('leg', true))
-    const knockdown = getOpenAction(s)
+    const hooked = hookRunner('leg', true)
+    const knockdown = getOpenAction(hooked)
     expect(knockdown).toMatchObject({ kind: 'grapple', maneuver: 'knockdown', actorId: 'h', targetId: 'r', unresisted: true })
-    expect(getTriggers(s, knockdown!)).toEqual([])
-    s = resolveAction(newId)(rollAction(() => 20, newId)(s))
-    const { state } = playOut(s, MISS)
+    expect(getTriggers(hooked, knockdown!)).toEqual([])
+    const { state } = playOut(commitAction(() => 20, newId)(hooked), MISS)
     expect(state.characters.r.afflictions).toContain('prone')
     expect(state.board?.placements.r?.cell).toEqual({ q: 1, r: 0 })
   })
@@ -498,7 +496,7 @@ describe('a hook attack', () => {
     { name: 'without its damage bought', location: 'leg' as const, buy: false },
     { name: 'aimed at the chest', location: 'chest' as const, buy: true },
   ])('opens no knockdown $name', ({ location, buy }) => {
-    expect(getOpenAction(hookRunner(location, buy))?.kind).toBe('move')
+    expect(hookRunner(location, buy).actions.some((a) => a.kind === 'grapple')).toBe(false)
   })
 })
 
@@ -521,7 +519,7 @@ describe('protecting the target of a strike', () => {
       spearman('atk'), shielded('def', ['defensive-advance']), shielded('p'), shielded('d', ['defender']), shielded('o'))
     const [row] = getAttackOptions(s.characters.atk, 'strike')
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
-    return commitAction()(setTarget('def')(s))
+    return commitAction(() => 5, newId)(setTarget('def')(s))
   }
   const shieldOption = (s: CombatState, id: string, label: string) => getAvailableActions(s, id).find((o) => getOptionLabel(s, id, o) === `${label} with Wooden Shield`)
   const kinds = (s: CombatState, id: string) => [...new Set(getAvailableActions(s, id).map((o) => o.draft.kind))]
@@ -587,7 +585,7 @@ describe('a disarm an intercept opens', () => {
     let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), holdItem(shield)(fighter('def')))
     const [row] = getAttackOptions(s.characters.atk, 'strike')
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
-    return commitAction()(setTarget('def')(s))
+    return commitAction(() => 5, newId)(setTarget('def')(s))
   }
 
   it('opens at the attacker, discounted, when the intercept stops the strike', () => {
@@ -620,9 +618,8 @@ describe('a spray', () => {
   function flamesCast(): CombatState {
     const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2 })
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
-    let s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
-    s = commitAction()(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s))
-    return resolveAction(newId)(rollAction(() => 9, newId)(s))
+    const s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
+    return resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
   }
 
   it('asks everyone in its range for their reflexes, with nothing to aim first', () => {
@@ -647,7 +644,7 @@ describe('flee', () => {
   it('stops the move short of the first flee, then gives each fleer a turn in declaration order before the mover resumes', () => {
     let s = onBoard({ m: [0, 0], near: [7, 0], far: [9, 0] }, fighter('m'), fighter('near'), fighter('far'))
     s = declareAction('m', { kind: 'move' }, newId)(s)
-    s = commitAction()(amendAction({ movement: 'basic', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })) })(s))
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [1, 2, 3, 4, 5].map((q) => ({ q, r: 0 })) })(s))
     for (const id of ['far', 'near']) {
       const option = getAvailableActions(s, id).find((o) => o.draft.kind === 'flee' && o.available)!
       s = declareReaction(id, option.draft, newId)(s)
@@ -673,7 +670,7 @@ describe('flee', () => {
       let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), { ...def, resources: { ...def.resources, STA } })
       const [row] = getAttackOptions(s.characters.atk, 'strike')
       s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
-      return commitAction()(setTarget('def')(s))
+      return commitAction(() => 5, newId)(setTarget('def')(s))
     }
     const land = (s: CombatState) => resolveAction(newId)(rollAction(() => MISS, newId)(s))
     expect(getAvailableActions(struck(6), 'def').some((o) => o.draft.kind === 'flee')).toBe(false)
@@ -695,7 +692,7 @@ describe('coordinated shots', () => {
   function joined(): CombatState {
     let s = onBoard({ a1: [0, 0], a2: [0, 1], def: [-6, 0] }, archer('a1'), archer('a2'), fighter('def'))
     s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
-    s = commitAction()(setTarget('def')(s))
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
     s = declareReaction('def', { kind: 'evasion' }, newId)(s)
     s = declareReaction('a2', { kind: 'joinShot' }, newId)(s)
     return amendReaction('a2', shot(s, 'a2'))(s)
@@ -705,7 +702,7 @@ describe('coordinated shots', () => {
   it('is open to a shooter other than the target or the one shooting', () => {
     let s = onBoard({ a1: [0, 0], a2: [0, 1], def: [-6, 0] }, archer('a1'), archer('a2'), fighter('def'))
     s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
-    s = commitAction()(setTarget('def')(s))
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
     const joins = (id: string) => getAvailableActions(s, id).some((o) => o.draft.kind === 'joinShot' && o.available)
     expect(joins('a2')).toBe(true)
     expect(joins('def')).toBe(false)
@@ -742,7 +739,7 @@ describe('coordinated shots', () => {
   it('plays the joined shots in the order they were declared, ahead of the lead', () => {
     let s = onBoard({ a1: [0, 0], a2: [0, 1], a3: [1, 1], def: [-6, 0] }, archer('a1'), archer('a2'), archer('a3'), fighter('def'))
     s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
-    s = commitAction()(setTarget('def')(s))
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
     for (const id of ['a3', 'a2']) s = amendReaction(id, shot(s, id))(declareReaction(id, { kind: 'joinShot' }, newId)(s))
     const { landed } = playOut(s, MISS)
     expect(landed.filter((a) => a.kind === 'shoot').map((a) => a.actorId)).toEqual(['a3', 'a2', 'a1'])
@@ -753,7 +750,7 @@ describe('coordinated shots', () => {
   it('is not made, and the evasion does not move, when the lead shot is voided', () => {
     let s = onBoard({ a1: [0, 0], a2: [3, 3], def: [-6, 0], t1: [0, 1], t2: [1, -1] }, archer('a1'), archer('a2'), fighter('def'), spearman('t1'), spearman('t2'))
     s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
-    s = commitAction()(setTarget('def')(s))
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
     s = declareReaction('def', { kind: 'evasion' }, newId)(s)
     s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
     const { state } = playOut(everyoneAttacks(s, ['t1', 't2']), LAND)
@@ -768,7 +765,7 @@ describe('coordinated shots', () => {
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 3 })
     let s = onBoard({ a1: [0, 0], a2: [-10, 0], def: [-6, 0], g: [-5, 0] }, archer('a1'), archer('a2'), fighter('def'), holdItem(shield)(fighter('g')))
     s = declareAction('a1', { kind: 'shoot', ...shot(s, 'a1') }, newId)(s)
-    s = commitAction()(setTarget('def')(s))
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
     s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
     s = declareReaction('g', getAvailableActions(s, 'g').find((o) => o.draft.kind === 'guard' && o.available)!.draft, newId)(s)
     const { state } = playOut(s, MISS)

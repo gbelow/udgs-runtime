@@ -2,8 +2,8 @@ import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type Comb
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
-import { findOption } from '../rules/options'
-import { getReactionTest, getRootTest } from '../rules/attack'
+import { findOption, hasOpenAnswer } from '../rules/options'
+import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
@@ -44,13 +44,13 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
 }
 
 // Aims the open action. A part picked on the old target is not one of the
-// new target's: the aim goes back to the kind of place alone.
+// new target's: the aim goes back to the new target's default.
 export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
     if (!getTargetIds(state, open).includes(targetId)) return state
-    const retargeted = 'part' in open && open.targetId !== targetId ? { part: null } : {}
+    const retargeted = 'part' in open && open.targetId !== targetId ? getDefaultAim(state.characters[targetId]) : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
   }
 }
@@ -59,11 +59,14 @@ export function setTarget(targetId: string): Updater {
 // be, affordable, and from here on locked — what everyone else answers is
 // exactly this. Nothing is paid yet; that waits for the die. A move writes
 // down where it sets out from, since the mover may be stood part of the way
-// along it before it resolves.
-export function commitAction(): Updater {
+// along it before it resolves. When nobody has an answer open to it, nothing
+// waits between the commit and the die, so it is rolled or paid at once. A
+// flee committed as passed up is withdrawn.
+export function commitAction(dice: Dice, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
+    if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(newId)(state)
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
@@ -71,7 +74,9 @@ export function commitAction(): Updater {
     const committed: Action = open.kind === 'move'
       ? { ...open, step: 'react', from: state.board?.placements[open.actorId] ?? null }
       : { ...open, step: 'react' }
-    return replaceActions(state, [committed])
+    const locked = replaceActions(state, [committed])
+    if (hasOpenAnswer(locked)) return locked
+    return needsDie(locked, committed) ? rollAction(dice, newId)(locked) : payAction(newId)(locked)
   }
 }
 
@@ -104,7 +109,9 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     if (!canAnswer(open, actorId)) return state
     if (!findOption(state, actorId, draft)?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
-    const reaction = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId: trigger?.against ?? open.actorId, reactionTo: open.id })
+    const targetId = trigger?.against ?? open.actorId
+    const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id })
+    const reaction = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
     return pruneReactions(setActions(state, [...withoutLiveReaction(state, open.id, actorId), reaction]))
   }
 }

@@ -3,7 +3,7 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
 import { getFootprint, getOccupancy } from '../rules/board'
 import { findOption } from '../rules/options'
-import { getNextStep, getTargetIds } from '../rules/action'
+import { getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
@@ -147,7 +147,6 @@ function buildBoardView(state: CombatState): BoardView {
   if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
 
   const open = getOpenAction(state)
-  const step = getNextStep(state)
   // the move in play, whatever its phase: its path stays drawn throughout;
   // so does the way a push takes its block (combat.tex "Push and drag")
   const walking = findOpenRoot(state, 'drag')
@@ -155,7 +154,7 @@ function buildBoardView(state: CombatState): BoardView {
   const move = open?.kind === 'move' && open.step === 'define' ? open : null
   const group = open?.kind === 'drag' && open.step === 'define' ? open : null
   const pusher = group ? state.characters[group.actorId] : undefined
-  const targets = new Set(open && step === 'target' ? getTargetIds(state, open) : [])
+  const targets = new Set(getDeclaredTargets(state, open))
   const occupancy = getOccupancy(board, state.characters)
   const reachable = move ? getReachableCells(state, move)
     : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))

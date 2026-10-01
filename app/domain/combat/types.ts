@@ -510,9 +510,10 @@ export const FleeActionSchema = z.object({ ...ActionBase, kind: z.literal('flee'
 // combat.tex "Flee": "after receiving a melee attack" — the flee a landed
 // strike leaves its target, and the escape a missed shot leaves its evader
 // ("Evasion": "spend their movement surge immediately to escape"), for them
-// to take or pass up. Taken, it makes the movement surge, and the fleer's
-// turn comes once the stack is played out.
-export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.literal('fleeFollowUp') }).strip()
+// to take or pass up, passing it up unless they say otherwise. Taken, it
+// makes the movement surge, and the fleer's turn comes once the stack is
+// played out.
+export const FleeFollowUpActionSchema = z.object({ ...ActionBase, kind: z.literal('fleeFollowUp'), flee: z.boolean().default(false) }).strip()
 
 // combat.tex "Grapple Maneuvers": escape, immobilize, disarm or knock down
 // a grapple partner, a grapple test against theirs. What a hit buys is the

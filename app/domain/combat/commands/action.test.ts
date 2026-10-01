@@ -61,7 +61,7 @@ function aimed(attack: (typeof attacks)[number]): CombatState {
 // An attack committed at every step short of the die, with the defender's
 // reaction in place: the last state the table can still walk away from.
 function declared(attack: (typeof attacks)[number]): CombatState {
-  let s = commitAction()(aimed(attack))
+  let s = commitAction(() => 5, newId)(aimed(attack))
   s = declareReaction('def', attack.reaction, newId)(s)
   return s
 }
@@ -145,7 +145,7 @@ describe('what can be declared', () => {
   // The command refuses exactly what the list shows as closed: an option the
   // list does not offer, or offers as unavailable, declares nothing.
   it.each(attacks)('declares only what the list offers as available against a $kind', (attack) => {
-    const committed = commitAction()(aimed(attack))
+    const committed = commitAction(() => 5, newId)(aimed(attack))
     expect(declareReaction('atk', attack.reaction, newId)(committed)).toEqual(committed)
     expect(declareReaction('def', { kind: 'block', weaponKey: 'no-such', attack: 'x' }, newId)(committed)).toEqual(committed)
     expect(getAvailableActions(committed, 'def').length).toBeGreaterThan(0)
@@ -168,7 +168,7 @@ describe('a charge set off', () => {
       ...combat({ ...base, fightName: 'a', held: [{ ...bomb, charge }] }),
       board: BoardSchema.parse({ placements: { a: { cell: { q: 0, r: 0 } } } }),
     }
-    s = resolveAction(newId)(payAction(newId)(commitAction()(declareAction('a', { kind: 'throw', itemId: 'bomb', to: { q: 0, r: 2 } }, newId)(s))))
+    s = commitAction(() => 5, newId)(declareAction('a', { kind: 'throw', itemId: 'bomb', to: { q: 0, r: 2 } }, newId)(s))
     const open = getOpenAction(s)
     const painted = open?.kind === 'explosion' ? getTerrainPaint(s, getBlastOf(s, open)).length : 0
     expect(painted).toBeGreaterThan(0)

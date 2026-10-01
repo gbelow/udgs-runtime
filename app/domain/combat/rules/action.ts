@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, DragAction, RootAction } from '../types'
-import { ACTIONS, getActionDef } from './actionCatalog'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, DragAction, GrappleAction, RootAction } from '../types'
+import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -12,14 +12,16 @@ import { canAfford } from '../../character/rules/cost'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, isSeizedUse, needsDisarmPick } from './grapple'
+import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { getHOPOptions } from './damage'
+import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityStrike, guardRows, isShotLoaded, isVariantOpen } from './attack'
-import { canAimCast, isTargeted } from './cast'
+import { getAttackVariant, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
+import { canAimCast, canSaveGraze, getImprovementOptions, isTargeted } from './cast'
 import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
@@ -42,9 +44,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
   if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack))
+      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack)) && isAimOnTarget(state, action)
     case 'shoot':
-      return getAttackVariant(c, action) !== null && isShotLoaded(c, action)
+      return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
       return (action.source !== 'cast' || isSpellKey(action.key))
@@ -74,14 +76,14 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
       const root = getRootOf(state, action)
       if (root && !action.grab && findTrigger(state, root, action)?.catchOnly) return false
-      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant)
+      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant) && isAimOnTarget(state, strike)
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
     case 'joinShot': {
       const shot = getJoinedShot(action, '')
-      return getAttackVariant(c, shot) !== null && isShotLoaded(c, shot) && isJoinInRange(state, c.id, shot, action.targetId ?? '')
+      return getAttackVariant(c, shot) !== null && isShotLoaded(c, shot) && isJoinInRange(state, c.id, shot, action.targetId ?? '') && isAimOnTarget(state, action)
     }
     // combat.tex "Grapple Maneuvers": "performed during a grapple by any of
     // the participants"
@@ -128,7 +130,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
       const strike = getCounterStrike(action, '')
-      return getAttackVariant(c, strike) !== null && isVariantOpen(state, strike, strike.variant) && isInReach(state, strike, action.targetId ?? '')
+      return getAttackVariant(c, strike) !== null && isVariantOpen(state, strike, strike.variant) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
     }
   }
 }
@@ -357,8 +359,9 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
   switch (open.kind) {
     case 'strike':
     case 'shoot':
+      return open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
     case 'cast':
-      return open.roll?.degree === 'hit' ? 'spend' : 'confirm'
+      return open.roll?.degree === 'hit' && getImprovementOptions(state, open).length > 0 ? 'spend' : 'confirm'
     // combat.tex "Sprays": the cone is pointed once the reflexes have moved
     case 'blast':
       return isSpray(open) && open.direction === null ? 'aim' : 'confirm'
@@ -376,6 +379,33 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'spellTest':
       return 'confirm'
   }
+}
+
+// Whether the rolled action still waits on its actor: overflow to spend, a
+// spray to point, a pick to make, a graze to save, the rest's careful move,
+// whether to go along with a won maneuver. One with none lands as it is.
+export function hasPostChoice(state: CombatState, open: RootAction): boolean {
+  if (isVoided(state, open)) return false
+  return getPostStep(state, open) !== 'confirm'
+    || canMoveWhileResting(state, open)
+    || (open.kind === 'cast' && canSaveGraze(state, open))
+    || (open.kind === 'grapple' && isAlongOffered(open))
+}
+
+// Whether a knockdown or an immobilize that hit asks its actor to go along
+// with it for it to land.
+export function isAlongOffered(open: GrappleAction): boolean {
+  return open.step === 'post' && isManeuverWon(open) && !open.hook && open.roll?.degree === 'hit' && (open.maneuver === 'knockdown' || open.maneuver === 'immobilize')
+}
+
+// Who the action may be aimed at: retargeted freely until the commit, nobody
+// once it is locked. An attack reaches whoever its row reaches, so it is
+// aimed only once a row is picked.
+export function getDeclaredTargets(state: CombatState, open: RootAction | null): string[] {
+  if (open?.step !== 'define') return []
+  const actor = state.characters[open.actorId]
+  if (isAttackAction(open) && (!actor || getAttackVariant(actor, open) === null)) return []
+  return getTargetIds(state, open)
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.

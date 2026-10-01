@@ -3,7 +3,8 @@ import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, Root
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
-import { getFreeAttackOptions } from '../rules/attack'
+import { getDefaultAim, getFreeAttackOptions } from '../rules/attack'
+import { hasPostChoice } from '../rules/action'
 import { isInReach } from '../rules/board'
 import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
@@ -26,18 +27,17 @@ import { appendActions, applyPhase, replaceActions } from './log'
 
 // Carries the fight on from whatever is on top of the stack: a rolled action
 // opens the next of the actions its reactions opened before its effect. One
-// waiting on a declaration, an answer or a choice is left to it — except
-// those with nothing of their own left to decide, which land once their
-// attacks are fought: an explosion, a push, a flee, and a spell's test. A follow-up forgone
-// for another its actor took is passed up. Once nothing is left on it, the
-// turn goes to whoever is due to flee.
+// waiting on a declaration, an answer or a choice is left to it; one with
+// nothing left to choose lands once its attacks are fought. A follow-up
+// forgone for another its actor took is passed up. Once nothing is left on
+// it, the turn goes to whoever is due to flee.
 export function advance(state: CombatState, newId: () => string): CombatState {
   const top = getOpenAction(state)
   if (!top) return handOverToFleers(state)
   if (isForgone(state, top)) return advance(replaceActions(state, [{ ...top, step: 'done', declined: true }]), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  return opened === state && (top.kind === 'drag' || top.kind === 'explosion' || top.kind === 'fleeFollowUp' || top.kind === 'spellTest') ? land(state, top, newId) : opened
+  return opened === state && !hasPostChoice(state, top) ? land(state, top, newId) : opened
 }
 
 // The action's effect: settled as it stands, landed on everyone it
@@ -93,7 +93,7 @@ function openRiposte(state: CombatState, root: RootAction, newId: () => string):
   const defense = getRiposteOpening(state, root)
   const riposter = defense ? state.characters[defense.actorId] : undefined
   if (!defense || !riposter) return []
-  const strike = makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id })
+  const strike = makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id, ...getDefaultAim(state.characters[root.actorId]) })
   const reaches = getFreeAttackOptions(state, riposter, 'strike').some((o) => isInReach(state, { ...strike, ...o }, root.actorId))
   return reaches ? [strike] : []
 }

@@ -1,9 +1,8 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { AttackOption } from '../domain/combat/rules/attack'
 import type { ImprovementOption } from '../domain/combat/rules/cast'
 import type { MovementOption } from '../domain/combat/rules/move'
-import type { ActionOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/combat/projections/actionPanel'
+import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/combat/projections/actionPanel'
 import type { ActionReport } from '../domain/combat/projections/outcomes'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
@@ -11,9 +10,12 @@ import type { ActionRoll, GrappleManeuver, HitLocation } from '../domain/combat/
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
+// A button's look while it is the one picked.
+const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
+
 const STEP_LABEL = {
   declare: 'declare',
-  target: 'pick a target on the roster',
+  target: 'pick a target',
   aim: 'aim on the board',
   commit: 'commit',
   react: 'reactions',
@@ -53,11 +55,19 @@ export function ActionPanel(){
       pending={step === 'react'}
       actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
-      {declared && open.spawned ? (
+      {declared && open.spawned && open.flee === null ? (
         <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button></div>
       ) : null}
 
-      <Declaration open={open} attacks={view.attacks} onAttack={(s) => amend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
+      {open.flee !== null ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <Button size='xs' {...toggle(open.flee)} onClick={() => amend({ flee: true })}>flee</Button>
+          <Button size='xs' {...toggle(!open.flee)} onClick={() => amend({ flee: false })}>end</Button>
+        </div>
+      ) : null}
+
+      <Declaration open={open} attacks={view.attacks}
+        onAttack={(s) => amend(s.selected ? { weaponKey: '', attack: '', variant: '' } : { weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })} />
 
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -144,6 +154,15 @@ export function ActionPanel(){
         </div>
       ) : null}
 
+      {view.targets.length > 0 || view.noTargets ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>target</SectionLabel>
+          {view.targets.map((t) =>
+            <Button key={t.id} size='xs' {...toggle(t.selected)} onClick={() => target(t.id)}>{t.name}</Button>)}
+          {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
+        </div>
+      ) : null}
+
       {view.locations.length > 0 && !locked ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
@@ -157,20 +176,12 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {step === 'target' ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>target</SectionLabel>
-          {view.targets.map((t) => <Button key={t.id} size='xs' onClick={() => target(t.id)}>{t.name}</Button>)}
-          {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
-        </div>
-      ) : null}
-
       {open.area?.aimable ? (
         <div className='text-xs text-muted'>{open.area.shape === 'spray' ? 'click a cell on the board to point the spray' : 'click the cell on the board where it lands'}{open.area.aimed ? ' — or elsewhere to move it' : ''}</div>
       ) : null}
 
-      {step === 'commit' ? (
-        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} onClick={commit}>commit</Button></div>
+      {declared ? (
+        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>commit</Button></div>
       ) : null}
 
       {step === 'react' ? (
@@ -264,17 +275,18 @@ export function ActionPanel(){
           </div>
         </div>
       ) : null}
+      {view.report ? <Report report={view.report} /> : null}
     </Panel>
   )
 }
 
-function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attacks: AttackOption[], onAttack: (s: AttackOption) => void }){
+function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attacks: AttackOptionView[], onAttack: (s: AttackOptionView) => void }){
   if (attacks.length > 0) {
     return (
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>
         {attacks.map((s) =>
-          <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs'
+          <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' {...toggle(s.selected)}
             title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}${s.reach !== null ? ` · ${s.reach}m` : ''}`}
             onClick={() => onAttack(s)}>
             {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.reach !== null ? <span className='ml-1 font-mono text-muted'>{s.reach}m</span> : null}
@@ -300,7 +312,6 @@ type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; lo
 function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
-  const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -507,7 +518,6 @@ const PUSH_LABEL = { careful: 'push or drag', basic: 'circle', run: 'run' } as c
 // pusher's +5, and whether it counts; and whether the comparison lets it
 // move as it stands.
 function Push({ push, cost, onMovement, onBoost }: { push: PushView, cost: ActionCost | null, onMovement: (m: PushView['movement']) => void, onBoost: (boost: boolean) => void }){
-  const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
   return (
     <div className='flex flex-col gap-1'>
       {push.movements.length > 0 ? (

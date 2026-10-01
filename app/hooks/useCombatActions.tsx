@@ -54,7 +54,7 @@ export function useCombatActions() {
   const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
   const cancel = () => update(cancelAction());
   const roll = () => update(rollAction(realDice, newId));
-  const commit = () => update(commitAction());
+  const commit = () => update(commitAction(realDice, newId));
   const back = () => update(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));
   const pay = () => update(payAction(newId));

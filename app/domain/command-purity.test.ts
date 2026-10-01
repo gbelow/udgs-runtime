@@ -165,7 +165,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(cleared(s))),
   amendAction: (s) => combatCommands.amendAction({ location: 'head' })(deepFreeze(declaredStrike(s))),
   setTarget: (s) => combatCommands.setTarget('b')(deepFreeze(declaredStrike(s))),
-  commitAction: (s) => combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declaredStrike(s)))),
+  commitAction: (s) => combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declaredStrike(s)))),
   amendReaction: combatCommands.amendReaction('b', { location: 'head' }),
   withdrawSpawnedAction: (s) => combatCommands.withdrawSpawnedAction(newId)(deepFreeze(spawnedFollow(s))),
   declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
@@ -176,7 +176,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
-  payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declaredMove(s)))),
+  payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),
@@ -211,8 +211,8 @@ function grappling(s: CombatState): CombatState {
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.
 function rolledManeuver(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'grapple', maneuver: 'knockdown' }, newId)(deepFreeze(grappling(s))))
-  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
-  return combatCommands.rollAction(() => 7, newId)(committed)
+  const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declared))))
+  return combatCommands.rollAction(() => 3, newId)(committed)
 }
 
 // The subject with its committed strike and the evade struck off, for the
@@ -225,7 +225,7 @@ function cleared(s: CombatState): CombatState {
 // for, which opens the follow as a move of `b`'s own, on a frozen state each
 // step along.
 function spawnedFollow(s: CombatState): CombatState {
-  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(declaredMove(s))))
+  const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(declaredMove(s))))
   const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
   return combatCommands.payAction(newId)(followed)
 }
@@ -236,15 +236,14 @@ function rolledExplosion(s: CombatState): CombatState {
   const charged = { ...grenadeItem, charge: { key: 'shock-explosive', effects: produceEffects(s.characters.a, SPELLS['shock-explosive'].effects) } }
   const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(charged)(s.characters.a) } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 3 } }, newId)(armed))
-  const landed = deepFreeze(combatCommands.resolveAction(newId)(deepFreeze(combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared))))))
-  return combatCommands.payAction(newId)(landed)
+  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declared)))
 }
 
 // A cast of `a`'s sleep, rolled high enough to have HOP to spend, on a
 // frozen state a few commands along.
 function rolledCast(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
-  return combatCommands.rollAction(() => 30, newId)(deepFreeze(combatCommands.commitAction()(declared)))
+  return combatCommands.commitAction(() => 30, newId)(declared)
 }
 
 // A's telepathic link at `b` cast and landed, leaving `b`'s test against it
@@ -252,22 +251,21 @@ function rolledCast(s: CombatState): CombatState {
 function openSpellTest(s: CombatState): CombatState {
   const learned = { ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, spells: { ...s.characters.a.spells, 'telepathic-link': { method: 'intuitive' as const, practice: 0 } } } } }
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'telepathic-link' }, newId)(deepFreeze(learned)))
-  const committed = deepFreeze(combatCommands.commitAction()(deepFreeze(combatCommands.setTarget('b')(declared))))
+  const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declared))))
   return combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 30, newId)(committed)))
 }
 
 // A's rest paid for, waiting to land, on a frozen state each step along.
 function paidRest(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'rest' }, newId)(deepFreeze(cleared(s))))
-  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction()(declared)))
+  return combatCommands.commitAction(() => 5, newId)(declared)
 }
 
 // A's cast of sleep rolled to a graze the graze save carries to a hit.
 function grazedCast(s: CombatState): CombatState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
-  const committed = deepFreeze(combatCommands.commitAction()(declared))
-  const test = getRootTest(committed, getOpenAction(committed)!)!
-  return combatCommands.rollAction(() => test.DL - test.skill + 3, newId)(committed)
+  const test = getRootTest(declared, getOpenAction(declared)!)!
+  return combatCommands.commitAction(() => test.DL - test.skill + 3, newId)(declared)
 }
 
 // The committed strike cancelled and a fresh one declared in its place, on a

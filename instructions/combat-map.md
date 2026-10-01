@@ -60,6 +60,14 @@ own.
     (`components/utils.tsx` `realDice` is the one `Math.random` seam) and ids as a
     `newId: () => string` (hooks pass `crypto.randomUUID`).
 
+11. **An action waits only where someone owes a decision.** The step changes only at a
+    commitment (commit, roll or pay, resolve); a step whose only move would be forward is
+    taken by the command or `advance` instead of waiting for a click. Everything declared
+    before the commit is one screen, free to edit in any order. A commit nobody can answer
+    (`hasOpenAnswer`, `rules/options.ts`) is rolled or paid at once; a rolled root with
+    nothing to choose (`hasPostChoice`, `rules/action.ts`) lands at once. A new step or
+    choice must say who owes it, or it will be skipped.
+
 ## The action catalog
 
 `rules/actionCatalog.ts` `ACTIONS` is the one table of what each kind is, typed
@@ -102,9 +110,14 @@ lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReact
   (`declareAction` refuses while anything is open), and only by the character whose turn
   it is (`inTurnCharacter`, `rules/turn.ts`); while a movement or combat surge has AP left,
   only what it allows (`rules/surge.ts`).
-- **commit** (`commitAction`) — checks the declaration is complete
+- **commit** (`commitAction(dice, newId)`) — checks the declaration is complete
   (`isDeclarationComplete`), aimed legally (`getTargetIds`) and affordable
-  (`getPayableCost`), then locks it at `react`. A move records `from` here.
+  (`getPayableCost`), then locks it at `react`. A move records `from` here. When nobody
+  has an answer open to it, it is rolled or paid in the same update.
+- **aiming an attack** — an attack is aimed at the target's chest when the target is picked
+  (`getDefaultAim`, `rules/attack.ts`), again on every retarget; a target with no chest is
+  left unaimed, and the declaration is incomplete until a place it has is picked
+  (`isAimOnTarget`).
 - **react** — triggers are read off the locked action (`getTriggers`, `rules/reactions.ts`);
   each character gets one answer, and a new one replaces the old. `pruneReactions` drops
   answers the declaration no longer triggers.
@@ -155,8 +168,10 @@ resolveAction ─────────► land(top)
   `followUpOf` (the landed action). Once a character takes one, `advance` passes up their
   others from the same action as they come to the top (`isForgone`, `rules/log.ts`): a
   riposte or a flee, an evasion's move or a flee.
-- **Auto-landing** — an explosion, a push (`drag`), a flee follow-up or a spell test has
-  nothing to decide once its attacks are fought or its die is thrown, so `advance` lands it.
+- **Auto-landing** — a root at `post` with nothing to choose (`hasPostChoice`: no HOP to
+  spend, spray to point, pick to make, graze to save, rest move or along to decide) is
+  landed by `advance` once its attacks are fought. `resolveAction` is only pressed where a
+  choice was offered.
 - **Charges and throws** — what releases a charge (`Item.charge`) is read off its spell's
   catalog `triggers`: `impact`, `fire`, `detonate`. A `throw` lands the item on the floor,
   one of a stack, charge and all; if it goes off on impact (`goesOffOnImpact`: an `impact`
@@ -196,7 +211,8 @@ resolveAction ─────────► land(top)
   the spell lands.
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
   evasion a shot missed, it is a `fleeFollowUp` pushed beneath the other follow-ups
-  (`getFleeFollowUps`), offered only to one who can flee (`getFleeBar`: not in turn, not
+  (`getFleeFollowUps`), declared as flee or end (`flee`, end by default; committed as
+  end it is withdrawn), offered only to one who can flee (`getFleeBar`: not in turn, not
   immobile or grappled, the surge affordable). Either is priced as the movement surge, made
   at the payment. A move a flee answers stops one space short of the flee's step
   (`getFleeStep`, read by `getMoveFacts`), so the mover pays only for what is walked. `land`

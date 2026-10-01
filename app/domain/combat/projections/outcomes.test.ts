@@ -28,7 +28,7 @@ describe('the preview', () => {
     let s = combat(fighter('atk'), fighter('def'))
     s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, newId)(s)
     s = setTarget('def')(s)
-    s = commitAction()(s)
+    s = commitAction(() => 5, newId)(s)
     s = rollAction(() => 30, newId)(s)
     const preview = getActionPanel(s).outcomes[0].outcome
     expect(preview.tier).not.toBeNull()

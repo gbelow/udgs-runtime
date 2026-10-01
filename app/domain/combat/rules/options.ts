@@ -77,6 +77,12 @@ function guardOption(state: CombatState, c: CampaignCharacter, root: Action, gua
   return { cost: priced, reason }
 }
 
+// Whether anyone has an answer open to the committed action. With none, the
+// table owes it nothing before its die.
+export function hasOpenAnswer(state: CombatState): boolean {
+  return Object.keys(state.characters).some((id) => getAvailableActions(state, id).some((o) => o.available))
+}
+
 // Everything the character may declare right now: their own actions while no
 // action is open and it is their turn, and their reactions while a committed
 // action triggers something in them and is still waiting for its die. A

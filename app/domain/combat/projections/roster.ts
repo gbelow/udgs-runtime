@@ -1,6 +1,6 @@
 import type { SurgeKind } from '../../types'
 import type { Action, CombatState } from '../types'
-import { getNextStep, getTargetIds } from '../rules/action'
+import { getDeclaredTargets } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
 import { getFightName } from '../rules/fighters'
@@ -35,7 +35,7 @@ export type CombatRosterEntry = {
 // surge": one per round, cleared by nextRound).
 function buildCombatRoster(state: CombatState): CombatRosterEntry[] {
   const open = getOpenAction(state)
-  const targets = new Set(open && getNextStep(state) === 'target' ? getTargetIds(state, open) : [])
+  const targets = new Set(getDeclaredTargets(state, open))
   return Object.entries(state.characters).map(([id, c]) => ({
     id,
     name: getFightName(state, id),

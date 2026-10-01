@@ -1,7 +1,7 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
 import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
-import type { Action, ActionOf, AttackAction, CombatState, MoveAction, OpportunityAction, RootAction, StrikeAction } from '../types'
+import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, StrikeAction } from '../types'
 import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
@@ -15,6 +15,7 @@ import { isGuardingShot, isHighGround } from './board'
 import { getBalanceDL } from './move'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
+import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
@@ -65,6 +66,21 @@ export function getAttackVariant(c: Character, action: AttackAction): AttackVari
   const row = findWeaponRow(c, action.weaponKey, action.attack)
   if (!row || getRowState(c, row, action.kind) !== 'open') return null
   return findRowVariant(c, row, action.variant)
+}
+
+// Where an attack is aimed until another place is picked: the target's
+// chest. A target with no chest is left unaimed, for the attacker to pick.
+export function getDefaultAim(target: Character | undefined): Aim {
+  const chest = target?.body.find((p) => p.location === AT_CHEST.location && !p.lost)
+  return { ...AT_CHEST, part: chest?.id ?? null }
+}
+
+// Whether the attack is aimed at a place its target has: one with a part
+// still there, or anywhere on a target with no body drawn.
+export function isAimOnTarget(state: CombatState, action: { targetId: string | null; location: HitLocation }): boolean {
+  const target = action.targetId ? state.characters[action.targetId] : undefined
+  if (!target || target.body.length === 0) return true
+  return target.body.some((p) => !p.lost && p.location === action.location)
 }
 
 // The strike an opportunity attack opens, as declared on the reaction:

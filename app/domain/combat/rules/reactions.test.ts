@@ -3,7 +3,6 @@ import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
-import { getAvailableActions } from './options'
 import { getOpenAction } from './log'
 import { getTriggers } from './reactions'
 import { amendAction, commitAction, declareAction as declareOwnAction } from '../commands/action'
@@ -29,7 +28,7 @@ function approach(reactorAP: number): CombatState {
   }
   s = declareAction('m', { kind: 'move' }, () => `a${++n}`)(s)
   s = amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }, { q: 2, r: 0 }, { q: 3, r: 0 }] })(s)
-  return commitAction()(s)
+  return commitAction(() => 5, () => 'x')(s)
 }
 
 describe('opportunity attack against a mover', () => {
@@ -47,7 +46,6 @@ describe('opportunity attack against a mover', () => {
   // had no way back short of cancelling the whole move. combat.tex
   // "Opportunity Attack": "The attack requires the normal AP cost".
   it('is closed to a reactor who cannot pay for a strike', () => {
-    const option = getAvailableActions(approach(0), 'r').find((o) => o.draft.kind === 'opportunityAttack')
-    expect(option?.available).toBe(false)
+    expect(getOpenAction(approach(0))).toBeNull()
   })
 })
