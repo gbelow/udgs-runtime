@@ -8,7 +8,7 @@ import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canPayAll, needsDie, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
-import { AmmoOption, AttackOption, getAmmoOptions, getAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -98,8 +98,8 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
       const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack' || declared?.kind === 'joinShot'
         ? {
             options: declared.kind === 'joinShot'
-              ? getAttackOptions(c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : getAttackOptions(c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
+              ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
+              : getFreeAttackOptions(state, c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
             shot: declared.kind === 'joinShot',
             ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
             ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
@@ -369,7 +369,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: attack && step === 'declare' && actor
-      ? getAttackOptions(actor, attack.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
+      ? getFreeAttackOptions(state, actor, attack.kind).filter((o) => isVariantOpen(state, open, o.variant) && (!(open.kind === 'strike' && open.grab) || isGrappleRowOf(actor, o.weaponKey, o.attack)))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],

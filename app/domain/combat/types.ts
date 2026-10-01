@@ -196,12 +196,15 @@ const AttackDeclaration = {
 // combat.tex "Grapple": two characters locked together, and which of them
 // hold the other — a hold both ways is a grab answered by "grapple back". A
 // holder keeps the hold only while they have a grapple row to hold with.
-// Who a maneuver left immobile stays so while the grapple lasts. It is a
-// fact of the fight, not of either character, so it lives on the fight.
+// Who a maneuver left immobile stays so while the grapple lasts. Each holder
+// holds with one weapon the grapple seized (`weapons`, holder id to wielded
+// key), which serves this grapple alone, the table's ruling. It is a fact
+// of the fight, not of either character, so it lives on the fight.
 export const GrappleSchema = z.object({
   members: z.tuple([str, str]),
   holders: z.array(str).default([]),
   immobile: z.array(str).default([]),
+  weapons: z.record(str, str).default({}),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
 

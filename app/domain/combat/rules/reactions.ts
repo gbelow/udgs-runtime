@@ -9,7 +9,7 @@ import { isGrappleRow } from './grapple'
 import { getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
-import { getOpeningReaction, getReactionsTo } from './log'
+import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
 import { hasShootingRow } from './attack'
 import { getRiposteDefense } from './riposte'
@@ -235,6 +235,10 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
   const from = state.board?.placements[root.actorId]
   if (!mover || !from || !state.board) return []
   const path = root.path
+  // the table's ruling: a move a reaction or a follow-up opened, or one
+  // made in a flee turn, cannot be followed
+  const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+  const reactive = state.fleeing || root.followUpOf !== null || (opener !== null && isReaction(opener.kind))
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {
     if (id === root.actorId) continue
@@ -255,7 +259,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     const enters = firstStep(distances, (previous, now) => previous > FLEE_PERIMETER && now <= FLEE_PERIMETER)
     if (enters !== null && !isInTurn(state, id)) triggers.push({ characterId: id, kind: 'flee', at: enters })
     const range = getMeleeRange(state.characters[id])
-    if (range > 0 && distances[0] <= range && root.movement !== 'run') triggers.push({ characterId: id, kind: 'follow', at: null })
+    if (range > 0 && distances[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
     if (range === 0) continue
     const approach = getApproachStep(distances, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })

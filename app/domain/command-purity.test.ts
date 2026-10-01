@@ -205,7 +205,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: CombatState): CombatState {
-  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [] }] }
+  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], weapons: {} }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.

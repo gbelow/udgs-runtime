@@ -33,8 +33,33 @@ export function getGrappleRows(c: Character): WeaponRow[] {
     .sort((a, b) => Number(hasProperty(b.atk.properties, 'grapple II')) - Number(hasProperty(a.atk.properties, 'grapple II')))
 }
 
-function hasGrappleRow(c: Character): boolean {
-  return getGrappleRows(c).length > 0
+// A grab seizes the weapon it was made with, and grappling back one of the
+// character's own; a seized weapon serves that grapple alone — it grabs
+// nobody else, only its grapple rows can be used, and only against the
+// partner (the table's ruling).
+function getSeizingGrapple(state: CombatState, id: string, weaponKey: string): Grapple | null {
+  return state.grapples.find((g) => holds(g, id) && g.weapons[id] === weaponKey) ?? null
+}
+
+// Whether the grapple that seized the weapon closes this row of it, or,
+// once a target is named, its use against them.
+export function isSeizedUse(state: CombatState, id: string, weaponKey: string, attack: string, targetId: string | null | undefined): boolean {
+  const g = getSeizingGrapple(state, id, weaponKey)
+  const c = state.characters[id]
+  if (!g || !c) return false
+  return !isGrappleRowOf(c, weaponKey, attack) || (!!targetId && getPartner(g, id) !== targetId)
+}
+
+// The grapple rows the character can take hold of someone new with.
+function getFreeGrappleRows(state: CombatState, c: Character): WeaponRow[] {
+  return getGrappleRows(c).filter((row) => !getSeizingGrapple(state, c.id, row.wielded.key))
+}
+
+// The row a holder holds with: the best of the weapon the grapple seized,
+// or their best, for a grapple that names none.
+function getHoldingRow(c: Character, g: Grapple): WeaponRow | null {
+  const seized = g.weapons[c.id]
+  return getGrappleRows(c).find((row) => seized === undefined || row.wielded.key === seized) ?? null
 }
 
 export function isGrappleRowOf(c: Character, weaponKey: string, attack: string): boolean {
@@ -88,17 +113,21 @@ function diffGrappleAfflictions(state: CombatState, before: Grapple[], after: Gr
 
 // The grapples as they stand once every holder with nothing left to hold
 // with has let go ("the grapplers must have a grapple property attack at
-// all times"), and every grapple nobody holds any more is over.
+// all times" — the weapon the grapple seized), and every grapple nobody
+// holds any more is over.
 export function getHeldGrapples(state: CombatState): Grapple[] {
-  return dropHolders(state.grapples, (id) => !state.characters[id] || !hasGrappleRow(state.characters[id]))
+  return dropHolders(state.grapples, (id, g) => !state.characters[id] || !getHoldingRow(state.characters[id], g))
 }
 
 // The grapples once every holder `letsGo` says lets go has, and any grapple
 // nobody holds any more is over; the same list when nobody lets go.
-export function dropHolders(grapples: Grapple[], letsGo: (id: string) => boolean): Grapple[] {
-  if (!grapples.some((g) => g.holders.some(letsGo))) return grapples
+export function dropHolders(grapples: Grapple[], letsGo: (id: string, g: Grapple) => boolean): Grapple[] {
+  if (!grapples.some((g) => g.holders.some((id) => letsGo(id, g)))) return grapples
   return grapples
-    .map((g) => ({ ...g, holders: g.holders.filter((id) => !letsGo(id)) }))
+    .map((g) => {
+      const holders = g.holders.filter((id) => !letsGo(id, g))
+      return { ...g, holders, weapons: Object.fromEntries(Object.entries(g.weapons).filter(([id]) => holders.includes(id))) }
+    })
     .filter((g) => g.holders.length > 0)
 }
 
@@ -134,16 +163,18 @@ export function getGrabFacts(state: CombatState, strike: StrikeAction): GrappleF
   if (!target) return null
   const pair: [string, string] = [strike.actorId, strike.targetId]
   const was = findGrapple(state.grapples, ...pair)
-  const holders = [...new Set([...(was?.holders ?? []), strike.actorId, ...(hasGrappleRow(target) ? [target.id] : [])])]
-  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [] })
+  const back = was && holds(was, target.id) ? null : getFreeGrappleRows(state, target)[0]
+  const holders = [...new Set([...(was?.holders ?? []), strike.actorId, ...(back ? [target.id] : [])])]
+  const weapons = { ...was?.weapons, [strike.actorId]: strike.weaponKey, ...(back ? { [target.id]: back.wielded.key } : {}) }
+  return facts(state, pair, { members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], weapons })
 }
 
-// Whether the strike may be a grab at the target: made with a grapple row,
-// at someone the attacker does not hold yet.
+// Whether the strike may be a grab at the target: made with a grapple row
+// no grapple has seized, at someone the attacker does not hold yet.
 export function canGrab(state: CombatState, strike: Pick<StrikeAction, 'actorId' | 'weaponKey' | 'attack'>, targetId: string): boolean {
   const c = state.characters[strike.actorId]
   const g = findGrapple(state.grapples, strike.actorId, targetId)
-  return !!c && isGrappleRowOf(c, strike.weaponKey, strike.attack) && !(g && holds(g, strike.actorId))
+  return !!c && isGrappleRowOf(c, strike.weaponKey, strike.attack) && !getSeizingGrapple(state, strike.actorId, strike.weaponKey) && !(g && holds(g, strike.actorId))
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +238,7 @@ function getHoldDeliveries(state: CombatState, g: Grapple): Deliveries {
   const out: Deliveries = {}
   for (const holderId of g.holders) {
     const holder = state.characters[holderId]
-    const row = holder ? getGrappleRows(holder)[0] : undefined
+    const row = holder ? getHoldingRow(holder, g) : null
     if (!row || !holder) continue
     const { blunt, cut } = getStrikeDamage(row.atk, row.weapon, holder)
     if (blunt <= 0 && cut <= 0) continue
@@ -359,15 +390,17 @@ export function getReleaseFacts(state: CombatState, root: ReleaseAction): Grappl
 // combat.tex "Initiate the Grab": "It is possible to grapple back
 // automatically just by having a weapon with grappling property equipped" —
 // the partners the character holds nothing of, once they have a grapple row
-// in hand.
+// in hand that no grapple has seized.
 export function getHoldBackTargets(state: CombatState, actorId: string): string[] {
   const c = state.characters[actorId]
-  if (!c || !hasGrappleRow(c)) return []
+  if (!c || getFreeGrappleRows(state, c).length === 0) return []
   return getGrapplesOf(state, actorId).filter((g) => !holds(g, actorId)).map((g) => getPartner(g, actorId))
 }
 
 export function getHoldBackFacts(state: CombatState, root: HoldBackAction): GrappleFacts | null {
   const g = root.targetId ? findGrapple(state.grapples, root.actorId, root.targetId) : null
-  if (!g || !root.targetId) return null
-  return facts(state, [root.actorId, root.targetId], { ...g, holders: [...new Set([...g.holders, root.actorId])] })
+  const c = state.characters[root.actorId]
+  const row = c ? getFreeGrappleRows(state, c)[0] : undefined
+  if (!g || !root.targetId || !row) return null
+  return facts(state, [root.actorId, root.targetId], { ...g, holders: [...new Set([...g.holders, root.actorId])], weapons: { ...g.weapons, [root.actorId]: row.wielded.key } })
 }

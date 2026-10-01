@@ -2,6 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { CombatState, RootAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import type { ReactionMove } from './reactionMoves'
+import { isInTurn } from './turn'
 
 // combat.tex "Rest": "The character is allowed to move 4 AP worth of careful
 // movement while resting during their own turn" — a rest, or a cast rested
@@ -10,7 +11,7 @@ import type { ReactionMove } from './reactionMoves'
 // rest's effects, a spell's among them.
 export function canMoveWhileResting(state: CombatState, root: RootAction): boolean {
   const resting = root.kind === 'rest' || (root.kind === 'cast' && (root.improved.effortless ?? 0) > 0)
-  return resting && root.step === 'post' && state.board?.placements[root.actorId] !== undefined
+  return resting && root.step === 'post' && isInTurn(state, root.actorId) && state.board?.placements[root.actorId] !== undefined
     && !hasRestMove(state, root.id)
 }
 

@@ -3,7 +3,7 @@ import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, Root
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, opensExplosion } from '../rules/cast'
-import { getAttackOptions } from '../rules/attack'
+import { getFreeAttackOptions } from '../rules/attack'
 import { isInReach } from '../rules/board'
 import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { isVoided } from '../rules/opportunity'
@@ -94,7 +94,7 @@ function openRiposte(state: CombatState, root: RootAction, newId: () => string):
   const riposter = defense ? state.characters[defense.actorId] : undefined
   if (!defense || !riposter) return []
   const strike = makeAction('strike', { id: newId(), actorId: defense.actorId, targetId: root.actorId, spawnedBy: defense.id })
-  const reaches = getAttackOptions(riposter, 'strike').some((o) => isInReach(state, { ...strike, ...o }, root.actorId))
+  const reaches = getFreeAttackOptions(state, riposter, 'strike').some((o) => isInReach(state, { ...strike, ...o }, root.actorId))
   return reaches ? [strike] : []
 }
 

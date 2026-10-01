@@ -13,11 +13,11 @@ import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRow
 import { getPartners, isHeld } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvasionCost, isAnswerable, lessRepurposed, withGuardStep } from './action'
+import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
-import { defRows, getAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
+import { defRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
 import { getFleeBarFor, getSurgeBarFor } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
@@ -111,11 +111,14 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
           return guards.map((guard) => {
             const { cost: own, reason } = guardOption(state, c, open, guard, gate)
             const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }
-            return answer(draft, lessRepurposed(state, c.id, open.id, own), reason)
+            return answer(draft, lessRepurposed(state, c.id, open.id, own), reason ?? seizedReason(state, guard))
           })
         })
       case 'guard':
-        return guardRows(state, c, open).map((row) => answer({ kind, weaponKey: row.wielded.key, attack: row.atk.name }))
+        return guardRows(state, c, open).map((row) => {
+          const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
+          return answer(draft, cost, gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))
+        })
       // combat.tex "Evasion" lets the evader move after the shot; one who
       // stays put gives that up, for Precise Reflexes' price if they have it
       case 'evasion':
@@ -143,7 +146,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       // against a grapple partner, for a maneuver (combat.tex "Grapple
       // Maneuvers": "can be used like opportunity attacks")
       case 'opportunityAttack': {
-        const strikes = getAttackOptions(c, 'strike')
+        const strikes = getFreeAttackOptions(state, c, 'strike')
         const partner = getPartners(state, c.id).includes(open.actorId)
         const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }))
           || (partner && canAfford(c, getActionCost(c, 'grappleManeuver')))
@@ -161,7 +164,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       // combat.tex "Coordinated Shots": a shot of their own, so it is open
       // only to someone who can pay for one that reaches the target
       case 'joinShot': {
-        const shots = getAttackOptions(c, 'shoot')
+        const shots = getFreeAttackOptions(state, c, 'shoot')
         const reaching = shots.filter((s) => isJoinInRange(state, c.id, s, trigger.against ?? ''))
         const reason = shots.length === 0 ? (hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot' : 'no shooting weapon in hand')
           : reaching.length === 0 ? 'out of range'
@@ -171,7 +174,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       // abilities.tex "Counterattack": a strike of their own, so it is open
       // only to someone who can pay for one
       case 'counterattack': {
-        const strikes = getAttackOptions(c, 'strike')
+        const strikes = getFreeAttackOptions(state, c, 'strike')
         const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
         return [answer({ kind }, null, gate ?? reason)]
       }
@@ -195,8 +198,8 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
 type OwnOptions = (state: CombatState, c: CampaignCharacter) => ActionOption[]
 
 const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
-  strike: (_state, c) => {
-    const strikes = getAttackOptions(c, 'strike')
+  strike: (state, c) => {
+    const strikes = getFreeAttackOptions(state, c, 'strike')
     const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
     return [
       option({ kind: 'strike' }, null, strikes.length > 0 ? null : 'no melee weapon in hand'),
@@ -204,8 +207,8 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       option({ kind: 'strike', grab: true }, null, grabs.length > 0 ? null : 'no grapple weapon in hand'),
     ]
   },
-  shoot: (_state, c) => {
-    const shots = getAttackOptions(c, 'shoot')
+  shoot: (state, c) => {
+    const shots = getFreeAttackOptions(state, c, 'shoot')
     const reason = shots.length > 0 ? null
       : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge'
       : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot'
@@ -281,6 +284,10 @@ function isInAnyGrapple(state: CombatState, c: CampaignCharacter): boolean {
   return getPartners(state, c.id).length > 0
 }
 
+function seizedReason(state: CombatState, action: Action): string | null {
+  return isUsedOutsideGrapple(state, action) ? 'held in a grapple' : null
+}
+
 function afford(c: CampaignCharacter, cost: ActionCost): string | null {
   return canAfford(c, cost) ? null : 'cannot afford'
 }
@@ -319,9 +326,9 @@ function closeWhileFleeing(state: CombatState, c: CampaignCharacter, options: Ac
 }
 
 // play.tex "Combat": a character acts in their own turn; outside it, only
-// reactions and what they open.
+// reactions and what they open — and a rest, the table's ruling.
 function closeOutOfTurn(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isInTurn(state, c.id) ? options : closeWith(options, () => 'not your turn')
+  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (o.draft.kind === 'rest' ? null : 'not your turn'))
 }
 
 // The option a draft would take, so a command can refuse exactly what the

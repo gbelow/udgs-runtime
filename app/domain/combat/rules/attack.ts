@@ -16,7 +16,7 @@ import { getBalanceDL } from './move'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { getExplosionDLTerms } from './explosion'
-import { getGrappleStrikeTerm, getManeuverDLTerms } from './grapple'
+import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
@@ -155,6 +155,12 @@ export function getAttackOptions(c: Character, kind: AttackAction['kind']): Atta
       reach: v.reach,
     }))
   })
+}
+
+// The attack options the character's grapples leave open: of a weapon a
+// grapple seized, its grapple rows alone.
+export function getFreeAttackOptions(state: CombatState, c: Character, kind: AttackAction['kind']): AttackOption[] {
+  return getAttackOptions(c, kind).filter((o) => !isSeizedUse(state, c.id, o.weaponKey, o.attack, null))
 }
 
 // Whether the character holds a shooting row in hand, however it stands

@@ -186,11 +186,12 @@ resolveAction ─────────► land(top)
   detonation it opened). Any interruption
   or stun ends every held spell: a won maneuver (`reduceCharacter`), a blow as it lands
   (`deliver.ts`), a crash (`trampledBy`).
-- **Rest** — `rest` is a root with no die, priced by the action-cost table; it may take
-  AP negative as long as the next round starts positive (`canAffordRest`), and lands as
+- **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
+  action of their own a character may declare outside their turn; it may take AP negative as long as the next round starts positive (`canAffordRest`), and lands as
   `restCharacter` (STA back). Effortless is the same rest landing with the cast
   (`restWhileCasting`), the AP raised to the rest's. While either waits at `post`, its
-  actor may make the rest's careful movement once (`moveWhileResting`, `rules/rest.ts`):
+  actor may make the rest's careful movement once, in their own turn (`moveWhileResting`,
+  `rules/rest.ts`):
   a move opened over it, careful only, its 4 AP prepaid, played out before the rest or
   the spell lands.
 - **Flee** (`rules/flee.ts`) — against a move it is a reaction; after a strike, or an
@@ -249,7 +250,12 @@ resolveAction ─────────► land(top)
   (the action lands).
 - `reduceCharacter` hands deliveries to the character domain's own effect processor
   (`character/commands/deliver.ts`); combat never computes damage on the target side.
-- `settleGrapples` (`commands/grapple.ts`) lets go for any holder left with no grapple row,
+- A grapple seizes the weapon each holder holds with (`Grapple.weapons`): the grab's row,
+  or a free grapple row for grappling back. It grabs nobody else, and only its grapple
+  rows are used, against nobody but the partner (`isSeizedUse`, read by `getTargetIds`,
+  `isDeclarationComplete` and `getFreeAttackOptions`, the rows the panel offers).
+- `settleGrapples` (`commands/grapple.ts`) lets go for any holder whose seized weapon is
+  no longer a grapple row in hand,
   after anything that could take it from them — also called by `updateCharacter`,
   `dropToFloor` and `removeFromCombat`.
 - What the fight puts on a character is never stored on them: `rules/situational.ts`

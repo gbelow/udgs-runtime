@@ -12,7 +12,7 @@ import { canAfford } from '../../character/rules/cost'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, needsDisarmPick } from './grapple'
+import { canGrab, getDisarmDiscount, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isInterceptDisarm, isSeizedUse, needsDisarmPick } from './grapple'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { findGrapple, getPartners } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
@@ -39,6 +39,7 @@ import { getFleeCost } from './flee'
 // shield"), an opportunity attack a strike that reaches its target from
 // where it will be fought.
 export function isDeclarationComplete(state: CombatState, c: Character, action: Action): boolean {
+  if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
       return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack))
@@ -130,6 +131,14 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       return getAttackVariant(c, strike) !== null && isVariantOpen(state, strike, strike.variant) && isInReach(state, strike, action.targetId ?? '')
     }
   }
+}
+
+// A weapon a grapple seized is used by its grapple rows alone, against the
+// partner alone: an attack's target, or the attacker a defense answers.
+export function isUsedOutsideGrapple(state: CombatState, action: Action): boolean {
+  if (state.grapples.length === 0 || !('weaponKey' in action)) return false
+  const against = action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard' ? getRootOf(state, action)?.actorId : action.targetId
+  return isSeizedUse(state, action.actorId, action.weaponKey, action.attack, against)
 }
 
 // combat.tex "Catch" is against a running target; nothing lets a jumper be
@@ -385,9 +394,9 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
   const others = Object.keys(state.characters).filter((id) => id !== root.actorId)
   switch (root.kind) {
     case 'strike':
-      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)))
+      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id))
     case 'shoot':
-      return others.filter((id) => isInShotRange(state, root, id))
+      return others.filter((id) => isInShotRange(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id))
     case 'cast':
       return others.filter((id) => canAimCast(state, root, id))
     // combat.tex "Grapple": what is done in a grapple is done to a partner —
