@@ -10,8 +10,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useMorale, useTurnControls } from '../hooks/useCombatState';
-import { ROLL_MODES } from '../domain/combat/dice';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useMorale, useSocial, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -65,6 +64,7 @@ export function PlayPanel(){
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       <MoralePanel />
+      {isThereActiveCharacter ? <SocialPanel /> : null}
       {
         isThereActiveCharacter ?
         <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3'>
@@ -459,6 +459,32 @@ function MoralePanel(){
           }
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action</span> : null}
         </div>
+      ))}
+    </div>
+  )
+}
+
+// combat.tex "Social actions": the active character intimidates, taunts or
+// rallies whoever the table picks, for 5 AP in their own turn; it weighs on
+// their morale test at the next round's beginning.
+function SocialPanel(){
+  const { bar, value, kinds, targets } = useSocial()
+  const { say } = useCombatCommands()
+  const [picked, setPicked] = useState<string[]>([])
+  if (targets.length === 0) return null
+  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+
+  return(
+    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 py-2 border-b border-line text-sm items-center'>
+      <SectionLabel>Social</SectionLabel>
+      {targets.map((t) => (
+        <label key={t.id} className='flex gap-1 items-center text-xs text-muted'>
+          <input type='checkbox' aria-label={`social ${t.name}`} checked={picked.includes(t.id)} onChange={() => toggle(t.id)} />
+          {t.name}
+        </label>
+      ))}
+      {kinds.map((kind) => (
+        <Button key={kind} size='xs' aria-label={`social ${kind}`} disabled={bar !== null || picked.length === 0} title={bar ?? undefined} onClick={() => say(kind, picked)}>{kind} · {value}</Button>
       ))}
     </div>
   )

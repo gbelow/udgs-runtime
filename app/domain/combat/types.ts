@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, PUSH_MOVEMENTS } from '../lists'
-import { SPELL_MODIFICATIONS } from '../tables'
+import { SOCIAL_ACTIONS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from './dice'
 
@@ -861,6 +861,16 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+// combat.tex "Social actions": what a character said to another in the round
+// `round`, weighing on that one's morale test at the next round's beginning.
+export const PressureSchema = z.object({
+  round: z.number(),
+  from: z.string(),
+  target: z.string(),
+  kind: z.enum(SOCIAL_ACTIONS),
+  value: z.number(),
+})
+export type Pressure = z.infer<typeof PressureSchema>
 export type MoraleRoll = z.infer<typeof MoraleRollSchema>
 export type MoraleCall = z.infer<typeof MoraleCallSchema>
 
@@ -904,6 +914,8 @@ export const CombatStateSchema = z.object({
   // combat.tex "Morale": who the beginning of this round called to a test, and
   // the tests made
   morale: z.array(MoraleCallSchema).default([]),
+  // combat.tex "Social actions": the intimidations, taunts and rallies said
+  pressure: z.array(PressureSchema).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")

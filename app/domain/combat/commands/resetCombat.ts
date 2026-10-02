@@ -13,6 +13,7 @@ export function resetCombat(state: CombatState): CombatState {
     lastContest: null,
     agreedToEnd: [],
     morale: [],
+    pressure: [],
     round: 0,
     actions: [],
     stack: [],

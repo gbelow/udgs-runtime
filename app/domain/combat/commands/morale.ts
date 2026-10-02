@@ -1,7 +1,7 @@
 import type { MoraleRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getMoraleBar, getMoraleOutcome, getMoraleTest } from '../rules/morale'
+import { getMoraleBar, getMoraleOutcome, getMoraleTest, getPressure } from '../rules/morale'
 import { resolveTest } from '../rules/test'
 import { updateCharacter } from './characters'
 
@@ -14,7 +14,7 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     const test = getMoraleTest(state, id)
     if (!test || getMoraleBar(state, id)) return state
     const { die, score, degree } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
-    const outcome = getMoraleOutcome(degree, enemyNear)
+    const outcome = getMoraleOutcome(degree, enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
     const settled = updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)))(state)
     const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, limitStress: outcome.limitStress }
     return { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }

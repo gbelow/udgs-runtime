@@ -1,7 +1,7 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
-import { getMoraleDigest, getMoraleRows, MoraleRow } from "../domain/combat/projections/morale";
+import { getMoraleDigest, getMoraleRows, getSocialPanel, MoraleRow, SocialPanel } from "../domain/combat/projections/morale";
 import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
@@ -64,4 +64,14 @@ export function useCombatSurgeOptions(): SurgeOption[] {
 export function useMorale(): MoraleRow[] {
   useCombatStore(getMoraleDigest);
   return getMoraleRows(useCombatStore.getState());
+}
+
+const NO_SOCIAL: SocialPanel = { bar: NO_ONE, value: 0, kinds: [], targets: [] }
+
+// combat.tex "Social actions" — what the active character can say and to
+// whom, gated on a digest since the panel is freshly allocated.
+export function useSocial(): SocialPanel {
+  useCombatStore((s) => (s.activeCharacterId ? JSON.stringify(getSocialPanel(s, s.activeCharacterId)) : ''));
+  const s = useCombatStore.getState();
+  return s.activeCharacterId ? getSocialPanel(s, s.activeCharacterId) : NO_SOCIAL;
 }

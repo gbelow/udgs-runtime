@@ -320,6 +320,12 @@ export const SURGES = {
 export const MORALE_AGGRAVATORS = { oblivious: 3, disoriented: 2, injured: 2, burning: 5, outOfSTA: 2 } as const
 export const MORALE_TRIGGER = 5
 
+// combat.tex "Social actions": intimidation, taunt and rally, each moving the
+// target's morale DL by 1 + charisma/2 (`bonus` + half the charisma, floored).
+export const SOCIAL_ACTIONS = ['intimidate', 'taunt', 'rally'] as const
+export type SocialAction = (typeof SOCIAL_ACTIONS)[number]
+export const SOCIAL_BONUS = 1
+
 // combat.tex "running": "The first 2 AP worth of running must be
 // uninterrupted, otherwise, running cannot be started".
 export const RUN_START_AP = 2
@@ -377,7 +383,7 @@ export const ACTION_COSTS = {
   // gear.tex "Donning and Doffing armor": "8 AP to doff non rigid armor"
   doffArmor:      { AP: 8, STA: 0 },
   switchFocus:    { AP: 1, STA: 0 },
-  socialAction:   { AP: 4, STA: 1 },
+  socialAction:   { AP: 5, STA: 0 },
 } as const satisfies Record<string, { AP: number; STA: number }>
 
 export type ActionKind = keyof typeof ACTION_COSTS
