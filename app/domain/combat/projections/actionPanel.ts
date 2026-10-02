@@ -23,6 +23,7 @@ import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
+import { EQUIPMENT_ATTACK_PENALTY, getAimableItems } from '../rules/equipment'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
@@ -38,14 +39,18 @@ import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from '
 
 export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
+// combat.tex "Attack against equipment", as a picker: each item the target
+// holds that the strike can be aimed at, and what aiming there costs.
+export type ItemAim = { id: string; name: string; penalty: number; selected: boolean }
+
 // combat.tex "Localized damage", as a picker: each place the attack can be
 // aimed at and what aiming there costs the attack test — the target's own
 // parts still there, or, with no target yet, the kinds of place.
-function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null }): LocationOption[] {
+function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null; object?: string }): LocationOption[] {
   const places = target
     ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name }))
     : HIT_LOCATIONS.map((location) => ({ location, part: null, name: location }))
-  return places.map((p) => ({ ...p, penalty: LOCATIONS[p.location].penalty, selected: p.location === aim.location && p.part === aim.part }))
+  return places.map((p) => ({ ...p, penalty: LOCATIONS[p.location].penalty, selected: !aim.object && p.location === aim.location && p.part === aim.part }))
 }
 
 // Everyone with a reaction to the open action, each with their options —
@@ -252,6 +257,7 @@ export type ActionPanelView = {
   chargeInto: CastGearOption[]
   charges: ChargeView[]
   locations: LocationOption[]
+  items: ItemAim[]
   targets: { id: string; name: string; selected: boolean }[]
   // why the target list is empty, when it is
   noTargets: string | null
@@ -295,7 +301,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -335,6 +341,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
   const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
   const declaredTargets = getDeclaredTargets(state, open)
+  // the aim is offered once the attack has a target it may be aimed at
+  const aimable = !!attack && attack.targetId !== null && (attack.step !== 'define' || declaredTargets.includes(attack.targetId))
 
   return {
     step,
@@ -408,7 +416,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
           holder: o.holderId ? getFightName(state, o.holderId) : '',
         }))
       : [],
-    locations: attack && attack.targetId !== null && (attack.step !== 'define' || declaredTargets.includes(attack.targetId)) ? getLocationOptions(target, attack) : [],
+    locations: aimable && attack ? getLocationOptions(target, attack) : [],
+    items: aimable && attack?.kind === 'strike' && target
+      ? getAimableItems(target).map((item) => ({ id: item.id, name: item.name || item.refId, penalty: EQUIPMENT_ATTACK_PENALTY, selected: item.id === attack.object }))
+      : [],
     targets: declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
     noTargets: step === 'target' && declaredTargets.length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')

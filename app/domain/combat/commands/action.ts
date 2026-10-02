@@ -56,7 +56,7 @@ export function setTarget(targetId: string): Updater {
     const open = getOpenAt(state, 'define')
     if (!open) return state
     if (!getTargetIds(state, open).includes(targetId)) return state
-    const retargeted = 'part' in open && open.targetId !== targetId ? getDefaultAim(state.characters[targetId]) : {}
+    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(open.kind === 'strike' ? { object: '' } : {}) } : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
   }
 }
@@ -231,7 +231,7 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     // charge, thrown with the cast
     const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) }
       : rolled.kind === 'cut' ? { ...rolled, breakRoll: rollPercent(dice) }
-      : (rolled.kind === 'strike' || rolled.kind === 'shoot') && needsBreakRolls(state, rolled) ? { ...rolled, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice), armor: rollPercent(dice) } }
+      : (rolled.kind === 'strike' || rolled.kind === 'shoot') && needsBreakRolls(state, rolled) ? { ...rolled, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice), armor: rollPercent(dice), object: rollPercent(dice) } }
       : rolled
     return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }

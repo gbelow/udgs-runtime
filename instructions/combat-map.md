@@ -287,6 +287,12 @@ resolveAction ─────────► land(top)
   usable (`isRowUsable`); a guard declared before its shield broke still counts as having guarded
   (`isRowHeld`). `state.breakage` switches the optional rule off (`toggleBreakage`, refused while
   an action is open); a net cut reads it too.
+- **Attack against equipment** (`rules/equipment.ts`) — a strike may be aimed at an item its target
+  holds (`StrikeAction.object`, picked beside the body parts; −10 to hit, the table's ruling). It is
+  scored and defended as a strike at the holder, delivers nothing to the body (`facts` is null), and
+  on a hit or a critical tests the item's weakest part (`getWeakestPart`) with the blow at that
+  degree, from `breakRolls.object`. A graze or a miss does nothing to it. A sweep ends at it and its
+  hook knockdown is not offered; a block that meets it is tested as any block is.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.

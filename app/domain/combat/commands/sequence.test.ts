@@ -1049,3 +1049,54 @@ describe('a blow that lands on armor', () => {
     expect(pitted(struck('Longsword', 9, 0, false))).toBe(false)
   })
 })
+
+// combat.tex "Attack against equipment": "An attack can be made against a
+// weapon, shield, or any object in order to break them", gear.tex "Equipment
+// Breakage" deciding if it does. The strike is scored at the holder, and a hit
+// lands on the item aimed at rather than on the body.
+describe('a strike aimed at equipment', () => {
+  const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+  // the penalty for aiming at an item leaves a die of 9 a graze
+  const HIT = 15
+
+  // `aimed` is the item id the longsword is aimed at; the strike is thrown
+  // with `die`, then every percentile digit is `digit`.
+  function declared(aimed: string, breakage = true): CombatState {
+    let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, wielder('atk', 'Longsword'), holdItem(shield)(fighter('def'))), breakage }
+    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = amendAction({ object: aimed })(setTarget('def')(s))
+    return commitAction(() => 5, newId)(s)
+  }
+  function struck(die: number, digit: number, breakage = true): CombatState {
+    let thrown = 0
+    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(declared(shield.id, breakage)))
+  }
+  const shieldOf = (s: CombatState) => s.characters.def.held[0]
+
+  it('breaks the item a hit lands on, and leaves its holder unhurt', () => {
+    const s = struck(HIT, 0)
+    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
+    expect(shieldOf(s).broken).toBe(true)
+    expect(s.characters.def.injuries).toEqual(declared(shield.id).characters.def.injuries)
+  })
+
+  it('spares the item on a high percentile', () => {
+    expect(shieldOf(struck(HIT, 9)).broken).toBe(false)
+  })
+
+  it('does nothing to the item on a graze', () => {
+    const s = struck(9, 0)
+    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('graze')
+    expect(shieldOf(s).broken).toBe(false)
+  })
+
+  it('does nothing with the rule switched off', () => {
+    expect(shieldOf(struck(HIT, 0, false)).broken).toBe(false)
+  })
+
+  it('cannot be aimed at an item its target does not hold', () => {
+    const s = declared('nothing held')
+    expect(getOpenAction(s)?.step).toBe('define')
+  })
+})

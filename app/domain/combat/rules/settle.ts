@@ -10,6 +10,7 @@ import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getBlowBreakage } from './breakage'
+import { isObjectStrike } from './equipment'
 
 // The action as it lands: closed, with what it came to written down per
 // kind, read off the state as it stands. The resolve writes exactly this,
@@ -25,8 +26,9 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
   if (isVoided(state, open)) return { ...open, step: 'done' }
   switch (open.kind) {
     case 'strike': {
-      const facts = getAttackFacts(state, open)
-      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, facts), ...getStrikeLanding(state, open, facts) }
+      const blow = getAttackFacts(state, open)
+      const facts = isObjectStrike(open) ? null : blow
+      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, blow), ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
       const facts = getAttackFacts(state, open)

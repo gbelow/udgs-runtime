@@ -199,14 +199,15 @@ const AttackDeclaration = {
 
 // gear.tex "Equipment Breakage": a blow met by a block or a guard strikes the
 // object in the way, and the attacker's own weapon with it; one that lands
-// strikes the armor worn. The percentiles are thrown with the roll, one per
+// strikes the armor worn; an attack against equipment strikes the item it is
+// aimed at. The percentiles are thrown with the roll, one per
 // object; `broke` is written at the resolve: the items the blow broke and
 // whose they were.
 export const BrokenItemSchema = z.object({ ownerId: str, itemId: str })
 export type BrokenItem = z.infer<typeof BrokenItemSchema>
 
 const Breakage = {
-  breakRolls: z.object({ defender: num, attacker: num, armor: num }).default({ defender: 0, attacker: 0, armor: 0 }),
+  breakRolls: z.object({ defender: num, attacker: num, armor: num, object: num }).default({ defender: 0, attacker: 0, armor: 0, object: 0 }),
   broke: z.array(BrokenItemSchema).default([]),
 }
 
@@ -317,6 +318,9 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
+  // combat.tex "Attack against equipment": the item the target holds that the
+  // strike is aimed at, by id; '' aims it at the body
+  object: str.default(''),
   facts: DeliverySchema.nullable().default(null),
   ...Breakage,
   // what landing did to the target's action, written at the resolve: a move

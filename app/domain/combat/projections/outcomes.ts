@@ -1,8 +1,10 @@
 import type { Action, ActionRoll, CombatState, Deliveries, DragFacts } from '../types'
-import type { Delivery, Effect } from '../../types'
+import type { Delivery, Effect, Item } from '../../types'
 import type { Outcome } from '../../character/rules/damage'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getActionName } from './labels'
+import { getCarriedItems } from '../../item/rules/items'
+import { findFloorItem } from '../rules/floor'
 import { SPELLS, isSpellKey } from '../../spells'
 import { outcomeOf } from '../rules/damage'
 import { getGrappleFacts } from '../rules/grapple'
@@ -32,6 +34,23 @@ function flatten(deliveries: Deliveries): { id: string; delivery: Delivery }[] {
 // action was cancelled before it could do any of it.
 export function getActionNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
+  const broke = isAttackAction(root) ? root.broke.map(({ ownerId, itemId }) => ({ target: named(ownerId), text: breakNote(findItem(state, ownerId, itemId)) })) : []
+  return [...getRootNotes(state, root, named), ...broke]
+}
+
+// gear.tex "Weapon Breakage", "Armor Breakage": a weapon breaks, armor is
+// pitted.
+function breakNote(item: Item | undefined): string {
+  return `${item?.name || item?.refId || 'an item'} ${item?.type === 'armor' ? 'pitted' : 'broke'}`
+}
+
+function findItem(state: CombatState, ownerId: string, itemId: string): Item | undefined {
+  const owner = state.characters[ownerId]
+  const carried = owner ? [...getCarriedItems(owner), ...(owner.onBack ? [owner.onBack] : [])] : []
+  return carried.find((i) => i.id === itemId) ?? findFloorItem(state, itemId)?.item
+}
+
+function getRootNotes(state: CombatState, root: Action, named: (id: string) => string): { target: string; text: string }[] {
   if (isVoided(state, root)) return [{ target: named(root.actorId), text: `${getActionName(root)} cancelled` }]
   if (root.kind === 'drag') return root.facts ? dragNotes(root.facts, named) : []
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
@@ -39,8 +58,7 @@ export function getActionNotes(state: CombatState, root: Action): { target: stri
   if (root.kind === 'spellTest') return spellTestNotes(root, named)
   const facts = getGrappleFacts(root)
   if (!facts) return []
-  const itemName = (ownerId: string, itemId: string) => state.characters[ownerId]?.held.find((i) => i.id === itemId)?.name
-    ?? state.floor.find((f) => f.item.id === itemId)?.item.name ?? 'an item'
+  const itemName = (ownerId: string, itemId: string) => findItem(state, ownerId, itemId)?.name ?? 'an item'
   const lines = facts.pair.flatMap((id) => [
     ...((facts.on[id] ?? []).length > 0 ? [{ target: named(id), text: (facts.on[id] ?? []).join(', ') }] : []),
     ...((facts.off[id] ?? []).length > 0 ? [{ target: named(id), text: `no longer ${(facts.off[id] ?? []).join(', ')}` }] : []),

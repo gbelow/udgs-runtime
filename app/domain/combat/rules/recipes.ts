@@ -112,7 +112,7 @@ function getOpening(state: CombatState, root: StrikeAction, actorId: string, on:
       return defense ? { targetId: root.actorId, opener: defense } : null
     }
     case 'struck':
-      if (actorId !== root.actorId) return null
+      if (actorId !== root.actorId || root.object !== '') return null
       if (on.spent && (root.spent[on.spent] ?? 0) === 0) return null
       if (on.locations.length > 0 && !on.locations.includes(root.location)) return null
       return { targetId: root.targetId, opener: root }

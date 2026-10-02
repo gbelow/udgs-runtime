@@ -172,8 +172,15 @@ export function ActionPanel(){
             <Button key={l.part ?? l.location} size='xs' variant={l.selected ? 'primary' : 'default'}
               className={l.selected ? 'bg-accent/15' : ''}
               title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
-              onClick={() => amend({ location: l.location, part: l.part })}>
+              onClick={() => amend({ location: l.location, part: l.part, object: '' })}>
               {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
+            </Button>)}
+          {view.items.map((i) =>
+            <Button key={i.id} size='xs' variant={i.selected ? 'primary' : 'default'}
+              className={i.selected ? 'bg-accent/15' : ''}
+              title={`break their ${i.name}: ${-i.penalty} to hit`}
+              onClick={() => amend({ object: i.id })}>
+              {i.name}<span className='ml-1 font-mono text-bad'>−{i.penalty}</span>
             </Button>)}
         </div>
       ) : null}

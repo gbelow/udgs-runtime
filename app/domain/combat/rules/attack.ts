@@ -19,6 +19,7 @@ import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
 import { CUT_DL, getCutStrike } from './cut'
+import { EQUIPMENT_ATTACK_PENALTY, isObjectOnTarget, isObjectStrike } from './equipment'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -79,8 +80,9 @@ export function getDefaultAim(target: Character | undefined): Aim {
 
 // Whether the attack is aimed at a place its target has: one with a part
 // still there, or anywhere on a target with no body drawn.
-export function isAimOnTarget(state: CombatState, action: { targetId: string | null; location: HitLocation }): boolean {
+export function isAimOnTarget(state: CombatState, action: { targetId: string | null; location: HitLocation; object?: string }): boolean {
   const target = action.targetId ? state.characters[action.targetId] : undefined
+  if (!isObjectOnTarget(target, action.object)) return false
   if (!target || target.body.length === 0) return true
   return target.body.some((p) => !p.lost && p.location === action.location)
 }
@@ -236,7 +238,7 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
-    { label: action.location, value: -LOCATIONS[action.location].penalty },
+    isObjectStrike(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty },
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
   ]
 }

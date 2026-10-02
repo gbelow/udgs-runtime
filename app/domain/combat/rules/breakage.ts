@@ -1,11 +1,13 @@
-import type { ActionOf, AttackAction, BrokenItem, CombatState } from '../types'
+import type { ActionOf, AttackAction, BrokenItem, CombatState, StrikeAction } from '../types'
 import type { Armor, Damage, Delivery, Item } from '../../types'
 import { getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
 import { getHardness, getItemArmor } from '../../item/rules/items'
-import { isArmorBare } from '../../character/rules/damage'
+import { getUndefendedDamage, isArmorBare } from '../../character/rules/damage'
 import { hasProperty } from '../../weaponProperties'
 import { getDefendingReaction } from './attack'
 import { outcomeOf } from './damage'
+import { getHeldItem } from '../../item/rules/hands'
+import { getWeakestPart, isObjectStrike } from './equipment'
 import { getOpenAction } from './log'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 
@@ -39,7 +41,7 @@ function getWornArmor(state: CombatState, root: AttackAction): { item: Item; arm
 // Whether the attack puts anything at risk, and so needs its percentiles: the
 // object that meets it, or the armor worn.
 export function needsBreakRolls(state: CombatState, root: AttackAction): boolean {
-  return state.breakage && (getBreakingDefense(state, root) !== null || getWornArmor(state, root) !== null)
+  return state.breakage && (isObjectStrike(root) || getBreakingDefense(state, root) !== null || getWornArmor(state, root) !== null)
 }
 
 function getBlow({ damage, hardness, properties }: Damage): BreakingBlow {
@@ -88,10 +90,23 @@ function getArmorBreakage(state: CombatState, root: AttackAction, facts: Deliver
   return isBroken(blow, { RES: worn.armor.RES, hardness: getHardness(worn.armor.material) }, root.breakRolls.armor) ? [{ ownerId: target.id, itemId: worn.item.id }] : []
 }
 
+// combat.tex "Attack against equipment": a hit or a critical lands the blow,
+// at that degree, on the weakest part of the item the strike was aimed at.
+function getEquipmentBreakage(state: CombatState, root: StrikeAction, damage: Damage, degree: NonNullable<Delivery['degree']>): BrokenItem[] {
+  const target = root.targetId ? state.characters[root.targetId] : undefined
+  const item = target && getHeldItem(target, root.object)
+  const part = item && getWeakestPart(item)
+  if (!target || !part || (degree !== 'hit' && degree !== 'critical')) return []
+  const blow = getBlow(damage)
+  const landed = { ...blow, blunt: getUndefendedDamage(blow.blunt, degree), cut: getUndefendedDamage(blow.cut, degree) }
+  return isBroken(landed, part, root.breakRolls.object) ? [{ ownerId: target.id, itemId: root.object }] : []
+}
+
 // The items the attack broke as it landed, from the percentiles thrown with
 // its roll.
 export function getBlowBreakage(state: CombatState, root: AttackAction, facts: Delivery | null): BrokenItem[] {
   if (!state.breakage || facts?.effect.type !== 'damage' || facts.degree === null) return []
   const damage = facts.effect.effect
-  return [...getObjectBreakage(state, root, getBlow(damage)), ...getArmorBreakage(state, root, facts, damage)]
+  const struck = isObjectStrike(root) ? getEquipmentBreakage(state, root, damage, facts.degree) : getArmorBreakage(state, root, facts, damage)
+  return [...getObjectBreakage(state, root, getBlow(damage)), ...struck]
 }
