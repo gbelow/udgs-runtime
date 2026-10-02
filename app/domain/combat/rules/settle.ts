@@ -8,6 +8,7 @@ import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explo
 import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
 import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
+import { getFireAgainFacts } from './fireAgain'
 
 // The action as it lands: closed, with what it came to written down per
 // kind, read off the state as it stands. The resolve writes exactly this,
@@ -43,6 +44,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
     case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
     case 'cast': return { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) }
+    case 'fireAgain': return { ...open, step: 'done', facts: getFireAgainFacts(state, open) }
     case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }

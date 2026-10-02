@@ -8,6 +8,11 @@ export type RollMode = 'normal' | 'safe' | 'risky'
 // the test whether it explodes.
 export type Dice = (explodes: boolean) => number
 
+// A percentile die, 0 to 99: two d10s, tens then units, neither exploding.
+export function rollPercent(dice: Dice): number {
+  return dice(false) * 10 + dice(false)
+}
+
 // The d10 reads 0 to 9. play.tex "Exploding die", where a test explodes: a 9
 // adds a d6, and keeps adding while the d6 shows 6; a 0 subtracts them the
 // same way.

@@ -301,7 +301,7 @@ function WoundPanel(){
 }
 
 // spells.tex "Sustained Spells": what the character is holding, what it
-// costs each round, and who it links them to.
+// costs each round and to fire again, and who it links or binds them to.
 function SustainedPanel(){
   const { rows, release } = useSustainedPanel()
   if (rows.length === 0) return null
@@ -313,10 +313,12 @@ function SustainedPanel(){
           <div className='flex flex-row flex-wrap gap-x-3 items-center'>
             <span className='text-accent'>{r.name}</span>
             <span className='text-muted'>{r.upkeep ? <>upkeep <span className='font-mono'>{r.upkeep}</span> a round</> : 'no upkeep'}</span>
+            {r.repeat ? <span className='text-muted'>again <span className='font-mono'>{r.repeat}</span></span> : null}
             {r.linkDL > 0 ? <span className='text-muted'>casting <span className='font-mono text-fg'>+{r.linkDL}</span> DL</span> : null}
             <Button size='xs' className='ml-auto' aria-label={`release ${r.name}`} onClick={() => release(r.key)}>release</Button>
           </div>
           {r.linked.length > 0 ? <span className='text-muted'>linked to {r.linked.map((t) => t.name).join(', ')}</span> : null}
+          {r.boundTo ? <span className='text-muted'>arc to {r.boundTo}</span> : null}
         </div>
       ))}
     </div>

@@ -79,7 +79,7 @@ export type Hazard = z.infer<typeof HazardSchema>
 // are put out or the fight ends (combat.tex "Fire": "A burning surface lasts
 // at minimum until the end of combat, or until extinguished").
 export const HazardLayerSchema = HazardSchema.extend({
-  heldBy: z.object({ id: str.default(''), key: str.default(''), explosionId: str.default('') }).strip().nullable().default(null),
+  heldBy: z.object({ id: str.default(''), key: str.default(''), explosionId: str.default(''), origin: CoordSchema.nullable().default(null) }).strip().nullable().default(null),
 }).strip()
 export type HazardLayer = z.infer<typeof HazardLayerSchema>
 
@@ -336,6 +336,9 @@ export const ExplosionActionSchema = z.object({
   // the area effects it goes off with, written at the resolve while what
   // carried them is still there to read
   effects: z.array(SpellEffectSchema).default([]),
+  // a held spray aimed again: it lays its ground and harms nobody (the
+  // table's ruling)
+  paintOnly: z.boolean().default(false),
 }).strip()
 
 // combat.tex "Explosions", "Sprays": the explosion going off, once everyone
@@ -355,6 +358,7 @@ export const BlastActionSchema = z.object({
   center: CoordSchema.nullable().default(null),
   direction: DirectionSchema.nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
+  paintOnly: z.boolean().default(false),
   // combat.tex "Gas", "Fire": what it leaves on the ground, cell by cell
   paint: z.array(z.object({ cell: CoordSchema, hazard: HazardSchema })).default([]),
 }).strip()
@@ -386,9 +390,27 @@ export const CastActionSchema = z.object({
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
   grazeSaved: z.boolean().default(false),
+  // the percentile die thrown with the cast for a fraction of a charge
+  // (spells.tex "Amplify Spell": charges times the VM)
+  chargeRoll: num.default(0),
   // a hit that did nothing, written when it lands: short of the
   // amplifications or the range its HOP had to buy
   failed: z.boolean().default(false),
+  facts: DeliveriesSchema.nullable().default(null),
+}).strip()
+
+// A held spell fired again without the casting test (the table's ruling): a
+// spray aimed anew from where the holder stands, a shot at the target the
+// arc is bound to. Written at the commit from what is held: the item, the
+// size it was cast at, the bound target, and the percentile die thrown for
+// a fraction of a charge.
+export const FireAgainActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('fireAgain'),
+  key: str.default(''),
+  itemId: str.default(''),
+  size: num.default(3),
+  chargeRoll: num.default(0),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -663,6 +685,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ExplosionActionSchema,
   BlastActionSchema,
   CastActionSchema,
+  FireAgainActionSchema,
   SpellTestActionSchema,
   EvasionActionSchema,
   GuardActionSchema,
@@ -702,6 +725,7 @@ export type AttackAction = StrikeAction | ShootAction
 export type ExplosionAction = z.infer<typeof ExplosionActionSchema>
 export type BlastAction = z.infer<typeof BlastActionSchema>
 export type CastAction = z.infer<typeof CastActionSchema>
+export type FireAgainAction = z.infer<typeof FireAgainActionSchema>
 export type SpellTestAction = z.infer<typeof SpellTestActionSchema>
 export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>

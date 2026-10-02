@@ -3,6 +3,9 @@ import { SPELLS, getSpellUpkeep, type SpellKey } from '../../spells'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getLinkDLOf, getLinkedTargets } from '../../character/rules/concentration'
 import { getFightName } from '../rules/fighters'
+import { getRepeatCost, getRepeatDraw } from '../rules/fireAgain'
+import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
+import { getChargeDraw } from '../../character/rules/spells'
 import { perState } from './perState'
 
 // spells.tex "Sustained Spells": what the active character is holding, what
@@ -13,6 +16,10 @@ export type SustainedRow = {
   name: string
   // what holding it costs each round, null when nothing
   upkeep: string | null
+  // what firing it again costs, null for one that cannot be
+  repeat: string | null
+  // the one target its arc is bound to, '' for none
+  boundTo: string
   linked: { id: string; name: string }[]
   linkDL: number
 }
@@ -20,17 +27,25 @@ export type SustainedRow = {
 function buildSustainedRows(state: CombatState): SustainedRow[] {
   const c = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
   if (!c) return []
-  return getActiveSpellKeys(c).map((key) => ({
-    key,
-    name: SPELLS[key].name,
-    upkeep: upkeepLabel(getSpellUpkeep(SPELLS[key])),
-    linked: getLinkedTargets(c, key).map((id) => ({ id, name: getFightName(state, id) })),
-    linkDL: getLinkDLOf(c, key),
-  }))
+  return getActiveSpellKeys(c).map((key) => {
+    const boundTo = getHeldEntry(c, key)?.boundTo
+    const repeat = getRepeatCost(key)
+    return {
+      key,
+      name: SPELLS[key].name,
+      upkeep: upkeepLabel(getSpellUpkeep(SPELLS[key]), getChargeDraw(SPELLS[key].ammo, getHeldSize(c, key))),
+      repeat: repeat ? upkeepLabel(repeat, getRepeatDraw(c, key)) : null,
+      boundTo: boundTo ? getFightName(state, boundTo) : '',
+      linked: getLinkedTargets(c, key).map((id) => ({ id, name: getFightName(state, id) })),
+      linkDL: getLinkDLOf(c, key),
+    }
+  })
 }
 
-function upkeepLabel({ AP, STA }: { AP: number; STA: number }): string | null {
-  const parts = [AP ? `${AP}AP` : '', STA ? `${STA}STA` : ''].filter(Boolean)
+// The price as the panel prints it; a fraction of a charge is the chance
+// to spend one more.
+function upkeepLabel({ AP, STA }: { AP: number; STA: number }, charges: number): string | null {
+  const parts = [AP ? `${AP}AP` : '', STA ? `${STA}STA` : '', charges ? `${Math.round(charges * 100) / 100} charge` : ''].filter(Boolean)
   return parts.length > 0 ? parts.join(' ') : null
 }
 

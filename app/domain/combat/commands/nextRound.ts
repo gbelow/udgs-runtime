@@ -5,6 +5,7 @@ import { applyTrigger } from '../../character/commands/effects'
 import { suffocate, bleed } from '../../character/commands/bleed'
 import { burnAtRoundStart, burnScorch } from '../../character/commands/deliver'
 import { isDead } from '../../character/rules/afflictions'
+import { rollPercent, type Dice } from '../dice'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canSurge } from '../../character/rules/surge'
 import { actionSurge } from '../../character/commands/actionSurge'
@@ -31,9 +32,9 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 // focus surge holding it takes (the table's ruling), or lets go of it when
 // they cannot. A dead character has nothing left to pay or bleed
 // out further.
-function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
+function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): CampaignCharacter {
   if (isDead(c)) return c
-  const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(payHeldSources(c))))
+  const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(payHeldSources(() => rollPercent(dice))(c))))
   const spent = expireUsedAbilities(burnt)
   const due = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
   const reset = resetAP({ ...due, usedSurge: null })
@@ -43,7 +44,9 @@ function endRound(state: CombatState, c: CampaignCharacter): CampaignCharacter {
 
 // combat.tex "Environmental and ongoing effects": "applied at the beginning
 // of the round", to whoever stands in them as the ground is now.
-export function nextRound(state: CombatState): CombatState {
-  const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c)]))
-  return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [] }
+export function nextRound(dice: Dice): (state: CombatState) => CombatState {
+  return (state) => {
+    const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
+    return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [] }
+  }
 }

@@ -18,8 +18,9 @@ import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST, getCastSpentAP, isSpellTestBeaten } from '../rules/cast'
-import { getEffortlessCost } from '../../character/rules/spells'
+import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, isAreaSpell, isSpellTestBeaten } from '../rules/cast'
+import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
+import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
 import { getLinkSpell } from '../../character/rules/concentration'
@@ -64,9 +65,8 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (c.id !== action.actorId || !action.cost) return c
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
-        // gear.tex "Electrite": a cast draws its charges from its gear as
-        // it is paid for, whatever the die says
-        if (action.kind === 'cast' && isSpellKey(action.key)) return drawFromSource(action.itemId, SPELLS[action.key].ammo)(payCost(action.cost)(c))
+        // a held spell fired again draws its charges as it is paid for
+        if (action.kind === 'fireAgain') return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost)(c))
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
@@ -88,16 +88,22 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (action.kind === 'explosion') return action.source !== 'cast' ? consumeItem(action.itemId)(c) : c
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
-        // spells.tex "Sustained": a cast that hit and did not fail is taken
-        // hold of by its caster, its upkeep due at the round change;
+        // gear.tex "Electrite": a cast draws its charges from its gear
+        // whatever the die says, at the size it ended up cast at (spells.tex
+        // "Amplify Spell"). spells.tex "Sustained": a cast that hit and did
+        // not fail is taken hold of by its caster, its upkeep due at the
+        // round change, bound to its target if it is fired again at one;
         // "Effortless Spell": the caster rested while casting it
         if (action.kind === 'cast') {
-          const landed = deliverAll(action.facts?.[c.id] ?? [])(c)
+          const own = c.id === action.actorId && isSpellKey(action.key) ? drawFromSource(action.itemId, getCastCharges(c, action))(c) : c
+          const landed = deliverAll(action.facts?.[c.id] ?? [])(own)
           if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || action.failed) return landed
           const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)))(landed) : landed
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
-            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId }] }
+            const size = getCastSize(c, action.key, action.improved.amplify ?? 0, action.itemId)
+            const boundTo = spell.repeat && !isAreaSpell(action.key) ? action.targetId ?? undefined : undefined
+            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId, size, extend: action.extend, boundTo }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered
@@ -113,6 +119,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           if (isSpellTestBeaten(action)) return unlinkTarget(link, action.targetId)(delivered)
           return link === action.key ? linkTarget(link, action.targetId)(delivered) : delivered
         }
+        if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Throw": one of what was thrown leaves whichever hand it
@@ -257,7 +264,7 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
     // what their last cast of it left
     if (action.kind === 'blast') {
       const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
-      const heldBy = getHolderOf(action, opener)
+      const heldBy = getHolderOf(state, action, opener)
       const terrain = heldBy ? filterLayers(board.terrain, (l) => !isSupersededBy(l, heldBy)) : { ...board.terrain }
       for (const { cell, hazard } of action.paint) {
         const key = coordKey(cell)

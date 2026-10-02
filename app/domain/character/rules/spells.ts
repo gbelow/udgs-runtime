@@ -4,7 +4,7 @@ import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
 import { getAccuracy, getStrike } from './skills'
-import { MAX_SIZE, getSM } from './helpers'
+import { MAX_SIZE, getSM, getVMAt } from './helpers'
 import { getSize } from './misc'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
@@ -121,10 +121,35 @@ function fitsSpell(c: Character, key: SpellKey, item: Item): boolean {
   return getItemScale(item) <= getSpellBaseSize(c, key) + (isScaledSpell(key) ? 1 : 0)
 }
 
-// Gear a cast can be started with: small enough, with the charges a cast
-// draws from it left.
+// Gear a cast can be started with: small enough, with the most charges an
+// unamplified cast can draw from it left.
 function servesSpell(c: Character, key: SpellKey, item: Item): boolean {
-  return fitsSpell(c, key, item) && hasAmmo(item, SPELLS[key].ammo)
+  return fitsSpell(c, key, item) && hasChargesFor(item, SPELLS[key].ammo, getCastSize(c, key, 0, item.id))
+}
+
+// spells.tex "Amplify Spell": "The amount of material or charges consumed
+// is multiplied by the VM" — at the size the spell is cast at.
+export function getChargeDraw(ammo: number, size: number): number {
+  return ammo * getVMAt(size)
+}
+
+// A fraction of a charge is a chance to spend one more (the table's
+// ruling): the whole charges, and one more when the percentile roll comes
+// under the fraction.
+export function countCharges(draw: number, roll: number): number {
+  const whole = Math.floor(draw)
+  const chance = Math.round((draw - whole) * 100)
+  return whole + (chance > 0 && roll < chance ? 1 : 0)
+}
+
+// The charges drawn of `ammo` at a size, by the percentile roll thrown for
+// it; and whether the item has the most that could come to.
+export function drawCharges(ammo: number, size: number, roll: number): number {
+  return countCharges(getChargeDraw(ammo, size), roll)
+}
+
+export function hasChargesFor(item: Item, ammo: number, size: number): boolean {
+  return hasAmmo(item, drawCharges(ammo, size, -1))
 }
 
 // The gear at hand the spell is cast with, what is in the hands first.

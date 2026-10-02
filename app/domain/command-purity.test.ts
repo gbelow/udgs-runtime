@@ -159,7 +159,7 @@ const newId = () => 'issued'
 // answer, so every phase has something to act on; the commands that need the
 // fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: CombatState) => unknown> = {
-  nextRound: combatCommands.nextRound,
+  nextRound: combatCommands.nextRound(() => 0),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),

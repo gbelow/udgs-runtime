@@ -11,6 +11,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "2 AP + 1 STA",
     "knowledge": [
       {
@@ -60,6 +61,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 grenade, 4 AP + 1 STA",
     "knowledge": [
       {
@@ -147,6 +149,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 grenade, 4 AP + 1 STA",
     "knowledge": [
       {
@@ -229,6 +232,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 grenade, 4 AP + 1 STA",
     "knowledge": [
       {
@@ -311,6 +315,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "2 AP",
     "knowledge": [
       {
@@ -358,6 +363,10 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": {
+      "AP": 2,
+      "ammo": 0
+    },
     "costText": "6 AP + 1 STA, + 1 charge",
     "knowledge": [
       {
@@ -474,6 +483,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, 1 Exhaustion",
     "knowledge": [
       {
@@ -521,6 +531,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET",
     "knowledge": [
       {
@@ -568,6 +579,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3 AP + 1 STA",
     "knowledge": [
       {
@@ -608,13 +620,23 @@
     "section": "alchemy",
     "type": "sustained",
     "cost": {
+      "AP": 6,
+      "STA": 1,
+      "exhaustion": 0,
+      "IL": 0,
+      "ET": 0
+    },
+    "upkeep": {
       "AP": 4,
       "STA": 1,
       "exhaustion": 0,
       "IL": 0,
       "ET": 0
     },
-    "upkeep": null,
+    "repeat": {
+      "AP": 4,
+      "ammo": 1
+    },
     "costText": "4 AP + 1 STA, 1 charge",
     "knowledge": [
       {
@@ -663,12 +685,12 @@
           "properties": []
         },
         "target": "target",
-        "range": null,
+        "range": 10,
         "area": null,
         "scales": {
           "damage": true,
           "area": false,
-          "reach": false
+          "reach": true
         },
         "resist": {
           "dl": "Accuracy",
@@ -691,6 +713,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "2 AP +1 charge",
     "knowledge": [
       {
@@ -763,6 +786,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, +1 exhaustion per ET",
     "knowledge": [
       {
@@ -810,6 +834,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3 AP+1 STA",
     "knowledge": [
       {
@@ -857,6 +882,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP + 2 STA",
     "knowledge": [
       {
@@ -938,6 +964,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3AP or +1 exhaustion",
     "knowledge": [
       {
@@ -985,6 +1012,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4AP+1STA",
     "knowledge": [
       {
@@ -1032,6 +1060,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4AP or +1 exhaustion",
     "knowledge": [
       {
@@ -1079,6 +1108,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "6 AP",
     "knowledge": [
       {
@@ -1126,6 +1156,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP",
     "knowledge": [
       {
@@ -1183,6 +1214,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 8 STA",
     "knowledge": [
       {
@@ -1220,6 +1252,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1299,6 +1332,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1356,6 +1390,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1413,6 +1448,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1453,6 +1489,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1493,6 +1530,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1533,6 +1571,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1573,6 +1612,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP",
     "knowledge": [
       {
@@ -1613,6 +1653,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3 AP",
     "knowledge": [
       {
@@ -1653,6 +1694,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "6 AP +1STA",
     "knowledge": [
       {
@@ -1720,6 +1762,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP + 1 STA",
     "knowledge": [
       {
@@ -1767,6 +1810,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP + 1 STA",
     "knowledge": [
       {
@@ -1824,6 +1868,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP + 2 STA",
     "knowledge": [
       {
@@ -1881,6 +1926,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -1984,6 +2030,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -2055,6 +2102,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3 AP + 1 STA",
     "knowledge": [
       {
@@ -2118,6 +2166,7 @@
       "IL": 0,
       "ET": 0
     },
+    "repeat": null,
     "costText": "4 AP",
     "knowledge": [
       {
@@ -2175,6 +2224,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 2 STA",
     "knowledge": [
       {
@@ -2222,6 +2272,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "6 AP + x STA, or 1 exhaustion out of combat",
     "knowledge": [
       {
@@ -2279,6 +2330,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP + 4 STA",
     "knowledge": [
       {
@@ -2336,6 +2388,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 2 STA",
     "knowledge": [
       {
@@ -2393,6 +2446,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET +1 exhaustion",
     "knowledge": [
       {
@@ -2430,6 +2484,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, 1 Exhaustion",
     "knowledge": [
       {
@@ -2470,6 +2525,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP + 1 STA",
     "knowledge": [
       {
@@ -2507,6 +2563,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1ET, 2 Exhaustion",
     "knowledge": [
       {
@@ -2544,6 +2601,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "4 AP + 1 STA",
     "knowledge": [
       {
@@ -2581,6 +2639,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "2 exhaustion, 1 ET",
     "knowledge": [
       {
@@ -2628,6 +2687,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, 2 Exhaustion",
     "knowledge": [
       {
@@ -2669,6 +2729,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, +1 Exhaustion",
     "knowledge": [
       {
@@ -2706,6 +2767,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET",
     "knowledge": [
       {
@@ -2743,6 +2805,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET",
     "knowledge": [
       {
@@ -2780,6 +2843,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "3 AP",
     "knowledge": [
       {
@@ -2831,6 +2895,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET + 1 exhaustion",
     "knowledge": [
       {
@@ -2882,6 +2947,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET, 2 exhaustion",
     "knowledge": [
       {
@@ -2919,6 +2985,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "2 Exhaustion, 1 ET",
     "knowledge": [
       {
@@ -2956,6 +3023,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 1 STA",
     "knowledge": [
       {
@@ -3003,6 +3071,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP + 1 STA",
     "knowledge": [
       {
@@ -3050,6 +3119,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET",
     "knowledge": [
       {
@@ -3097,6 +3167,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "Downtime",
     "knowledge": [
       {
@@ -3153,6 +3224,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET or +1 exhaustion",
     "knowledge": [
       {
@@ -3190,6 +3262,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP + 1 STA",
     "knowledge": [
       {
@@ -3261,6 +3334,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP +2 STA",
     "knowledge": [
       {
@@ -3342,6 +3416,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "5 AP + 1 STA",
     "knowledge": [
       {
@@ -3379,6 +3454,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 1 STA",
     "knowledge": [
       {
@@ -3416,6 +3492,7 @@
       "ET": 1
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "1 ET + 2 Exhaustion",
     "knowledge": [
       {
@@ -3481,6 +3558,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "8 AP + 1 STA",
     "knowledge": [
       {
@@ -3518,6 +3596,7 @@
       "ET": 0
     },
     "upkeep": null,
+    "repeat": null,
     "costText": "6 AP + 1 STA",
     "knowledge": [
       {

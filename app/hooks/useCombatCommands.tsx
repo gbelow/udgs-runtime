@@ -52,7 +52,7 @@ export function useCombatCommands() {
   }
 
   const nextRound = () => {
-    updateCombatState(passRound)
+    updateCombatState(passRound(realDice))
   }
 
   const resetCombat = () => {

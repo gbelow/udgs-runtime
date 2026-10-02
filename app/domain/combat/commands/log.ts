@@ -8,6 +8,8 @@ import { isAnswerable } from '../rules/action'
 import { settleGrapples } from './grapple'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
+import { getBrokenArcs } from '../rules/fireAgain'
+import { releaseSpell } from '../../character/commands/spells'
 
 // The bookkeeping the action commands share: replacing and appending
 // records in the fight's action log, landing a phase of an action on
@@ -45,8 +47,18 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
     const fire = phase === 'resolve' ? getFireTouched({ ...s, board }, action) : null
     const next = mapCharacters(s, reduceCharacter(action, phase, fire))
     const placed = { ...next, board, floor: reduceFloor(s, action, phase)(s.floor), grapples: reduceGrapples(action, phase)(next.grapples) }
-    return settleSevered(s, action.id)(settleGrapples(placed))
+    const settled = settleSevered(s, action.id)(settleGrapples(placed))
+    return phase === 'resolve' ? settleArcs(settled) : settled
   }, state)
+}
+
+// spells.tex "Sustained Lightning": "it ends if the target leaves the
+// spell's range" — or the caster's sight (the table's ruling). Read where
+// each action leaves the board; a broken arc does not come back, it is cast
+// again.
+function settleArcs(state: CombatState): CombatState {
+  const broken = Object.keys(state.characters).filter((id) => getBrokenArcs(state, id).length > 0)
+  return broken.length === 0 ? state : mapCharacters(state, (c) => getBrokenArcs(state, c.id).reduce((acc, key) => releaseSpell(key)(acc), c))
 }
 
 // The fight's actions less the character's reaction to the action, if it is

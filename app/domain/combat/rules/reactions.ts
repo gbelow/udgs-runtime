@@ -75,10 +75,12 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     // the target's test against the link: nothing to answer
     case 'spellTest': return []
     // letting go and grappling back draw nothing; nor does resting, which
-    // is no standard action (combat.tex "Opportunity Attack")
+    // is no standard action (combat.tex "Opportunity Attack"), nor firing a
+    // held spell again (step 6 makes it a reaction of its own)
     case 'release':
     case 'holdBack':
     case 'rest':
+    case 'fireAgain':
       return []
   }
 }

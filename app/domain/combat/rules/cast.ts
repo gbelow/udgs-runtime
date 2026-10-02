@@ -1,11 +1,12 @@
-import type { CampaignCharacter, Item, Skills } from '../../types'
+import type { CampaignCharacter, Delivery, Item, Skills } from '../../types'
+import { findReadyItem } from '../../item/rules/containers'
 import type { ActionRoll, CastAction, CombatState, Deliveries, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getAction } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getCastableGear, getChargeTargets, getSpellSkill, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { getLinkSpell, getLinkedTargets, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { skillTermGetters } from '../../character/rules/skills'
@@ -36,10 +37,28 @@ export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
-    const theirs = getTargetEffects(effects).map((e) => produceSpellEffect(caster, e, size, root.key))
+    const theirs = getTargetDeliveries(caster, root.key, root.itemId, size)
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
   return facts
+}
+
+// What the spell's effects on its target come to, as the caster makes them
+// with this gear at this size, each with the test it leaves the target.
+export function getTargetDeliveries(caster: CampaignCharacter, key: SpellKey, itemId: string, size: number): Delivery[] {
+  return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => produceSpellEffect(caster, e, size, key))
+}
+
+// gear.tex "Electrite": the charges a cast draws from its gear, at the size
+// it ended up cast at (spells.tex "Amplify Spell").
+export function getCastCharges(c: CampaignCharacter, root: CastAction): number {
+  return isSpellKey(root.key) ? drawCharges(SPELLS[root.key].ammo, getCastSize(c, root.key, root.improved.amplify ?? 0, root.itemId), root.chargeRoll) : 0
+}
+
+// Whether the spell is laid on the ground — a spray, an explosion — rather
+// than aimed at someone.
+export function isAreaSpell(key: SpellKey): boolean {
+  return SPELLS[key].effects.some(isAreaEffect)
 }
 
 // Whether the cast does anything: it hit, was not cancelled, and did not
@@ -193,7 +212,7 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
   const amplify = getAmplifyBounds(caster, root.key, root.itemId)
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => {
     const times = root.improved[name] ?? 0
-    const open = name === 'amplify' ? times < amplify.max
+    const open = name === 'amplify' ? times < amplify.max && canDrawAmplified(caster, root, times + 1)
       : name === 'effortless' ? times === 0 && !isSuffocating(state, caster) && canAffordRestWhileCasting(caster, getCastSpentAP(root))
       : true
     return {
@@ -205,6 +224,15 @@ export function getImprovementOptions(state: CombatState, root: CastAction): Imp
       needed: name === 'amplify' ? amplify.min : 0,
     }
   })
+}
+
+// spells.tex "Amplify Spell": "The amount of material or charges consumed
+// is multiplied by the VM" — one more size only while the gear has the
+// most it could then draw.
+function canDrawAmplified(caster: CampaignCharacter, root: CastAction, amplify: number): boolean {
+  if (!isSpellKey(root.key) || SPELLS[root.key].ammo === 0) return true
+  const gear = findReadyItem(caster, root.itemId)?.item
+  return !!gear && hasChargesFor(gear, SPELLS[root.key].ammo, getCastSize(caster, root.key, amplify, root.itemId))
 }
 
 // Whether the spell as declared aims at someone: it has an effect for one
@@ -228,7 +256,7 @@ function isTargetedSpell(key: SpellKey): boolean {
 export function opensExplosion(state: CombatState, root: CastAction): boolean {
   if (!takesEffect(state, root) || !isSpellKey(root.key)) return false
   const spell = SPELLS[root.key]
-  return spell.detonate !== null || (spell.type !== 'charged' && spell.effects.some(isAreaEffect))
+  return spell.detonate !== null || (spell.type !== 'charged' && isAreaSpell(root.key))
 }
 
 // Whether every targeted effect of the spell reaches the target from where
@@ -236,11 +264,18 @@ export function opensExplosion(state: CombatState, root: CastAction): boolean {
 // "Extend Spell") and the size cast at, in sight; touch reaches an adjacent
 // target. True on a fight without a board.
 export function canAimCast(state: CombatState, root: CastAction, targetId: string): boolean {
-  const distance = getDistanceBetween(state, root.actorId, targetId)
   const caster = state.characters[root.actorId]
-  if (distance === null || !caster || !isSpellKey(root.key)) return true
-  const size = getCastSizeOf(caster, root)
-  return getTargetEffects(SPELLS[root.key].effects).every((e) => distance <= (getCastRange(e, root.extend, size) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
+  if (!caster || !isSpellKey(root.key)) return true
+  return isInSpellReach(state, root.actorId, targetId, root.key, root.extend, getCastSizeOf(caster, root))
+}
+
+// Whether every targeted effect of the spell reaches the target from where
+// the caster stands, at this range and size, in sight; touch reaches an
+// adjacent target. True on a fight without a board.
+export function isInSpellReach(state: CombatState, casterId: string, targetId: string, key: SpellKey, extend: number, size: number): boolean {
+  const distance = getDistanceBetween(state, casterId, targetId)
+  if (distance === null) return true
+  return getTargetEffects(SPELLS[key].effects).every((e) => distance <= (getCastRange(e, extend, size) ?? 1)) && hasLineOfSight(state, casterId, targetId)
 }
 
 // spells.tex "Telepathic Link": who the cast of a spell worked through a

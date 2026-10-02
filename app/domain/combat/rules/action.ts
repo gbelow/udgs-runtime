@@ -31,6 +31,7 @@ import { allowsAlong, getRecipeCost } from './recipes'
 import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
+import { getFireAgainBar, getRepeatCost } from './fireAgain'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -56,6 +57,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
         && isAimed(state, action)
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
+    case 'fireAgain':
+      return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(c, action.key) === null
     case 'move':
       return isPathLegal(state, action)
     case 'block':
@@ -189,6 +192,8 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     // AP and STA is paid the same, off the sheet
     case 'cast':
       return isSpellKey(action.key) ? { AP: SPELLS[action.key].cost.AP, STA: SPELLS[action.key].cost.STA } : null
+    case 'fireAgain':
+      return isSpellKey(action.key) ? getRepeatCost(action.key) : null
     case 'evasion':
       return getEvasionCost(c, action.stay)
     case 'block':
@@ -375,6 +380,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'pickUp':
     case 'throw':
     case 'rest':
+    case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':
       return 'confirm'
@@ -452,6 +458,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'pickUp':
     case 'throw':
     case 'rest':
+    case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':
       return []

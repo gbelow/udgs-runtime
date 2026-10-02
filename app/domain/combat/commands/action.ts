@@ -1,5 +1,6 @@
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type Updater } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type Updater } from '../types'
 import type { CampaignCharacter } from '../../types'
+import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
@@ -7,7 +8,8 @@ import { findOption, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
-import type { Dice } from '../dice'
+import { rollPercent, type Dice } from '../dice'
+import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
 import { getDragComparison } from '../rules/drag'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
@@ -80,6 +82,8 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
       ? { ...withSweepArc(state, open), step: 'react' }
       : open.kind === 'cast'
       ? { ...withCastGear(actor, open), step: 'react' }
+      : open.kind === 'fireAgain'
+      ? { ...withHold(actor, open, dice), step: 'react' }
       : { ...open, step: 'react' }
     const locked = replaceActions(state, [committed])
     if (hasOpenAnswer(locked)) return locked
@@ -93,6 +97,16 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
 function withCastGear(actor: CampaignCharacter, open: CastAction): CastAction {
   const { itemId, chargeItemId } = getCastGear(actor, open)
   return { ...open, itemId, chargeItemId }
+}
+
+// What a held spell fired again is fired with, named once it is committed:
+// the item and size it is held at, the target it is bound to, and the
+// percentile die for a fraction of a charge.
+function withHold(actor: CampaignCharacter, open: FireAgainAction, dice: Dice): FireAgainAction {
+  if (!isSpellKey(open.key)) return open
+  const entry = getHeldEntry(actor, open.key)
+  const draws = (SPELLS[open.key].repeat?.ammo ?? 0) > 0
+  return { ...open, itemId: entry?.itemId ?? '', size: getHeldSize(actor, open.key), targetId: entry?.boundTo ?? null, chargeRoll: draws ? rollPercent(dice) : 0 }
 }
 
 // The actor's way out of an action another opened for them, while it is
@@ -210,7 +224,10 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     const rootTest = getRootTest(state, open)
     const test = rootTest ? resolveTest(rootTest, dice) : null
     if (!test && ACTIONS[open.kind].die) return state
-    const withRoll: Action = test ? { ...open, roll: test } : open
+    const rolled: Action = test ? { ...open, roll: test } : open
+    // spells.tex "Amplify Spell": the percentile die for a fraction of a
+    // charge, thrown with the cast
+    const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) } : rolled
     return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
 }

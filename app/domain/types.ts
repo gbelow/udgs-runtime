@@ -708,6 +708,12 @@ export const ActiveEntrySchema = z.object({
   DL: num.optional(),
   targets: z.array(str).optional(),
   itemId: str.optional(),
+  // the size a held spell was cast at and the times its range was extended,
+  // and the one target it stays bound to (spells.tex "Sustained Lightning":
+  // "an electric arc between themselves and a target")
+  size: num.optional(),
+  extend: num.optional(),
+  boundTo: str.optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>
@@ -969,6 +975,9 @@ export const SpellSchema = z.object({
   // spells.tex "Sustained Spells": what holding it costs at every round
   // change; null is the casting cost again
   upkeep: CostSchema.nullable().default(null),
+  // what firing a held spell again costs, without the casting test: its AP
+  // and the charges it draws (the table's ruling); null for one that cannot
+  repeat: z.object({ AP: num.default(0), ammo: num.default(0) }).strip().nullable().default(null),
   costText: str.default(''), // the book's cost field verbatim, for materials and charges the domain does not track
   knowledge: z.array(SpellKnowledgeRequirementSchema).default([]),
   // spells.tex "Requirements": what the spell cannot be learned without —

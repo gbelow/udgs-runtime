@@ -5,6 +5,7 @@ import { getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { getCancellableRoot } from '../rules/opportunity'
 import { findWeaponRow } from '../rules/weaponRow'
+import { SPELLS, isSpellKey } from '../../spells'
 
 // What the panel calls things: actions, the options to declare them, and
 // the purchases a hit can make.
@@ -15,6 +16,7 @@ import { findWeaponRow } from '../rules/weaponRow'
 export function getActionName(action: ActionDraft): string {
   if (action.kind === 'strike' && action.grab) return 'grab'
   if (action.kind === 'grapple' && action.maneuver) return action.maneuver
+  if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`
   return ACTIONS[action.kind].label
 }
 

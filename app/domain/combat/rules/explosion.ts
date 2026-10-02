@@ -28,14 +28,14 @@ export type ZoneCell = { cell: Coord; degree: Degree }
 // An area laid out on the board: who set it off, where it was aimed, and
 // the effects that cover it — an explosion as declared, before it goes off,
 // or the blast it goes off as. A spray is pointed only on the blast.
-export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects'>
+export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects' | 'paintOnly'>
 
 export function getBlastOf(state: CombatState, action: ExplosionAction): BlastShape {
   return toBlast(action, getExplosionPayload(state, action))
 }
 
 function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
-  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [] }
+  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly }
 }
 
 type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
@@ -68,11 +68,14 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
       return item ? getObjectEffects(producer, item).filter(isAreaEffect) : []
     }
     if (!isSpellKey(action.key)) return []
-    // spells.tex "Amplify Spell": at the size the cast that opened it was made at
+    // spells.tex "Amplify Spell": at the size the cast that opened it was
+    // made at, or the one a held spell fired again was cast at
     const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
     const cast = opener?.kind === 'cast' ? opener : null
-    const size = getCastSize(producer, action.key, cast?.improved.amplify ?? 0, cast?.itemId)
-    return produceEffects(producer, getSpellEffects(producer, action.key, cast?.itemId), size).filter(isAreaEffect)
+    const again = opener?.kind === 'fireAgain' ? opener : null
+    const itemId = again?.itemId ?? cast?.itemId
+    const size = again?.size ?? getCastSize(producer, action.key, cast?.improved.amplify ?? 0, itemId)
+    return produceEffects(producer, getSpellEffects(producer, action.key, itemId), size).filter(isAreaEffect)
   })()
   return effects.length > 0 ? { effects, producer } : null
 }
@@ -261,7 +264,7 @@ export function getAffected(state: CombatState, action: BlastShape): { id: strin
 // and any other effects"). What goes to the ground is not here.
 export function getExplosionFacts(state: CombatState, action: BlastShape): Deliveries {
   const producer = state.characters[action.actorId]
-  if (!producer) return {}
+  if (!producer || action.paintOnly) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
     const deliveries = action.effects.flatMap((e): Delivery[] => {

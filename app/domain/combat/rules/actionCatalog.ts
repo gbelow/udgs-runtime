@@ -53,6 +53,8 @@ export const ACTIONS = {
   blast:       { label: 'blast',        type: 'action',   price: null,          reactsTo: [],         die: false, generated: true },
   // spells.tex "Casting spells": the caster's test against the spell's DL
   cast:        { label: 'cast',         noun: 'spell', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  // a held spell fired again without the casting test (the table's ruling)
+  fireAgain:   { label: 'fire again',   type: 'action',   price: null,          reactsTo: [],         die: false, identity: { key: '' } },
   // spells.tex "Telepathic Link": a target's test against a spell worked
   // through a link, opened by the cast; nobody answers it
   spellTest:   { label: 'spell test',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },

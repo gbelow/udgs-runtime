@@ -1,7 +1,8 @@
 import { CampaignCharacter, Character, SpellMethod } from "../../types"
 import { SPELLS, SpellKey, isSpellKey } from "../../spells"
 import { isCampaignCharacter } from "../../utils"
-import { canLearnSpell } from "../rules/spells"
+import { canLearnSpell, drawCharges } from "../rules/spells"
+import { getHeldSize } from "../rules/concentration"
 import { isSpellActive } from "../rules/effects"
 import { findReadyItem } from "../../item/rules/containers"
 import { hasAmmo } from "../../item/rules/items"
@@ -65,13 +66,15 @@ export function unlinkTarget(key: SpellKey, targetId: string): (c: CampaignChara
 
 // spells.tex "Sustained Spells": "The cost must be paid at the beginning of
 // the next round to maintain the spell effect" — the charges a held spell
-// draws from its item come out of it at the round change, and one whose
-// item has none left is let go.
-export function payHeldSources(c: CampaignCharacter): CampaignCharacter {
-  return c.active.reduce((acc, e) => {
+// draws from its item come out of it at the round change, at the size it
+// was cast at (spells.tex "Amplify Spell"), a fraction of one by the
+// percentile die; one whose item has too few left is let go.
+export function payHeldSources(percent: () => number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => c.active.reduce((acc, e) => {
     if (e.kind !== 'spell' || !isSpellKey(e.key) || SPELLS[e.key].ammo === 0) return acc
     const item = findReadyItem(acc, e.itemId ?? '')?.item
-    return item && hasAmmo(item, SPELLS[e.key].ammo) ? drawFromSource(item.id, SPELLS[e.key].ammo)(acc) : releaseSpell(e.key)(acc)
+    const charges = drawCharges(SPELLS[e.key].ammo, getHeldSize(acc, e.key), percent())
+    return item && hasAmmo(item, charges) ? drawFromSource(item.id, charges)(acc) : releaseSpell(e.key)(acc)
   }, c)
 }
 

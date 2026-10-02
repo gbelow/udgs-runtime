@@ -30,7 +30,7 @@ describe('nextRound', () => {
   // the mark for every character in the fight, whichever kind they spent.
   it('clears the used surge of every character, whatever they used', () => {
     const state = combat(surges.map((usedSurge, i) => fighter(`f${i}`, { usedSurge })))
-    const cleared = Object.values(nextRound(state).characters).map((c) => c.usedSurge)
+    const cleared = Object.values(nextRound(() => 0)(state).characters).map((c) => c.usedSurge)
     expect(cleared).toEqual(cleared.map(() => null))
   })
 
@@ -40,7 +40,7 @@ describe('nextRound', () => {
   it('starts every character on the same ceiling, whatever they were carrying', () => {
     const starts = [0, 1, 3, 5, 6, 12]
     const state = combat(starts.map((AP, i) => fighter(`f${i}`, { resources: { AP } as CampaignCharacter['resources'] })))
-    const refilled = Object.values(nextRound(state).characters).map((c) => c.resources.AP)
+    const refilled = Object.values(nextRound(() => 0)(state).characters).map((c) => c.resources.AP)
 
     expect(new Set(refilled).size).toBe(1)
     expect(refilled[0]).toBeGreaterThan(starts[0])
@@ -48,7 +48,7 @@ describe('nextRound', () => {
 
   it('changes nothing on a character but the surge mark and the action points', () => {
     const before = fighter('a', { name: 'Bandit', usedSurge: 'focus', resources: { AP: 2 } as CampaignCharacter['resources'] })
-    const after = nextRound(combat([before])).characters.a
+    const after = nextRound(() => 0)(combat([before])).characters.a
 
     expect({ ...after, usedSurge: null, resources: null }).toEqual({ ...before, usedSurge: null, resources: null })
     expect({ ...after.resources, AP: 0 }).toEqual({ ...before.resources, AP: 0 })

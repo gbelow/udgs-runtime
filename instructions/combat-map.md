@@ -83,7 +83,7 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `cast`, `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
+| Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
 | Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
@@ -220,7 +220,17 @@ resolveAction ─────────► land(top)
   a target must be within the extended range to be aimed at (`canAimCast`). It never
   reaches an explosion's area — the explosion is the effect — only the range a Detonate
   Explosive cast (catalog `detonate`) sets off a charge at (`getChargeOptions` with the
-  detonation it opened). Any interruption
+  detonation it opened). A held spell with a catalog `repeat` may be fired again
+  (`fireAgain`, `rules/fireAgain.ts`), its item, size, bound target and percentile die
+  written at the commit: a spray opens a `paintOnly` explosion from where the holder
+  stands, which lays its ground and delivers nothing; a shot delivers the spell's target
+  effects to the one target its arc is `boundTo`. An arc whose target leaves its range or
+  the caster's sight breaks for good as any action lands (`settleArcs`, `commands/log.ts`).
+  A held spray's layers record where the holder stood (`origin`) and go out once they
+  are moved (`isLayerLive`). Charges a cast, a repeat or an upkeep draws from its item
+  are the catalog's times the VM at the size cast at, a fraction by a percentile die
+  (`countCharges`): a cast's is thrown at its roll and spent as it lands, at the size its
+  amplifications brought it to. Letting go of the item lets go of the spell. Any interruption
   or stun ends every held spell: a won maneuver (`reduceCharacter`), a blow as it lands
   (`deliver.ts`), a crash (`trampledBy`).
 - **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
@@ -384,7 +394,7 @@ app/domain/combat/
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
-│   ├── nextRound.ts    round change: upkeep, gas, burning, bleed, AP reset
+│   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── resetCombat.ts
 │
@@ -412,6 +422,7 @@ app/domain/combat/
 │   ├── delivery.ts     a row's damage as it leaves the weapon
 │   ├── weaponRow.ts    rows in hand, usable rows, variants
 │   ├── cast.ts         spells: options, facts, improvements, graze save, explosion a cast opens
+│   ├── fireAgain.ts    held spells fired again: options, prices, charges, the arcs broken, a shot's facts
 │   ├── explosion.ts    payload, areas, zones, spray vs disk, who is reached, terrain paint
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
 │   ├── waypoint.ts     where the mover stands along a path

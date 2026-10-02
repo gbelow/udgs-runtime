@@ -1,7 +1,8 @@
-import type { Character } from '../../types'
+import type { ActiveEntry, Character } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 import { getActiveSpellKeys, isSpellActive } from './effects'
+import { getSize } from './misc'
 
 // spells.tex "Sustained Spells": "actions that can be performed continuously
 // while concentration is maintained" — a caster holding one is
@@ -10,11 +11,20 @@ export function isConcentrating(c: Character): boolean {
   return getActiveSpellKeys(c).length > 0
 }
 
+// What the caster keeps of a held spell, and the size it was cast at.
+export function getHeldEntry(c: Character, key: SpellKey): ActiveEntry | null {
+  return isCampaignCharacter(c) ? c.active.find((e) => e.kind === 'spell' && e.key === key) ?? null : null
+}
+
+export function getHeldSize(c: Character, key: SpellKey): number {
+  return getHeldEntry(c, key)?.size ?? getSize(c)
+}
+
 // Who a held spell links its caster to, by character id; none for a spell
 // that is not held or links nobody.
 export function getLinkedTargets(c: Character, key: SpellKey): string[] {
-  if (!isCampaignCharacter(c) || !isSpellActive(c, key) || SPELLS[key].linkDL === null) return []
-  return c.active.find((e) => e.kind === 'spell' && e.key === key)?.targets ?? []
+  if (!isSpellActive(c, key) || SPELLS[key].linkDL === null) return []
+  return getHeldEntry(c, key)?.targets ?? []
 }
 
 // spells.tex "Telepathic Link": "Each simultaneous link increases the

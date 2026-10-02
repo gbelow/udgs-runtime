@@ -44,6 +44,9 @@ export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 // creating.tex "Reach Multiplier (RM)": multiplies the range of all weapons.
 export const RMArr = [0.5, 1, 1, 1.5, 1.5, 2, 2.5]
+// creating.tex "Volume Multiplier (VM)": multiplies the weight of the
+// character and items when scaling.
+export const VMArr = [0.1, 0.33, 1, 3.33, 10, 33.3, 100]
 
 // creating.tex "Size and Space Occupation": "A creature of size 3 in human
 // form occupies 1 ... hexagon. For every 2 size categories ... a hexagonal

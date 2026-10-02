@@ -20,6 +20,7 @@ import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
 import { defRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
+import { getFireAgainOptions, getRepeatCost } from './fireAgain'
 import { getFleeBarFor, getSurgeBarFor } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
@@ -226,6 +227,8 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const movable = getMovementOptions(state, c).some((m) => m.available)
     return [option({ kind: 'move' }, null, !isPlaced(state, c) ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move')]
   },
+  // a held spell fired again without the casting test (the table's ruling)
+  fireAgain: (_state, c) => getFireAgainOptions(c).map(({ key, reason }) => option({ kind: 'fireAgain', key }, getRepeatCost(key), reason)),
   cast: (_state, c) => {
     const spells = getSpellOptions(c)
     const castable = spells.some((s) => s.castable || s.quickenable)
@@ -316,11 +319,12 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // combat.tex "Action surge": an earmarked surge's AP is spent only on what
 // the surge allows, and until it is, nothing else can be done.
 // spells.tex "Sustained Spells": a caster holding a spell does nothing but
-// cast what it lets them (rules/cast.ts `getSpellOptions` says which) — no
+// cast what it lets them (rules/cast.ts `getSpellOptions` says which), or
+// fire what they hold again — no
 // moving, no answering (abilities.tex "Battle Mage" is what would allow
 // either).
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' ? null : 'concentrating')) : options
+  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' ? null : 'concentrating')) : options
 }
 
 function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {

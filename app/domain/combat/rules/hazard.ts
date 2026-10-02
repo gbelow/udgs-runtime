@@ -2,7 +2,7 @@ import type { Visibility } from '../../types'
 import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction, Placement } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isSpellActive } from '../../character/rules/effects'
-import { coordKey } from '../geometry'
+import { coordKey, sameCell } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { getMoveOrigin, getMoveWaypoint, touchesGround } from './waypoint'
 import { getTurnHolder } from './turn'
@@ -29,19 +29,25 @@ function combineHazards(a: Hazard, b: Hazard): Hazard {
 }
 
 // Whether a layer is still there: one a sustained spell keeps lasts while
-// its caster holds the spell (spells.tex "Sustained Spells").
+// its caster holds the spell (spells.tex "Sustained Spells"), and while they
+// stand where they laid it — moved, the flames are no longer fed (the
+// table's ruling) until it is aimed again.
 export function isLayerLive(state: CombatState, layer: HazardLayer): boolean {
   if (!layer.heldBy) return true
-  const { id, key } = layer.heldBy
+  const { id, key, origin } = layer.heldBy
   const caster = state.characters[id]
-  return !!caster && isSpellKey(key) && isSpellActive(caster, key)
+  if (!caster || !isSpellKey(key) || !isSpellActive(caster, key)) return false
+  const at = state.board?.placements[id]?.cell
+  return !origin || !at || sameCell(at, origin)
 }
 
 // Whether what a blast leaves is kept by its caster: a sustained spell cast
-// (spells.tex "Sustained Spells"), as opposed to a charge or a thrown row.
-export function getHolderOf(blast: BlastAction, opener: Action | null): HazardLayer['heldBy'] {
+// (spells.tex "Sustained Spells"), as opposed to a charge or a thrown row —
+// with where the caster stood as it was laid.
+export function getHolderOf(state: CombatState, blast: BlastAction, opener: Action | null): HazardLayer['heldBy'] {
   const cast = opener?.kind === 'explosion' && opener.source === 'cast'
-  return cast && isSpellKey(blast.key) && SPELLS[blast.key].type === 'sustained' ? { id: blast.actorId, key: blast.key, explosionId: opener.id } : null
+  if (!cast || !isSpellKey(blast.key) || SPELLS[blast.key].type !== 'sustained') return null
+  return { id: blast.actorId, key: blast.key, explosionId: opener.id, origin: state.board?.placements[blast.actorId]?.cell ?? null }
 }
 
 // Whether a layer was left by an earlier cast of the same held spell than

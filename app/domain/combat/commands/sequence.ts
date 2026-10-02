@@ -1,8 +1,8 @@
 import { SPELLS, isSpellKey } from '../../spells'
-import type { Action, CastAction, CombatState, ExplosionAction, QueuedTurn, RootAction, ThrowAction } from '../types'
+import type { Action, CastAction, CombatState, ExplosionAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
-import { getSpellTestTargets, opensExplosion } from '../rules/cast'
+import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
 import { getDefaultAim } from '../rules/attack'
 import { getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
@@ -90,7 +90,7 @@ function openBefore(state: CombatState, root: RootAction, newId: () => string): 
 // once the escapes the reflexes that cleared it open have been walked — so
 // it goes beneath them.
 function goOff(root: ExplosionAction, newId: () => string): Action {
-  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, effects: root.effects, center: root.center, step: 'post' })
+  return makeAction('blast', { id: newId(), actorId: root.actorId, spawnedBy: root.id, key: root.key, effects: root.effects, center: root.center, paintOnly: root.paintOnly, step: 'post' })
 }
 
 // The follow-ups the landed action generates, the last played out first:
@@ -126,6 +126,7 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...escapesOnStun(state, root, newId),
     ...openSpellTests(state, root, newId),
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
+    ...(root.kind === 'fireAgain' && isSpellKey(root.key) && isAreaSpell(root.key) ? [reaimedSpray(state, root, newId)] : []),
     ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
     ...getRecipeFollowUps(state, root, newId),
     ...openSweepLink(state, root, newId),
@@ -160,6 +161,13 @@ function castExplosion(state: CombatState, root: CastAction, newId: () => string
   const detonates = isSpellKey(root.key) && SPELLS[root.key].detonate !== null
   const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: detonates ? 'detonate' : 'cast', key: detonates ? '' : root.key, spawnedBy: root.id })
   if (detonates) return explosion
+  return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
+}
+
+// A held area spell aimed again (the table's ruling): its explosion, opened
+// as a cast's is, lays the ground and harms nobody.
+function reaimedSpray(state: CombatState, root: FireAgainAction, newId: () => string): ExplosionAction {
+  const explosion = makeAction('explosion', { id: newId(), actorId: root.actorId, source: 'cast', key: root.key, spawnedBy: root.id, paintOnly: true })
   return isSpray(getBlastOf(state, explosion)) ? { ...explosion, step: 'react' } : explosion
 }
 

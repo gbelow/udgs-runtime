@@ -1,5 +1,5 @@
 import { Armor, Character, Skills, Weapon } from '../../types'
-import { dmgArr, RMArr, SMArr } from '../../tables'
+import { dmgArr, RMArr, SMArr, VMArr } from '../../tables'
 import { getSize } from './misc'
 
 // creating.tex "Size": a row of the size table, read at any size — the
@@ -12,6 +12,10 @@ export const getDMAt = (size: number): number => atSize(dmgArr, size)
 
 // creating.tex "Reach Multiplier (RM)": "multiplies the range of all weapons".
 export const getRMAt = (size: number): number => atSize(RMArr, size)
+
+// creating.tex "Volume Multiplier (VM)"; spells.tex "Amplify Spell": "The
+// amount of material or charges consumed is multiplied by the VM".
+export const getVMAt = (size: number): number => atSize(VMArr, size)
 
 export const getSM = (c: Character): number => atSize(SMArr, getSize(c))
 
