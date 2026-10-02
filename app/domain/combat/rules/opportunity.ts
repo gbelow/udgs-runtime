@@ -19,7 +19,7 @@ export function isInterruptible(action: Action): action is InterruptibleAction {
 // a move, with the mover walked one space short of the stretch that fired
 // it; against a push, with everyone it moves one space short too. Reach is
 // judged from there.
-export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack'>): CombatState {
+export function getOpportunityState(state: CombatState, reaction: ActionOf<'opportunityAttack' | 'retarget'>): CombatState {
   const root = getRootOf(state, reaction)
   if (root?.kind === 'drag' && reaction.at !== null) {
     const before = reaction.at > 1 ? getGroupSteps(state, root)?.[reaction.at - 2] : getGroupOrigin(state, root)
@@ -46,9 +46,9 @@ export function getOpportunityStop(state: CombatState, root: Action): number | n
 // cut short — at a turn, a trample, a fall — never reaches the attacks
 // further along. A catch is fought where the runner already stands, so one
 // on the last step still comes (combat.tex "Catch").
-export function isOpportunityReached(state: CombatState, root: Action, reaction: ActionOf<'opportunityAttack'>): boolean {
+export function isOpportunityReached(state: CombatState, root: Action, reaction: ActionOf<'opportunityAttack' | 'retarget'>): boolean {
   if (root.kind !== 'move' || reaction.at === null) return true
-  const catching = reaction.grab && root.movement === 'run' ? 1 : 0
+  const catching = reaction.kind === 'opportunityAttack' && reaction.grab && root.movement === 'run' ? 1 : 0
   return reaction.at - catching <= getMoveFacts(state, root).path.length
 }
 

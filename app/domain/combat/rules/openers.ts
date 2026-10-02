@@ -5,6 +5,8 @@ import { getDrawnOpportunityAttacks, getOpenedBy, getReactionsTo } from './log'
 import { getOpportunityAction } from './attack'
 import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityReached, isVoided } from './opportunity'
 import { getJoinedShot } from './coordinated'
+import { isSpellKey } from '../../spells'
+import { getHold } from './fireAgain'
 import { getCounterSlot, getCounterStrike, getCounterStrikeOf, type CounterSlot } from './counter'
 import { getInterruptionOf } from './interruption'
 import { withSweepArc } from './sweep'
@@ -69,6 +71,20 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       return { state: placed, action: action.kind === 'strike' ? withSweepArc(placed, action) : action }
     },
   },
+  // a held spray aimed anew, fought like an opportunity attack — before the
+  // root's effect, with a mover stood one space short of the stretch that
+  // fired it — and opening the paint-only fireAgain it was declared for
+  retarget: {
+    before: (state, root, reaction, newId) => {
+      if (getOpenedBy(state, reaction)) return null
+      if (getOpportunityStop(state, root) !== null || !isOpportunityReached(state, root, reaction)) return null
+      const placed = getOpportunityState(state, reaction)
+      const holder = placed.characters[reaction.actorId]
+      if (!holder || !isSpellKey(reaction.key)) return null
+      const action = makeAction('fireAgain', { id: newId(), actorId: reaction.actorId, key: reaction.key, ...getHold(placed, holder, reaction.key), spawnedBy: reaction.id, step: 'react' })
+      return { state: placed, action }
+    },
+  },
   // combat.tex "Coordinated Shots": the shots hit at the same point as the
   // lead's — each joined shot is played out before its effect, in the order
   // they were declared, and lands on the target's one defense. The table's
@@ -104,8 +120,11 @@ export function getOpener<K extends ReactionKind>(reaction: { kind: K }): Opener
 // before its effect: the opportunity attacks it drew in the order it comes
 // to them (`getDrawnOpportunityAttacks`), then the rest as declared.
 export function getReactionsInOrder(state: CombatState, root: RootAction): ReactionAction[] {
+  const reactions = getReactionsTo(state, root.id).filter(isReactionAction)
   const drawn = getDrawnOpportunityAttacks(state, root).map(({ reaction }) => reaction)
-  return [...drawn, ...getReactionsTo(state, root.id).filter(isReactionAction).filter((r) => r.kind !== 'opportunityAttack')]
+  const aimed = reactions.filter((r) => r.kind === 'retarget')
+  const byStep = [...drawn, ...aimed].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
+  return [...byStep, ...reactions.filter((r) => r.kind !== 'opportunityAttack' && r.kind !== 'retarget')]
 }
 
 // The reactions whose follow-ups the landed root generates: its own — but a

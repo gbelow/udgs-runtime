@@ -6,8 +6,11 @@ import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
 import { drawCharges, getChargeDraw, hasChargesFor } from '../../character/rules/spells'
 import { findReadyItem } from '../../item/rules/containers'
 import { canAfford } from '../../character/rules/cost'
+import { isDead } from '../../character/rules/afflictions'
 import type { ActionCost } from '../../character/rules/actionCosts'
+import { getSpellEffects, produceEffects } from '../../character/rules/production'
 import { getTargetDeliveries, isAreaSpell, isInSpellReach } from './cast'
+import { isAreaEffect } from './explosion'
 import { getDistanceBetween } from './board'
 import { getArc, getPartner } from './partners'
 
@@ -28,6 +31,34 @@ export function getRepeatDraw(c: CampaignCharacter, key: SpellKey): number {
 
 export function getFireAgainCharges(root: FireAgainAction): number {
   return isSpellKey(root.key) ? drawCharges(SPELLS[root.key].repeat?.ammo ?? 0, root.size, root.chargeRoll) : 0
+}
+
+// What a held spell fired again is fired with: the item and size it is held
+// at, and the target its arc is bound to.
+export function getHold(state: CombatState, c: CampaignCharacter, key: SpellKey): { itemId: string; size: number; targetId: string | null } {
+  return { itemId: getHeldEntry(c, key)?.itemId ?? '', size: getHeldSize(c, key), targetId: getArcTarget(state, c.id, key) }
+}
+
+// The metres a held spray reaches from its holder, at the size it was cast
+// at; 0 for a spell that is not one.
+function getSprayReach(c: CampaignCharacter, key: SpellKey): number {
+  const itemId = getHeldEntry(c, key)?.itemId ?? ''
+  return Math.max(0, ...produceEffects(c, getSpellEffects(c, key, itemId), getHeldSize(c, key)).filter(isAreaEffect).flatMap((e) => (e.area?.shape === 'spray' ? [e.area.length] : [])))
+}
+
+// The held sprays this character could aim anew in answer to a trigger,
+// each with how far it reaches.
+export function getRetargetOptions(c: CampaignCharacter): { key: SpellKey; reach: number }[] {
+  return getActiveSpellKeys(c)
+    .filter((key) => SPELLS[key].repeat !== null && isAreaSpell(key))
+    .map((key) => ({ key, reach: getSprayReach(c, key) }))
+    .filter(({ reach }) => reach > 0)
+}
+
+// The held sprays whose holders pay their upkeep at the round change, each
+// owed a free aim (the table's ruling); the dead hold nothing.
+export function getUpkeepAims(state: CombatState): { actorId: string; key: SpellKey }[] {
+  return Object.values(state.characters).flatMap((c) => (isDead(c) ? [] : getRetargetOptions(c).map(({ key }) => ({ actorId: c.id, key }))))
 }
 
 // Why the held spell cannot be fired again now, or null.

@@ -14,6 +14,9 @@ import type { CombatState } from '../types'
 import { getHazardOf } from '../rules/hazard'
 import { isSuffocating } from '../rules/situational'
 import { getMoraleCalled } from '../rules/morale'
+import { getHold, getUpkeepAims } from '../rules/fireAgain'
+import { makeAction } from '../factories'
+import { appendActions } from './log'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -46,11 +49,14 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 // combat.tex "Environmental and ongoing effects": "applied at the beginning
 // of the round", to whoever stands in them as the ground is now. combat.tex
 // "Morale": the round begins by calling to a test whoever the fight, as the
-// round change left it, puts under enough stress.
-export function nextRound(dice: Dice): (state: CombatState) => CombatState {
+// round change left it, puts under enough stress. The upkeep a holder paid
+// for a spray gives them a free aim of it (the table's ruling): the ground
+// moves, nobody is harmed, and the fight waits on it like on a morale test.
+export function nextRound(dice: Dice, newId: () => string): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
     const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [] }
-    return { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
+    const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
+    return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }
 }

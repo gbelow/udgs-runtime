@@ -221,7 +221,7 @@ export function getMeleeRange(c: Character, fits: (atk: WeaponAttack) => boolean
 // others who get that attack: everyone with the attacker in their own melee
 // range, standing more than a quarter turn off the attacker's line to the
 // target. Nobody, on a fight without a board.
-export function getFlankers(state: CombatState, attackerId: string, targetId: string): string[] {
+export function getFlankers(state: CombatState, attackerId: string, targetId: string, reachOf: (c: Character) => number = getMeleeRange): string[] {
   const attacker = getPlacedFootprint(state, attackerId)
   const target = getPlacedFootprint(state, targetId)
   if (!attacker || !target) return []
@@ -231,7 +231,7 @@ export function getFlankers(state: CombatState, attackerId: string, targetId: st
     if (id === attackerId || id === targetId) return false
     const other = state.characters[id]
     const footprint = getPlacedFootprint(state, id)
-    if (!footprint || setDistance(footprint, attacker) > getMeleeRange(other)) return false
+    if (!footprint || setDistance(footprint, attacker) > reachOf(other)) return false
     return angularGap(toTarget, angleBetween(center, centroid(footprint))) > Math.PI / 2 + 1e-9
   })
 }
@@ -239,12 +239,12 @@ export function getFlankers(state: CombatState, attackerId: string, targetId: st
 // combat.tex "Opportunity Attack": a triggering action is answered by anyone
 // who threatens the one attempting it with a melee weapon — everyone with
 // them in their own melee range, whatever the board.
-export function getMeleeThreateners(state: CombatState, id: string): string[] {
+export function getMeleeThreateners(state: CombatState, id: string, reachOf: (c: Character) => number = getMeleeRange): string[] {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return []
   return Object.keys(state.characters).filter((other) => {
     if (other === id) return false
     const otherFootprint = getPlacedFootprint(state, other)
-    return !!otherFootprint && setDistance(otherFootprint, footprint) <= getMeleeRange(state.characters[other])
+    return !!otherFootprint && setDistance(otherFootprint, footprint) <= reachOf(state.characters[other])
   })
 }

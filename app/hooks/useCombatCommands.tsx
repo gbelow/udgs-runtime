@@ -57,7 +57,7 @@ export function useCombatCommands() {
   }
 
   const nextRound = () => {
-    updateCombatState(passRound(realDice))
+    updateCombatState(passRound(realDice, () => crypto.randomUUID()))
   }
 
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => {

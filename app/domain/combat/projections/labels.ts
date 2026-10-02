@@ -49,6 +49,8 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
       return draft.source === 'detonate' ? 'set off a charge' : ACTIONS.explosion.label
     case 'opportunityAttack':
       return getOpportunityLabel(state, actorId, draft.at ?? null)
+    case 'retarget':
+      return draft.at ? `${ACTIONS.retarget.label} at step ${draft.at}` : ACTIONS.retarget.label
     default:
       return getActionName(draft)
   }

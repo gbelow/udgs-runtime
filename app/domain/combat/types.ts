@@ -473,6 +473,9 @@ export const FireAgainActionSchema = z.object({
   itemId: str.default(''),
   size: num.default(3),
   chargeRoll: num.default(0),
+  // the free aim paying the upkeep at the round change gives (the table's
+  // ruling): nothing is paid or drawn for it
+  upkeep: z.boolean().default(false),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -587,6 +590,17 @@ export const OpportunityAttackActionSchema = z.object({
   // strike
   mode: z.enum(['strike', 'grapple']).default('strike'),
   maneuver: GrappleManeuverSchema.default('immobilize'),
+}).strip()
+
+// The holder of a sustained spray aiming it anew as a reaction, on the same
+// triggers as an opportunity attack but within the spray's reach: it opens a
+// fireAgain that moves only the ground the spray lays, before the action it
+// answers lands. `at` is the path step of a move at which it fired.
+export const RetargetActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('retarget'),
+  key: str.default(''),
+  at: num.nullable().default(null),
 }).strip()
 
 // combat.tex "Coordinated Shots": a shot at the target of one being made,
@@ -778,6 +792,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   BlockActionSchema,
   InterceptActionSchema,
   OpportunityAttackActionSchema,
+  RetargetActionSchema,
   JoinShotActionSchema,
   CounterattackActionSchema,
   FollowActionSchema,

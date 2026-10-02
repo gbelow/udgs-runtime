@@ -10,9 +10,8 @@ import { needsBreakRolls } from '../rules/breakage'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import { rollPercent, type Dice } from '../dice'
-import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
 import { getDragComparison } from '../rules/drag'
-import { getArcTarget } from '../rules/fireAgain'
+import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
@@ -108,9 +107,8 @@ function withCastGear(actor: CampaignCharacter, open: CastAction): CastAction {
 // percentile die for a fraction of a charge.
 function withHold(state: CombatState, actor: CampaignCharacter, open: FireAgainAction, dice: Dice): FireAgainAction {
   if (!isSpellKey(open.key)) return open
-  const entry = getHeldEntry(actor, open.key)
   const draws = (SPELLS[open.key].repeat?.ammo ?? 0) > 0
-  return { ...open, itemId: entry?.itemId ?? '', size: getHeldSize(actor, open.key), targetId: getArcTarget(state, actor.id, open.key), chargeRoll: draws ? rollPercent(dice) : 0 }
+  return { ...open, ...getHold(state, actor, open.key), chargeRoll: draws ? rollPercent(dice) : 0 }
 }
 
 // The actor's way out of an action another opened for them, while it is

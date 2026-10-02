@@ -72,7 +72,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
         // a held spell fired again draws its charges as it is paid for
-        if (action.kind === 'fireAgain') return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost)(c))
+        if (action.kind === 'fireAgain' && !action.upkeep) return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost)(c))
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c

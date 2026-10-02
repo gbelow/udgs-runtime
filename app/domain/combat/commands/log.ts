@@ -90,7 +90,7 @@ export function pruneReactions(state: CombatState): CombatState {
   const open = getOpenAt(state, 'react')
   if (!open) return state
   const live = getLiveReactionsTo(state, open.id)
-  const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'flee' ? a.at : undefined }) !== null)
+  const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'retarget' || a.kind === 'flee' ? a.at : undefined }) !== null)
   return kept.length === state.actions.length ? state : setActions(state, kept)
 }
 

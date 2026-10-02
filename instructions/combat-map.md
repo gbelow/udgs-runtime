@@ -88,7 +88,7 @@ and `ActionDraft` (what a click declares).
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
-| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `counterattack` (strike), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
+| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `retarget` (the same triggers as an opportunity attack, within a held spray's reach: opens a paint-only `fireAgain` before the root's effect), `counterattack` (strike), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
 | Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
@@ -226,7 +226,7 @@ app/domain/combat/
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
-│   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge
+│   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
 │   ├── social.ts       say: intimidate, taunt or rally for 5 AP in your turn, written to `state.pressure`

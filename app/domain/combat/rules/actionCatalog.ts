@@ -78,6 +78,9 @@ export const ACTIONS = {
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },
+  // a held spray aimed anew in answer to the same triggers, priced by the
+  // fireAgain it opens
+  retarget:    { label: 'retarget',     type: 'reaction', price: null,          reactsTo: ['strike', 'move'], die: false, identity: { key: '', at: null } },
   // combat.tex "Coordinated Shots": priced by the shot it opens
   joinShot:    { label: 'join shot',    type: 'reaction', price: null,          reactsTo: ['shoot'],  die: false },
   follow:      { label: 'follow',       type: 'reaction', price: null,          reactsTo: ['move'],   die: false },

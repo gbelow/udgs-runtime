@@ -7,6 +7,8 @@ import { isTrampleable } from './trample'
 import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
+import { isCampaignCharacter } from '../../utils'
+import { getRetargetOptions } from './fireAgain'
 import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
@@ -38,6 +40,19 @@ export type Trigger = {
   catchOnly?: boolean
   // the recipe the reaction is made under, by id (rules/recipes.ts)
   recipe?: string
+  // the held spray a retarget aims anew
+  key?: string
+}
+
+// How far the held sprays a character could aim anew reach: the range a
+// retarget is triggered in, as melee range is an opportunity attack's.
+function sprayReach(c: Character): number {
+  return isCampaignCharacter(c) ? Math.max(0, ...getRetargetOptions(c).map((o) => o.reach)) : 0
+}
+
+// The retargets the holder may answer a trigger with, one per spray held.
+function retargetsOf(c: Character, at: number | null, against?: string): Trigger[] {
+  return isCampaignCharacter(c) ? getRetargetOptions(c).map(({ key }): Trigger => ({ characterId: c.id, kind: 'retarget', at, key, against })) : []
 }
 
 // The table's rulings: opportunity attacks never trigger other opportunity
@@ -51,7 +66,7 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null
   const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
-  const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack') : triggers
+  const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(state, root).filter((id) => id !== root.targetId) : []
   return drawn.filter((t) => !others.includes(t.characterId))
 }
@@ -120,13 +135,17 @@ function strikeTriggers(state: CombatState, root: StrikeAction): Trigger[] {
   const protectors = getProtectors(state, root)
     .flatMap((id) => (['block', 'intercept'] as const).map((kind): Trigger => ({ characterId: id, kind, at: null })))
   const counters: Trigger[] = contest ? [{ characterId: root.targetId, kind: 'counterattack', at: null, recipe: contest.id }] : []
-  return [...defenses, ...counters, ...protectors, ...flankers]
+  const retargets = getFlankers(state, root.actorId, root.targetId, sprayReach).flatMap((id) => retargetsOf(state.characters[id], null))
+  return [...defenses, ...counters, ...protectors, ...flankers, ...retargets]
 }
 
 // combat.tex "Opportunity Attack": a triggering action is answered by
-// anyone who threatens the one attempting it with a melee weapon.
+// anyone who threatens the one attempting it with a melee weapon, and a
+// held spray by anyone it reaches.
 function opportunityTriggers(state: CombatState, actorId: string): Trigger[] {
-  return getMeleeThreateners(state, actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
+  const attacks = getMeleeThreateners(state, actorId).map((id): Trigger => ({ characterId: id, kind: 'opportunityAttack', at: null }))
+  const retargets = getMeleeThreateners(state, actorId, sprayReach).flatMap((id) => retargetsOf(state.characters[id], null))
+  return [...attacks, ...retargets]
 }
 
 // combat.tex "Reflex": the target may answer a shot with evasion or guard.
@@ -185,16 +204,26 @@ function dragAnswers(state: CombatState, root: DragAction): Trigger[] {
 // party gets the attack against the first of them it moves closer from
 // within range, at that step.
 function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
+  const attacks = dragApproaches(state, root, getMeleeRange)
+    .map(({ id, ...hit }): Trigger => ({ characterId: id, kind: 'opportunityAttack', ...hit }))
+  const retargets = dragApproaches(state, root, sprayReach)
+    .flatMap(({ id, at, against }) => retargetsOf(state.characters[id], at, against))
+  return [...attacks, ...retargets]
+}
+
+// The first step of the block at which each third party, within `reachOf`
+// of the first of the group it moves closer from, is approached.
+function dragApproaches(state: CombatState, root: DragAction, reachOf: (c: Character) => number): { id: string; at: number; against: string }[] {
   const steps = getGroupSteps(state, root)
   if (!steps || steps.length === 0) return []
   const origin = getGroupOrigin(state, root)
   const movers = Object.keys(steps[0])
   const group = getDragGroup(state, root)
   const start = (id: string) => origin[id]
-  const triggers: Trigger[] = []
+  const triggers: { id: string; at: number; against: string }[] = []
   for (const id of Object.keys(state.characters)) {
     const other = getPlacedFootprint(state, id)
-    const range = getMeleeRange(state.characters[id])
+    const range = reachOf(state.characters[id])
     if (group.includes(id) || !other || range === 0) continue
     const hit = movers.flatMap((m) => {
       const c = state.characters[m]
@@ -203,7 +232,7 @@ function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
       const at = getApproachStep(getPathDistances(c, [from, ...steps.map((step) => step[m])], other), range)
       return at === null ? [] : [{ at, against: m }]
     }).sort((a, b) => a.at - b.at)[0]
-    if (hit) triggers.push({ characterId: id, kind: 'opportunityAttack', ...hit })
+    if (hit) triggers.push({ id, ...hit })
   }
   return triggers
 }
@@ -274,6 +303,9 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     if (enters !== null && !isInTurn(state, id)) triggers.push({ characterId: id, kind: 'flee', at: enters })
     const range = getMeleeRange(state.characters[id])
     if (range > 0 && distances[0] <= range && root.movement !== 'run' && !reactive) triggers.push({ characterId: id, kind: 'follow', at: null })
+    const spray = sprayReach(state.characters[id])
+    const aimed = spray > 0 ? getApproachStep(distances, spray) : null
+    if (aimed !== null) triggers.push(...retargetsOf(state.characters[id], aimed))
     if (range === 0) continue
     const approach = getApproachStep(distances, range)
     if (approach !== null) triggers.push({ characterId: id, kind: 'opportunityAttack', at: approach })

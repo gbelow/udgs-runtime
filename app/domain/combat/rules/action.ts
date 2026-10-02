@@ -121,6 +121,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'cut':
       return getAttackVariant(c, getCutStrike(action)) !== null
     case 'blast':
+    case 'retarget':
     case 'release':
     case 'slip':
     case 'holdBack':
@@ -214,6 +215,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'guard':
     case 'avoidExplosion':
     case 'opportunityAttack':
+    case 'retarget':
     case 'joinShot':
     case 'follow':
     case 'flee':
@@ -275,6 +277,7 @@ export function getOwnCost(state: CombatState, action: Action): ActionCost | nul
   if (!c) return null
   if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return getFleeCost(c)
   if (action.kind === 'strike' && isSweepLink(action)) return { AP: 0, STA: 0 }
+  if (action.kind === 'fireAgain' && action.upkeep) return { AP: 0, STA: 0 }
   const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
     : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
     : getDeclaredCost(c, action)

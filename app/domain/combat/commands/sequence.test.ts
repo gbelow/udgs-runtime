@@ -18,6 +18,8 @@ import { aimExplosion, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
+import { nextRound } from './nextRound'
+import { getStartTurnBar } from '../rules/turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 import { getTethers } from '../rules/partners'
@@ -695,6 +697,71 @@ describe('a spray', () => {
     const s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(flamesCast())))
     const blast = s.actions.find((a) => a.kind === 'blast')
     expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
+  })
+})
+
+// A held spray aimed anew in answer to the triggers an opportunity attack
+// answers, within the spray's reach: fought before the action it answers, and
+// it lays the ground without harming anyone.
+describe('a held spray retargeted as a reaction', () => {
+  function heldSprayAgainstWalker(): CombatState {
+    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
+    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    let s = onBoard({ c: [0, 0], z: [6, 0] }, caster, fighter('z'))
+    s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(s)))
+    s = declareAction('z', { kind: 'move' }, newId)(s)
+    return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [5, 4, 3].map((q) => ({ q, r: 0 })) })(s))
+  }
+
+  it('is offered to the holder once the mover steps closer within the spray', () => {
+    const s = heldSprayAgainstWalker()
+    const offered = getAvailableActions(s, 'c').filter((o) => o.draft.kind === 'retarget')
+    expect(offered).toMatchObject([{ available: true, draft: { kind: 'retarget', key: 'flamethrower', at: 3 } }])
+  })
+
+  it('lands before the move it answers, and harms nobody', () => {
+    let s = heldSprayAgainstWalker()
+    const option = getAvailableActions(s, 'c').find((o) => o.draft.kind === 'retarget' && o.available)!
+    s = declareReaction('c', option.draft, newId)(s)
+    const landed: Action[] = []
+    for (let i = 0; i < 50 && getOpenAction(s); i++) {
+      const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
+      if (!next) throw new Error('stuck')
+      for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
+      s = next
+    }
+    expect(landed.map((a) => a.kind).filter((k) => k === 'fireAgain' || k === 'move')).toEqual(['fireAgain', 'move'])
+    expect(landed.filter((a) => a.kind === 'blast').flatMap((a) => (a.kind === 'blast' ? Object.keys(a.facts ?? {}) : []))).toEqual([])
+  })
+})
+
+// The upkeep paid at the round change gives the holder a free aim of the
+// spray: the ground moves, nobody is harmed, and nothing is paid for it.
+describe('a held spray aimed at the round change', () => {
+  function atRoundChange(): CombatState {
+    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
+    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    let s = onBoard({ c: [0, 0], z: [3, 0] }, caster, fighter('z'))
+    s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
+    s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(s)))
+    return nextRound(() => 0, newId)(s)
+  }
+
+  it('waits on the holder, free, and harms nobody', () => {
+    let s = atRoundChange()
+    expect(getOpenAction(s)).toMatchObject({ kind: 'fireAgain', actorId: 'c', upkeep: true, step: 'react' })
+    expect(getStartTurnBar(s, 'z')).not.toBeNull()
+    const ap = s.characters.c.resources.AP
+    const blasts: Action[] = []
+    for (let i = 0; i < 50 && getOpenAction(s); i++) {
+      const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
+      if (!next) throw new Error('stuck')
+      blasts.push(...next.history.slice(s.history.length).map((id) => next.actions.find((a) => a.id === id)!).filter((a) => a.kind === 'blast'))
+      s = next
+    }
+    expect(s.characters.c.resources.AP).toBe(ap)
+    expect(blasts.flatMap((a) => (a.kind === 'blast' ? Object.keys(a.facts ?? {}) : []))).toEqual([])
   })
 })
 

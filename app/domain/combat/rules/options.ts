@@ -23,7 +23,8 @@ import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
 import { defRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
-import { getFireAgainOptions, getRepeatCost } from './fireAgain'
+import { isSpellKey } from '../../spells'
+import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
 import { getFleeBarFor, getSurgeBarFor } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
@@ -193,6 +194,14 @@ function getAnswers(state: CombatState, c: CampaignCharacter, open: RootAction):
         return [answer({ kind }, cost, gate ?? (canAfford(c, cost) ? null : 'cannot afford'))]
       case 'letGo': {
         return [answer({ kind }, cost, gate ?? (isHeld(getGrapples(state), c.id) ? 'held' : null))]
+      }
+      // a held spray aimed anew: open to whoever could fire it again, paid
+      // from their own AP — the focus surge holding it took is the only
+      // surge it needs
+      case 'retarget': {
+        const key = trigger.key
+        if (!key || !isSpellKey(key)) return []
+        return [answer({ kind, key, at: trigger.at }, getRepeatCost(key), isImmobile(state, c) ? 'immobile' : getFireAgainBar(state, c, key))]
       }
       // combat.tex "Coordinated Shots": a shot of their own, so it is open
       // only to someone who can pay for one that reaches the target
@@ -364,7 +373,7 @@ function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => stri
 // moving, no answering (abilities.tex "Battle Mage" is what would allow
 // either).
 function closeWhileConcentrating(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' ? null : 'concentrating')) : options
+  return isConcentrating(c) ? closeWith(options, (o) => (o.draft.kind === 'cast' || o.draft.kind === 'fireAgain' || o.draft.kind === 'retarget' ? null : 'concentrating')) : options
 }
 
 function closeBySurge(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
