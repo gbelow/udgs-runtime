@@ -3,6 +3,7 @@ import type { CombatState } from "../domain/combat/types";
 import { GameTabs, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { updateInventory } from "../domain/combat/commands/characters";
 
 type CharacterUpdater = (c: Character) => Character;
 type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
@@ -56,9 +57,25 @@ export function readActiveCharacter(tab: GameTabs): Character | null {
 // Selecting just the stable action refs (and the tab) avoids re-introducing the
 // whole-character subscription that useActiveCharacter carries on its read path.
 export function useActiveCharacterUpdate() {
+  const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
+  return useUpdater(updateCombatActive);
+}
+
+// The same, for a move with the character's gear: in a fight the combat
+// domain refuses what would spend AP outside their own turn.
+export function useActiveInventoryUpdate() {
+  const updateCombatState = useCombatStore((s) => s.updateCombatState);
+  return useUpdater((updater) => {
+    const id = useCombatStore.getState().activeCharacterId;
+    if (!id) return undefined;
+    updateCombatState(updateInventory(id, updater));
+    return useCombatStore.getState().characters[id];
+  });
+}
+
+function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCharacter | undefined) {
   const tab = useAppStore((s) => s.selectedGameTab);
   const updateCharacter = useCharacterStore((s) => s.updateCharacter);
-  const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
 
   function update(updater: CharacterUpdater): Character | undefined;
   function update(updater: CampaignUpdater): CampaignCharacter | undefined;

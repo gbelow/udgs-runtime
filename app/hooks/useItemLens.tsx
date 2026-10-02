@@ -7,7 +7,7 @@ import { getItemCatalogRows, ItemCatalogRow } from "../domain/item/projections/i
 import { getSize } from "../domain/character/rules/misc";
 import { Item, SlotKind } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
-import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterSelector, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 
 // The catalog is static, so it is projected once per size picked rather than
 // once per render.
@@ -44,7 +44,7 @@ export function usePendingItem(): Item | null {
 // the active-character adapters, so this serves the edit sheet and a
 // character in combat alike.
 export function useItemLens() {
-  const update = useActiveCharacterUpdate();
+  const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();

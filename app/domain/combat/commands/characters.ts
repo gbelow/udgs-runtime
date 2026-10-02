@@ -1,6 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
+import { isSpendingOutOfTurn } from '../rules/turn'
 import { settleBinds } from './bind'
 
 // Takes a character out of the fight: their place on the board goes with
@@ -24,5 +25,16 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
     const c = state.characters[id]
     if (!c) return state
     return settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c) } })
+  }
+}
+
+// A move with the character's gear — drawing, stowing, sliding a shield —
+// refused when it would spend AP outside their own turn (play.tex "Combat").
+export function updateInventory(id: string, updater: (c: CampaignCharacter) => CampaignCharacter): Updater {
+  return (state) => {
+    const c = state.characters[id]
+    if (!c) return state
+    const after = updater(c)
+    return isSpendingOutOfTurn(state, c, after) ? state : updateCharacter(id, () => after)(state)
   }
 }

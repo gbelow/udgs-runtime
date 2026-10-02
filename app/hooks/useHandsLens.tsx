@@ -8,7 +8,7 @@ import type { Updater } from "../domain/combat/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { dropToFloor, throwOffShieldToFloor } from "../domain/combat/commands/floor";
-import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
 const EMPTY: HandsPanelView = { hands: [], held: [], back: null, freeHolding: 0, canHold: null, lamingHold: false };
@@ -17,7 +17,7 @@ const EMPTY: HandsPanelView = { hands: [], held: [], back: null, freeHolding: 0,
 // useContainerLens). The pending catalog item is an input — the panel says
 // whether the hands could take it — so the digest covers that too.
 export function useHandsLens() {
-  const update = useActiveCharacterUpdate();
+  const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const tab = useAppStore((s) => s.selectedGameTab);
   const setPending = useAppStore((s) => s.setPendingItem);

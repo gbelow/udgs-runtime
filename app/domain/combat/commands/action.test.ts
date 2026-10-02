@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { BoardSchema, CombatStateSchema, type Action, type ActionKind, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
-import { holdItem, regripItem } from '../../item/commands/hands'
+import { holdItem, regripItem, storeItem } from '../../item/commands/hands'
+import { updateInventory } from './characters'
+import { moveWhileResting } from './choices'
+import { getReachableCells } from '../rules/move'
 import { addItemToContainer } from '../../item/commands/items'
 import { putOnFromCatalog } from '../../item/commands/containers'
 import { getCatalogItem } from '../../item/rules/items'
@@ -174,5 +177,45 @@ describe('a charge set off', () => {
     expect(painted).toBeGreaterThan(0)
     const after = resolveAction(newId)(payAction(newId)(s))
     expect(Object.keys(after.board?.terrain ?? {})).toHaveLength(painted)
+  })
+})
+
+// A rest can leave AP overdrawn; the careful move it allows is prepaid, yet
+// no cell was reachable for the want of AP.
+describe('the move made while resting', () => {
+  it('can be walked from AP overdrawn by the rest', () => {
+    const base = fighter('a')
+    let s: CombatState = {
+      ...combat({ ...base, resources: { ...base.resources, AP: 1 } }),
+      board: BoardSchema.parse({ radius: 5, placements: { a: { cell: { q: 0, r: 0 } } } }),
+    }
+    s = commitAction(() => 5, newId)(declareAction('a', { kind: 'rest' }, newId)(s))
+    s = moveWhileResting(newId)(s)
+    const open = getOpenAction(s)
+    expect(open?.kind === 'move' ? getReachableCells(s, open).length : 0).toBeGreaterThan(0)
+  })
+})
+
+// play.tex "Combat": an item move that costs AP is made in one's own turn;
+// regripping costs nothing and is not held to it.
+describe('gear moved outside one\'s own turn', () => {
+  const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
+  const belted = (id: string) => holdItem(dagger)(putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))) as CampaignCharacter
+  const stow = (c: CampaignCharacter) => storeItem(dagger.id, 'Belt', 'quick')(c) as CampaignCharacter
+  const regrip = (c: CampaignCharacter) => regripItem(dagger.id, 2)(c) as CampaignCharacter
+
+  it('refuses what spends AP', () => {
+    const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
+    expect(updateInventory('a', stow)(s)).toBe(s)
+  })
+
+  it('allows it in their own turn', () => {
+    const s = { ...combat(belted('a')), inTurnCharacter: 'a' }
+    expect(updateInventory('a', stow)(s).characters.a.held).toHaveLength(0)
+  })
+
+  it('allows what is free', () => {
+    const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
+    expect(updateInventory('a', regrip)(s)).not.toBe(s)
   })
 })

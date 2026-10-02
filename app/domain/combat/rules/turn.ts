@@ -1,4 +1,4 @@
-import type { SurgeKind } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { CombatState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
@@ -14,6 +14,13 @@ import { getFightName } from './fighters'
 
 export function isInTurn(state: CombatState, id: string): boolean {
   return id !== '' && state.inTurnCharacter === id
+}
+
+// Whether a change to a character spends AP they have no turn to spend it
+// in: what costs AP (an item drawn or stowed, a shield slid) waits for their
+// own turn, what is free does not.
+export function isSpendingOutOfTurn(state: CombatState, before: CampaignCharacter, after: CampaignCharacter): boolean {
+  return !isInTurn(state, before.id) && after.resources.AP < before.resources.AP
 }
 
 // Who holds the turn, if they are still in the fight.

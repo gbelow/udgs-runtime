@@ -8,6 +8,7 @@ import { onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
+import { isSpendingOutOfTurn } from '../rules/turn'
 
 // What a character lets go of lands where they stand, and a holder who let
 // go of the last thing they could grapple with lets go of the grapple. A
@@ -17,7 +18,7 @@ function landOnFloor(characterId: string, item: Item | null | undefined, letGo: 
     const c = state.characters[characterId]
     if (!c || !item) return state
     const after = letGo(c)
-    if (after === c) return state
+    if (after === c || isSpendingOutOfTurn(state, c, after)) return state
     return settleBinds({
       ...state,
       characters: { ...state.characters, [characterId]: after },
