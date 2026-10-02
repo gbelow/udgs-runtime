@@ -60,7 +60,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'cast':
       return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
     case 'fireAgain':
-      return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(c, action.key) === null
+      return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':
       return isPathLegal(state, action)
     case 'block':

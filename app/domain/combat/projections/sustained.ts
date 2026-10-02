@@ -3,8 +3,8 @@ import { SPELLS, getSpellUpkeep, type SpellKey } from '../../spells'
 import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getLinkDLOf, getLinkedTargets } from '../../character/rules/concentration'
 import { getFightName } from '../rules/fighters'
-import { getRepeatCost, getRepeatDraw } from '../rules/fireAgain'
-import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
+import { getArcTarget, getRepeatCost, getRepeatDraw } from '../rules/fireAgain'
+import { getHeldSize } from '../../character/rules/concentration'
 import { getChargeDraw } from '../../character/rules/spells'
 import { perState } from './perState'
 
@@ -28,7 +28,7 @@ function buildSustainedRows(state: CombatState): SustainedRow[] {
   const c = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
   if (!c) return []
   return getActiveSpellKeys(c).map((key) => {
-    const boundTo = getHeldEntry(c, key)?.boundTo
+    const boundTo = getArcTarget(state, c.id, key)
     const repeat = getRepeatCost(key)
     return {
       key,

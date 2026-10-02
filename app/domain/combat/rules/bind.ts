@@ -1,5 +1,7 @@
 import type { Bind, CombatState, Coord } from '../types'
 import { getHeldItem } from '../../item/rules/hands'
+import { getHeldEntry } from '../../character/rules/concentration'
+import { isSpellKey } from '../../spells'
 import { isGrapplingStill } from './grapple'
 import { setDistance } from '../geometry'
 import { getDistanceBetween, getPlacedFootprint } from './board'
@@ -12,6 +14,8 @@ function isMaintained(state: CombatState, id: string, b: Bind): boolean {
       return isGrapplingStill(state, id, b)
     case 'tether':
       return !!state.characters[id] && !!getHeldItem(state.characters[id], b.anchors[id])
+    case 'arc':
+      return !!state.characters[id] && isSpellKey(b.key) && !!getHeldEntry(state.characters[id], b.key)
   }
 }
 

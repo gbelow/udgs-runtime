@@ -723,12 +723,9 @@ export const ActiveEntrySchema = z.object({
   DL: num.optional(),
   targets: z.array(str).optional(),
   itemId: str.optional(),
-  // the size a held spell was cast at and the times its range was extended,
-  // and the one target it stays bound to (spells.tex "Sustained Lightning":
-  // "an electric arc between themselves and a target")
+  // the size a held spell was cast at and the times its range was extended
   size: num.optional(),
   extend: num.optional(),
-  boundTo: str.optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>

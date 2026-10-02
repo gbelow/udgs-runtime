@@ -239,7 +239,17 @@ export const TetherSchema = BindBaseSchema.extend({
 }).strip()
 export type Tether = z.infer<typeof TetherSchema>
 
-export const BindSchema = z.discriminatedUnion('kind', [GrappleSchema, TetherSchema])
+// spells.tex "Sustained Lightning": the arc a held spell makes between its
+// caster, who holds it, and the one target it was cast at. It lives while the
+// caster holds the spell `key`; the range it was cast at, and the item it is
+// fired with, are read off the caster's hold.
+export const ArcSchema = BindBaseSchema.extend({
+  kind: z.literal('arc'),
+  key: str,
+}).strip()
+export type Arc = z.infer<typeof ArcSchema>
+
+export const BindSchema = z.discriminatedUnion('kind', [GrappleSchema, TetherSchema, ArcSchema])
 export type Bind = z.infer<typeof BindSchema>
 
 export const GrappleAfflictionSchema = z.enum(GRAPPLE_AFFLICTIONS)

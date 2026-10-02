@@ -229,7 +229,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     return [option({ kind: 'move' }, null, !isPlaced(state, c) ? 'not on the board' : movable ? null : getMovementOptions(state, c).find((m) => m.reason)?.reason ?? 'cannot move')]
   },
   // a held spell fired again without the casting test (the table's ruling)
-  fireAgain: (_state, c) => getFireAgainOptions(c).map(({ key, reason }) => option({ kind: 'fireAgain', key }, getRepeatCost(key), reason)),
+  fireAgain: (state, c) => getFireAgainOptions(state, c).map(({ key, reason }) => option({ kind: 'fireAgain', key }, getRepeatCost(key), reason)),
   cast: (_state, c) => {
     const spells = getSpellOptions(c)
     const castable = spells.some((s) => s.castable || s.quickenable)

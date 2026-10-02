@@ -903,3 +903,33 @@ describe('a net', () => {
     expect(getTethers(playOut(s, face).state).length).toBe(remaining)
   })
 })
+
+// spells.tex "Sustained Lightning": the caster holds an arc to the target
+// while it is within range; it "ends if the target ... touches the caster,
+// in which case the arc short-circuits, causing damage to both".
+describe('sustained lightning', () => {
+  let m = 0
+  const arcId = () => `arc${++m}`
+
+  // `c` casts it at `x`, `at` cells away, with a die that hits.
+  function lightningAt(at: number): CombatState {
+    const electrite = ItemSchema.parse({ name: 'Electrite', type: 'magical', bulk: 1, source: { damage: [{ kind: 'electric', value: 10 }], ammo: 20 } })
+    const caster = { ...(holdItem(electrite)(fighter('c'))), spells: { 'sustained-lightning': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    let s = onBoard({ c: [0, 0], x: [at, 0] }, caster, fighter('x'))
+    s = declareAction('c', { kind: 'cast', key: 'sustained-lightning' }, arcId)(s)
+    return playOut(commitAction(() => 20, arcId)(setTarget('x')(s)), 20).state
+  }
+
+  it('is held to a target in range, which the caster keeps', () => {
+    const s = lightningAt(5)
+    expect(s.binds.map((b) => b.kind)).toEqual(['arc'])
+    expect(s.characters.c.active.map((e) => e.key)).toContain('sustained-lightning')
+  })
+
+  it('short-circuits onto both ends of a target that touches the caster, ending the spell', () => {
+    const s = lightningAt(1)
+    expect(s.binds).toEqual([])
+    expect(s.characters.c.active.map((e) => e.key)).not.toContain('sustained-lightning')
+    for (const id of ['c', 'x']) expect(s.characters[id].injuries.injuryLevel).toBeGreaterThan(0)
+  })
+})

@@ -10,6 +10,7 @@ import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getBrokenArcs } from '../rules/fireAgain'
 import { releaseSpell } from '../../character/commands/spells'
+import { deliverAll } from '../../character/commands/deliver'
 
 // The bookkeeping the action commands share: replacing and appending
 // records in the fight's action log, landing a phase of an action on
@@ -47,18 +48,20 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
     const fire = phase === 'resolve' ? getFireTouched({ ...s, board }, action) : null
     const next = mapCharacters(s, reduceCharacter(action, phase, fire))
     const placed = { ...next, board, floor: reduceFloor(s, action, phase)(s.floor), binds: reduceBinds(s, action, phase)(next.binds) }
-    const settled = settleSevered(s, action.id)(settleBinds(placed))
-    return phase === 'resolve' ? settleArcs(settled) : settled
+    return settleSevered(s, action.id)(settleBinds(phase === 'resolve' ? settleArcs(placed) : placed))
   }, state)
 }
 
-// spells.tex "Sustained Lightning": "it ends if the target leaves the
-// spell's range" — or the caster's sight (the table's ruling). Read where
-// each action leaves the board; a broken arc does not come back, it is cast
-// again.
+// spells.tex "Sustained Lightning": an arc that breaks ends its spell, and a
+// touch short-circuits it onto both ends. Read where each action leaves the
+// board; a broken arc does not come back, it is cast again.
 function settleArcs(state: CombatState): CombatState {
-  const broken = Object.keys(state.characters).filter((id) => getBrokenArcs(state, id).length > 0)
-  return broken.length === 0 ? state : mapCharacters(state, (c) => getBrokenArcs(state, c.id).reduce((acc, key) => releaseSpell(key)(acc), c))
+  const broken = getBrokenArcs(state)
+  if (broken.length === 0) return state
+  return mapCharacters(state, (c) => {
+    const released = broken.filter((b) => b.casterId === c.id).reduce((acc, b) => releaseSpell(b.key)(acc), c)
+    return deliverAll(broken.filter((b) => b.casterId === c.id || b.targetId === c.id).flatMap((b) => b.shock))(released)
+  })
 }
 
 // The fight's actions less the character's reaction to the action, if it is

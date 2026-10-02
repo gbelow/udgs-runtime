@@ -18,12 +18,13 @@ import { getGrappleFacts, replacePair } from '../rules/grapple'
 import { dropHolders } from '../rules/bind'
 import { isGrapple, isTether } from '../rules/partners'
 import { getNetTethers, isNetCut } from '../rules/cut'
+import { getArcMade } from '../rules/fireAgain'
 import { findSlipTether, getTethersMade, isTying } from '../rules/tether'
 import { isWon } from '../rules/test'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, isAreaSpell, isSpellTestBeaten } from '../rules/cast'
+import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, isSpellTestBeaten } from '../rules/cast'
 import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
 import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
@@ -107,8 +108,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
             const size = getCastSize(c, action.key, action.improved.amplify ?? 0, action.itemId)
-            const boundTo = spell.repeat && !isAreaSpell(action.key) ? action.targetId ?? undefined : undefined
-            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId, size, extend: action.extend, boundTo }] }
+            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId, size, extend: action.extend }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered
@@ -192,6 +192,10 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
 export function reduceBinds(state: CombatState, action: Action, phase: Phase): (binds: Bind[]) => Bind[] {
   return (binds: Bind[]) => {
     if (phase !== 'resolve') return binds
+    if (action.kind === 'cast') {
+      const arc = getArcMade(state, action)
+      return arc ? [...binds, arc] : binds
+    }
     if (action.kind === 'blast') return withTethers(binds, getTethersMade(state, action))
     if (action.kind === 'cut') return isNetCut(state, action) ? binds.filter((b) => !getNetTethers(state, action).includes(b as Tether)) : binds
     if (action.kind === 'slip') return isWon(action) ? binds.filter((b) => b !== findSlipTether(state, action)) : binds

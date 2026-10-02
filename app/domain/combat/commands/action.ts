@@ -11,6 +11,7 @@ import { findTrigger } from '../rules/reactions'
 import { rollPercent, type Dice } from '../dice'
 import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
 import { getDragComparison } from '../rules/drag'
+import { getArcTarget } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
@@ -83,7 +84,7 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
       : open.kind === 'cast'
       ? { ...withCastGear(actor, open), step: 'react' }
       : open.kind === 'fireAgain'
-      ? { ...withHold(actor, open, dice), step: 'react' }
+      ? { ...withHold(state, actor, open, dice), step: 'react' }
       : { ...open, step: 'react' }
     const locked = replaceActions(state, [committed])
     if (hasOpenAnswer(locked)) return locked
@@ -102,11 +103,11 @@ function withCastGear(actor: CampaignCharacter, open: CastAction): CastAction {
 // What a held spell fired again is fired with, named once it is committed:
 // the item and size it is held at, the target it is bound to, and the
 // percentile die for a fraction of a charge.
-function withHold(actor: CampaignCharacter, open: FireAgainAction, dice: Dice): FireAgainAction {
+function withHold(state: CombatState, actor: CampaignCharacter, open: FireAgainAction, dice: Dice): FireAgainAction {
   if (!isSpellKey(open.key)) return open
   const entry = getHeldEntry(actor, open.key)
   const draws = (SPELLS[open.key].repeat?.ammo ?? 0) > 0
-  return { ...open, itemId: entry?.itemId ?? '', size: getHeldSize(actor, open.key), targetId: entry?.boundTo ?? null, chargeRoll: draws ? rollPercent(dice) : 0 }
+  return { ...open, itemId: entry?.itemId ?? '', size: getHeldSize(actor, open.key), targetId: getArcTarget(state, actor.id, open.key), chargeRoll: draws ? rollPercent(dice) : 0 }
 }
 
 // The actor's way out of an action another opened for them, while it is
