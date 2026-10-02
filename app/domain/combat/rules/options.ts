@@ -12,6 +12,7 @@ import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, getGrapples, isHeld } from './partners'
+import { getSlipCost, getSlipTargets } from './tether'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
@@ -255,6 +256,12 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []
     return [option({ kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back')]
+  },
+  // gear.tex "Net": a tethered character slips the net it was caught in
+  slip: (state, c) => {
+    if (getSlipTargets(state, c.id).length === 0) return []
+    const cost = getSlipCost(c)
+    return [option({ kind: 'slip' }, cost, afford(c, cost))]
   },
   holdBack: (state, c) => {
     if (!isInAnyGrapple(state, c) || getHoldBackTargets(state, c.id).length === 0) return []

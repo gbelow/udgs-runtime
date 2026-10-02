@@ -335,27 +335,6 @@ describe('an explosion', () => {
   })
 })
 
-// gear.tex "Net", "Explosion": a thrown net's explosion ties each one it
-// catches to the thrower, at the DL of the zone they stand in (the table's
-// ruling: critical at the centre, a hit across the rest of its 2m radius),
-// and the net stays in the thrower hand by its rope.
-describe('a net', () => {
-  it('ties each one it catches, and stays in the hand that threw it', () => {
-    const net = ItemSchema.parse({ name: 'Net', type: 'weapon', refId: 'Net', bulk: 2 })
-    const thrower = { ...(regripItem(net.id, 2)(holdItem(net)(fighter('t')))), usedSurge: 'focus' as const }
-    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'))
-    s = declareAction('t', { kind: 'throw', itemId: net.id, to: { q: 0, r: 0 } }, newId)(s)
-    s = commitAction(() => 5, newId)(s)
-    for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
-    s = rollAction(() => 50, newId)(s)
-    for (let i = 0; i < 8 && getOpenAction(s)?.kind === 'move'; i++) s = withdrawSpawnedAction(newId)(s)
-    s = playOut(s, 5).state
-    const dls = Object.fromEntries(getTethers(s).map((t) => [t.members[1], t.dl]))
-    expect(dls).toEqual({ x: 5, y: 3, z: 3 })
-    expect(s.characters.t.held.map((i) => i.id)).toContain(net.id)
-  })
-})
-
 // A spearman's thrust at the character, committed.
 function thrustAt(target: CampaignCharacter): CombatState {
   let s = onBoard({ atk: [0, 0], [target.id]: [1, 0] }, spearman('atk'), target)
@@ -859,5 +838,43 @@ describe('coordinated shots', () => {
     const [lead, second] = shots(state)
     expect(getDefendingReaction(state, lead)?.actorId).toBe('g')
     expect(getDefendingReaction(state, second)).toBeNull()
+  })
+})
+
+// gear.tex "Net", "Explosion": a thrown net's explosion ties each one it
+// catches to the thrower, at the DL of the zone they stand in (the table's
+// ruling: critical at the centre, a hit across the rest of its 2m radius),
+// and the net stays in the thrower hand by its rope.
+describe('a net', () => {
+  let m = 0
+  const netId = () => `net${++m}`
+  const net = ItemSchema.parse({ name: 'Net', type: 'weapon', refId: 'Net', bulk: 2 })
+
+  // `t` throws it at the cell the others stand in, none of them stirring.
+  function netted(): CombatState {
+    const thrower = { ...(regripItem(net.id, 2)(holdItem(net)(fighter('t')))), usedSurge: 'focus' as const }
+    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'))
+    s = declareAction('t', { kind: 'throw', itemId: net.id, to: { q: 0, r: 0 } }, netId)(s)
+    s = commitAction(() => 5, netId)(s)
+    for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, netId)(s)
+    s = rollAction(() => 50, netId)(s)
+    for (let i = 0; i < 8 && getOpenAction(s)?.kind === 'move'; i++) s = withdrawSpawnedAction(netId)(s)
+    return playOut(s, 5).state
+  }
+
+  it('ties each one it catches, and stays in the hand that threw it', () => {
+    const s = netted()
+    const dls = Object.fromEntries(getTethers(s).map((t) => [t.members[1], t.dl]))
+    expect(dls).toEqual({ x: 5, y: 3, z: 3 })
+    expect(s.characters.t.held.map((i) => i.id)).toContain(net.id)
+  })
+
+  // gear.tex "Net": the tethered slips it on a Prestidigitation test against
+  // the zone's DL, freed on a hit or better, for two standard actions.
+  it.each([[1, 3], [10, 2]] as const)('with a die of %i leaves %i of the three tethered', (face, remaining) => {
+    let s = netted()
+    s = declareAction('x', { kind: 'slip' }, netId)(s)
+    s = commitAction(() => face, netId)(setTarget('t')(s))
+    expect(getTethers(playOut(s, face).state).length).toBe(remaining)
   })
 })

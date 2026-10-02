@@ -17,6 +17,7 @@ import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isG
 import { getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
+import { getSlipCost, getSlipTargets } from './tether'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
@@ -118,6 +119,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // walked out
     case 'blast':
     case 'release':
+    case 'slip':
     case 'holdBack':
     case 'resist':
     case 'assist':
@@ -184,6 +186,8 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
       return { AP: 0, STA: 0 }
     case 'throw':
       return getThrowCost(c, action.itemId)
+    case 'slip':
+      return getSlipCost(c)
     case 'counterattack':
       return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
@@ -376,6 +380,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'move':
     case 'drag':
     case 'release':
+    case 'slip':
     case 'holdBack':
     case 'pickUp':
     case 'throw':
@@ -447,6 +452,8 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
       return getManeuverTargets(state, root.actorId, root.maneuver)
     case 'release':
       return getReleaseTargets(state, root.actorId)
+    case 'slip':
+      return getSlipTargets(state, root.actorId)
     case 'holdBack':
       return getHoldBackTargets(state, root.actorId)
     case 'drag':

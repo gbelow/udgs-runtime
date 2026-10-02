@@ -78,6 +78,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     // is no standard action (combat.tex "Opportunity Attack"), nor firing a
     // held spell again (step 6 makes it a reaction of its own)
     case 'release':
+    case 'slip':
     case 'holdBack':
     case 'rest':
     case 'fireAgain':

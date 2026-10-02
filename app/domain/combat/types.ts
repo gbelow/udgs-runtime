@@ -650,6 +650,13 @@ export const ReleaseActionSchema = z.object({
   facts: GrappleFactsSchema.nullable().default(null),
 }).strip()
 
+// gear.tex "Net": the tethered slipping the net they were caught in, a
+// Prestidigitation test against the DL of the tether.
+export const SlipActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('slip'),
+}).strip()
+
 // Grappling back a partner one holds nothing of, once a grapple row is in
 // hand.
 export const HoldBackActionSchema = z.object({
@@ -727,6 +734,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   GrappleActionSchema,
   DragActionSchema,
   ReleaseActionSchema,
+  SlipActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
   ThrowActionSchema,
@@ -753,6 +761,7 @@ export type MoveAction = z.infer<typeof MoveActionSchema>
 export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
+export type SlipAction = z.infer<typeof SlipActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a

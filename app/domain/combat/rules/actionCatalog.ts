@@ -96,6 +96,9 @@ export const ACTIONS = {
   drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
+  // gear.tex "Net": a Prestidigitation test against the tether's DL, priced
+  // as two standard actions (rules/tether.ts `getSlipCost`)
+  slip:        { label: 'slip the net', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
   // combat.tex "Initiate the Grab": "It is possible to grapple back
   // automatically just by having a weapon with grappling property
   // equipped" — one who takes one up mid-grapple does so as a free action

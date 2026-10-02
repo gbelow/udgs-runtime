@@ -17,6 +17,7 @@ import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
+import { getSlipTerms } from './tether'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -350,6 +351,8 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
       return getExplosionDLTerms(state, root)
     case 'grapple':
       return getManeuverDLTerms(state, root)
+    case 'slip':
+      return getSlipTerms(state, root)?.DL ?? []
     case 'move':
     case 'drag':
     case 'blast':
@@ -425,6 +428,8 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
       return { skill: getAttackTerms(state, root), DL: getDLTerms(state, root) }
     case 'grapple':
       return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
+    case 'slip':
+      return getSlipTerms(state, root)
     case 'move':
       return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':

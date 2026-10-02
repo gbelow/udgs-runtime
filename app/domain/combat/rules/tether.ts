@@ -1,8 +1,12 @@
-import type { Item } from '../../types'
+import type { Character, Item } from '../../types'
+import { type ActionCost, getActionCost } from '../../character/rules/actionCosts'
+import { getPrestidigitationTerms } from '../../character/rules/skills'
+import type { Term } from '../../character/rules/terms'
 import { getItemWeapon } from '../../item/rules/items'
 import { explodes } from '../../weaponProperties'
-import type { BlastAction, CombatState, Tether } from '../types'
+import type { BlastAction, CombatState, SlipAction, Tether } from '../types'
 import { getAction } from './log'
+import { getPartner, getTethers } from './partners'
 
 // gear.tex "Net": an object whose exploding rows carry a tether stays in the
 // thrower's hand, tied to what it caught by its rope — it is not thrown away.
@@ -24,4 +28,32 @@ export function getTethersMade(state: CombatState, blast: BlastAction): Tether[]
       return dl === null ? [] : [{ kind: 'tether', members: [blast.actorId, id], holders: [blast.actorId], anchors: { [blast.actorId]: itemId }, length: d.effect.effect.length, dl }]
     })
   })
+}
+
+// gear.tex "Net": a tethered character slips it with a Prestidigitation test
+// against the DL of the zone they were caught in, costing two standard
+// actions (the table's ruling) and freeing them on a hit or a critical.
+export function getSlipCost(c: Character): ActionCost {
+  const { AP, STA } = getActionCost(c, 'standardAction')
+  return { AP: 2 * AP, STA: 2 * STA }
+}
+
+// The ones whose tethers the character is caught in.
+export function getSlipTargets(state: CombatState, id: string): string[] {
+  return getTethers(state).filter((t) => t.members.includes(id) && !t.holders.includes(id)).map((t) => getPartner(t, id))
+}
+
+// The tether the slip is made against: the one between the actor and its target.
+export function findSlipTether(state: CombatState, root: SlipAction): Tether | undefined {
+  return getTethers(state).find((t) => t.members.includes(root.actorId) && !!root.targetId && t.members.includes(root.targetId))
+}
+
+export function getSlipTerms(state: CombatState, root: SlipAction): { skill: Term[]; DL: Term[] } | null {
+  const actor = state.characters[root.actorId]
+  const tether = findSlipTether(state, root)
+  return actor && tether ? { skill: getPrestidigitationTerms(actor), DL: [{ label: 'net', value: tether.dl }] } : null
+}
+
+export function isSlipWon(root: SlipAction): boolean {
+  return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
 }
