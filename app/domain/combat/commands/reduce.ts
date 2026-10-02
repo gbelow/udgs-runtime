@@ -97,7 +97,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)))(landed) : landed
           const spell = SPELLS[action.key]
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
-            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
+            return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
           return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered

@@ -1,8 +1,11 @@
 import { CampaignCharacter, Character, SpellMethod } from "../../types"
-import { SpellKey } from "../../spells"
+import { SPELLS, SpellKey, isSpellKey } from "../../spells"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnSpell } from "../rules/spells"
 import { isSpellActive } from "../rules/effects"
+import { findReadyItem } from "../../item/rules/containers"
+import { hasAmmo } from "../../item/rules/items"
+import { drawFromSource } from "../../item/commands/hands"
 
 export function learnSpell(key: SpellKey, method: SpellMethod): (c: Character) => Character {
   return (c: Character) => {
@@ -36,8 +39,8 @@ export function practiceSpell(key: SpellKey, delta: number): (c: Character) => C
 }
 
 // spells.tex "Sustained": a held spell is let go of at will, for nothing.
-export function releaseSpell(key: SpellKey): (c: Character) => Character {
-  return (c: Character) => {
+export function releaseSpell(key: SpellKey): <C extends Character>(c: C) => C {
+  return <C extends Character>(c: C): C => {
     if (!isCampaignCharacter(c) || !isSpellActive(c, key)) return c
     return { ...c, active: c.active.filter((e) => !(e.kind === 'spell' && e.key === key)) }
   }
@@ -58,6 +61,18 @@ export function unlinkTarget(key: SpellKey, targetId: string): (c: CampaignChara
     if (!isSpellActive(c, key)) return c
     return { ...c, active: c.active.map((e) => (e.kind === 'spell' && e.key === key && e.targets?.includes(targetId) ? { ...e, targets: e.targets.filter((id) => id !== targetId) } : e)) }
   }
+}
+
+// spells.tex "Sustained Spells": "The cost must be paid at the beginning of
+// the next round to maintain the spell effect" — the charges a held spell
+// draws from its item come out of it at the round change, and one whose
+// item has none left is let go.
+export function payHeldSources(c: CampaignCharacter): CampaignCharacter {
+  return c.active.reduce((acc, e) => {
+    if (e.kind !== 'spell' || !isSpellKey(e.key) || SPELLS[e.key].ammo === 0) return acc
+    const item = findReadyItem(acc, e.itemId ?? '')?.item
+    return item && hasAmmo(item, SPELLS[e.key].ammo) ? drawFromSource(item.id, SPELLS[e.key].ammo)(acc) : releaseSpell(e.key)(acc)
+  }, c)
 }
 
 // spells.tex "Sustained Spells": "Their effect ends when the caster stops

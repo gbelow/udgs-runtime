@@ -700,12 +700,14 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
 // the effects are read off the owning catalog, so nothing copied into state
 // can go stale. A curse keeps the DL the test to beat it is rolled against
 // (spells.tex "Curse": "until the target shrugs it off"); a held spell that
-// links keeps who it is linked to, by character id.
+// links keeps who it is linked to, by character id, and one cast with gear
+// the item it is held with.
 export const ActiveEntrySchema = z.object({
   kind: z.enum(['ability', 'spell', 'curse']),
   key: str,
   DL: num.optional(),
   targets: z.array(str).optional(),
+  itemId: str.optional(),
 }).strip()
 
 export type ActiveEntry = z.infer<typeof ActiveEntrySchema>

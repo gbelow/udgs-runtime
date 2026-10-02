@@ -43,11 +43,14 @@ function grip<C extends Character>(c: C, item: Item, hands: Grip): C {
   }
 }
 
+// What leaves the hands lets go of any spell held with it (the table's
+// ruling: dropping the flamethrower ends it).
 function release<C extends Character>(c: C, itemId: string): C {
   return {
     ...c,
     held: c.held.filter((item) => item.id !== itemId),
     body: c.body.map((part) => (part.itemId === itemId ? { ...part, itemId: '' } : part)),
+    ...('active' in c ? { active: c.active.filter((e) => e.itemId !== itemId) } : {}),
   }
 }
 
