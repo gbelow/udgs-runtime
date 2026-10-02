@@ -89,10 +89,11 @@ export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item
 // together". Identity is everything a template says — `id` names a stack, not
 // an item, and `amount` is how big that stack is. Two containers are never
 // identical: what each carries is its own. Nor are two charged items: what a
-// charge holds was worked out for its caster, and can be charged over.
+// charge holds was worked out for its caster, and can be charged over. Two
+// stones with different uses left are not the same stone.
 export function isSameItem(a: Item, b: Item): boolean {
   return !a.container && !b.container && !a.charge && !b.charge && a.type === b.type && a.refId === b.refId && a.name === b.name
-    && a.description === b.description && a.bulk === b.bulk
+    && a.description === b.description && a.bulk === b.bulk && a.source?.ammo === b.source?.ammo
 }
 
 // resolves what a refId'd item actually is, so e.g. a weapon sitting in a
@@ -125,6 +126,16 @@ export function getItemArmor(item: Item): Armor | undefined {
 // draws on it; nothing from an item that puts out none.
 export function getSourceDamage(item: Item | null, factor = 1): DamageComponent[] {
   return (item?.source?.damage ?? []).map((d) => ({ ...d, value: d.value * factor }))
+}
+
+// Whether a stone or device has this many uses left.
+export function hasAmmo(item: Item, ammo: number): boolean {
+  return (item.source?.ammo ?? 0) >= ammo
+}
+
+// A weapon with a row made out of metal (gear.tex "Weapons Properties").
+export function isMetalWeapon(item: Item): boolean {
+  return getItemWeapon(item)?.attacks.some((a) => a.material === 'metal') ?? false
 }
 
 export function isGear(item: Item, name: string): boolean {

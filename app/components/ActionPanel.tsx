@@ -1,6 +1,6 @@
 'use client'
 import { useCombatActions } from '../hooks/useCombatActions'
-import type { ImprovementOption } from '../domain/combat/rules/cast'
+import type { CastGearOption, ImprovementOption } from '../domain/combat/rules/cast'
 import type { MovementOption } from '../domain/combat/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/combat/projections/actionPanel'
 import type { ActionReport } from '../domain/combat/projections/outcomes'
@@ -110,17 +110,8 @@ export function ActionPanel(){
           {view.spells.map((s) => <SpellButton key={s.key} option={s} onCast={() => cast(s.key, false)} onQuicken={() => cast(s.key, true)} />)}
         </div>
       ) : null}
-      {view.gear.length > 0 ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <SectionLabel>with</SectionLabel>
-          {view.gear.map((g) => (
-            <Button key={g.itemId} size='xs' variant={g.itemId === open.castItemId ? 'primary' : 'default'} className={g.itemId === open.castItemId ? 'bg-accent/15' : ''}
-              onClick={() => amend({ itemId: g.itemId })}>
-              {g.name} <span className='text-muted'>{g.held ? 'in hand' : 'quick slot'}</span>
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      <GearPicker label='with' options={view.gear} selected={open.castItemId} onPick={(itemId) => amend({ itemId })} />
+      <GearPicker label='charge into' options={view.chargeInto} selected={open.chargeItemId} onPick={(chargeItemId) => amend({ chargeItemId })} />
       {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
       {open.spell && open.extend && !locked ? (
         <div className='flex flex-row gap-1 items-center text-xs'>
@@ -415,6 +406,22 @@ function Test({ open }: { open: OpenActionView }){
 
 // A spell to cast, on the focus surge or quickened without it
 // (spells.tex "Quicken Spell").
+// Items at hand to pick one from, nothing when there is no choice.
+function GearPicker({ label, options, selected, onPick }: { label: string, options: CastGearOption[], selected: string, onPick: (itemId: string) => void }){
+  if (options.length === 0) return null
+  return(
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>{label}</SectionLabel>
+      {options.map((g) => (
+        <Button key={g.itemId} size='xs' variant={g.itemId === selected ? 'primary' : 'default'} className={g.itemId === selected ? 'bg-accent/15' : ''}
+          onClick={() => onPick(g.itemId)}>
+          {g.name} <span className='text-muted'>{g.held ? 'in hand' : 'quick slot'}</span>
+        </Button>
+      ))}
+    </div>
+  )
+}
+
 function SpellButton({ option, onCast, onQuicken }: { option: SpellOptionView, onCast: () => void, onQuicken: () => void }){
   return (
     <span className='inline-flex items-stretch'>

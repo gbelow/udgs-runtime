@@ -151,16 +151,6 @@ export function PlayPanel(){
   )
 }
 
-function DamageButton({amount}: {amount: number}){
-  const { injuries, setInjury } = useInjuryLens()
-
-  const dealDamage = () => {
-    setInjury('injuryLevel', injuries.injuryLevel + amount);
-  }
-
-  return <Button size='xs' variant='bad' className='font-mono w-8' aria-label={`cause${amount}Injury`} onClick={dealDamage}>{amount}</Button>
-}
-
 const INJURY_TITLES = { injuryLevel: 'injury level', bleed: 'bleed', burning: 'burning', potion: 'potion' } as const
 
 // The injury dial's ring and digits, one colour per stage.

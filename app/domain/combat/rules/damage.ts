@@ -11,10 +11,12 @@ import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
 import { getHardness } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
+import { hasChargeTrigger } from '../../character/rules/spells'
+import { produceSpellEffect } from '../../character/rules/production'
 import { hasProperty } from '../../weaponProperties'
 import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
-import { findWeaponRow, getRowProperties } from './weaponRow'
+import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
@@ -137,28 +139,30 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const link = root.kind === 'strike' && isSweepLink(root)
   const share = root.kind === 'strike' ? root.share : 1
   const physical: DamageComponent[] = [{ kind: 'blunt', value: Math.floor(variant.blunt * share) }, { kind: 'cut', value: Math.floor(variant.cut * share) }]
-  const base = getRowDamage(attacker, row, [...physical, ...(link ? [] : getChargeDamage(attacker, root))], { location: root.location, part: root.part }, getDefense(state, root))
+  const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
+  const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
+  const base = getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root))
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
-  return delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree)
+  const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
+  return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
 }
 
 // spells.tex "Charged", Taser: "discharges on the first object it comes into
-// contact with, adding its damage to the attack" — the charge in the item
-// the blow is made with rides on it, and each kind it carries is measured
+// contact with, adding its damage to the attack" — a charge that goes off
+// on contact, in the item the blow is made with, through a row of metal
+// (the table's ruling). Its damage rides on the blow, each kind measured
 // against its own armor value where it lands (combat.tex "Physical
-// attacks"). The charge is scaled by whoever swings it: what it was made
-// with is not written into the item.
+// attacks"), and the rest of what it carries lands with it. The charge is
+// as its caster made it: whoever swings it does not scale it again.
 export function getChargedWeapon(c: Character, action: AttackAction): Item | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  const item = row ? getHeldItem(c, row.wielded.itemId) : undefined
-  return item?.charge ? item : null
+  return row ? getRowCharge(c, row) : null
 }
 
-function getChargeDamage(c: Character, action: AttackAction): DamageComponent[] {
-  const charge = getChargedWeapon(c, action)?.charge
-  if (!charge) return []
-  return charge.effects.flatMap((e) => (e.type === 'damage' && e.area === null ? e.effect.damage : []))
+function getRowCharge(c: Character, row: WeaponRow): Item | null {
+  const item = getHeldItem(c, row.wielded.itemId)
+  return item?.charge && row.atk.material === 'metal' && hasChargeTrigger(item.charge, 'contact') ? item : null
 }
 
 // What the attack's delivery does to its target's own action.

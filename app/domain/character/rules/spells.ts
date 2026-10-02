@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character, Item, Requirement, Spell, SpellMethod } from '../../types'
+import { CampaignCharacter, Character, Charge, ChargeTrigger, Item, Requirement, Spell, SpellMethod } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
@@ -10,7 +10,7 @@ import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
 import { hasGrant } from './abilities'
 import { getActionCost, type ActionCost } from './actionCosts'
-import { getCarriedItems, getItemScale, isGear } from '../../item/rules/items'
+import { getCarriedItems, getItemScale, hasAmmo, isGear, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
 import { ABILITIES, isAbilityKey } from '../../abilities'
@@ -121,10 +121,39 @@ function fitsSpell(c: Character, key: SpellKey, item: Item): boolean {
   return getItemScale(item) <= getSpellBaseSize(c, key) + (isScaledSpell(key) ? 1 : 0)
 }
 
-// The gear at hand the spell can be cast with, what is in the hands first.
+// Gear a cast can be started with: small enough, with the charges a cast
+// draws from it left.
+function servesSpell(c: Character, key: SpellKey, item: Item): boolean {
+  return fitsSpell(c, key, item) && hasAmmo(item, SPELLS[key].ammo)
+}
+
+// The gear at hand the spell is cast with, what is in the hands first.
 export function getSpellGearOptions(c: Character, key: SpellKey): Item[] {
   const names = getGearRequirements(key).flat().filter((alt) => !alt.not).map((alt) => alt.name)
   return getReadyItems(c).filter((i) => names.some((name) => isGear(i, name)) && fitsSpell(c, key, i))
+}
+
+// The gear at hand a cast of the spell can be started with.
+export function getCastableGear(c: Character, key: SpellKey): Item[] {
+  return getSpellGearOptions(c, key).filter((i) => servesSpell(c, key, i))
+}
+
+// spells.tex "Charged": what a cast with this gear can be charged into —
+// the gear itself, or a metal weapon at hand ("Taser").
+export function getChargeTargets(c: Character, key: SpellKey, gear: Item | null): Item[] {
+  if (SPELLS[key].chargeInto === 'gear') return gear ? [gear] : []
+  return getReadyItems(c).filter(isMetalWeapon)
+}
+
+// Whether a spell charged into a weapon has one at hand; one charged into
+// its gear has it once its requirements are met.
+export function hasChargeTarget(c: Character, key: SpellKey): boolean {
+  return SPELLS[key].chargeInto !== 'metalWeapon' || getReadyItems(c).some(isMetalWeapon)
+}
+
+// spells.tex "Charged": what releases a charge — what its spell says.
+export function hasChargeTrigger(charge: Charge, trigger: ChargeTrigger): boolean {
+  return isSpellKey(charge.key) && SPELLS[charge.key].triggers.includes(trigger)
 }
 
 // The gear the cast is made with, whose size bounds the spell's and a charge
@@ -162,7 +191,7 @@ export function getCastSize(c: Character, key: SpellKey, amplify: number, itemId
 }
 
 function holdsGear(ready: Item[], c: Character, key: SpellKey, alt: Requirement): boolean {
-  return ready.some((i) => isGear(i, alt.name) && (alt.not || fitsSpell(c, key, i))) !== alt.not
+  return ready.some((i) => isGear(i, alt.name) && (alt.not || servesSpell(c, key, i))) !== alt.not
 }
 
 // A passive ability is in effect for as long as it is learned; a toggle
@@ -201,6 +230,7 @@ export function getUnmetCastLabel(c: Character, key: SpellKey): string {
   const ready = getReadyItems(c)
   const carried = getCarriedItems(c)
   const label = (alt: Requirement): string => (alt.kind !== 'gear' || alt.not ? requirementLabel(alt)
+    : ready.some((i) => isGear(i, alt.name) && fitsSpell(c, key, i)) ? `${alt.name} with charges left`
     : ready.some((i) => isGear(i, alt.name)) ? `a smaller ${alt.name}`
     : carried.some((i) => isGear(i, alt.name)) ? `${alt.name} at hand`
     : alt.name)
@@ -218,7 +248,7 @@ export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boo
   if (!isCampaignCharacter(c) || !(key in c.spells)) return false
   const spell = SPELLS[key]
   if (spell.DL === null || !canAfford(c, spell.cost)) return false
-  if (!meetsCastRequirements(c, key) || !mayCastWhileConcentrating(c, key)) return false
+  if (!meetsCastRequirements(c, key) || !hasChargeTarget(c, key) || !mayCastWhileConcentrating(c, key)) return false
   return quicken || c.usedSurge === 'focus'
 }
 

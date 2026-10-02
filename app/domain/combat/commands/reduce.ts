@@ -3,7 +3,7 @@ import { TerrainCellSchema, type Action, type Board, type CombatState, type Floo
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
-import { chargeItem, consumeItem, dischargeItem, dropItem, holdItem } from '../../item/commands/hands'
+import { chargeItem, consumeItem, dischargeItem, drawFromSource, dropItem, holdItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { findAmmoStack } from '../../item/rules/ammo'
 import { removeItemFromContainer } from '../../item/commands/items'
@@ -64,6 +64,9 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (c.id !== action.actorId || !action.cost) return c
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
+        // gear.tex "Electrite": a cast draws its charges from its gear as
+        // it is paid for, whatever the die says
+        if (action.kind === 'cast' && isSpellKey(action.key)) return drawFromSource(action.itemId, SPELLS[action.key].ammo)(payCost(action.cost)(c))
         return payCost(action.cost)(c)
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
@@ -97,7 +100,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key }] }
           }
           // spells.tex "Charged": "activates an object that stays charged"
-          return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId)(delivered) : delivered
+          return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered
         }
         // spells.tex "Telepathic Link": what the test let through lands on
         // the target; the caster holds a link to one who did not beat the

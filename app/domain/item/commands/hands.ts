@@ -3,10 +3,10 @@ import { canBeHeld, getDrawCost, getFreeHoldingHands, getGrip, getHeldItem, getS
 import { canFitItem, findReadyItem, getContainer } from '../rules/containers'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { MoveView } from '../rules/costs'
-import { addItemToContainer, duplicateItem, removeItemFromContainer } from './items'
+import { addItemToContainer, duplicateItem, mapContainerItem, removeItemFromContainer } from './items'
 import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
-import { getCastSize, getSpellGear } from '../../character/rules/spells'
+import { getCastSize, getChargeTargets, getSpellGear, pickSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, drawOnGear, produceEffects } from '../../character/rules/production'
 
@@ -175,23 +175,39 @@ export function dropItem(itemId: string): HeldUpdater {
   return <C extends Character>(c: C): C => (getHeldItem(c, itemId) ? release(c, itemId) : c)
 }
 
-// spells.tex "Charged": "activates an object that stays charged" — the
-// object being the gear the spell is cast on (spells.tex "Requirements"),
-// at hand in the caster's hands or a quick slot. Nothing at hand to take
-// it, nothing happens; what an object already carries is charged over. One
-// of a stack in a quick slot is charged, and leaves the stack to take a
-// slot of its own.
-export function chargeItem(key: string, improved: Improvements = {}, itemId = ''): HeldUpdater {
+// One object at hand changed: in the hands, or a quick slot. A lone one is
+// changed where it lies; one of a stack leaves the stack to take a slot of
+// its own. Nothing at hand by that id, nothing happens.
+function changeReadyUnit(itemId: string, change: (item: Item) => Item): HeldUpdater {
   return <C extends Character>(c: C): C => {
-    if (!isSpellKey(key)) return c
-    const found = findReadyItem(c, getSpellGear(c, key, itemId)?.id ?? '')
+    const found = findReadyItem(c, itemId)
     if (!found) return c
     const { item, containerKey } = found
-    const charge = { key, effects: produceEffects(c, drawOnGear(SPELLS[key].effects, item), getCastSize(c, key, improved.amplify ?? 0, item.id)) }
-    if (containerKey === null) return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
-    const unit = { ...duplicateItem(item, { amount: 1 }), charge }
-    return addItemToContainer(containerKey, 'quick', unit)(removeItemFromContainer(containerKey, item.id, 1)(c))
+    if (containerKey === null) return { ...c, held: c.held.map((i) => (i.id === item.id ? change(i) : i)) }
+    if (item.amount <= 1) return mapContainerItem(containerKey, item.id, change)(c)
+    return addItemToContainer(containerKey, 'quick', change(duplicateItem(item, { amount: 1 })))(removeItemFromContainer(containerKey, item.id, 1)(c))
   }
+}
+
+// spells.tex "Charged": "activates an object that stays charged" — the
+// gear the spell is cast on (spells.tex "Requirements"), or a metal weapon
+// at hand for one charged into a weapon ("Taser"). Its effects are drawn
+// from the gear. What an object already carries is charged over.
+export function chargeItem(key: string, improved: Improvements = {}, gearId = '', chargeItemId = ''): HeldUpdater {
+  return <C extends Character>(c: C): C => {
+    if (!isSpellKey(key)) return c
+    const gear = getSpellGear(c, key, gearId)
+    const target = pickSpellGear(getChargeTargets(c, key, gear), chargeItemId)
+    if (!target) return c
+    const charge = { key, effects: produceEffects(c, drawOnGear(SPELLS[key].effects, gear), getCastSize(c, key, improved.amplify ?? 0, gear?.id)) }
+    return changeReadyUnit(target.id, (i) => ({ ...i, charge }))(c)
+  }
+}
+
+// gear.tex "Electrite": "20 charges" — a cast draws its uses from the
+// stone or device it is made with.
+export function drawFromSource(itemId: string, ammo: number): HeldUpdater {
+  return changeReadyUnit(itemId, (i) => (i.source ? { ...i, source: { ...i.source, ammo: Math.max(0, i.source.ammo - ammo) } } : i))
 }
 
 // spells.tex "Charged": the charge is released and the object that held it

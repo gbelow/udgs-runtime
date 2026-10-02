@@ -1,11 +1,11 @@
-import type { CampaignCharacter, Skills } from '../../types'
+import type { CampaignCharacter, Item, Skills } from '../../types'
 import type { ActionRoll, CastAction, CombatState, Deliveries, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getAction } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getSpellGearOptions, getSpellSkill, getUnmetCastLabel, pickSpellGear, resolveDL } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getCastableGear, getChargeTargets, getSpellSkill, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { getLinkSpell, getLinkedTargets, mayCastWhileConcentrating } from '../../character/rules/concentration'
 import { skillTermGetters } from '../../character/rules/skills'
@@ -118,6 +118,7 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   const spell = SPELLS[key]
   const unmet = getUnmetCastLabel(c, key)
   if (unmet) return `needs ${unmet}`
+  if (!hasChargeTarget(c, key)) return 'needs a metal weapon at hand'
   if (!canAfford(c, spell.cost)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
   if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
@@ -143,16 +144,24 @@ export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
 
 // spells.tex "Requirements": the gear the cast is made with, and the gear
 // at hand it could be made with instead, what is in the hands first — the
-// choice only there is more than one.
+// choice only there is more than one. The same for the object a charged
+// spell goes into when that is not its gear (spells.tex "Taser").
 export type CastGearOption = { itemId: string; name: string; held: boolean }
-export type CastGear = { itemId: string; options: CastGearOption[] }
+export type CastGear = { itemId: string; options: CastGearOption[]; chargeItemId: string; chargeOptions: CastGearOption[] }
 
+// Once committed, the cast keeps what it named then, though it may have
+// spent the gear's last charge since.
 export function getCastGear(c: CampaignCharacter, root: CastAction): CastGear {
-  if (!isSpellKey(root.key)) return { itemId: '', options: [] }
-  const items = getSpellGearOptions(c, root.key)
+  if (!isSpellKey(root.key) || root.step !== 'define') return { itemId: root.itemId, options: [], chargeItemId: root.chargeItemId, chargeOptions: [] }
+  const items = getCastableGear(c, root.key)
+  const gear = pickSpellGear(items, root.itemId)
+  const targets = SPELLS[root.key].chargeInto === 'metalWeapon' ? getChargeTargets(c, root.key, gear) : []
+  const option = (i: Item): CastGearOption => ({ itemId: i.id, name: i.name, held: !!getHeldItem(c, i.id) })
   return {
-    itemId: pickSpellGear(items, root.itemId)?.id ?? '',
-    options: items.length > 1 ? items.map((i) => ({ itemId: i.id, name: i.name, held: !!getHeldItem(c, i.id) })) : [],
+    itemId: gear?.id ?? '',
+    options: items.length > 1 ? items.map(option) : [],
+    chargeItemId: pickSpellGear(targets, root.chargeItemId)?.id ?? '',
+    chargeOptions: targets.length > 1 ? targets.map(option) : [],
   }
 }
 

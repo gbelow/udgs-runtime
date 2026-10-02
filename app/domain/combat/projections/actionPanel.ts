@@ -168,6 +168,8 @@ export type OpenActionView = {
   extend: { times: number; DL: number } | null
   // the gear the cast is made with: the one picked, or else the first at hand
   castItemId: string
+  // the object a charged spell goes into when that is not its gear
+  chargeItemId: string
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
@@ -245,6 +247,8 @@ export type ActionPanelView = {
   spells: SpellOptionView[]
   // the gear at hand the declared cast can be made with, when there is a choice
   gear: CastGearOption[]
+  // what the declared charged spell can be charged into, when there is a choice
+  chargeInto: CastGearOption[]
   charges: ChargeView[]
   locations: LocationOption[]
   targets: { id: string; name: string; selected: boolean }[]
@@ -290,7 +294,7 @@ export type ActionPanelView = {
   report: ActionReport | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -348,6 +352,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       quicken: cast?.quicken ?? false,
       extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
       castItemId: gear?.itemId ?? '',
+      chargeItemId: gear?.chargeItemId ?? '',
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
@@ -391,6 +396,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     gear: gear && step === 'declare' ? gear.options : [],
+    chargeInto: gear && step === 'declare' ? gear.chargeOptions : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
       ? getChargeOptions(state, explosion).map((o) => ({
           ...o,

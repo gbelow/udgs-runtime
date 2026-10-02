@@ -674,7 +674,7 @@ describe('a spray', () => {
   // A flamethrower (4m) cast from between two in range, one east and one
   // west of the caster, with a third out of range.
   function flamesCast(): CombatState {
-    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2 })
+    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     const s = onBoard({ c: [0, 0], x: [2, 0], y: [-2, 0], z: [6, 0] }, caster, fighter('x'), fighter('y'), fighter('z'))
     return resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))

@@ -1,4 +1,5 @@
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CombatState, type Updater } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type Updater } from '../types'
+import type { CampaignCharacter } from '../../types'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
@@ -8,7 +9,7 @@ import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import type { Dice } from '../dice'
 import { getDragComparison } from '../rules/drag'
-import { canAcceptSpellTest } from '../rules/cast'
+import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
@@ -77,11 +78,21 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
       ? { ...open, step: 'react', from: state.board?.placements[open.actorId] ?? null }
       : open.kind === 'strike'
       ? { ...withSweepArc(state, open), step: 'react' }
+      : open.kind === 'cast'
+      ? { ...withCastGear(actor, open), step: 'react' }
       : { ...open, step: 'react' }
     const locked = replaceActions(state, [committed])
     if (hasOpenAnswer(locked)) return locked
     return needsDie(locked, committed) ? rollAction(dice, newId)(locked) : payAction(newId)(locked)
   }
+}
+
+// spells.tex "Requirements": the gear the cast is made with and the object
+// a charge goes into, named once it is committed, so the cast keeps them
+// after it spends what it draws from them.
+function withCastGear(actor: CampaignCharacter, open: CastAction): CastAction {
+  const { itemId, chargeItemId } = getCastGear(actor, open)
+  return { ...open, itemId, chargeItemId }
 }
 
 // The actor's way out of an action another opened for them, while it is
@@ -259,7 +270,8 @@ export function chooseSpell(key: string, quicken: boolean): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (open?.kind !== 'cast') return state
-    return amendAction({ key, quicken, itemId: key === open.key ? open.itemId : '' })(state)
+    const same = key === open.key
+    return amendAction({ key, quicken, itemId: same ? open.itemId : '', chargeItemId: same ? open.chargeItemId : '' })(state)
   }
 }
 

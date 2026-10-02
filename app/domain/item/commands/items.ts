@@ -23,6 +23,15 @@ function withContainer<C extends Character>(character: C, key: string, change: (
   return { ...character, containers: Object.fromEntries(Object.entries(character.containers).map(([k, c]) => [k, sling(c)])) }
 }
 
+// The item `itemId` in the open container `key` changed where it lies.
+export function mapContainerItem(containerKey: string, itemId: string, change: (item: Item) => Item): <C extends Character>(character: C) => C {
+  const inGroup = (group: SlotGroup): SlotGroup => ({ ...group, items: group.items.map((i) => (i.id === itemId ? change(i) : i)) })
+  return <C extends Character>(character: C): C => withContainer(character, containerKey, (open) => ({
+    ...open,
+    slots: { quick: inGroup(open.slots.quick), medium: inGroup(open.slots.medium), large: inGroup(open.slots.large) },
+  }))
+}
+
 // gear.tex "Slot size and stacking": an identical stack already in the group
 // absorbs the item rather than taking a slot of its own.
 export function addItemToContainer(containerKey: string, slot: SlotKind, item: Item): <C extends Character>(character: C) => C {

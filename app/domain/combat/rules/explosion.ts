@@ -1,10 +1,10 @@
-import type { Area, CampaignCharacter, ChargeTrigger, Delivery, Item, SpellEffect } from '../../types'
+import type { Area, CampaignCharacter, Delivery, Item, SpellEffect } from '../../types'
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
 import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
 import { getSpellEffects, produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
-import { getCastSize, resolveDL } from '../../character/rules/spells'
+import { getCastSize, hasChargeTrigger, resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { explodes } from '../../weaponProperties'
@@ -90,16 +90,11 @@ function getObjectEffects(producer: CampaignCharacter, item: Item): SpellEffect[
   return rows.flatMap((a) => produceEffects(producer, a.payload))
 }
 
-// spells.tex "Charged": what releases a charge — what its spell says.
-function hasTrigger(charge: NonNullable<Item['charge']>, trigger: ChargeTrigger): boolean {
-  return isSpellKey(charge.key) && SPELLS[charge.key].triggers.includes(trigger)
-}
-
 // Whether the object goes off where it lands when thrown, if it has
 // anything to go off with: a charge with the impact trigger, or a mundane
 // explosive (gear.tex "Grenade": "ignited by a mundane fuse or impact").
 function goesOffOnImpact(item: Item): boolean {
-  return !item.charge || hasTrigger(item.charge, 'impact')
+  return !item.charge || hasChargeTrigger(item.charge, 'impact')
 }
 
 // An effect that covers an area rather than one character (combat.tex
@@ -119,7 +114,7 @@ export type ChargeOption = { itemId: string; key: SpellKey; holderId: string | n
 
 function hasChargedArea(item: Item): item is Item & { charge: NonNullable<Item['charge']> & { key: SpellKey } } {
   const charge = item.charge
-  return !!charge && isSpellKey(charge.key) && hasTrigger(charge, 'detonate') && charge.effects.some(isAreaEffect)
+  return !!charge && isSpellKey(charge.key) && hasChargeTrigger(charge, 'detonate') && charge.effects.some(isAreaEffect)
 }
 
 export function getChargeOptions(state: CombatState, action: ExplosionAction): ChargeOption[] {

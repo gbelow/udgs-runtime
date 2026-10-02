@@ -379,6 +379,9 @@ export const CastActionSchema = z.object({
   // spells.tex "Requirements": the gear at hand the spell is cast with,
   // and a charged spell charged into; empty picks the first at hand
   itemId: str.default(''),
+  // the object a charged spell is charged into when that is not its gear;
+  // empty picks the first at hand
+  chargeItemId: str.default(''),
   // improvement -> times bought
   improved: z.partialRecord(SpellModificationSchema, num).default({}),
   // spells.tex "Casting spells": the graze was bought up to a hit for 2 AP
