@@ -227,7 +227,9 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     const rolled: Action = test ? { ...open, roll: test } : open
     // spells.tex "Amplify Spell": the percentile die for a fraction of a
     // charge, thrown with the cast
-    const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) } : rolled
+    const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) }
+      : rolled.kind === 'cut' ? { ...rolled, breakRoll: rollPercent(dice) }
+      : rolled
     return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
 }

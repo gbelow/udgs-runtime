@@ -18,6 +18,7 @@ import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
+import { CUT_DL, getCutStrike } from './cut'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -353,6 +354,8 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
       return getManeuverDLTerms(state, root)
     case 'slip':
       return getSlipTerms(state, root)?.DL ?? []
+    case 'cut':
+      return CUT_DL
     case 'move':
     case 'drag':
     case 'blast':
@@ -430,6 +433,8 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
       return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
     case 'slip':
       return getSlipTerms(state, root)
+    case 'cut':
+      return { skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL }
     case 'move':
       return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
     case 'cast':

@@ -59,7 +59,3 @@ export function getSlipTerms(state: CombatState, root: SlipAction): { skill: Ter
   const tether = findSlipTether(state, root)
   return actor && tether ? { skill: getPrestidigitationTerms(actor), DL: [{ label: 'net', value: tether.dl }] } : null
 }
-
-export function isSlipWon(root: SlipAction): boolean {
-  return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
-}

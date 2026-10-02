@@ -17,7 +17,9 @@ import { HOP_PURCHASES } from '../../lists'
 import { getGrappleFacts, replacePair } from '../rules/grapple'
 import { dropHolders } from '../rules/bind'
 import { isGrapple, isTether } from '../rules/partners'
-import { findSlipTether, getTethersMade, isSlipWon, isTying } from '../rules/tether'
+import { getNetTethers, isNetCut } from '../rules/cut'
+import { findSlipTether, getTethersMade, isTying } from '../rules/tether'
+import { isWon } from '../rules/test'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
@@ -191,7 +193,8 @@ export function reduceBinds(state: CombatState, action: Action, phase: Phase): (
   return (binds: Bind[]) => {
     if (phase !== 'resolve') return binds
     if (action.kind === 'blast') return withTethers(binds, getTethersMade(state, action))
-    if (action.kind === 'slip') return isSlipWon(action) ? binds.filter((b) => b !== findSlipTether(state, action)) : binds
+    if (action.kind === 'cut') return isNetCut(state, action) ? binds.filter((b) => !getNetTethers(state, action).includes(b as Tether)) : binds
+    if (action.kind === 'slip') return isWon(action) ? binds.filter((b) => b !== findSlipTether(state, action)) : binds
     const grapples = binds.filter(isGrapple)
     const others = binds.filter((b) => !isGrapple(b))
     const next = reduceGrapplesOf(action, grapples)

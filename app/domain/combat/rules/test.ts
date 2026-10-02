@@ -1,5 +1,10 @@
-import type { ActionRoll, Degree } from '../types'
+import type { Action, ActionRoll, Degree } from '../types'
 import type { Dice } from '../dice'
+
+// Whether the action's test came to a hit or a critical.
+export function isWon(root: Pick<Action, 'roll'>): boolean {
+  return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
+}
 
 // A skill test as the book defines it: a skill against a DL or an opposing
 // skill, read on one of two scales. `degrees` is the four-stage one;

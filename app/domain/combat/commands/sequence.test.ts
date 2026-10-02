@@ -853,7 +853,7 @@ describe('a net', () => {
   // `t` throws it at the cell the others stand in, none of them stirring.
   function netted(): CombatState {
     const thrower = { ...(regripItem(net.id, 2)(holdItem(net)(fighter('t')))), usedSurge: 'focus' as const }
-    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'))
+    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0], c: [3, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'), spearman('c'))
     s = declareAction('t', { kind: 'throw', itemId: net.id, to: { q: 0, r: 0 } }, netId)(s)
     s = commitAction(() => 5, netId)(s)
     for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, netId)(s)
@@ -882,6 +882,18 @@ describe('a net', () => {
     s = playOut(s, 5).state
     expect(s.board?.placements.x.cell).toEqual({ q: -1, r: 0 })
     expect(s.board?.placements.t.cell).toEqual({ q: -3, r: 0 })
+  })
+
+  // gear.tex "Equipment Breakage": a blow that reaches a fibre net's RES breaks
+  // it one time in six, and the whole net goes with it; the die for the strike
+  // is thrown first, then the two percentile digits.
+  it.each([[[9, 0, 1], 0], [[9, 5, 5], 3]] as const)('with the dice %j leaves %i of the three tethered once a spear cuts it', (faces, remaining) => {
+    let s = netted()
+    const [{ weaponKey, attack, variant }] = getAttackOptions(s.characters.c, 'strike')
+    s = declareAction('c', { kind: 'cut', weaponKey, attack, variant }, netId)(s)
+    let i = 0
+    s = commitAction(() => faces[i++] ?? 0, netId)(setTarget('z')(s))
+    expect(getTethers(s).length).toBe(remaining)
   })
 
   it.each([[1, 3], [10, 2]] as const)('with a die of %i leaves %i of the three tethered', (face, remaining) => {

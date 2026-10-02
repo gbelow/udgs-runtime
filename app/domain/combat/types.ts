@@ -660,6 +660,16 @@ export const SlipActionSchema = z.object({
   kind: z.literal('slip'),
 }).strip()
 
+// gear.tex "Equipment Breakage": a strike at a net, scored against no defense;
+// `breakRoll` is the percentile thrown with it for the net's chance to break.
+export const CutActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('cut'),
+  ...WeaponRowRef,
+  variant: str.default(''),
+  breakRoll: num.default(0),
+}).strip()
+
 // Grappling back a partner one holds nothing of, once a grapple row is in
 // hand.
 export const HoldBackActionSchema = z.object({
@@ -738,6 +748,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   DragActionSchema,
   ReleaseActionSchema,
   SlipActionSchema,
+  CutActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
   ThrowActionSchema,
@@ -765,6 +776,7 @@ export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
 export type SlipAction = z.infer<typeof SlipActionSchema>
+export type CutAction = z.infer<typeof CutActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 // What an opportunity attack opens: a strike, or against a grapple partner a

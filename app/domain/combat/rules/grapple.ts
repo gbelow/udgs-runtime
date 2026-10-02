@@ -13,6 +13,7 @@ import { AT_CHEST, delivering, getRowDamage } from './delivery'
 import { isAttackAction } from './actionCatalog'
 import { getMidActionTerm } from './opportunity'
 import { isProne } from './ground'
+import { isWon } from './test'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]
 
@@ -250,7 +251,7 @@ export function getDisarmOptions(state: CombatState, root: GrappleAction): strin
 // critical; "If a grapple maneuvre grazes or misses, it simply has no
 // effect."
 export function isManeuverWon(root: GrappleAction): boolean {
-  return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
+  return isWon(root)
 }
 
 // Whether a rolled disarm's critical still waits on the attacker's pick of

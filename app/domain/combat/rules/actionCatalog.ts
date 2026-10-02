@@ -99,6 +99,9 @@ export const ACTIONS = {
   // gear.tex "Net": a Prestidigitation test against the tether's DL, priced
   // as two standard actions (rules/tether.ts `getSlipCost`)
   slip:        { label: 'slip the net', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  // gear.tex "Equipment Breakage": a strike at a net's tether, priced by the
+  // row it swings
+  cut:         { label: 'cut the net',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
   // combat.tex "Initiate the Grab": "It is possible to grapple back
   // automatically just by having a weapon with grappling property
   // equipped" — one who takes one up mid-grapple does so as a free action

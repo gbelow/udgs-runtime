@@ -11,7 +11,7 @@ import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
-import { getPartners, getGrapples, isHeld } from './partners'
+import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
@@ -260,6 +260,11 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []
     return [option({ kind: 'release' }, { AP: 0, STA: 0 }, getReleaseTargets(state, c.id).length > 0 ? null : 'held back')]
+  },
+  // gear.tex "Equipment Breakage": a net is cut with a melee weapon in hand
+  cut: (state, c) => {
+    if (!state.binds.some(isTether)) return []
+    return [option({ kind: 'cut' }, null, getFreeAttackOptions(state, c, 'strike').length > 0 ? null : 'no melee weapon in hand')]
   },
   // gear.tex "Net": a tethered character slips the net it was caught in
   slip: (state, c) => {
