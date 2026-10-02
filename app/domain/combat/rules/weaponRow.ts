@@ -19,10 +19,10 @@ export function findWeaponRow(c: Character, weaponKey: string, attack: string): 
   return atk ? { wielded, weapon: wielded.weapon, atk } : null
 }
 
-// gear.tex "Size Scaling", "Small/One/Two hands": a row the character can fire
-// right now.
+// gear.tex "Size Scaling", "Small/One/Two hands", "Weapon Breakage": a row
+// the character can fire right now.
 export function isRowUsable(c: Character, row: WeaponRow): boolean {
-  return isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
+  return !row.wielded.broken && isWieldable(row.weapon, c) && isAttackUsable(row.atk.handed, row.wielded.grip)
 }
 
 // The variations the row can be fired as, priced against the character as

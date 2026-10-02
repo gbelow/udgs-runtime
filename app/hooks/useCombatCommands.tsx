@@ -2,6 +2,7 @@ import { nextRound as passRound } from "../domain/combat/commands/nextRound"
 import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/combat/commands/turn"
 import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
+import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
 import { useCombatStore } from "../stores/useCombatStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
@@ -59,5 +60,9 @@ export function useCombatCommands() {
     updateCombatState(resetGame)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, resetCombat}
+  const toggleBreakage = () => {
+    updateCombatState(switchBreakage)
+  }
+
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, resetCombat, toggleBreakage }
 }

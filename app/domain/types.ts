@@ -296,6 +296,9 @@ export const ItemSchema = z.object({
   // gear.tex "Containers and Burden": a container is an item too, and what
   // it carries goes wherever it is put.
   container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),
+  // gear.tex "Weapon Breakage", "Armor Breakage": a broken weapon can no
+  // longer be used, and broken armor is pitted
+  broken: z.boolean().default(false),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),

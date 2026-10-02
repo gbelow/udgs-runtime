@@ -93,7 +93,7 @@ export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item
 // stones with different uses left are not the same stone.
 export function isSameItem(a: Item, b: Item): boolean {
   return !a.container && !b.container && !a.charge && !b.charge && a.type === b.type && a.refId === b.refId && a.name === b.name
-    && a.description === b.description && a.bulk === b.bulk && a.source?.ammo === b.source?.ammo
+    && a.description === b.description && a.bulk === b.bulk && a.broken === b.broken && a.source?.ammo === b.source?.ammo
 }
 
 // resolves what a refId'd item actually is, so e.g. a weapon sitting in a

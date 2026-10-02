@@ -32,6 +32,28 @@ export function mapContainerItem(containerKey: string, itemId: string, change: (
   }))
 }
 
+// The item `itemId` changed where it is held, worn or slung on the back.
+function mapEquippedItem<C extends Character>(character: C, itemId: string, change: (item: Item) => Item): C {
+  const at = (item: Item) => (item.id === itemId ? change(item) : item)
+  return {
+    ...character,
+    held: character.held.map(at),
+    worn: character.worn && at(character.worn),
+    onBack: character.onBack && at(character.onBack),
+  }
+}
+
+function setBroken(itemId: string, broken: boolean): <C extends Character>(character: C) => C {
+  return <C extends Character>(character: C): C => mapEquippedItem(character, itemId, (item) => ({ ...item, broken }))
+}
+
+// gear.tex "Weapon Breakage", "Armor Breakage": the item gives way — a
+// weapon is no longer used, armor is pitted.
+export const breakItem = (itemId: string) => setBroken(itemId, true)
+
+// Repaired, for a price the sheet does not keep.
+export const repairItem = (itemId: string) => setBroken(itemId, false)
+
 // gear.tex "Slot size and stacking": an identical stack already in the group
 // absorbs the item rather than taking a slot of its own.
 export function addItemToContainer(containerKey: string, slot: SlotKind, item: Item): <C extends Character>(character: C) => C {

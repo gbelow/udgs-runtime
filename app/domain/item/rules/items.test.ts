@@ -52,16 +52,16 @@ describe('resolution is total', () => {
 })
 
 // The catalog is the transcription of the gear.tex item lists and the Bulk
-// column of its weapon, shield and armor tables. An entry is a template: `id`
-// and `amount` belong to the stack stamped from it, so they are the only
-// fields the parse may add. A template that names a catalog entry must name
+// column of its weapon, shield and armor tables. An entry is a template: `id`,
+// `amount` and `broken` belong to the stack stamped from it, so they are the
+// only fields the parse may add. A template that names a catalog entry must name
 // one that exists, or every item stamped from it is a dead pointer.
 describe('items.json', () => {
   const entries = Object.entries(itemsCatalog as Record<string, unknown>)
 
   it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
     const { id: _id, ...parsed } = ItemSchema.parse(raw)
-    expect(parsed, key).toEqual({ amount: 1, ...(raw as object) })
+    expect(parsed, key).toEqual({ amount: 1, broken: false, ...(raw as object) })
   })
 
   it.each(entries)('%s stamps a fresh stack each time it is drawn', (key) => {

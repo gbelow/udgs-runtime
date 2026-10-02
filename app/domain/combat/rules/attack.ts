@@ -326,12 +326,10 @@ function getShotDefense(state: CombatState, root: Action): Action | null {
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
 }
 
-// Whether the guard stands in front of this shot, and holds a row that
-// answers it.
+// Whether the guard stands in front of this shot. Its row was checked when
+// it was declared (`guardRows`); a shield the shot breaks still guarded it.
 function guardsShot(state: CombatState, shot: Action, guard: Action): boolean {
-  const guardian = state.characters[guard.actorId]
-  return shot.targetId !== null && !!guardian && guard.kind === 'guard' && isGuardingShot(state, shot.actorId, shot.targetId, guard.actorId)
-    && guardRows(state, guardian, shot).some((row) => row.wielded.key === guard.weaponKey && row.atk.name === guard.attack)
+  return shot.targetId !== null && !!state.characters[guard.actorId] && guard.kind === 'guard' && isGuardingShot(state, shot.actorId, shot.targetId, guard.actorId)
 }
 
 // The DL the root is rolled against — by its own test, or for an explosion

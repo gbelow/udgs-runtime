@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { CombatState, CutAction, StrikeAction, Tether } from '../types'
-import { getBreakChance } from '../../character/rules/breakage'
+import { getBreakChance, getRowBreakTerms } from '../../character/rules/breakage'
 import { getStrikeDamage } from '../../character/rules/gear'
 import { getHardness, getItemWeapon } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
@@ -56,8 +56,8 @@ export function getCutBreakChance(state: CombatState, root: CutAction): number {
   const row = cutter ? findWeaponRow(cutter, root.weaponKey, root.attack) : null
   const net = getCutTether(state, root)
   const breakable = net ? getNetBreakable(state, net) : null
-  if (!cutter || !row || !breakable) return 0
-  return getBreakChance({ ...getStrikeDamage(row.atk, row.weapon, cutter), hardness: getHardness(row.atk.material) }, breakable)
+  if (!state.breakage || !cutter || !row || !breakable) return 0
+  return getBreakChance({ ...getStrikeDamage(row.atk, row.weapon, cutter), ...getRowBreakTerms(row.atk) }, breakable)
 }
 
 // Whether the cut landed and the net gave way.

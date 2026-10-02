@@ -396,7 +396,9 @@ describe('a riposte', () => {
     let s = thrustAt(holdItem(shield)(fighter('def', ['riposte'])))
     const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
     if (option) s = declareReaction('def', option.draft, newId)(s)
-    return resolveAction(newId)(rollAction(() => MISS, newId)(s))
+    // the thrust misses, and the percentiles that follow break nothing
+    let thrown = 0
+    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? MISS : 5), newId)(s))
   }
 
   // The table's rulings: follow-ups are a choice, one per character, and a
@@ -854,7 +856,7 @@ describe('a net', () => {
   // `t` throws it at the cell the others stand in, none of them stirring.
   function netted(): CombatState {
     const thrower = { ...(regripItem(net.id, 2)(holdItem(net)(fighter('t')))), usedSurge: 'focus' as const }
-    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0], c: [3, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'), spearman('c'))
+    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0], c: [3, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'), wielder('c', 'Longsword'))
     s = declareAction('t', { kind: 'throw', itemId: net.id, to: { q: 0, r: 0 } }, netId)(s)
     s = commitAction(() => 5, netId)(s)
     for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, netId)(s)
@@ -888,7 +890,7 @@ describe('a net', () => {
   // gear.tex "Equipment Breakage": a blow that reaches a fibre net's RES breaks
   // it one time in six, and the whole net goes with it; the die for the strike
   // is thrown first, then the two percentile digits.
-  it.each([[[9, 0, 1], 0], [[9, 5, 5], 3]] as const)('with the dice %j leaves %i of the three tethered once a spear cuts it', (faces, remaining) => {
+  it.each([[[9, 0, 1], 0], [[9, 5, 5], 3]] as const)('with the dice %j leaves %i of the three tethered once a sword cuts it', (faces, remaining) => {
     let s = netted()
     const [{ weaponKey, attack, variant }] = getAttackOptions(s.characters.c, 'strike')
     s = declareAction('c', { kind: 'cut', weaponKey, attack, variant }, netId)(s)
@@ -958,5 +960,55 @@ describe('telepathic link', () => {
 
   it('lets go of a target beyond its range', () => {
     expect(linkedAt(25).binds).toEqual([])
+  })
+})
+
+// gear.tex "Equipment Breakage": a blow that reaches an object's RES gives it
+// a 1 in 6 chance to break, and impact is dealt to both objects; gear.tex
+// "Piercing": a piercing blow only breaks objects when damage > 3x RES. A
+// longsword's cut (steel, RES 20) meets a wooden shield of RES 20; a short
+// spear's thrust is piercing and well short of 3x.
+describe('a blow a block met', () => {
+  const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+
+  // `weapon` strikes a shield-bearer who defends as asked. The strike is
+  // thrown with `die`, then the percentile (tens, units) is `digit` twice.
+  function struck(weapon: string, defense: 'block' | 'evade', die: number, digit: number, breakage = true): CombatState {
+    const target = holdItem(shield)(fighter('def'))
+    let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, wielder('atk', weapon), target), breakage }
+    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
+    s = declareReaction('def', option!.draft, newId)(s)
+    let thrown = 0
+    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
+  }
+
+  it('breaks the shield it struck on a low percentile, and not on a high one', () => {
+    expect(struck('Longsword', 'block', MISS, 0).characters.def.held[0].broken).toBe(true)
+    expect(struck('Longsword', 'block', MISS, 9).characters.def.held[0].broken).toBe(false)
+  })
+
+  it('leaves the sword whole against a softer shield, whatever the percentile', () => {
+    expect(struck('Longsword', 'block', MISS, 0).characters.atk.held[0].broken).toBe(false)
+  })
+
+  it('does not break a shield with a piercing thrust short of 3x its RES', () => {
+    expect(struck('Short Spear', 'block', MISS, 0).characters.def.held[0].broken).toBe(false)
+  })
+
+  it('does not meet the shield at all when the defender evades', () => {
+    expect(struck('Longsword', 'evade', MISS, 0).characters.def.held[0].broken).toBe(false)
+  })
+
+  it('goes past the shield on a hit', () => {
+    const s = struck('Longsword', 'block', 9, 0)
+    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
+    expect(s.characters.def.held[0].broken).toBe(false)
+  })
+
+  it('breaks nothing with the rule switched off', () => {
+    expect(struck('Longsword', 'block', MISS, 0, false).characters.def.held[0].broken).toBe(false)
   })
 })

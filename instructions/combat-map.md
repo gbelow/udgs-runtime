@@ -277,6 +277,14 @@ resolveAction ─────────► land(top)
   pass up. A later strike (`isSweepLink`: its `sweepOf` names the first) is prepaid, keeps the sweep's row
   and variation, carries no charge, and draws no opportunity attack; the first draws none from
   any of the sweep's targets. None of the sweep's targets may protect another.
+- **Breakage** (`rules/breakage.ts`, `character/rules/breakage.ts`) — a block or guard that meets a
+  graze or a miss puts the object in the way at risk, and a strike's own weapon takes the impact
+  back (gear.tex "Equipment Breakage"; a piercing blow breaks only above 3x RES). `rollAction`
+  throws two percentiles for such a blow (`breakRolls`), `getSettled` writes the items it broke
+  (`broke`), and `reduceCharacter` breaks them on their owners (`breakItem`). A broken item is not
+  usable (`isRowUsable`); a guard declared before its shield broke still counts as having guarded
+  (`isRowHeld`). `state.breakage` switches the optional rule off (`toggleBreakage`, refused while
+  an action is open); a net cut reads it too.
 - **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
   log so it is not offered again, left out of `history`); an opportunity attack's strike is
   instead removed together with its reaction.
@@ -391,6 +399,7 @@ app/domain/combat/
 │   ├── log.ts          setActions (only writer of log/stack/history), applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds
+│   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
@@ -418,6 +427,7 @@ app/domain/combat/
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
 │   ├── test.ts         resolveTest: skill vs DL → degree and HOP
+│   ├── breakage.ts     the blow a block met: what it broke, the dice it needs, the setting's bar
 │   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hooked motion
 │   ├── delivery.ts     a row's damage as it leaves the weapon
 │   ├── weaponRow.ts    rows in hand, usable rows, variants

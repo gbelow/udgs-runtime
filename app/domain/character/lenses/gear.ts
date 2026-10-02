@@ -110,6 +110,8 @@ export type WeaponPanelView = {
   // '' for a natural weapon: the free hands themselves, not a held item.
   itemId: string
   natural: boolean
+  // gear.tex "Weapon Breakage": broken, and so used no more.
+  broken: boolean
   // gear.tex "Shields": the cover a shield adds to a block or guard, and
   // whether it is a body shield; null for anything that is not a shield.
   shield: { cover: number; body: boolean } | null
@@ -121,7 +123,7 @@ export type WeaponPanelView = {
 // per-weapon lookup back into the character, so nothing on the render path
 // reads state it has not subscribed to.
 export function getWeaponPanels(c: Character): WeaponPanelView[] {
-  return getWieldedWeapons(c).map(({ key, weapon, grip, itemId, natural }) => ({
+  return getWieldedWeapons(c).map(({ key, weapon, grip, itemId, natural, broken }) => ({
     key,
     name: weapon.name,
     scale: weapon.scale,
@@ -130,9 +132,10 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     grip,
     itemId,
     natural,
+    broken,
     shield: weapon.shield ? { cover: weapon.shield.cover, body: weapon.shield.body } : null,
     rows: getWeaponAttackRows(weapon)(c).map((row) => {
-      const usable = isWieldable(weapon, c) && isAttackUsable(row.handed, grip)
+      const usable = !broken && isWieldable(weapon, c) && isAttackUsable(row.handed, grip)
       return {
         ...row,
         usable,
@@ -157,6 +160,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.grip,
         panel.itemId,
         panel.natural,
+        panel.broken,
         panel.shield ? `${panel.shield.cover}/${panel.shield.body}` : '',
         panel.rows
           .map((r) =>

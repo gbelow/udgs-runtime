@@ -197,6 +197,18 @@ const AttackDeclaration = {
   part: str.nullable().default(null),
 }
 
+// gear.tex "Equipment Breakage": a blow met by a block or a guard strikes the
+// object in the way, and the attacker's own weapon with it. The percentiles
+// are thrown with the roll, one per object; `broke` is written at the resolve:
+// the items the blow broke and whose they were.
+export const BrokenItemSchema = z.object({ ownerId: str, itemId: str })
+export type BrokenItem = z.infer<typeof BrokenItemSchema>
+
+const Breakage = {
+  breakRolls: z.object({ defender: num, attacker: num }).default({ defender: 0, attacker: 0 }),
+  broke: z.array(BrokenItemSchema).default([]),
+}
+
 // combat.tex "Sweeping Attack": "Decide whether to attack from right to left
 // or vice versa" — the way the arc turns from the target, declared with a
 // sweeping variation by whoever strikes: a strike, or the opportunity attack
@@ -305,6 +317,7 @@ export const StrikeActionSchema = z.object({
   // it's the SD"
   opportunity: z.boolean().default(false),
   facts: DeliverySchema.nullable().default(null),
+  ...Breakage,
   // what landing did to the target's action, written at the resolve: a move
   // an opportunity attack interrupted is cut short by it
   interruption: InterruptionSchema.default('none'),
@@ -342,6 +355,7 @@ export const ShootActionSchema = z.object({
   kind: z.literal('shoot'),
   ...AttackDeclaration,
   facts: DeliverySchema.nullable().default(null),
+  ...Breakage,
   // what landing did to the target's action, written at the resolve: an
   // evader "interrupted" gets no move after the shot (combat.tex "Evasion")
   interruption: InterruptionSchema.default('none'),
@@ -869,6 +883,9 @@ export const CombatStateSchema = z.object({
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")
   fleeing: z.boolean().default(false),
+  // gear.tex "Equipment Breakage": "The equipment breakage function is
+  // optional" — whether blows put the objects they meet at risk
+  breakage: z.boolean().default(true),
   turnQueue: z.array(QueuedTurnSchema).default([]),
   // the characters whose flee is due once what is being played out is
   // done, in the order they declared it

@@ -42,7 +42,7 @@ export function useCombatRoster(): {
 }
 
 const NO_ONE = 'no active character'
-const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false }
+const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, breakage: true, breakageBar: NO_ONE }
 
 // play.tex "Combat" — the turn buttons for the active character, flat
 // primitives gated shallowly.

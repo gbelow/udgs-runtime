@@ -6,7 +6,7 @@ import { deliver, deliverAll, touchFire } from '../../character/commands/deliver
 import { chargeItem, consumeItem, dischargeItem, drawFromSource, dropItem, holdItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { findAmmoStack } from '../../item/rules/ammo'
-import { removeItemFromContainer } from '../../item/commands/items'
+import { breakItem, removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
 import { onFloor, withoutOne } from '../rules/floor'
@@ -57,7 +57,8 @@ export function reduceCharacter(action: Action, phase: Phase, fire: FireTouched 
   return (c: CampaignCharacter) => {
     const reduced = reducePart(action, phase)(c)
     if (phase !== 'resolve') return reduced
-    const touched = fire?.id === c.id ? touchFire(fire.fire)(reduced) : reduced
+    const damaged = isAttackAction(action) ? action.broke.filter((b) => b.ownerId === c.id).reduce((acc, b) => breakItem(b.itemId)(acc), reduced) : reduced
+    const touched = fire?.id === c.id ? touchFire(fire.fire)(damaged) : damaged
     return getInterruptionOf(action, c.id) !== 'none' ? loseConcentration(touched) : touched
   }
 }

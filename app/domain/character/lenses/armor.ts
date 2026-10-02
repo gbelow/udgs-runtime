@@ -7,7 +7,8 @@ import { armorFits, getArmor, getDoffCost, getPieceCost } from '../rules/armor'
 export type ArmorPanelView = {
   name: string
   // The worn item, or null when the creature wears only its own hide.
-  worn: { id: string; name: string; scale: number; fits: boolean; doffCost: number | null; canDoff: boolean } | null
+  // gear.tex "Armor Breakage": broken armor is pitted.
+  worn: { id: string; name: string; scale: number; fits: boolean; pitted: boolean; doffCost: number | null; canDoff: boolean } | null
   burdenPenalty: number
   deflection: number
   material: Material
@@ -27,6 +28,7 @@ export function getArmorPanel(c: Character): ArmorPanelView {
           name: c.worn.name || c.worn.refId,
           scale: getItemScale(c.worn),
           fits: armorFits(c),
+          pitted: c.worn.broken,
           doffCost: isCharged(c) && doff ? doff.AP : null,
           canDoff: !isCharged(c) || doff !== null,
         }

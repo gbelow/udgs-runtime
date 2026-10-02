@@ -9,6 +9,7 @@ import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
 import { getMoveFacts } from './move'
 import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
+import { getBlowBreakage } from './breakage'
 
 // The action as it lands: closed, with what it came to written down per
 // kind, read off the state as it stands. The resolve writes exactly this,
@@ -25,11 +26,11 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
   switch (open.kind) {
     case 'strike': {
       const facts = getAttackFacts(state, open)
-      return { ...open, step: 'done', facts, ...getStrikeLanding(state, open, facts) }
+      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, facts), ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
       const facts = getAttackFacts(state, open)
-      return { ...open, step: 'done', facts, interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
+      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, facts), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest': return { ...open, step: 'done' }

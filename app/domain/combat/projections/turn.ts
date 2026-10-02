@@ -1,6 +1,7 @@
 import type { CombatState } from '../types'
 import { getContestBar, getContenders, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getFightName } from '../rules/fighters'
+import { getBreakageBar } from '../rules/breakage'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
@@ -18,6 +19,10 @@ export type TurnControls = {
   end: string | null
   result: string
   agreed: boolean
+  // gear.tex "Equipment Breakage": the optional rule on or off, and why it
+  // cannot be switched now
+  breakage: boolean
+  breakageBar: string | null
 }
 
 export function getTurnControls(state: CombatState, id: string): TurnControls {
@@ -33,6 +38,8 @@ export function getTurnControls(state: CombatState, id: string): TurnControls {
     end: getEndTurnBar(state),
     result: getContestResult(state),
     agreed: hasAgreedToEnd(state, id),
+    breakage: state.breakage,
+    breakageBar: getBreakageBar(state),
   }
 }
 

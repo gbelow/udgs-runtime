@@ -4,6 +4,7 @@ import * as itemCommands from './item/commands'
 import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
 import * as turnModule from './combat/commands/turn'
+import * as breakageModule from './combat/commands/breakage'
 import * as actionsModule from './combat/commands/action'
 import * as choicesModule from './combat/commands/choices'
 import * as boardModule from './combat/commands/board'
@@ -21,7 +22,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -131,6 +132,8 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   duplicateItem: (c) => itemCommands.duplicateItem(c.containers.belt.slots.quick.items[0], { amount: 2 }),
   addItemToContainer: itemCommands.addItemToContainer('belt', 'quick', ItemSchema.parse({ name: 'Ration', bulk: 1 })),
   removeItemFromContainer: (c) => itemCommands.removeItemFromContainer('belt', c.containers.belt.slots.quick.items[0].id)(c),
+  breakItem: itemCommands.breakItem(daggerItem.id),
+  repairItem: itemCommands.repairItem(daggerItem.id),
   equipContainer: itemCommands.equipContainer('pack', ContainerSchema.parse({ name: 'Backpack', kind: 'backpack' })),
   putOnFromCatalog: itemCommands.putOnFromCatalog(ItemSchema.parse({ name: 'Sled', type: 'container', refId: 'Sled', bulk: 5, container: { name: 'Sled', kind: 'vehicle' } })),
   putOnFromHands: (c) => itemCommands.putOnFromHands('sled')(itemCommands.holdItem(ItemSchema.parse({ id: 'sled', name: 'Sled', type: 'container', refId: 'Sled', bulk: 2, container: { name: 'Sled', kind: 'vehicle' } }))(c)),
@@ -160,6 +163,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
+  toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
   toggleContest: (s) => combatCommands.toggleContest('b')(deepFreeze(cleared(s))),
   toggleAgreeToEnd: (s) => combatCommands.toggleAgreeToEnd('b')(deepFreeze(cleared(s))),
