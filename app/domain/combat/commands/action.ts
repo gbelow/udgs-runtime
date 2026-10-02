@@ -17,6 +17,8 @@ import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
+import { updateCharacter } from './characters'
+import { actionSurge } from '../../character/commands/actionSurge'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -138,12 +140,14 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const open = getAnswerableOpen(state)
     if (!open) return state
     if (!canAnswer(open, actorId)) return state
-    if (!findOption(state, actorId, draft)?.available) return state
+    const chosen = findOption(state, actorId, draft)
+    if (!chosen?.available) return state
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
     const reaction = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
-    return pruneReactions(setActions(state, [...withoutLiveReaction(state, open.id, actorId), reaction]))
+    const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge))(state) : state
+    return pruneReactions(setActions(paid, [...withoutLiveReaction(paid, open.id, actorId), reaction]))
   }
 }
 

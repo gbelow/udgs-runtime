@@ -1,10 +1,12 @@
-import type { CampaignCharacter } from '../../types'
-import type { Action, ActionDraft, ActionKind, ActionOf, CombatState, DeclarableKind } from '../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
+import type { Action, ActionDraft, ActionKind, ActionOf, CombatState, DeclarableKind, RootAction } from '../types'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
+import { canSurge } from '../../character/rules/surge'
+import { actionSurge } from '../../character/commands/actionSurge'
 import { hasGrant } from '../../character/rules/abilities'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { isProne } from './ground'
@@ -44,10 +46,12 @@ export type ActionOption = {
   reactionTo: string | null
   // a reaction the character has already declared
   chosen: boolean
+  // the surge to make first, for a reaction the character can pay only with it
+  surge: SurgeKind | null
 }
 
 function option(draft: ActionDraft, cost: ActionCost | null, reason: string | null, reactionTo: string | null = null, chosen = false): ActionOption {
-  return { draft, cost, available: reason === null, reason, reactionTo, chosen }
+  return { draft, cost, available: reason === null, reason, reactionTo, chosen, surge: null }
 }
 
 // combat.tex "Grapple" — "Attack and Defend": "It is not possible to evade or
@@ -100,6 +104,26 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
+  return withReactionSurge(state, c, open)
+}
+
+// combat.tex "Action surge": the reaction surge is made outside one's own turn,
+// so a reaction the character cannot pay now is still open to them if the
+// surge would let them — the surge made first, then the reaction.
+function withReactionSurge(state: CombatState, c: CampaignCharacter, open: RootAction): ActionOption[] {
+  const now = getAnswers(state, c, open)
+  if (now.every((o) => o.available) || !canSurge('reaction')(c)) return now
+  const surged = actionSurge('reaction')(c)
+  const after = getAnswers({ ...state, characters: { ...state.characters, [c.id]: surged } }, surged, open)
+  return now.map((o) => {
+    if (o.available) return o
+    const viaSurge = after.find((a) => a.available && sameDraft(a.draft, o.draft))
+    return viaSurge ? { ...viaSurge, surge: 'reaction' } : o
+  })
+}
+
+function getAnswers(state: CombatState, c: CampaignCharacter, open: RootAction): ActionOption[] {
+  const characterId = c.id
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 

@@ -29,6 +29,11 @@ export function getActionNoun(action: ActionDraft): string {
 // The button an option is shown as: what its draft declares, and for a
 // defense made with something, what it is made with.
 export function getOptionLabel(state: CombatState, actorId: string, option: ActionOption): string {
+  const label = getDraftLabel(state, actorId, option)
+  return option.surge ? `${label} (${option.surge} surge first)` : label
+}
+
+function getDraftLabel(state: CombatState, actorId: string, option: ActionOption): string {
   const draft = option.draft
   switch (draft.kind) {
     case 'block':
