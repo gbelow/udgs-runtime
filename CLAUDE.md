@@ -33,7 +33,7 @@ Pure, synchronous, deterministic, zero React dependencies. Each part of the doma
 
 A file that mixes a rule with its view is split, not filed under whichever half is bigger.
 
-Before working in `combat/`, read `instructions/combat-map.md`: the action pipeline, the stack and its sequencing, how an action lands, and a map of every file.
+Before working in `combat/`, read `instructions/combat-map.md`: the action pipeline, the stack and its sequencing, and a map of every file. It points to detail files under `instructions/combat-map/` (mechanics, landing, board); read only the one the change touches.
 
 Rule invariant: derived wound/stat values scale STR by the size damage-multiplier and add the stored base term unscaled — `floor(0.5 * STR * DM + base)` (see `getTGH`). This form keeps the base at a `+1` coefficient so the generic lens setter inverts at every size. Never add a setter that bypasses this — change the base, not the derived output. (The commented-out `getRES`/`getINS` still use the older `floor((0.5 * STR + base) * DM)`; reconcile them to the current form if you revive them.)
 
