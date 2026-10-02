@@ -5,7 +5,7 @@ import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockCap, getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
+import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/helpers'
@@ -42,7 +42,8 @@ function getDefense(state: CombatState, root: AttackAction): Defense {
       defenseAP,
       defenseWeaponKey: reaction.weaponKey,
       block: row ? getBlockValue(row.atk, row.weapon, reactor) ?? 0 : 0,
-      blockCap: row ? getBlockCap(row.atk, row.weapon) : null,
+      // combat.tex "Damage absorption": "The absorption value is RES of the target if that is an object"
+      blockCap: row ? row.atk.RES : null,
       shield: row?.weapon.shield !== undefined,
     }
   }

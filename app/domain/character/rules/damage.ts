@@ -42,9 +42,11 @@ export type Outcome = {
   // burn received has been added and the damage applied; null when no burn
   // was received
   burning: number | null
+  // the physical damage that got past the defense and reached the armor
+  arrived: { blunt: number; cut: number }
 }
 
-const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false, burning: null }
+const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false, burning: null, arrived: { blunt: 0, cut: 0 } }
 
 // combat.tex "Types of damage": the armor value each kind is defended by —
 // "Blunt damage: is defended by armor protection", "Cutting damage: is
@@ -136,16 +138,23 @@ export function getUndefendedDamage(damage: number, degree: Degree): number {
   }
 }
 
+function arrivedOf(measured: { type: DamageKind; damage: number }[], kind: DamageKind): number {
+  return measured.filter((m) => m.type === kind).reduce((sum, m) => sum + m.damage, 0)
+}
+
 // combat.tex "Hand": "Hands have no armor unless the character is wearing
 // gauntlets"; "Head": "Armor bypass at the head hits flesh, which ignores all
 // armor" — unless a closed helmet's visor is down (gear.tex "Closed helmet":
-// "armor bypass is impossible in the head"). Bare flesh is the armor
-// schema's own default.
+// "armor bypass is impossible in the head").
+export function isArmorBare(target: Character, facts: Damage): boolean {
+  if (facts.location === 'hand' && !target.hasGauntlets) return true
+  return facts.location === 'head' && facts.bypass && !isVisorClosed(target)
+}
+
+// Bare flesh is the armor schema's own default.
 function armorAt(target: Character, facts: Damage): Armor {
   const armor = getArmor(target)
-  if (facts.location === 'hand' && !target.hasGauntlets) return { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] }
-  if (facts.location === 'head' && facts.bypass && !isVisorClosed(target)) return { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] }
-  return armor
+  return isArmorBare(target, facts) ? { ...armor, name: 'flesh', material: 'flesh', RES: 0, protection: 0, INS: 0, properties: [] } : armor
 }
 
 // combat.tex "Damage Tiers": tier N is met at armor + N x TGH.
@@ -190,9 +199,10 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
 
   const burnt = measured.find((m) => isBurning(m.type) && m.damage > 0)
   const burning = burnt ? Math.floor(burnt.damage / 2) : null
+  const arrived = { blunt: arrivedOf(measured, 'blunt'), cut: arrivedOf(measured, 'cut') }
   const tiers = Object.fromEntries(measured.map((m) => [m.type, m.tier])) as Outcome['tiers']
   const best = measured.reduce<(typeof measured)[number] | null>((b, m) => (b === null || m.damage - m.armor > b.damage - b.armor ? m : b), null)
-  if (!best || best.tier === null) return { ...NOTHING, ...(best ? { type: best.type, damage: best.damage, armor: best.armor } : {}), tiers, burning }
+  if (!best || best.tier === null) return { ...NOTHING, ...(best ? { type: best.type, damage: best.damage, armor: best.armor } : {}), tiers, burning, arrived }
 
   const cap = LOCATIONS[facts.location].maxTier
   const bodyTier = cap === null ? best.tier : Math.min(best.tier, cap)
@@ -215,6 +225,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
     bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed : 0,
     ...effectsOf(facts, target, best.tier, tiers, piercing),
     burning,
+    arrived,
   }
 }
 

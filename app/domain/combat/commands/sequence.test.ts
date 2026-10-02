@@ -1012,3 +1012,40 @@ describe('a blow a block met', () => {
     expect(struck('Longsword', 'block', MISS, 0, false).characters.def.held[0].broken).toBe(false)
   })
 })
+
+// gear.tex "Equipment Breakage": armor takes the blow that lands on it like
+// any object, and "Armor Breakage": broken armor is pitted. A gambeson is
+// fibre, RES 10, hardness 2.
+describe('a blow that lands on armor', () => {
+  const gambeson = ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
+
+  // `weapon` (bare hands for null) strikes a gambeson-wearer who stands on
+  // their SD. The strike is thrown with `die`, then every percentile digit is
+  // `digit`.
+  function struck(weapon: string | null, die: number, digit: number, breakage = true): CombatState {
+    const attacker = weapon ? wielder('atk', weapon) : fighter('atk')
+    let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, attacker, { ...fighter('def'), worn: gambeson }), breakage }
+    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    let thrown = 0
+    return resolveAction(newId)(rollAction(() => (thrown++ === 0 ? die : digit), newId)(s))
+  }
+  const pitted = (s: CombatState) => s.characters.def.worn?.broken
+
+  it('pits the armor on a low percentile when the blow reaches its RES', () => {
+    expect(pitted(struck('Longsword', 9, 0))).toBe(true)
+  })
+
+  it('is not at risk from a fist, whatever the percentile', () => {
+    expect(pitted(struck(null, 9, 0))).toBe(false)
+  })
+
+  it('is not at risk from a piercing thrust short of 3x its RES', () => {
+    expect(pitted(struck('Short Spear', 9, 0))).toBe(false)
+  })
+
+  it('is not at risk with the rule switched off', () => {
+    expect(pitted(struck('Longsword', 9, 0, false))).toBe(false)
+  })
+})

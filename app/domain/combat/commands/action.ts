@@ -6,7 +6,7 @@ import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDecl
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
-import { getBreakingDefense } from '../rules/breakage'
+import { needsBreakRolls } from '../rules/breakage'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
 import { rollPercent, type Dice } from '../dice'
@@ -231,7 +231,7 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     // charge, thrown with the cast
     const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) }
       : rolled.kind === 'cut' ? { ...rolled, breakRoll: rollPercent(dice) }
-      : (rolled.kind === 'strike' || rolled.kind === 'shoot') && getBreakingDefense(state, rolled) ? { ...rolled, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice) } }
+      : (rolled.kind === 'strike' || rolled.kind === 'shoot') && needsBreakRolls(state, rolled) ? { ...rolled, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice), armor: rollPercent(dice) } }
       : rolled
     return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }

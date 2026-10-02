@@ -279,8 +279,10 @@ resolveAction ─────────► land(top)
   any of the sweep's targets. None of the sweep's targets may protect another.
 - **Breakage** (`rules/breakage.ts`, `character/rules/breakage.ts`) — a block or guard that meets a
   graze or a miss puts the object in the way at risk, and a strike's own weapon takes the impact
-  back (gear.tex "Equipment Breakage"; a piercing blow breaks only above 3x RES). `rollAction`
-  throws two percentiles for such a blow (`breakRolls`), `getSettled` writes the items it broke
+  back; what gets past the defense (`Outcome.arrived`) strikes the armor worn, unless the body is
+  bare there (`isArmorBare`) (gear.tex "Equipment Breakage"; a piercing blow breaks only above 3x
+  RES). A block absorbs at most the RES of the object it blocks with (`getBlockCap`). `rollAction`
+  throws three percentiles for a blow that puts anything at risk (`needsBreakRolls`: `breakRolls`), `getSettled` writes the items it broke
   (`broke`), and `reduceCharacter` breaks them on their owners (`breakItem`). A broken item is not
   usable (`isRowUsable`); a guard declared before its shield broke still counts as having guarded
   (`isRowHeld`). `state.breakage` switches the optional rule off (`toggleBreakage`, refused while

@@ -77,12 +77,6 @@ export function getBlockValue(atk: WeaponAttack, weapon: Weapon, c: Character): 
   return Math.floor(multiplier * getSTR(c) * dmgArr[weapon.scale - 1])
 }
 
-// The most a shield absorbs, whatever its block value comes to: its RES (the
-// table's ruling); null for anything that is not a shield.
-export function getBlockCap(atk: WeaponAttack, weapon: Weapon): number | null {
-  return weapon.shield ? atk.RES : null
-}
-
 // combat.tex "Strike": a strike is a melee weapon attack, and it is the strike
 // that carries the wielder's strength: 0.5 x STR x DM — current STR, the
 // wielder's DM — on blunt and cut alike. A shot or a throw does not get it,
