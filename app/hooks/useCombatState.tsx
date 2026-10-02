@@ -1,6 +1,7 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
+import { getMoraleDigest, getMoraleRows, MoraleRow } from "../domain/combat/projections/morale";
 import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
@@ -56,4 +57,11 @@ export function useCombatSurgeOptions(): SurgeOption[] {
   useCombatStore((s) => (s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId).map((o) => `${o.kind}:${o.title}:${o.available ? 1 : 0}:${o.used ? 1 : 0}`).join('|') : ''));
   const s = useCombatStore.getState();
   return s.activeCharacterId ? getCombatSurgeOptions(s, s.activeCharacterId) : [];
+}
+
+// combat.tex "Morale" — who the round called to a test and how each went,
+// gated on a digest since the rows are freshly allocated.
+export function useMorale(): MoraleRow[] {
+  useCombatStore(getMoraleDigest);
+  return getMoraleRows(useCombatStore.getState());
 }

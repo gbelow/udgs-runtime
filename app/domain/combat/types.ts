@@ -3,6 +3,7 @@ import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, Spel
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, PUSH_MOVEMENTS } from '../lists'
 import { SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
+import { ROLL_MODES } from './dice'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
 export type { Degree, HitLocation, Interruption } from '../types'
@@ -847,6 +848,22 @@ export type ActionDraft = {
   [K in ActionKind]: { kind: K } & Partial<Omit<ActionOf<K>, keyof typeof ActionBase | 'kind' | 'facts'>>
 }[ActionKind]
 
+// combat.tex "Morale": a character called to a morale test at the beginning of
+// the round, and — once it is made — what it was and whether it activated
+// their limit stress action.
+export const MoraleRollSchema = z.object({
+  mode: z.enum(ROLL_MODES),
+  die: z.number(),
+  skill: z.number(),
+  score: z.number(),
+  DL: z.number(),
+  degree: DegreeSchema,
+  limitStress: z.boolean(),
+})
+export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+export type MoraleRoll = z.infer<typeof MoraleRollSchema>
+export type MoraleCall = z.infer<typeof MoraleCallSchema>
+
 // A contest for the turn as it was rolled: each contender's cunning roll, in
 // the order they asked, the holder first, and who took the turn.
 export const ContestRollSchema = z.object({ id: z.string(), die: z.number(), skill: z.number(), score: z.number() })
@@ -884,6 +901,9 @@ export const CombatStateSchema = z.object({
   // combat.tex "End of the round": who has said they agree to end it; who
   // has nothing left to spend agrees without saying so
   agreedToEnd: z.array(z.string()).default([]),
+  // combat.tex "Morale": who the beginning of this round called to a test, and
+  // the tests made
+  morale: z.array(MoraleCallSchema).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")

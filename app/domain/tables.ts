@@ -314,6 +314,12 @@ export const SURGES = {
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 
+// combat.tex "Morale": "Combat morale DL = aggravating factors", and a test is
+// triggered at the beginning of a round when they total MORALE_TRIGGER or more.
+// `injured` is per injury penalty.
+export const MORALE_AGGRAVATORS = { oblivious: 3, disoriented: 2, injured: 2, burning: 5, outOfSTA: 2 } as const
+export const MORALE_TRIGGER = 5
+
 // combat.tex "running": "The first 2 AP worth of running must be
 // uninterrupted, otherwise, running cannot be started".
 export const RUN_START_AP = 2

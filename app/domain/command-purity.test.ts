@@ -11,6 +11,7 @@ import * as boardModule from './combat/commands/board'
 import * as bindModule from './combat/commands/bind'
 import * as floorModule from './combat/commands/floor'
 import * as charactersModule from './combat/commands/characters'
+import * as moraleModule from './combat/commands/morale'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
@@ -22,7 +23,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -161,6 +162,7 @@ const newId = () => 'issued'
 // fight in another phase are run on a frozen state one command along.
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0),
+  rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),

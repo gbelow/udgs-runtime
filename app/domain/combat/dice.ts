@@ -2,7 +2,8 @@
 // the source of entropy is injected, keeping the domain deterministic and
 // unit-testable (feed a scripted rng to exercise every path).
 
-export type RollMode = 'normal' | 'safe' | 'risky'
+export const ROLL_MODES = ['normal', 'safe', 'risky'] as const
+export type RollMode = (typeof ROLL_MODES)[number]
 
 // The die a command is handed: thrown by whoever holds the entropy, told by
 // the test whether it explodes.
@@ -33,11 +34,11 @@ export function rollD10(explodes: boolean, rng: () => number): number {
 // included, and only then compared — safe keeps the one closest to 5, risky
 // the one farthest. Two different results equally far from 5 are a draw and
 // are thrown again.
-export function rollTest(mode: RollMode, explodes: boolean, rng: () => number): number {
-  if (mode === 'normal') return rollD10(explodes, rng)
+export function rollModed(mode: RollMode, explodes: boolean, dice: Dice): number {
+  if (mode === 'normal') return dice(explodes)
   for (;;) {
-    const a = rollD10(explodes, rng)
-    const b = rollD10(explodes, rng)
+    const a = dice(explodes)
+    const b = dice(explodes)
     const da = Math.abs(a - 5)
     const db = Math.abs(b - 5)
     if (da === db && a !== b) continue

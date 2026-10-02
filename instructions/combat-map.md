@@ -213,7 +213,7 @@ app/domain/combat/
 ├── types.ts            CombatState, Board, every Action schema, derived action types
 ├── factories.ts        makeAction, makeBoard (ingestion), addCharacterToCombat
 ├── geometry.ts         hex math, no rules
-├── dice.ts             d10 with explosions; rollTest (safe/risky) drawn ahead, unwired
+├── dice.ts             d10 with explosions; rollModed (normal, safe or risky) over any Dice
 │
 ├── commands/                        the write side
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
@@ -228,6 +228,7 @@ app/domain/combat/
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
+│   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
@@ -268,6 +269,7 @@ app/domain/combat/
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
+│   ├── morale.ts       aggravators and the DL, who a round calls to a test, the outcome of each degree; `state.morale` holds the calls, and a turn waits on them
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
@@ -275,7 +277,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts, morale.ts
     └── perState.ts     memoize once per state object
 ```
 

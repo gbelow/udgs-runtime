@@ -5,6 +5,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { hasAPLeft } from '../../character/rules/surge'
 import { getOpenAction } from './log'
 import { getFightName } from './fighters'
+import { getMoraleTurnBar } from './morale'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
 // ask, first to play' basis that can be contested by other characters". A
@@ -38,10 +39,11 @@ function getTurnlessReason(state: CombatState, id: string): string | null {
 }
 
 // Why the character cannot start a turn now, or null: nobody else may hold
-// one and nothing may be being played out.
+// one, nothing may be being played out, and the round's morale tests (combat.tex
+// "Morale": "at the beginning of a round") come first.
 export function getStartTurnBar(state: CombatState, id: string): string | null {
   if (getTurnHolder(state) === id) return 'already in turn'
-  return getFightBusy(state) ?? getTurnlessReason(state, id)
+  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state)
 }
 
 // What the fight is busy with, if anything: someone's turn, or an action

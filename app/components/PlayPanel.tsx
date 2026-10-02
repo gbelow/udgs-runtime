@@ -10,7 +10,8 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useTurnControls } from '../hooks/useCombatState';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useMorale, useTurnControls } from '../hooks/useCombatState';
+import { ROLL_MODES } from '../domain/combat/dice';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -63,6 +64,7 @@ export function PlayPanel(){
         <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>next round</Button>
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
+      <MoralePanel />
       {
         isThereActiveCharacter ?
         <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3'>
@@ -421,6 +423,43 @@ function TurnControl(){
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
       {result ? <span className='text-xs text-muted'>{result}</span> : null}
+    </div>
+  )
+}
+
+// combat.tex "Morale": the round begins with a will test for whoever the fight
+// has under stress, made normally, safely or riskily; a miss activates the
+// limit stress action, which the table plays out. Whether an enemy is within
+// 30 m is the table's to say.
+function MoralePanel(){
+  const rows = useMorale()
+  const { rollMorale } = useCombatCommands()
+  const [enemyNear, setEnemyNear] = useState(true)
+  if (rows.length === 0) return null
+
+  return(
+    <div className='flex flex-col gap-1 py-2 border-b border-line text-sm'>
+      <div className='flex flex-row gap-3 items-center'>
+        <SectionLabel>Morale</SectionLabel>
+        <label className='flex gap-1 items-center text-xs text-muted'>
+          <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
+          enemy within 30 m
+        </label>
+      </div>
+      {rows.map((r) => (
+        <div key={r.id} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
+          <span className='font-medium'>{r.name}</span>
+          <span className='text-muted'>DL <span className='font-mono text-fg'>{r.DL}</span>{r.aggravators ? ` (${r.aggravators})` : ''}</span>
+          {
+            !r.result ?
+            ROLL_MODES.map((mode) => (
+              <Button key={mode} size='xs' aria-label={`morale ${mode} ${r.name}`} onClick={() => rollMorale(r.id, mode, enemyNear)}>{mode}</Button>
+            )) :
+            <span className='text-xs text-muted'>{r.result}</span>
+          }
+          {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action</span> : null}
+        </div>
+      ))}
     </div>
   )
 }

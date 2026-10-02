@@ -3,6 +3,8 @@ import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as begi
 import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
+import { rollMorale as testMorale } from "../domain/combat/commands/morale"
+import type { RollMode } from "../domain/combat/dice"
 import { useCombatStore } from "../stores/useCombatStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
@@ -56,6 +58,10 @@ export function useCombatCommands() {
     updateCombatState(passRound(realDice))
   }
 
+  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => {
+    updateCombatState(testMorale(id, mode, enemyNear, realDice))
+  }
+
   const resetCombat = () => {
     updateCombatState(resetGame)
   }
@@ -64,5 +70,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, resetCombat, toggleBreakage }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, resetCombat, toggleBreakage }
 }

@@ -13,6 +13,7 @@ import { loseConcentration, payHeldSources } from '../../character/commands/spel
 import type { CombatState } from '../types'
 import { getHazardOf } from '../rules/hazard'
 import { isSuffocating } from '../rules/situational'
+import { getMoraleCalled } from '../rules/morale'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -43,10 +44,13 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 }
 
 // combat.tex "Environmental and ongoing effects": "applied at the beginning
-// of the round", to whoever stands in them as the ground is now.
+// of the round", to whoever stands in them as the ground is now. combat.tex
+// "Morale": the round begins by calling to a test whoever the fight, as the
+// round change left it, puts under enough stress.
 export function nextRound(dice: Dice): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    return { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [] }
+    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [] }
+    return { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
   }
 }
