@@ -2,6 +2,7 @@ import type { SurgeKind } from '../../types'
 import type { CombatState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
+import { hasAPLeft } from '../../character/rules/surge'
 import { getOpenAction } from './log'
 import { getFightName } from './fighters'
 
@@ -85,10 +86,23 @@ export function getSurgeTurnBar(state: CombatState, id: string, kind: SurgeKind)
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
 }
 
+// combat.tex "End of the round": "A round ends when no one has AP left and
+// the remaining agree to end the round." Someone agrees by saying so, or
+// without saying anything once they have no AP left and no surge that
+// would give them more; the dead have nothing left to agree to.
+export function hasAgreedToEnd(state: CombatState, id: string): boolean {
+  const c = state.characters[id]
+  if (!c) return true
+  return state.agreedToEnd.includes(id) || isDead(c) || !hasAPLeft(c)
+}
+
 // Why the round cannot be passed now, or null: a turn under way has to be
-// ended first, the table's ruling.
+// ended first, the table's ruling, and everyone has to agree.
 export function getNextRoundBar(state: CombatState): string | null {
-  return getFightBusy(state)
+  const busy = getFightBusy(state)
+  if (busy) return busy
+  const waiting = Object.keys(state.characters).filter((id) => !hasAgreedToEnd(state, id))
+  return waiting.length > 0 ? `waiting for ${waiting.map((id) => getFightName(state, id)).join(', ')} to agree` : null
 }
 
 // Why the turn cannot be ended now, or null.

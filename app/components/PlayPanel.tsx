@@ -391,8 +391,8 @@ function AfflictionsPannel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, rollContest, endTurn } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result } = useTurnControls()
+  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed } = useTurnControls()
 
   return(
     <div className='flex flex-col gap-0.5'>
@@ -418,6 +418,9 @@ function TurnControl(){
             <Button aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</Button>
           </Tooltip> : null
         }
+        <Tooltip text='agree to end the round'>
+          <Button aria-label='agreeToEnd' aria-pressed={agreed} active={agreed} onClick={toggleAgreeToEnd}>end round ok</Button>
+        </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
       {result ? <span className='text-xs text-muted'>{result}</span> : null}

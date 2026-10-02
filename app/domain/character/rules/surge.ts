@@ -4,6 +4,7 @@ import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
 import { hasAffliction } from "./afflictions"
 import { isCampaignCharacter } from "../../utils"
+import { surgeKinds } from "../../lists"
 
 export function getUsedSurge(c: CampaignCharacter): SurgeKind | null {
   return c.usedSurge
@@ -27,6 +28,13 @@ export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
     if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
     return !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
+}
+
+// Whether the character has AP to spend, or a surge that would give them
+// some.
+export function hasAPLeft(c: CampaignCharacter): boolean {
+  if (c.resources.AP > 0 || c.resources.surgeAP > 0) return true
+  return surgeKinds.some((kind) => canSurge(kind)(c) && getSurgeAP(kind)(c) > 0)
 }
 
 export type EarmarkedSurge = { [K in SurgeKind]: (typeof SURGES)[K]['earmarked'] extends true ? K : never }[SurgeKind]

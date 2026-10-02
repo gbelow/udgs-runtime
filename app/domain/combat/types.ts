@@ -769,6 +769,9 @@ export const CombatStateSchema = z.object({
   // contest once it is rolled — a turn is contested once
   contenders: z.array(z.string()).default([]),
   lastContest: ContestSchema.nullable().default(null),
+  // combat.tex "End of the round": who has said they agree to end it; who
+  // has nothing left to spend agrees without saying so
+  agreedToEnd: z.array(z.string()).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")

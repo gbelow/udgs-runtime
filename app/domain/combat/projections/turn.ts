@@ -1,11 +1,12 @@
 import type { CombatState } from '../types'
-import { getContestBar, getContenders, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, isInTurn } from '../rules/turn'
+import { getContestBar, getContenders, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getFightName } from '../rules/fighters'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
-// to contest it, and why each button is closed, null where it is open. Flat
-// primitives, so a hook can gate on them shallowly.
+// to contest it, whether they agree to end the round, and why each button is
+// closed, null where it is open. Flat primitives, so a hook can gate on them
+// shallowly.
 export type TurnControls = {
   holder: string
   inTurn: boolean
@@ -16,6 +17,7 @@ export type TurnControls = {
   roll: string | null
   end: string | null
   result: string
+  agreed: boolean
 }
 
 export function getTurnControls(state: CombatState, id: string): TurnControls {
@@ -30,6 +32,7 @@ export function getTurnControls(state: CombatState, id: string): TurnControls {
     roll: getRollContestBar(state),
     end: getEndTurnBar(state),
     result: getContestResult(state),
+    agreed: hasAgreedToEnd(state, id),
   }
 }
 

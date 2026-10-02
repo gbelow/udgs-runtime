@@ -164,6 +164,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
   toggleContest: (s) => combatCommands.toggleContest('b')(deepFreeze(cleared(s))),
+  toggleAgreeToEnd: (s) => combatCommands.toggleAgreeToEnd('b')(deepFreeze(cleared(s))),
   rollContest: (s) => combatCommands.rollContest(() => 5)(deepFreeze(combatCommands.toggleContest('b')(deepFreeze(cleared(s))))),
   surge: (s) => combatCommands.surge('a', 'combat')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, usedSurge: null } } })),
   declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(cleared(s))),

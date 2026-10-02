@@ -1,5 +1,5 @@
 import { nextRound as passRound } from "../domain/combat/commands/nextRound"
-import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleContest as toggleTurnContest } from "../domain/combat/commands/turn"
+import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/combat/commands/turn"
 import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { useCombatStore } from "../stores/useCombatStore"
@@ -33,6 +33,11 @@ export function useCombatCommands() {
     if (id) updateCombatState(toggleTurnContest(id))
   }
 
+  const toggleAgreeToEnd = () => {
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) updateCombatState(toggleAgreement(id))
+  }
+
   const rollContest = () => {
     updateCombatState(rollTurnContest(realDice))
   }
@@ -54,5 +59,5 @@ export function useCombatCommands() {
     updateCombatState(resetGame)
   }
 
-  return { killCharacter, startTurn, toggleContest, rollContest, endTurn, actionSurge, nextRound, resetCombat}
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, resetCombat}
 }
