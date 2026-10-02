@@ -1,4 +1,5 @@
-import type { CombatState, Coord, Degree, Placement } from '../types'
+import type { Bind, CombatState, Coord, Degree, Placement } from '../types'
+import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
 import { getFootprint, getOccupancy } from '../rules/board'
@@ -13,7 +14,7 @@ import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
-import { getGrapples, getPartner, holds } from '../rules/partners'
+import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 import { getCellHazard } from '../rules/hazard'
 
@@ -88,12 +89,14 @@ export type BoardFloorItemView = {
   pickable: boolean
 }
 
-// A grapple pair, drawn as a link between the two tokens: `from`/`to` are
-// its ends at the rims of the two tokens, `forward` whether the first holds
-// the second and `back` the reverse (combat.tex "Grapple"). `title` says it
-// in words.
-export type BoardGrappleView = {
+// A bind between two characters, drawn as a link between the two tokens:
+// `from`/`to` are its ends at the rims of the two tokens, `forward` whether the
+// first holds the second and `back` the reverse (combat.tex "Grapple"; a net's
+// tether, gear.tex "Net"; a held arc, spells.tex "Sustained Lightning"). `title`
+// says it in words.
+export type BoardBindView = {
   key: string
+  kind: Bind['kind']
   from: { x: number; y: number }
   to: { x: number; y: number }
   forward: boolean
@@ -122,7 +125,7 @@ export type BoardView = {
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
-  grapples: BoardGrappleView[]
+  binds: BoardBindView[]
   // combat.tex "Push and drag": where everyone a push moves will stand once
   // it lands, drawn over the board before it does
   ghosts: BoardGhostView[]
@@ -135,7 +138,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], grapples: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 const HEX = Array.from({ length: 6 }, (_, i) => {
   const angle = (Math.PI / 180) * (60 * i - 30)
@@ -271,13 +274,13 @@ function buildBoardView(state: CombatState): BoardView {
     return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id) }]
   })
 
-  const grapples: BoardGrappleView[] = getGrapples(state).flatMap((g) => {
+  const binds: BoardBindView[] = state.binds.flatMap((g) => {
     const [a, b] = g.members
     const pa = board.placements[a]
     const pb = board.placements[b]
     if (!pa || !pb) return []
-    const title = g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} holds ${getFightName(state, getPartner(g, id))}`] : [])).join(' · ')
-    return [{ key: `${a}~${b}`, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
+    const title = g.members.flatMap((id) => (holds(g, id) ? [`${getFightName(state, id)} ${getBindVerb(g)} ${getFightName(state, getPartner(g, id))}`] : [])).join(' · ')
+    return [{ key: `${g.kind}:${a}~${b}`, kind: g.kind, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
   })
 
   const xs = cells.map((c) => c.x)
@@ -296,7 +299,7 @@ function buildBoardView(state: CombatState): BoardView {
     cells,
     tokens,
     floor,
-    grapples,
+    binds,
     ghosts,
     picker: pickable.size > 0 ? picker : null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
@@ -312,6 +315,15 @@ export const getBoardView = perState(buildBoardView)
 // The segment between two token centres that lies outside both tokens'
 // circles; the centres themselves when the tokens overlap.
 const TOKEN_RIM = 0.66
+
+// What a holder does to the one at the other end, as the link's title says it.
+function getBindVerb(b: Bind): string {
+  switch (b.kind) {
+    case 'grapple': return 'holds'
+    case 'tether': return 'has tied'
+    case 'arc': return `holds ${isSpellKey(b.key) ? SPELLS[b.key].name : b.key} on`
+  }
+}
 
 function rimToRim(from: { x: number; y: number }, to: { x: number; y: number }): { from: { x: number; y: number }; to: { x: number; y: number } } {
   const length = Math.hypot(to.x - from.x, to.y - from.y)

@@ -113,7 +113,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // actor, along a way the block allows
     case 'drag': {
       const actor = state.characters[action.actorId]
-      const speed = actor ? getPushMovements(actor).find((m) => m.kind === action.movement) : undefined
+      const speed = actor ? getPushMovements(actor, action.pull).find((m) => m.kind === action.movement) : undefined
       return state.board !== null && !!speed?.available && action.path.length > 0 && getGroupSteps(state, action) !== null
     }
     // nothing more to declare; a blast is generated with its way already

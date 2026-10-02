@@ -232,10 +232,11 @@ const BLOCK_AP = 2
 // combat.tex "Lame": "Cannot run ... or use basic movement".
 export type PushMovementOption = { kind: PushMovement; available: boolean; reason: string | null }
 
-export function getPushMovements(c: CampaignCharacter): PushMovementOption[] {
+// gear.tex "Net": a pull moves at careful speed only.
+export function getPushMovements(c: CampaignCharacter, pull = false): PushMovementOption[] {
   const lame = hasAffliction(c, 'lame')
   return PUSH_MOVEMENTS.map((kind) => {
-    const reason = lame && isLameBarred(kind) ? 'lame' : null
+    const reason = pull && kind !== 'careful' ? 'a pull is careful' : lame && isLameBarred(kind) ? 'lame' : null
     return { kind, available: reason === null, reason }
   })
 }

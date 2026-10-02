@@ -16,6 +16,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 export function getActionName(action: ActionDraft): string {
   if (action.kind === 'strike' && action.grab) return 'grab'
   if (action.kind === 'grapple' && action.maneuver) return action.maneuver
+  if (action.kind === 'drag' && action.pull) return 'pull'
   if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`
   return ACTIONS[action.kind].label
 }

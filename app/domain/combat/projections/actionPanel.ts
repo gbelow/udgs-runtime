@@ -22,6 +22,7 @@ import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } 
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
+import { getCutStrike } from '../rules/cut'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
@@ -313,6 +314,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const target = open.targetId ? state.characters[open.targetId] : undefined
   const reactions = getReactionsTo(state, open.id)
   const attack = isAttackAction(open) ? open : null
+  // a cut is swung with a row picked as a strike's is
+  const swung = attack ?? (open.kind === 'cut' ? getCutStrike(open) : null)
   const explosion = open.kind === 'explosion' ? open : null
   const cast = open.kind === 'cast' ? open : null
   const gear = cast && actor ? getCastGear(actor, cast) : null
@@ -341,9 +344,9 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       actor: getFightName(state, open.actorId),
       target: target?.fightName ?? null,
       targetId: open.targetId,
-      weapon: attack?.weaponKey ?? '',
-      attack: attack?.attack ?? '',
-      variant: attack?.variant ?? '',
+      weapon: swung?.weaponKey ?? '',
+      attack: swung?.attack ?? '',
+      variant: swung?.variant ?? '',
       location: attack?.location ?? 'chest',
       area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
       source: explosion?.source ?? null,
@@ -388,10 +391,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     report,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    attacks: attack && open.step === 'define' && actor
-      ? getFreeAttackOptions(state, actor, attack.kind)
-          .filter((o) => isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o))))
-          .map((o) => ({ ...o, selected: o.weaponKey === attack.weaponKey && o.attack === attack.attack && o.variant === attack.variant }))
+    attacks: swung && open.step === 'define' && actor
+      ? getFreeAttackOptions(state, actor, swung.kind)
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o)))))
+          .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
@@ -457,7 +460,7 @@ function getPushView(state: CombatState, drag: DragAction): PushView {
   const actor = state.characters[drag.actorId]
   return {
     movement: drag.movement,
-    movements: drag.step === 'define' && actor ? getPushMovements(actor) : [],
+    movements: drag.step === 'define' && actor ? getPushMovements(actor, drag.pull) : [],
     cells: drag.path.length,
     boost: drag.boost,
     boosted: sides.boosted.includes(drag.actorId),

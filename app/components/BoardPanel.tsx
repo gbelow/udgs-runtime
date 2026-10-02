@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
-import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardGrappleView, BoardTokenView } from '../domain/combat/projections/boardView'
+import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/combat/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
@@ -66,7 +66,7 @@ export function BoardPanel(){
         </defs>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
-        {view.grapples.map((g) => <GrappleLink key={g.key} link={g} />)}
+        {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId, f.pickable)} />)}
       </svg>
@@ -166,14 +166,22 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
   )
 }
 
-// Who holds whom: a link between the two tokens, an arrowhead at each one
-// held.
-function GrappleLink({ link }: { link: BoardGrappleView }){
+// What is bound to what: a link between the two tokens, an arrowhead at each
+// one held. A grapple is a solid line, a net's tether dashed, a held arc dotted
+// in the accent colour.
+const BIND_STROKE: Record<BoardBindView['kind'], { className: string; dash?: string }> = {
+  grapple: { className: 'stroke-fg' },
+  tether: { className: 'stroke-muted', dash: '0.3 0.15' },
+  arc: { className: 'stroke-accent', dash: '0.05 0.12' },
+}
+
+function BindLink({ link }: { link: BoardBindView }){
+  const { className, dash } = BIND_STROKE[link.kind]
   return (
     <g>
       <title>{link.title}</title>
       <line x1={link.from.x} y1={link.from.y} x2={link.to.x} y2={link.to.y}
-        className='stroke-fg' strokeWidth={0.08} strokeLinecap='round'
+        className={className} strokeWidth={0.08} strokeLinecap='round' strokeDasharray={dash}
         markerStart={link.back ? 'url(#grip)' : undefined} markerEnd={link.forward ? 'url(#grip)' : undefined} />
     </g>
   )
