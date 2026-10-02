@@ -14,7 +14,7 @@ import { getCarriedItems, getItemScale, hasAmmo, isGear, isMetalWeapon } from '.
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
 import { ABILITIES, isAbilityKey } from '../../abilities'
-import { getLinkDL, mayCastWhileConcentrating } from './concentration'
+import { mayCastWhileConcentrating } from './concentration'
 import { isAbilityActive, isSpellActive } from './effects'
 import { holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
 
@@ -78,10 +78,10 @@ export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character
 }
 
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by
-// Quicken when the caster forgoes the focus surge, and by every link the
-// caster holds (spells.tex "Telepathic Link").
-export function getCastingDL(c: Character, spell: Spell, quicken: boolean, extend = 0): number | null {
-  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + extend * EXTEND.DL + getLinkDL(c)
+// Quicken when the caster forgoes the focus surge, and by what the links the
+// caster holds add (spells.tex "Telepathic Link"), `linkDL`.
+export function getCastingDL(spell: Spell, quicken: boolean, extend = 0, linkDL = 0): number | null {
+  return spell.DL === null ? null : spell.DL + (quicken ? QUICKEN_DL : 0) + extend * EXTEND.DL + linkDL
 }
 
 // play.tex "Degrees of success": a hit is the DL + 5.

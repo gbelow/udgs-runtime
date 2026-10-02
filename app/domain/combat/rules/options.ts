@@ -230,8 +230,8 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   },
   // a held spell fired again without the casting test (the table's ruling)
   fireAgain: (state, c) => getFireAgainOptions(state, c).map(({ key, reason }) => option({ kind: 'fireAgain', key }, getRepeatCost(key), reason)),
-  cast: (_state, c) => {
-    const spells = getSpellOptions(c)
+  cast: (state, c) => {
+    const spells = getSpellOptions(state, c)
     const castable = spells.some((s) => s.castable || s.quickenable)
     return [option({ kind: 'cast' }, null, castable ? null : spells.length > 0 ? 'no spell castable now' : 'no spell learned')]
   },

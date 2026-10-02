@@ -433,7 +433,7 @@ app/domain/combat/
 │   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
-│   ├── bind.ts         which binds still hold (grapple, tether, arc): each holder against what they maintain it with
+│   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack

@@ -243,13 +243,23 @@ export type Tether = z.infer<typeof TetherSchema>
 // caster, who holds it, and the one target it was cast at. It lives while the
 // caster holds the spell `key`; the range it was cast at, and the item it is
 // fired with, are read off the caster's hold.
-export const ArcSchema = BindBaseSchema.extend({
+const SpellBindSchema = BindBaseSchema.extend({ key: str })
+
+export const ArcSchema = SpellBindSchema.extend({
   kind: z.literal('arc'),
-  key: str,
 }).strip()
 export type Arc = z.infer<typeof ArcSchema>
 
-export const BindSchema = z.discriminatedUnion('kind', [GrappleSchema, TetherSchema, ArcSchema])
+// spells.tex "Telepathic Link": one of the links a held linking spell makes
+// between its caster and each target; it lives while the caster holds the
+// spell `key`, and is broken by a will test that hits or by the target
+// leaving the spell's `linkRange`.
+export const LinkSchema = SpellBindSchema.extend({
+  kind: z.literal('link'),
+}).strip()
+export type Link = z.infer<typeof LinkSchema>
+
+export const BindSchema = z.discriminatedUnion('kind', [GrappleSchema, TetherSchema, ArcSchema, LinkSchema])
 export type Bind = z.infer<typeof BindSchema>
 
 export const GrappleAfflictionSchema = z.enum(GRAPPLE_AFFLICTIONS)

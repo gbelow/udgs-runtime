@@ -1,7 +1,7 @@
 import type { Bind, CombatState, Coord } from '../types'
 import { getHeldItem } from '../../item/rules/hands'
 import { getHeldEntry } from '../../character/rules/concentration'
-import { isSpellKey } from '../../spells'
+import { SPELLS, isSpellKey } from '../../spells'
 import { isGrapplingStill } from './grapple'
 import { setDistance } from '../geometry'
 import { getDistanceBetween, getPlacedFootprint } from './board'
@@ -15,6 +15,7 @@ function isMaintained(state: CombatState, id: string, b: Bind): boolean {
     case 'tether':
       return !!state.characters[id] && !!getHeldItem(state.characters[id], b.anchors[id])
     case 'arc':
+    case 'link':
       return !!state.characters[id] && isSpellKey(b.key) && !!getHeldEntry(state.characters[id], b.key)
   }
 }
@@ -47,8 +48,21 @@ export function dropHolders<B extends Bind>(binds: B[], letsGo: (id: string, b: 
     .filter((b) => b.holders.length > 0)
 }
 
+// spells.tex "Telepathic Link": "until the maximum distance is exceeded" —
+// a link whose target stands farther than the spell's range from the caster,
+// as far as it was extended. A fight without a board has no distance.
+function isStretched(state: CombatState, b: Bind): boolean {
+  if (b.kind !== 'link' || !isSpellKey(b.key)) return false
+  const range = SPELLS[b.key].linkRange
+  const caster = state.characters[b.holders[0]]
+  const distance = getDistanceBetween(state, b.holders[0], getPartner(b, b.holders[0]))
+  if (range === undefined || !caster || distance === null) return false
+  return distance > range * (1 + (getHeldEntry(caster, b.key)?.extend ?? 0))
+}
+
 // The binds as they stand once every holder who no longer maintains theirs
-// has let go.
+// has let go, and every link stretched past its range is broken.
 export function getHeldBinds(state: CombatState): Bind[] {
-  return dropHolders(state.binds, (id, b) => !isMaintained(state, id, b))
+  const held = dropHolders(state.binds, (id, b) => !isMaintained(state, id, b))
+  return held.some((b) => isStretched(state, b)) ? held.filter((b) => !isStretched(state, b)) : held
 }

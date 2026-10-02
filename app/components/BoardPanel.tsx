@@ -173,6 +173,7 @@ const BIND_STROKE: Record<BoardBindView['kind'], { className: string; dash?: str
   grapple: { className: 'stroke-fg' },
   tether: { className: 'stroke-muted', dash: '0.3 0.15' },
   arc: { className: 'stroke-accent', dash: '0.05 0.12' },
+  link: { className: 'stroke-accent', dash: '0.3 0.15 0.05 0.15' },
 }
 
 function BindLink({ link }: { link: BoardBindView }){

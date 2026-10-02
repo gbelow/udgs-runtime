@@ -21,6 +21,7 @@ import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 import { getTethers } from '../rules/partners'
+import { getSpellOptions } from '../rules/cast'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
@@ -931,5 +932,31 @@ describe('sustained lightning', () => {
     expect(s.binds).toEqual([])
     expect(s.characters.c.active.map((e) => e.key)).not.toContain('sustained-lightning')
     for (const id of ['c', 'x']) expect(s.characters[id].injuries.injuryLevel).toBeGreaterThan(0)
+  })
+})
+
+// spells.tex "Telepathic Link": a target who does not beat the will test is
+// linked to the caster, each link adds 3 to the DL of the caster's spells, and
+// the link is broken "until the maximum distance is exceeded" (20m).
+describe('telepathic link', () => {
+  let m = 0
+  const linkId = () => `link${++m}`
+
+  // `c` casts it at `x`, `at` cells away; `x` fails the test its cast opens.
+  function linkedAt(at: number): CombatState {
+    const caster = { ...fighter('c'), spells: { 'telepathic-link': { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
+    let s = onBoard({ c: [0, 0], x: [at, 0] }, caster, fighter('x'))
+    s = declareAction('c', { kind: 'cast', key: 'telepathic-link' }, linkId)(s)
+    return playOut(commitAction(() => 20, linkId)(setTarget('x')(s)), 0).state
+  }
+
+  it('holds one link per target, which raises the caster\'s casting DL', () => {
+    const s = linkedAt(5)
+    expect(s.binds.map((b) => b.kind)).toEqual(['link'])
+    expect(getSpellOptions(s, s.characters.c).find((o) => o.key === 'telepathic-link')?.DL).toBe(3)
+  })
+
+  it('lets go of a target beyond its range', () => {
+    expect(linkedAt(25).binds).toEqual([])
   })
 })

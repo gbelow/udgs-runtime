@@ -397,7 +397,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
-    spells: cast && step === 'declare' && actor ? getSpellOptions(actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
+    spells: cast && step === 'declare' && actor ? getSpellOptions(state, actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     gear: gear && step === 'declare' ? gear.options : [],
     chargeInto: gear && step === 'declare' ? gear.chargeOptions : [],
     charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'

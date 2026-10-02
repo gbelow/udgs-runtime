@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Delivery, Item, Skills } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
-import type { ActionRoll, CastAction, CombatState, Deliveries, SpellTestAction } from '../types'
+import type { ActionRoll, CastAction, CombatState, Deliveries, Link, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getAction } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
@@ -8,7 +8,9 @@ import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
-import { getLinkSpell, getLinkedTargets, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { isSpellActive } from '../../character/rules/effects'
+import { getLinkSpell, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { getLinkDL, getLinkedTargets } from './link'
 import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -144,13 +146,14 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   return canCastSpell(c, key, false) ? null : 'needs a focus surge'
 }
 
-export function getSpellOptions(c: CampaignCharacter): SpellOption[] {
+export function getSpellOptions(state: CombatState, c: CampaignCharacter): SpellOption[] {
+  const linkDL = getLinkDL(state, c)
   return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
     const spell = SPELLS[key]
     return {
       key,
-      DL: getCastingDL(c, spell, false),
-      quickenedDL: getCastingDL(c, spell, true),
+      DL: getCastingDL(spell, false, 0, linkDL),
+      quickenedDL: getCastingDL(spell, true, 0, linkDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
       castable: canCastSpell(c, key, false),
       quickenable: canCastSpell(c, key, true),
@@ -288,7 +291,7 @@ export function getSpellTestTargets(state: CombatState, root: CastAction): strin
   if (!caster || !takesEffect(state, root) || !isSpellKey(root.key) || getSpellTestRoll(root.key) === null) return []
   const link = getLinkSpell(root.key)
   if (link === null) return []
-  const targets = link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(caster, link)
+  const targets = link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(state, root.actorId, link)
   return targets.filter((id) => state.characters[id])
 }
 
@@ -334,6 +337,21 @@ export function getSpellTestFacts(state: CombatState, action: SpellTestAction): 
 // caster").
 export function isSpellTestBeaten(action: SpellTestAction): boolean {
   return !action.accepted && action.roll !== null && resisted(action.roll.degree) === 'miss'
+}
+
+// What a spell test the caster's cast opened does to the links: the caster
+// holds a link to one who did not beat the linking spell's test, and loses
+// one who beat any test the link put them to.
+export type LinkOutcome = { made: Link | null; broken: { casterId: string; targetId: string; key: SpellKey } | null }
+
+export function getLinkOutcome(state: CombatState, root: SpellTestAction): LinkOutcome {
+  const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const caster = state.characters[root.actorId]
+  if (!caster || !root.targetId || link === null || !isSpellActive(caster, link)) return { made: null, broken: null }
+  if (isSpellTestBeaten(root)) return { made: null, broken: { casterId: root.actorId, targetId: root.targetId, key: link } }
+  const exists = getLinkedTargets(state, root.actorId, link).includes(root.targetId)
+  const made: Link | null = link === root.key && !exists ? { kind: 'link', members: [root.actorId, root.targetId], holders: [root.actorId], anchors: {}, key: link } : null
+  return { made, broken: null }
 }
 
 // spells.tex "Telepathic Link": "or with anyone who allows the link" — a

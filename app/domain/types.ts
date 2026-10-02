@@ -721,7 +721,6 @@ export const ActiveEntrySchema = z.object({
   kind: z.enum(['ability', 'spell', 'curse']),
   key: str,
   DL: num.optional(),
-  targets: z.array(str).optional(),
   itemId: str.optional(),
   // the size a held spell was cast at and the times its range was extended
   size: num.optional(),
@@ -1006,6 +1005,9 @@ export const SpellSchema = z.object({
   // to the DL of every spell the caster casts while holding it; null for a
   // spell that links nobody
   linkDL: num.nullable().default(null),
+  // spells.tex "Telepathic Link": "until the maximum distance is exceeded" —
+  // the metres a link holds over; absent for a spell that links nobody
+  linkRange: num.optional(),
   castRange: str.default(''),
   castArea: str.default(''),
   // spells.tex "Detonate Explosive": the spell sets off a charge already in

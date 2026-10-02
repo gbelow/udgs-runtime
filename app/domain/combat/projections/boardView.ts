@@ -322,6 +322,7 @@ function getBindVerb(b: Bind): string {
     case 'grapple': return 'holds'
     case 'tether': return 'has tied'
     case 'arc': return `holds ${isSpellKey(b.key) ? SPELLS[b.key].name : b.key} on`
+    case 'link': return `holds a ${isSpellKey(b.key) ? SPELLS[b.key].name : b.key} link to`
   }
 }
 

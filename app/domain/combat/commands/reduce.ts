@@ -24,13 +24,12 @@ import { isWon } from '../rules/test'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
-import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, isSpellTestBeaten } from '../rules/cast'
+import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, getLinkOutcome, type LinkOutcome } from '../rules/cast'
 import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
 import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
-import { getLinkSpell } from '../../character/rules/concentration'
-import { linkTarget, loseConcentration, unlinkTarget } from '../../character/commands/spells'
+import { loseConcentration } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
 import { filterLayers, getHolderOf, isSupersededBy, type FireTouched } from '../rules/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
@@ -114,16 +113,8 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered
         }
         // spells.tex "Telepathic Link": what the test let through lands on
-        // the target; the caster holds a link to one who did not beat the
-        // linking spell's test, and loses one who beat any test the link
-        // put them to
-        if (action.kind === 'spellTest') {
-          const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
-          const link = isSpellKey(action.key) ? getLinkSpell(action.key) : null
-          if (c.id !== action.actorId || !action.targetId || link === null) return delivered
-          if (isSpellTestBeaten(action)) return unlinkTarget(link, action.targetId)(delivered)
-          return link === action.key ? linkTarget(link, action.targetId)(delivered) : delivered
-        }
+        // the target
+        if (action.kind === 'spellTest') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
@@ -192,6 +183,7 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
 export function reduceBinds(state: CombatState, action: Action, phase: Phase): (binds: Bind[]) => Bind[] {
   return (binds: Bind[]) => {
     if (phase !== 'resolve') return binds
+    if (action.kind === 'spellTest') return withLinks(binds, getLinkOutcome(state, action))
     if (action.kind === 'cast') {
       const arc = getArcMade(state, action)
       return arc ? [...binds, arc] : binds
@@ -211,6 +203,13 @@ export function reduceBinds(state: CombatState, action: Action, phase: Phase): (
 function isHeldTying(c: CampaignCharacter, itemId: string): boolean {
   const item = getHeldItem(c, itemId)
   return !!item && isTying(item)
+}
+
+// The binds with the link a spell test made, or without the one it broke.
+function withLinks(binds: Bind[], { made, broken }: LinkOutcome): Bind[] {
+  if (made) return [...binds, made]
+  if (!broken) return binds
+  return binds.filter((b) => !(b.kind === 'link' && b.holders[0] === broken.casterId && b.members.includes(broken.targetId) && b.key === broken.key))
 }
 
 // The binds with each new tether in place of the one its pair had.

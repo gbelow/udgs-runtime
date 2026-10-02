@@ -47,23 +47,6 @@ export function releaseSpell(key: SpellKey): <C extends Character>(c: C) => C {
   }
 }
 
-// spells.tex "Telepathic Link": a target the held spell now links to, and
-// one it no longer does ("The link is broken by hitting on any will test
-// triggered by the caster").
-export function linkTarget(key: SpellKey, targetId: string): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
-    if (!isSpellActive(c, key)) return c
-    return { ...c, active: c.active.map((e) => (e.kind === 'spell' && e.key === key && !(e.targets ?? []).includes(targetId) ? { ...e, targets: [...(e.targets ?? []), targetId] } : e)) }
-  }
-}
-
-export function unlinkTarget(key: SpellKey, targetId: string): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
-    if (!isSpellActive(c, key)) return c
-    return { ...c, active: c.active.map((e) => (e.kind === 'spell' && e.key === key && e.targets?.includes(targetId) ? { ...e, targets: e.targets.filter((id) => id !== targetId) } : e)) }
-  }
-}
-
 // spells.tex "Sustained Spells": "The cost must be paid at the beginning of
 // the next round to maintain the spell effect" — the charges a held spell
 // draws from its item come out of it at the round change, at the size it

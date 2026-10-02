@@ -117,7 +117,7 @@ export function getSpellSheetRows(c: Character): SpellSheetRow[] {
     .map((key) => {
       const spell = SPELLS[key]
       const learned = c.spells[key]
-      const DL = getCastingDL(c, spell, false)
+      const DL = getCastingDL(spell, false)
       const hitAt = DL === null ? null : DL + HIT_MARGIN
       const active = isSpellActive(c, key)
       return {

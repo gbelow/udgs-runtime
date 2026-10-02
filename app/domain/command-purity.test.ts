@@ -68,11 +68,11 @@ function characterSubject(): CampaignCharacter {
   }
 }
 
-// The subject holding a telepathic link to 'b'.
+// The subject holding a sustained spell.
 const linking = (c: CampaignCharacter): CampaignCharacter => ({
   ...c,
   spells: { ...c.spells, 'telepathic-link': { method: 'intuitive', practice: 0 } },
-  active: [...c.active, { kind: 'spell', key: 'telepathic-link', targets: ['b'] }],
+  active: [...c.active, { kind: 'spell', key: 'telepathic-link' }],
 })
 
 // The subject with nothing on, off the clock: gear.tex "Donning and Doffing
@@ -115,8 +115,6 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   forgetSpell: characterCommands.forgetSpell('sleep'),
   practiceSpell: characterCommands.practiceSpell('sleep', 1),
   releaseSpell: characterCommands.releaseSpell('sleep'),
-  linkTarget: (c) => characterCommands.linkTarget('telepathic-link', 'b')(linking(c)),
-  unlinkTarget: (c) => characterCommands.unlinkTarget('telepathic-link', 'b')(linking(c)),
   loseConcentration: (c) => characterCommands.loseConcentration(linking(c)),
   suffocate: characterCommands.suffocate,
   applyTrigger: (c) => characterCommands.applyTrigger('end_round')(characterCommands.toggleAbility('synesthesia-1')(c) as CampaignCharacter),

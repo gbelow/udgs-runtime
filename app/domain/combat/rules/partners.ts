@@ -1,4 +1,4 @@
-import type { Arc, Bind, CombatState, Grapple, Tether } from '../types'
+import type { Arc, Bind, CombatState, Grapple, Link, Tether } from '../types'
 
 // Who is in a grapple with whom.
 
@@ -26,6 +26,15 @@ function isArc(b: Bind): b is Arc {
 // up (spells.tex "Sustained Lightning").
 export function getArc(state: CombatState, casterId: string, key: string): Arc | undefined {
   return state.binds.filter(isArc).find((a) => a.holders[0] === casterId && a.key === key)
+}
+
+function isLink(b: Bind): b is Link {
+  return b.kind === 'link'
+}
+
+// The links the caster's held spell makes, one to each target.
+export function getLinks(state: CombatState, casterId: string, key: string): Link[] {
+  return state.binds.filter((b): b is Link => isLink(b) && b.holders[0] === casterId && b.key === key)
 }
 
 export function getTethersOf(state: CombatState, id: string): Tether[] {

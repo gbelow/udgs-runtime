@@ -24,7 +24,7 @@ import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRow
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
-import { getLinkDL } from '../../character/rules/concentration'
+import { getLinkDL } from './link'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRecipeHitTerms } from './recipes'
 import { getMidActionTerm } from './opportunity'
@@ -403,7 +403,7 @@ function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
 function getSpellDLTerms(state: CombatState, root: ActionOf<'cast'>): Term[] {
   const caster = state.characters[root.actorId]
   if (!isSpellKey(root.key)) return []
-  const links = caster ? getLinkDL(caster) : 0
+  const links = caster ? getLinkDL(state, caster) : 0
   return [
     { label: 'spell DL', value: SPELLS[root.key].DL ?? 0 },
     ...(root.quicken ? [{ label: 'quicken', value: QUICKEN_DL }] : []),

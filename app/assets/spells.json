@@ -2178,6 +2178,7 @@
     "castRequirements": [],
     "DL": 0,
     "linkDL": 3,
+    "linkRange": 20,
     "castRange": "20m",
     "castArea": "",
     "detonate": null,

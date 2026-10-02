@@ -1,7 +1,7 @@
 import type { CombatState } from '../types'
 import { SPELLS, getSpellUpkeep, type SpellKey } from '../../spells'
 import { getActiveSpellKeys } from '../../character/rules/effects'
-import { getLinkDLOf, getLinkedTargets } from '../../character/rules/concentration'
+import { getLinkDLOf, getLinkedTargets } from '../rules/link'
 import { getFightName } from '../rules/fighters'
 import { getArcTarget, getRepeatCost, getRepeatDraw } from '../rules/fireAgain'
 import { getHeldSize } from '../../character/rules/concentration'
@@ -36,8 +36,8 @@ function buildSustainedRows(state: CombatState): SustainedRow[] {
       upkeep: upkeepLabel(getSpellUpkeep(SPELLS[key]), getChargeDraw(SPELLS[key].ammo, getHeldSize(c, key))),
       repeat: repeat ? upkeepLabel(repeat, getRepeatDraw(c, key)) : null,
       boundTo: boundTo ? getFightName(state, boundTo) : '',
-      linked: getLinkedTargets(c, key).map((id) => ({ id, name: getFightName(state, id) })),
-      linkDL: getLinkDLOf(c, key),
+      linked: getLinkedTargets(state, c.id, key).map((id) => ({ id, name: getFightName(state, id) })),
+      linkDL: getLinkDLOf(state, c, key),
     }
   })
 }
