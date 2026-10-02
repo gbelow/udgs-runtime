@@ -1,9 +1,11 @@
-import { DamageSchema, type Area, type Character, type DamageComponent, type Degree, type Delivery, type Effect, type OutcomeEffect, type Spell, type SpellEffect } from '../../types'
+import { DamageSchema, type Area, type Character, type DamageComponent, type Degree, type Delivery, type Effect, type Item, type OutcomeEffect, type Spell, type SpellEffect } from '../../types'
+import { getSourceDamage } from '../../item/rules/items'
 import type { SpellModification } from '../../tables'
 import { getDMAt, getRMAt } from './helpers'
 import { getSize } from './misc'
 import { getForce } from './skills'
-import { resolveDL } from './spells'
+import { getSpellGear, resolveDL } from './spells'
+import { SPELLS, type SpellKey } from '../../spells'
 
 // spells.tex "Casting spells": what a spell produces once it is cast — its
 // effects as this caster makes them, every number resolved, each on its way
@@ -17,6 +19,22 @@ function scaleArea(area: Area, RM: number): Area {
   return area.shape === 'explosion'
     ? { shape: 'explosion', radius: Math.floor(area.radius * RM) }
     : { shape: 'spray', length: Math.floor(area.length * RM), angle: area.angle }
+}
+
+// The spell's effects as cast with this gear: a damage drawn from the gear
+// is the gear's own times the spell's factor. The gear is only looked up
+// for a spell that draws on it.
+export function getSpellEffects(c: Character, key: SpellKey, itemId = ''): SpellEffect[] {
+  const { effects } = SPELLS[key]
+  return effects.some(drawsOnGear) ? drawOnGear(effects, getSpellGear(c, key, itemId)) : effects
+}
+
+function drawsOnGear(e: SpellEffect): boolean {
+  return e.type === 'damage' && e.fromGear !== null
+}
+
+export function drawOnGear(effects: SpellEffect[], gear: Item | null): SpellEffect[] {
+  return effects.map((e): SpellEffect => (e.type === 'damage' && e.fromGear !== null ? { ...e, effect: { ...e.effect, damage: getSourceDamage(gear, e.fromGear) } } : e))
 }
 
 // spells.tex "Relationship between Size and Sorcery": "Any spell that has
@@ -89,10 +107,6 @@ export function getCastRange(effect: SpellEffect, extend: number, size: number):
   return reach * (1 + extend)
 }
 
-export function getSelfEffects(spell: Spell): SpellEffect[] {
-  return spell.effects.filter((e) => e.target === 'self')
-}
-
-export function getTargetEffects(spell: Spell): SpellEffect[] {
-  return spell.effects.filter((e) => e.target === 'target')
+export function getTargetEffects(effects: SpellEffect[]): SpellEffect[] {
+  return effects.filter((e) => e.target === 'target')
 }

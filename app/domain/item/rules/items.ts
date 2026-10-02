@@ -1,4 +1,4 @@
-import { Armor, ArmorSchema, Character, Container, ContainerSchema, Item, ItemSchema, Material, SlotGroup, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Character, Container, ContainerSchema, DamageComponent, Item, ItemSchema, Material, SlotGroup, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
 import { scaleArmor, scaleWeapon } from '../../character/rules/helpers'
@@ -121,6 +121,12 @@ export function getItemArmor(item: Item): Armor | undefined {
 // asks for, by the name the book calls it — a better version of the same
 // thing answers to it too ("Superior Electrite" is electrite), and an item
 // stamped from a catalog row answers to that row's key.
+// gear.tex "Electrite": the damage a stone or device puts out, times what
+// draws on it; nothing from an item that puts out none.
+export function getSourceDamage(item: Item | null, factor = 1): DamageComponent[] {
+  return (item?.source?.damage ?? []).map((d) => ({ ...d, value: d.value * factor }))
+}
+
 export function isGear(item: Item, name: string): boolean {
   const asked = name.trim().toLowerCase()
   const own = item.name.trim().toLowerCase()

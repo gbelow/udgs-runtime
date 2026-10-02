@@ -82,7 +82,11 @@
     "castRange": "touch",
     "castArea": "",
     "detonate": null,
-    "triggers": ["impact", "fire", "detonate"],
+    "triggers": [
+      "impact",
+      "fire",
+      "detonate"
+    ],
     "duration": "none",
     "durationETs": 0,
     "description": "Loads explosives with the effect of producing smoke when activated, upon contact with fire or on impact. The grenade produces black fog.",
@@ -163,7 +167,11 @@
     "castRange": "touch",
     "castArea": "",
     "detonate": null,
-    "triggers": ["impact", "fire", "detonate"],
+    "triggers": [
+      "impact",
+      "fire",
+      "detonate"
+    ],
     "duration": "none",
     "durationETs": 0,
     "description": "Loads explosives with alchemical energy to explode when activated, upon contact with fire or on impact.",
@@ -198,7 +206,8 @@
           "reach": false
         },
         "resist": null,
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": null
       }
     ]
   },
@@ -238,7 +247,11 @@
     "castRange": "touch",
     "castArea": "",
     "detonate": null,
-    "triggers": ["impact", "fire", "detonate"],
+    "triggers": [
+      "impact",
+      "fire",
+      "detonate"
+    ],
     "duration": "none",
     "durationETs": 0,
     "description": "Transforms the explosive into a sticky substance that ignites upon contact with fire and burns until extinguished.",
@@ -273,7 +286,8 @@
           "reach": false
         },
         "resist": null,
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": null
       }
     ]
   },
@@ -327,7 +341,7 @@
     "section": "alchemy",
     "type": "sustained",
     "cost": {
-      "AP": 6,
+      "AP": 4,
       "STA": 1,
       "exhaustion": 0,
       "IL": 0,
@@ -374,12 +388,7 @@
         "trigger": "instant",
         "type": "damage",
         "effect": {
-          "damage": [
-            {
-              "kind": "burn",
-              "value": 15
-            }
-          ],
+          "damage": [],
           "hardness": 0,
           "force": 0,
           "properties": []
@@ -400,7 +409,8 @@
           "dl": "Accuracy",
           "roll": "reflex"
         },
-        "duration": "held"
+        "duration": "held",
+        "fromGear": 1
       },
       {
         "name": "Flamethrower fire",
@@ -627,12 +637,7 @@
         "trigger": "instant",
         "type": "damage",
         "effect": {
-          "damage": [
-            {
-              "kind": "electric",
-              "value": 25
-            }
-          ],
+          "damage": [],
           "hardness": 0,
           "force": 0,
           "properties": []
@@ -649,7 +654,8 @@
           "dl": "Accuracy",
           "roll": "reflex"
         },
-        "duration": "held"
+        "duration": "held",
+        "fromGear": 2.5
       }
     ]
   },
@@ -702,12 +708,7 @@
         "trigger": "instant",
         "type": "damage",
         "effect": {
-          "damage": [
-            {
-              "kind": "electric",
-              "value": 15
-            }
-          ],
+          "damage": [],
           "hardness": 0,
           "force": 0,
           "properties": []
@@ -721,7 +722,8 @@
           "reach": false
         },
         "resist": null,
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": 1.5
       }
     ]
   },
@@ -889,7 +891,8 @@
           "dl": "Accuracy",
           "roll": "reflex"
         },
-        "duration": "held"
+        "duration": "held",
+        "fromGear": null
       }
     ]
   },
@@ -3117,7 +3120,8 @@
           "dl": "Accuracy",
           "roll": "reflex"
         },
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": null
       }
     ]
   },
@@ -3195,7 +3199,8 @@
           "dl": "7",
           "roll": "reflex"
         },
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": null
       }
     ]
   },
@@ -3327,7 +3332,8 @@
           "reach": false
         },
         "resist": null,
-        "duration": "instant"
+        "duration": "instant",
+        "fromGear": null
       }
     ]
   },

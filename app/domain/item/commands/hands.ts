@@ -8,7 +8,7 @@ import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
 import { getCastSize, getSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
-import { Improvements, produceEffects } from '../../character/rules/production'
+import { Improvements, drawOnGear, produceEffects } from '../../character/rules/production'
 
 // What changes the hands keeps whichever kind of character it was given.
 type HeldUpdater = <C extends Character>(c: C) => C
@@ -187,7 +187,7 @@ export function chargeItem(key: string, improved: Improvements = {}, itemId = ''
     const found = findReadyItem(c, getSpellGear(c, key, itemId)?.id ?? '')
     if (!found) return c
     const { item, containerKey } = found
-    const charge = { key, effects: produceEffects(c, SPELLS[key].effects, getCastSize(c, key, improved.amplify ?? 0, item.id)) }
+    const charge = { key, effects: produceEffects(c, drawOnGear(SPELLS[key].effects, item), getCastSize(c, key, improved.amplify ?? 0, item.id)) }
     if (containerKey === null) return { ...c, held: c.held.map((i) => (i.id === item.id ? { ...i, charge } : i)) }
     const unit = { ...duplicateItem(item, { amount: 1 }), charge }
     return addItemToContainer(containerKey, 'quick', unit)(removeItemFromContainer(containerKey, item.id, 1)(c))

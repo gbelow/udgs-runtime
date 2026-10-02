@@ -418,8 +418,10 @@ function TurnControl(){
             <Button aria-label='rollContest' disabled={roll !== null} onClick={rollContest}>roll contest</Button>
           </Tooltip> : null
         }
-        <Tooltip text='agree to end the round'>
-          <Button aria-label='agreeToEnd' aria-pressed={agreed} active={agreed} onClick={toggleAgreeToEnd}>end round ok</Button>
+        <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
+          <Button aria-label='agreeToEnd' aria-pressed={agreed} variant={agreed ? 'primary' : 'default'} className={agreed ? 'bg-accent/20' : ''} onClick={toggleAgreeToEnd}>
+            {agreed ? <span className='mr-1'>✓</span> : null}end round ok
+          </Button>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>

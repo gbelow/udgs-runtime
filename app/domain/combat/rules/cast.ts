@@ -2,7 +2,7 @@ import type { CampaignCharacter, Skills } from '../../types'
 import type { ActionRoll, CastAction, CombatState, Deliveries, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
 import { getAction } from './log'
-import { getCastRange, getSelfEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
+import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
 import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, getSpellGearOptions, getSpellSkill, getUnmetCastLabel, pickSpellGear, resolveDL } from '../../character/rules/spells'
@@ -32,10 +32,11 @@ export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   if (spell.type === 'charged') return {}
   const size = getCastSizeOf(caster, root)
   const facts: Deliveries = {}
-  const own = getSelfEffects(spell).filter((e) => e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
+  const effects = getSpellEffects(caster, root.key, root.itemId)
+  const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
-    const theirs = getTargetEffects(spell).map((e) => produceSpellEffect(caster, e, size, root.key))
+    const theirs = getTargetEffects(effects).map((e) => produceSpellEffect(caster, e, size, root.key))
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
   return facts
@@ -209,7 +210,7 @@ export function isTargeted(root: CastAction): boolean {
 function isTargetedSpell(key: SpellKey): boolean {
   const link = getLinkSpell(key)
   if (link !== null) return link === key
-  return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key]).length > 0
+  return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key].effects).length > 0
 }
 
 // combat.tex "Explosions": a cast that hit with an area to it opens that area
@@ -230,7 +231,7 @@ export function canAimCast(state: CombatState, root: CastAction, targetId: strin
   const caster = state.characters[root.actorId]
   if (distance === null || !caster || !isSpellKey(root.key)) return true
   const size = getCastSizeOf(caster, root)
-  return getTargetEffects(SPELLS[root.key]).every((e) => distance <= (getCastRange(e, root.extend, size) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
+  return getTargetEffects(SPELLS[root.key].effects).every((e) => distance <= (getCastRange(e, root.extend, size) ?? 1)) && hasLineOfSight(state, root.actorId, targetId)
 }
 
 // spells.tex "Telepathic Link": who the cast of a spell worked through a

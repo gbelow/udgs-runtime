@@ -421,7 +421,16 @@
       "amount": 1,
       "bulk": 2,
       "refId": "",
-      "charge": null
+      "charge": null,
+      "source": {
+        "damage": [
+          {
+            "kind": "burn",
+            "value": 15
+          }
+        ],
+        "ammo": 20
+      }
     }
   ],
   "containers": {

@@ -2,7 +2,7 @@ import type { Area, CampaignCharacter, ChargeTrigger, Delivery, Item, SpellEffec
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
 import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
-import { produceEffects, produceSpellEffect } from '../../character/rules/production'
+import { getSpellEffects, produceEffects, produceSpellEffect } from '../../character/rules/production'
 import { getAccuracy } from '../../character/rules/skills'
 import { getCastSize, resolveDL } from '../../character/rules/spells'
 import { Term } from '../../character/rules/terms'
@@ -72,7 +72,7 @@ export function getExplosionPayload(state: CombatState, action: ExplosionAction)
     const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
     const cast = opener?.kind === 'cast' ? opener : null
     const size = getCastSize(producer, action.key, cast?.improved.amplify ?? 0, cast?.itemId)
-    return produceEffects(producer, SPELLS[action.key].effects, size).filter(isAreaEffect)
+    return produceEffects(producer, getSpellEffects(producer, action.key, cast?.itemId), size).filter(isAreaEffect)
   })()
   return effects.length > 0 ? { effects, producer } : null
 }

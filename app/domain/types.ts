@@ -266,6 +266,15 @@ export const ChargeSchema = z.object({
 }).strip()
 export type Charge = z.infer<typeof ChargeSchema>
 
+// gear.tex "Electrite": "Deals 10 base electric damage. 20 charges." — what
+// a stone or device puts out, which the spells drawing on it multiply, and
+// the uses it has left (ammo, not a spells.tex "Charged" charge).
+export const SourceSchema = z.object({
+  damage: z.array(z.lazy(() => DamageComponentSchema)).default([]),
+  ammo: num.default(0),
+}).strip()
+export type Source = z.infer<typeof SourceSchema>
+
 export const ItemSchema = z.object({
   id: str.default(() => crypto.randomUUID()),
   name: str.default(''), // with no refId, this + description is all that says what the item is
@@ -281,6 +290,7 @@ export const ItemSchema = z.object({
   // releases the charge is not who made it, so the numbers the caster's
   // size and skill decided are carried here rather than looked up again.
   charge: ChargeSchema.nullable().default(null),
+  source: SourceSchema.nullable().default(null),
   // gear.tex "Containers and Burden": a container is an item too, and what
   // it carries goes wherever it is put.
   container: z.lazy((): z.ZodType<Container> => ContainerSchema).optional(),
@@ -902,7 +912,9 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   // `force` on an area effect: combat.tex "Intercept" compares force to
   // whoever met the blow, and an explosion's blast is its own, not whoever
   // set it off
-  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }) }).strip(),
+  // `fromGear` multiplies the damage of the gear the spell is cast with
+  // instead of naming its own (spells.tex "Taser": 15 from the electrite's 10)
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }), fromGear: num.nullable().default(null) }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
 ])

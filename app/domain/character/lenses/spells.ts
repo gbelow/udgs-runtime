@@ -2,7 +2,7 @@ import { requirementsLabel } from '../rules/requirements'
 import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
-import { produceEffects } from '../rules/production'
+import { getSpellEffects, produceEffects } from '../rules/production'
 import { ResolvedTest, canLearnSpell, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
@@ -96,7 +96,7 @@ function areaLabel(area: Area | null): string {
 }
 
 export function getSpellEffectRows(c: Character, key: SpellKey): SpellEffectRow[] {
-  return produceEffects(c, SPELLS[key].effects, getCastSize(c, key, 0)).map((e) => {
+  return produceEffects(c, getSpellEffects(c, key), getCastSize(c, key, 0)).map((e) => {
     const text = e.type === 'damage' ? e.effect.damage.map((d) => `${d.value} ${d.kind}`).join(' + ')
       : e.type === 'affliction' ? e.effect.key
       : e.type === 'cost' ? `${e.trigger} cost`

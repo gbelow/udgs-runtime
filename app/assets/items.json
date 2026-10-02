@@ -5,7 +5,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Gauntlet",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Dagger": {
     "name": "Dagger",
@@ -13,7 +14,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Dagger",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Club": {
     "name": "Club",
@@ -21,7 +23,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Club",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Stiletto": {
     "name": "Stiletto",
@@ -29,7 +32,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Stiletto",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Whip": {
     "name": "Whip",
@@ -37,7 +41,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Whip",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Short Sword": {
     "name": "Short Sword",
@@ -45,7 +50,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Short Sword",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Rapier": {
     "name": "Rapier",
@@ -53,7 +59,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Rapier",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Short Spear": {
     "name": "Short Spear",
@@ -61,7 +68,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Short Spear",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Mace": {
     "name": "Mace",
@@ -69,7 +77,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Mace",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Battle Axe": {
     "name": "Battle Axe",
@@ -77,7 +86,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Battle Axe",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Longsword": {
     "name": "Longsword",
@@ -85,7 +95,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Longsword",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Pike": {
     "name": "Pike",
@@ -93,7 +104,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Pike",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Halberd": {
     "name": "Halberd",
@@ -101,7 +113,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Halberd",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Warhammer": {
     "name": "Warhammer",
@@ -109,7 +122,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Warhammer",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Bardiche": {
     "name": "Bardiche",
@@ -117,7 +131,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Bardiche",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Greatsword": {
     "name": "Greatsword",
@@ -125,7 +140,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Greatsword",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Net": {
     "name": "Net",
@@ -133,7 +149,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Net",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
@@ -141,7 +158,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Grappling Hook and Rope",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Grenade": {
     "name": "Grenade",
@@ -149,7 +167,8 @@
     "type": "weapon",
     "bulk": 1,
     "refId": "Grenade",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Short Bow": {
     "name": "Short Bow",
@@ -157,7 +176,8 @@
     "type": "weapon",
     "bulk": 2,
     "refId": "Short Bow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Long Bow": {
     "name": "Long Bow",
@@ -165,7 +185,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Long Bow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Heavy Bow": {
     "name": "Heavy Bow",
@@ -173,7 +194,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Heavy Bow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Crossbow": {
     "name": "Crossbow",
@@ -181,7 +203,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Crossbow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Arbalest": {
     "name": "Arbalest",
@@ -189,7 +212,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Arbalest",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Wooden Shield": {
     "name": "Wooden Shield",
@@ -197,7 +221,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Wooden Shield",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Metal Shield": {
     "name": "Metal Shield",
@@ -205,7 +230,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Metal Shield",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Wooden Tower": {
     "name": "Wooden Tower",
@@ -213,7 +239,8 @@
     "type": "weapon",
     "bulk": 3,
     "refId": "Wooden Tower",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Clothing": {
     "name": "Clothing",
@@ -221,7 +248,8 @@
     "type": "armor",
     "bulk": 2,
     "refId": "Clothing",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Fur Coat": {
     "name": "Fur Coat",
@@ -229,7 +257,8 @@
     "type": "armor",
     "bulk": 2,
     "refId": "FurCoat",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Gambeson": {
     "name": "Gambeson",
@@ -237,7 +266,8 @@
     "type": "armor",
     "bulk": 2,
     "refId": "Gambeson",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Padded Armor": {
     "name": "Padded Armor",
@@ -245,7 +275,8 @@
     "type": "armor",
     "bulk": 3,
     "refId": "PaddedArmor",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Chain Shirt": {
     "name": "Chain Shirt",
@@ -253,7 +284,8 @@
     "type": "armor",
     "bulk": 3,
     "refId": "ChainShirt",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Hauberk": {
     "name": "Hauberk",
@@ -261,7 +293,8 @@
     "type": "armor",
     "bulk": 4,
     "refId": "Hauberk",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Brigandine": {
     "name": "Brigandine",
@@ -269,7 +302,8 @@
     "type": "armor",
     "bulk": 5,
     "refId": "Brigandine",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Half Armor": {
     "name": "Half Armor",
@@ -277,7 +311,8 @@
     "type": "armor",
     "bulk": 5,
     "refId": "HalfArmor",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Full Armor": {
     "name": "Full Armor",
@@ -285,7 +320,8 @@
     "type": "armor",
     "bulk": 5,
     "refId": "FullArmor",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Reinforced Armor": {
     "name": "Reinforced Armor",
@@ -293,7 +329,8 @@
     "type": "armor",
     "bulk": 6,
     "refId": "ReinforcedArmor",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Bodkin Arrow": {
     "name": "Bodkin Arrow",
@@ -301,7 +338,8 @@
     "type": "ammo",
     "bulk": 0,
     "refId": "Bodkin Arrow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Broadhead Arrow": {
     "name": "Broadhead Arrow",
@@ -309,7 +347,8 @@
     "type": "ammo",
     "bulk": 0,
     "refId": "Broadhead Arrow",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Bodkin Bolt": {
     "name": "Bodkin Bolt",
@@ -317,7 +356,8 @@
     "type": "ammo",
     "bulk": 0,
     "refId": "Bodkin Bolt",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Broadhead Bolt": {
     "name": "Broadhead Bolt",
@@ -325,7 +365,8 @@
     "type": "ammo",
     "bulk": 0,
     "refId": "Broadhead Bolt",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Alcohol": {
     "name": "Alcohol",
@@ -333,7 +374,8 @@
     "type": "flammable",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Oil Flask": {
     "name": "Oil Flask",
@@ -341,7 +383,8 @@
     "type": "flammable",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Pitch Pot": {
     "name": "Pitch Pot",
@@ -349,7 +392,8 @@
     "type": "flammable",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Smoke Bundle": {
     "name": "Smoke Bundle",
@@ -357,7 +401,8 @@
     "type": "flammable",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Torch": {
     "name": "Torch",
@@ -365,7 +410,8 @@
     "type": "flammable",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Smoke Grenade": {
     "name": "Smoke Grenade",
@@ -373,7 +419,8 @@
     "type": "flammable",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Anticoagulant Poison": {
     "name": "Anticoagulant Poison",
@@ -381,7 +428,8 @@
     "type": "poison",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Paralytic Poison": {
     "name": "Paralytic Poison",
@@ -389,7 +437,8 @@
     "type": "poison",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Necrotic Poison": {
     "name": "Necrotic Poison",
@@ -397,7 +446,8 @@
     "type": "poison",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Soporific Poison": {
     "name": "Soporific Poison",
@@ -405,7 +455,8 @@
     "type": "poison",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Caltrops": {
     "name": "Caltrops",
@@ -413,7 +464,8 @@
     "type": "trap",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Tripwire": {
     "name": "Tripwire",
@@ -421,7 +473,8 @@
     "type": "trap",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Rolling Log": {
     "name": "Rolling Log",
@@ -429,7 +482,8 @@
     "type": "trap",
     "bulk": 8,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Alchemical Torch": {
     "name": "Alchemical Torch",
@@ -437,7 +491,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Superior Alchemical Torch": {
     "name": "Superior Alchemical Torch",
@@ -445,7 +500,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Alchemical Prism": {
     "name": "Alchemical Prism",
@@ -453,7 +509,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Electrite": {
     "name": "Electrite",
@@ -461,7 +518,16 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": {
+      "damage": [
+        {
+          "kind": "electric",
+          "value": 10
+        }
+      ],
+      "ammo": 20
+    }
   },
   "Superior Electrite": {
     "name": "Superior Electrite",
@@ -469,7 +535,16 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": {
+      "damage": [
+        {
+          "kind": "electric",
+          "value": 10
+        }
+      ],
+      "ammo": 20
+    }
   },
   "Magnetite": {
     "name": "Magnetite",
@@ -477,7 +552,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Fire Stone": {
     "name": "Fire Stone",
@@ -485,7 +561,16 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": {
+      "damage": [
+        {
+          "kind": "burn",
+          "value": 10
+        }
+      ],
+      "ammo": 20
+    }
   },
   "Flamethrower": {
     "name": "Flamethrower",
@@ -493,7 +578,16 @@
     "type": "magical",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": {
+      "damage": [
+        {
+          "kind": "burn",
+          "value": 15
+        }
+      ],
+      "ammo": 20
+    }
   },
   "Venomous Frog Corpse": {
     "name": "Venomous Frog Corpse",
@@ -501,7 +595,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Soul Stone": {
     "name": "Soul Stone",
@@ -509,7 +604,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Condenser": {
     "name": "Condenser",
@@ -517,7 +613,8 @@
     "type": "magical",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Simple Healing": {
     "name": "Simple Healing",
@@ -525,7 +622,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Medium Healing": {
     "name": "Medium Healing",
@@ -533,7 +631,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Good Healing": {
     "name": "Good Healing",
@@ -541,7 +640,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Darkseeing": {
     "name": "Darkseeing",
@@ -549,7 +649,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Bandages": {
     "name": "Bandages",
@@ -557,7 +658,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Splint": {
     "name": "Splint",
@@ -565,7 +667,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Anti-septic": {
     "name": "Anti-septic",
@@ -573,7 +676,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Antibiotic Poultice": {
     "name": "Antibiotic Poultice",
@@ -581,7 +685,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Cocaine": {
     "name": "Cocaine",
@@ -589,7 +694,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Morphine": {
     "name": "Morphine",
@@ -597,7 +703,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Ayahuasca": {
     "name": "Ayahuasca",
@@ -605,7 +712,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Antidote": {
     "name": "Antidote",
@@ -613,7 +721,8 @@
     "type": "medicine",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Coin Pouch": {
     "name": "Coin Pouch",
@@ -621,7 +730,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Oilcloth": {
     "name": "Oilcloth",
@@ -629,7 +739,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Small Tent": {
     "name": "Small Tent",
@@ -637,7 +748,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Large Tent": {
     "name": "Large Tent",
@@ -645,7 +757,8 @@
     "type": "utility",
     "bulk": 4,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Hammock": {
     "name": "Hammock",
@@ -653,7 +766,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Bedroll": {
     "name": "Bedroll",
@@ -661,7 +775,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Oil Lamp": {
     "name": "Oil Lamp",
@@ -669,7 +784,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Flint": {
     "name": "Flint",
@@ -677,7 +793,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Firewood": {
     "name": "Firewood",
@@ -685,7 +802,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Rope": {
     "name": "Rope",
@@ -693,7 +811,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Canteen": {
     "name": "Canteen",
@@ -701,7 +820,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Jug": {
     "name": "Jug",
@@ -709,7 +829,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Shovel": {
     "name": "Shovel",
@@ -717,7 +838,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Pot": {
     "name": "Pot",
@@ -725,7 +847,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Vial": {
     "name": "Vial",
@@ -733,7 +856,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Chalk": {
     "name": "Chalk",
@@ -741,7 +865,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Insect Repellant": {
     "name": "Insect Repellant",
@@ -749,7 +874,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Sharpening Stone": {
     "name": "Sharpening Stone",
@@ -757,7 +883,8 @@
     "type": "utility",
     "bulk": 1,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Fur Cloak": {
     "name": "Fur Cloak",
@@ -765,7 +892,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Muffled Boots": {
     "name": "Muffled Boots",
@@ -773,7 +901,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Camouflage": {
     "name": "Camouflage",
@@ -781,7 +910,8 @@
     "type": "utility",
     "bulk": 3,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Snow Shoes": {
     "name": "Snow Shoes",
@@ -789,7 +919,8 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   },
   "Armor Repair Kit": {
     "name": "Armor Repair Kit",
@@ -797,6 +928,7 @@
     "type": "utility",
     "bulk": 2,
     "refId": "",
-    "charge": null
+    "charge": null,
+    "source": null
   }
 }
