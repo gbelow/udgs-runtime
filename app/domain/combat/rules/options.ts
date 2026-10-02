@@ -12,7 +12,7 @@ import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, getGrapples, isHeld } from './partners'
-import { getSlipCost, getSlipTargets } from './tether'
+import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
@@ -249,9 +249,13 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     ]
   },
   // combat.tex "Prone": "cannot push nor drag"
+  // gear.tex "Net": a tether is pulled by either end, a grapple pushed or dragged
   drag: (state, c) => {
-    if (!isInAnyGrapple(state, c)) return []
-    return [option({ kind: 'drag' }, null, !isPlaced(state, c) ? 'not on the board' : isProne(state, c.id) ? 'prone' : null)]
+    const reason = !isPlaced(state, c) ? 'not on the board' : isProne(state, c.id) ? 'prone' : null
+    return [
+      ...(isInAnyGrapple(state, c) ? [option({ kind: 'drag' }, null, reason)] : []),
+      ...(getPullTargets(state, c.id).length > 0 ? [option({ kind: 'drag', pull: true }, null, reason)] : []),
+    ]
   },
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []

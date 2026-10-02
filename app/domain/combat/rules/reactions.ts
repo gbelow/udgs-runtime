@@ -4,9 +4,8 @@ import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getFlankers, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
-import { getGroupOrigin, getGroupSteps } from './drag'
+import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
-import { getGrapples, getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
@@ -174,8 +173,8 @@ function grappleTriggers(root: GrappleAction): Trigger[] {
 // nobody, so there is nothing to tag along with or leave.
 function dragAnswers(state: CombatState, root: DragAction): Trigger[] {
   if (root.step !== 'react') return []
-  const kinds = root.movement === 'basic' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
-  return getGrappleGroup(getGrapples(state), root.actorId)
+  const kinds = root.pull || root.movement === 'basic' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
+  return getDragGroup(state, root)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => kinds.map((kind): Trigger => ({ characterId: id, kind, at: null })))
 }
@@ -189,7 +188,7 @@ function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
   if (!steps || steps.length === 0) return []
   const origin = getGroupOrigin(state, root)
   const movers = Object.keys(steps[0])
-  const group = getGrappleGroup(getGrapples(state), root.actorId)
+  const group = getDragGroup(state, root)
   const start = (id: string) => origin[id]
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {

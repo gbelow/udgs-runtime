@@ -627,6 +627,9 @@ export type PushMovement = z.infer<typeof PushMovementSchema>
 export const DragActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('drag'),
+  // gear.tex "Net": a pull along a tether, which moves the one at its far end
+  // toward the actor and nobody else
+  pull: z.boolean().default(false),
   movement: PushMovementSchema.default('careful'),
   path: z.array(CoordSchema).default([]),
   boost: z.boolean().default(false),

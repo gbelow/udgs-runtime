@@ -9,7 +9,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { DIRECTIONS, add, directionTo, sameCell, setDistance, walkOut } from '../geometry'
 import { getFootprint, placeAt, withPlacements } from './board'
 import { getOpeningReaction, getReactionsTo } from './log'
-import { getPartners, getGrapples, isHeld, getGrappleGroup } from './partners'
+import { getPartners, getGrapples, getTethers, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './fighters'
 import { getMoveBlockCells, getMoveCost, isLameBarred } from './move'
 import { canStandAt } from './ground'
@@ -35,9 +35,44 @@ type Parties = {
   released: string[]
 }
 
-function getParties(state: CombatState, root: DragAction): Parties {
+// Everyone the block involves: whoever is locked in the actor's grapple, or
+// for a pull whoever is tied together with them.
+export function getDragGroup(state: CombatState, root: DragAction): string[] {
+  return getGrappleGroup(root.pull ? getTethers(state) : getGrapples(state), root.actorId)
+}
+
+// The one whose cells the way is: the actor, or for a pull the one at the far
+// end of the tether, who is moved toward them.
+function getWalkerId(root: DragAction): string | null {
+  return root.pull ? root.targetId : root.actorId
+}
+
+// gear.tex "Net": a pull sets the actor, and whoever helps, against the one
+// pulled and whoever resists; the others tied to them stay out of it unless
+// they answer. The one pulled alone is moved.
+function getPullParties(state: CombatState, root: DragAction): Parties {
+  const chose = getChoosers(state, root)
+  const [assist, resist] = [chose('assist'), chose('resist')]
+  const others = getDragGroup(state, root).filter((id) => id !== root.actorId && id !== root.targetId)
+  const pulled = root.targetId ? [root.targetId] : []
+  return {
+    movers: pulled,
+    attackers: [root.actorId, ...others.filter((id) => assist.has(id))],
+    resisters: [...pulled, ...others.filter((id) => resist.has(id) && !assist.has(id))],
+    carriers: [],
+    released: [],
+  }
+}
+
+// Who answered the block with each kind of reaction.
+function getChoosers(state: CombatState, root: DragAction): (kind: Action['kind']) => Set<string> {
   const reactions = getReactionsTo(state, root.id)
-  const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
+  return (kind) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
+}
+
+function getParties(state: CombatState, root: DragAction): Parties {
+  if (root.pull) return getPullParties(state, root)
+  const chose = getChoosers(state, root)
   const [assist, carry, letGo] = [chose('assist'), chose('carry'), chose('letGo')]
   const released = [...letGo].filter((id) => !isHeld(getGrapples(state), id))
   const grapples = dropHolders(getGrapples(state), (id) => released.includes(id))
@@ -160,6 +195,7 @@ const FREE: ActionCost = { AP: 0, STA: 0 }
 // actor alone ("as long as no other grapplers are displaced").
 function walksBlock(root: DragAction, action: Pick<Action, 'kind' | 'actorId'>): boolean {
   if (action.kind === 'drag') return true
+  if (root.pull) return false
   return root.movement !== 'basic' && (action.kind === 'assist' || action.kind === 'carry')
 }
 
@@ -211,6 +247,17 @@ function getAxis(state: CombatState, root: DragAction): Coord | null {
   return from && to ? DIRECTIONS[directionTo(from.cell, to.cell)] : null
 }
 
+export function getWalkerPlacement(state: CombatState, root: DragAction): Placement | undefined {
+  const id = getWalkerId(root)
+  return id ? state.board?.placements[id] : undefined
+}
+
+// The ways the block may go: forwards or backwards along the line, but a pull
+// only toward the actor (gear.tex "Net": "only pulling").
+function getDirections(axis: Coord, root: DragAction): Coord[] {
+  return root.pull ? [scale(axis, -1)] : [axis, scale(axis, -1)]
+}
+
 function scale(d: Coord, n: number): Coord {
   return { q: d.q * n, r: d.r * n }
 }
@@ -246,7 +293,7 @@ function circledTo(state: CombatState, root: DragAction, cell: Coord): Record<st
 // actor has gone, if everyone can stand there.
 function shiftedTo(state: CombatState, root: DragAction, movers: string[], cell: Coord): Record<string, Placement> | null {
   const board = state.board
-  const from = board?.placements[root.actorId]
+  const from = getWalkerPlacement(state, root)
   if (!board || !from) return null
   const offset = { q: cell.q - from.cell.q, r: cell.r - from.cell.r }
   const placements = Object.fromEntries(movers.flatMap((id) => {
@@ -260,8 +307,8 @@ function shiftedTo(state: CombatState, root: DragAction, movers: string[], cell:
 // when the way is not one the block allows — longer than the block, off the
 // line, or somewhere someone cannot stand.
 export function getGroupSteps(state: CombatState, root: DragAction): Record<string, Placement>[] | null {
-  const from = state.board?.placements[root.actorId]
-  if (!from || root.path.length > blockCells(state, root)) return null
+  const from = getWalkerPlacement(state, root)
+  if (!from || (root.pull && root.movement !== 'careful') || root.path.length > blockCells(state, root)) return null
   if (root.movement === 'basic') {
     const steps: Record<string, Placement>[] = []
     for (const cell of root.path) {
@@ -273,7 +320,7 @@ export function getGroupSteps(state: CombatState, root: DragAction): Record<stri
   }
   if (root.path.length === 0) return []
   const axis = getAxis(state, root)
-  const direction = axis ? [axis, scale(axis, -1)].find((d) => sameCell(add(from.cell, d), root.path[0])) : undefined
+  const direction = axis ? getDirections(axis, root).find((d) => sameCell(add(from.cell, d), root.path[0])) : undefined
   if (!direction) return null
   const { movers } = getParties(state, root)
   const steps: Record<string, Placement>[] = []
@@ -295,7 +342,7 @@ export function getGroupOrigin(state: CombatState, root: DragAction): Record<str
 // Every cell the actor can take the block to at its speed, with the way
 // there: around the grapple, or straight forwards or backwards.
 export function getDragReach(state: CombatState, root: DragAction): { cell: Coord; steps: number; path: Coord[] }[] {
-  const from = state.board?.placements[root.actorId]
+  const from = getWalkerPlacement(state, root)
   if (!from) return []
   const block = blockCells(state, root)
   if (root.movement === 'basic') {
@@ -303,7 +350,7 @@ export function getDragReach(state: CombatState, root: DragAction): { cell: Coor
   }
   const axis = getAxis(state, root)
   if (!axis) return []
-  return [axis, scale(axis, -1)].flatMap((d) => {
+  return getDirections(axis, root).flatMap((d) => {
     const reach: { cell: Coord; steps: number; path: Coord[] }[] = []
     for (let n = 1; n <= block; n++) {
       const path = Array.from({ length: n }, (_, i) => add(from.cell, scale(d, i + 1)))

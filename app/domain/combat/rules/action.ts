@@ -17,7 +17,7 @@ import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isG
 import { getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
-import { getSlipCost, getSlipTargets } from './tether'
+import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
@@ -457,7 +457,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'holdBack':
       return getHoldBackTargets(state, root.actorId)
     case 'drag':
-      return getPartners(state, root.actorId).filter((id) => state.board?.placements[id] !== undefined)
+      return (root.pull ? getPullTargets(state, root.actorId) : getPartners(state, root.actorId)).filter((id) => state.board?.placements[id] !== undefined)
     // aimed at the board, or at nobody
     case 'explosion':
     case 'blast':

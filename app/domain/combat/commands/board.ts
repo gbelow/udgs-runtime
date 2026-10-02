@@ -11,7 +11,7 @@ import { canStandAt } from '../rules/ground'
 import { getMoveOrigin } from '../rules/waypoint'
 import { amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion } from './choices'
-import { getDragReach } from '../rules/drag'
+import { getDragReach, getWalkerPlacement } from '../rules/drag'
 
 // The simulation tool's own commands: what the table does to the board by
 // hand, outside any action. Placing and painting are refused while an action
@@ -97,7 +97,7 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
       return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
     }
     if (open.kind === 'drag' && open.step === 'define') {
-      const path = pickWayCell(state.board?.placements[open.actorId]?.cell ?? null, open.path, getDragReach(state, open), cell)
+      const path = pickWayCell(getWalkerPlacement(state, open)?.cell ?? null, open.path, getDragReach(state, open), cell)
       return path ? amendAction({ path })(state) : state
     }
     const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null

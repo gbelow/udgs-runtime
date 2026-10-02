@@ -93,7 +93,7 @@ export const ACTIONS = {
   // combat.tex "Push and drag": "a force vs force comparison to be able to
   // move", no die, priced by the block declared (rules/drag.ts
   // `getPushPrice`)
-  drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true },
+  drag:        { label: 'push or drag', noun: 'push',  type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true, movement: true, identity: { pull: false } },
   // letting go of a partner who does not hold back costs nothing
   release:     { label: 'let go',       type: 'action',   price: null,          reactsTo: [],         die: false, targeted: true },
   // gear.tex "Net": a Prestidigitation test against the tether's DL, priced

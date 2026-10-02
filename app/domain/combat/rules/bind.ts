@@ -3,7 +3,7 @@ import { getHeldItem } from '../../item/rules/hands'
 import { isGrapplingStill } from './grapple'
 import { setDistance } from '../geometry'
 import { getDistanceBetween, getPlacedFootprint } from './board'
-import { getPartner, getTethers, isTether } from './partners'
+import { getPartner, getTethersOf, isTether } from './partners'
 
 // Whether the holder still maintains the bind with what it was made with.
 function isMaintained(state: CombatState, id: string, b: Bind): boolean {
@@ -21,8 +21,7 @@ function isMaintained(state: CombatState, id: string, b: Bind): boolean {
 // already stretched.
 export function isTetherKept(state: CombatState, id: string, footprint: readonly Coord[]): boolean {
   if (!state.binds.some(isTether)) return true
-  return getTethers(state)
-    .filter((t) => t.members.includes(id))
+  return getTethersOf(state, id)
     .every((t) => {
       const partnerId = getPartner(t, id)
       const there = getPlacedFootprint(state, partnerId)

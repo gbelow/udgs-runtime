@@ -18,6 +18,10 @@ export function getTethers(state: CombatState): Tether[] {
   return state.binds.filter(isTether)
 }
 
+export function getTethersOf(state: CombatState, id: string): Tether[] {
+  return getTethers(state).filter((t) => t.members.includes(id))
+}
+
 export function findGrapple(grapples: Grapple[], a: string, b: string): Grapple | null {
   return grapples.find((g) => a !== b && g.members.includes(a) && g.members.includes(b)) ?? null
 }
@@ -30,7 +34,7 @@ export function isInGrapple(state: CombatState, id: string): boolean {
   return getGrapplesOf(state, id).length > 0
 }
 
-export function getPartner(g: Bind, id: string): string {
+export function getPartner(g: Pick<Bind, 'members'>, id: string): string {
   return g.members[0] === id ? g.members[1] : g.members[0]
 }
 
@@ -48,9 +52,9 @@ export function isHeld(grapples: Grapple[], id: string): boolean {
 }
 
 // Everyone locked together with the character through any chain of
-// grapples, the character included (combat.tex "Push and drag": all of them
+// binds, the character included (combat.tex "Push and drag": all of them
 // are dragged).
-export function getGrappleGroup(grapples: Grapple[], id: string): string[] {
+export function getGrappleGroup(grapples: readonly Pick<Bind, 'members'>[], id: string): string[] {
   const group = new Set([id])
   const queue = [id]
   while (queue.length > 0) {

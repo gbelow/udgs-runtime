@@ -871,6 +871,19 @@ describe('a net', () => {
 
   // gear.tex "Net": the tethered slips it on a Prestidigitation test against
   // the zone's DL, freed on a hit or better, for two standard actions.
+  // gear.tex "Net": either end pulls the other along the tether, only
+  // toward themselves, on the push and drag comparison (the table's ruling:
+  // Force against Force, the pulled alone moved, the puller paying the
+  // block); here 2 AP for +5 against an equal Force.
+  it('is pulled toward whoever holds it, one step', () => {
+    let s = netted()
+    s = declareAction('t', { kind: 'drag', pull: true, boost: true }, netId)(s)
+    s = commitAction(() => 5, netId)(amendAction({ path: [{ q: -1, r: 0 }] })(setTarget('x')(s)))
+    s = playOut(s, 5).state
+    expect(s.board?.placements.x.cell).toEqual({ q: -1, r: 0 })
+    expect(s.board?.placements.t.cell).toEqual({ q: -3, r: 0 })
+  })
+
   it.each([[1, 3], [10, 2]] as const)('with a die of %i leaves %i of the three tethered', (face, remaining) => {
     let s = netted()
     s = declareAction('x', { kind: 'slip' }, netId)(s)
