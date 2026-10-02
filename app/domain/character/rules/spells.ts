@@ -8,6 +8,7 @@ import { MAX_SIZE, getSM } from './helpers'
 import { getSize } from './misc'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
+import { hasGrant } from './abilities'
 import { getActionCost, type ActionCost } from './actionCosts'
 import { getCarriedItems, getItemScale, isGear } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
@@ -70,8 +71,8 @@ export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character
     if (!SPELLS[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))) return false
     switch (method) {
       case 'intuitive': return requirementLevel(SPELLS[key]) <= 3
-      case 'wizard': return c.abilities.includes('magic-theory')
-      case 'cleric': return c.abilities.includes('cleric')
+      case 'wizard': return hasGrant(c, 'wizardSpells')
+      case 'cleric': return hasGrant(c, 'clericSpells')
     }
   }
 }

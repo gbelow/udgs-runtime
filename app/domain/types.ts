@@ -791,6 +791,13 @@ export const RecipeSchema = z.discriminatedUnion('type', [
 ])
 export type Recipe = z.infer<typeof RecipeSchema>
 
+// A capability a rule in the domain asks for by name, which an ability gives
+// its holder for as long as it is learned (character/rules/effects.ts
+// `hasGrant`). What each allows is the rule that asks for it, which cites
+// the book.
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells'])
+export type Grant = z.infer<typeof GrantSchema>
+
 // What one level of an ability states for itself: its price, what it asks
 // for, what it does. Shared between the stored family shape and the
 // expanded per-stage catalog entry.
@@ -801,7 +808,8 @@ const AbilityStageValues = {
   requirements: z.array(z.array(RequirementSchema)).default([]), // every outer item is needed, any inner alternative satisfies it
   description: str.default(''),
   effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
-  recipes: z.array(RecipeSchema).default([]), // the follow-ups this stage offers in a fight
+  recipes: z.array(RecipeSchema).default([]), // the actions this stage gives in a fight
+  grants: z.array(GrantSchema).default([]), // the capabilities this stage gives while learned
 }
 
 export const AbilityStageSchema = z.object(AbilityStageValues).strip()

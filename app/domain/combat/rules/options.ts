@@ -5,6 +5,7 @@ import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
+import { hasGrant } from '../../character/rules/abilities'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
@@ -113,7 +114,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'intercept':
         return defRows(c).flatMap((row) => {
           const base = { id: '', actorId: c.id, reactionTo: open.id, weaponKey: row.wielded.key, attack: row.atk.name }
-          const guards = [makeAction(kind, base), ...(kind === 'intercept' && c.abilities.includes('defensive-advance') ? [makeAction('intercept', { ...base, advance: true })] : [])]
+          const guards = [makeAction(kind, base), ...(kind === 'intercept' && hasGrant(c, 'advancingIntercept') ? [makeAction('intercept', { ...base, advance: true })] : [])]
           return guards.map((guard) => {
             const { cost: own, reason } = guardOption(state, c, open, guard, gate)
             const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }

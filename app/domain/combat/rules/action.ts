@@ -9,6 +9,7 @@ import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
+import { hasGrant } from '../../character/rules/abilities'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
@@ -302,7 +303,7 @@ export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | 
 // Reflexes": "If the character uses reflexes without moving, reflexes only
 // cost 1 AP."
 export function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
-  return stay && c.abilities.includes('precise-reflexes') ? { AP: 1, STA: 0 } : getActionCost(c, 'reflex')
+  return stay && hasGrant(c, 'stillReflex') ? { AP: 1, STA: 0 } : getActionCost(c, 'reflex')
 }
 
 // ---------------------------------------------------------------------------

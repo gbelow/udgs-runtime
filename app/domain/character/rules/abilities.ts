@@ -1,5 +1,5 @@
-import { Character } from '../../types'
-import { ABILITIES, AbilityKey } from '../../abilities'
+import { Character, Grant } from '../../types'
+import { ABILITIES, AbilityKey, isAbilityKey } from '../../abilities'
 import { holdsRequirement } from './requirements'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
@@ -10,6 +10,13 @@ export function canLearnAbility(key: AbilityKey): (c: Character) => boolean {
     !c.abilities.includes(key) &&
     ABILITIES[key].requires.every((req) => c.abilities.includes(req)) &&
     ABILITIES[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))
+}
+
+// Whether a learned ability gives the character the capability, whatever
+// its activation: a grant is what learning it allows, not what using it
+// does.
+export function hasGrant(character: Character, grant: Grant): boolean {
+  return character.abilities.some((key) => isAbilityKey(key) && ABILITIES[key].grants.includes(grant))
 }
 
 // creating.tex "Talent and Learning": the XP price doubles for every level

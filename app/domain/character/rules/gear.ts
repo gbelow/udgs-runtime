@@ -9,6 +9,7 @@ import { getDM } from "./helpers";
 import { getArmor } from "./armor";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
+import { hasGrant } from "./abilities";
 import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Burden penalties": armor, shield and container penalties stack and
@@ -109,7 +110,7 @@ export function needsFocus(atk: WeaponAttack, c: Character): boolean {
 // Characters without proper training spend an extra 3 AP for each shot and
 // cannot snipe or quick shot."
 function isUntrainedBow(weapon: Weapon, c: Character): boolean {
-  return (BOWS as readonly string[]).includes(weapon.name) && !c.abilities.includes('archer')
+  return (BOWS as readonly string[]).includes(weapon.name) && !hasGrant(c, 'bowTraining')
 }
 
 export type AttackVariant = {

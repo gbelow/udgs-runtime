@@ -5,6 +5,7 @@ import { getMoveBlockCells } from './move'
 import { canStandAt } from './ground'
 import { findWeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
+import { hasGrant } from '../../character/rules/abilities'
 
 // The block or intercept someone meets a strike with, their own or made for
 // someone else (combat.tex "Protect").
@@ -41,7 +42,7 @@ export function getProtectors(state: CombatState, root: StrikeAction): string[] 
 export function getDefenderSteps(state: CombatState, root: StrikeAction, id: string): Placement[] {
   const c = state.characters[id]
   const from = state.board?.placements[id]
-  if (!c || !from || !c.abilities.includes('defender')) return []
+  if (!c || !from || !hasGrant(c, 'protectStep')) return []
   const reach = Math.floor(getMoveBlockCells(c, 'basic', 1))
   return disk(from.cell, reach)
     .filter((cell) => !sameCell(cell, from.cell))
@@ -67,7 +68,7 @@ export function getAdvanceSteps(state: CombatState, root: StrikeAction, id: stri
   const c = state.characters[id]
   const from = state.board?.placements[id]
   const attacker = getPlacedFootprint(state, root.actorId)
-  if (!c || !from || !attacker || !c.abilities.includes('defensive-advance')) return []
+  if (!c || !from || !attacker || !hasGrant(c, 'advancingIntercept')) return []
   const before = setDistance(getFootprint(c, from), attacker)
   return ring(from.cell, 1)
     .map((cell) => ({ ...from, cell }))

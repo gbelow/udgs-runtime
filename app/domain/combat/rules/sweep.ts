@@ -2,6 +2,7 @@ import type { Character } from '../../types'
 import type { CombatState, Coord, StrikeAction } from '../types'
 import { isSweepVariant } from '../../character/rules/gear'
 import { getPassedShare } from '../../character/rules/damage'
+import { hasGrant } from '../../character/rules/abilities'
 import { angleBetween, centroid, directedTurn, distance, line, setDistance } from '../geometry'
 import { getPlacedFootprint, isInReach } from './board'
 import { isProne } from './ground'
@@ -55,7 +56,7 @@ export function canBeSwept(state: CombatState, swept: readonly string[], id: str
 // cover up to 360 degrees."
 function getArcSpan(c: Character, strike: StrikeAction): number {
   const row = findWeaponRow(c, strike.weaponKey, strike.attack)
-  return c.abilities.includes('death-spin') && row?.atk.handed === 'two' ? 2 * Math.PI : Math.PI
+  return hasGrant(c, 'fullCircleSweep') && row?.atk.handed === 'two' ? 2 * Math.PI : Math.PI
 }
 
 // "If one character is behind another, only the closest is hit": the
