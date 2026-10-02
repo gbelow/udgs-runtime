@@ -109,6 +109,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   resetSkill: characterCommands.resetSkill('strike'),
   resetAllSkills: characterCommands.resetAllSkills(),
   addKnowledge: characterCommands.addKnowledge('navigation'),
+  setLimitStress: characterCommands.setLimitStress('coward'),
   removeKnowledge: characterCommands.removeKnowledge('medicine'),
   learnAbility: characterCommands.learnAbility('sprinter-2'),
   forgetAbility: characterCommands.forgetAbility('sprinter-1'),

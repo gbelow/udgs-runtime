@@ -20,7 +20,7 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
-import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../domain/lists';
+import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists';
 
 const MOVES: { name: keyof Movement, title: string }[] = [
   { name: 'basic', title: 'basic · 1AP' },
@@ -139,6 +139,8 @@ export function CharacterCreator() {
           <Tiles>{MIND.map((s) => <SkillItem key={s} skillName={s} title={s} />)}</Tiles>
         </div>
 
+        <LimitStressPicker />
+
         <KnowledgePanel />
 
         <TextItem aria-label='notes' keyName='notes' mode='large'/>
@@ -247,6 +249,21 @@ function ConvictionDial ({trainableName, fallbackTitle, options}:{trainableName:
         ))}
       </select>
       <NumberInput className='w-full text-sm py-0.5' title={fallbackTitle} value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
+    </div>
+  )
+}
+
+// creating.tex "Limit Stress Actions": each character chooses one.
+function LimitStressPicker(){
+  const { limitStress } = useActiveCharacterData()
+  const { chooseLimitStress } = useCharacterCommands()
+  return(
+    <div className='flex flex-row gap-2 items-center'>
+      <SectionLabel>Limit stress action</SectionLabel>
+      <select aria-label='limitStress' className={`${inputClass} bg-surface text-sm`} value={limitStress ?? ''} onChange={(e) => chooseLimitStress((e.target.value || null) as LimitStressAction | null)}>
+        <option value=''>none</option>
+        {LIMIT_STRESS_ACTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
     </div>
   )
 }

@@ -15,7 +15,9 @@ export function useActiveCharacterData() {
   const notes = useActiveCharacterSelector((c: Character) => c.notes) ?? '';
   const name = useActiveCharacterSelector((c: Character) => c.name) ?? '';
 
-  return { fightName, notes, name };
+  const limitStress = useActiveCharacterSelector((c: Character) => c.limitStress) ?? null;
+
+  return { fightName, notes, name, limitStress };
 }
 
 // A character outside a fight has no surge to spend, and the constant keeps the

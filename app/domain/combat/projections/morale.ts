@@ -15,7 +15,8 @@ export type MoraleRow = {
   bar: string | null
   // the test as it was made, '' before it is
   result: string
-  limitStress: boolean
+  // the character's limit stress action when the test activated it, else null
+  limitStress: string | null
 }
 
 // combat.tex "Morale": everyone the round called to a test, what weighs on
@@ -28,7 +29,7 @@ function buildMoraleRows(state: CombatState): MoraleRow[] {
     aggravators: getAggravators(state, id).map((t) => `${t.label} +${t.value}`).join(', '),
     bar: getMoraleBar(state, id),
     result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}` : '',
-    limitStress: roll?.limitStress ?? false,
+    limitStress: roll?.limitStress ? state.characters[id].limitStress ?? 'not chosen' : null,
   }))
 }
 

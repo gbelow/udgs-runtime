@@ -19,6 +19,7 @@ import { getDistanceBetween, hasLineOfSight } from './board'
 import { resolveTest, resisted } from './test'
 import { isAreaEffect } from './explosion'
 import { getSituationalAfflictions, isSuffocating } from './situational'
+import { getMoraleDL } from './morale'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -308,13 +309,17 @@ export function getSpellTestSkillTerms(state: CombatState, action: SpellTestActi
   return target && roll ? skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)) : []
 }
 
-// The caster's side of the test, resolved for the caster: the book's
-// "Charisma".
+// The caster's side of the test, term by term: the book's "Charisma" resolved
+// for the caster, and the "morale aggravators" the target is under as the
+// fight stands (combat.tex "Morale").
 export function getSpellTestDLTerms(state: CombatState, action: SpellTestAction): Term[] {
   const caster = state.characters[action.actorId]
   const test = isSpellKey(action.key) ? SPELLS[action.key].test : null
   if (!caster || !test) return []
-  return [{ label: test.dl, value: resolveDL(caster, test.dl, test.roll).value ?? 0 }]
+  return test.dl.split('+').map((t) => t.trim()).filter(Boolean).map((label) => ({
+    label,
+    value: label === 'morale aggravators' && action.targetId ? getMoraleDL(state, action.targetId) : resolveDL(caster, label, test.roll).value ?? 0,
+  }))
 }
 
 // What reaches the target: the outcome their own degree on the test picks,

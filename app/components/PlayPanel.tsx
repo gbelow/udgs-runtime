@@ -457,7 +457,7 @@ function MoralePanel(){
             )) :
             <span className='text-xs text-muted'>{r.result}</span>
           }
-          {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action</span> : null}
+          {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
         </div>
       ))}
     </div>

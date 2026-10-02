@@ -198,3 +198,8 @@ export const MELEE_RANGES = ['short', 'long I', 'long II'] as const
 export const THROWN_RANGES = ['5m', '10m', '30m'] as const
 export const SHOT_RANGES = ['shooting', 'far'] as const
 export const RANGES = [...MELEE_RANGES, ...THROWN_RANGES, ...SHOT_RANGES] as const
+
+// creating.tex "Limit Stress Actions": "Each character must choose a limit
+// stress action", the one a failed morale test activates.
+export const LIMIT_STRESS_ACTIONS = ['coward', 'violent', 'tanatosis', 'abusive', 'traitor', 'martyr'] as const
+export type LimitStressAction = (typeof LIMIT_STRESS_ACTIONS)[number]

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
@@ -1125,6 +1125,9 @@ const CharacterValues = {
 
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog
   spells: z.record(z.string(), LearnedSpellSchema).default({}), // keyed into the spell catalog
+
+  // creating.tex "Limit Stress Actions": chosen once, null while unchosen
+  limitStress: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
 
   notes: z.string().default(''),
 }
