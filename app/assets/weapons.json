@@ -798,7 +798,7 @@
       {
         "name": "throw",
         "handed": "two",
-        "range": "long II",
+        "range": "5m",
         "material": "fiber",
         "RES": 15,
         "blunt": 0,
@@ -809,29 +809,25 @@
           "reload",
           "explosion"
         ],
-        "payload": []
-      }
-    ]
-  },
-  "Grappling Hook and Rope": {
-    "name": "Grappling Hook and Rope",
-    "scale": 3,
-    "attacks": [
-      {
-        "name": "throw",
-        "handed": "two",
-        "range": "10m",
-        "material": "metal",
-        "RES": 10,
-        "blunt": 6,
-        "cut": 10,
-        "AP": 4,
-        "reload": 4,
-        "properties": [
-          "hook",
-          "slow"
-        ],
-        "payload": []
+        "payload": [
+          {
+            "name": "entangle",
+            "type": "tether",
+            "target": "area",
+            "area": {
+              "shape": "explosion",
+              "radius": 2,
+              "grazes": false
+            },
+            "effect": {
+              "length": 5,
+              "dl": {
+                "critical": 5,
+                "hit": 3
+              }
+            }
+          }
+        ]
       }
     ]
   },

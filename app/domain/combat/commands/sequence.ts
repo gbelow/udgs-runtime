@@ -6,7 +6,8 @@ import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
 import { getDefaultAim } from '../rules/attack'
 import { getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
-import { getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
+import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
+import { isTying } from '../rules/tether'
 import { isVoided } from '../rules/opportunity'
 import { isInterruptedBy } from '../rules/interruption'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
@@ -175,7 +176,9 @@ function reaimedSpray(state: CombatState, root: FireAgainAction, newId: () => st
 // goes off where it landed, committed as it opens — there is nothing to
 // aim — for everyone its area reaches to answer with their reflexes.
 function impactExplosion(state: CombatState, root: ThrowAction, newId: () => string): ExplosionAction[] {
-  const explosion = root.thrown && root.to ? getImpactExplosion(state, root.actorId, root.thrown, root.to, { id: newId(), spawnedBy: root.id, step: 'react' }) : null
+  const tied = root.thrown ? null : findObject(state, root.itemId)
+  const item = root.thrown ?? (tied && isTying(tied) ? tied : null)
+  const explosion = item && root.to ? getImpactExplosion(state, root.actorId, item, root.to, { id: newId(), spawnedBy: root.id, step: 'react' }) : null
   return explosion ? [explosion] : []
 }
 

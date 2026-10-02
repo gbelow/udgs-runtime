@@ -20,6 +20,7 @@ import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+import { getTethers } from '../rules/partners'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
@@ -331,6 +332,27 @@ describe('an explosion', () => {
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
     expect(facts.x).toBeUndefined()
     expect(facts.y?.length).toBeGreaterThan(0)
+  })
+})
+
+// gear.tex "Net", "Explosion": a thrown net's explosion ties each one it
+// catches to the thrower, at the DL of the zone they stand in (the table's
+// ruling: critical at the centre, a hit across the rest of its 2m radius),
+// and the net stays in the thrower hand by its rope.
+describe('a net', () => {
+  it('ties each one it catches, and stays in the hand that threw it', () => {
+    const net = ItemSchema.parse({ name: 'Net', type: 'weapon', refId: 'Net', bulk: 2 })
+    const thrower = { ...(regripItem(net.id, 2)(holdItem(net)(fighter('t')))), usedSurge: 'focus' as const }
+    let s = onBoard({ t: [-3, 0], x: [0, 0], y: [1, 0], z: [2, 0] }, thrower, fighter('x'), fighter('y'), fighter('z'))
+    s = declareAction('t', { kind: 'throw', itemId: net.id, to: { q: 0, r: 0 } }, newId)(s)
+    s = commitAction(() => 5, newId)(s)
+    for (const id of ['x', 'y', 'z']) s = declareReaction(id, { kind: 'avoidExplosion' }, newId)(s)
+    s = rollAction(() => 50, newId)(s)
+    for (let i = 0; i < 8 && getOpenAction(s)?.kind === 'move'; i++) s = withdrawSpawnedAction(newId)(s)
+    s = playOut(s, 5).state
+    const dls = Object.fromEntries(getTethers(s).map((t) => [t.members[1], t.dl]))
+    expect(dls).toEqual({ x: 5, y: 3, z: 3 })
+    expect(s.characters.t.held.map((i) => i.id)).toContain(net.id)
   })
 })
 

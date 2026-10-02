@@ -17,7 +17,7 @@ export type Improvements = Partial<Record<SpellModification, number>>
 // creating.tex "Reach Multiplier": "xRM" — an area at the spell's size.
 function scaleArea(area: Area, RM: number): Area {
   return area.shape === 'explosion'
-    ? { shape: 'explosion', radius: Math.floor(area.radius * RM) }
+    ? { ...area, radius: Math.floor(area.radius * RM) }
     : { shape: 'spray', length: Math.floor(area.length * RM), angle: area.angle }
 }
 
@@ -77,6 +77,7 @@ function bare(c: Character, effect: OutcomeEffect, size: number, onArea: boolean
     }
     case 'affliction': return { name, trigger, type, effect: effect.effect }
     case 'terrain': return { name, trigger, type, effect: effect.effect }
+    case 'tether': return { name, trigger, type, effect: effect.effect }
     case 'cost': return { name, trigger, type, effect: effect.effect }
     case 'buff': return { name, trigger, type, effect: effect.effect }
     case 'suppression': return { name, trigger, type, effect: effect.effect }

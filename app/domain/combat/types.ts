@@ -205,20 +205,42 @@ const SweepDeclaration = {
   sweepDirection: z.enum(['clockwise', 'counterclockwise']).default('clockwise'),
 }
 
-// combat.tex "Grapple": two characters locked together, and which of them
-// hold the other — a hold both ways is a grab answered by "grapple back". A
-// holder keeps the hold only while they have a grapple row to hold with.
-// Who a maneuver left immobile stays so while the grapple lasts. Each holder
-// holds with one weapon the grapple seized (`weapons`, holder id to wielded
-// key), which serves this grapple alone, the table's ruling. It is a fact
-// of the fight, not of either character, so it lives on the fight.
-export const GrappleSchema = z.object({
+// Two characters tied together, and which of them hold the other — a hold
+// both ways is a grab answered by "grapple back". Each holder keeps the bind
+// only while they maintain it with what it was made with (`anchors`, holder id
+// to the wielded key or held item that serves this bind alone, the table's
+// ruling). A bind is a fact of the fight, not of either character, so it
+// lives on the fight; each kind says what else it carries.
+const BindBaseSchema = z.object({
   members: z.tuple([str, str]),
   holders: z.array(str).default([]),
+  anchors: z.record(str, str).default({}),
+})
+
+// combat.tex "Grapple": a holder keeps the hold only while they have a
+// grapple row to hold with. Who a maneuver left immobile stays so while the
+// grapple lasts.
+export const GrappleSchema = BindBaseSchema.extend({
+  kind: z.literal('grapple'),
   immobile: z.array(str).default([]),
-  weapons: z.record(str, str).default({}),
 }).strip()
 export type Grapple = z.infer<typeof GrappleSchema>
+
+// gear.tex "Net": what a thrown net ties one character to another with — the
+// thrower holds it by its rope, and it lives while the net is in their hand
+// (`anchors`). The tethered cannot leave `length` metres of whoever tied
+// them, nor they of the tethered; either may pull the other. `dl` is what the
+// tethered beats on a Prestidigitation test to slip it, the zone they were
+// caught in already counted.
+export const TetherSchema = BindBaseSchema.extend({
+  kind: z.literal('tether'),
+  length: num,
+  dl: num,
+}).strip()
+export type Tether = z.infer<typeof TetherSchema>
+
+export const BindSchema = z.discriminatedUnion('kind', [GrappleSchema, TetherSchema])
+export type Bind = z.infer<typeof BindSchema>
 
 export const GrappleAfflictionSchema = z.enum(GRAPPLE_AFFLICTIONS)
 export const GrappleManeuverSchema = z.enum(GRAPPLE_MANEUVERS)
@@ -822,8 +844,8 @@ export const CombatStateSchema = z.object({
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),
-  // combat.tex "Grapple": every grapple of the fight, one per pair
-  grapples: z.array(GrappleSchema).default([]),
+  // Every bind of the fight: grapples (combat.tex "Grapple"), one per pair
+  binds: z.array(BindSchema).default([]),
   floor: z.array(FloorItemSchema).default([]),
 }).strip()
 

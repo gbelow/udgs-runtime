@@ -9,12 +9,12 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { DIRECTIONS, add, directionTo, sameCell, setDistance, walkOut } from '../geometry'
 import { getFootprint, placeAt, withPlacements } from './board'
 import { getOpeningReaction, getReactionsTo } from './log'
-import { getPartners, isHeld, getGrappleGroup } from './partners'
+import { getPartners, getGrapples, isHeld, getGrappleGroup } from './partners'
 import { getFightName } from './fighters'
 import { getMoveBlockCells, getMoveCost, isLameBarred } from './move'
 import { canStandAt } from './ground'
 import { getInterruptions } from './interruption'
-import { dropHolders } from './grapple'
+import { dropHolders } from './bind'
 
 // ---------------------------------------------------------------------------
 // Push and drag: who is on which side
@@ -39,8 +39,8 @@ function getParties(state: CombatState, root: DragAction): Parties {
   const reactions = getReactionsTo(state, root.id)
   const chose = (kind: Action['kind']) => new Set(reactions.filter((r) => r.kind === kind).map((r) => r.actorId))
   const [assist, carry, letGo] = [chose('assist'), chose('carry'), chose('letGo')]
-  const released = [...letGo].filter((id) => !isHeld(state.grapples, id))
-  const grapples = dropHolders(state.grapples, (id) => released.includes(id))
+  const released = [...letGo].filter((id) => !isHeld(getGrapples(state), id))
+  const grapples = dropHolders(getGrapples(state), (id) => released.includes(id))
   const movers = getGrappleGroup(grapples, root.actorId)
   const attackers = movers.filter((id) => id === root.actorId || assist.has(id))
   const carriers = movers.filter((id) => carry.has(id) && !attackers.includes(id))

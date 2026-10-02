@@ -7,7 +7,7 @@ import * as turnModule from './combat/commands/turn'
 import * as actionsModule from './combat/commands/action'
 import * as choicesModule from './combat/commands/choices'
 import * as boardModule from './combat/commands/board'
-import * as grappleModule from './combat/commands/grapple'
+import * as bindModule from './combat/commands/bind'
 import * as floorModule from './combat/commands/floor'
 import * as charactersModule from './combat/commands/characters'
 import { CombatStateSchema, type CombatState } from './combat/types'
@@ -21,7 +21,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...grappleModule, ...floorModule, ...charactersModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -199,7 +199,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),
   chooseManeuver: (s) => combatCommands.chooseManeuver({ along: true })(deepFreeze(rolledManeuver(s))),
-  settleGrapples: (s) => combatCommands.settleGrapples(deepFreeze(grappling(s))),
+  settleBinds: (s) => combatCommands.settleBinds(deepFreeze(grappling(s))),
   settleSevered: (s) => combatCommands.settleSevered(s, 'x')(deepFreeze({ ...s, characters: { ...s.characters, a: severPart('handL')(s.characters.a) } })),
   dropToFloor: (s) => combatCommands.dropToFloor('a', daggerItem.id)(deepFreeze(grappling(s))),
   throwOffShieldToFloor: (s) => combatCommands.throwOffShieldToFloor('a')(deepFreeze({ ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, onBack: shieldItem } } })),
@@ -211,7 +211,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 
 // `a` and `b` holding each other, nothing open.
 function grappling(s: CombatState): CombatState {
-  return { ...cleared(s), grapples: [{ members: ['a', 'b'], holders: ['a', 'b'], immobile: [], weapons: {} }] }
+  return { ...cleared(s), binds: [{ kind: 'grapple', members: ['a', 'b'], holders: ['a', 'b'], immobile: [], anchors: {} }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.

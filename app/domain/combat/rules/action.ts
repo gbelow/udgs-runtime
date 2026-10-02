@@ -17,7 +17,7 @@ import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isG
 import { getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
-import { findGrapple, getPartners } from './partners'
+import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
@@ -74,7 +74,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
     case 'opportunityAttack': {
-      const partner = findGrapple(state.grapples, action.actorId, action.targetId ?? '') !== null
+      const partner = findGrapple(getGrapples(state), action.actorId, action.targetId ?? '') !== null
       if (action.mode === 'grapple') return partner && getManeuverTargets(state, action.actorId, action.maneuver).includes(action.targetId ?? '')
       const strike = getOpportunityStrike(state, action, '')
       const fought = getOpportunityState(state, action)
@@ -143,7 +143,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
 // A weapon a grapple seized is used by its grapple rows alone, against the
 // partner alone: an attack's target, or the attacker a defense answers.
 export function isUsedOutsideGrapple(state: CombatState, action: Action): boolean {
-  if (state.grapples.length === 0 || !('weaponKey' in action)) return false
+  if (!state.binds.some(isGrapple) || !('weaponKey' in action)) return false
   const against = action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard' ? getRootOf(state, action)?.actorId : action.targetId
   return isSeizedUse(state, action.actorId, action.weaponKey, action.attack, against)
 }

@@ -11,7 +11,7 @@ import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
-import { getPartners, isHeld } from './partners'
+import { getPartners, getGrapples, isHeld } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
@@ -167,7 +167,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
       case 'carry':
         return [answer({ kind }, cost, gate ?? (canAfford(c, cost) ? null : 'cannot afford'))]
       case 'letGo': {
-        return [answer({ kind }, cost, gate ?? (isHeld(state.grapples, c.id) ? 'held' : null))]
+        return [answer({ kind }, cost, gate ?? (isHeld(getGrapples(state), c.id) ? 'held' : null))]
       }
       // combat.tex "Coordinated Shots": a shot of their own, so it is open
       // only to someone who can pay for one that reaches the target

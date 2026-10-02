@@ -1,20 +1,36 @@
-import type { CombatState, Grapple } from '../types'
+import type { Bind, CombatState, Grapple, Tether } from '../types'
 
 // Who is in a grapple with whom.
+
+export function isGrapple(b: Bind): b is Grapple {
+  return b.kind === 'grapple'
+}
+
+export function getGrapples(state: CombatState): Grapple[] {
+  return state.binds.filter(isGrapple)
+}
+
+export function isTether(b: Bind): b is Tether {
+  return b.kind === 'tether'
+}
+
+export function getTethers(state: CombatState): Tether[] {
+  return state.binds.filter(isTether)
+}
 
 export function findGrapple(grapples: Grapple[], a: string, b: string): Grapple | null {
   return grapples.find((g) => a !== b && g.members.includes(a) && g.members.includes(b)) ?? null
 }
 
 export function getGrapplesOf(state: CombatState, id: string): Grapple[] {
-  return state.grapples.filter((g) => g.members.includes(id))
+  return getGrapples(state).filter((g) => g.members.includes(id))
 }
 
 export function isInGrapple(state: CombatState, id: string): boolean {
   return getGrapplesOf(state, id).length > 0
 }
 
-export function getPartner(g: Grapple, id: string): string {
+export function getPartner(g: Bind, id: string): string {
   return g.members[0] === id ? g.members[1] : g.members[0]
 }
 
@@ -22,7 +38,7 @@ export function getPartners(state: CombatState, id: string): string[] {
   return getGrapplesOf(state, id).map((g) => getPartner(g, id))
 }
 
-export function holds(g: Grapple, holderId: string): boolean {
+export function holds(g: Bind, holderId: string): boolean {
   return g.holders.includes(holderId)
 }
 

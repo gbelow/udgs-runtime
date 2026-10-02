@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
-import { settleGrapples } from './grapple'
+import { settleBinds } from './bind'
 
 // Takes a character out of the fight: their place on the board goes with
 // them, and so does every grapple they were in. Refused while an action is
@@ -11,8 +11,8 @@ export function removeFromCombat(id: string): Updater {
     if (getOpenAction(state)) return state
     const { [id]: _, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
-    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, grapples: state.grapples.filter((g) => !g.members.includes(id)) }
-    return settleGrapples(left)
+    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, binds: state.binds.filter((g) => !g.members.includes(id)) }
+    return settleBinds(left)
   }
 }
 
@@ -23,6 +23,6 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
   return (state) => {
     const c = state.characters[id]
     if (!c) return state
-    return settleGrapples({ ...state, characters: { ...state.characters, [id]: updater(c) } })
+    return settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c) } })
   }
 }

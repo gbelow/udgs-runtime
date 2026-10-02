@@ -176,7 +176,8 @@ export type HeavyRange = z.infer<typeof HeavyRangeSchema>
 // about the point it lands on, or a cone from the attacker of a length and
 // an opening angle (spells.tex "Flamethrower": "spray, 4m xRM, 60 degrees").
 export const AreaSchema = z.discriminatedUnion('shape', [
-  z.object({ shape: z.literal('explosion'), radius: num.default(1) }).strip(),
+  // `grazes`: whether the outermost ring is the graze zone (combat.tex "Explosions"), or a hit like the rings between
+  z.object({ shape: z.literal('explosion'), radius: num.default(1), grazes: z.boolean().optional() }).strip(),
   z.object({ shape: z.literal('spray'), length: num.default(1), angle: num.default(60) }).strip(),
 ])
 export type Area = z.infer<typeof AreaSchema>
@@ -638,6 +639,19 @@ export const TerrainEffectSchema = z.object({
   graze: TerrainPatchSchema.default(NO_PATCH),
 }).strip()
 
+// gear.tex "Net": what lands on one caught in the area — a tether to whoever
+// threw it, `length` metres at most, slipped on a Prestidigitation test
+// against the DL of the zone they were caught in; no DL for a zone is no
+// tether there.
+export const TetherEffectSchema = z.object({
+  length: num.default(0),
+  dl: z.object({
+    critical: num.nullable().default(null),
+    hit: num.nullable().default(null),
+    graze: num.nullable().default(null),
+  }).strip().default({ critical: null, hit: null, graze: null }),
+}).strip()
+
 export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
@@ -645,6 +659,7 @@ export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('damage'), effect: DamageSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
@@ -926,6 +941,7 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }), fromGear: num.nullable().default(null) }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
 ])
 export type SpellEffect = z.infer<typeof SpellEffectSchema>
 
@@ -942,6 +958,7 @@ export const OutcomeEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('damage'), effect: DamageSchema.pick({ damage: true, hardness: true, properties: true, force: true }) }).strip(),
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
 ])
 export type OutcomeEffect = z.infer<typeof OutcomeEffectSchema>
 

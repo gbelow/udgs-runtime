@@ -161,11 +161,12 @@ export function isSpray(blast: BlastShape): boolean {
 // combat.tex "Explosions": "Anyone caught in the center of the radius
 // receives the critical effect, while those in the middle are hit, and the
 // ones in the edge are grazed." The centre cell is the critical zone, the
-// outermost ring the graze, every ring between a hit. (Past 5m of radius the
-// book lets the table widen the outer zones, 30%/40%/30%; not done here.)
-function getDiskZones(center: Coord, radius: number): ZoneCell[] {
+// outermost ring the graze, every ring between a hit; an area that does not
+// graze has a hit there. (Past 5m of radius the book lets the table widen the
+// outer zones, 30%/40%/30%; not done here.)
+function getDiskZones(center: Coord, radius: number, grazes: boolean | undefined): ZoneCell[] {
   return Array.from({ length: radius + 1 }, (_, k) =>
-    ring(center, k).map((cell): ZoneCell => ({ cell, degree: k === 0 ? 'critical' : k === radius ? 'graze' : 'hit' })),
+    ring(center, k).map((cell): ZoneCell => ({ cell, degree: k === 0 ? 'critical' : grazes !== false && k === radius ? 'graze' : 'hit' })),
   ).flat()
 }
 
@@ -190,7 +191,7 @@ function getConeZones(origin: Coord, direction: number, length: number, angle: n
 // at the centre, a spray in its direction from the attacker, less the
 // attacker's own footprint. Empty before.
 function getAreaZones(state: CombatState, action: BlastShape, area: Area): ZoneCell[] {
-  if (area.shape === 'explosion') return action.center ? getDiskZones(action.center, area.radius) : []
+  if (area.shape === 'explosion') return action.center ? getDiskZones(action.center, area.radius, area.grazes) : []
   const from = state.board?.placements[action.actorId]
   const own = getPlacedFootprint(state, action.actorId) ?? []
   if (!from || action.direction === null) return []

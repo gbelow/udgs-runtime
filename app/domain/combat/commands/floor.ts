@@ -5,7 +5,7 @@ import { getSeveredItem } from '../../character/rules/body'
 import type { CombatState } from '../types'
 import type { Character, Item } from '../../types'
 import { onFloor } from '../rules/floor'
-import { settleGrapples } from './grapple'
+import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
 
@@ -18,7 +18,7 @@ function landOnFloor(characterId: string, item: Item | null | undefined, letGo: 
     if (!c || !item) return state
     const after = letGo(c)
     if (after === c) return state
-    return settleGrapples({
+    return settleBinds({
       ...state,
       characters: { ...state.characters, [characterId]: after },
       floor: [...state.floor, onFloor(item, state.board?.placements[characterId]?.cell ?? null)],

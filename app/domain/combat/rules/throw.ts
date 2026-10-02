@@ -9,6 +9,7 @@ import { getAttackKind } from '../../weaponProperties'
 import { getAimableCells, getPlacedFootprint, isAimableCell } from './board'
 import { findRowVariant, isRowUsable } from './weaponRow'
 import { getReachableFloor, takeOne } from './floor'
+import { isTying } from './tether'
 
 // combat.tex "Throw", "Standard Action": an item thrown to a cell on the
 // floor. A held weapon with a throwing row its thrower can fire is thrown
@@ -69,5 +70,5 @@ export function isThrowCell(state: CombatState, actorId: string, itemId: string,
 // since the spell activates one object (spells.tex "Charged").
 export function getThrownUnit(state: CombatState, action: ThrowAction): Item | null {
   const item = findThrowSource(state, action.actorId, action.itemId)
-  return item ? takeOne(item, action.id) : null
+  return item && !isTying(item) ? takeOne(item, action.id) : null
 }

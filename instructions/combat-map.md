@@ -41,7 +41,7 @@ own.
    its own transitions.
 
 6. **One place changes each part of the state.** Characters change only in
-   `reduceCharacter`, grapples in `reduceGrapples`, the floor in `reduceFloor`, the board in
+   `reduceCharacter`, binds in `reduceBinds`, the floor in `reduceFloor`, the board in
    `reduceBoard` (all `commands/reduce.ts`), driven by `applyPhase` (`commands/log.ts`). The
    log and stack change only in `setActions`.
 
@@ -307,21 +307,21 @@ resolveAction ─────────► land(top)
   deliveries per character.
 - `applyPhase(state, actions, phase)` (`commands/log.ts`) — lands the board, reads the fire
   it left the turn holder in, runs every character through `reduceCharacter`, then the floor
-  and grapples reducers, then `settleGrapples`.
+  and binds reducers, then `settleBinds`.
   Phases: `roll` (the price leaves the actor), `save` (a cast's graze bought up), `resolve`
   (the action lands).
 - `reduceCharacter` hands deliveries to the character domain's own effect processor
   (`character/commands/deliver.ts`); combat never computes damage on the target side.
-- A grapple seizes the weapon each holder holds with (`Grapple.weapons`): the grab's row,
+- A grapple seizes the weapon each holder holds with (`Grapple.anchors`): the grab's row,
   or a free grapple row for grappling back. It grabs nobody else, and only its grapple
   rows are used, against nobody but the partner (`isSeizedUse`, read by `getTargetIds`,
   `isDeclarationComplete` and `getFreeAttackOptions`, the rows the panel offers).
-- `settleGrapples` (`commands/grapple.ts`) lets go for any holder whose seized weapon is
+- `settleBinds` (`commands/bind.ts`) lets go for any holder whose seized weapon is
   no longer a grapple row in hand,
   after anything that could take it from them — also called by `updateCharacter`,
   `dropToFloor` and `removeFromCombat`.
 - What the fight puts on a character is never stored on them: `rules/situational.ts`
-  reads suffocation off the gas they stand in and grappled/immobile off `state.grapples`
+  reads suffocation off the gas they stand in and grappled/immobile off `state.binds`
   (`getSituationalAfflictions`, `hasFightAffliction`, `isSuffocating`, `isImmobile`). Combat
   rules ask these, not the character's own afflictions; the SD getter and the affliction
   board take them as a `situational` argument.
@@ -390,7 +390,7 @@ app/domain/combat/
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
 │   ├── log.ts          setActions (only writer of log/stack/history), applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
-│   ├── grapple.ts      settleGrapples
+│   ├── bind.ts         settleBinds
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
@@ -433,6 +433,7 @@ app/domain/combat/
 │   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
+│   ├── bind.ts         which binds still hold: each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack

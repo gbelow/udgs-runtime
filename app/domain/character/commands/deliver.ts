@@ -42,6 +42,7 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
       case 'buff':
       case 'suppression':
       case 'terrain':
+      case 'tether':
         return follow(delivery, degree, null)(c)
     }
   }

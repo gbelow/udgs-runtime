@@ -6,7 +6,7 @@ import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
 import { getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
-import { getGrappleGroup } from './partners'
+import { getGrapples, getGrappleGroup } from './partners'
 import { hasProperty } from '../../weaponProperties'
 import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
@@ -174,7 +174,7 @@ function grappleTriggers(root: GrappleAction): Trigger[] {
 function dragAnswers(state: CombatState, root: DragAction): Trigger[] {
   if (root.step !== 'react') return []
   const kinds = root.movement === 'basic' ? (['resist', 'assist'] as const) : (['resist', 'assist', 'carry', 'letGo'] as const)
-  return getGrappleGroup(state.grapples, root.actorId)
+  return getGrappleGroup(getGrapples(state), root.actorId)
     .filter((id) => id !== root.actorId)
     .flatMap((id) => kinds.map((kind): Trigger => ({ characterId: id, kind, at: null })))
 }
@@ -188,7 +188,7 @@ function dragOpportunities(state: CombatState, root: DragAction): Trigger[] {
   if (!steps || steps.length === 0) return []
   const origin = getGroupOrigin(state, root)
   const movers = Object.keys(steps[0])
-  const group = getGrappleGroup(state.grapples, root.actorId)
+  const group = getGrappleGroup(getGrapples(state), root.actorId)
   const start = (id: string) => origin[id]
   const triggers: Trigger[] = []
   for (const id of Object.keys(state.characters)) {

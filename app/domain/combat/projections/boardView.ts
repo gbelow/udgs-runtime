@@ -13,7 +13,7 @@ import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
-import { getPartner, holds } from '../rules/partners'
+import { getGrapples, getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 import { getCellHazard } from '../rules/hazard'
 
@@ -271,7 +271,7 @@ function buildBoardView(state: CombatState): BoardView {
     return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id) }]
   })
 
-  const grapples: BoardGrappleView[] = state.grapples.flatMap((g) => {
+  const grapples: BoardGrappleView[] = getGrapples(state).flatMap((g) => {
     const [a, b] = g.members
     const pa = board.placements[a]
     const pb = board.placements[b]

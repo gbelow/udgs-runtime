@@ -10,6 +10,7 @@ import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
+import { isTetherKept } from './bind'
 import { canRest, isCrossable, isInLiquid, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
 import { isCampaignCharacter } from '../../utils'
@@ -156,6 +157,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     const orientation = last && action.orientation !== null ? action.orientation : from.orientation
     const footprint = getFootprint(c, { ...from, cell, orientation })
     if (!canPass(action.movement, footprint, ground, last, ceiling)) return false
+    if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
   }

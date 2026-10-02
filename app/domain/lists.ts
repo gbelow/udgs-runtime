@@ -191,10 +191,10 @@ export const SHAPES = ['blob', 'line'] as const
 
 // gear.tex "Short, Long I/II": the reaches of a melee attack. Anything else
 // in a Range column is a ranged attack, and combat.tex "Throw"/"Shoot" split
-// those in two: a throw carries a figure of its own ("10m", "30m"), a shot
+// those in two: a throw carries a figure of its own ("5m", "10m", "30m"), a shot
 // a distance tier (combat.tex "Approach": Shooting, Far). The range alone
 // says which kind an attack is.
 export const MELEE_RANGES = ['short', 'long I', 'long II'] as const
-export const THROWN_RANGES = ['10m', '30m'] as const
+export const THROWN_RANGES = ['5m', '10m', '30m'] as const
 export const SHOT_RANGES = ['shooting', 'far'] as const
 export const RANGES = [...MELEE_RANGES, ...THROWN_RANGES, ...SHOT_RANGES] as const

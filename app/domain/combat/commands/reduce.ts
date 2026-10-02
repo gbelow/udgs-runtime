@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Grapple, type GrappleFacts, type Trample } from '../types'
+import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type Tether, type Trample } from '../types'
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
@@ -14,7 +14,10 @@ import { getMoveDestination } from '../rules/waypoint'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
-import { dropHolders, getGrappleFacts, replacePair } from '../rules/grapple'
+import { getGrappleFacts, replacePair } from '../rules/grapple'
+import { dropHolders } from '../rules/bind'
+import { isGrapple, isTether } from '../rules/partners'
+import { getTethersMade, isTying } from '../rules/tether'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { STUN_AP } from '../../tables'
@@ -85,7 +88,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         }
         // combat.tex "Explosions": the object a charge went off in is
         // destroyed by it, in whoever's hand it was
-        if (action.kind === 'explosion') return action.source !== 'cast' ? consumeItem(action.itemId)(c) : c
+        if (action.kind === 'explosion') return action.source !== 'cast' && !isHeldTying(c, action.itemId) ? consumeItem(action.itemId)(c) : c
         // everyone in the area takes it, the attacker as much as anyone
         if (action.kind === 'blast') return deliverAll(action.facts?.[c.id] ?? [])(c)
         // gear.tex "Electrite": a cast draws its charges from its gear
@@ -182,20 +185,42 @@ function settleGrapple(facts: GrappleFacts | null, c: CampaignCharacter): Campai
   return deliverAll(facts.deliveries[c.id] ?? [])(disarmed)
 }
 
-// The one place an action changes who is in a grapple with whom: the pair's
-// grapple replaced with what the action left of it.
-export function reduceGrapples(action: Action, phase: Phase): (grapples: Grapple[]) => Grapple[] {
-  return (grapples: Grapple[]) => {
-    if (phase !== 'resolve') return grapples
-    // combat.tex "Push and drag": one who let go "and leave[s] the grapple"
-    // instead of being moved
-    if (action.kind === 'drag') {
-      const released = action.facts?.released ?? []
-      return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
-    }
-    const facts = getGrappleFacts(action)
-    return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples
+// The one place an action changes who is bound to whom: the pair's grapple
+// replaced with what the action left of it.
+export function reduceBinds(state: CombatState, action: Action, phase: Phase): (binds: Bind[]) => Bind[] {
+  return (binds: Bind[]) => {
+    if (phase !== 'resolve') return binds
+    if (action.kind === 'blast') return withTethers(binds, getTethersMade(state, action))
+    const grapples = binds.filter(isGrapple)
+    const others = binds.filter((b) => !isGrapple(b))
+    const next = reduceGrapplesOf(action, grapples)
+    return next === grapples ? binds : [...others, ...next]
   }
+}
+
+// Whether the item is one the character holds that stays in their hand when
+// it goes off, tied to what it caught.
+function isHeldTying(c: CampaignCharacter, itemId: string): boolean {
+  const item = getHeldItem(c, itemId)
+  return !!item && isTying(item)
+}
+
+// The binds with each new tether in place of the one its pair had.
+function withTethers(binds: Bind[], made: Tether[]): Bind[] {
+  if (made.length === 0) return binds
+  const tied = (b: Bind, t: Tether) => isTether(b) && b.members.every((id) => t.members.includes(id))
+  return [...binds.filter((b) => !made.some((t) => tied(b, t))), ...made]
+}
+
+function reduceGrapplesOf(action: Action, grapples: Grapple[]): Grapple[] {
+  // combat.tex "Push and drag": one who let go "and leave[s] the grapple"
+  // instead of being moved
+  if (action.kind === 'drag') {
+    const released = action.facts?.released ?? []
+    return released.length === 0 ? grapples : dropHolders(grapples, (id) => released.includes(id))
+  }
+  const facts = getGrappleFacts(action)
+  return facts ? replacePair(grapples, facts.pair, facts.grapple) : grapples
 }
 
 // The one place an action changes what lies on the floor: what a disarm

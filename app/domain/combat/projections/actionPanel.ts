@@ -23,7 +23,7 @@ import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
-import { findGrapple } from '../rules/partners'
+import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
 import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
 import { canPickUp, getReachableFloor } from '../rules/floor'
@@ -116,7 +116,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             grab: declared.kind === 'opportunityAttack' && declared.grab,
             grabbable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? ''),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
-            partner: findGrapple(state.grapples, c.id, declared.targetId ?? '') !== null,
+            partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,

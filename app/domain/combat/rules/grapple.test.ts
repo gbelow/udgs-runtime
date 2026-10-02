@@ -4,7 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { DEGREES, ItemSchema, type CampaignCharacter } from '../../types'
 import { GRAPPLE_MANEUVERS, MOVEMENT_KINDS } from '../../lists'
 import { holdItem } from '../../item/commands/hands'
-import { settleGrapples } from '../commands/grapple'
+import { settleBinds } from '../commands/bind'
 import { getAvailableActions } from './options'
 import { getOpenAction } from './log'
 import { getRootTest } from './attack'
@@ -61,8 +61,8 @@ describe('grapple', () => {
     const s = grappling()
     const sword = () => ItemSchema.parse({ name: 'Short Sword', type: 'weapon', refId: 'Short Sword', bulk: 1 })
     const full = holdItem(sword())(holdItem(sword())(s.characters.a))
-    const settled = settleGrapples({ ...s, characters: { ...s.characters, a: full } })
-    expect(settled.grapples.flatMap((g) => g.holders)).not.toContain('a')
+    const settled = settleBinds({ ...s, characters: { ...s.characters, a: full } })
+    expect(settled.binds.flatMap((g) => g.holders)).not.toContain('a')
   })
 
   // combat.tex "Grapple Maneuvers": "If a grapple maneuvre grazes or misses,
@@ -73,7 +73,7 @@ describe('grapple', () => {
     s = rollOver(commitAction(() => 5, newId)(setTarget('b')(s)), OVER[degree])
     s = chooseManeuver({ along: true, item: s.characters.b.held[0]?.id ?? '' })(s)
     const after = resolveAction(newId)(s)
-    expect(after.grapples).toEqual(s.grapples)
+    expect(after.binds).toEqual(s.binds)
     expect(after.floor).toEqual(s.floor)
     for (const id of ['a', 'b']) expect(after.characters[id].afflictions).toEqual(s.characters[id].afflictions)
   })
@@ -93,6 +93,6 @@ describe('grapple', () => {
     let s = grappling()
     s = declareAction('b', { kind: 'grapple', maneuver: 'escape' }, newId)(s)
     s = resolveAction(newId)(rollOver(commitAction(() => 5, newId)(setTarget('a')(s)), OVER[degree]))
-    expect(s.grapples.length === 0).toBe(degree === 'critical' || degree === 'hit')
+    expect(s.binds.length === 0).toBe(degree === 'critical' || degree === 'hit')
   })
 })

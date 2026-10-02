@@ -155,9 +155,9 @@
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
     "description": "Climbing DL 3 anywhere the hook sticks.",
-    "type": "weapon",
+    "type": "utility",
     "bulk": 2,
-    "refId": "Grappling Hook and Rope",
+    "refId": "",
     "charge": null,
     "source": null
   },

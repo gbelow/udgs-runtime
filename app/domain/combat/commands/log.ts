@@ -2,10 +2,10 @@ import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, CombatState, RootAction } from '../types'
 import { getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
-import { reduceBoard, reduceCharacter, reduceFloor, reduceGrapples, type Phase } from './reduce'
+import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
 import { isAnswerable } from '../rules/action'
-import { settleGrapples } from './grapple'
+import { settleBinds } from './bind'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getBrokenArcs } from '../rules/fireAgain'
@@ -46,8 +46,8 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
     const board = s.board ? reduceBoard(s, action, phase)(s.board) : null
     const fire = phase === 'resolve' ? getFireTouched({ ...s, board }, action) : null
     const next = mapCharacters(s, reduceCharacter(action, phase, fire))
-    const placed = { ...next, board, floor: reduceFloor(s, action, phase)(s.floor), grapples: reduceGrapples(action, phase)(next.grapples) }
-    const settled = settleSevered(s, action.id)(settleGrapples(placed))
+    const placed = { ...next, board, floor: reduceFloor(s, action, phase)(s.floor), binds: reduceBinds(s, action, phase)(next.binds) }
+    const settled = settleSevered(s, action.id)(settleBinds(placed))
     return phase === 'resolve' ? settleArcs(settled) : settled
   }, state)
 }
