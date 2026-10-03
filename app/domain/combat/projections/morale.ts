@@ -1,7 +1,7 @@
 import { SOCIAL_ACTIONS, type SocialAction } from '../../tables'
 import type { CombatState } from '../types'
 import { getAggravators, getMoraleBar, getMoraleDL, getSocialValue } from '../rules/morale'
-import { getSocialBar } from '../rules/social'
+import { getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
 import { getFightName } from '../rules/fighters'
 import { perState } from './perState'
 
@@ -36,6 +36,11 @@ function buildMoraleRows(state: CombatState): MoraleRow[] {
 export type SocialPanel = {
   // why nothing can be said now, null while it can
   bar: string | null
+  // why the character cannot negotiate, and cannot raise or lower the surrender flag
+  negotiateBar: string | null
+  surrenderBar: string | null
+  unsurrenderBar: string | null
+  surrendered: boolean
   // what each one weighs on the morale DL
   value: number
   kinds: readonly SocialAction[]
@@ -48,7 +53,16 @@ export type SocialPanel = {
 export function getSocialPanel(state: CombatState, id: string): SocialPanel {
   const c = state.characters[id]
   const targets = Object.keys(state.characters).filter((t) => t !== id).map((t) => ({ id: t, name: getFightName(state, t) }))
-  return { bar: getSocialBar(state, id, 'intimidate', targets.map((t) => t.id)), value: c ? getSocialValue(c) : 0, kinds: SOCIAL_ACTIONS, targets }
+  return {
+    bar: getSayBar(state, id, 'intimidate', targets.map((t) => t.id)),
+    negotiateBar: getSocialBar(state, id),
+    surrenderBar: getSurrenderBar(state, id),
+    unsurrenderBar: getUnsurrenderBar(state, id),
+    surrendered: state.surrendered.includes(id),
+    value: c ? getSocialValue(c) : 0,
+    kinds: SOCIAL_ACTIONS,
+    targets,
+  }
 }
 
 export const getMoraleRows = perState(buildMoraleRows)

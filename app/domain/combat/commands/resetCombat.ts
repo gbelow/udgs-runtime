@@ -15,6 +15,7 @@ export function resetCombat(state: CombatState): CombatState {
     agreedToEnd: [],
     morale: [],
     pressure: [],
+    surrendered: [],
     round: 0,
     actions: [],
     stack: [],

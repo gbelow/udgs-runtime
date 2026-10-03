@@ -465,13 +465,13 @@ function MoralePanel(){
 }
 
 // combat.tex "Social actions": the active character intimidates, taunts or
-// rallies whoever the table picks, for 5 AP in their own turn; it weighs on
-// their morale test at the next round's beginning.
+// rallies whoever the table picks, for 5 AP; it weighs on their morale test
+// at the next round's beginning. Negotiating and surrendering cost the same
+// and take no one; the table plays out what they come to.
 function SocialPanel(){
-  const { bar, value, kinds, targets } = useSocial()
-  const { say } = useCombatCommands()
+  const { bar, negotiateBar, surrenderBar, unsurrenderBar, surrendered, value, kinds, targets } = useSocial()
+  const { say, negotiate, surrender, unsurrender } = useCombatCommands()
   const [picked, setPicked] = useState<string[]>([])
-  if (targets.length === 0) return null
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
   return(
@@ -486,6 +486,10 @@ function SocialPanel(){
       {kinds.map((kind) => (
         <Button key={kind} size='xs' aria-label={`social ${kind}`} disabled={bar !== null || picked.length === 0} title={bar ?? undefined} onClick={() => say(kind, picked)}>{kind} · {value}</Button>
       ))}
+      <Button size='xs' aria-label='social negotiate' disabled={negotiateBar !== null} title={negotiateBar ?? undefined} onClick={negotiate}>negotiate</Button>
+      {surrendered
+        ? <Button size='xs' aria-label='social unsurrender' disabled={unsurrenderBar !== null} title={unsurrenderBar ?? undefined} onClick={unsurrender}>unsurrender</Button>
+        : <Button size='xs' aria-label='social surrender' disabled={surrenderBar !== null} title={surrenderBar ?? undefined} onClick={surrender}>surrender</Button>}
     </div>
   )
 }
@@ -537,6 +541,7 @@ function CharacterList(){
             onClick={() => pick(entry)}>
             {entry.name}
             {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
+            {entry.surrendered ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>surrendered</span> : null}
             {entry.role && entry.role !== 'none' ? <span className='ml-1.5 text-[10px] text-muted'>{entry.role}</span> : null}
           </Button>
         )

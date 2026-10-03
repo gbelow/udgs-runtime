@@ -66,7 +66,7 @@ export function useMorale(): MoraleRow[] {
   return getMoraleRows(useCombatStore.getState());
 }
 
-const NO_SOCIAL: SocialPanel = { bar: NO_ONE, value: 0, kinds: [], targets: [] }
+const NO_SOCIAL: SocialPanel = { bar: NO_ONE, negotiateBar: NO_ONE, surrenderBar: NO_ONE, unsurrenderBar: NO_ONE, surrendered: false, value: 0, kinds: [], targets: [] }
 
 // combat.tex "Social actions" — what the active character can say and to
 // whom, gated on a digest since the panel is freshly allocated.

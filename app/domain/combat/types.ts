@@ -941,6 +941,8 @@ export const CombatStateSchema = z.object({
   morale: z.array(MoraleCallSchema).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
+  // combat.tex "Surrender": who has flagged themselves surrendered
+  surrendered: z.array(z.string()).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")

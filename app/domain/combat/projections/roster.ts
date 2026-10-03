@@ -24,6 +24,7 @@ export type CombatRosterEntry = {
   isActive: boolean
   hasSurged: boolean
   usedSurge: SurgeKind | null
+  surrendered: boolean
   // the character's part in the open action, if there is one
   role: Role | null
   // whether a click on the entry aims the open action at it
@@ -42,6 +43,7 @@ function buildCombatRoster(state: CombatState): CombatRosterEntry[] {
     isActive: id === state.activeCharacterId,
     hasSurged: c.usedSurge !== null,
     usedSurge: c.usedSurge,
+    surrendered: state.surrendered.includes(id),
     role: open ? getRole(state, open, id) : null,
     targetable: targets.has(id),
   }))

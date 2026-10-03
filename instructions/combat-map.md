@@ -230,7 +230,7 @@ app/domain/combat/
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
-│   ├── social.ts       say: intimidate, taunt or rally for 5 AP in your turn, written to `state.pressure`
+│   ├── social.ts       say: intimidate, taunt or rally for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free) and negotiate (5 AP only)
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
@@ -273,7 +273,7 @@ app/domain/combat/
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── morale.ts       aggravators and the DL (social pressure of the round before included), who a round calls to a test, the outcome of each degree; `state.morale` holds the calls, and a turn waits on them
-│   ├── social.ts       who a social action may be said to, and when it is barred
+│   ├── social.ts       who a social action may be said to, and when it, a surrender, an unsurrender or a negotiation is barred
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands

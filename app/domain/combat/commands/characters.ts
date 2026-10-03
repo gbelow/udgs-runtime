@@ -12,7 +12,7 @@ export function removeFromCombat(id: string): Updater {
     if (getOpenAction(state)) return state
     const { [id]: _, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
-    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, binds: state.binds.filter((g) => !g.members.includes(id)) }
+    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), binds: state.binds.filter((g) => !g.members.includes(id)) }
     return settleBinds(left)
   }
 }
