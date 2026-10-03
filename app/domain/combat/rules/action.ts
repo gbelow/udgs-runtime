@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, GrappleAction, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, GrappleAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -286,14 +286,47 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 // strike at its first target (combat.tex "Sweeping Attack"); a held spell's
 // upkeep is free.
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
+  const terms = getCostTerms(state, action)
+  return terms && terms.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
+}
+
+// The lines `getOwnCost` adds up: what the action is priced at, then what
+// its recipe and the AP repurposed towards it moved that by.
+export function getCostTerms(state: CombatState, action: Action): CostTerm[] | null {
   const c = state.characters[action.actorId]
   if (!c) return null
-  if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return getFleeCost(c)
-  if (action.kind === 'strike' && isSweepLink(action)) return { AP: 0, STA: 0 }
-  if (action.kind === 'fireAgain' && action.upkeep) return { AP: 0, STA: 0 }
+  if (action.kind === 'flee' || action.kind === 'fleeFollowUp') {
+    const flee = getFleeCost(c)
+    return flee && [{ label: 'movement surge', ...flee }]
+  }
+  if (action.kind === 'strike' && isSweepLink(action)) return [{ label: 'sweep, paid by its first strike', AP: 0, STA: 0 }]
+  if (action.kind === 'fireAgain' && action.upkeep) return [{ label: 'held spell upkeep', AP: 0, STA: 0 }]
   const declared = getDeclaredCost(state, c, action)
-  const cost = declared && getRecipeCost(state, action, declared)
-  return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
+  if (!declared) return null
+  const recipe = getRecipeCost(state, action, declared)
+  const priced = action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, recipe) : recipe
+  return [
+    { label: getPriceLabel(action), ...declared },
+    ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
+    ...costChange('AP repurposed from the action given up', priced, recipe),
+  ]
+}
+
+function costChange(label: string, after: ActionCost, before: ActionCost): CostTerm[] {
+  return after.AP === before.AP && after.STA === before.STA ? [] : [{ label, AP: after.AP - before.AP, STA: after.STA - before.STA }]
+}
+
+// What the action's own price is named for: the weapon row and variation of
+// an attack, the movement of a move, the spell of a cast, the
+// catalog's name for the rest.
+function getPriceLabel(action: Action): string {
+  if (action.kind === 'strike' || action.kind === 'shoot' || action.kind === 'cut' || action.kind === 'counterattack') {
+    return [action.attack, 'variant' in action ? action.variant : ''].filter(Boolean).join(' ') || ACTIONS[action.kind].label
+  }
+  if ('attack' in action && action.attack) return `${ACTIONS[action.kind].label} with ${action.attack}`
+  if (action.kind === 'move') return `${action.movement} move`
+  if (action.kind === 'cast' && isSpellKey(action.key)) return SPELLS[action.key].name
+  return ACTIONS[action.kind].label
 }
 
 // combat.tex "Interruption": "The AP from the interrupted action can be

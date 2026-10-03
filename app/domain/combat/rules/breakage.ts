@@ -9,6 +9,7 @@ import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
 import { getWeakestPart, isObjectStrike } from './equipment'
 import { getOpenAction } from './log'
+import { getItemName } from './fighters'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
 
 // gear.tex "Equipment Breakage": "Objects can deal and take damage whenever
@@ -74,8 +75,8 @@ function getObjectBreakage(state: CombatState, root: AttackAction, blow: Breakin
   const swung = root.kind === 'strike' ? getBreakable(findWeaponRow(attacker, root.weaponKey, root.attack)) : null
   const impact: BreakingBlow | null = blockRow && { blunt: blow.blunt, cut: 0, ...getRowBreakTerms(blockRow.atk) }
   return [
-    ...(met && isBroken(blow, met, root.breakRolls.defender) ? [{ ownerId: reactor.id, itemId: met.itemId }] : []),
-    ...(swung && impact && isBroken(impact, swung, root.breakRolls.attacker) ? [{ ownerId: attacker.id, itemId: swung.itemId }] : []),
+    ...(met && isBroken(blow, met, root.breakRolls.defender) ? [broken(state, reactor.id, met.itemId)] : []),
+    ...(swung && impact && isBroken(impact, swung, root.breakRolls.attacker) ? [broken(state, attacker.id, swung.itemId)] : []),
   ]
 }
 
@@ -87,7 +88,7 @@ function getArmorBreakage(state: CombatState, root: AttackAction, facts: Deliver
   const arrived = target && worn && !isArmorBare(target, damage) ? outcomeOf(facts, target)?.arrived : undefined
   if (!target || !worn || !arrived) return []
   const blow = { ...getBlow(damage), ...arrived }
-  return isBroken(blow, { RES: worn.armor.RES, hardness: getHardness(worn.armor.material) }, root.breakRolls.armor) ? [{ ownerId: target.id, itemId: worn.item.id }] : []
+  return isBroken(blow, { RES: worn.armor.RES, hardness: getHardness(worn.armor.material) }, root.breakRolls.armor) ? [broken(state, target.id, worn.item.id)] : []
 }
 
 // combat.tex "Attack against equipment": a hit or a critical lands the blow,
@@ -99,7 +100,12 @@ function getEquipmentBreakage(state: CombatState, root: StrikeAction, damage: Da
   if (!target || !part || (degree !== 'hit' && degree !== 'critical')) return []
   const blow = getBlow(damage)
   const landed = { ...blow, blunt: getUndefendedDamage(blow.blunt, degree), cut: getUndefendedDamage(blow.cut, degree) }
-  return isBroken(landed, part, root.breakRolls.object) ? [{ ownerId: target.id, itemId: root.object }] : []
+  return isBroken(landed, part, root.breakRolls.object) ? [broken(state, target.id, root.object)] : []
+}
+
+// An item the blow broke, named while it can still be found.
+function broken(state: CombatState, ownerId: string, itemId: string): BrokenItem {
+  return { ownerId, itemId, name: getItemName(state, ownerId, itemId) }
 }
 
 // The items the attack broke as it landed, from the percentiles thrown with

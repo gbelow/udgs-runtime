@@ -416,10 +416,6 @@ function getSpellDLTerms(state: CombatState, root: ActionOf<'cast'>): Term[] {
   ]
 }
 
-function getDL(state: CombatState, root: RootAction): number {
-  return sumTerms(getDLTerms(state, root))
-}
-
 type TestTerms = { skill: Term[]; DL: Term[] }
 export type RootTestTerms = TestTerms & ({ scale: 'degrees' } | { scale: 'overflow'; grazes: boolean })
 
@@ -480,7 +476,7 @@ function onDegrees(terms: TestTerms | null): RootTestTerms | null {
 export function getRootTest(state: CombatState, root: RootAction): Test | null {
   const terms = getRootTestTerms(state, root)
   if (!terms) return null
-  const base = { skill: sumTerms(terms.skill), DL: sumTerms(terms.DL), explodes: false }
+  const base = { skill: sumTerms(terms.skill), DL: sumTerms(terms.DL), explodes: false, terms: { skill: terms.skill, DL: terms.DL } }
   return terms.scale === 'overflow' ? { ...base, scale: 'overflow', grazes: terms.grazes } : { ...base, scale: 'degrees' }
 }
 
@@ -494,7 +490,9 @@ function getManeuverTerms(c: Character): Term[] {
 export function getReactionTest(state: CombatState, root: RootAction, reaction: Action): Test {
   const counter = reaction.kind === 'counterattack' ? getRootTest(state, getCounterStrike(reaction, '')) : null
   if (counter) return counter
-  return { skill: sumTerms(getReactionTestTerms(state, reaction)), DL: getDL(state, root), explodes: false, scale: 'degrees' }
+  const skill = getReactionTestTerms(state, reaction)
+  const DL = getDLTerms(state, root)
+  return { skill: sumTerms(skill), DL: sumTerms(DL), explodes: false, scale: 'degrees', terms: { skill, DL } }
 }
 
 function isPiercingAttack(c: Character, action: AttackAction): boolean {

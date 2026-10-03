@@ -6,6 +6,7 @@ import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
 import { getLog, getReactionsTo } from './log'
+import { getItemName } from './fighters'
 import { allowsAlong, type RuleRecipeId } from './recipes'
 import { findGrapple, getGrapples, getGrapplesOf, getPartner, holds } from './partners'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
@@ -293,7 +294,7 @@ export function getManeuverFacts(state: CombatState, root: GrappleAction): Grapp
     case 'disarm': {
       const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
       if (!item || !critical) return facts(state, pair, g, { deliveries })
-      return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item } })
+      return facts(state, pair, g, { deliveries, dropped: { ownerId: root.targetId, itemId: item, name: getItemName(state, root.targetId, item) } })
     }
   }
 }
@@ -312,7 +313,7 @@ function getLooseManeuverFacts(state: CombatState, root: GrappleAction, pair: [s
       return { ...none, prone: critical ? [pair[1]] : [] }
     case 'disarm': {
       const item = root.item && getDisarmOptions(state, root).includes(root.item) ? root.item : null
-      return { ...none, dropped: item && critical ? { ownerId: pair[1], itemId: item } : null }
+      return { ...none, dropped: item && critical ? { ownerId: pair[1], itemId: item, name: getItemName(state, pair[1], item) } : null }
     }
     case 'escape':
     case 'immobilize':

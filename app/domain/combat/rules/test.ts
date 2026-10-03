@@ -1,5 +1,6 @@
 import type { Action, ActionRoll, Degree } from '../types'
 import type { Dice } from '../dice'
+import type { Term } from '../../character/rules/terms'
 
 // Whether the action's test came to a hit or a critical.
 export function isWon(root: Pick<Action, 'roll'>): boolean {
@@ -12,7 +13,7 @@ export function isWon(root: Pick<Action, 'roll'>): boolean {
 // degree but HOP to spend, and without `grazes` (gear.tex "Piercing":
 // "Grazes behave like a miss") a graze is a miss. The die explodes only
 // where the test says it does.
-type TestBase = { skill: number; DL: number; explodes: boolean }
+type TestBase = { skill: number; DL: number; explodes: boolean; terms?: { skill: Term[]; DL: Term[] } }
 export type Test =
   | TestBase & { scale: 'degrees' }
   | TestBase & { scale: 'overflow'; grazes: boolean }
@@ -32,7 +33,7 @@ export function resolveTest(test: Test, dice: Dice): ActionRoll {
   const die = dice(test.explodes)
   const score = die + test.skill
   const over = score - test.DL
-  const base = { die, DL: test.DL, score }
+  const base = { die, DL: test.DL, score, skillTerms: test.terms?.skill ?? [], DLTerms: test.terms?.DL ?? [] }
   if (test.scale === 'degrees') return { ...base, degree: scoreTest(over), HOP: 0 }
   if (over >= 5) return { ...base, degree: 'hit', HOP: over - 5 }
   if (over >= 0 && test.grazes) return { ...base, degree: 'graze', HOP: 0 }

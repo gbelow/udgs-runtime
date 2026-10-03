@@ -40,6 +40,21 @@ export function getHistory(state: CombatState): string[] {
   return state.record.filter((a) => a.reactionTo === null).map((a) => a.id)
 }
 
+// The action that started the chain this one belongs to: what it answers,
+// what opened it, or what it is a follow-up of, all the way back. An action
+// of its own initiative is its own origin.
+export function getOrigin(state: CombatState, action: Action): Action {
+  const seen = new Set([action.id])
+  let current = action
+  for (;;) {
+    const parentId = current.reactionTo ?? current.spawnedBy ?? current.followUpOf
+    const parent = parentId ? getAction(state, parentId) : null
+    if (!parent || seen.has(parent.id)) return current
+    seen.add(parent.id)
+    current = parent
+  }
+}
+
 export function getReactionsTo(state: CombatState, id: string): Action[] {
   return getLog(state).filter((a) => a.reactionTo === id)
 }

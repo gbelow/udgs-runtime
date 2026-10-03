@@ -34,14 +34,14 @@ function flatten(deliveries: Deliveries): { id: string; delivery: Delivery }[] {
 // action was cancelled before it could do any of it.
 export function getActionNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
-  const broke = isAttackAction(root) ? root.broke.map(({ ownerId, itemId }) => ({ target: named(ownerId), text: breakNote(findItem(state, ownerId, itemId)) })) : []
+  const broke = isAttackAction(root) ? root.broke.map(({ ownerId, itemId, name }) => ({ target: named(ownerId), text: breakNote(findItem(state, ownerId, itemId), name) })) : []
   return [...getRootNotes(state, root, named), ...broke]
 }
 
 // gear.tex "Weapon Breakage", "Armor Breakage": a weapon breaks, armor is
 // pitted.
-function breakNote(item: Item | undefined): string {
-  return `${item?.name || item?.refId || 'an item'} ${item?.type === 'armor' ? 'pitted' : 'broke'}`
+function breakNote(item: Item | undefined, name: string): string {
+  return `${name || item?.name || item?.refId || 'an item'} ${item?.type === 'armor' ? 'pitted' : 'broke'}`
 }
 
 function findItem(state: CombatState, ownerId: string, itemId: string): Item | undefined {
@@ -63,7 +63,7 @@ function getRootNotes(state: CombatState, root: Action, named: (id: string) => s
     ...((facts.on[id] ?? []).length > 0 ? [{ target: named(id), text: (facts.on[id] ?? []).join(', ') }] : []),
     ...((facts.off[id] ?? []).length > 0 ? [{ target: named(id), text: `no longer ${(facts.off[id] ?? []).join(', ')}` }] : []),
     ...(facts.prone.includes(id) ? [{ target: named(id), text: 'knocked down' }] : []),
-    ...(facts.dropped?.ownerId === id ? [{ target: named(id), text: `drops ${itemName(id, facts.dropped.itemId)}` }] : []),
+    ...(facts.dropped?.ownerId === id ? [{ target: named(id), text: `drops ${facts.dropped.name || itemName(id, facts.dropped.itemId)}` }] : []),
   ])
   if (facts.grapple === null) return [...lines, { target: facts.pair.map(named).join(' and '), text: 'apart' }]
   if (root.kind === 'strike') return [{ target: named(facts.pair[1]), text: 'grabbed' }, ...lines]

@@ -102,7 +102,8 @@ export function getCastTerms(c: CampaignCharacter, action: CastAction): Term[] {
 // will turn the graze into a hit." The die stays as thrown; the roll is
 // read again with the bonus.
 export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
-  return resolveTest({ skill: roll.score - roll.die + GRAZE_SAVE.bonus, DL: roll.DL, explodes: false, scale: 'overflow', grazes: true }, () => roll.die)
+  const skill = [...roll.skillTerms, { label: 'graze save', value: GRAZE_SAVE.bonus }]
+  return resolveTest({ skill: roll.score - roll.die + GRAZE_SAVE.bonus, DL: roll.DL, explodes: false, scale: 'overflow', grazes: true, terms: { skill, DL: roll.DLTerms } }, () => roll.die)
 }
 
 // spells.tex "Casting spells": the price of buying a graze up to a hit.

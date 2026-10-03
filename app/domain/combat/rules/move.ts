@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import type { Action, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
 import { MOVEMENT_BLOCK_COST, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -295,16 +295,16 @@ function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
 // further, running or not. combat.tex "Crash": the higher force of the
 // target blocks passage, and "A draw blocks passage" — a braced blow's or a
 // catch's crash too.
-export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample' } | null {
+export function getMoveOverride(state: CombatState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action } | null {
   const mover = state.characters[action.actorId]
   const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
   for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
     if (strike?.kind !== 'strike' || strike.step !== 'done') continue
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
-    if (jumped) return { step: reaction.at! - 1, stop: 'jump' }
-    if ((stoppable && getInterruptionOf(strike, action.actorId) !== 'none') || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction' }
-    if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample' }
+    if (jumped) return { step: reaction.at! - 1, stop: 'jump', by: strike }
+    if ((stoppable && getInterruptionOf(strike, action.actorId) !== 'none') || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction', by: strike }
+    if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample', by: strike }
   }
   return null
 }

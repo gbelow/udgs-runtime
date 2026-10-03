@@ -10,9 +10,9 @@ import { settleBinds } from './bind'
 export function removeFromCombat(id: string): Updater {
   return (state) => {
     if (getOpenAction(state)) return state
-    const { [id]: _, ...characters } = state.characters
+    const { [id]: leaving, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
-    const left = { ...state, characters, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), binds: state.binds.filter((g) => !g.members.includes(id)) }
+    const left = { ...state, characters, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), binds: state.binds.filter((g) => !g.members.includes(id)) }
     return settleBinds(left)
   }
 }

@@ -1,8 +1,8 @@
 import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type RootAction, type Updater } from '../types'
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, getCostTerms, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
@@ -170,10 +170,20 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
-    const reaction = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
+    const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
     const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge))(state) : state
+    const reaction = { ...aimed, surged: getSurgeMade(state, paid, actorId, chosen.surge) }
     return pruneReactions(setActions(paid, [...withoutLiveReaction(paid, open.id, actorId), reaction]))
   }
+}
+
+// What the surge took from the actor and gave them, off the two fights; null
+// when none was made or it was not open to them.
+function getSurgeMade(before: CombatState, after: CombatState, actorId: string, kind: SurgeKind | null | undefined): Action['surged'] {
+  const was = before.characters[actorId]?.resources
+  const now = after.characters[actorId]?.resources
+  if (!kind || !was || !now || (was.STA === now.STA && was.surgeAP === now.surgeAP && was.AP === now.AP)) return null
+  return { kind, STA: was.STA - now.STA, AP: now.AP - was.AP + now.surgeAP - was.surgeAP }
 }
 
 // Fills in what the reactor's declared reaction still has to say — the
@@ -325,7 +335,7 @@ function payAll(state: CombatState, root: Action, newId: () => string, rollOf: (
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    paid.push({ ...a, cost, roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
+    paid.push({ ...a, cost, costTerms: getCostTerms(state, a) ?? [], roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
 }

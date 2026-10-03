@@ -3,10 +3,10 @@ import { useCombatActions } from '../hooks/useCombatActions'
 import type { CastGearOption, ImprovementOption } from '../domain/combat/rules/cast'
 import type { MovementOption } from '../domain/combat/rules/move'
 import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView, PushView, ReactorOptions, SpellOptionView } from '../domain/combat/projections/actionPanel'
-import type { ActionReport } from '../domain/combat/projections/outcomes'
+import type { EpisodeEntry } from '../domain/combat/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { ActionRoll, GrappleManeuver, HitLocation, StrikeAction } from '../domain/combat/types'
+import type { Action, ActionRoll, CostTerm, GrappleManeuver, HitLocation, StrikeAction } from '../domain/combat/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 
@@ -39,7 +39,7 @@ export function ActionPanel(){
           {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
           {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
         </div>
-        {view.report ? <Report report={view.report} /> : null}
+        {view.episode ? <Report episode={view.episode} /> : null}
       </Panel>
     )
   }
@@ -292,7 +292,7 @@ export function ActionPanel(){
           </div>
         </div>
       ) : null}
-      {view.report ? <Report report={view.report} /> : null}
+      {view.episode ? <Report episode={view.episode} /> : null}
     </Panel>
   )
 }
@@ -501,22 +501,67 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
   )
 }
 
-// What the action just played out came to, once it is closed: what it was,
-// what it rolled, and what it landed on whom — the last thing the table
-// saw, kept where the next declaration is made.
-function Report({ report }: { report: ActionReport }){
+// What the last action played out came to, with everything it drew — the
+// answers given to it, what those opened, the follow-ups it left — in the
+// order they landed: the last thing the table saw, kept where the next
+// declaration is made.
+function Report({ episode }: { episode: EpisodeEntry[] }){
   return (
-    <div className='flex flex-col gap-1 pt-2 mt-2 border-t border-line'>
-      <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
-        <SectionLabel>last</SectionLabel>
-        <span className='text-sm'>{report.actor} · {report.label}</span>
-        {report.roll ? <span className='text-xs text-muted'>d10 <span className='font-mono text-fg'>{report.roll.die}</span> · <span className='font-mono text-fg'>{report.roll.score}</span> vs <span className='font-mono text-fg'>{report.roll.DL}</span> · {report.roll.degree}</span> : null}
-      </div>
-      {report.outcomes.map((o, i) => <OutcomeLine key={i} outcome={o.outcome} target={o.target} />)}
-      {report.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
-      {report.outcomes.length === 0 && report.notes.length === 0 ? <span className='text-xs text-muted'>nothing landed</span> : null}
+    <div className='flex flex-col gap-2 pt-2 mt-2 border-t border-line'>
+      <SectionLabel>last</SectionLabel>
+      {episode.map((entry, i) => <ReportEntry key={i} entry={entry} />)}
     </div>
   )
+}
+
+function ReportEntry({ entry }: { entry: EpisodeEntry }){
+  return (
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
+        <span className='text-sm'>{entry.actor} · {entry.label}</span>
+        <Cost cost={entry.cost} />
+        <RollSummary roll={entry.roll} />
+        {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}
+      </div>
+      <Breakdown terms={entry.costTerms} roll={entry.roll} surged={entry.surged} />
+      {entry.reactions.map((r, i) => (
+        <div key={i} className='flex flex-col pl-3'>
+          <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
+            <span>{r.actor} answered: {r.label}</span>
+            <Cost cost={r.cost} />
+            <RollSummary roll={r.roll} />
+          </div>
+          <Breakdown terms={r.costTerms} roll={r.roll} surged={r.surged} />
+        </div>
+      ))}
+      {entry.fate ? <div className='text-sm text-bad'>{entry.fate}</div> : null}
+      {entry.outcomes.map((o, i) => <OutcomeLine key={i} outcome={o.outcome} target={o.target} />)}
+      {entry.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
+      {entry.outcomes.length === 0 && entry.notes.length === 0 && !entry.fate ? <span className='text-xs text-muted'>nothing landed</span> : null}
+    </div>
+  )
+}
+
+// Where the numbers came from: the surge made to take the action, what its
+// price adds up from, and what the test's skill and DL add up from.
+function Breakdown({ terms, roll, surged }: { terms: CostTerm[], roll: ActionRoll | null, surged: Action['surged'] }){
+  return (
+    <div className='flex flex-col text-xs text-muted'>
+      {surged ? <span>{surged.kind} surge first: −{surged.STA} STA, +{surged.AP} AP</span> : null}
+      {terms.length > 0 ? <span>price: {terms.map((t) => `${t.label} ${t.AP}AP${t.STA ? ` ${t.STA}STA` : ''}`).join(' · ')}</span> : null}
+      {roll && roll.skillTerms.length > 0 ? <span>skill: {roll.skillTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
+      {roll && roll.DLTerms.length > 0 ? <span>DL: {roll.DLTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
+    </div>
+  )
+}
+
+function signed(value: number): string {
+  return value > 0 ? `+${value}` : `${value}`
+}
+
+function RollSummary({ roll }: { roll: ActionRoll | null }){
+  if (!roll) return null
+  return <span className='text-xs text-muted'>d10 <span className='font-mono text-fg'>{roll.die}</span> · <span className='font-mono text-fg'>{roll.score}</span> vs <span className='font-mono text-fg'>{roll.DL}</span> · {roll.degree}</span>
 }
 
 // What the strike does to the target as it stands, one line.

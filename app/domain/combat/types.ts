@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -11,13 +11,19 @@ export type { Degree, HitLocation, Interruption } from '../types'
 const num = z.number()
 const str = z.string()
 
-// What the die came to and what it meant, written once and never revised.
+// One part of a number a rule adds up, named for what it comes from.
+export const TermSchema = z.object({ label: str, value: num }).strip()
+
+// What the die came to and what it meant, with the terms the skill and the DL
+// were added up from, written as it was thrown.
 export const ActionRollSchema = z.object({
   die: num.default(0),
   DL: num.default(0),
   score: num.default(0), // die + skill + modifiers
   degree: DegreeSchema.default('miss'),
   HOP: num.default(0),
+  skillTerms: z.array(TermSchema).default([]),
+  DLTerms: z.array(TermSchema).default([]),
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
 
@@ -33,6 +39,11 @@ export const ActionCostSchema = z.object({
   AP: num.default(0),
   STA: num.default(0),
 }).strip()
+
+// One line of what an action costs, named for what it comes from; a price is
+// the sum of its lines.
+export const CostTermSchema = z.object({ label: str, AP: num.default(0), STA: num.default(0) }).strip()
+export type CostTerm = z.infer<typeof CostTermSchema>
 
 // ---------------------------------------------------------------------------
 // The board
@@ -164,6 +175,11 @@ const ActionBase = {
   // enters the log; null until then.
   turn: num.nullable().default(null),
   cost: ActionCostSchema.nullable().default(null),
+  // the lines `cost` is the sum of, written with it
+  costTerms: z.array(CostTermSchema).default([]),
+  // the surge its actor made to take the action, paid when it is declared and
+  // so in no cost: the STA it took and the AP it gave
+  surged: z.object({ kind: SurgeKindSchema, STA: num, AP: num }).strip().nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
@@ -208,7 +224,7 @@ const AttackDeclaration = {
 // aimed at. The percentiles are thrown with the roll, one per
 // object; `broke` is written at the resolve: the items the blow broke and
 // whose they were.
-export const BrokenItemSchema = z.object({ ownerId: str, itemId: str })
+export const BrokenItemSchema = z.object({ ownerId: str, itemId: str, name: str.default('') })
 export type BrokenItem = z.infer<typeof BrokenItemSchema>
 
 const Breakage = {
@@ -296,7 +312,7 @@ export const GrappleFactsSchema = z.object({
   pair: z.tuple([str, str]),
   grapple: GrappleSchema.nullable().default(null),
   prone: z.array(str).default([]),
-  dropped: z.object({ ownerId: str, itemId: str }).nullable().default(null),
+  dropped: z.object({ ownerId: str, itemId: str, name: str.default('') }).nullable().default(null),
   on: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   off: z.record(str, z.array(GrappleAfflictionSchema)).default({}),
   deliveries: DeliveriesSchema.default({}),
@@ -682,7 +698,6 @@ export const DragFactsSchema = z.object({
   to: z.record(str, PlacementSchema).default({}),
 }).strip()
 export type DragFacts = z.infer<typeof DragFactsSchema>
-const TermSchema = z.object({ label: str, value: num }).strip()
 export const PushMovementSchema = z.enum(PUSH_MOVEMENTS)
 export type PushMovement = z.infer<typeof PushMovementSchema>
 export const DragActionSchema = z.object({
@@ -1016,6 +1031,9 @@ export const CombatStateSchema = z.object({
   // The one-time offers their actor passed up, by the action each came from:
   // a withdrawn action leaves the log, and this is all that is kept of it.
   passed: z.array(z.object({ by: z.string(), kind: z.string() })).default([]),
+  // What each character who has left the fight went by in it, so the log
+  // still names them.
+  names: z.record(str, str).default({}),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),

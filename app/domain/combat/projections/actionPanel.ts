@@ -13,7 +13,8 @@ import { EXTEND, LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
-import { ActionReport, getActionNotes, getLastReport, getOutcomes } from './outcomes'
+import { getActionNotes, getOutcomes } from './outcomes'
+import { EpisodeEntry, getLastEpisode } from './episode'
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
@@ -303,11 +304,11 @@ export type ActionPanelView = {
   // that is open
   grazeSave: { AP: number; STA: number } | null
   deliveries: DeliveryView[]
-  // with nothing open: what the last action played out came to
-  report: ActionReport | null
+  // what the last action played out came to, with everything it drew
+  episode: EpisodeEntry[] | null
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], report: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -316,10 +317,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const step = getNextStep(state)
   const open = getOpenAction(state)
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
-  const report = getLastReport(state)
+  const episode = getLastEpisode(state)
 
   if (!open) {
-    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], report }
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode }
   }
 
   const actor = state.characters[open.actorId]
@@ -404,7 +405,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       roll: open.roll,
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
     },
-    report,
+    episode,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor

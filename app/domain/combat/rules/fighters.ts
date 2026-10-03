@@ -1,6 +1,8 @@
 import type { CampaignCharacter, Item } from '../../types'
 import type { CombatState } from '../types'
 import { findReadyItem } from '../../item/rules/containers'
+import { getCarriedItems } from '../../item/rules/items'
+import { findFloorItem } from './floor'
 
 // Who in the fight is who: the active character, the name each goes by,
 // who holds an item.
@@ -15,7 +17,16 @@ export function getActiveCharacter(state: CombatState): CampaignCharacter | null
 // The name a character goes by in the fight, which tells copies of one sheet
 // apart; empty for anyone not in it.
 export function getFightName(state: CombatState, id: string): string {
-  return state.characters[id]?.fightName ?? ''
+  return state.characters[id]?.fightName ?? state.names[id] ?? ''
+}
+
+// What the item is called, wherever it lies: with its owner or on the floor;
+// empty once it is gone from both.
+export function getItemName(state: CombatState, ownerId: string, itemId: string): string {
+  const owner = state.characters[ownerId]
+  const carried = owner ? [...getCarriedItems(owner), ...(owner.onBack ? [owner.onBack] : [])] : []
+  const item = carried.find((i) => i.id === itemId) ?? findFloorItem(state, itemId)?.item
+  return item?.name || item?.refId || ''
 }
 
 // Who in the fight holds the item named, and what it is; null for anything
