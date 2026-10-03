@@ -534,6 +534,11 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
           <Breakdown terms={r.costTerms} roll={r.roll} surged={r.surged} />
         </div>
       ))}
+      {entry.withdrawn.map((w, i) => (
+        <div key={i} className='pl-3 text-xs text-muted'>
+          {w.text}{w.surged ? ` (its ${w.surged.kind} surge was paid: −${w.surged.STA} STA, +${w.surged.AP} AP)` : ''}
+        </div>
+      ))}
       {entry.fate ? <div className='text-sm text-bad'>{entry.fate}</div> : null}
       {entry.outcomes.map((o, i) => <OutcomeLine key={i} outcome={o.outcome} target={o.target} />)}
       {entry.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}

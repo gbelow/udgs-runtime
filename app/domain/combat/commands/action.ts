@@ -14,7 +14,7 @@ import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
-import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, removeActions, replaceActions, setActions, withoutLiveReaction } from './log'
+import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land } from './sequence'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
@@ -153,7 +153,7 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
     if (!open || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
     const passed = reaction ? state : { ...state, passed: [...state.passed, { by: open.spawnedBy, kind: open.kind }] }
-    return advance(removeActions(passed, reaction ? [open.id, reaction.id] : [open.id]), newId)
+    return advance(withdrawActions(passed, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId)
   }
 }
 
@@ -173,7 +173,8 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
     const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge))(state) : state
     const reaction = { ...aimed, surged: getSurgeMade(state, paid, actorId, chosen.surge) }
-    return pruneReactions(setActions(paid, [...withoutLiveReaction(paid, open.id, actorId), reaction]))
+    const replaced = getLiveReactionsTo(paid, open.id).filter((r) => r.actorId === actorId)
+    return pruneReactions(appendActions(withdrawActions(paid, replaced.map((r) => r.id), 'replaced'), [reaction]))
   }
 }
 
@@ -205,7 +206,8 @@ export function withdrawReaction(actorId: string): Updater {
   return (state) => {
     const open = getAnswerableOpen(state)
     if (!open) return state
-    return pruneReactions(setActions(state, withoutLiveReaction(state, open.id, actorId)))
+    const taken = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
+    return pruneReactions(withdrawActions(state, taken.map((r) => r.id), 'tookBack'))
   }
 }
 
@@ -239,7 +241,7 @@ export function cancelAction(): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open || open.spawnedBy) return state
-    return removeActions(state, [open.id])
+    return discardDraft(state, open.id)
   }
 }
 

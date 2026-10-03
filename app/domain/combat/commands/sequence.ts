@@ -17,7 +17,7 @@ import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
 import { getTurnHolder } from '../rules/turn'
 import { getFeinted } from '../rules/feint'
-import { appendActions, applyPhase, removeActions, replaceActions } from './log'
+import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 
 // What carries the fight on between the commands. Every action runs
@@ -37,7 +37,7 @@ import { closeTurn } from './closeTurn'
 export function advance(state: CombatState, newId: () => string): CombatState {
   const top = getOpenAction(state)
   if (!top) return handOverToFleers(state)
-  if (isForgone(state, top)) return advance(removeActions(state, [top.id]), newId)
+  if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
   return opened === state && !hasPostChoice(state, top) ? land(state, top, newId) : opened

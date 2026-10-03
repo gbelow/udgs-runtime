@@ -34,7 +34,9 @@ own.
    action opens — the strike an opportunity attack opens, a riposte, the blast of an
    explosion — is pushed over it and played out first. `state.record` holds the actions in the
    order they *landed* (`getHistory`), which differs from the order they were declared, and
-   is only ever added to; a draft taken back leaves `state.actions`, never the record.
+   is only ever added to; a draft taken back leaves `state.actions`, never the record. What
+   was committed, or offered, and then withdrawn without landing goes into `state.journal`
+   with its reason (`withdrawActions`), so nothing leaves play without a trace but a draft.
 
 5. **An action writes only its own record.** Being given up, voided, interrupted or broken is
    never written onto the victim; it is *derived* from the log (`rules/opportunity.ts`,
@@ -195,10 +197,17 @@ resolveAction ─────────► land(top)
   spend, spray to point, pick to make, graze to save, rest move or along to decide) is
   landed by `advance` once its attacks are fought. `resolveAction` is only pressed where a
   choice was offered.
-- **Withdrawing** an opened action (`withdrawSpawnedAction`), cancelling one and a forgone
-  follow-up all take it out of the log (`removeActions`, with what answers it); nothing
-  declined is kept. An offer made once (a rest's move) is remembered in `state.passed`
-  (`hasRestMove`); an opportunity attack's strike goes together with its reaction.
+- **Withdrawing** an opened action (`withdrawSpawnedAction`: passed up), an answer taken back
+  or changed for another (`withdrawReaction`, `declareReaction`), an answer its action no longer
+  triggers (`pruneReactions`) and a forgone follow-up take it out of play through
+  `withdrawActions`, with what answers it; each is written to `state.journal` with its reason
+  (`WithdrawalReason`). Only a draft taken back before its commit (`discardDraft`) leaves nothing.
+  An offer made once (a rest's move) is remembered in `state.passed` (`hasRestMove`); an
+  opportunity attack's strike goes together with its reaction.
+- **What the table is told** — `projections/episode.ts` `getLastEpisode`: the chain around the
+  last action to land (`getOrigin`, `rules/log.ts`), each action with its cost lines
+  (`costTerms`, the lines `getOwnCost` sums), the terms of its roll, the surge made for it
+  (`surged`), why it came to less than declared, and what was withdrawn from it.
 
 ## Detail files
 
@@ -221,7 +230,7 @@ app/domain/combat/
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
-│   ├── log.ts          setActions (only writer of actions/stack/record), applyPhase, pruneReactions
+│   ├── log.ts          setActions (only writer of actions/stack/record), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
@@ -290,7 +299,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts, morale.ts, heldTests.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts
     └── perState.ts     memoize once per state object
 ```
 
@@ -326,6 +335,7 @@ effects) and `item/` (hands, items). The one call back is the character's effect
 - `commands/action.test.ts`, `commands/combat.test.ts` — pipeline guards and round change.
 - `rules/*.test.ts` — boardless fights pass every gate; reach; moves; grapples; reactions.
 - `projections/outcomes.test.ts` — the preview is what the target takes.
+- `record.test.ts` — a record's terms add up to its roll and cost; nothing but a draft leaves play without landing or reaching the journal.
 - `factories.test.ts` — board ingestion is total and round-trips.
 
 All tests follow `instructions/testing.md`.

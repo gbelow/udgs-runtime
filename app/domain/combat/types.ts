@@ -962,6 +962,17 @@ export const QueuedTurnSchema = z.object({ id: z.string(), fleeing: z.boolean().
 export type QueuedTurn = z.infer<typeof QueuedTurnSchema>
 export type Contest = z.infer<typeof ContestSchema>
 
+// Why a committed action, or an offer made to someone, left play without
+// landing: an answer taken back, or changed for another; a follow-up passed up,
+// or forgone for another the same actor took; an answer the action it was made
+// to no longer triggered.
+export const WithdrawalReasonSchema = z.enum(['tookBack', 'replaced', 'passedUp', 'forgone', 'noLongerTriggered'])
+export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>
+
+// What was withdrawn, as it stood, and when.
+export const JournalEntrySchema = z.object({ action: ActionSchema, reason: WithdrawalReasonSchema, round: num, turn: num })
+export type JournalEntry = z.infer<typeof JournalEntrySchema>
+
 // The shape of a fight. This lives in the domain — not in the Zustand store —
 // so the combat commands can be pure `(state) => state` updaters with no
 // dependency on the state layer. The store composes this with its actions.
@@ -1034,6 +1045,9 @@ export const CombatStateSchema = z.object({
   // What each character who has left the fight went by in it, so the log
   // still names them.
   names: z.record(str, str).default({}),
+  // What was withdrawn from play without landing, in the order it was; only
+  // ever added to.
+  journal: z.array(JournalEntrySchema).default([]),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),

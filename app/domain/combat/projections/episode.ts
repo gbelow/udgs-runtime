@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, CostTerm, MoveAction, MoveFacts, MoveStop } from '../types'
+import type { Action, ActionRoll, CombatState, CostTerm, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
@@ -22,6 +22,12 @@ export type ReactionLine = {
   roll: ActionRoll | null
 }
 
+// Something committed or offered that left play without landing, and why.
+export type WithdrawnLine = {
+  text: string
+  surged: Action['surged']
+}
+
 export type EpisodeEntry = ActionReport & {
   cost: ActionCost | null
   costTerms: CostTerm[]
@@ -31,6 +37,7 @@ export type EpisodeEntry = ActionReport & {
   // why it came to less than it was declared as, when it did
   fate: string | null
   reactions: ReactionLine[]
+  withdrawn: WithdrawnLine[]
 }
 
 // The last chain of actions to be played out, in the order its actions
@@ -40,13 +47,50 @@ export function getLastEpisode(state: CombatState): EpisodeEntry[] | null {
   const landed = last ? getAction(state, last) : null
   if (!landed) return null
   const origin = getOrigin(state, landed).id
-  const entries = state.record
-    .filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
-    .flatMap((a) => {
-      const report = getActionReport(state, a.id)
-      return report ? [{ ...report, cost: a.cost, costTerms: a.costTerms, surged: a.surged, cause: getCause(state, a), fate: getFate(state, a), reactions: getReactionLines(state, a) }] : []
-    })
+  const roots = state.record.filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
+  const rootIds = new Set(roots.map((a) => a.id))
+  const entries = roots.flatMap((a) => {
+    const report = getActionReport(state, a.id)
+    return report ? [{ ...report, cost: a.cost, costTerms: a.costTerms, surged: a.surged, cause: getCause(state, a), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+  })
   return entries.length > 0 ? entries : null
+}
+
+// What was withdrawn that belongs to the landed action: an answer taken back
+// from it, a follow-up it left that was passed up, whatever either had
+// opened.
+function getWithdrawn(state: CombatState, rootId: string, rootIds: Set<string>): WithdrawnLine[] {
+  return state.journal
+    .filter((entry) => getLandedParent(state, entry.action, rootIds) === rootId)
+    .map((entry) => ({ text: describeWithdrawal(state, entry), surged: entry.action.surged }))
+}
+
+// The landed action of the episode the withdrawn one hangs from, found up its
+// links through what is still in play and what was itself withdrawn.
+function getLandedParent(state: CombatState, action: Action, rootIds: Set<string>): string | null {
+  const seen = new Set([action.id])
+  let current = action
+  for (;;) {
+    const parentId = current.reactionTo ?? current.spawnedBy ?? current.followUpOf
+    if (!parentId || seen.has(parentId)) return null
+    if (rootIds.has(parentId)) return parentId
+    const parent = getAction(state, parentId) ?? state.journal.find((j) => j.action.id === parentId)?.action
+    if (!parent) return null
+    seen.add(parentId)
+    current = parent
+  }
+}
+
+function describeWithdrawal(state: CombatState, { action, reason }: JournalEntry): string {
+  const actor = getFightName(state, action.actorId)
+  const what = getActionName(action)
+  switch (reason) {
+    case 'tookBack': return `${actor} took back ${what}`
+    case 'replaced': return `${actor} changed ${what} for another answer`
+    case 'passedUp': return `${actor} passed up ${what}`
+    case 'forgone': return `${actor} did not take ${what}: they took another follow-up of the same action`
+    case 'noLongerTriggered': return `${actor}'s ${what} no longer applied once the action it answered changed`
+  }
 }
 
 function getReactionLines(state: CombatState, root: Action): ReactionLine[] {

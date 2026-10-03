@@ -13,7 +13,7 @@ import { ACTIONS } from '../rules/actionCatalog'
 import { getAvailableActions } from '../rules/options'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { reduceCharacter } from './reduce'
-import { cancelAction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget } from './action'
+import { cancelAction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
 import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
@@ -117,6 +117,29 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
     const broke = { ...before, characters: { ...before.characters, def: { ...before.characters.def, resources: { ...before.characters.def.resources, AP: 0 } } } }
     expect(rollAction(() => 5, newId)(broke)).toEqual(broke)
   })
+})
+
+describe.each(attacks)('what is committed to a $kind and then withdrawn', (attack) => {
+  const answerId = (s: CombatState) => getReactionsTo(s, getOpenAction(s)!.id)[0].id
+
+  it('is kept with its reason when the answer is taken back', () => {
+    const before = declared(attack)
+    const after = withdrawReaction('def')(before)
+    expect(getReactionsTo(after, getOpenAction(after)!.id)).toHaveLength(0)
+    expect(after.journal.map((j) => [j.action.id, j.reason])).toEqual([[answerId(before), 'tookBack']])
+  })
+
+  it('is not kept for a draft that was never committed', () => {
+    expect(cancelAction()(aimed(attack)).journal).toEqual([])
+  })
+})
+
+it('keeps the answer another one replaces, with its reason', () => {
+  const before = declared(attacks[0])
+  const other = getAvailableActions(before, 'def').find((o) => o.available && o.reactionTo !== null && o.draft.kind !== attacks[0].reaction.kind)
+  expect(other).toBeDefined()
+  const after = declareReaction('def', other!.draft, newId)(before)
+  expect(after.journal.map((j) => [j.action.id, j.reason])).toEqual([[getReactionsTo(before, getOpenAction(before)!.id)[0].id, 'replaced']])
 })
 
 describe('the reducer', () => {

@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import type { Action, ActionKind, ActionOf, CombatState, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, CombatState, RootAction, WithdrawalReason } from '../types'
 import { getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } from './reduce'
@@ -35,10 +35,19 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
   }
 }
 
-// Takes the actions, and whatever answers them, out of the log: a draft
-// taken back leaves nothing behind.
-export function removeActions(state: CombatState, ids: string[]): CombatState {
-  return setActions(state, state.actions.filter((a) => !ids.includes(a.id) && !(a.reactionTo !== null && ids.includes(a.reactionTo))))
+// Takes a draft back: it was never committed, so nothing is kept of it.
+export function discardDraft(state: CombatState, id: string): CombatState {
+  return setActions(state, state.actions.filter((a) => a.id !== id && a.reactionTo !== id))
+}
+
+// Takes the actions, and whatever answers them, out of play without landing
+// them, and writes down what each was and why it went: it was committed, or
+// offered to someone, and the table may want to know what became of it.
+export function withdrawActions(state: CombatState, ids: string[], reason: WithdrawalReason): CombatState {
+  const gone = state.actions.filter((a) => ids.includes(a.id) || (a.reactionTo !== null && ids.includes(a.reactionTo)))
+  if (gone.length === 0) return state
+  const journal = [...state.journal, ...gone.map((action) => ({ action, reason, round: state.round, turn: state.turn }))]
+  return setActions({ ...state, journal }, state.actions.filter((a) => !gone.includes(a)))
 }
 
 export function replaceActions(state: CombatState, next: Action[]): CombatState {
@@ -81,13 +90,6 @@ function settleArcs(state: CombatState): CombatState {
   })
 }
 
-// The fight's actions less the character's reaction to the action, if it is
-// still only declared.
-export function withoutLiveReaction(state: CombatState, rootId: string, actorId: string): Action[] {
-  const live = getLiveReactionsTo(state, rootId).filter((r) => r.actorId === actorId)
-  return state.actions.filter((a) => !live.includes(a))
-}
-
 // The open action while it is at the step; null otherwise.
 export function getOpenAt(state: CombatState, step: Action['step']): RootAction | null {
   const open = getOpenAction(state)
@@ -107,8 +109,8 @@ export function pruneReactions(state: CombatState): CombatState {
   const open = getOpenAt(state, 'react')
   if (!open) return state
   const live = getLiveReactionsTo(state, open.id)
-  const kept = state.actions.filter((a) => !live.includes(a) || findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'retarget' || a.kind === 'flee' ? a.at : undefined }) !== null)
-  return kept.length === state.actions.length ? state : setActions(state, kept)
+  const dropped = live.filter((a) => findTrigger(state, open, { ...a, at: a.kind === 'opportunityAttack' || a.kind === 'retarget' || a.kind === 'flee' ? a.at : undefined }) === null)
+  return withdrawActions(state, dropped.map((a) => a.id), 'noLongerTriggered')
 }
 
 // The open action, once rolled, when it is of one of the kinds; null
