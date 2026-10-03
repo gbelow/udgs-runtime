@@ -1,5 +1,6 @@
 import type { ActionKind } from '../../app/domain/combat/types'
 import type { Simulation } from '../../app/domain/bot/simulate'
+import type { Decision } from '../../app/domain/bot/trace'
 import { findParty, type Party } from '../../app/domain/bot/party'
 
 // Reads simulations into markdown for a person to look at. Nothing here is
@@ -47,6 +48,17 @@ export function renderSummary(name: string, about: string, runs: Run[], parties:
   }
   lines.push('')
 
+  lines.push('## What each side chose', '', '| side | turn decisions | hold | attack | move | answers weighed | defended |', '|---|---|---|---|---|---|---|')
+  for (const label of labels) {
+    const mine = runs.flatMap((r) => r.sim.decisions.filter((d) => side(parties, labels, d.actorId) === label))
+    const chose = (d: Decision) => d.options[d.chosen].label
+    const turns = mine.filter((d) => d.kind === 'turn')
+    const answers = mine.filter((d) => d.kind === 'answer')
+    const count = (ds: Decision[], test: (label: string) => boolean) => ds.filter((d) => test(chose(d))).length
+    lines.push(`| ${label} | ${turns.length} | ${pct(count(turns, (l) => l === 'hold'), turns.length)} | ${pct(count(turns, (l) => l !== 'hold' && !l.startsWith('move')), turns.length)} | ${pct(count(turns, (l) => l.startsWith('move')), turns.length)} | ${answers.length} | ${pct(count(answers, (l) => l !== 'no defense'), answers.length)} |`)
+  }
+  lines.push('')
+
   const idle = runs.filter((r) => r.sim.log.length === 0).length
   const odd = runs.find((r) => r.sim.ending !== 'won')
   lines.push('## Worth a look', '')
@@ -68,6 +80,26 @@ export function renderLog(run: Run, parties: Party[], labels: string[]): string 
     const effects = [...injuries, ...report.notes.map((n) => `${n.target}: ${n.text}`)]
     lines.push(`- ${report.actor} (${side(parties, labels, actorId)}) · ${report.label}${roll}${effects.length > 0 ? ` → ${effects.join('; ')}` : ''}`)
   }
+  lines.push('')
+  return lines.join('\n')
+}
+
+const DECISIONS_SHOWN = 60
+
+// What the bots weighed, one line a decision: each option's value and the
+// parts it is made of (wounds dealt less taken, the threat left against it,
+// the ground to the foe), the one taken in bold.
+export function renderDecisions(run: Run): string {
+  const part = (n: number) => (n >= 0 ? '+' : '-') + Math.abs(n).toFixed(2)
+  const lines: string[] = [`## Decisions, seed ${run.seed}`, '', 'Each option: value (wounds, threat, gap, resources). Higher is better; the one taken is bold.', '']
+  for (const d of run.sim.decisions.slice(0, DECISIONS_SHOWN)) {
+    const options = d.options.map((o, i) => {
+      const text = `${o.label} ${part(o.value)} (${part(o.wounds)}, ${part(-o.threat)}, ${part(-o.engage)}, ${part(o.resources)})`
+      return i === d.chosen ? `**${text}**` : text
+    })
+    lines.push(`- r${d.round} ${d.actor} ${d.kind}: ${options.join(' · ')}`)
+  }
+  if (run.sim.decisions.length > DECISIONS_SHOWN) lines.push(`- … ${run.sim.decisions.length - DECISIONS_SHOWN} more`)
   lines.push('')
   return lines.join('\n')
 }

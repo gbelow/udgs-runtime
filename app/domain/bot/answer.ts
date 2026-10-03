@@ -15,29 +15,35 @@ function byPrice(a: ActionOption, b: ActionOption): number {
   return (a.cost?.AP ?? 0) - (b.cost?.AP ?? 0) || (a.cost?.STA ?? 0) - (b.cost?.STA ?? 0)
 }
 
-// The state after the first member of the party who has a defense to make
-// against the committed action declares it: the cheapest the list shows open,
-// one that says all it must; a defense only a reaction surge pays for is made
-// with the surge (combat.tex "Action surge"). Null when nobody has one.
-export function answerOpen(state: CombatState, party: Party, open: RootAction, newId: () => string): CombatState | null {
-  if (isMember(party, open.actorId)) return null
-  for (const id of party.members) {
-    const answered = answerFor(state, id, open, newId)
-    if (answered) return answered
-  }
-  return null
+// The defenses the character may declare against the committed action, the
+// cheapest first. A bot defends itself: standing in for someone else the
+// action is aimed at (combat.tex "Protect") is left to the table. A defense
+// only a reaction surge pays for is made with the surge (combat.tex "Action
+// surge").
+export function getDefenseOptions(state: CombatState, id: string, open: RootAction): ActionOption[] {
+  if (open.targetId !== null && open.targetId !== id) return []
+  if (!canAnswer(open, id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)) return []
+  return getAvailableActions(state, id).filter((o) => o.available && DEFENSES.includes(o.draft.kind)).sort(byPrice)
 }
 
-// A bot defends itself: standing in for someone else the action is aimed at
-// (combat.tex "Protect") is left to the table.
-function answerFor(state: CombatState, id: string, open: RootAction, newId: () => string): CombatState | null {
-  if (open.targetId !== null && open.targetId !== id) return null
-  if (!canAnswer(open, id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)) return null
-  const options = getAvailableActions(state, id).filter((o) => o.available && DEFENSES.includes(o.draft.kind)).sort(byPrice)
-  for (const option of options) {
-    const declared = declareReaction(id, option.draft, newId)(state)
-    const reaction = getLiveReactionsTo(declared, open.id).find((r) => r.actorId === id)
-    if (reaction && isDeclarationComplete(declared, declared.characters[id], reaction)) return declared
+// The state with the defense declared, if it says all it must.
+export function declareDefense(state: CombatState, id: string, open: RootAction, option: ActionOption, newId: () => string): CombatState | null {
+  const declared = declareReaction(id, option.draft, newId)(state)
+  const reaction = getLiveReactionsTo(declared, open.id).find((r) => r.actorId === id)
+  return reaction && isDeclarationComplete(declared, declared.characters[id], reaction) ? declared : null
+}
+
+// The answer a bot gives without weighing it: the first member of the party,
+// bar those named, who has a defense to make declares the cheapest. Null when
+// nobody has one. It stands in for the others' answers when an option is
+// played out.
+export function answerOpen(state: CombatState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): CombatState | null {
+  if (isMember(party, open.actorId)) return null
+  for (const id of party.members.filter((m) => !skip.includes(m))) {
+    for (const option of getDefenseOptions(state, id, open)) {
+      const declared = declareDefense(state, id, open, option, newId)
+      if (declared) return declared
+    }
   }
   return null
 }

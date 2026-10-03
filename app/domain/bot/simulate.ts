@@ -7,6 +7,7 @@ import { getActionReport, type ActionReport } from '../combat/projections/outcom
 import { getLiveFoes, isStanding, type Party } from './party'
 import { stepBot } from './step'
 import { tableMove } from './table'
+import type { Decision } from './trace'
 
 // A fight played out by the bots alone, with the table played by `tableMove`
 // for the characters no bot controls: they answer nothing and take no turn.
@@ -17,6 +18,8 @@ export type LoggedAction = {
   kind: ActionKind
   report: ActionReport
 }
+
+export type LoggedDecision = Decision & { round: number }
 
 // `won`: a party has no foe left standing (`winner` is its index in `parties`,
 // null when both sides fell); `round cap`: still going after `maxRounds`;
@@ -31,6 +34,8 @@ export type Simulation = {
   // what the round was waiting on, when `stalled`
   stalledOn: string | null
   log: LoggedAction[]
+  // what the bots weighed, in the order they chose
+  decisions: LoggedDecision[]
 }
 
 const STEPS_PER_ROUND = 500
@@ -38,11 +43,13 @@ const STEPS_PER_ROUND = 500
 export function simulate(initial: CombatState, parties: readonly Party[], dice: Dice, newId: () => string, maxRounds = 20): Simulation {
   let state = initial
   const log: LoggedAction[] = []
-  const end = (rounds: number, ending: Ending, winner: number | null = null, stalledOn: string | null = null): Simulation => ({ final: state, rounds, ending, winner, stalledOn, log })
+  const decisions: LoggedDecision[] = []
+  const end = (rounds: number, ending: Ending, winner: number | null = null, stalledOn: string | null = null): Simulation => ({ final: state, rounds, ending, winner, stalledOn, log, decisions })
 
   for (let round = 1; round <= maxRounds; round++) {
+    const trace = (decision: Decision) => decisions.push({ ...decision, round })
     for (let i = 0; i < STEPS_PER_ROUND; i++) {
-      const next = stepBot(state, parties, dice, newId) ?? tableMove(state, parties, dice, newId)
+      const next = stepBot(state, parties, dice, newId, trace) ?? tableMove(state, parties, dice, newId)
       if (!next) break
       for (const id of next.history.slice(state.history.length)) {
         const action = getAction(next, id)

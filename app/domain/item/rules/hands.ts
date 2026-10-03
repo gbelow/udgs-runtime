@@ -75,6 +75,18 @@ export type Wielded = {
 // weapon needs two hands on it. A natural weapon is part of the creature, so
 // it is the creature's size (gear.tex "Scaling weapons").
 export function getWieldedWeapons(c: Character): Wielded[] {
+  const known = wielded.get(c)
+  if (known) return known
+  const computed = computeWieldedWeapons(c)
+  wielded.set(c, computed)
+  return computed
+}
+
+// A character is replaced, never changed, so what it wields is known once for
+// each object it is.
+const wielded = new WeakMap<Character, Wielded[]>()
+
+function computeWieldedWeapons(c: Character): Wielded[] {
   const held = c.held.flatMap((item) => {
     const weapon = getItemWeapon(item)
     return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false, broken: item.broken }] : []
