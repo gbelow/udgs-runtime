@@ -2,7 +2,8 @@ import { getActionCost } from '../rules/actionCosts'
 import type { ArmorProperty, Character, Material } from '../../types'
 import { getHardness, getItemScale } from '../../item/rules/items'
 import { isCharged } from '../../item/rules/costs'
-import { armorFits, getArmor, getDoffCost, getPieceCost } from '../rules/armor'
+import { armorFits, getArmor } from '../rules/armor'
+import { getDoffCost, getPieceCost } from '../rules/donning'
 
 export type ArmorPanelView = {
   name: string

@@ -1,35 +1,12 @@
 import { AttackType, Character, Weapon, WeaponAttack } from "../../types";
-import { getBurdenPenalty } from "../../item/rules/containers";
-import { getShieldBurden } from "../../item/rules/hands";
-import { getSTR, getSTRBase } from "./characteristics";
-import { getSize } from "./misc";
+import { getSTR } from "./characteristics";
+import { getSize, getDM } from "./size";
 import { BOWS, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { getActionCost } from "./actionCosts";
-import { getDM } from "./helpers";
-import { getArmor } from "./armor";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./abilities";
 import { isCampaignCharacter } from "../../utils";
-
-// gear.tex "Burden penalties": armor, shield and container penalties stack and
-// are then "modified by (STR-10)/5". Penalties are stored as positive
-// magnitudes here and negated by the AGI/STA getters that consume them, so a
-// stronger character subtracts from the total. The rulebook does not state a
-// rounding rule; truncating toward zero keeps the modifier symmetric for
-// STR above and below 10. The total floors at 0 — carrying gear never grants
-// a bonus. STR is read unpenalized here: this value feeds AGI/STA, which the
-// injury penalty already reduces on its own.
-export function getGearPenalties(c: Character){
-  const gear = getArmor(c).burdenPenalty +
-    getShieldBurden(c) +
-    getBurdenPenalty(c)
-
-  const strMod = Math.trunc((getSTRBase(c) - 10) / 5)
-
-  return Math.max(0, gear - strMod)
-}
-
 
 // gear.tex "Size Scaling": "Wielding a weapon that is larger than appropriate
 // increases the cost of AP for all attacks by +1, and uses STR-5 in the

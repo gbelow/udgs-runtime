@@ -1,7 +1,7 @@
 import { useShallow } from "zustand/shallow";
 import { doffArmor, equipArmor, putGauntlets, putHelm, toggleVisor } from "../domain/character/commands";
 import { ArmorPanelView, ArmorPiecesView, getArmorPanel, getArmorPiecesView } from "../domain/character/lenses/armor";
-import { getEquipView, WearView } from "../domain/character/rules/armor";
+import { getEquipView, WearView } from "../domain/character/rules/donning";
 import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
 import { getHardness } from "../domain/item/rules/items";
 import { Character } from "../domain/types";

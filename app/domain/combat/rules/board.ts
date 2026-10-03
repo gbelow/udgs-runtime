@@ -1,7 +1,7 @@
 import type { Character, MeleeRange, Weapon, WeaponAttack } from '../../types'
 import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
-import { getSize } from '../../character/rules/misc'
+import { getSize } from '../../character/rules/size'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance } from '../geometry'

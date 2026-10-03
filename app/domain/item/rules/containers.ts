@@ -1,7 +1,6 @@
 import { Character, Container, ContainerKind, Item, ItemSchema, SlotKind } from '../../types'
 import { isSameItem } from './items'
-import { FREE, MoveView, getDrawCost, isCharged } from './costs'
-import { getSize } from '../../character/rules/misc'
+import { getSize } from '../../character/rules/size'
 
 // gear.tex "Quiver": "Can be slung on a belt" — a quiver in a quick slot of
 // a container the character has on is one more container to them, named by
@@ -61,22 +60,6 @@ export function getDisplacedContainer(c: Character, item: Item): Container | und
   const kind = item.container?.kind
   const key = getContainerKey(item)
   return Object.entries(c.containers).find(([k, on]) => k === key || (kind !== undefined && WORN_ONE_AT_A_TIME.has(kind) && on.kind === kind))?.[1]
-}
-
-// Whether a container item can be put on from where it is — the catalog
-// (null), the hands, or a slot — and what it costs a character in play: a
-// slot's draw price (combat.tex "Drawing items in combat"), from the hands
-// nothing. Only a catalog pick on the sheet goes over whatever it displaces,
-// which is how a character is dressed; anywhere else the other comes off
-// first. A quiver is not put on but slung (gear.tex "Quiver"). Null for an
-// item that is not a container one can put on.
-export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): MoveView | null {
-  if (!item.container || item.container.kind === 'quiver') return null
-  const displaced = getDisplacedContainer(c, item)
-  if (displaced && (from !== null || isCharged(c))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }
-  if (!isCharged(c)) return { able: true, cost: null, why: '' }
-  const cost = from === null || from === 'hand' ? FREE : getDrawCost(c, from, item)
-  return { able: true, cost: cost.AP, why: '' }
 }
 
 export function getSlotBulk(container: Container, slot: SlotKind): number {

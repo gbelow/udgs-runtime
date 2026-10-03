@@ -4,7 +4,7 @@ import { doffArmor, wearFromContainer } from "../domain/character/commands";
 import { GEAR_SIZE, getCatalogItem } from "../domain/item/rules/items";
 import { getHeldItem } from "../domain/item/rules/hands";
 import { getItemCatalogRows, ItemCatalogRow } from "../domain/item/projections/items";
-import { getSize } from "../domain/character/rules/misc";
+import { getSize } from "../domain/character/rules/size";
 import { Item, SlotKind } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterSelector, useActiveInventoryUpdate } from "./useActiveCharacterSelector";

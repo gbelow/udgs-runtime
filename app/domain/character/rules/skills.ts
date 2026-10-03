@@ -1,5 +1,6 @@
 import { AfflictionKey, Character, Skills } from '../../types'
-import { getSM, skill } from './helpers'
+import { getSM } from './size'
+import { skill } from './helpers'
 import { getAfflictionPenalty, hasAffliction } from './afflictions'
 import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'

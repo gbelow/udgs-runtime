@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { holdItem, regripItem, drawItem, storeItem, dropItem } from './hands'
-import { getDrawCost, getStoreCost, getGrip } from '../rules/hands'
+import { getGrip } from '../rules/hands'
+import { getDrawCost, getStoreCost } from '../rules/costs'
 import { canFitItem } from '../rules/containers'
 import { makeCharacter, makeCampaignCharacter } from '../../factories'
 import { isCampaignCharacter } from '../../utils'

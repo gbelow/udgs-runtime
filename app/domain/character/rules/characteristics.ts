@@ -1,6 +1,8 @@
 import { Character, Characteristics } from "../../types"
 import { getInjuryPenalty } from "./afflictions"
-import { getGearPenalties } from "./gear"
+import { getBurdenPenalty } from "../../item/rules/containers"
+import { getShieldBurden } from "../../item/rules/hands"
+import { getArmor } from "./armor"
 import { Term, sumTerms } from "./terms"
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
@@ -83,4 +85,22 @@ export const characteristicTermGetters: Partial<Record<keyof Characteristics, (c
   STR: getSTRTerms,
   AGI: getAGITerms,
   STA: getSTATerms,
+}
+
+// gear.tex "Burden penalties": armor, shield and container penalties stack and
+// are then "modified by (STR-10)/5". Penalties are stored as positive
+// magnitudes here and negated by the AGI/STA getters that consume them, so a
+// stronger character subtracts from the total. The rulebook does not state a
+// rounding rule; truncating toward zero keeps the modifier symmetric for
+// STR above and below 10. The total floors at 0 — carrying gear never grants
+// a bonus. STR is read unpenalized here: this value feeds AGI/STA, which the
+// injury penalty already reduces on its own.
+export function getGearPenalties(c: Character){
+  const gear = getArmor(c).burdenPenalty +
+    getShieldBurden(c) +
+    getBurdenPenalty(c)
+
+  const strMod = Math.trunc((getSTRBase(c) - 10) / 5)
+
+  return Math.max(0, gear - strMod)
 }

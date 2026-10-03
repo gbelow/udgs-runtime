@@ -1,6 +1,6 @@
 import type { Character } from '../../types'
 import type { CombatState, Coord, MoveAction, Placement } from '../types'
-import { getSize } from '../../character/rules/misc'
+import { getSize } from '../../character/rules/size'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { coordKey } from '../geometry'
 import { getFootprint, getOccupancy } from './board'

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSM, getDM } from './helpers'
+import { getSM, getDM } from './size'
 import { getTGH } from './misc'
 import { SMArr, dmgArr } from '../../tables'
 import { makeCharacter } from '../../factories'

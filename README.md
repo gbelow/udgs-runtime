@@ -152,9 +152,11 @@ Non-negotiable constraints:
 
   When the domain doesn't already expose the shape you need, that's the signal to add a **view getter**, not to compute it in the component. A view getter is a pure `(c: Character) => RenderableShape` — the same pattern as `getStrikeTerms`, extended past scalars to rows and tables (`getDamageTiers`, `getWeaponAttackRows`). The tell that you're about to leak a rule is a component reading a raw characteristic (`STR`, `STA`, `TGH`) — it's reading it in order to do arithmetic with it.
 
-  Two ESLint rules enforce the boundary mechanically (`eslint.config.mjs`), so this is a build failure rather than a code-review habit:
+  ESLint rules enforce the boundary mechanically (`eslint.config.mjs`), so this is a build failure rather than a code-review habit:
 
   - `app/domain/**` may not import from `app/stores/**`, React, or Zustand — the domain defines its own types and the store imports them, never the reverse.
+  - `rules/`, `lenses/` and `projections/` may not import `commands/` or the bot — the read side never runs a button to find out an answer.
+  - `app/domain/{character,item}/**` may not form an import cycle — size and scale, then items, then the character's state, then AP prices; a file that imports upward mixes two of those and is split.
   - `app/components/**` may not import from `**/domain/*/rules/**`, `**/domain/*/lenses/**`, `**/domain/*/projections/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/combat/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
 
 ## Minimal Feature Context

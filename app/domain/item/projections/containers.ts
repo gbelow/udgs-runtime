@@ -1,8 +1,8 @@
 import type { Character, Container, ContainerKind, Item, SlotKind } from '../../types'
 import { SlotKindSchema } from '../../types'
-import { getWearView, WearView } from '../../character/rules/armor'
+import { getWearView, WearView } from '../../character/rules/donning'
 import { getBulkName } from '../rules/items'
-import { MoveView, getStoreCost, isCharged } from '../rules/costs'
+import { MoveView, getPutOnView, getStoreCost, isCharged } from '../rules/costs'
 import { getHeldItem } from '../rules/hands'
 import {
   canFitItem,
@@ -10,7 +10,6 @@ import {
   getBurdenPenalty,
   getContainerPenalty,
   getOpenContainers,
-  getPutOnView,
   getSlungContainers,
   getSlotBulk,
   getSlotsNeeded,

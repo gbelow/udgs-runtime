@@ -1,6 +1,6 @@
 import { useShallow } from "zustand/shallow";
 import { putOnFromCatalog, takeOffContainer } from "../domain/item/commands";
-import { getPutOnView } from "../domain/item/rules/containers";
+import { getPutOnView } from "../domain/item/rules/costs";
 import type { MoveView } from "../domain/item/rules/costs";
 import {
   BurdenView,

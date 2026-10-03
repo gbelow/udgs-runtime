@@ -1,7 +1,7 @@
 import { Character, CharacterUpdater, Container, Item, SlotKind } from '../../types'
-import { getDrawCost } from '../rules/costs'
+import { getDrawCost, getPutOnView } from '../rules/costs'
 import { canHoldWith, getHeldItem } from '../rules/hands'
-import { WORN_ONE_AT_A_TIME, getContainerItem, getContainerKey, getPutOnView } from '../rules/containers'
+import { WORN_ONE_AT_A_TIME, getContainerItem, getContainerKey } from '../rules/containers'
 import { dropItem, findInContainer, holdItem, pay } from './hands'
 import { removeItemFromContainer } from './items'
 

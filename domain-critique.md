@@ -140,6 +140,27 @@ adding indirection (callbacks, injected getters).
 **Done when.** A dependency-cycle check (madge or an eslint `import/no-cycle` scoped to
 `app/domain`) passes in CI.
 
+**Done (2026-10-03), by a different route.** On checking, the two parts were not one module:
+there was one 14-file import cycle (10 `character/rules`, 4 `item/rules`, no commands), and
+no value depended on itself. Read by value, the stack is one-way: size and scale → item facts
+(bulk, holding, burden, laming) → character state (afflictions, penalties, characteristics,
+skills) → AP prices (`getActionCost` reads Prestidigitation). The cycle came from files
+holding two of those layers. They were split, not merged or indirected:
+
+- `character/rules/size.ts` (new leaf): `getSize` from `misc.ts`, the size multipliers and
+  `scaleWeapon`/`scaleArmor` from `helpers.ts`.
+- `item/rules/costs.ts` takes the priced item views: `getPutOnView` from `containers.ts`,
+  `getBackMoveCost`/`getSlingView`/`getUnslingView` from `hands.ts` (and `hands.ts` no longer
+  re-exports the costs).
+- `character/rules/donning.ts` (new): don/doff prices and the wear views from `armor.ts`.
+- `getGearPenalties` moved from `gear.ts` into `characteristics.ts`, its only reader;
+  `gear.ts` is now the attack side alone.
+
+`import/no-cycle` is an `error` for `app/domain/{character,item}/**`. `pnpm sim` reports
+byte-identical. Not covered: `combat/rules` has its own 17-file cycle and `combat/commands`
+a 4-file one (`action`, `floor`, `log`, `sequence`, Step 6's ground), so the rule is not yet
+domain-wide.
+
 ---
 
 ## Step 4 — The reducer decides rules and recomputes from the character at resolve

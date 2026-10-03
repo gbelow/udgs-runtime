@@ -2,7 +2,7 @@ import type { ActiveEntry, Character } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
 import { getActiveSpellKeys, isSpellActive } from './effects'
-import { getSize } from './misc'
+import { getSize } from './size'
 
 // spells.tex "Sustained Spells": "actions that can be performed continuously
 // while concentration is maintained" — a caster holding one is

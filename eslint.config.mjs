@@ -70,7 +70,18 @@ const eslintConfig = [
     },
   },
 
-  // 3. Components must not reach into the rule-bearing halves of the domain, nor
+  // 3. Character and item rules form one stack, not a loop: size and scale at
+  //    the bottom, then what items are, then the character's state, then the
+  //    AP prices that read skills. A file that imports upward has mixed two of
+  //    those layers and should be split along the line.
+  {
+    files: ["app/domain/character/**/*.ts", "app/domain/item/**/*.ts"],
+    rules: {
+      "import/no-cycle": ["error", { ignoreExternal: true }],
+    },
+  },
+
+  // 4. Components must not reach into the rule-bearing halves of the domain, nor
   //    into the state layer. Rules, lenses, projections and commands ARE the
   //    game rules, and so is every constant in tables.ts; a component that
   //    imports one is one step away from reimplementing it inline (which is how

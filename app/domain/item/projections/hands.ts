@@ -1,10 +1,9 @@
 import { SPELLS, isSpellKey } from '../../spells'
 import type { Character, Item, SlotKind } from '../../types'
-import { getWearView, WearView } from '../../character/rules/armor'
+import { getWearView, WearView } from '../../character/rules/donning'
 import { getBulkName, getItemScale } from '../rules/items'
-import { MoveView, getDrawCost, isCharged } from '../rules/costs'
-import { getPutOnView } from '../rules/containers'
-import { Grip, canHoldWith, getBackMoveCost, getFreeHoldingHands, getGrip, getHeldItem, getNaturalWeapon, getSlingView, getUnslingView, isLamingHold } from '../rules/hands'
+import { MoveView, getBackMoveCost, getDrawCost, getPutOnView, getSlingView, getUnslingView, isCharged } from '../rules/costs'
+import { Grip, canHoldWith, getFreeHoldingHands, getGrip, getHeldItem, getNaturalWeapon, isLamingHold } from '../rules/hands'
 
 // A part that holds or fights: a hand, a paw, a jaw.
 export type HandView = {
