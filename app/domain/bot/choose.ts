@@ -1,6 +1,7 @@
 import type { CombatState, RootAction } from '../combat/types'
 import { rollD10, seededRng, type Dice } from '../combat/dice'
 import { getFightName } from '../combat/rules/fighters'
+import { getHistory, getLog } from '../combat/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
@@ -46,7 +47,7 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
 // stands, so that no run of dice colours every choice alike.
 function getSampleSeed(state: CombatState, actorId: string): number {
   const named = [...actorId].reduce((hash, ch) => Math.imul(hash, 31) + ch.charCodeAt(0), 7)
-  return (Math.imul(state.round, 1000003) + Math.imul(state.actions.length, 7919) + Math.imul(state.history.length, 31) + named) >>> 0
+  return (Math.imul(state.round, 1000003) + Math.imul(getLog(state).length, 7919) + Math.imul(getHistory(state).length, 31) + named) >>> 0
 }
 
 function pick(state: CombatState, parties: readonly Party[], party: Party, actorId: string, kind: 'turn' | 'answer', options: Option[], decided: readonly string[], newId: () => string, trace?: Trace): number {

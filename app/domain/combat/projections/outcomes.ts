@@ -10,7 +10,7 @@ import { outcomeOf } from '../rules/damage'
 import { getGrappleFacts } from '../rules/grapple'
 import { isVoided } from '../rules/opportunity'
 import { getFightName } from '../rules/fighters'
-import { getAction } from '../rules/log'
+import { getAction, getHistory } from '../rules/log'
 import { isSpellTestBeaten } from '../rules/cast'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { getReadyItems } from '../../item/rules/containers'
@@ -111,7 +111,7 @@ export type ActionReport = {
 }
 
 export function getLastReport(state: CombatState): ActionReport | null {
-  const id = state.history.at(-1)
+  const id = getHistory(state).at(-1)
   return id ? getActionReport(state, id) : null
 }
 

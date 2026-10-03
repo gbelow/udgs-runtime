@@ -7,7 +7,7 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
 - `getInterruptionOf(landed, victim)` (`rules/interruption.ts`) — what a landed strike,
   grapple maneuver or push did to someone: `none | interrupted | stunned`.
 - `getInterruptions(state, action)` — what the action's descendants (through `reactionTo`
-  and `spawnedBy`) landed on its actor *before its own effect*, ordered by `history`. A
+  and `spawnedBy`) landed on its actor *before its own effect*, ordered by `getHistory`. A
   counterattack's tied strike is skipped (a tie breaks neither).
 - `isBroken` — any such interruption, except for a move (cut short where caught,
   `getMoveOverride` in `rules/move.ts`) or a push (stopped by its comparison, or only by a

@@ -1,6 +1,6 @@
 import type { CombatState } from '../combat/types'
 import type { Dice } from '../combat/dice'
-import { getAction, getOpenAction } from '../combat/rules/log'
+import { getAction, getHistory, getOpenAction } from '../combat/rules/log'
 import { getTurnHolder, hasAgreedToEnd } from '../combat/rules/turn'
 import { endTurn, startTurn, toggleAgreeToEnd } from '../combat/commands/turn'
 import { stepOpen, type Answerer } from './open'
@@ -37,10 +37,11 @@ export function stepWith(policy: Policy, state: CombatState, parties: readonly P
 // die says. (play.tex "Combat": "first to ask, first to play" — nobody asks
 // for ever, and no party is first by being listed first.)
 function startOrder(state: CombatState, parties: readonly Party[], dice: Dice): readonly Party[] {
-  const lastId = state.history.at(-1)
+  const history = getHistory(state)
+  const lastId = history.at(-1)
   const actor = lastId ? getAction(state, lastId)?.actorId : undefined
   const last = actor ? parties.findIndex((p) => isMember(p, actor)) : -1
-  const first = last >= 0 ? last + 1 : state.history.length === 0 ? dice(false) % parties.length : 0
+  const first = last >= 0 ? last + 1 : history.length === 0 ? dice(false) % parties.length : 0
   return [...parties.slice(first % parties.length), ...parties.slice(0, first % parties.length)]
 }
 

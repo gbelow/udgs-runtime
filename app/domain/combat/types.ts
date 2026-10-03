@@ -976,18 +976,19 @@ export const CombatStateSchema = z.object({
   // the characters whose flee is due once what is being played out is
   // done, in the order they declared it
   fleers: z.array(z.string()).default([]),
-  // Every action of the fight in the order it was declared, resolved ones
-  // included: the open one is the last root still short of resolved, and the
-  // rest is the fight's history.
+  // The actions still in play, in the order they were declared: the open one
+  // is the last root still short of resolved, and the reactions to the roots
+  // being played out wait here with them. What is taken back leaves from here.
   actions: z.array(ActionSchema).default([]),
   // The actions still being played out, by id, the one the table is waiting
   // on last. An action a reaction opens is pushed over the one it answers
   // and played out first; an action leaves when it resolves.
   stack: z.array(z.string()).default([]),
-  // The actions that have been played out, by id, in the order they landed —
-  // which is not the order they were declared in: an opportunity attack
-  // lands before the action it answers.
-  history: z.array(z.string()).default([]),
+  // The actions that have been played out, each with the reactions to it, in
+  // the order they landed — which is not the order they were declared in: an
+  // opportunity attack lands before the action it answers. Only ever added
+  // to.
+  record: z.array(ActionSchema).default([]),
   // The one-time offers their actor passed up, by the action each came from:
   // a withdrawn action leaves the log, and this is all that is kept of it.
   passed: z.array(z.object({ by: z.string(), kind: z.string() })).default([]),

@@ -13,14 +13,14 @@ own.
 ## The ideas it rests on
 
 1. **A fight is one value.** `CombatState` (`types.ts`) holds everything: the characters
-   (as `CampaignCharacter`s), the round, the action log, the stack, the history, the board,
+   (as `CampaignCharacter`s), the round, the actions in play, the record of those landed, the stack, the board,
    the grapples and the floor. It is a Zod schema with a default on every field, so it can
    be parsed from a partial or older payload. Every command is an `Updater`,
    `(state) => state`, and the store (`stores/useCombatStore.ts`) only holds the value and
    applies updaters to it.
 
 2. **An action is data, never a procedure.** A strike, a move, a defense is a record in
-   `state.actions`: who, against whom, what was declared, what the die said, and — once it
+   `state.actions` while in play and in `state.record` once landed (`getLog` reads both): who, against whom, what was declared, what the die said, and — once it
    lands — what it came to (`facts`). Nothing about an action is computed twice: whatever
    needed two characters to work out is written onto the record when the transition
    happens, so the reducers that land it need only the record.
@@ -32,8 +32,9 @@ own.
 4. **A stack decides whose turn it is to be played out.** `state.stack` holds ids of root
    actions still being played out; the top is the open one (`getOpenAction`). Anything an
    action opens — the strike an opportunity attack opens, a riposte, the blast of an
-   explosion — is pushed over it and played out first. `state.history` records the order
-   actions *landed*, which differs from the order they were declared.
+   explosion — is pushed over it and played out first. `state.record` holds the actions in the
+   order they *landed* (`getHistory`), which differs from the order they were declared, and
+   is only ever added to; a draft taken back leaves `state.actions`, never the record.
 
 5. **An action writes only its own record.** Being given up, voided, interrupted or broken is
    never written onto the victim; it is *derived* from the log (`rules/opportunity.ts`,
@@ -220,7 +221,7 @@ app/domain/combat/
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
-│   ├── log.ts          setActions (only writer of log/stack/history), applyPhase, pruneReactions
+│   ├── log.ts          setActions (only writer of actions/stack/record), applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off

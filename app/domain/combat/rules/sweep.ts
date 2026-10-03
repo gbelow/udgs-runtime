@@ -6,7 +6,7 @@ import { hasGrant } from '../../character/rules/abilities'
 import { angleBetween, centroid, directedTurn, distance, line, setDistance } from '../geometry'
 import { getPlacedFootprint, isInReach } from './board'
 import { isProne } from './ground'
-import { getAction } from './log'
+import { getAction, getLog } from './log'
 import { findWeaponRow } from './weaponRow'
 
 // combat.tex "Sweeping Attack": "hits everything in a semicircle. Decide
@@ -29,7 +29,7 @@ export function isSweepLink(strike: StrikeAction): boolean {
 // Who the sweep has met before this strike, the first one first.
 export function getSwept(state: CombatState, strike: StrikeAction): string[] {
   if (!strike.sweepOf) return []
-  const chain = state.actions.filter((a) => a.kind === 'strike' && (a.id === strike.sweepOf || a.sweepOf === strike.sweepOf))
+  const chain = getLog(state).filter((a) => a.kind === 'strike' && (a.id === strike.sweepOf || a.sweepOf === strike.sweepOf))
   const at = chain.findIndex((a) => a.id === strike.id)
   return (at < 0 ? chain : chain.slice(0, at)).flatMap((a) => (a.targetId ? [a.targetId] : []))
 }

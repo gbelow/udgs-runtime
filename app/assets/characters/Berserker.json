@@ -311,8 +311,9 @@
     "fast swim": 0.5,
     "stand": 0
   },
-  "hasGauntlets": 0,
-  "hasHelm": 0,
+  "hasGauntlets": 1,
+  "hasHelm": 1,
+  "visorOpen": false,
   "armor": {
     "name": "Skin",
     "material": "flesh",
@@ -332,7 +333,9 @@
     "amount": 1,
     "bulk": 5,
     "refId": "Brigandine",
-    "charge": null
+    "charge": null,
+    "source": null,
+    "broken": false
   },
   "body": [
     {
@@ -390,6 +393,10 @@
       "lost": false
     }
   ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  },
   "held": [
     {
       "id": "b030cde0-1569-4ed9-87d7-6d9aae424183",
@@ -399,9 +406,12 @@
       "amount": 1,
       "bulk": 3,
       "refId": "Bardiche",
-      "charge": null
+      "charge": null,
+      "source": null,
+      "broken": false
     }
   ],
+  "onBack": null,
   "containers": {
     "Belt": {
       "name": "Belt",
@@ -419,7 +429,9 @@
               "amount": 1,
               "bulk": 2,
               "refId": "Short Sword",
-              "charge": null
+              "charge": null,
+              "source": null,
+              "broken": false
             }
           ]
         },
@@ -434,10 +446,12 @@
           "items": []
         }
       },
-      "burden": 3
+      "burden": 3,
+      "bulk": 2
     }
   },
   "abilities": [],
   "spells": {},
+  "limitStress": null,
   "notes": ""
 }

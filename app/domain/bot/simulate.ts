@@ -1,6 +1,6 @@
 import type { ActionKind, CombatState } from '../combat/types'
 import type { Dice } from '../combat/dice'
-import { getAction } from '../combat/rules/log'
+import { getAction, getHistory } from '../combat/rules/log'
 import { getNextRoundBar } from '../combat/rules/turn'
 import { nextRound } from '../combat/commands/nextRound'
 import { getActionReport, type ActionReport } from '../combat/projections/outcomes'
@@ -51,7 +51,7 @@ export function simulate(initial: CombatState, parties: readonly Party[], dice: 
     for (let i = 0; i < STEPS_PER_ROUND; i++) {
       const next = stepBot(state, parties, dice, newId, trace) ?? tableMove(state, parties, dice, newId)
       if (!next) break
-      for (const id of next.history.slice(state.history.length)) {
+      for (const id of getHistory(next).slice(getHistory(state).length)) {
         const action = getAction(next, id)
         const report = getActionReport(next, id)
         if (action && report) log.push({ round, actorId: action.actorId, kind: action.kind, report })

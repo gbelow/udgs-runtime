@@ -17,14 +17,21 @@ import { deliverAll } from '../../character/commands/deliver'
 // everything it touches, and keeping the declared reactions in line with
 // what the open action still triggers.
 
-// The fight with its log rewritten, and the stack kept to the actions still
-// being played out: `pushed` goes on top, anything resolved or gone leaves,
-// and what leaves having landed goes into the history.
+// The fight with the actions in play rewritten, and the stack kept to the
+// actions still being played out: `pushed` goes on top, anything resolved or
+// gone leaves, and what leaves having landed goes into the record, the
+// reactions to it before it.
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
-  const actions = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn } : a))
-  const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
-  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id))
-  return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)), history: [...state.history, ...landed] }
+  const stamped = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn } : a))
+  const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
+  const landed = state.stack.filter((id) => !live.has(id) && stamped.some((a) => a.id === id))
+  const entering = landed.flatMap((id) => [...stamped.filter((a) => a.reactionTo === id), stamped.find((a) => a.id === id)!])
+  return {
+    ...state,
+    actions: stamped.filter((a) => !entering.includes(a)),
+    stack: [...state.stack, ...pushed].filter((id) => live.has(id)),
+    record: [...state.record, ...entering],
+  }
 }
 
 // Takes the actions, and whatever answers them, out of the log: a draft

@@ -2,6 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { CombatState, RootAction } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import type { ReactionMove } from './reactionMoves'
+import { getLog } from './log'
 import { isInTurn } from './turn'
 
 // combat.tex "Rest": "The character is allowed to move 4 AP worth of careful
@@ -16,7 +17,7 @@ export function canMoveWhileResting(state: CombatState, root: RootAction): boole
 }
 
 export function hasRestMove(state: CombatState, rootId: string): boolean {
-  return state.actions.some((a) => a.kind === 'move' && a.spawnedBy === rootId) || state.passed.some((p) => p.kind === 'move' && p.by === rootId)
+  return getLog(state).some((a) => a.kind === 'move' && a.spawnedBy === rootId) || state.passed.some((p) => p.kind === 'move' && p.by === rootId)
 }
 
 // The move a rest allows: careful only, as far as the rest's AP reaches,

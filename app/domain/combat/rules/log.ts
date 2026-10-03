@@ -28,8 +28,20 @@ export function findOpenRoot<K extends ActionKind>(state: CombatState, kind: K, 
   return null
 }
 
+// Every action of the fight, played out or not: what landed, then what is
+// still in play.
+export function getLog(state: CombatState): Action[] {
+  return [...state.record, ...state.actions]
+}
+
+// The ids of the actions played out, in the order they landed, not counting
+// the reactions to them.
+export function getHistory(state: CombatState): string[] {
+  return state.record.filter((a) => a.reactionTo === null).map((a) => a.id)
+}
+
 export function getReactionsTo(state: CombatState, id: string): Action[] {
-  return state.actions.filter((a) => a.reactionTo === id)
+  return getLog(state).filter((a) => a.reactionTo === id)
 }
 
 // The reactions to the action declared but not yet paid for, and so still
@@ -45,7 +57,7 @@ export function canAnswer(open: Action, characterId: string): boolean {
 }
 
 export function getAction(state: CombatState, id: string): Action | null {
-  return state.actions.find((a) => a.id === id) ?? null
+  return state.actions.find((a) => a.id === id) ?? state.record.find((a) => a.id === id) ?? null
 }
 
 // The action a reaction answers; null for one taken on its actor's own
@@ -58,7 +70,7 @@ export function getRootOf(state: CombatState, action: Action): RootAction | null
 // What the reaction opened, once it has: the strike, maneuver or push an
 // opportunity attack opens, a counterattack's strike.
 export function getOpenedBy(state: CombatState, reaction: Action): Action | null {
-  return state.actions.find((a) => a.spawnedBy === reaction.id) ?? null
+  return getLog(state).find((a) => a.spawnedBy === reaction.id) ?? null
 }
 
 // The opportunity attack that opened the action; null for one opened any
@@ -98,5 +110,5 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
 // another of theirs from the same action has been taken.
 export function isForgone(state: CombatState, action: Action): boolean {
   if (action.followUpOf === null || action.step !== 'define') return false
-  return state.actions.some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define')
+  return getLog(state).some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define')
 }

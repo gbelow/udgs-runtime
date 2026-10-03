@@ -7,7 +7,7 @@ import { addItemToContainer } from '../../item/commands/items'
 import { putOnFromCatalog } from '../../item/commands/containers'
 import { getCatalogItem } from '../../item/rules/items'
 import { getAvailableActions } from '../rules/options'
-import { getLiveReactionsTo, getOpenAction, getOpeningReaction } from '../rules/log'
+import { getHistory, getLiveReactionsTo, getLog, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
 import { getLastReport } from '../projections/outcomes'
 import { getOptionLabel } from '../projections/labels'
@@ -82,7 +82,7 @@ function everyoneAttacks(s: CombatState, reactorIds: string[]): CombatState {
 
 // The actions the opportunity attacks declared in `s` opened, among `landed`.
 function openedByOpportunity(s: CombatState, landed: Action[]): Action[] {
-  const declared = s.actions.filter((a) => a.kind === 'opportunityAttack').map((a) => a.id)
+  const declared = getLog(s).filter((a) => a.kind === 'opportunityAttack').map((a) => a.id)
   return landed.filter((a) => a.spawnedBy !== null && declared.includes(a.spawnedBy))
 }
 
@@ -103,7 +103,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
-    for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
+    for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
     s = next
   }
   throw new Error('did not end')
@@ -179,7 +179,7 @@ describe.each(scenarios)('the opportunity attacks drawn by $name', ({ start, rea
   // is interrupted and nothing cuts the action short.
   it('are each fought, once', () => {
     const s = start()
-    const declared = s.actions.filter((a) => a.kind === 'opportunityAttack')
+    const declared = getLog(s).filter((a) => a.kind === 'opportunityAttack')
     expect(declared.map((a) => a.actorId).sort()).toEqual([...reactors].sort())
     const { landed } = playOut(s, MISS)
     expect(openedByOpportunity(s, landed).map((a) => a.spawnedBy).sort()).toEqual(declared.map((a) => a.id).sort())
@@ -222,7 +222,7 @@ describe('an action broken by an opportunity attack', () => {
   // is dragged and interrupted is still dragged all the way.
   it('does not stop a push when the one it interrupts is dragged', () => {
     const { state } = playOut(pushTowardsSpearman(), LAND)
-    expect(state.actions.find((a) => a.kind === 'strike' && a.targetId === 'b' && a.step === 'done' && a.interruption !== 'none')).toBeDefined()
+    expect(getLog(state).find((a) => a.kind === 'strike' && a.targetId === 'b' && a.step === 'done' && a.interruption !== 'none')).toBeDefined()
     expect(state.board?.placements.b?.cell).toEqual({ q: 2, r: 0 })
     expect(state.board?.placements.a?.cell).toEqual({ q: 1, r: 0 })
   })
@@ -238,7 +238,7 @@ describe('an action broken by an opportunity attack', () => {
   ])('stops a push whose pusher a $weapon hits only if it stuns them', ({ weapon, a, b }) => {
     const s = moveGrabbedGroup({ a: [0, 0], b: [1, 0], t: [-2, 0] }, wielder('t', weapon), [{ q: -1, r: 0 }])
     const { state } = playOut(s, LAND)
-    const strike = state.actions.find((x) => x.kind === 'strike' && x.actorId === 't')
+    const strike = getLog(state).find((x) => x.kind === 'strike' && x.actorId === 't')
     expect(strike?.kind === 'strike' && [strike.targetId, strike.interruption]).toEqual(['a', weapon === 'Greatsword' ? 'stunned' : 'interrupted'])
     expect(state.board?.placements.a?.cell).toEqual(a)
     expect(state.board?.placements.b?.cell).toEqual(b)
@@ -277,7 +277,7 @@ describe('giving up the action an opportunity attack answers', () => {
     return s
   }
   const evade = (s: CombatState) => declareReaction('atk', { kind: 'evade' }, newId)(s)
-  const evadeOf = (s: CombatState, id: string) => s.actions.find((a) => a.kind === 'evade' && a.reactionTo === id)
+  const evadeOf = (s: CombatState, id: string) => getLog(s).find((a) => a.kind === 'evade' && a.reactionTo === id)
 
   it('happens by defending actively, and the shot then lands nothing', () => {
     const s = firstAttackOnShooter()
@@ -287,7 +287,7 @@ describe('giving up the action an opportunity attack answers', () => {
 
   it("pays the shot's AP towards the first defense only", () => {
     let s = evade(firstAttackOnShooter())
-    const shot = s.actions.find((a) => a.kind === 'shoot')!
+    const shot = getLog(s).find((a) => a.kind === 'shoot')!
     const first = getOpenAction(s)!
     s = resolveAction(newId)(rollAction(() => MISS, newId)(s))
     const second = getOpenAction(s)!
@@ -331,7 +331,7 @@ describe('an explosion', () => {
         ? commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 0, r: -2 }, { q: 0, r: -3 }, { q: 0, r: -4 }] })(s))
         : withdrawSpawnedAction(newId)(s)
     }
-    const blast = s.actions.find((a) => a.kind === 'blast')
+    const blast = getLog(s).find((a) => a.kind === 'blast')
     const facts = blast?.kind === 'blast' ? blast.facts ?? {} : {}
     expect(facts.x).toBeUndefined()
     expect(facts.y?.length).toBeGreaterThan(0)
@@ -361,7 +361,7 @@ describe('a counterattack', () => {
     const dice = [...faces]
     s = rollAction(() => dice.shift()!, newId)(s)
     for (let i = 0; i < 5 && getOpenAction(s); i++) s = resolveAction(newId)(s)
-    return s.history.map((id) => s.actions.find((a) => a.id === id)!)
+    return getHistory(s).map((id) => getLog(s).find((a) => a.id === id)!)
   }
 
   // Who struck, in the order they landed, and whether it hit.
@@ -523,7 +523,7 @@ describe('a hook attack', () => {
     { name: 'without its damage bought', location: 'leg' as const, buy: false },
     { name: 'aimed at the chest', location: 'chest' as const, buy: true },
   ])('opens no knockdown $name', ({ location, buy }) => {
-    expect(hookRunner(location, buy).actions.some((a) => a.kind === 'grapple')).toBe(false)
+    expect(getLog(hookRunner(location, buy)).some((a) => a.kind === 'grapple')).toBe(false)
   })
 })
 
@@ -717,7 +717,7 @@ describe('a spray', () => {
 
   it('reaches only the cone it is pointed in once the reflexes are done', () => {
     const s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(flamesCast())))
-    const blast = s.actions.find((a) => a.kind === 'blast')
+    const blast = getLog(s).find((a) => a.kind === 'blast')
     expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
   })
 })
@@ -750,7 +750,7 @@ describe('a held spray retargeted as a reaction', () => {
     for (let i = 0; i < 50 && getOpenAction(s); i++) {
       const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
       if (!next) throw new Error('stuck')
-      for (const id of next.history.slice(s.history.length)) landed.push(next.actions.find((a) => a.id === id)!)
+      for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
       s = next
     }
     expect(landed.map((a) => a.kind).filter((k) => k === 'fireAgain' || k === 'move')).toEqual(['fireAgain', 'move'])
@@ -779,7 +779,7 @@ describe('a held spray aimed at the round change', () => {
     for (let i = 0; i < 50 && getOpenAction(s); i++) {
       const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
       if (!next) throw new Error('stuck')
-      blasts.push(...next.history.slice(s.history.length).map((id) => next.actions.find((a) => a.id === id)!).filter((a) => a.kind === 'blast'))
+      blasts.push(...getHistory(next).slice(getHistory(s).length).map((id) => getLog(next).find((a) => a.id === id)!).filter((a) => a.kind === 'blast'))
       s = next
     }
     expect(s.characters.c.resources.AP).toBe(ap)
@@ -848,7 +848,7 @@ describe('coordinated shots', () => {
     s = declareReaction('a2', { kind: 'joinShot' }, newId)(s)
     return amendReaction('a2', shot(s, 'a2'))(s)
   }
-  const shots = (s: CombatState) => s.actions.filter((a) => a.kind === 'shoot')
+  const shots = (s: CombatState) => getLog(s).filter((a) => a.kind === 'shoot')
 
   it('is open to a shooter other than the target or the one shooting', () => {
     let s = onBoard({ a1: [0, 0], a2: [0, 1], def: [-6, 0] }, archer('a1'), archer('a2'), fighter('def'))
@@ -862,8 +862,9 @@ describe('coordinated shots', () => {
 
   it('has every shot rolled against the target\'s one defense, paid once, each landing on its own', () => {
     const { state } = playOut(joined(), LAND)
-    const [lead, second] = shots(state)
-    const defenses = state.actions.filter((a) => a.kind === 'evasion')
+    const lead = shots(state).find((a) => a.actorId === 'a1')!
+    const second = shots(state).find((a) => a.actorId === 'a2')!
+    const defenses = getLog(state).filter((a) => a.kind === 'evasion')
     expect(defenses).toHaveLength(1)
     expect(getDefendingReaction(state, lead)?.id).toBe(defenses[0].id)
     expect(getDefendingReaction(state, second)?.id).toBe(defenses[0].id)
@@ -879,7 +880,7 @@ describe('coordinated shots', () => {
     s = resolveAction(newId)(rollAction(() => joinedFace, newId)(s))
     return resolveAction(newId)(s)
   }
-  const escapes = (s: CombatState) => s.actions.filter((a) => a.kind === 'fleeFollowUp')
+  const escapes = (s: CombatState) => getLog(s).filter((a) => a.kind === 'fleeFollowUp')
 
   it('offers the escape a miss leaves by the result of the lead shot', () => {
     expect(escapes(playedJoined(MISS, MISS))).toHaveLength(1)
@@ -912,8 +913,8 @@ describe('coordinated shots', () => {
     s = declareReaction('def', { kind: 'evasion' }, newId)(s)
     s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
     const { state } = playOut(everyoneAttacks(s, ['t1', 't2']), LAND)
-    expect(state.actions.some((a) => a.kind === 'shoot' && a.actorId === 'a2')).toBe(false)
-    expect(state.actions.some((a) => a.kind === 'move')).toBe(false)
+    expect(getLog(state).some((a) => a.kind === 'shoot' && a.actorId === 'a2')).toBe(false)
+    expect(getLog(state).some((a) => a.kind === 'move')).toBe(false)
   })
 
   // combat.tex "Guard": someone adjacent to the target who is closer to the
@@ -927,7 +928,8 @@ describe('coordinated shots', () => {
     s = amendReaction('a2', shot(s, 'a2'))(declareReaction('a2', { kind: 'joinShot' }, newId)(s))
     s = declareReaction('g', getAvailableActions(s, 'g').find((o) => o.draft.kind === 'guard' && o.available)!.draft, newId)(s)
     const { state } = playOut(s, MISS)
-    const [lead, second] = shots(state)
+    const lead = shots(state).find((a) => a.actorId === 'a1')!
+    const second = shots(state).find((a) => a.actorId === 'a2')!
     expect(getDefendingReaction(state, lead)?.actorId).toBe('g')
     expect(getDefendingReaction(state, second)).toBeNull()
   })
@@ -1093,7 +1095,7 @@ describe('a blow a block met', () => {
 
   it('goes past the shield on a hit', () => {
     const s = struck('Longsword', 'block', 9, 0)
-    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
+    expect(getLog(s).find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
     expect(s.characters.def.held[0].broken).toBe(false)
   })
 
@@ -1165,7 +1167,7 @@ describe('a strike aimed at equipment', () => {
 
   it('breaks the item a hit lands on, and leaves its holder unhurt', () => {
     const s = struck(HIT, 0)
-    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
+    expect(getLog(s).find((a) => a.kind === 'strike')?.roll?.degree).toBe('hit')
     expect(shieldOf(s).broken).toBe(true)
     expect(s.characters.def.injuries).toEqual(declared(shield.id).characters.def.injuries)
   })
@@ -1176,7 +1178,7 @@ describe('a strike aimed at equipment', () => {
 
   it('does nothing to the item on a graze', () => {
     const s = struck(9, 0)
-    expect(s.actions.find((a) => a.kind === 'strike')?.roll?.degree).toBe('graze')
+    expect(getLog(s).find((a) => a.kind === 'strike')?.roll?.degree).toBe('graze')
     expect(shieldOf(s).broken).toBe(false)
   })
 

@@ -1,6 +1,6 @@
 import type { Interruption } from '../../types'
 import type { Action, CombatState } from '../types'
-import { getAction, getRootOf } from './log'
+import { getAction, getHistory, getLog, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
 import { getDeliveryInterruption } from './damage'
@@ -31,7 +31,7 @@ function getDescendantIds(state: CombatState, action: Action): Set<string> {
   const queue = [action.id]
   while (queue.length > 0) {
     const id = queue.shift()!
-    for (const a of state.actions) {
+    for (const a of getLog(state)) {
       if ((a.reactionTo === id || a.spawnedBy === id) && !found.has(a.id)) {
         found.add(a.id)
         queue.push(a.id)
@@ -62,8 +62,9 @@ export function getInterruptions(state: CombatState, action: Action): LandedInte
 
 function getLandedBefore(state: CombatState, action: Action): LandedInterruption[] {
   const descendants = getDescendantIds(state, action)
-  const landedAt = state.history.indexOf(action.id)
-  const before = landedAt === -1 ? state.history : state.history.slice(0, landedAt)
+  const history = getHistory(state)
+  const landedAt = history.indexOf(action.id)
+  const before = landedAt === -1 ? history : history.slice(0, landedAt)
   return before.flatMap((id): LandedInterruption[] => {
     const by = descendants.has(id) ? getAction(state, id) : null
     if (!by) return []
