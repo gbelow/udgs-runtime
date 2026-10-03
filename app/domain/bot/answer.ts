@@ -17,7 +17,8 @@ function byPrice(a: ActionOption, b: ActionOption): number {
 
 // The state after the first member of the party who has a defense to make
 // against the committed action declares it: the cheapest the list shows open,
-// one that needs no surge and says all it must. Null when nobody has one.
+// one that says all it must; a defense only a reaction surge pays for is made
+// with the surge (combat.tex "Action surge"). Null when nobody has one.
 export function answerOpen(state: CombatState, party: Party, open: RootAction, newId: () => string): CombatState | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members) {
@@ -27,9 +28,12 @@ export function answerOpen(state: CombatState, party: Party, open: RootAction, n
   return null
 }
 
+// A bot defends itself: standing in for someone else the action is aimed at
+// (combat.tex "Protect") is left to the table.
 function answerFor(state: CombatState, id: string, open: RootAction, newId: () => string): CombatState | null {
+  if (open.targetId !== null && open.targetId !== id) return null
   if (!canAnswer(open, id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)) return null
-  const options = getAvailableActions(state, id).filter((o) => o.available && o.surge === null && DEFENSES.includes(o.draft.kind)).sort(byPrice)
+  const options = getAvailableActions(state, id).filter((o) => o.available && DEFENSES.includes(o.draft.kind)).sort(byPrice)
   for (const option of options) {
     const declared = declareReaction(id, option.draft, newId)(state)
     const reaction = getLiveReactionsTo(declared, open.id).find((r) => r.actorId === id)

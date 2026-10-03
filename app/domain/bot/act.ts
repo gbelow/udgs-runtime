@@ -29,9 +29,9 @@ function isCommitted(state: CombatState, id: string): boolean {
   return action !== null && action.step !== 'define'
 }
 
-// The least penalised variation first.
-function byPenalty(a: AttackOption, b: AttackOption): number {
-  return a.penalty - b.penalty
+// The least penalised variation first, the harder hitting of those.
+function byOffense(a: AttackOption, b: AttackOption): number {
+  return a.penalty - b.penalty || b.blunt + b.cut - (a.blunt + a.cut)
 }
 
 // The most wounded first.
@@ -65,7 +65,7 @@ function attack(kind: 'strike' | 'shoot', state: CombatState, party: Party, id: 
   const open = getOpenAction(declared)
   if (open?.kind !== kind) return null
   const foes = getLiveFoes(ready, party)
-  const options = getFreeAttackOptions(ready, c, kind).filter((o) => canAfford(c, o) && !isThrownRow(c, o)).sort(byPenalty)
+  const options = getFreeAttackOptions(ready, c, kind).filter((o) => canAfford(c, o) && !isThrownRow(c, o)).sort(byOffense)
   for (const { weaponKey, attack: row, variant } of options) {
     const armed = withAmmo(amendAction({ weaponKey, attack: row, variant })(declared), id)
     const aimable = getOpenAction(armed)
