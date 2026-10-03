@@ -353,10 +353,12 @@
             }
           ]
         ],
-        "description": "Falling damage is reduced to 20% on a crit on a balance check when falling.",
+        "description": "Falling damage is reduced to 25% on a crit on a balance check when falling.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "softLanding"
+        ]
       }
     ]
   },

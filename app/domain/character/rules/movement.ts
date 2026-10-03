@@ -55,6 +55,7 @@ export const movementGetters: Record<keyof Movement, (c: Character) => number> =
 };
 
 // combat.tex "Movement Costs and Speeds": metres per block of the kind.
+// combat.tex "Climbing": "The climbing speed is equal to the crawling speed".
 export function getMovementSpeed(c: Character, kind: MovementKind): number {
-  return movementGetters[kind](c);
+  return kind === "climb" ? getCrawlMovement(c) : movementGetters[kind](c);
 }

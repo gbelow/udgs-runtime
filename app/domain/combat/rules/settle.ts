@@ -7,6 +7,7 @@ import { getDragFacts } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
 import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
 import { getMoveFacts } from './move'
+import { getFallFacts } from './fall'
 import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getBlowBreakage } from './breakage'
@@ -54,5 +55,6 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }
+    case 'fall': return { ...open, step: 'done', facts: getFallFacts(state, open) }
   }
 }

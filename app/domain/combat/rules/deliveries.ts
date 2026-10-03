@@ -6,7 +6,7 @@ import { isAttackAction } from './actionCatalog'
 // target, everything an explosion or a cast produced to whoever it was
 // produced for. Empty before the action has anything to say.
 export function getDeliveries(root: Action): { id: string; delivery: Delivery }[] {
-  if (root.kind === 'blast' || root.kind === 'cast' || root.kind === 'spellTest') return flatten(root.facts ?? {})
+  if (root.kind === 'blast' || root.kind === 'cast' || root.kind === 'spellTest' || root.kind === 'fall') return flatten(root.facts ?? {})
   if (root.kind === 'grapple') return flatten(root.facts?.deliveries ?? {})
   if (!isAttackAction(root) || !root.targetId || !root.facts) return []
   return [{ id: root.targetId, delivery: root.facts }]

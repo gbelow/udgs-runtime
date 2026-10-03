@@ -27,6 +27,15 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
 - `rules/move.ts`, `rules/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
   runs, Balance tests, reachable cells, where the mover stands along a path, where a move
   was cut short, tramples.
+- **Cliffs and falls.** Ground a metre or more above or below the cell beside it is a cliff
+  (`rules/cliff.ts`): a walk may not step over it, a jump goes up as far as its vertical reach
+  clears and comes down as a fall, and a climb (the way over, always a test) is the only
+  movement that crosses it on foot. A move's facts carry the fall it ended in (a jump that
+  landed lower; a climb that missed, from the highest point it reached to the lower of where
+  it began and where it was bound), and landing the move opens a `fall` root over it: the
+  faller's own Balance test, whose degree `rules/fall.ts` turns into the damage and afflictions
+  the landing delivers. Where the mover stands afterwards is read off the ground there, as for
+  any move. A displacement that ends in a fall (a push, a drag) is not wired in yet.
 - **Water and held tests.** A liquid cell has a surface (its elevation), a depth below it and a
   DL. A swimmer's `Placement.depth` is how far below the surface they are; it is read through
   the water they stand in, so it never exceeds the floor, and below the surface they are

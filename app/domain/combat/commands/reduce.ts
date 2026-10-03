@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
-import { getFootprint } from '../rules/board'
+import { getFootprint, placeAt } from '../rules/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
@@ -118,6 +118,8 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         // spells.tex "Telepathic Link": what the test let through lands on
         // the target
         if (action.kind === 'spellTest') return deliverAll(action.facts?.[c.id] ?? [])(c)
+        // combat.tex "Balance": what the landing did to the one who fell
+        if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
@@ -301,6 +303,12 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       // combat.tex "Evasive Jump": the defender lands where the jump said
       if (!action.jumpedTo || !action.targetId) return { ...board, placements }
       return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }
+    }
+    // combat.tex "Balance": the faller lands where the fall took them, at the
+    // height of the ground there
+    if (action.kind === 'fall') {
+      const placement = board.placements[action.actorId]
+      return action.to && placement ? { ...board, placements: { ...board.placements, [action.actorId]: placeAt(board, placement, action.to) } } : board
     }
     // combat.tex "Push and drag": everyone moved where the block left them
     if (action.kind === 'drag') return action.facts ? { ...board, placements: { ...board.placements, ...action.facts.to } } : board

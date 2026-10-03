@@ -5,7 +5,7 @@ import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveActi
 import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
-import { getAccuracy, getBalanceTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
+import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
@@ -13,6 +13,8 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
 import { isGuardingShot, isHighGround } from './board'
 import { getBalanceDL } from './move'
+import { getClimbDL } from './cliff'
+import { getFallTestTerms } from './fall'
 import { getSwimTestTerms, getSwimTestWater, needsSwimTest } from './swim'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
@@ -360,6 +362,8 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
       return getFeintTerms(state, root)?.DL ?? []
     case 'cut':
       return CUT_DL
+    case 'fall':
+      return getFallTestTerms(state, root)?.DL ?? []
     case 'move':
     case 'drag':
     case 'blast':
@@ -446,7 +450,11 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
       return onDegrees(getFeintTerms(state, root))
     case 'cut':
       return onDegrees({ skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL })
+    // combat.tex "Balance" ("Fall skill test"): the faller's own die
+    case 'fall':
+      return onDegrees(getFallTestTerms(state, root))
     case 'move':
+      if (root.movement === 'climb') return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) }] })
       if (needsSwimTest(state, root)) return onDegrees({ skill: getSwimTestTerms(actor), DL: [{ label: 'water', value: getSwimTestWater(state, root, root.actorId)?.DL ?? 0 }] })
       return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
     // spells.tex "Telepathic Link": the target's die, against the caster

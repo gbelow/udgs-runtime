@@ -53,7 +53,8 @@ export function turnCharacter(id: string): Updater {
 }
 
 // Paints one cell. `raise` and `lower` step the elevation a metre (combat.tex
-// "High Ground"), `deepen` and `shoal` the depth of its water and `harder` and
+// "High Ground"), `soft` toggles ground that halves a fall (combat.tex "Fall
+// damage"), `deepen` and `shoal` the depth of its water and `harder` and
 // `easier` the DL of its balance or swimming test (combat.tex "Balance",
 // "Swimming"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there.
@@ -67,6 +68,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
         case 'wall': return { ...current, blocking: !current.blocking, liquid: false, difficult: false }
         case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false }
         case 'rough': return { ...current, difficult: !current.difficult, blocking: false, liquid: false }
+        case 'soft': return { ...current, soft: !current.soft }
         case 'raise': return { ...current, elevation: current.elevation + 1 }
         case 'lower': return { ...current, elevation: current.elevation - 1 }
         case 'deepen': return { ...current, depth: current.depth + 1 }

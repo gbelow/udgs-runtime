@@ -601,6 +601,11 @@ export const DamageSchema = z.object({
   bypass: z.boolean().default(false),
   bust: z.boolean().default(false),
   smash: z.boolean().default(false),
+  // combat.tex "Fall damage": "the damage ignores armor"
+  bare: z.boolean().default(false),
+  // combat.tex "Fall skill test": "Receiving a T1 injury or higher always
+  // makes the character prone and stuns" — an interruption is a stun
+  stuns: z.boolean().default(false),
 }).strip()
 export type Damage = z.infer<typeof DamageSchema>
 
@@ -866,7 +871,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

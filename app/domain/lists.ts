@@ -160,7 +160,9 @@ export const HANDS = ['one', 'two'] as const
 // combat.tex "Movement": the ways a character crosses the grid under its own
 // power, in the order of the "Movement Costs and Speeds" table. Standing up
 // is there too but moves nobody, and mounted movement is the mount's.
-export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'swim'] as const
+// Climbing is the skill's ("Climbing": "The climbing speed is equal to the
+// crawling speed but costs 1 AP + 1 STA"), the way over a cliff.
+export const MOVEMENT_KINDS = ['careful', 'basic', 'run', 'jump', 'crawl', 'climb', 'swim'] as const
 // combat.tex "Push and drag": the speeds a grapple moves at
 export const PUSH_MOVEMENTS = ['careful', 'basic', 'run'] as const
 
@@ -182,7 +184,7 @@ export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
-export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'clear'] as const
+export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'clear'] as const
 
 // The tests a character makes once for a round and scores against every DL
 // the round puts to them, in the order the rulebook introduces them.

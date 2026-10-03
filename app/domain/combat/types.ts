@@ -130,6 +130,9 @@ export const TerrainCellSchema = z.object({
   // metres of water below the surface, which is the cell's elevation
   depth: num.default(0),
   elevation: num.default(0),
+  // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the
+  // damage"; water is soft whatever this says
+  soft: z.boolean().default(false),
   visibility: VisibilitySchema.default('good'),
   suffocating: z.boolean().default(false),
   // combat.tex "Balance": the DL of the difficult terrain test, "based on how
@@ -572,10 +575,17 @@ export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.lite
 export const MoveStopSchema = z.enum(['end', 'reaction', 'jump', 'fall', 'trample', 'flee'])
 export type MoveStop = z.infer<typeof MoveStopSchema>
 
+// The fall a move ends in: how far the mover drops, and the cell they land on
+// when it is not the one the move left them on (combat.tex "Climbing": "On a
+// failure, the character simply falls from the surface").
+export const MoveFallSchema = z.object({ height: num.default(0), to: CoordSchema.nullable().default(null) }).strip()
+export type MoveFall = z.infer<typeof MoveFallSchema>
+
 export const MoveFactsSchema = z.object({
   path: z.array(CoordSchema).default([]),
   stop: MoveStopSchema.default('end'),
   fell: z.boolean().default(false),
+  fall: MoveFallSchema.nullable().default(null),
   trampled: z.array(TrampleSchema).default([]),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
@@ -815,6 +825,19 @@ export const RestActionSchema = z.object({
   kind: z.literal('rest'),
 }).strip()
 
+// combat.tex "Balance" ("Fall skill test"): the actor falling `height` metres,
+// a Balance test of their own whose degree decides the landing, opened by
+// whatever put them in the air. `to` is the cell they land on when it is not
+// the one they stand on; the ground there sets how high they land. `facts` is
+// what the landing does to the actor.
+export const FallActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('fall'),
+  height: num.default(0),
+  to: CoordSchema.nullable().default(null),
+  facts: DeliveriesSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Grapple Maneuvers": "require the defender to spend 2 AP+1 STA
 // or suffer a -5 penalty". combat.tex "Push and drag": resisting a push is
 // the defender's "spend 2 AP to gain 5 force"; one who chooses nothing
@@ -862,6 +885,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   PickUpActionSchema,
   ThrowActionSchema,
   RestActionSchema,
+  FallActionSchema,
   ResistActionSchema,
   AssistActionSchema,
   CarryActionSchema,
@@ -895,6 +919,7 @@ export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
+export type FallAction = z.infer<typeof FallActionSchema>
 // The actions, not reactions, the catalog does not mark `movement`
 // (rules/actionCatalog.ts): those a reaction made in their middle
 // interrupts.

@@ -19,6 +19,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
   wall: 'wall',
   water: 'water',
   rough: 'rough',
+  soft: 'soft',
   raise: '+1 m',
   lower: '−1 m',
   deepen: 'deeper',

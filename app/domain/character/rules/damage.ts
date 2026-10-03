@@ -129,6 +129,7 @@ function arrivedOf(measured: { type: DamageKind; damage: number }[], kind: Damag
 // armor" — unless a closed helmet's visor is down (gear.tex "Closed helmet":
 // "armor bypass is impossible in the head").
 export function isArmorBare(target: Character, facts: Damage): boolean {
+  if (facts.bare) return true
   if (facts.location === 'hand' && !target.hasGauntlets) return true
   return facts.location === 'head' && facts.bypass && !isVisorClosed(target)
 }
@@ -254,7 +255,7 @@ function woundedPart(facts: Damage, target: Character): BodyPart | null {
 function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcome['tiers'], piercing: boolean): Pick<Outcome, 'wound' | 'afflictions' | 'interruption' | 'apLoss' | 'dead'> {
   const bluntTier = Math.max(tiers.blunt ?? -1, tiers.electric ?? -1)
   const interrupted = bluntTier >= 1
-  const stunned = bluntTier >= STUN_TIER || (facts.smash && interrupted)
+  const stunned = bluntTier >= STUN_TIER || ((facts.smash || facts.stuns) && interrupted)
   const afflictions = new Set<AfflictionKey>()
   let dead = false
   if (tiers.corrosive === 0) afflictions.add('corroding0')

@@ -141,6 +141,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'flee':
     case 'fleeFollowUp':
     case 'spellTest':
+    case 'fall':
       return true
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
@@ -236,6 +237,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'flee':
     case 'fleeFollowUp':
     case 'spellTest':
+    case 'fall':
     case 'blast':
     case 'release':
     case 'feint':
@@ -383,9 +385,10 @@ export function isAnswerable(state: CombatState, open: Action): boolean {
 // crosses difficult terrain (combat.tex "Balance"), an explosion when a
 // reaction declared against it is a test of its own (combat.tex "Avoiding
 // an Explosion"), and a swim move the first time the swimmer is in water in
-// the round (combat.tex "Swimming").
+// the round (combat.tex "Swimming"), and a climb always (combat.tex
+// "Climbing").
 export function needsDie(state: CombatState, action: Action): boolean {
-  if (action.kind === 'move') return needsBalanceTest(state, action) || needsSwimTest(state, action)
+  if (action.kind === 'move') return action.movement === 'climb' || needsBalanceTest(state, action) || needsSwimTest(state, action)
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }
@@ -436,6 +439,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':
+    case 'fall':
       return 'confirm'
   }
 }
@@ -520,6 +524,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':
+    case 'fall':
       return []
   }
 }

@@ -1,5 +1,5 @@
 import { Armor, Character, Weapon } from '../../types'
-import { dmgArr, RMArr, SMArr, VMArr } from '../../tables'
+import { dmgArr, FALL_DM2, RMArr, SMArr, VMArr } from '../../tables'
 
 export const getSize = (c: Character) => c.size > 6 ? 7 : c.size < 2 ? 1 : c.size
 
@@ -21,6 +21,9 @@ export const getVMAt = (size: number): number => atSize(VMArr, size)
 export const getSM = (c: Character): number => atSize(SMArr, getSize(c))
 
 export const getDM = (c: Character): number => getDMAt(getSize(c))
+
+// combat.tex "Fall damage": the DM squared, as the book rounds it.
+export const getFallDM2 = (c: Character): number => atSize(FALL_DM2, getSize(c))
 
 export const getRM = (c: Character): number => getRMAt(getSize(c))
 

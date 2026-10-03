@@ -87,7 +87,7 @@ and `ActionDraft` (what a click declares).
 | Group | Kinds |
 |---|---|
 | Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `feint` (a cunning test in melee: the loser is forced to take their turn and use an action surge; `land` hands the turn over, `forcedSurge` holds who owes the surge), `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
-| Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
+| Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die), `fall` (the faller's Balance test, opened by a move that ended in a fall: a jump down, a climb that failed) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
 | Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
@@ -163,7 +163,7 @@ resolveAction ─────────► land(top)
   counterattack), escapes a stun opens, the spell tests a linked cast opens, the explosion
   a cast opens, the explosion a thrown object goes off as where it lands, what the strike's
   recipes open (a hook's knockdown, an intercept's disarm, then the abilities': a riposte),
-  and on top a sweep's next target. A voided root generates only what an
+  a sweep's next target, and on top the fall a move ended in. A voided root generates only what an
   `evenIfVoided` opener gives (the counterattack).
 - **`REACTION_OPENERS`** (`rules/openers.ts`) is typed `{ [K in ReactionKind]: Opener<K> }`:
   a new reaction kind does not compile until it says what it opens (`before`, `after`, or
@@ -287,6 +287,8 @@ app/domain/combat/
 │   ├── fireAgain.ts    held spells fired again: options, prices, charges, the arcs broken, a shot's facts
 │   ├── explosion.ts    payload, areas, zones, spray vs disk, who is reached, terrain paint
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
+│   ├── cliff.ts        what is a cliff, which movement may step over one, the climb's DL, the fall a move ends in
+│   ├── fall.ts         a fall: its DL, damage, what each degree of the Balance test leaves of it
 │   ├── waypoint.ts     where the mover stands along a path
 │   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches

@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { Action, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
-import { MOVEMENT_BLOCK_COST, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
+import { CLIMB_GRAZE_PRICE, FALL, MOVEMENT_BLOCK_COST, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -9,8 +9,9 @@ import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
 import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
-import { getFootprint, getPlacedFootprint } from './board'
+import { getFootprint, getPlacedFootprint, placeAt } from './board'
 import { isTetherKept } from './bind'
+import { canStepOver, crossesCliff, getMoveFall, isCliff } from './cliff'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
 import { getSwimDegrees, isDiveLegal, readWater } from './swim'
@@ -78,7 +79,19 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 // move and does not need to be spent again, but any STA cost must be paid").
 export function getMovePrice(state: CombatState, c: Character, action: MoveAction, cells: number): ActionCost {
   const cost = getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, cells))
-  return { AP: Math.max(0, cost.AP - action.prepaid), STA: runsFree(c, action.movement) ? 0 : cost.STA }
+  const scale = getClimbPriceScale(action)
+  return { AP: Math.max(0, cost.AP * scale - action.prepaid), STA: runsFree(c, action.movement) || isClimbedFree(action) ? 0 : cost.STA * scale }
+}
+
+// combat.tex "Climbing": "On a near miss, decide to go twice as slow or give
+// up" — a graze is twice the price.
+function getClimbPriceScale(action: MoveAction): number {
+  return action.movement === 'climb' && action.roll?.degree === 'graze' ? CLIMB_GRAZE_PRICE : 1
+}
+
+// combat.tex "Climbing": "On a critical, it does not cost STA."
+function isClimbedFree(action: MoveAction): boolean {
+  return action.movement === 'climb' && action.roll?.degree === 'critical'
 }
 
 // combat.tex "Action surge": "Running costs no STA during a movement surge"
@@ -113,6 +126,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const lame = hasAffliction(c, 'lame')
   const swimming = isInLiquid(state, c)
   const waterNear = swimming || isNextToWater(state, c)
+  const cliffNear = isNextToCliff(state, c)
   const granted = action?.movements ?? null
   const budget = action?.budget ?? null
   const held = isInGrapple(state, c.id)
@@ -120,7 +134,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, waterNear, granted, budget)
+      : movementGate(kind, prone, lame, swimming, waterNear, cliffNear, granted, budget)
     const block = MOVEMENT_BLOCK_COST[kind]
     return { kind, speed: getMovementSpeed(c, kind), block: runsFree(c, kind) ? { ...block, STA: 0 } : block, ...gate }
   })
@@ -133,11 +147,12 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (!withinBudget(MOVEMENT_BLOCK_COST[kind], budget)) return { available: false, reason: 'more AP than the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
+  if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
   if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
   return { available: true, reason: null }
@@ -149,6 +164,14 @@ function isNextToWater(state: CombatState, c: Character): boolean {
   const placement = state.board?.placements[c.id]
   const ground = readGround(state, c.id)
   return !!placement && !!ground && getFootprint(c, placement).some((cell) => disk(cell, 1).some(ground.liquid))
+}
+
+// Whether some cell the character stands on borders ground a step up or down
+// from it, which a climb can take them over.
+function isNextToCliff(state: CombatState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  const ground = readGround(state, c.id)
+  return !!placement && !!ground && getFootprint(c, placement).some((cell) => disk(cell, 1).some((next) => isCliff(ground.elevation(cell), ground.elevation(next))))
 }
 
 // combat.tex "Lame": "Cannot run, jump or use basic movement"
@@ -164,7 +187,8 @@ export function isLameBarred(kind: MovementKind): boolean {
 // and in the water exactly when swimming, and the last one somewhere it may
 // come to rest. The cells a jump only passes over (`touchesGround`) need
 // just be unblocked, but it clears nothing as high as its vertical reach
-// (`getJumpCeiling`).
+// (`getJumpCeiling`). A walk takes no step up or down a cliff (`canStepOver`),
+// and a climb is the way over one.
 export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
@@ -175,6 +199,8 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
   if (!withinBudget(getMoveCost(c, action.movement, action.path.length + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
+  if (action.movement === 'climb' && !crossesCliff(state, action, action.path)) return false
+
   const ceiling = getJumpCeiling(c, from)
   let cursor = from.cell
   let wet = isWet(getFootprint(c, from), ground)
@@ -184,6 +210,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
     const orientation = last && action.orientation !== null ? action.orientation : from.orientation
     const footprint = getFootprint(c, { ...from, cell, orientation })
     if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
+    if (!canStepOver(action.movement, ground.elevation(cursor), ground.elevation(cell))) return false
     if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
@@ -194,14 +221,14 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
-// to half the horizontal distance"; it clears only ground lower than that
-// above where it sets out (the table's ruling).
+// to half the horizontal distance"; it clears ground no higher than that
+// above where it sets out, so a 2m jump goes up a metre.
 function getJumpCeiling(c: Character, from: Placement): number {
   return from.elevation + getMovementSpeed(c, 'jump') / 2
 }
 
 function clears(footprint: Coord[], ground: Ground, ceiling: number): boolean {
-  return footprint.every((cell) => ground.elevation(cell) < ceiling)
+  return footprint.every((cell) => ground.elevation(cell) <= ceiling)
 }
 
 function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number, fromWater: boolean): boolean {
@@ -315,7 +342,8 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
 // attack that interrupted the mover or that they jumped away from, a target
 // who blocked their passage (combat.tex "Crash"), a fall at the first
 // difficult cell the test did not clear — whichever comes first. The
-// tramples are those on the path as walked.
+// tramples are those on the path as walked, and the fall is the one a jump
+// down or a climb that failed ends in (`getMoveFall`).
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
   let path = action.path
   let stop: MoveFacts['stop'] = 'end'
@@ -340,7 +368,7 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, difficult)
     stop = 'fall'
   }
-  return { path, stop, fell, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+  return { path, stop, fell, fall: getMoveFall(state, action, path), trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
 // ---------------------------------------------------------------------------
@@ -378,8 +406,8 @@ export function isMidJump(state: CombatState, id: string): boolean {
 // jump any way, but within a hex step of the way they were going the jump
 // is a forward one out of the run and reaches the running long jump
 // ("Evasive Jump": "at a 60 degree angle of the direction of the run").
-// It lands only on ground its vertical reach clears (`getJumpCeiling`). One
-// hit mid-jump cannot jump at all.
+// It lands only on ground its vertical reach clears (`getJumpCeiling`), and
+// not down a cliff, which would be a fall. One hit mid-jump cannot jump at all.
 export function getEvasiveJumpPlacements(state: CombatState, defenderId: string, attackerId: string): Placement[] {
   const defender = state.characters[defenderId]
   const from = state.board?.placements[defenderId]
@@ -395,8 +423,9 @@ export function getEvasiveJumpPlacements(state: CombatState, defenderId: string,
   const placements: Placement[] = []
   for (const cell of disk(from.cell, leap)) {
     if (sameCell(cell, from.cell) || !reaches(cell)) continue
+    if (ground.elevation(from.cell) - ground.elevation(cell) >= FALL.minHeight) continue
     for (const orientation of ROTATIONS) {
-      const to = { ...from, cell, orientation }
+      const to = { ...placeAt(state.board, from, cell), orientation }
       const footprint = getFootprint(defender, to)
       if (!footprint.some(ground.blocked) && clears(footprint, ground, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
     }
@@ -434,12 +463,14 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
     return canAfford(c, getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)
-  const wetBefore = (path: Coord[]) => isWet(getFootprint(c, path.length > 1 ? { ...from, cell: path[path.length - 2] } : from), ground)
+  const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : from.cell)
+  const wetBefore = (path: Coord[]) => isWet(getFootprint(c, { ...from, cell: stepFrom(path) }), ground)
   const enter = (cell: Coord, path: Coord[]) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling, wetBefore(path))
+    && canStepOver(kind, ground.elevation(stepFrom(path)), ground.elevation(cell))
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground)
+      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || crossesCliff(state, action, path))
     })
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path }, steps), path }))
     .filter(({ cost }) => canAfford(c, cost))

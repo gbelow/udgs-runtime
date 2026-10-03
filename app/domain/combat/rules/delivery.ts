@@ -31,5 +31,7 @@ export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageC
     bypass: false,
     bust: false,
     smash: false,
+    bare: false,
+    stuns: false,
   }
 }

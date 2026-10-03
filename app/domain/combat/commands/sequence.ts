@@ -127,8 +127,8 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // aimed and played out on its own (the caster's part is done), the one a
 // thrown object goes off as where it lands, what
 // the strike's recipes open (rules/recipes.ts: a hook's knockdown, an
-// intercept's disarm, a riposte); and on top, the sweep's next target, so the
-// swing is finished first.
+// intercept's disarm, a riposte); the sweep's next target, so the swing is
+// finished first; and on top, the fall a move ended in.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
 // is offered to one the action interrupted (`isInterruptedBy`).
@@ -155,7 +155,17 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
     ...getRecipeFollowUps(state, root, newId),
     ...openSweepLink(state, root, newId),
+    ...openFall(root, newId),
   ]
+}
+
+// combat.tex "Balance": a move that ended in a fall — down a jump, off a
+// climb that failed — has its mover make the fall test before anything else
+// is played out, committed as it opens: nobody answers it, and it waits only
+// on the faller's die.
+function openFall(root: RootAction, newId: () => string): Action[] {
+  const fall = root.kind === 'move' ? root.facts?.fall : null
+  return fall ? [makeAction('fall', { id: newId(), actorId: root.actorId, height: fall.height, to: fall.to, spawnedBy: root.id, step: 'react' })] : []
 }
 
 // combat.tex "Sweeping Attack": the strike at the sweep's next target, with

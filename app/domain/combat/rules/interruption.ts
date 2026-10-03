@@ -88,6 +88,7 @@ export function isInterruptedBy(state: CombatState, landed: Action, id: string):
     case 'move': return landed.facts?.trampled.some((t) => t.stunned.includes(id)) ?? false
     case 'blast':
     case 'cast':
+    case 'fall':
     case 'spellTest': {
       const c = state.characters[id]
       return !!c && (landed.facts?.[id] ?? []).some((d) => getDeliveryInterruption(d, c) !== 'none')

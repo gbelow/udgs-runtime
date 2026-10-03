@@ -83,8 +83,37 @@ export const MOVEMENT_BLOCK_COST: Record<MovementKind, { AP: number; STA: number
   run:     { AP: 2, STA: 1 },
   jump:    { AP: 2, STA: 1 },
   crawl:   { AP: 1, STA: 0 },
+  climb:   { AP: 1, STA: 1 },
   swim:    { AP: 1, STA: 0 },
 }
+
+// combat.tex "Climbing": "On a critical, it does not cost STA"; "On a near
+// miss, decide to go twice as slow or give up" — taken as twice the price. An
+// "easy climb, with minimal chances of falling, is considered a DL of 5" and
+// "for every meter, the difficulty increases by 1".
+export const CLIMB_GRAZE_PRICE = 2
+export const CLIMB_EASY_DL = 5
+
+// combat.tex "Choosing Fall DL": "As a common exception to the rule, DLs for
+// 1m can be considered trivial at -5, then 0 for 2m", else "1 per meter until
+// a maximum of 15"; "Fall damage": "2x fall height x DM^2 ... Maximum height
+// is capped at 50m".
+export const FALL = {
+  minHeight: 1,
+  maxHeight: 50,
+  maxDL: 15,
+  DLAtMinHeight: -5,
+  DLAtTwoMetres: 0,
+  damagePerMetre: 2,
+  // "Fall skill test": a critical "reduce[s] the damage by 50%"; abilities.tex
+  // "Gymnast III": "reduced to 25% on a crit"
+  critShare: 0.5,
+  gymnastCritShare: 0.25,
+} as const
+
+// combat.tex "Fall damage": DM squared by size, "For size 2, instead of
+// making 0.75^2, just use 0.5. For size 4, instead of 1.5^2, use 2."
+export const FALL_DM2 = [0.25, 0.5, 1, 2, 4, 9, 16] as const
 
 // combat.tex "Swimming": a graze or a failed swimming test is "1m per 5 AP",
 // and a failure adds "+1STA" to it. The speed is metres per AP; the STA is
