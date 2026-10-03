@@ -108,6 +108,7 @@ retweak morale based spells
 swimming in armor
 think corrosive damage
 prepared reaction
+unconscious must disable all actions
 
 # left for combat
 - items on the terrain

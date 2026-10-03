@@ -1,7 +1,7 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { CombatState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
-import { isDead } from '../../character/rules/afflictions'
+import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
 import { getOpenAction } from './log'
 import { getFightName } from './fighters'
@@ -35,6 +35,7 @@ function getTurnlessReason(state: CombatState, id: string): string | null {
   const c = state.characters[id]
   if (!c) return 'not in the fight'
   if (isDead(c)) return 'dead'
+  if (hasAffliction(c, 'unconscious')) return 'unconscious'
   if (c.usedSurge === 'reaction') return 'reaction surge used this round'
   return null
 }

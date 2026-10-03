@@ -63,6 +63,7 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // up"; "Lame": "Cannot ... jump".
 function defenseGate(state: CombatState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
   if (!canAfford(defender, cost)) return 'cannot afford'
+  if (hasAffliction(defender, 'unconscious')) return 'unconscious'
   if (isImmobile(state, defender)) return 'immobile'
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
   if (kind === 'evasiveJump' && isProne(state, defender.id)) return 'prone'
@@ -103,7 +104,7 @@ export function getAvailableActions(state: CombatState, characterId: string): Ac
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))))))
+  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c))))))))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   return withReactionSurge(state, c, open)
@@ -359,6 +360,11 @@ function afford(c: CampaignCharacter, cost: ActionCost): string | null {
 function closeIfImmobile(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
   if (!isImmobile(state, c)) return options
   return options.map((o) => (o.draft.kind === 'grapple' && o.draft.maneuver === 'escape') ? o : { ...o, available: false, reason: 'immobile' })
+}
+
+// The unconscious do nothing but rest.
+function closeIfUnconscious(c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return hasAffliction(c, 'unconscious') ? closeWith(options, (o) => (o.draft.kind === 'rest' ? null : 'unconscious')) : options
 }
 
 function closeWith(options: ActionOption[], reasonFor: (o: ActionOption) => string | null): ActionOption[] {
