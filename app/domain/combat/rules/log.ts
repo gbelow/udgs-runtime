@@ -98,5 +98,5 @@ export function getDrawnOpportunityAttacks(state: CombatState, action: Action): 
 // another of theirs from the same action has been taken.
 export function isForgone(state: CombatState, action: Action): boolean {
   if (action.followUpOf === null || action.step !== 'define') return false
-  return state.actions.some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define' && !a.declined)
+  return state.actions.some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define')
 }

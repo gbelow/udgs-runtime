@@ -91,7 +91,7 @@ export function getStressRoundBar(state: CombatState): string | null {
 }
 
 function hasRestedThisTurn(state: CombatState, id: string): boolean {
-  return state.actions.some((a) => a.turn === state.turn && a.kind === 'rest' && a.actorId === id && !a.declined)
+  return state.actions.some((a) => a.turn === state.turn && a.kind === 'rest' && a.actorId === id)
 }
 
 // creating.tex "Limit Stress Actions" and combat.tex "Compulsions": "They

@@ -22,6 +22,7 @@ export function resetCombat(state: CombatState): CombatState {
     actions: [],
     stack: [],
     history: [],
+    passed: [],
     board: state.board ? { ...state.board, placements: {} } : null,
     binds: [],
     floor: [],

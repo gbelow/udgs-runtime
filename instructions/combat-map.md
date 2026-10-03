@@ -194,9 +194,10 @@ resolveAction ─────────► land(top)
   spend, spray to point, pick to make, graze to save, rest move or along to decide) is
   landed by `advance` once its attacks are fought. `resolveAction` is only pressed where a
   choice was offered.
-- **Withdrawing** an opened action (`withdrawSpawnedAction`) marks it `declined` (kept in the
-  log so it is not offered again, left out of `history`); an opportunity attack's strike is
-  instead removed together with its reaction.
+- **Withdrawing** an opened action (`withdrawSpawnedAction`), cancelling one and a forgone
+  follow-up all take it out of the log (`removeActions`, with what answers it); nothing
+  declined is kept. An offer made once (a rest's move) is remembered in `state.passed`
+  (`hasRestMove`); an opportunity attack's strike goes together with its reaction.
 
 ## Detail files
 

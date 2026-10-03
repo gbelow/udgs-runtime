@@ -14,7 +14,7 @@ import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
-import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, setActions, withoutLiveReaction } from './log'
+import { appendActions, applyPhase, getAnswerableOpen, getOpenAt, pruneReactions, removeActions, replaceActions, setActions, withoutLiveReaction } from './log'
 import { advance, land } from './sequence'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
@@ -144,19 +144,16 @@ function withHold(state: CombatState, actor: CampaignCharacter, open: FireAgainA
 // The actor's way out of an action another opened for them, while it is
 // still only declared, and the fight carries on from the action beneath. An
 // opportunity attack goes with its strike, as if never declared, or the
-// root would open it again. Anything else is declined: closed without
-// landing, and kept so it is not offered again; the reaction that opened it
-// (a follow, an evasion, a reflex against a blast) was paid for and stays on
-// the record.
+// root would open it again. For anything else the offer is noted as passed
+// up, so it is not made twice; the reaction that opened it (a follow, an
+// evasion, a reflex against a blast) was paid for and stays on the record.
 export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open || !open.spawnedBy) return state
     const reaction = getOpeningReaction(state, open)
-    const withdrawn = reaction
-      ? setActions(state, state.actions.filter((a) => a.id !== open.id && a.id !== reaction.id))
-      : replaceActions(state, [{ ...open, step: 'done', declined: true }])
-    return advance(withdrawn, newId)
+    const passed = reaction ? state : { ...state, passed: [...state.passed, { by: open.spawnedBy, kind: open.kind }] }
+    return advance(removeActions(passed, reaction ? [open.id, reaction.id] : [open.id]), newId)
   }
 }
 
@@ -232,7 +229,7 @@ export function cancelAction(): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open || open.spawnedBy) return state
-    return setActions(state, state.actions.filter((a) => a.id !== open.id && a.reactionTo !== open.id))
+    return removeActions(state, [open.id])
   }
 }
 

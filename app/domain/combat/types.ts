@@ -156,9 +156,6 @@ const ActionBase = {
   // for one no recipe gave.
   recipe: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
-  // An action another opened that its actor chose not to take: closed
-  // without landing, and kept so it is not offered again.
-  declined: z.boolean().default(false),
   // The turn this action was declared in (`CombatState.turn`), stamped when it
   // enters the log; null until then.
   turn: num.nullable().default(null),
@@ -991,6 +988,9 @@ export const CombatStateSchema = z.object({
   // which is not the order they were declared in: an opportunity attack
   // lands before the action it answers.
   history: z.array(z.string()).default([]),
+  // The one-time offers their actor passed up, by the action each came from:
+  // a withdrawn action leaves the log, and this is all that is kept of it.
+  passed: z.array(z.object({ by: z.string(), kind: z.string() })).default([]),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),

@@ -16,7 +16,7 @@ export function canMoveWhileResting(state: CombatState, root: RootAction): boole
 }
 
 export function hasRestMove(state: CombatState, rootId: string): boolean {
-  return state.actions.some((a) => a.kind === 'move' && a.spawnedBy === rootId)
+  return state.actions.some((a) => a.kind === 'move' && a.spawnedBy === rootId) || state.passed.some((p) => p.kind === 'move' && p.by === rootId)
 }
 
 // The move a rest allows: careful only, as far as the rest's AP reaches,

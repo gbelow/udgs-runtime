@@ -23,8 +23,14 @@ import { deliverAll } from '../../character/commands/deliver'
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
   const actions = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn } : a))
   const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
-  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id && !a.declined))
+  const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id))
   return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)), history: [...state.history, ...landed] }
+}
+
+// Takes the actions, and whatever answers them, out of the log: a draft
+// taken back leaves nothing behind.
+export function removeActions(state: CombatState, ids: string[]): CombatState {
+  return setActions(state, state.actions.filter((a) => !ids.includes(a.id) && !(a.reactionTo !== null && ids.includes(a.reactionTo))))
 }
 
 export function replaceActions(state: CombatState, next: Action[]): CombatState {
