@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -39,6 +39,11 @@ export const ActionCostSchema = z.object({
   AP: num.default(0),
   STA: num.default(0),
 }).strip()
+
+// What a landed action's damage came to on one it reached, as it was when it
+// landed, with the steps of how it got there.
+export const ResultSchema = z.object({ targetId: str, outcome: OutcomeSchema, steps: z.array(OutcomeStepSchema).default([]) }).strip()
+export type Result = z.infer<typeof ResultSchema>
 
 // One line of what an action costs, named for what it comes from; a price is
 // the sum of its lines.
@@ -181,6 +186,8 @@ const ActionBase = {
   // so in no cost: the STA it took and the AP it gave
   surged: z.object({ kind: SurgeKindSchema, STA: num, AP: num }).strip().nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
+  // what its damage came to on each it reached, written as it lands
+  results: z.array(ResultSchema).default([]),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }

@@ -207,7 +207,12 @@ resolveAction ─────────► land(top)
 - **What the table is told** — `projections/episode.ts` `getLastEpisode`: the chain around the
   last action to land (`getOrigin`, `rules/log.ts`), each action with its cost lines
   (`costTerms`, the lines `getOwnCost` sums), the terms of its roll, the surge made for it
-  (`surged`), why it came to less than declared, and what was withdrawn from it.
+  (`surged`), why it came to less than declared, what was withdrawn from it, and where the
+  book says it (`ACTIONS[kind].rule`, the table's own ruling where the book is silent). What its
+  damage came to on each target is written when it lands (`results`, `commands/results.ts`,
+  read off each target as they stand before it lands), the outcome and its steps with the rule
+  each follows (`explainOutcome`, `character/rules/damage.ts`); an older record without
+  `results` is read live.
 
 ## Detail files
 
@@ -228,6 +233,7 @@ app/domain/combat/
 │
 ├── commands/                        the write side
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
+│   ├── results.ts      getResults: what a landing action's damage comes to on each target, with the steps, written onto it by `land`
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
 │   ├── log.ts          setActions (only writer of actions/stack/record), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
@@ -248,7 +254,8 @@ app/domain/combat/
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
-│   ├── actionCatalog.ts ACTIONS, isReaction/isRootAction/isDefense
+│   ├── actionCatalog.ts ACTIONS (with each kind's `rule`), isReaction/isRootAction/isDefense
+│   ├── deliveries.ts   what an action delivered, per character
 │   ├── log.ts          open action, stack lookups, reactionTo/spawnedBy lookups
 │   ├── action.ts       declaration completeness, costs, getNextStep, needsDie, targets
 │   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not

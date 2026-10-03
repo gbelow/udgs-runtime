@@ -1,4 +1,4 @@
-import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Interruption } from '../../types'
+import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Outcome, OutcomeStep } from '../../types'
 import { HEAD, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
 import { getArmor, isVisorClosed } from './armor'
 import { getTGH } from './misc'
@@ -14,37 +14,7 @@ import { isCampaignCharacter } from '../../utils'
 // answers with nothing but the character's own armor and toughness — the
 // producer has already said everything else.
 
-export type Outcome = {
-  // combat.tex "Intercept": the blow never lands
-  stopped: boolean
-  type: DamageKind
-  damage: number
-  // the armor value the damage was measured against
-  armor: number
-  // null: below the armor, no injury
-  tier: number | null
-  // each kind measured against its own armor value, before the choice; the
-  // blunt one drives the blunt effects whichever kind is applied
-  tiers: Partial<Record<DamageKind, number | null>>
-  // the tier the body takes after the location's cap
-  bodyTier: number | null
-  IL: number
-  bleed: number
-  // combat.tex "Wounds": the wound the tier causes, and the part it takes
-  wound: { key: WoundKey; name: string; heal: number | null; part: { id: string; name: string } } | null
-  afflictions: AfflictionKey[]
-  // combat.tex "Interruption", "Stun": what cuts the target's action short,
-  // and the AP a stun takes on top
-  interruption: Interruption
-  apLoss: number
-  dead: boolean
-  // combat.tex "Burning and radiant damage": the burning counter once the
-  // burn received has been added and the damage applied; null when no burn
-  // was received
-  burning: number | null
-  // the physical damage that got past the defense and reached the armor
-  arrived: { blunt: number; cut: number }
-}
+export type { Outcome, OutcomeStep } from '../../types'
 
 const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false, burning: null, arrived: { blunt: 0, cut: 0 } }
 
@@ -74,8 +44,14 @@ function getAbsorbedShare(damage: number, value: number): number {
 // RES however it was met (the table's ruling); null when no block met it.
 function getBlockShare(facts: Damage, degree: Degree, measured: number): number | null {
   if ((degree !== 'graze' && degree !== 'miss') || (facts.defense !== 'block' && facts.defense !== 'guard')) return null
+  return getAbsorbedShare(measured, getBlockValue(facts, degree))
+}
+
+// What the block that met the blow absorbs at the degree: its value, "A miss
+// increases block value by 50%", no more than the object's RES.
+function getBlockValue(facts: Damage, degree: Degree): number {
   const value = degree === 'miss' ? Math.floor(1.5 * facts.block) : facts.block
-  return getAbsorbedShare(measured, facts.blockCap === null ? value : Math.min(value, facts.blockCap))
+  return facts.blockCap === null ? value : Math.min(value, facts.blockCap)
 }
 
 // combat.tex "Intercept": a graze or a miss intercepted stops the blow,
@@ -92,10 +68,16 @@ function isIntercepted(facts: Damage, degree: Degree, target: Character): boolea
 // are read off (combat.tex "Physical attacks").
 type Arriving = { type: DamageKind; value: number; against: number }
 
+// combat.tex "What cuts?": "A weapon can cut something if their hardness is
+// higher than their target's"; "Bust" buys the same hardness.
+function canCutArmor(facts: Damage, armor: Armor): boolean {
+  const armorHardness = getHardness(armor.material)
+  return facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
+}
+
 function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; measured: Arriving | null } {
   const armor = armorAt(target, facts)
-  const armorHardness = getHardness(armor.material)
-  const canCut = facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
+  const canCut = canCutArmor(facts, armor)
   const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
   const arriving = facts.damage
     .filter(({ kind }) => kind !== 'cut' || canCut)
@@ -300,5 +282,71 @@ function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcom
     interruption: stunned ? 'stunned' : interrupted ? 'interrupted' : 'none',
     apLoss: stunned ? STUN_AP : 0,
     dead,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The workings
+
+const DEGREE_SHARE: Record<Exclude<Degree, 'miss'>, string> = { critical: 'a critical deals 150% of the damage', hit: 'a hit deals the full damage', graze: 'a graze deals half the damage' }
+
+// How `getOutcome` came to its result, a step at a time, each with the rule it
+// follows: what the blow carried, what it was measured against, what the
+// degree and the defense left of it, the tier, and every effect the tier had.
+// What it arrives at is read off the outcome itself; only the reasons between
+// are put into words here.
+export function explainOutcome(facts: Damage, degree: Degree, target: Character): OutcomeStep[] {
+  const outcome = getOutcome(facts, degree, target)
+  const step = (text: string, rule: string): OutcomeStep => ({ text, rule })
+  if (outcome.stopped) return [step('intercepted: the blow never lands', 'combat.tex "Intercept"')]
+
+  const armor = armorAt(target, facts)
+  const { arriving, measured } = getArriving(facts, target)
+  const steps: OutcomeStep[] = [
+    step(`the blow carries ${facts.damage.map((d) => `${d.value} ${d.kind}`).join(' + ') || 'no damage'}${facts.location === 'chest' ? '' : `, aimed at the ${facts.location}`}`, 'combat.tex "Physical attacks"'),
+  ]
+  if (isArmorBare(target, facts)) steps.push(step(`no armor at the ${facts.location}: flesh`, 'combat.tex "Localized damage"'))
+  if (facts.damage.some((d) => d.kind === 'cut') && !canCutArmor(facts, armor)) {
+    steps.push(step(`cutting cannot cut ${armor.name} (hardness ${facts.hardness} against ${getHardness(armor.material)})`, 'combat.tex "What cuts?"'))
+  }
+  if (facts.bypass) steps.push(step('armor bypass adds half the armor value to the damage', 'combat.tex "Success Overflow", "Bypass"'))
+  for (const a of arriving) {
+    steps.push(step(`${a.type} ${a.value} is measured against ${armor.name} ${armorValueName(a.type)} ${a.against}`, 'combat.tex "Types of damage"'))
+  }
+
+  const blockShare = measured ? getBlockShare(facts, degree, measured.value) : null
+  if (blockShare !== null && measured) {
+    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${blockShare === 0 ? 'none' : blockShare === 0.5 ? 'half' : 'all'} of it past`, 'combat.tex "Damage absorption"'))
+  } else if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) {
+    steps.push(step('the intercept did not stop the blow: it comes through whole', 'combat.tex "Intercept"'))
+  } else {
+    steps.push(step(degree === 'miss' ? 'a miss does nothing' : DEGREE_SHARE[degree], 'combat.tex "Strike", "Defend"'))
+  }
+  if (isBurning(outcome.type) && outcome.burning !== null) steps.push(step(`the burning counter is added, and halved afterwards to ${outcome.burning}`, 'combat.tex "Burning and radiant damage"'))
+
+  if (outcome.tier === null) {
+    steps.push(step(`${outcome.damage} ${outcome.type} is below the armor value ${outcome.armor}: no injury`, 'combat.tex "Damage Tiers"'))
+    return steps
+  }
+  steps.push(step(`${outcome.damage} against armor ${outcome.armor}: tier ${outcome.tier} (tier N is met at armor + N x TGH ${getTGH(target)})`, 'combat.tex "Damage Tiers"'))
+  if (outcome.bodyTier !== outcome.tier) steps.push(step(`a blow to the ${facts.location} puts at most tier ${outcome.bodyTier} on the body`, 'combat.tex "Localized damage"'))
+  const table = injuryMap[`T${outcome.bodyTier}`]
+  const halved = outcome.IL !== table.IL
+  steps.push(step(`tier ${outcome.bodyTier} is +${table.IL} IL${halved ? `, halved to +${outcome.IL} (${hasProperty(facts.properties, 'piercing') ? 'piercing' : outcome.type})` : ''}`, 'combat.tex "Damage Tiers"'))
+  if (outcome.bleed > 0) steps.push(step(`blunt and cutting damage bleed: +${outcome.bleed}`, 'combat.tex "Bleed"'))
+  if (outcome.interruption === 'interrupted') steps.push(step('a tier 1+ blunt or electric injury interrupts: the action and its cost are lost', 'combat.tex "Interruption"'))
+  if (outcome.interruption === 'stunned') steps.push(step(`${facts.smash ? 'smash upgrades the interruption' : 'a tier 3+ blunt or electric injury'} to a stun: ${outcome.apLoss} AP are lost as well`, 'combat.tex "Stun"'))
+  if (outcome.wound) steps.push(step(`${outcome.wound.name} on the ${outcome.wound.part.name}${outcome.wound.heal === null ? ', which does not heal' : `, healed at ${outcome.wound.heal} IL`}`, 'combat.tex "Wounds"'))
+  for (const a of outcome.afflictions) steps.push(step(`now ${a}`, a === 'unconscious' ? 'combat.tex "Localized damage"' : 'combat.tex "Afflictions"'))
+  if (outcome.dead) steps.push(step('tier 4 at the head is instant death', 'combat.tex "Localized damage"'))
+  return steps
+}
+
+// The armor value a kind is defended by, by name.
+function armorValueName(kind: DamageKind): string {
+  switch (kind) {
+    case 'blunt': return 'protection'
+    case 'cut': return 'RES'
+    default: return 'INS'
   }
 }

@@ -466,7 +466,7 @@ export type CharacterAfflictions =
 
 export type AfflictionKey = keyof typeof AFFLICTIONS
 
-const AfflictionKeySchema =
+export const AfflictionKeySchema =
   z.enum(Object.keys(AFFLICTIONS) as [AfflictionKey, ...AfflictionKey[]])
 
 export const SenseSchema = z.object({
@@ -603,6 +603,44 @@ export const DamageSchema = z.object({
   smash: z.boolean().default(false),
 }).strip()
 export type Damage = z.infer<typeof DamageSchema>
+
+// What damage came to on the one it landed on (rules/damage.ts `getOutcome`),
+// and the steps of how it got there, each with the rule it follows.
+export const OutcomeSchema = z.object({
+  // combat.tex "Intercept": the blow never lands
+  stopped: z.boolean().default(false),
+  type: DamageKindSchema.default('blunt'),
+  damage: num.default(0),
+  // the armor value the damage was measured against
+  armor: num.default(0),
+  // null: below the armor, no injury
+  tier: num.nullable().default(null),
+  // each kind measured against its own armor value, before the choice; the
+  // blunt one drives the blunt effects whichever kind is applied
+  tiers: z.partialRecord(DamageKindSchema, num.nullable()).default({}),
+  // the tier the body takes after the location's cap
+  bodyTier: num.nullable().default(null),
+  IL: num.default(0),
+  bleed: num.default(0),
+  // combat.tex "Wounds": the wound the tier causes, and the part it takes
+  wound: z.object({ key: WoundKeySchema, name: str, heal: num.nullable(), part: z.object({ id: str, name: str }) }).nullable().default(null),
+  afflictions: z.array(AfflictionKeySchema).default([]),
+  // combat.tex "Interruption", "Stun": what cuts the target's action short,
+  // and the AP a stun takes on top
+  interruption: InterruptionSchema.default('none'),
+  apLoss: num.default(0),
+  dead: z.boolean().default(false),
+  // combat.tex "Burning and radiant damage": the burning counter once the
+  // burn received has been added and the damage applied; null when no burn
+  // was received
+  burning: num.nullable().default(null),
+  // the physical damage that got past the defense and reached the armor
+  arrived: z.object({ blunt: num, cut: num }).default({ blunt: 0, cut: 0 }),
+}).strip()
+export type Outcome = z.infer<typeof OutcomeSchema>
+
+export const OutcomeStepSchema = z.object({ text: str, rule: str }).strip()
+export type OutcomeStep = z.infer<typeof OutcomeStepSchema>
 
 // What one entity does to a character — a spell, an ability, an attack, a
 // fire, a charge in an item all speak this. The character processes an

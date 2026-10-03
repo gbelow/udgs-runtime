@@ -19,6 +19,7 @@ import { getTurnHolder } from '../rules/turn'
 import { getFeinted } from '../rules/feint'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
+import { getResults } from './results'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -48,7 +49,8 @@ export function advance(state: CombatState, newId: () => string): CombatState {
 // action beneath, and the fight carried on from there. Whoever it sends
 // fleeing flees once everything on the stack has been played out.
 export function land(state: CombatState, open: RootAction, newId: () => string): CombatState {
-  const resolved = getSettled(state, open)
+  const settled = getSettled(state, open)
+  const resolved = { ...settled, results: getResults(state, settled) }
   const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))

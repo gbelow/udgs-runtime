@@ -519,6 +519,7 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
         <span className='text-sm'>{entry.actor} · {entry.label}</span>
+        <span className='text-xs text-muted opacity-60'>{entry.rule}</span>
         <Cost cost={entry.cost} />
         <RollSummary roll={entry.roll} />
         {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}
@@ -528,6 +529,7 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
         <div key={i} className='flex flex-col pl-3'>
           <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
             <span>{r.actor} answered: {r.label}</span>
+            <span className='opacity-60'>{r.rule}</span>
             <Cost cost={r.cost} />
             <RollSummary roll={r.roll} />
           </div>
@@ -540,7 +542,14 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
         </div>
       ))}
       {entry.fate ? <div className='text-sm text-bad'>{entry.fate}</div> : null}
-      {entry.outcomes.map((o, i) => <OutcomeLine key={i} outcome={o.outcome} target={o.target} />)}
+      {entry.outcomes.map((o, i) => (
+        <div key={i} className='flex flex-col'>
+          <OutcomeLine outcome={o.outcome} target={o.target} />
+          {o.steps.map((step, j) => (
+            <span key={j} className='pl-3 text-xs text-muted'>{step.text} <span className='opacity-60'>· {step.rule}</span></span>
+          ))}
+        </div>
+      ))}
       {entry.notes.map((n, i) => <div key={i} className='text-sm'>{n.target}: <span className='text-muted'>{n.text}</span></div>)}
       {entry.outcomes.length === 0 && entry.notes.length === 0 && !entry.fate ? <span className='text-xs text-muted'>nothing landed</span> : null}
     </div>
