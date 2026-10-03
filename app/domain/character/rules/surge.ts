@@ -3,6 +3,7 @@ import { SURGES } from "../../tables"
 import { getAGI } from "./characteristics"
 import { getBuffBonus } from "./effects"
 import { hasAffliction } from "./afflictions"
+import { getBled } from "./wounds"
 import { isCampaignCharacter } from "../../utils"
 import { surgeKinds } from "../../lists"
 
@@ -30,6 +31,28 @@ export function canSurge(kind: SurgeKind, compelled = false): (c: CampaignCharac
     const surge = SURGES[kind]
     if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
     return compelled || !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
+  }
+}
+
+// The character as a surge leaves them, whether or not it is open to them:
+// its STA spent and bled for, its AP granted, or earmarked apart from the
+// rest (`surgeAP`).
+export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    const { STA, earmarked } = SURGES[kind]
+    const char = getBled(STA)(c)
+    const AP = getSurgeAP(kind)(c)
+    return {
+      ...char,
+      usedSurge: kind,
+      runsFree: kind === 'movement',
+      resources: {
+        ...char.resources,
+        AP: earmarked ? char.resources.AP : char.resources.AP + AP,
+        surgeAP: earmarked ? AP : char.resources.surgeAP,
+        STA: char.resources.STA - STA,
+      },
+    }
   }
 }
 

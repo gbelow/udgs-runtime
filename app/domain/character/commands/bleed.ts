@@ -1,12 +1,7 @@
 import { CampaignCharacter } from "../../types"
+import { getBled } from "../rules/wounds"
 
-
-export function bleed( amount: number): <C extends CampaignCharacter>(c: C) => C {
-  return <C extends CampaignCharacter>(c: C): C => {
-    const damage = amount*c.injuries.bleed
-    return {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel + damage}}
-  }
-}
+export const bleed = getBled
 
 export function updateSTA( newSTA: number): <C extends CampaignCharacter>(c: C) => C {
   return <C extends CampaignCharacter>(c: C): C => {

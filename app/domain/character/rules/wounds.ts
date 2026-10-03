@@ -1,6 +1,15 @@
-import type { AfflictionKey, Character, Wound } from '../../types'
+import type { AfflictionKey, CampaignCharacter, Character, Wound } from '../../types'
 import { WOUNDS } from '../../tables'
 import { isCampaignCharacter } from '../../utils'
+
+// combat.tex "Bleed": "For every STA spent ... the character receives +1 to
+// their IL per bleed intensity."
+export function getBled(amount: number): <C extends CampaignCharacter>(c: C) => C {
+  return <C extends CampaignCharacter>(c: C): C => {
+    const damage = amount * c.injuries.bleed
+    return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + damage } }
+  }
+}
 
 // combat.tex "Wounds": the wounds the character carries.
 export function getWounds(c: Character): Wound[] {

@@ -23,7 +23,7 @@ const eslintConfig = [
 
   // ── Architectural boundaries ──────────────────────────────────────────────
   // The project's one non-negotiable rule is that the pure domain owns all game
-  // rules and React only renders them. These two rules make that boundary
+  // rules and React only renders them. These rules make that boundary
   // mechanical instead of a convention people have to remember.
 
   // 1. The domain must not depend on React or on the state layer. Data flows
@@ -44,7 +44,33 @@ const eslintConfig = [
     },
   },
 
-  // 2. Components must not reach into the rule-bearing halves of the domain, nor
+  // 2. The read side of the domain must not call the write side. Rules,
+  //    lenses and projections answer questions about a state; commands change
+  //    one. A rule that runs a command to see what would happen has its answer
+  //    defined by the button, so the command should call the rule instead.
+  {
+    files: ["app/domain/*/rules/**/*.ts", "app/domain/*/lenses/**/*.ts", "app/domain/*/projections/**/*.ts"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [
+          {
+            group: ["**/stores/*", "**/stores/**", "**/actions", "**/actions/**", "**/vtt/*", "**/vtt/**", "react", "react-dom", "zustand", "zustand/**"],
+            message:
+              "The domain layer is pure and React-free. Data flows domain -> stores -> hooks -> UI, so the domain must define its own types and never import from app/stores, app/actions, app/vtt or React.",
+          },
+          {
+            group: ["**/commands", "**/commands/**", "**/bot", "**/bot/**"],
+            allowTypeImports: true,
+            message:
+              "Rules, lenses and projections are the read side and import nothing from commands or the bot. Move what the command computes into a rule and have the command call it.",
+          },
+        ],
+      }],
+    },
+  },
+
+  // 3. Components must not reach into the rule-bearing halves of the domain, nor
   //    into the state layer. Rules, lenses, projections and commands ARE the
   //    game rules, and so is every constant in tables.ts; a component that
   //    imports one is one step away from reimplementing it inline (which is how

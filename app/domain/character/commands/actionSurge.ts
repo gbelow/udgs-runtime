@@ -1,7 +1,5 @@
 import { CampaignCharacter, SurgeKind } from "../../types"
-import { SURGES } from "../../tables"
-import { bleed } from "./bleed"
-import { canSurge, getSurgeAP } from "../rules/surge"
+import { canSurge, getSurged } from "../rules/surge"
 
 // combat.tex "Action surge": a character is entitled to one surge per round, so
 // a character that already used one this round cannot surge again, whichever
@@ -9,23 +7,7 @@ import { canSurge, getSurgeAP } from "../rules/surge"
 // so the command refuses exactly what the button shows as closed. An
 // earmarked surge's AP is kept apart from the rest (`surgeAP`).
 export function actionSurge(kind: SurgeKind, compelled = false): (c: CampaignCharacter) => CampaignCharacter {
-  return (c: CampaignCharacter) => {
-    const { STA, earmarked } = SURGES[kind]
-    if (!c.resources || !canSurge(kind, compelled)(c)) return c
-    const char = bleed(STA)(c)
-    const AP = getSurgeAP(kind)(c)
-    return {
-      ...char,
-      usedSurge: kind,
-      runsFree: kind === 'movement',
-      resources: {
-        ...char.resources,
-        AP: earmarked ? char.resources.AP : char.resources.AP + AP,
-        surgeAP: earmarked ? AP : char.resources.surgeAP,
-        STA: char.resources.STA - STA,
-      },
-    }
-  }
+  return (c: CampaignCharacter) => (c.resources && canSurge(kind, compelled)(c) ? getSurged(kind)(c) : c)
 }
 
 // Gives up what is left of an earmarked surge, so the character is free to

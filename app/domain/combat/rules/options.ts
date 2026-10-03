@@ -5,8 +5,7 @@ import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { canSurge } from '../../character/rules/surge'
-import { actionSurge } from '../../character/commands/actionSurge'
+import { canSurge, getSurged } from '../../character/rules/surge'
 import { hasGrant } from '../../character/rules/abilities'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { isProne } from './ground'
@@ -137,7 +136,7 @@ function closeOwn(state: CombatState, c: CampaignCharacter, options: ActionOptio
 function withReactionSurge(state: CombatState, c: CampaignCharacter, open: RootAction): ActionOption[] {
   const now = getAnswers(state, c, open)
   if (now.every((o) => o.available) || !canSurge('reaction')(c)) return now
-  const surged = actionSurge('reaction')(c)
+  const surged = getSurged('reaction')(c)
   const after = getAnswers({ ...state, characters: { ...state.characters, [c.id]: surged } }, surged, open)
   return now.map((o) => {
     if (o.available) return o

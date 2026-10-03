@@ -112,6 +112,14 @@ from `commands/` (the existing config covers domain-vs-React and components-vs-d
 away. `eslint.config.mjs` currently has no such rule (its two rules cover domain-vs-React
 and components-vs-domain).
 
+**Done (2026-10-03).** `getSurged(kind)` in `character/rules/surge.ts` is the surged
+character, and `actionSurge` is `canSurge ? getSurged : unchanged`; the bleed arithmetic
+it needs moved to `getBled` in `character/rules/wounds.ts` (`commands/bleed` re-exports
+it). `options.ts` calls `getSurged`. The lint rule covers `rules/`, `lenses/` and
+`projections/` against `commands/` and `bot/`, and skips `*.test.ts`, which build
+scenarios with commands. `pnpm sim` reports byte-identical. `item/commands/hands.ts` →
+`character/commands/bleed` is command-to-command and left to Step 3.
+
 ---
 
 ## Step 3 — Break the `character` ↔ `item` cycle
