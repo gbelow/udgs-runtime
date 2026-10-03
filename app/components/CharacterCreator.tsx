@@ -248,7 +248,7 @@ function ConvictionDial ({trainableName, fallbackTitle, options}:{trainableName:
           <option key={conviction.id} value={conviction.name}>{conviction.name}</option>
         ))}
       </select>
-      <NumberInput className='w-full text-sm py-0.5' title={fallbackTitle} value={value} onChange={(e) => setValue(parseInt(e.target.value))} />
+      <NumberInput className='w-full text-sm py-0.5' title={fallbackTitle} value={value} onChange={(e) => setValue(parseInt(e.target.value) || 0)} />
     </div>
   )
 }

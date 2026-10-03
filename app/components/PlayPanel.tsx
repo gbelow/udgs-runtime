@@ -180,7 +180,7 @@ function InjuryControl({type}: {type: keyof typeof INJURY_TITLES}){
     <div className='flex flex-col items-center gap-1'>
       <span className='text-[10px] text-muted'>{INJURY_TITLES[type]}</span>
       <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${ring}`}>
-        <NumberInput className='w-10 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value))} />
+        <NumberInput className='w-10 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value) || 0)} />
         <div className='flex flex-row gap-2 text-xs text-muted'>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'causeInjury'} onClick={() => setInjury( type, value + 1)}>+</button>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'healInjury'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)}>−</button>
@@ -199,7 +199,7 @@ function SimpleResource({rssName}: {rssName: keyof Resources}){
     <div className='flex flex-row items-center gap-1.5 rounded border border-line bg-surface px-1.5 py-1 w-24'>
       <div className='flex flex-col min-w-0 grow'>
         <span className='text-[10px] text-muted truncate'>{rssName}</span>
-        <NumberInput className='w-full border-transparent text-left text-base px-0' aria-label={rssName} value={value} onChange={(e) => setValue(parseInt(e.target.value) ?? 0)} />
+        <NumberInput className='w-full border-transparent text-left text-base px-0' aria-label={rssName} value={value} onChange={(e) => setValue(parseInt(e.target.value) || 0)} />
       </div>
       <div className='flex flex-col gap-0.5'>
         <button type='button' className='border border-line rounded w-4 h-4 text-[10px] leading-none text-muted hover:text-fg hover:border-muted cursor-pointer' aria-label={rssName} onClick={() => setValue(value+1)}>+</button>

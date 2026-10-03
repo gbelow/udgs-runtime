@@ -19,8 +19,8 @@ export function ItemSelector(){
     <div className='flex flex-col w-full gap-1'>
       <div className='flex flex-row gap-1 items-center'>
         <TextInput className='w-full' placeholder='filter' aria-label='item filter' value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value))} disabled={pending?.source !== 'catalog'} />
-        <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value))} disabled={pending?.source !== 'catalog'} />
+        <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
+        <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
       </div>
       {
         pending?.source === 'catalog' ?

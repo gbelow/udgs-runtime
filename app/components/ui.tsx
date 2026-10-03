@@ -45,14 +45,29 @@ export function ListButton({ selected = false, className = '', ...rest }:
 }
 
 export const inputClass = 'bg-transparent border border-line rounded px-1 outline-none focus:border-accent disabled:opacity-40'
-export const numberClass = `${inputClass} text-center font-mono appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`
+export const numberClass = `${inputClass} text-center font-mono [&::-webkit-inner-spin-button]:opacity-0 hover:[&::-webkit-inner-spin-button]:opacity-100 focus:[&::-webkit-inner-spin-button]:opacity-100 [appearance:textfield] hover:[appearance:auto] focus:[appearance:auto]`
+
+// While the field has focus it shows what was typed, so clearing it or typing
+// past a leading zero is not overwritten by the committed value.
+function useDraft(){
+  const [draft, setDraft] = useState<string | null>(null)
+  return {
+    shown: (value: unknown) => draft ?? (value as string | number),
+    type: (text: string) => setDraft(text),
+    release: () => setDraft(null),
+  }
+}
 
 export function TextInput({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>){
   return <input type='text' className={`${inputClass} text-sm py-0.5 ${className}`} {...rest} />
 }
 
-export function NumberInput({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>){
-  return <input type='number' inputMode='numeric' className={`${numberClass} ${className}`} {...rest} />
+export function NumberInput({ className = '', value, onChange, onBlur, ...rest }: InputHTMLAttributes<HTMLInputElement>){
+  const draft = useDraft()
+  return <input type='number' inputMode='numeric' className={`${numberClass} ${className}`} {...rest}
+    value={draft.shown(value)}
+    onChange={(e) => { draft.type(e.target.value); onChange?.(e) }}
+    onBlur={(e) => { draft.release(); onBlur?.(e) }} />
 }
 
 // A small uppercase heading over a group of tiles or rows.
@@ -121,6 +136,7 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onClic
 }){
   const input = useRef<HTMLInputElement>(null)
   const changes = useChangeCount(value, input)
+  const draft = useDraft()
   const frame = `relative flex flex-col gap-px w-16 min-w-0 rounded border bg-surface px-1 py-1 text-center
     ${afflicted ? 'border-bad' : 'border-line'} ${onClick ? 'cursor-pointer hover:border-accent hover:bg-raised focus-visible:outline-2 focus-visible:outline-accent' : ''} ${className}`
   const body = (
@@ -130,7 +146,7 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onClic
         onChange ?
         <input ref={input} type='number' inputMode='numeric' step={step} aria-label={title ?? String(label)} title={title ?? String(label)}
           className={`${numberClass} w-full text-sm py-0.5 ${afflicted ? 'text-bad' : ''}`}
-          value={value} onChange={(e) => onChange(step && !Number.isInteger(step) ? parseFloat(e.target.value) : parseInt(e.target.value))} /> :
+          value={draft.shown(value)} onBlur={draft.release} onChange={(e) => { draft.type(e.target.value); onChange((step && !Number.isInteger(step) ? parseFloat(e.target.value) : parseInt(e.target.value)) || 0) }} /> :
         <span className={`font-mono font-medium text-base leading-tight ${afflicted ? 'text-bad' : ''}`}>{value}</span>
       }
       {modifier !== 0 ? <span className={`absolute top-0.5 right-1 font-mono text-[10px] ${modifier > 0 ? 'text-good' : 'text-bad'}`}>{modifier > 0 ? `+${modifier}` : modifier}</span> : null}
