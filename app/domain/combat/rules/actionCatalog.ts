@@ -102,6 +102,9 @@ export const ACTIONS = {
   // gear.tex "Net": a Prestidigitation test against the tether's DL, priced
   // as two standard actions (rules/tether.ts `getSlipCost`)
   slip:        { label: 'slip the net', type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
+  // combat.tex "Turns and Actions" ("Feint"): free; what it costs is the
+  // surge it forces
+  feint:       { label: 'feint',        type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
   // gear.tex "Equipment Breakage": a strike at a net's tether, priced by the
   // row it swings
   cut:         { label: 'cut the net',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },

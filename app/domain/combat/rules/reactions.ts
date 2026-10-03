@@ -93,6 +93,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     // held spell again (step 6 makes it a reaction of its own)
     case 'release':
     case 'slip':
+    case 'feint':
     case 'cut':
     case 'holdBack':
     case 'rest':

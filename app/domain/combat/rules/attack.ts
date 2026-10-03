@@ -18,6 +18,7 @@ import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
 import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
+import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
 import { EQUIPMENT_ATTACK_PENALTY, isObjectOnTarget, isObjectStrike } from './equipment'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
@@ -354,6 +355,8 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
       return getManeuverDLTerms(state, root)
     case 'slip':
       return getSlipTerms(state, root)?.DL ?? []
+    case 'feint':
+      return getFeintTerms(state, root)?.DL ?? []
     case 'cut':
       return CUT_DL
     case 'move':
@@ -433,6 +436,8 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
       return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
     case 'slip':
       return getSlipTerms(state, root)
+    case 'feint':
+      return getFeintTerms(state, root)
     case 'cut':
       return { skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL }
     case 'move':

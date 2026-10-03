@@ -15,6 +15,7 @@ import { getTriggersFor } from './reactions'
 import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
 import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
+import { getFeintBar } from './feint'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
@@ -305,6 +306,8 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const cost = getSlipCost(c)
     return [option({ kind: 'slip' }, cost, afford(c, cost))]
   },
+  // combat.tex "Turns and Actions" ("Feint"): a test against someone in melee
+  feint: (state, c) => [option({ kind: 'feint' }, { AP: 0, STA: 0 }, getFeintBar(state, c))],
   holdBack: (state, c) => {
     if (!isInAnyGrapple(state, c) || getHoldBackTargets(state, c.id).length === 0) return []
     return [option({ kind: 'holdBack' }, { AP: 0, STA: 0 }, null)]

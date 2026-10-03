@@ -714,6 +714,14 @@ export const SlipActionSchema = z.object({
   kind: z.literal('slip'),
 }).strip()
 
+// combat.tex "Turns and Actions" ("Feint"): a cunning test against a character
+// in melee; on a hit or a critical the target is forced to take their turn
+// and use an action surge, otherwise the feinter is.
+export const FeintActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('feint'),
+}).strip()
+
 // gear.tex "Equipment Breakage": a strike at a net, scored against no defense;
 // `breakRoll` is the percentile thrown with it for the net's chance to break.
 export const CutActionSchema = z.object({
@@ -803,6 +811,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   DragActionSchema,
   ReleaseActionSchema,
   SlipActionSchema,
+  FeintActionSchema,
   CutActionSchema,
   HoldBackActionSchema,
   PickUpActionSchema,
@@ -831,6 +840,7 @@ export type GrappleAction = z.infer<typeof GrappleActionSchema>
 export type DragAction = z.infer<typeof DragActionSchema>
 export type ReleaseAction = z.infer<typeof ReleaseActionSchema>
 export type SlipAction = z.infer<typeof SlipActionSchema>
+export type FeintAction = z.infer<typeof FeintActionSchema>
 export type CutAction = z.infer<typeof CutActionSchema>
 export type HoldBackAction = z.infer<typeof HoldBackActionSchema>
 export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
@@ -935,6 +945,9 @@ export const CombatStateSchema = z.object({
   // waiting on it, the next first — each fleer's, then the turn the flee
   // interrupted, resumed where it was ("which is resumed after the flee")
   fleeing: z.boolean().default(false),
+  // combat.tex "Feint": who a feint forced to take their turn and use an
+  // action surge, '' for nobody; owed until that surge is used
+  forcedSurge: z.string().default(''),
   // gear.tex "Equipment Breakage": "The equipment breakage function is
   // optional" — whether blows put the objects they meet at risk
   breakage: z.boolean().default(true),

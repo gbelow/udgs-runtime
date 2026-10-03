@@ -55,7 +55,7 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 export function nextRound(dice: Dice, newId: () => string): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [] }
+    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [] }
     const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }

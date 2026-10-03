@@ -2,7 +2,7 @@ import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { CombatState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { isDead } from '../../character/rules/afflictions'
-import { hasAPLeft } from '../../character/rules/surge'
+import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
 import { getOpenAction } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
@@ -59,6 +59,7 @@ function getFightBusy(state: CombatState): string | null {
 function getContestClosed(state: CombatState): string | null {
   if (!getTurnHolder(state)) return 'nobody is in turn'
   if (state.fleeing) return 'the turn is a flee'
+  if (state.forcedSurge !== '') return 'the turn was forced by a feint'
   if (state.lastContest) return 'the turn was contested'
   if (state.actions.length > state.turnStartedAt) return 'the turn is under way'
   return null
@@ -114,8 +115,17 @@ export function getNextRoundBar(state: CombatState): string | null {
   return waiting.length > 0 ? `waiting for ${waiting.map((id) => getFightName(state, id)).join(', ')} to agree` : null
 }
 
+// combat.tex "Feint": the one a feint forced to take their turn ends it only
+// once they have used an action surge — or can no longer pay for one.
+function getForcedSurgeBar(state: CombatState, holder: string): string | null {
+  const c = state.characters[holder]
+  if (state.forcedSurge !== holder || !c || c.usedSurge !== null) return null
+  return canSurgeAtAll(c) ? 'forced to use an action surge' : null
+}
+
 // Why the turn cannot be ended now, or null.
 export function getEndTurnBar(state: CombatState): string | null {
-  if (!getTurnHolder(state)) return 'nobody is in turn'
-  return getOpenAction(state) ? 'an action is being played out' : null
+  const holder = getTurnHolder(state)
+  if (!holder) return 'nobody is in turn'
+  return getOpenAction(state) ? 'an action is being played out' : getForcedSurgeBar(state, holder)
 }

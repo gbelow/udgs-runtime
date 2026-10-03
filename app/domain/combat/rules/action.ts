@@ -19,6 +19,7 @@ import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getCutStrike, getCutTargets } from './cut'
+import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
@@ -124,6 +125,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'retarget':
     case 'release':
     case 'slip':
+    case 'feint':
     case 'holdBack':
     case 'resist':
     case 'assist':
@@ -224,6 +226,7 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'drag':
     case 'blast':
     case 'release':
+    case 'feint':
     case 'holdBack':
     case 'resist':
     case 'assist':
@@ -389,6 +392,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'drag':
     case 'release':
     case 'slip':
+    case 'feint':
     case 'cut':
     case 'holdBack':
     case 'pickUp':
@@ -463,6 +467,8 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
       return getReleaseTargets(state, root.actorId)
     case 'slip':
       return getSlipTargets(state, root.actorId)
+    case 'feint':
+      return getFeintTargets(state, root.actorId)
     case 'cut':
       return getCutTargets(state, root)
     case 'holdBack':

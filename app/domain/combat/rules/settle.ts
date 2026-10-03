@@ -43,6 +43,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
     case 'slip':
+    case 'feint':
     case 'cut': return { ...open, step: 'done' }
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }

@@ -83,7 +83,7 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
+| Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `feint` (a cunning test in melee: the loser is forced to take their turn and use an action surge; `land` hands the turn over, `forcedSurge` holds who owes the surge), `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
 | Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
 | Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
 | Trample answers (to a move) | `evade`, `brace` |
@@ -228,6 +228,7 @@ app/domain/combat/
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
+│   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
 │   ├── social.ts       say: intimidate, taunt or rally for 5 AP in your turn, written to `state.pressure`
 │   ├── resetCombat.ts
@@ -239,6 +240,7 @@ app/domain/combat/
 │   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not
 │   ├── turn.ts         whose turn it is; who may start, contest or end one, or surge
 │   ├── surge.ts        the actions behind each surge allowance in `SURGES` (tables.ts), and a flee turn
+│   ├── feint.ts        who may be feinted, the cunning terms, who the test forces
 │   ├── flee.ts         who may flee, its price, the stop it puts on a move, who a landed action offers or sends fleeing
 │   ├── reactions.ts    getTriggers: who may answer a committed action, with what
 │   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after

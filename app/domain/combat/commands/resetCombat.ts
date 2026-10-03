@@ -8,6 +8,7 @@ export function resetCombat(state: CombatState): CombatState {
     characters: {},
     activeCharacterId: null,
     inTurnCharacter: '',
+    forcedSurge: '',
     turnStartedAt: 0,
     contenders: [],
     lastContest: null,

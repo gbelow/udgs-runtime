@@ -30,6 +30,11 @@ export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
   }
 }
 
+// Whether some surge is still open to the character, whichever kind.
+export function canSurgeAtAll(c: CampaignCharacter): boolean {
+  return surgeKinds.some((kind) => canSurge(kind)(c))
+}
+
 // Whether the character has AP to spend, or a surge that would give them
 // some.
 export function hasAPLeft(c: CampaignCharacter): boolean {

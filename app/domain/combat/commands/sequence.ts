@@ -1,5 +1,5 @@
 import { SPELLS, isSpellKey } from '../../spells'
-import type { Action, CastAction, CombatState, ExplosionAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
+import type { Action, CastAction, CombatState, ExplosionAction, FeintAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
@@ -16,7 +16,9 @@ import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
 import { getTurnHolder } from '../rules/turn'
+import { getFeinted } from '../rules/feint'
 import { appendActions, applyPhase, replaceActions } from './log'
+import { closeTurn } from './closeTurn'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -50,7 +52,20 @@ export function land(state: CombatState, open: RootAction, newId: () => string):
   const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
-  return advance(appendActions(fled, followUps), newId)
+  return advance(appendActions(resolved.kind === 'feint' ? forceSurge(fled, resolved) : fled, followUps), newId)
+}
+
+// combat.tex "Turns and Actions" ("Feint"): the one the test went against "is
+// forced to take their turn and use one action surge". The feinter's turn
+// ends as any turn does when they won; when they lost it goes on, with the
+// surge owed.
+function forceSurge(state: CombatState, feint: FeintAction): CombatState {
+  const feinted = getFeinted(feint)
+  if (!feinted || !state.characters[feinted] || isVoided(state, feint)) return state
+  const holder = getTurnHolder(state)
+  if (holder === feinted) return { ...state, forcedSurge: feinted }
+  const ended = holder ? closeTurn(state, holder) : state
+  return { ...ended, inTurnCharacter: feinted, forcedSurge: feinted, turnStartedAt: state.actions.length, contenders: [], lastContest: null }
 }
 
 // combat.tex "Flee": "This reaction interrupts the opponents turn, which is
