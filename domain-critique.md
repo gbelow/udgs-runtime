@@ -16,37 +16,76 @@ otherwise. Tick them off as they land.
 
 ---
 
-## Step 1 — Put per-kind behaviour in the catalog, not in switches
+## Step 1 — No silent per-kind dispatch
 
-**Problem.** Knowledge about one action kind is spread over many files, each with its own
-`switch (action.kind)` or `kind ===` chain. Adding a kind means touching all of them, and the
-compiler only checks the exhaustive ones.
+**Problem.** Per-kind behaviour that is not an exhaustive switch: a chain that names a few
+kinds and lets the rest fall through, so a new kind that needs the step compiles without it.
 
-**Evidence** (counts of `case '` / `kind ===`, approximate):
+**Audit.** The kind checks fall into three groups; only the second is the problem.
 
-- `rules/action.ts` has two parallel switches, `isDeclarationComplete` and
-  `getDeclaredCost`. About twenty kinds in the first fall through to `return true`.
-- `commands/reduce.ts` has about 31 kind checks across `reducePart`, `reduceBinds`,
-  `reduceFloor` and `reduceBoard`.
-- `rules/settle.ts` (`getSettled`), `rules/options.ts`, `projections/actionPanel.ts` (about
-  38), `rules/attack.ts`, `rules/reactions.ts` each switch again.
-- `commitAction` (`commands/action.ts`, nested ternary) and `rollAction` (same file, chained
-  ternary for percentile dice) each hold per-kind "extra step at commit / at roll" logic.
-- `commands/sequence.ts` `land` special-cases `feint`; `generateFollowUps` special-cases
-  `explosion`, `cast`, `fireAgain`, `throw`, `strike`.
-- `ACTIONS` (`rules/actionCatalog.ts`) holds only flags (`type`, `price`, `die`, `movement`,
-  `targeted`, `generated`, `identity`), no behaviour.
+1. *Exhaustive switches — already safe, leave them.* `isDeclarationComplete`,
+   `getDeclaredCost`, `getPostStep`, `getTargetIds` (`rules/action.ts`); `getDLTerms`,
+   `getRootTestTerms` (`rules/attack.ts`); `getSettled` (`rules/settle.ts`); `getAnswers`
+   (`rules/options.ts`). A new kind fails to compile until each has a case — the same
+   guarantee a catalog hook would give, while keeping each case beside its rules and
+   citations.
+2. *Silent chains — the problem.*
+   - `commitAction` ternary (`commands/action.ts`): commit-time fields for move, strike,
+     cast, fireAgain.
+   - `rollAction` ternary (same file): percentile dice for cast, cut, strike/shoot. It also
+     fixes the order dice are drawn, so a mistake shifts every later die and the seeded sim.
+   - `getRootTest` `default:` (`rules/attack.ts`): any unlisted kind reads as
+     `scale: 'degrees'`.
+   - `needsDie` (`rules/action.ts`): move and spellTest special-cased over the `die` flag.
+   - `getOwnCost` (`rules/action.ts`): overrides for flee, sweep link, fireAgain upkeep,
+     move, push; move is priced both here and in `getDeclaredCost`.
+   - `getNextStep`: explosion and drag special steps.
+   - `reduce.ts` chains (`reducePart`, `reduceBinds`, `reduceFloor`, `reduceBoard`).
+3. *Not dispatch — leave them.* `actionPanel.ts` mostly narrows the union to read a field
+   (`open.kind === 'shoot' ? open.ammoId : ''`). The rest of `attack.ts` and the gates in
+   `options.ts` are rules about particular kinds, not dispatch.
 
-**Direction.** Make the catalog entry per kind carry optional hooks: `isComplete`, `cost`,
-`targets`, `onCommit`, `onRoll` (extra dice), `settle`, `followUps`. Keep it typed
-`{ [K in ActionKind]: ActionDef<K> }` so the current compile-time guarantee stays. Move one
-concern at a time; the switch it replaces is deleted in the same change.
+Also: one root's test is described in four places — the `die` flag, `needsDie`,
+`getRootTestTerms`, `getRootTest` — and nothing ties them together. They already differ:
+move has `die: false` and terms on difficult ground; explosion has DL terms and no test of
+its own.
 
-**Done when.** A new kind needs its schema, one catalog entry, and its reducer branch, and
-nothing else in `rules/action.ts`, `settle.ts`, `commitAction` or `rollAction`.
+**Direction.** Every per-kind difference is either an exhaustive switch or an `ACTIONS`
+flag. `ACTIONS` stays flat data: no hooks, and no write-side code under `rules/`.
 
-**Do first:** `onCommit` and `onRoll`, since those two ternaries are the smallest and the
-least entangled. Then `isComplete` and `cost`.
+1. `getRootTest`: explicit cases instead of `default:`.
+2. `rollAction`: an exhaustive `getExtraRolls` in `commands/`. Draw order must not change —
+   `pnpm sim` reports identical before and after.
+3. `commitAction`: an exhaustive `withCommitFacts` in `commands/`.
+4. One exhaustive switch over root kinds returning `{ skill, DL, scale, grazes } | null`;
+   `getRootTestTerms`, `getDLTerms`, `getRootTest` and `needsDie` (apart from move) read it.
+   Write in `combat-map.md` that `die` means "committed by a die", not "has a test".
+5. Fold `getOwnCost`'s per-kind overrides (move, flee, fireAgain upkeep) into
+   `getDeclaredCost` (needs `state`; check its callers). Sweep link and push depend on the
+   state of the fight, not the kind, and stay.
+
+The `reduce.ts` chains are left to Step 4: once the reducer only applies what the record
+says, they shrink, and making them exhaustive first is done twice. `settle` belongs to
+Step 4, follow-ups to Step 7.
+
+**Done when.** Outside the `reduce.ts` chains, every per-kind difference is an exhaustive
+switch or an `ACTIONS` flag, and the `pnpm sim` report is unchanged.
+
+**Order:** 1 → 2 → 3 → 4 → 5.
+
+**Done (2026-10-03).** All five landed with `pnpm sim` reports byte-identical. Two
+departures from the plan:
+
+- `needsDie` was not derived from the test switch. `die` and "has a test" differ for
+  more kinds than move: slip and feint have no terms without a tether or a target, and
+  a root kind with `die` and no test is refused by `rollAction`, not paid. Deriving one
+  from the other would turn that refusal into a free payment. `needsDie`'s two cases
+  (move, accepted spellTest) stay; the scale moved into `getRootTestTerms`, and
+  `getRootTest` only sums.
+- `getOwnCost` keeps flee, sweep link and fireAgain upkeep. These are fixed prices that
+  bypass the recipe and the AP repurposing, not per-kind declared costs; folding them
+  into `getDeclaredCost` would let a recipe or a repurpose change them. Move and push
+  did move into `getDeclaredCost`, which is now private and takes `state`.
 
 ---
 

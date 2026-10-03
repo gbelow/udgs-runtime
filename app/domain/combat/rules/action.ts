@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, DragAction, GrappleAction, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, GrappleAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -7,7 +7,7 @@ import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
-import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, isPosture, needsBalanceTest } from './move'
+import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { canAfford } from '../../character/rules/cost'
 import { hasGrant } from '../../character/rules/abilities'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
@@ -178,8 +178,10 @@ export function areReactionsComplete(state: CombatState, root: Action): boolean 
 // Costs
 
 // What an action costs its actor, as declared; null while the declaration is
-// too incomplete to price.
-export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCost | null {
+// too incomplete to price. A move pays for the path as it will be walked, cut
+// wherever it will stop; a push and the answers to it are priced by the block
+// (rules/drag.ts `getPushPrice`).
+function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Action): ActionCost | null {
   switch (action.kind) {
     // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
     // strike with a weapon with the grapple property"
@@ -200,7 +202,16 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'counterattack':
       return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
-      return action.path.length > 0 || isPosture(action.movement) ? getMovePrice(c, action, action.path.length) : null
+      return getMovePrice(c, action, getMoveFacts(state, action).path.length)
+    case 'drag':
+      return getPushPrice(state, action, action)
+    case 'resist':
+    case 'assist':
+    case 'carry':
+    case 'letGo': {
+      const root = getRootOf(state, action)
+      return root?.kind === 'drag' ? getPushPrice(state, root, action) : getCatalogCost(c, action.kind)
+    }
     // spells.tex "Casting spells": the spell's own price; what it asks beyond
     // AP and STA is paid the same, off the sheet
     case 'cast':
@@ -224,15 +235,10 @@ export function getDeclaredCost(c: CampaignCharacter, action: Action): ActionCos
     case 'flee':
     case 'fleeFollowUp':
     case 'spellTest':
-    case 'drag':
     case 'blast':
     case 'release':
     case 'feint':
     case 'holdBack':
-    case 'resist':
-    case 'assist':
-    case 'carry':
-    case 'letGo':
     case 'pickUp':
     case 'rest':
     case 'grapple':
@@ -273,27 +279,20 @@ export function canPayAll(state: CombatState, root: Action): boolean {
 
 // What the action costs its actor as it stands, whether or not they can pay
 // it; null while it is too incomplete to price. A follow-up is priced as
-// its recipe says (rules/recipes.ts); a flee costs the movement surge, and is null
-// once that cannot be made; a sweep is paid once, by the strike at its first
-// target (combat.tex "Sweeping Attack").
+// its recipe says (rules/recipes.ts), and a reaction less the AP repurposed
+// towards it. Three prices are fixed past both: a flee costs the movement
+// surge, and is null once that cannot be made; a sweep is paid once, by the
+// strike at its first target (combat.tex "Sweeping Attack"); a held spell's
+// upkeep is free.
 export function getOwnCost(state: CombatState, action: Action): ActionCost | null {
   const c = state.characters[action.actorId]
   if (!c) return null
   if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return getFleeCost(c)
   if (action.kind === 'strike' && isSweepLink(action)) return { AP: 0, STA: 0 }
   if (action.kind === 'fireAgain' && action.upkeep) return { AP: 0, STA: 0 }
-  const declared = action.kind === 'move' ? getMovePrice(c, action, getMoveFacts(state, action).path.length)
-    : getPushRoot(state, action) ? getPushPrice(state, getPushRoot(state, action)!, action)
-    : getDeclaredCost(c, action)
+  const declared = getDeclaredCost(state, c, action)
   const cost = declared && getRecipeCost(state, action, declared)
   return cost && action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, cost) : cost
-}
-
-// The push an action pays for as its pusher, or as one who answers it.
-function getPushRoot(state: CombatState, action: Action): DragAction | null {
-  if (action.kind === 'drag') return action
-  const root = action.kind === 'resist' || action.kind === 'assist' || action.kind === 'carry' || action.kind === 'letGo' ? getRootOf(state, action) : null
-  return root?.kind === 'drag' ? root : null
 }
 
 // combat.tex "Interruption": "The AP from the interrupted action can be

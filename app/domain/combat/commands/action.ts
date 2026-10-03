@@ -1,4 +1,4 @@
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type Updater } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
@@ -79,17 +79,39 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
     if (!getPayableCost(state, open)) return state
-    const committed: Action = open.kind === 'move'
-      ? { ...open, step: 'react', from: state.board?.placements[open.actorId] ?? null }
-      : open.kind === 'strike'
-      ? { ...withSweepArc(state, open), step: 'react' }
-      : open.kind === 'cast'
-      ? { ...withCastGear(actor, open), step: 'react' }
-      : open.kind === 'fireAgain'
-      ? { ...withHold(state, actor, open, dice), step: 'react' }
-      : { ...open, step: 'react' }
-    const locked = replaceActions(state, [committed])
+    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), step: 'react' }])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
+  }
+}
+
+// What the root writes down as it is committed, fixed from here on whatever
+// moves before it resolves.
+function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: RootAction, dice: Dice): RootAction {
+  switch (open.kind) {
+    case 'move':
+      return { ...open, from: state.board?.placements[open.actorId] ?? null }
+    case 'strike':
+      return withSweepArc(state, open)
+    case 'cast':
+      return withCastGear(actor, open)
+    case 'fireAgain':
+      return withHold(state, actor, open, dice)
+    case 'shoot':
+    case 'explosion':
+    case 'blast':
+    case 'spellTest':
+    case 'grapple':
+    case 'drag':
+    case 'release':
+    case 'slip':
+    case 'feint':
+    case 'cut':
+    case 'holdBack':
+    case 'pickUp':
+    case 'throw':
+    case 'rest':
+    case 'fleeFollowUp':
+      return open
   }
 }
 
@@ -236,14 +258,40 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     const rootTest = getRootTest(state, open)
     const test = rootTest ? resolveTest(rootTest, dice) : null
     if (!test && ACTIONS[open.kind].die) return state
-    const rolled: Action = test ? { ...open, roll: test } : open
+    const rolled = withPercentileRolls(state, test ? { ...open, roll: test } : open, dice)
+    return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
+  }
+}
+
+// The percentile dice thrown with the root's test, after it and before any
+// reaction's.
+function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): RootAction {
+  switch (root.kind) {
     // spells.tex "Amplify Spell": the percentile die for a fraction of a
     // charge, thrown with the cast
-    const withRoll: Action = rolled.kind === 'cast' && isSpellKey(rolled.key) && SPELLS[rolled.key].ammo > 0 ? { ...rolled, chargeRoll: rollPercent(dice) }
-      : rolled.kind === 'cut' ? { ...rolled, breakRoll: rollPercent(dice) }
-      : (rolled.kind === 'strike' || rolled.kind === 'shoot') && needsBreakRolls(state, rolled) ? { ...rolled, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice), armor: rollPercent(dice), object: rollPercent(dice) } }
-      : rolled
-    return payAll(state, withRoll, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
+    case 'cast':
+      return isSpellKey(root.key) && SPELLS[root.key].ammo > 0 ? { ...root, chargeRoll: rollPercent(dice) } : root
+    case 'cut':
+      return { ...root, breakRoll: rollPercent(dice) }
+    case 'strike':
+    case 'shoot':
+      return needsBreakRolls(state, root) ? { ...root, breakRolls: { defender: rollPercent(dice), attacker: rollPercent(dice), armor: rollPercent(dice), object: rollPercent(dice) } } : root
+    case 'explosion':
+    case 'blast':
+    case 'fireAgain':
+    case 'spellTest':
+    case 'move':
+    case 'grapple':
+    case 'drag':
+    case 'release':
+    case 'slip':
+    case 'feint':
+    case 'holdBack':
+    case 'pickUp':
+    case 'throw':
+    case 'rest':
+    case 'fleeFollowUp':
+      return root
   }
 }
 

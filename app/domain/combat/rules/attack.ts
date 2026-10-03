@@ -419,34 +419,41 @@ function getDL(state: CombatState, root: RootAction): number {
   return sumTerms(getDLTerms(state, root))
 }
 
+type TestTerms = { skill: Term[]; DL: Term[] }
+export type RootTestTerms = TestTerms & ({ scale: 'degrees' } | { scale: 'overflow'; grazes: boolean })
+
 // The score and DL of the test a committed root is closed by, each broken
-// down into its terms, or null when it has none of its own. A strike or a
-// shot against the target's defense; a move across difficult terrain a
-// Balance test against the ground (combat.tex "Balance"); a cast against the
-// spell's DL.
-// combat.tex "Grapple Maneuvers": the grapple skill against the partner's.
-export function getRootTestTerms(state: CombatState, root: RootAction): { skill: Term[]; DL: Term[] } | null {
+// down into its terms, and the scale it is read on; or null when it has none
+// of its own. A strike or a shot against the target's defense, trading the
+// critical for HOP (play.tex "Hit Overflow Point"); a cast against the
+// spell's DL, its overflow the HOP that buy improvements, and a graze left
+// open to be saved unless it was quickened (spells.tex "Casting spells";
+// "Quicken Spell": "Grazes equal misses"); a move across difficult terrain a
+// Balance test against the ground (combat.tex "Balance"). A maneuver is read
+// on the four degrees (combat.tex "Grapple Maneuvers": "on a critical", "on
+// a hit"), the grapple skill against the partner's.
+export function getRootTestTerms(state: CombatState, root: RootAction): RootTestTerms | null {
   const actor = state.characters[root.actorId]
   if (!actor) return null
   switch (root.kind) {
     case 'strike':
     case 'shoot':
-      return { skill: getAttackTerms(state, root), DL: getDLTerms(state, root) }
-    case 'grapple':
-      return { skill: getManeuverTerms(actor), DL: getDLTerms(state, root) }
-    case 'slip':
-      return getSlipTerms(state, root)
-    case 'feint':
-      return getFeintTerms(state, root)
-    case 'cut':
-      return { skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL }
-    case 'move':
-      return { skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] }
+      return { skill: getAttackTerms(state, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
     case 'cast':
-      return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root) }
+      return { skill: getCastTerms(actor, root), DL: getDLTerms(state, root), scale: 'overflow', grazes: !root.quicken }
+    case 'grapple':
+      return onDegrees({ skill: getManeuverTerms(actor), DL: getDLTerms(state, root) })
+    case 'slip':
+      return onDegrees(getSlipTerms(state, root))
+    case 'feint':
+      return onDegrees(getFeintTerms(state, root))
+    case 'cut':
+      return onDegrees({ skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL })
+    case 'move':
+      return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
     // spells.tex "Telepathic Link": the target's die, against the caster
     case 'spellTest':
-      return { skill: getSpellTestSkillTerms(state, root), DL: getDLTerms(state, root) }
+      return onDegrees({ skill: getSpellTestSkillTerms(state, root), DL: getDLTerms(state, root) })
     // an explosion's tests are its reactors' (combat.tex "Explosions"); the
     // rest are committed by paying
     case 'explosion':
@@ -463,28 +470,16 @@ export function getRootTestTerms(state: CombatState, root: RootAction): { skill:
   }
 }
 
-// The root's test, on its scale: a strike or a shot trades the critical for
-// HOP (play.tex "Hit Overflow Point"), as a cast does, its overflow the HOP
-// that buy improvements, and a graze left open to be saved unless it was
-// quickened (spells.tex "Casting spells"; "Quicken Spell": "Grazes equal
-// misses"). A maneuver is read on the four degrees (combat.tex "Grapple
-// Maneuvers": "on a critical", "on a hit"), as a Balance test is.
+function onDegrees(terms: TestTerms | null): RootTestTerms | null {
+  return terms && { ...terms, scale: 'degrees' }
+}
+
+// The root's test, its terms summed.
 export function getRootTest(state: CombatState, root: RootAction): Test | null {
-  const actor = state.characters[root.actorId]
   const terms = getRootTestTerms(state, root)
-  if (!actor || !terms) return null
+  if (!terms) return null
   const base = { skill: sumTerms(terms.skill), DL: sumTerms(terms.DL), explodes: false }
-  switch (root.kind) {
-    case 'strike':
-    case 'shoot':
-      return { ...base, scale: 'overflow', grazes: !isPiercingAttack(actor, root) }
-    case 'cast':
-      return { ...base, scale: 'overflow', grazes: !root.quicken }
-    default:
-      // a maneuver, a Balance test and a spell's test, the only other kinds
-      // with terms
-      return { ...base, scale: 'degrees' }
-  }
+  return terms.scale === 'overflow' ? { ...base, scale: 'overflow', grazes: terms.grazes } : { ...base, scale: 'degrees' }
 }
 
 function getManeuverTerms(c: Character): Term[] {
