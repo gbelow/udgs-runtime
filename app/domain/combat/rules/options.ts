@@ -86,10 +86,10 @@ function guardOption(state: CombatState, c: CampaignCharacter, root: Action, gua
   return { cost: priced, reason }
 }
 
-// Whether anyone has an answer open to the committed action. With none, the
-// table owes it nothing before its die.
-export function hasOpenAnswer(state: CombatState): boolean {
-  return Object.keys(state.characters).some((id) => getAvailableActions(state, id).some((o) => o.available))
+// Whether anyone, among `ids` (everyone by default), has an answer open to
+// the committed action. With none, the table owes it nothing before its die.
+export function hasOpenAnswer(state: CombatState, ids: readonly string[] = Object.keys(state.characters)): boolean {
+  return ids.some((id) => getAvailableActions(state, id).some((o) => o.available))
 }
 
 // Everything the character may declare right now: their own actions while no

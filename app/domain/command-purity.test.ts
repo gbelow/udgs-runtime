@@ -194,6 +194,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
   payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
+  rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
   improveSpell: (s) => combatCommands.improveSpell('enhance')(deepFreeze(rolledCast(s))),

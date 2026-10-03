@@ -89,8 +89,16 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
       ? { ...withHold(state, actor, open, dice), step: 'react' }
       : { ...open, step: 'react' }
     const locked = replaceActions(state, [committed])
-    if (hasOpenAnswer(locked)) return locked
-    return needsDie(locked, committed) ? rollAction(dice, newId)(locked) : payAction(newId)(locked)
+    return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
+  }
+}
+
+// What the table does once nobody owes the committed action an answer: throws
+// its die, or pays it where it has none.
+export function rollOrPay(dice: Dice, newId: () => string): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'react')
+    return open && needsDie(state, open) ? rollAction(dice, newId)(state) : payAction(newId)(state)
   }
 }
 

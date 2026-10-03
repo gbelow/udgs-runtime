@@ -112,7 +112,11 @@ export type ActionReport = {
 
 export function getLastReport(state: CombatState): ActionReport | null {
   const id = state.history.at(-1)
-  const root = id ? getAction(state, id) : null
+  return id ? getActionReport(state, id) : null
+}
+
+export function getActionReport(state: CombatState, id: string): ActionReport | null {
+  const root = getAction(state, id)
   if (!root) return null
   const named = (id: string) => getFightName(state, id)
   const delivered = getDeliveries(root)

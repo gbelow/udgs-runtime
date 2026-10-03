@@ -46,6 +46,16 @@ export function rollModed(mode: RollMode, explodes: boolean, dice: Dice): number
   }
 }
 
+// A reproducible source of entropy for `rollD10`: the same seed gives the same
+// run of numbers, in [0, 1).
+export function seededRng(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
+
 // A plain uniform die. It carries no test rule, but it shares the reason
 // rollD10 lives here: the entropy source is injected, so nothing in the app
 // reaches for Math.random on its own.

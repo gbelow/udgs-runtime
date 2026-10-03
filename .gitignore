@@ -45,3 +45,6 @@ next-env.d.ts
 
 # python bytecode
 __pycache__/
+
+# simulation reports
+/reports/

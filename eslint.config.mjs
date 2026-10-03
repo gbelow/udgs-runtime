@@ -68,6 +68,8 @@ const eslintConfig = [
               "**/domain/*/projections/**",
               "**/domain/*/commands",
               "**/domain/*/commands/**",
+              "**/domain/bot",
+              "**/domain/bot/**",
             ],
             allowTypeImports: true,
             message:

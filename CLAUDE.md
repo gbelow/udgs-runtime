@@ -15,6 +15,7 @@ pnpm start    # serve production build
 pnpm lint     # eslint
 pnpm test     # vitest (watch)
 pnpm test:run # vitest single run
+pnpm sim      # bots play the scenarios in tools/sim over many seeds; writes reports/sim-<scenario>.md (gitignored)
 ```
 
 Package manager is **pnpm**, Node v20+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).
@@ -32,6 +33,8 @@ Pure, synchronous, deterministic, zero React dependencies. Each part of the doma
 - The read-for-UI side differs by part. Under `character/` it is **lenses** (`lenses/`): invertible `{get, set}` pairs over a character, where `set` inverts through the modifiers so the stored *base* value changes, never the derived value, plus the view getters (`getWeaponPanels`, `getArmorPanel`, `getSpellSheetRows`…) that shape the character for a screen. Registries are aggregated in `lenses/index.ts` (`skillLenses`, `characteristicLenses`, `movementLenses`), keyed by the corresponding type. Under `combat/` and `item/` it is **projections** (`projections/`): state arranged for a screen — the action panel, board view, roster, outcome previews, the hands and container panels, the catalog rows — with nothing to invert. Neither has a lens: nothing there has a `set`.
 
 A file that mixes a rule with its view is split, not filed under whichever half is bigger.
+
+`domain/bot/` is a player, not a part of the rules: pure functions that read a `CombatState` through the combat rules and answer with the same commands a person presses (`stepBot`, `playBot`). It decides nothing the book decides — what it may do is whatever `getAvailableActions` shows open — and a hook or server action drives it.
 
 Before working in `combat/`, read `instructions/combat-map.md`: the action pipeline, the stack and its sequencing, and a map of every file. It points to detail files under `instructions/combat-map/` (mechanics, landing, board); read only the one the change touches.
 
