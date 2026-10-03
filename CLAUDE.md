@@ -69,10 +69,6 @@ Hooks (`app/hooks/`) are thin adapters, one per concern — keep new logic out o
 
 @instructions/testing.md
 
-## Commiting
-
-run /simplify before every commit
-
 ## The rulebook (authoritative source for game rules)
 
 The tabletop rules this app implements live in a separate, **read-only** LaTeX repo: `C:/Users/Administrator/code/RPG_Below_v7_en` (registered as an additional working directory; writes are denied, and its own `CLAUDE.md` forbids AI editing of the `.tex` text).

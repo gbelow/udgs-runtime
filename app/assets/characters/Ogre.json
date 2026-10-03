@@ -1,60 +1,297 @@
 {
+  "tags": [
+    "humanoid",
+    "giant"
+  ],
+  "type": "base",
   "name": "Ogre",
-  "characteristics": {
-    "size": 5,
-    "STR": 12,
-    "AGI": 10,
-    "STA": 11,
-    "CON": 0,
-    "INT": 0,
-    "SPI": 0,
-    "DEX": 0,
-    "melee": 0,
-    "ranged": 0,
-    "detection": 0,
-    "spellcast": 0,
-    "conviction1": 0,
-    "conviction2": 0,
-    "devotion": 0,
-    "RES": 0,
-    "INS": 0,
-    "TGH": 0
+  "trainables": {
+    "strike": {
+      "value": 1,
+      "name": "Strike",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "defend": {
+      "value": 0,
+      "name": "Defend",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "reflex": {
+      "value": 0,
+      "name": "Reflex",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "accuracy": {
+      "value": 0,
+      "name": "Accuracy",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "grapple": {
+      "value": 0,
+      "name": "Grapple",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "SD": {
+      "value": 0,
+      "name": "SD",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "stealth": {
+      "value": 0,
+      "name": "Stealth",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "prestidigitation": {
+      "value": 0,
+      "name": "Prestidigitation",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "balance": {
+      "value": 0,
+      "name": "Balance",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "detection": {
+      "value": 0,
+      "name": "Detection",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "health": {
+      "value": 0,
+      "name": "Health",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "force": {
+      "value": 0,
+      "name": "Force",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "swim": {
+      "value": 0,
+      "name": "Swim",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "climb": {
+      "value": 0,
+      "name": "Climb",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "explore": {
+      "value": 0,
+      "name": "Explore",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "cunning": {
+      "value": 0,
+      "name": "Cunning",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "will": {
+      "value": 0,
+      "name": "Will",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "persuasion": {
+      "value": 0,
+      "name": "Persuasion",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "deception": {
+      "value": 0,
+      "name": "Deception",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "insight": {
+      "value": 0,
+      "name": "Insight",
+      "XP": 0,
+      "talent": "",
+      "type": "skill"
+    },
+    "STR": {
+      "value": 13,
+      "name": "Strength",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "AGI": {
+      "value": 10,
+      "name": "Agility",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "STA": {
+      "value": 12,
+      "name": "Stamina",
+      "XP": 0,
+      "talent": "",
+      "type": "attribute"
+    },
+    "CON": {
+      "value": 3,
+      "name": "Constitution",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "INT": {
+      "value": 0,
+      "name": "Intelligence",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "SPI": {
+      "value": 2,
+      "name": "Spirit",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "DEX": {
+      "value": 1,
+      "name": "Dexterity",
+      "XP": 0,
+      "talent": "",
+      "type": "talent"
+    },
+    "melee": {
+      "value": 0,
+      "name": "Melee",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "ranged": {
+      "value": 0,
+      "name": "Ranged",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "awareness": {
+      "value": 1,
+      "name": "Awareness",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "sorcery": {
+      "value": 0,
+      "name": "Sorcery",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "conviction1": {
+      "value": 0,
+      "name": "Temperament",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "conviction2": {
+      "value": 0,
+      "name": "Worldview",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "devotion": {
+      "value": 0,
+      "name": "Devotion",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    },
+    "charisma": {
+      "value": 0,
+      "name": "Charisma",
+      "XP": 0,
+      "talent": "",
+      "type": "proficiency"
+    }
   },
-  "skills": {
-    "strike": 0,
-    "defend": 0,
-    "reflex": 0,
-    "accuracy": 0,
-    "grapple": 0,
-    "SD": 0,
-    "stealth": 0,
-    "prestidigitation": 0,
-    "balance": 0,
-    "strength": 0,
-    "health": 0,
-    "swim": 0,
-    "climb": 0,
-    "knowledge": 0,
-    "explore": 0,
-    "cunning": 0,
-    "will": 0,
-    "persuasion": 0,
-    "deception": 0,
-    "insight": 0,
-    "devotion": 0,
-    "combustion": 0,
-    "eletromag": 0,
-    "radiation": 0,
-    "entropy": 0,
-    "biomancy": 0,
-    "telepathy": 0,
-    "animancy": 0,
-    "charm": 0,
-    "stress": 0,
-    "acting": 0,
-    "sneak": -9,
-    "detect": 0,
-    "sense": 0
+  "knowledges": {},
+  "size": 5,
+  "shape": "blob",
+  "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "active": true,
+      "rangePenalty": 2,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "hearing": {
+      "name": "Hearing",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "smell": {
+      "name": "Smell",
+      "active": false,
+      "rangePenalty": 5,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "touch": {
+      "name": "Touch",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": true
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "active": true,
+      "rangePenalty": 100,
+      "bonus": 0,
+      "hasSense": false
+    }
   },
   "movement": {
     "basic": 1,
@@ -68,60 +305,119 @@
   },
   "hasGauntlets": 0,
   "hasHelm": 0,
+  "visorOpen": false,
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
   "worn": {
-    "id": "5320c231-81a6-48e2-9ff5-b6edc6770f38",
-    "name": "Clothing",
+    "id": "d239a0fe-7f1e-4c52-95ba-25c0ebf15d20",
+    "name": "Fur Coat",
     "description": "",
     "type": "armor",
     "amount": 1,
-    "bulk": 2,
-    "refId": "Clothing"
+    "bulk": 4,
+    "refId": "FurCoat",
+    "charge": null,
+    "source": null,
+    "broken": false
   },
-  "weapons": {
-    "ShortSword": {
-      "name": "ShortSword",
-      "burdenPenalty": 0,
-      "scale": 5,
-      "attacks": [
-        {
-          "type": "melee",
-          "handed": "one",
-          "impact": 16,
-          "STRmod": 0,
-          "heavyMod": 0,
-          "penMod": 2,
-          "range": "short",
-          "RES": 100,
-          "RESmod": 0,
-          "TGH": 40,
-          "TGHmod": 0,
-          "AP": 3,
-          "deflection": 0,
-          "props": "precise, draw"
-        },
-        {
-          "type": "melee",
-          "handed": "one",
-          "impact": 20,
-          "STRmod": 0,
-          "heavyMod": 0.5,
-          "penMod": 1,
-          "range": "short",
-          "RES": 100,
-          "RESmod": 0,
-          "TGH": 30,
-          "TGHmod": 0,
-          "AP": 3,
-          "deflection": 0,
-          "props": "sweep, draw, DEF, heavy I"
-        }
-      ]
+  "body": [
+    {
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "1c6311a3-9117-47cf-9700-7faf252dede0",
+      "naturalWeapon": "Unarmed",
+      "lost": false
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "a28a0603-1e04-4d09-8fb5-e0896614ecb7",
+      "naturalWeapon": "Unarmed",
+      "lost": false
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "lost": false
     }
+  ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
   },
+  "held": [
+    {
+      "id": "1c6311a3-9117-47cf-9700-7faf252dede0",
+      "name": "Mace",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 4,
+      "refId": "Mace",
+      "charge": null,
+      "source": null,
+      "broken": false
+    },
+    {
+      "id": "a28a0603-1e04-4d09-8fb5-e0896614ecb7",
+      "name": "Wooden Shield",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 5,
+      "refId": "Wooden Shield",
+      "charge": null,
+      "source": null,
+      "broken": false
+    }
+  ],
+  "onBack": null,
   "containers": {},
-  "notes": "",
-  "tags": [
-    "humanoid",
-    "giant"
-  ]
+  "abilities": [],
+  "spells": {},
+  "notes": ""
 }

@@ -1,20 +1,20 @@
 {
   "tags": [
     "humanoid",
-    "proficient"
+    "common"
   ],
   "type": "base",
-  "name": "Human Warrior",
+  "name": "Human Spearman",
   "trainables": {
     "strike": {
-      "value": 2,
+      "value": 0,
       "name": "Strike",
       "XP": 0,
       "talent": "",
       "type": "skill"
     },
     "defend": {
-      "value": 2,
+      "value": 0,
       "name": "Defend",
       "XP": 0,
       "talent": "",
@@ -28,7 +28,7 @@
       "type": "skill"
     },
     "accuracy": {
-      "value": 1,
+      "value": 0,
       "name": "Accuracy",
       "XP": 0,
       "talent": "",
@@ -112,7 +112,7 @@
       "type": "skill"
     },
     "cunning": {
-      "value": 0,
+      "value": 1,
       "name": "Cunning",
       "XP": 0,
       "talent": "",
@@ -147,70 +147,70 @@
       "type": "skill"
     },
     "STR": {
-      "value": 12,
+      "value": 10,
       "name": "Strength",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "AGI": {
-      "value": 11,
+      "value": 10,
       "name": "Agility",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "STA": {
-      "value": 12,
+      "value": 10,
       "name": "Stamina",
       "XP": 0,
       "talent": "",
       "type": "attribute"
     },
     "CON": {
-      "value": 2,
+      "value": 1,
       "name": "Constitution",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "INT": {
-      "value": 0,
+      "value": 1,
       "name": "Intelligence",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "SPI": {
-      "value": 1,
+      "value": 0,
       "name": "Spirit",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "DEX": {
-      "value": 2,
+      "value": 1,
       "name": "Dexterity",
       "XP": 0,
       "talent": "",
       "type": "talent"
     },
     "melee": {
-      "value": 2,
+      "value": 1,
       "name": "Melee",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
     },
     "ranged": {
-      "value": 1,
+      "value": 0,
       "name": "Ranged",
       "XP": 0,
       "talent": "",
       "type": "proficiency"
     },
     "awareness": {
-      "value": 2,
+      "value": 1,
       "name": "Awareness",
       "XP": 0,
       "talent": "",
@@ -303,7 +303,7 @@
     "fast swim": 0.5,
     "stand": 0
   },
-  "hasGauntlets": 1,
+  "hasGauntlets": 0,
   "hasHelm": 0,
   "visorOpen": false,
   "armor": {
@@ -318,13 +318,13 @@
     "notes": ""
   },
   "worn": {
-    "id": "5bd2ab9c-a5ec-47d3-8a8c-0ae9f7e8764a",
-    "name": "Hauberk",
+    "id": "75fafd4b-821c-465c-8a8f-c8fb8518ae4b",
+    "name": "Gambeson",
     "description": "",
     "type": "armor",
     "amount": 1,
-    "bulk": 4,
-    "refId": "Hauberk",
+    "bulk": 2,
+    "refId": "Gambeson",
     "charge": null,
     "source": null,
     "broken": false
@@ -353,7 +353,7 @@
       "name": "left hand",
       "location": "hand",
       "grip": true,
-      "itemId": "e84ba3b8-5234-4d6b-8e50-cd151b7f3446",
+      "itemId": "3f93c5a0-7230-411f-aebc-7aa3bfa26d6a",
       "naturalWeapon": "Unarmed",
       "lost": false
     },
@@ -362,7 +362,7 @@
       "name": "right hand",
       "location": "hand",
       "grip": true,
-      "itemId": "514f4e08-4415-41b5-844d-a734f355f281",
+      "itemId": "28d60e42-ce65-45e2-b9e1-b50d4bde38a1",
       "naturalWeapon": "Unarmed",
       "lost": false
     },
@@ -391,25 +391,25 @@
   },
   "held": [
     {
-      "id": "514f4e08-4415-41b5-844d-a734f355f281",
-      "name": "Wooden Shield",
-      "description": "",
-      "type": "weapon",
-      "amount": 1,
-      "bulk": 3,
-      "refId": "Wooden Shield",
-      "charge": null,
-      "source": null,
-      "broken": false
-    },
-    {
-      "id": "e84ba3b8-5234-4d6b-8e50-cd151b7f3446",
+      "id": "3f93c5a0-7230-411f-aebc-7aa3bfa26d6a",
       "name": "Short Spear",
       "description": "",
       "type": "weapon",
       "amount": 1,
       "bulk": 3,
       "refId": "Short Spear",
+      "charge": null,
+      "source": null,
+      "broken": false
+    },
+    {
+      "id": "28d60e42-ce65-45e2-b9e1-b50d4bde38a1",
+      "name": "Wooden Shield",
+      "description": "",
+      "type": "weapon",
+      "amount": 1,
+      "bulk": 3,
+      "refId": "Wooden Shield",
       "charge": null,
       "source": null,
       "broken": false
@@ -424,20 +424,7 @@
         "quick": {
           "numSlots": 4,
           "slotBulk": 2,
-          "items": [
-            {
-              "id": "ccbd525e-1e51-4820-9cfd-d228e4411e49",
-              "name": "Short Sword",
-              "description": "",
-              "type": "weapon",
-              "amount": 1,
-              "bulk": 2,
-              "refId": "Short Sword",
-              "charge": null,
-              "source": null,
-              "broken": false
-            }
-          ]
+          "items": []
         },
         "medium": {
           "numSlots": 0,
@@ -456,6 +443,5 @@
   },
   "abilities": [],
   "spells": {},
-  "limitStress": null,
   "notes": ""
 }

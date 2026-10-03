@@ -472,6 +472,28 @@ describe('a riposte', () => {
 // knockdown attempt which cannot be reacted against if they are running or
 // jumping." The table's ruling: the knockdown comes only once the damage is
 // bought, and costs nothing more.
+// Regression: the opportunity attack was only gated on some strike being
+// affordable, so a row the attacker could not pay for completed and committed.
+describe('an opportunity attack declared with a row it cannot pay for', () => {
+  it('is incomplete, so the commit is refused', () => {
+    let s = onBoard({ atk: [0, 0], def: [-3, 0], h: [0, 1] }, archer('atk'), fighter('def'), wielder('h', 'Halberd'))
+    s = declareAction('atk', { kind: 'shoot', weaponKey: s.characters.atk.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
+    s = commitAction(() => 5, newId)(setTarget('def')(s))
+    const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
+    s = declareReaction('h', option.draft, newId)(s)
+    const rootId = getOpenAction(s)!.id
+    const completeWith = (STA: number, o: { weaponKey: string; attack: string; variant: string }) => {
+      const poorer = { ...s, characters: { ...s.characters, h: { ...s.characters.h, resources: { ...s.characters.h.resources, STA } } } }
+      const amended = amendReaction('h', { weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(poorer)
+      const reaction = getLiveReactionsTo(amended, rootId).find((r) => r.actorId === 'h')!
+      return isDeclarationComplete(amended, amended.characters.h, reaction)
+    }
+    const priced = getAttackOptions(s.characters.h, 'strike').filter((o) => o.STA > 0 && completeWith(o.STA, o))
+    expect(priced.length).toBeGreaterThan(0)
+    for (const o of priced) expect(completeWith(o.STA - 1, o)).toBe(false)
+  })
+})
+
 describe('a hook attack', () => {
   // A halberdier hooks, at `location`, a runner setting off away from them,
   // the hook hitting; with its damage bought or not, and landed.

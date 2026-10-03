@@ -84,7 +84,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
       const root = getRootOf(state, action)
       if (root && !action.grab && findTrigger(state, root, action)?.catchOnly) return false
-      return getAttackVariant(c, strike) !== null && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant) && isAimOnTarget(state, strike)
+      const cost = getOwnCost(state, strike)
+      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost) && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant) && isAimOnTarget(state, strike)
         && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they

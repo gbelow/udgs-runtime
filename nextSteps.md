@@ -18,15 +18,11 @@
 - add customization options to weapons
 - add customization options to armors
 
-## body
-- auto track spending charges
-
 # terrain
 - items on the ground, containers in terrain
 - environmental effects
 
 ## add abilities 
-- add tex generator from catalogue
 - finish melee combat abilities
 - finish ranged combat abilities
 
@@ -34,9 +30,8 @@
 - add tex generator from catalogue
 
 ## cunning
-- feint
 - preparing actions
-- analyse
+- analyse - wait until multiplayer. allow seeing character without controlling
 
 # movement
 - climbing
@@ -45,13 +40,18 @@
 - swimming tests
 - jumping over things
 
-# morale test
--add it
-
 ## healing
+- sleep
+- medicine abilities
+- magic
+- potions
 
 ## simulation
 - build ai strategies
+
+# morale
+- feign death
+- call help
 
 
 ## compiling to book
@@ -96,33 +96,27 @@
 - left panel colapsible
 - actions becomes main game interface
 
-# technical
-- separate actions in combat rules - organize by skills
-
 ## issues
-flamethrower needs charges 
-flamethrower retarget as reaction - cost rework.
-flamethrower require focus surge to sustain
+erasing field gives no default. errors field
+defending net with weapon binds weapon.
+attacking items on floor
+blast/spell damage on weapon breakage
 
 wound healing is undefined - possession healing neither
+retweak morale based spells
 
-soft grapple weapons - whip is not grapple, nor is net
-donning doffing gauntlets and helmets
 swimming in armor
-sweeping attack
-mark place where reflexes lands - didnt work with 2 characters using reflexes
 think corrosive damage
-automatic flee on evasive jump - only give option if not interrupted
-
+prepared reaction
 
 # left for combat
+- items on the terrain
 - stealth/senses
-- movement 
-- sweeping attack
+- movement and terrain
 - abilities and spells
-- morale
-- give item to ally - 1 standard action from each - catching mid air
 - analyse to find items, feint
+- riding
+- combat snapshots, do/undo action, list of last actions
 
 # no map combat 
 - explosions
