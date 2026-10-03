@@ -212,7 +212,10 @@ resolveAction ─────────► land(top)
   damage came to on each target is written when it lands (`results`, `commands/results.ts`,
   read off each target as they stand before it lands), the outcome and its steps with the rule
   each follows (`explainOutcome`, `character/rules/damage.ts`); an older record without
-  `results` is read live.
+  `results` is read live. What its roll and landing changed in the fight (`changes`, found by
+  comparing the fight before and after in `applyPhase`, `rules/changes.ts`) is written onto it,
+  and what a command outside any action changed on a character (`updateCharacter`, which takes
+  a cause) goes to `state.edits`.
 
 ## Detail files
 
@@ -256,6 +259,7 @@ app/domain/combat/
 ├── rules/                           what the book says about a state
 │   ├── actionCatalog.ts ACTIONS (with each kind's `rule`), isReaction/isRootAction/isDefense
 │   ├── deliveries.ts   what an action delivered, per character
+│   ├── changes.ts      getChanges: what a step changed in the fight, by comparing it before and after
 │   ├── log.ts          open action, stack lookups, reactionTo/spawnedBy lookups
 │   ├── action.ts       declaration completeness, costs, getNextStep, needsDie, targets
 │   ├── options.ts      getAvailableActions / findOption: what may be declared, and why not

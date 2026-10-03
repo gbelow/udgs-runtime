@@ -50,7 +50,7 @@ export type Result = z.infer<typeof ResultSchema>
 // thing a character gained or lost (a wound, an affliction, a part, a surge),
 // or a thing that went from one place to another (an item, a character on the
 // board).
-const ChangePhase = z.enum(['roll', 'save', 'resolve'])
+const ChangePhase = z.enum(['roll', 'save', 'resolve', 'edit'])
 export const ChangeSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('value'), phase: ChangePhase, id: str, what: str, from: num, to: num }).strip(),
   z.object({ kind: z.literal('gain'), phase: ChangePhase, id: str, what: z.enum(['wound', 'affliction', 'part', 'surge']), name: str, gained: z.boolean() }).strip(),
@@ -996,6 +996,12 @@ export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>
 export const JournalEntrySchema = z.object({ action: ActionSchema, reason: WithdrawalReasonSchema, round: num, turn: num })
 export type JournalEntry = z.infer<typeof JournalEntrySchema>
 
+// What a command outside any action changed on a character — a surge, an item
+// drawn or stowed, a sheet edit — and what it was, with the number of actions
+// that had landed when it was made.
+export const EditEntrySchema = z.object({ cause: str, round: num, turn: num, landed: num, changes: z.array(ChangeSchema) }).strip()
+export type EditEntry = z.infer<typeof EditEntrySchema>
+
 // The shape of a fight. This lives in the domain — not in the Zustand store —
 // so the combat commands can be pure `(state) => state` updaters with no
 // dependency on the state layer. The store composes this with its actions.
@@ -1071,6 +1077,9 @@ export const CombatStateSchema = z.object({
   // What was withdrawn from play without landing, in the order it was; only
   // ever added to.
   journal: z.array(JournalEntrySchema).default([]),
+  // What commands outside any action changed on a character, in the order
+  // they were made; only ever added to.
+  edits: z.array(EditEntrySchema).default([]),
   // Null is a fight with no grid: every positional gate passes, and the
   // fight is played as it was before there was a board.
   board: BoardSchema.nullable().default(null),

@@ -9,7 +9,7 @@ import { updateCharacter } from './characters'
 import { markStress } from './stress'
 
 const paySocial = (id: string): Updater => (state) =>
-  updateCharacter(id, (c) => payCost(getActionCost(c, 'socialAction'))(c))(state)
+  updateCharacter(id, (c) => payCost(getActionCost(c, 'socialAction'))(c), 'social action')(state)
 
 // The 5 AP paid, and what the character said written as the pressure it puts
 // on each target's morale test, read at the next round's beginning

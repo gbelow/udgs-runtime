@@ -16,8 +16,8 @@ export function oweStress(state: CombatState): CombatState {
   const stress = getStressTurns(state)
   const done = stress.filter((t) => t.taken)
   const owed = done.reduce((s, { id, action }) => {
-    if (action === 'tanatosis') return updateCharacter(id, inflict(['unconscious']))(s)
-    return action === 'martyr' ? updateCharacter(id, actionSurge('reaction'))(s) : s
+    if (action === 'tanatosis') return updateCharacter(id, inflict(['unconscious']), 'limit stress')(s)
+    return action === 'martyr' ? updateCharacter(id, actionSurge('reaction'), 'limit stress')(s) : s
   }, { ...state, stress })
   return takeStressTurn(owed)
 }

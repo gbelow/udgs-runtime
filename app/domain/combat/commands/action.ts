@@ -171,7 +171,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
-    const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge))(state) : state
+    const paid = chosen.surge ? updateCharacter(actorId, actionSurge(chosen.surge), `${chosen.surge} surge for a reaction`)(state) : state
     const reaction = { ...aimed, surged: getSurgeMade(state, paid, actorId, chosen.surge) }
     const replaced = getLiveReactionsTo(paid, open.id).filter((r) => r.actorId === actorId)
     return pruneReactions(appendActions(withdrawActions(paid, replaced.map((r) => r.id), 'replaced'), [reaction]))

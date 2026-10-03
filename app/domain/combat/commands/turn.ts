@@ -70,6 +70,6 @@ export function endTurn(state: CombatState): CombatState {
 export function surge(id: string, kind: SurgeKind): Updater {
   return (state) => {
     if (getSurgeTurnBar(state, id, kind)) return state
-    return updateCharacter(id, actionSurge(kind, getCompelledSurge(state, id) === kind))(state)
+    return updateCharacter(id, actionSurge(kind, getCompelledSurge(state, id) === kind), `${kind} surge`)(state)
   }
 }

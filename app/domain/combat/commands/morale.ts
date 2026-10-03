@@ -17,7 +17,7 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     if (!test || getMoraleBar(state, id)) return state
     const { die, score, degree } = resolveTest(test, (explodes) => rollModed(mode, explodes, dice))
     const outcome = getMoraleOutcome(degree, enemyNear, getPressure(state, id).hostile?.kind === 'taunt')
-    const settled = updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)))(state)
+    const settled = updateCharacter(id, (c) => inflict(outcome.inflict)(cure(outcome.cure)(c)), 'morale test')(state)
     const roll: MoraleRoll = { mode, die, skill: test.skill, score, DL: test.DL, degree, limitStress: outcome.limitStress }
     const tested = { ...settled, morale: settled.morale.map((call) => (call.id === id ? { ...call, roll } : call)) }
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)

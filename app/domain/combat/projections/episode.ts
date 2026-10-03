@@ -152,11 +152,19 @@ function getStopCause(state: CombatState, move: MoveAction, facts: MoveFacts): s
   return by ? describe(state, by) : null
 }
 
-function describeChange(state: CombatState, change: Change): string {
+export function describeChange(state: CombatState, change: Change): string {
   const who = getFightName(state, change.id)
   switch (change.kind) {
     case 'value': return `${who}: ${change.what} ${change.from} → ${change.to}`
     case 'gain': return `${who}: ${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
     case 'move': return `${change.name}: ${change.from} → ${change.to}`
   }
+}
+
+// What commands outside any action changed since the last action landed, a
+// line each.
+export function getEditsSince(state: CombatState): string[] {
+  return state.edits
+    .filter((e) => e.landed >= state.record.length)
+    .flatMap((e) => e.changes.map((c) => `${e.cause}: ${describeChange(state, c)}`))
 }

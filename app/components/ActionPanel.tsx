@@ -39,7 +39,7 @@ export function ActionPanel(){
           {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
           {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
         </div>
-        {view.episode ? <Report episode={view.episode} /> : null}
+        {view.episode || view.edits.length > 0 ? <Report episode={view.episode ?? []} edits={view.edits} /> : null}
       </Panel>
     )
   }
@@ -292,7 +292,7 @@ export function ActionPanel(){
           </div>
         </div>
       ) : null}
-      {view.episode ? <Report episode={view.episode} /> : null}
+      {view.episode || view.edits.length > 0 ? <Report episode={view.episode ?? []} edits={view.edits} /> : null}
     </Panel>
   )
 }
@@ -505,11 +505,12 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
 // answers given to it, what those opened, the follow-ups it left — in the
 // order they landed: the last thing the table saw, kept where the next
 // declaration is made.
-function Report({ episode }: { episode: EpisodeEntry[] }){
+function Report({ episode, edits }: { episode: EpisodeEntry[], edits: string[] }){
   return (
     <div className='flex flex-col gap-2 pt-2 mt-2 border-t border-line'>
       <SectionLabel>last</SectionLabel>
       {episode.map((entry, i) => <ReportEntry key={i} entry={entry} />)}
+      {edits.map((e, i) => <span key={i} className='text-xs text-muted'>since: {e}</span>)}
     </div>
   )
 }

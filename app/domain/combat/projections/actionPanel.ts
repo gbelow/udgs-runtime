@@ -14,7 +14,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { getActionNotes, getOutcomes } from './outcomes'
-import { EpisodeEntry, getLastEpisode } from './episode'
+import { EpisodeEntry, getEditsSince, getLastEpisode } from './episode'
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
@@ -306,9 +306,11 @@ export type ActionPanelView = {
   deliveries: DeliveryView[]
   // what the last action played out came to, with everything it drew
   episode: EpisodeEntry[] | null
+  // what commands outside any action changed since it landed
+  edits: string[]
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null }
+const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -318,9 +320,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const open = getOpenAction(state)
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
   const episode = getLastEpisode(state)
+  const edits = getEditsSince(state)
 
   if (!open) {
-    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode }
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode, edits }
   }
 
   const actor = state.characters[open.actorId]
@@ -406,6 +409,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
     },
     episode,
+    edits,
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor

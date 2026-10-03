@@ -14,5 +14,5 @@ import { sinkInArmor } from './swim'
 export function closeTurn(state: CombatState, holder: string): CombatState {
   const fire = getHazardOf(state, holder).fire
   const ended = { ...state, inTurnCharacter: '', fleeing: false, forcedSurge: '', contenders: [] }
-  return sinkInArmor(holder)(updateCharacter(holder, (c) => ({ ...burnScorch(touchFire(fire)(endSurge(c))), runsFree: false }))(ended))
+  return sinkInArmor(holder)(updateCharacter(holder, (c) => ({ ...burnScorch(touchFire(fire)(endSurge(c))), runsFree: false }), 'turn ends')(ended))
 }
