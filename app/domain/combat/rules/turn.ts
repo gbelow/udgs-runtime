@@ -64,7 +64,7 @@ function getContestClosed(state: CombatState): string | null {
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'
   if (getStressTurn(state)) return 'the turn is a limit stress action'
   if (state.lastContest) return 'the turn was contested'
-  if (state.actions.length > state.turnStartedAt) return 'the turn is under way'
+  if (state.actions.some((a) => a.turn === state.turn)) return 'the turn is under way'
   return null
 }
 

@@ -227,7 +227,7 @@ quadratic in actions. I did not measure it; check `pnpm sim` timings before cari
 **Problem.** `commands/sequence.ts` is "the engine" for actions, yet it also owns turn
 handover: `beginTurn`, `handOverToFleers`, `takeQueuedTurn`, `forceSurge`, and imports
 `closeTurn`, `getTurnHolder`, `canTakeQueuedTurn`. Turn state (`inTurnCharacter`,
-`turnStartedAt`, `contenders`, `lastContest`, `fleeing`, `fleers`, `turnQueue`,
+`turn`, `turnsBegun`, `contenders`, `lastContest`, `fleeing`, `fleers`, `turnQueue`,
 `forcedSurge`) is a hand-rolled state machine on `CombatState`, written by `sequence.ts`,
 `commands/turn.ts`, `closeTurn.ts`, `stress.ts`, `morale.ts`, `nextRound.ts`.
 
@@ -239,7 +239,7 @@ finite, which is argued in comments and tested by scenarios, not enforced.
 1. Move turn handover out of `sequence.ts` into a `turn` command module and have `advance`
    end by calling one hook ("the stack is empty").
 2. Model the turn as one discriminated value (e.g. `turn: { holder, kind: 'normal' |
-   'flee' | 'stress', startedAt, contenders, … }`) so that "fleeing with nobody due" or
+   'flee' | 'stress', turn, contenders, … }`) so that "fleeing with nobody due" or
    "forcedSurge owed to someone not in the fight" cannot be represented. Today those are
    legal states.
 3. Either iterate instead of recursing, or add a depth guard that throws in tests so a

@@ -47,7 +47,7 @@ delete the file once every box is ticked.
 - [ ] Extend DL `extend * EXTEND.DL`: `character/rules/spells.ts`, `combat/rules/attack.ts`,
   `projections/actionPanel.ts` → `getExtendDL`.
 - [ ] Setting the turn fields (`inTurnCharacter`, `contenders`, `lastContest`,
-  `turnStartedAt`): `startTurn`, `rollContest`, `endTurn`, `takeQueuedTurn`,
+  `turn`): `startTurn`, `rollContest`, `endTurn`, `takeQueuedTurn`,
   `handOverToFleers` → one helper.
 - [ ] "Read the active id, then dispatch" three times in `useCombatCommands.tsx`.
 - [ ] Throwable items: `options.ts` and `actionPanel.ts` → `getThrowables`.

@@ -159,6 +159,9 @@ const ActionBase = {
   // An action another opened that its actor chose not to take: closed
   // without landing, and kept so it is not offered again.
   declined: z.boolean().default(false),
+  // The turn this action was declared in (`CombatState.turn`), stamped when it
+  // enters the log; null until then.
+  turn: num.nullable().default(null),
   cost: ActionCostSchema.nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
   // HOP purchase -> times bought
@@ -921,7 +924,7 @@ export type ContestRoll = z.infer<typeof ContestRollSchema>
 // A turn waiting to be taken: whose, whether it is a flee, and — for one
 // that was interrupted — how long the log was when it first started, so it
 // resumes as the turn it was
-export const QueuedTurnSchema = z.object({ id: z.string(), fleeing: z.boolean().default(false), startedAt: z.number().nullable().default(null) })
+export const QueuedTurnSchema = z.object({ id: z.string(), fleeing: z.boolean().default(false), turn: z.number().nullable().default(null) })
 export type QueuedTurn = z.infer<typeof QueuedTurnSchema>
 export type Contest = z.infer<typeof ContestSchema>
 
@@ -937,11 +940,13 @@ export const CombatStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
   round: z.number().default(0),
-  // play.tex "Combat": whose turn it is, '' for nobody's, and how long the
-  // action log was when it started — the turn can be contested until
-  // something is declared in it
+  // play.tex "Combat": whose turn it is, '' for nobody's, and which turn that
+  // is (the number the actions declared in it carry) — the turn can be
+  // contested until something is declared in it. `turnsBegun` numbers the
+  // next turn that starts fresh; a resumed turn takes back its own number.
   inTurnCharacter: z.string().default(''),
-  turnStartedAt: z.number().default(0),
+  turn: z.number().default(0),
+  turnsBegun: z.number().default(0),
   // who has asked to contest the turn, in the order they asked, and the
   // contest once it is rolled — a turn is contested once
   contenders: z.array(z.string()).default([]),

@@ -20,7 +20,8 @@ import { deliverAll } from '../../character/commands/deliver'
 // The fight with its log rewritten, and the stack kept to the actions still
 // being played out: `pushed` goes on top, anything resolved or gone leaves,
 // and what leaves having landed goes into the history.
-export function setActions(state: CombatState, actions: Action[], pushed: string[] = []): CombatState {
+export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
+  const actions = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn } : a))
   const live = new Set(actions.filter((a) => a.step !== 'done').map((a) => a.id))
   const landed = state.stack.filter((id) => !live.has(id) && actions.some((a) => a.id === id && !a.declined))
   return { ...state, actions, stack: [...state.stack, ...pushed].filter((id) => live.has(id)), history: [...state.history, ...landed] }

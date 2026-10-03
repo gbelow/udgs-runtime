@@ -69,9 +69,10 @@ function forceSurge(state: CombatState, feint: FeintAction): CombatState {
 }
 
 // The character's turn begins: nobody has asked to contest it yet, and it
-// counts from `startedAt` in the log — now, unless it is one resumed.
-export function beginTurn(state: CombatState, id: string, { fleeing = false, startedAt = state.actions.length } = {}): CombatState {
-  return { ...state, inTurnCharacter: id, fleeing, turnStartedAt: startedAt, contenders: [], lastContest: null }
+// is numbered `turn` — a fresh one unless it is one resumed.
+export function beginTurn(state: CombatState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): CombatState {
+  const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
+  return { ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }
 }
 
 // combat.tex "Flee": "This reaction interrupts the opponents turn, which is
@@ -81,9 +82,9 @@ export function beginTurn(state: CombatState, id: string, { fleeing = false, sta
 // turn after them.
 export function handOverToFleers(state: CombatState): CombatState {
   if (state.fleers.length === 0 || getOpenAction(state)) return state
-  const fleers = [...new Set(state.fleers)].map((id): QueuedTurn => ({ id, fleeing: true, startedAt: null }))
+  const fleers = [...new Set(state.fleers)].map((id): QueuedTurn => ({ id, fleeing: true, turn: null }))
   const holder = getTurnHolder(state)
-  const resumed: QueuedTurn[] = holder ? [{ id: holder, fleeing: state.fleeing, startedAt: state.turnStartedAt }] : []
+  const resumed: QueuedTurn[] = holder ? [{ id: holder, fleeing: state.fleeing, turn: state.turn }] : []
   return takeQueuedTurn({ ...state, fleers: [], inTurnCharacter: '', fleeing: false, contenders: [], turnQueue: [...fleers, ...resumed, ...state.turnQueue] })
 }
 
@@ -94,7 +95,7 @@ export function takeQueuedTurn(state: CombatState): CombatState {
   if (!next) return state
   const queued = { ...state, turnQueue: rest }
   if (!canTakeQueuedTurn(state, next.id)) return takeQueuedTurn(queued)
-  return beginTurn(queued, next.id, { fleeing: next.fleeing, startedAt: next.startedAt ?? state.actions.length })
+  return beginTurn(queued, next.id, { fleeing: next.fleeing, turn: next.turn })
 }
 
 // What the root's reactions open before its effect, the next of them once
