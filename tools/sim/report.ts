@@ -35,14 +35,15 @@ export function renderSummary(name: string, about: string, runs: Run[], parties:
   lines.push(`| both fell | ${none} | ${pct(none, runs.length)} |`, `| round cap | ${capped} | ${pct(capped, runs.length)} |`, `| stalled | ${stalled} | ${pct(stalled, runs.length)} |`, '')
   lines.push(`Rounds to finish: mean ${mean(rounds).toFixed(1)}, min ${Math.min(...rounds)}, max ${Math.max(...rounds)}.`, '')
 
-  lines.push('## What each side did, per fight', '', '| side | actions | strikes | shots | moves | attack hit rate |', '|---|---|---|---|---|---|')
+  lines.push('## What each side did, per fight', '', '| side | actions | strikes | shots | moves | answers | attack hit rate |', '|---|---|---|---|---|---|---|')
   for (const label of [...labels, 'unmanaged']) {
     const per = runs.map((r) => r.sim.log.filter((a) => side(parties, labels, a.actorId) === label))
     if (per.every((l) => l.length === 0)) continue
     const count = (kind: ActionKind) => mean(per.map((l) => l.filter((a) => a.kind === kind).length)).toFixed(1)
+    const answers = mean(runs.map((r) => r.sim.final.actions.filter((a) => a.reactionTo !== null && side(parties, labels, a.actorId) === label).length)).toFixed(1)
     const attacks = per.flatMap((l) => l.filter((a) => ATTACKS.includes(a.kind)))
     const hits = attacks.filter((a) => a.report.roll && a.report.roll.degree !== 'miss').length
-    lines.push(`| ${label} | ${mean(per.map((l) => l.length)).toFixed(1)} | ${count('strike')} | ${count('shoot')} | ${count('move')} | ${pct(hits, attacks.length)} |`)
+    lines.push(`| ${label} | ${mean(per.map((l) => l.length)).toFixed(1)} | ${count('strike')} | ${count('shoot')} | ${count('move')} | ${answers} | ${pct(hits, attacks.length)} |`)
   }
   lines.push('')
 

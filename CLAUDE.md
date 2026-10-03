@@ -15,7 +15,7 @@ pnpm start    # serve production build
 pnpm lint     # eslint
 pnpm test     # vitest (watch)
 pnpm test:run # vitest single run
-pnpm sim      # bots play the scenarios in tools/sim over many seeds; writes reports/sim-<scenario>.md (gitignored)
+pnpm sim      # bots play catalog matchups over many seeds, writes reports/sim-<name>.md (gitignored); `pnpm sim --side "Ogre" --side "Human Warrior*2"` for your own, `--list` for the catalog
 ```
 
 Package manager is **pnpm**, Node v20+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).

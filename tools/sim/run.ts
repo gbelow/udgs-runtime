@@ -2,20 +2,45 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { rollD10, seededRng } from '../../app/domain/combat/dice'
 import { simulate } from '../../app/domain/bot/simulate'
-import { SCENARIOS } from './scenarios'
+import { listCatalog, makeScenario, PRESETS, type Matchup } from './scenarios'
 import { renderLog, renderSummary, type Run } from './report'
 
-// pnpm sim [scenario ...] [--seeds N] [--rounds N]
-// Plays each scenario with the bots over a run of seeds and writes what
-// happened to reports/sim-<scenario>.md.
+// pnpm sim [preset ...]                      the presets (all, or those named)
+// pnpm sim --side "Ogre" --side "Human Warrior*2" [--distance 6] [--name ogres]
+//                                            a matchup of your own: one --side
+//                                            per side, catalog names comma
+//                                            separated, `*N` for N of one
+// pnpm sim --list                            the catalog's characters
+// Either takes [--seeds N] [--rounds N]. Each is played with a bot per side
+// over a run of seeds, and what happened goes to reports/sim-<name>.md.
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { seeds: { type: 'string', default: '200' }, rounds: { type: 'string', default: '20' } } })
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
+  options: {
+    side: { type: 'string', multiple: true },
+    distance: { type: 'string', default: '6' },
+    name: { type: 'string' },
+    seeds: { type: 'string', default: '200' },
+    rounds: { type: 'string', default: '20' },
+    list: { type: 'boolean', default: false },
+  },
+})
+
+if (values.list) {
+  console.log(listCatalog().join('\n'))
+  process.exit(0)
+}
+
+const sides = (values.side ?? []).map((s) => s.split(',').map((e) => e.trim()))
+const custom: Matchup[] = sides.length > 0
+  ? [{ name: values.name ?? sides.map((s) => s.join('+')).join('-vs-').replace(/[^\w+*-]+/g, '_'), sides, distance: Number(values.distance) }]
+  : []
+const matchups = custom.length > 0 ? custom : positionals.length > 0 ? PRESETS.filter((p) => positionals.includes(p.name)) : PRESETS
 const seeds = Number(values.seeds)
 const maxRounds = Number(values.rounds)
-const chosen = positionals.length > 0 ? SCENARIOS.filter((s) => positionals.includes(s.name)) : SCENARIOS
 
 mkdirSync('reports', { recursive: true })
-for (const scenario of chosen) {
+for (const scenario of matchups.map(makeScenario)) {
   const { state, parties, labels } = scenario.build()
   const runs: Run[] = []
   for (let seed = 1; seed <= seeds; seed++) {
