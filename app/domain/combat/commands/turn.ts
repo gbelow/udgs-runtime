@@ -5,7 +5,9 @@ import { getCunning } from '../../character/rules/skills'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder } from '../rules/turn'
 import { updateCharacter } from './characters'
-import { takeQueuedTurn } from './sequence'
+import { beginTurn, takeQueuedTurn } from './sequence'
+import { markStress, takeStressTurn } from './stress'
+import { getCompelledSurge, getStressTurn } from '../rules/stress'
 import { closeTurn } from './closeTurn'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
@@ -13,7 +15,7 @@ import { closeTurn } from './closeTurn'
 export function startTurn(id: string): Updater {
   return (state) => {
     if (getStartTurnBar(state, id)) return state
-    return { ...state, inTurnCharacter: id, turnStartedAt: state.actions.length, contenders: [], lastContest: null }
+    return beginTurn(state, id)
   }
 }
 
@@ -53,11 +55,13 @@ export function rollContest(dice: Dice): Updater {
 }
 
 // The turn ends (`closeTurn`). The next turn waiting in the queue is then
-// taken: the next fleer's, or the turn their flee interrupted.
+// taken: the next fleer's, or the turn their flee interrupted; failing those,
+// the next limit stress action owed.
 export function endTurn(state: CombatState): CombatState {
   const holder = getTurnHolder(state)
   if (getEndTurnBar(state) || !holder) return state
-  return takeQueuedTurn(closeTurn(state, holder))
+  const settled = getStressTurn(state) ? markStress(holder, { taken: true })(state) : state
+  return takeStressTurn(takeQueuedTurn(closeTurn(settled, holder)))
 }
 
 // combat.tex "Action surge", in the fight: the character's own gate — once a
@@ -66,6 +70,6 @@ export function endTurn(state: CombatState): CombatState {
 export function surge(id: string, kind: SurgeKind): Updater {
   return (state) => {
     if (getSurgeTurnBar(state, id, kind)) return state
-    return updateCharacter(id, actionSurge(kind))(state)
+    return updateCharacter(id, actionSurge(kind, getCompelledSurge(state, id) === kind))(state)
   }
 }

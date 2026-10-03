@@ -8,10 +8,10 @@ import { canSurge, getSurgeAP } from "../rules/surge"
 // kind it was. `canSurge` holds the whole gate — round, price and affliction —
 // so the command refuses exactly what the button shows as closed. An
 // earmarked surge's AP is kept apart from the rest (`surgeAP`).
-export function actionSurge(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
+export function actionSurge(kind: SurgeKind, compelled = false): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { STA, earmarked } = SURGES[kind]
-    if (!c.resources || !canSurge(kind)(c)) return c
+    if (!c.resources || !canSurge(kind, compelled)(c)) return c
     const char = bleed(STA)(c)
     const AP = getSurgeAP(kind)(c)
     return {

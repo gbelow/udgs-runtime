@@ -22,11 +22,11 @@ export type SurgeOption = {
   used: boolean
 }
 
-export function getSurgeOptions(c: CampaignCharacter): SurgeOption[] {
+export function getSurgeOptions(c: CampaignCharacter, compelled: SurgeKind | null = null): SurgeOption[] {
   return surgeKinds.map((kind) => ({
     kind,
     title: `${SURGES[kind].STA} STA for ${getSurgeAP(kind)(c)} AP. ${getAllowanceLine(kind)}${SURGES[kind].restriction}`,
-    available: canSurge(kind)(c),
+    available: canSurge(kind, kind === compelled)(c),
     used: c.usedSurge === kind,
   }))
 }

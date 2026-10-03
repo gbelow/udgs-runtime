@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, PUSH_MOVEMENTS } from '../lists'
-import { SOCIAL_ACTIONS, SPELL_MODIFICATIONS } from '../tables'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from './dice'
 
@@ -892,10 +892,23 @@ export const PressureSchema = z.object({
   round: z.number(),
   from: z.string(),
   target: z.string(),
-  kind: z.enum(SOCIAL_ACTIONS),
+  kind: z.enum(PRESSURE_KINDS),
   value: z.number(),
 })
 export type Pressure = z.infer<typeof PressureSchema>
+
+// creating.tex "Limit Stress Actions": a character a miss in the morale test
+// owes their limit stress action, `action` as it stands after the book's
+// substitutions (a martyr who is enraged is violent; an abusive or a traitor
+// the table finds nobody for is a coward). `acted` is whether the social
+// action it compels has been taken; `taken` whether their turn for it is over.
+export const StressTurnSchema = z.object({
+  id: z.string(),
+  action: z.enum(LIMIT_STRESS_ACTIONS),
+  acted: z.boolean().default(false),
+  taken: z.boolean().default(false),
+})
+export type StressTurn = z.infer<typeof StressTurnSchema>
 export type MoraleRoll = z.infer<typeof MoraleRollSchema>
 export type MoraleCall = z.infer<typeof MoraleCallSchema>
 
@@ -939,6 +952,10 @@ export const CombatStateSchema = z.object({
   // combat.tex "Morale": who the beginning of this round called to a test, and
   // the tests made
   morale: z.array(MoraleCallSchema).default([]),
+  // creating.tex "Limit Stress Actions": the limit stress actions the morale
+  // tests activated, the worst test first — each taken as a turn before
+  // anyone else's, and kept to the round's end for what a martyr still owes
+  stress: z.array(StressTurnSchema).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Surrender": who has flagged themselves surrendered

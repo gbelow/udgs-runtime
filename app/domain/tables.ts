@@ -326,6 +326,12 @@ export const SOCIAL_ACTIONS = ['intimidate', 'taunt', 'rally'] as const
 export type SocialAction = (typeof SOCIAL_ACTIONS)[number]
 export const SOCIAL_BONUS = 1
 
+// creating.tex "Limit Stress Actions" (abusive): the insult "increas[es] the
+// morale test DL by +1 for the team". Compelled, never chosen, so it is no
+// member of `SOCIAL_ACTIONS`.
+export const PRESSURE_KINDS = [...SOCIAL_ACTIONS, 'insult'] as const
+export const INSULT_BONUS = 1
+
 // combat.tex "running": "The first 2 AP worth of running must be
 // uninterrupted, otherwise, running cannot be started".
 export const RUN_START_AP = 2

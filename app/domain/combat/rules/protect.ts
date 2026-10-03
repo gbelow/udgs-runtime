@@ -6,6 +6,8 @@ import { canStandAt } from './ground'
 import { findWeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
 import { hasGrant } from '../../character/rules/abilities'
+import { getSurgeAP } from '../../character/rules/surge'
+import { isMartyrGuard } from './stress'
 
 // The block or intercept someone meets a strike with, their own or made for
 // someone else (combat.tex "Protect").
@@ -38,12 +40,16 @@ export function getProtectors(state: CombatState, root: StrikeAction): string[] 
 // movement as a reaction to position yourself to defend someone" — where a
 // protector who knows it may step to before they block or intercept: any
 // place they can stand within one AP of basic movement, on the line (the
-// table's ruling).
+// table's ruling). A martyr holding the reaction surge their limit stress
+// action made may run as far as that surge's AP buys (creating.tex "Limit
+// Stress Actions": "to protect an ally and reposition"), the table's ruling.
 export function getDefenderSteps(state: CombatState, root: StrikeAction, id: string): Placement[] {
   const c = state.characters[id]
   const from = state.board?.placements[id]
-  if (!c || !from || !hasGrant(c, 'protectStep')) return []
-  const reach = Math.floor(getMoveBlockCells(c, 'basic', 1))
+  const martyr = isMartyrGuard(state, id)
+  if (!c || !from || (!martyr && !hasGrant(c, 'protectStep'))) return []
+  const basic = Math.floor(getMoveBlockCells(c, 'basic', 1))
+  const reach = martyr ? Math.max(basic, Math.floor(getMoveBlockCells(c, 'run', getSurgeAP('reaction')(c)))) : basic
   return disk(from.cell, reach)
     .filter((cell) => !sameCell(cell, from.cell))
     .map((cell) => ({ ...from, cell }))

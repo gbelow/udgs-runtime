@@ -22,11 +22,14 @@ export function getSurgeAP(kind: SurgeKind): (c: CampaignCharacter) => number {
 // reaction, 1 for focus — so the affordable set is not uniform. A surge is
 // also closed by the affliction that forbids it (afraid / enraged); the
 // derived set is read so a forced state counts the same as a hand-set one.
-export function canSurge(kind: SurgeKind): (c: CampaignCharacter) => boolean {
+// creating.tex "Limit Stress Actions": a surge the limit stress action
+// compels is made under the affliction that would forbid it (the table's
+// ruling: a violent character surges for combat while afraid).
+export function canSurge(kind: SurgeKind, compelled = false): (c: CampaignCharacter) => boolean {
   return (c: CampaignCharacter) => {
     const surge = SURGES[kind]
     if (c.usedSurge !== null || surge.STA > c.resources.STA) return false
-    return !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
+    return compelled || !('forbiddenBy' in surge) || !hasAffliction(c, surge.forbiddenBy)
   }
 }
 

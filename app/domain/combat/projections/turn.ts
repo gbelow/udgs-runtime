@@ -2,6 +2,7 @@ import type { CombatState } from '../types'
 import { getContestBar, getContenders, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
 import { getFightName } from '../rules/fighters'
 import { getBreakageBar } from '../rules/breakage'
+import { getCompelledSurge } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
@@ -58,5 +59,5 @@ function getContestResult(state: CombatState): string {
 export function getCombatSurgeOptions(state: CombatState, id: string): SurgeOption[] {
   const c = state.characters[id]
   if (!c) return []
-  return getSurgeOptions(c).map((o) => (getSurgeTurnBar(state, id, o.kind) ? { ...o, available: false } : o))
+  return getSurgeOptions(c, getCompelledSurge(state, id)).map((o) => (getSurgeTurnBar(state, id, o.kind) ? { ...o, available: false } : o))
 }

@@ -16,6 +16,7 @@ import { isSuffocating } from '../rules/situational'
 import { getMoraleCalled } from '../rules/morale'
 import { getHold, getUpkeepAims } from '../rules/fireAgain'
 import { makeAction } from '../factories'
+import { cure } from '../../character/commands/addAffliction'
 import { appendActions } from './log'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
@@ -34,14 +35,16 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 // bleed intensity at the end of every round in combat), the surge used this
 // round is cleared and the AP reset. Whoever still holds a spell makes the
 // focus surge holding it takes (the table's ruling), or lets go of it when
-// they cannot. A dead character has nothing left to pay or bleed
-// out further.
+// they cannot. Whoever fell in tanatosis wakes (creating.tex "Limit Stress
+// Actions": "wakes up the next"). A dead character has nothing left to pay or
+// bleed out further.
 function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): CampaignCharacter {
   if (isDead(c)) return c
   const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(payHeldSources(() => rollPercent(dice))(c))))
   const spent = expireUsedAbilities(burnt)
   const due = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
-  const reset = resetAP({ ...due, usedSurge: null })
+  const woken = state.stress.some((t) => t.id === c.id && t.action === 'tanatosis') ? cure(['unconscious'])(due) : due
+  const reset = resetAP({ ...woken, usedSurge: null })
   if (!isConcentrating(reset)) return reset
   return canSurge('focus')(reset) ? actionSurge('focus')(reset) : loseConcentration(reset)
 }
@@ -55,7 +58,7 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 export function nextRound(dice: Dice, newId: () => string): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [] }
+    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], stress: [] }
     const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }

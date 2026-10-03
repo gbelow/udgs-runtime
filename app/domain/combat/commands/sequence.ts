@@ -65,7 +65,13 @@ function forceSurge(state: CombatState, feint: FeintAction): CombatState {
   const holder = getTurnHolder(state)
   if (holder === feinted) return { ...state, forcedSurge: feinted }
   const ended = holder ? closeTurn(state, holder) : state
-  return { ...ended, inTurnCharacter: feinted, forcedSurge: feinted, turnStartedAt: state.actions.length, contenders: [], lastContest: null }
+  return { ...beginTurn(ended, feinted), forcedSurge: feinted }
+}
+
+// The character's turn begins: nobody has asked to contest it yet, and it
+// counts from `startedAt` in the log — now, unless it is one resumed.
+export function beginTurn(state: CombatState, id: string, { fleeing = false, startedAt = state.actions.length } = {}): CombatState {
+  return { ...state, inTurnCharacter: id, fleeing, turnStartedAt: startedAt, contenders: [], lastContest: null }
 }
 
 // combat.tex "Flee": "This reaction interrupts the opponents turn, which is
@@ -88,7 +94,7 @@ export function takeQueuedTurn(state: CombatState): CombatState {
   if (!next) return state
   const queued = { ...state, turnQueue: rest }
   if (!canTakeQueuedTurn(state, next.id)) return takeQueuedTurn(queued)
-  return { ...queued, inTurnCharacter: next.id, fleeing: next.fleeing, turnStartedAt: next.startedAt ?? state.actions.length, contenders: [], lastContest: null }
+  return beginTurn(queued, next.id, { fleeing: next.fleeing, startedAt: next.startedAt ?? state.actions.length })
 }
 
 // What the root's reactions open before its effect, the next of them once

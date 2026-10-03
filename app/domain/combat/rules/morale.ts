@@ -12,8 +12,10 @@ import { getSituationalAfflictions, isSuffocating } from './situational'
 // combat.tex "Social actions": what was said to the character in the round
 // before, "multiple intimidations and taunts don't stack. Only the highest
 // one counts", and so for rallies. Earlier ones have lapsed, a rally with the
-// morale phase it was said before. Of two equal, the first said counts.
-export type SocialPressure = { hostile: Pressure | null; rally: Pressure | null }
+// morale phase it was said before. Of two equal, the first said counts. An
+// insult (creating.tex "Limit Stress Actions", abusive) is neither: it adds to
+// the DL and calls no test of its own.
+export type SocialPressure = { hostile: Pressure | null; rally: Pressure | null; insult: Pressure | null }
 
 function highest(pressures: Pressure[]): Pressure | null {
   return pressures.reduce<Pressure | null>((best, p) => (best === null || p.value > best.value ? p : best), null)
@@ -21,7 +23,11 @@ function highest(pressures: Pressure[]): Pressure | null {
 
 export function getPressure(state: CombatState, id: string): SocialPressure {
   const said = state.pressure.filter((p) => p.target === id && p.round === state.round - 1)
-  return { hostile: highest(said.filter((p) => p.kind !== 'rally')), rally: highest(said.filter((p) => p.kind === 'rally')) }
+  return {
+    hostile: highest(said.filter((p) => p.kind !== 'rally' && p.kind !== 'insult')),
+    rally: highest(said.filter((p) => p.kind === 'rally')),
+    insult: highest(said.filter((p) => p.kind === 'insult')),
+  }
 }
 
 // combat.tex "Social actions": the value is "1 + character's charisma/2".
@@ -35,7 +41,7 @@ export function getSocialValue(c: CampaignCharacter): number {
 export function getAggravators(state: CombatState, id: string): Term[] {
   const c = state.characters[id]
   if (!c) return []
-  const { hostile, rally } = getPressure(state, id)
+  const { hostile, rally, insult } = getPressure(state, id)
   const afflictions = getAfflictions(c, getSituationalAfflictions(state, id))
   const terms: Term[] = []
   if (afflictions.includes('oblivious')) terms.push({ label: 'oblivious', value: MORALE_AGGRAVATORS.oblivious })
@@ -45,6 +51,7 @@ export function getAggravators(state: CombatState, id: string): Term[] {
   if (c.injuries.burning > 0 || isSuffocating(state, c)) terms.push({ label: 'burning or suffocating', value: MORALE_AGGRAVATORS.burning })
   if (c.resources.STA <= 0) terms.push({ label: 'out of STA', value: MORALE_AGGRAVATORS.outOfSTA })
   if (hostile) terms.push({ label: hostile.kind, value: hostile.value })
+  if (insult) terms.push({ label: 'insult', value: insult.value })
   if (rally) terms.push({ label: 'rally', value: -rally.value })
   return terms
 }

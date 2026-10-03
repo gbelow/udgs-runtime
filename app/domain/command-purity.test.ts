@@ -167,6 +167,8 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
   say: (s) => combatCommands.say('a', 'taunt', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a' })),
   negotiate: (s) => combatCommands.negotiate('a')(deepFreeze(cleared(s))),
+  insult: (s) => combatCommands.insult('a', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', stress: [{ id: 'a', action: 'abusive', acted: false, taken: false }] })),
+  defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', stress: [{ id: 'a', action: 'abusive', acted: false, taken: false }] })),
   surrender: (s) => combatCommands.surrender('a')(deepFreeze(cleared(s))),
   unsurrender: (s) => combatCommands.unsurrender('a')(deepFreeze({ ...cleared(s), surrendered: ['a'] })),
   resetCombat: combatCommands.resetCombat,

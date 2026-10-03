@@ -6,6 +6,7 @@ import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
 import { getOpenAction } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
+import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
 // ask, first to play' basis that can be contested by other characters". A
@@ -43,7 +44,7 @@ function getTurnlessReason(state: CombatState, id: string): string | null {
 // "Morale": "at the beginning of a round") come first.
 export function getStartTurnBar(state: CombatState, id: string): string | null {
   if (getTurnHolder(state) === id) return 'already in turn'
-  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state)
+  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getStressStartBar(state, id)
 }
 
 // What the fight is busy with, if anything: someone's turn, or an action
@@ -60,6 +61,7 @@ function getContestClosed(state: CombatState): string | null {
   if (!getTurnHolder(state)) return 'nobody is in turn'
   if (state.fleeing) return 'the turn is a flee'
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'
+  if (getStressTurn(state)) return 'the turn is a limit stress action'
   if (state.lastContest) return 'the turn was contested'
   if (state.actions.length > state.turnStartedAt) return 'the turn is under way'
   return null
@@ -111,6 +113,8 @@ export function hasAgreedToEnd(state: CombatState, id: string): boolean {
 export function getNextRoundBar(state: CombatState): string | null {
   const busy = getFightBusy(state)
   if (busy) return busy
+  const owed = getStressRoundBar(state)
+  if (owed) return owed
   const waiting = Object.keys(state.characters).filter((id) => !hasAgreedToEnd(state, id))
   return waiting.length > 0 ? `waiting for ${waiting.map((id) => getFightName(state, id)).join(', ')} to agree` : null
 }
@@ -127,5 +131,5 @@ function getForcedSurgeBar(state: CombatState, holder: string): string | null {
 export function getEndTurnBar(state: CombatState): string | null {
   const holder = getTurnHolder(state)
   if (!holder) return 'nobody is in turn'
-  return getOpenAction(state) ? 'an action is being played out' : getForcedSurgeBar(state, holder)
+  return getOpenAction(state) ? 'an action is being played out' : getForcedSurgeBar(state, holder) ?? getStressEndBar(state)
 }

@@ -230,7 +230,8 @@ app/domain/combat/
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
-│   ├── social.ts       say: intimidate, taunt or rally for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free) and negotiate (5 AP only)
+│   ├── social.ts       say: intimidate, taunt, rally or an abusive's insult for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free), negotiate (5 AP only), defaultToCoward
+│   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.stress`; tanatosis and a martyr who can pay make theirs at once), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
@@ -274,6 +275,7 @@ app/domain/combat/
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── morale.ts       aggravators and the DL (social pressure of the round before included), who a round calls to a test, the outcome of each degree; `state.morale` holds the calls, and a turn waits on them
 │   ├── social.ts       who a social action may be said to, and when it, a surrender, an unsurrender or a negotiation is barred
+│   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: `getDefenderSteps`)
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands

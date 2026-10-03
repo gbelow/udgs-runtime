@@ -4,7 +4,7 @@ import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
 import { rollMorale as testMorale } from "../domain/combat/commands/morale"
-import { say as saySocial, negotiate as negotiateSocial, surrender as surrenderSocial, unsurrender as unsurrenderSocial } from "../domain/combat/commands/social"
+import { say as saySocial, insult as insultSocial, negotiate as negotiateSocial, defaultToCoward as defaultToCowardSocial, surrender as surrenderSocial, unsurrender as unsurrenderSocial } from "../domain/combat/commands/social"
 import type { SocialAction } from "../domain/tables"
 import type { Updater } from "../domain/combat/types"
 import type { RollMode } from "../domain/combat/dice"
@@ -75,7 +75,13 @@ export function useCombatCommands() {
     if (id) updateCombatState(command(id))
   }
 
+  const insult = (targets: string[]) => {
+    const id = useCombatStore.getState().activeCharacterId
+    if (id) updateCombatState(insultSocial(id, targets))
+  }
+
   const negotiate = asActive(negotiateSocial)
+  const defaultToCoward = asActive(defaultToCowardSocial)
   const surrender = asActive(surrenderSocial)
   const unsurrender = asActive(unsurrenderSocial)
 
@@ -87,5 +93,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, say, negotiate, surrender, unsurrender, resetCombat, toggleBreakage }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage }
 }

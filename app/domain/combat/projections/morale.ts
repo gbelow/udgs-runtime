@@ -1,7 +1,8 @@
 import { SOCIAL_ACTIONS, type SocialAction } from '../../tables'
 import type { CombatState } from '../types'
 import { getAggravators, getMoraleBar, getMoraleDL, getSocialValue } from '../rules/morale'
-import { getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { getInsultBar, getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
 import { perState } from './perState'
 
@@ -15,8 +16,11 @@ export type MoraleRow = {
   bar: string | null
   // the test as it was made, '' before it is
   result: string
-  // the character's limit stress action when the test activated it, else null
+  // the character's limit stress action as it stands when the test activated
+  // it, else null
   limitStress: string | null
+  // what is still owed of it this round, null when nothing is
+  owed: string | null
 }
 
 // combat.tex "Morale": everyone the round called to a test, what weighs on
@@ -29,7 +33,8 @@ function buildMoraleRows(state: CombatState): MoraleRow[] {
     aggravators: getAggravators(state, id).map((t) => `${t.label} +${t.value}`).join(', '),
     bar: getMoraleBar(state, id),
     result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}` : '',
-    limitStress: roll?.limitStress ? state.characters[id].limitStress ?? 'not chosen' : null,
+    limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
+    owed: getStressOwed(state, id),
   }))
 }
 
@@ -38,6 +43,9 @@ export type SocialPanel = {
   bar: string | null
   // why the character cannot negotiate, and cannot raise or lower the surrender flag
   negotiateBar: string | null
+  // why the abusive cannot insult now, and why they cannot be taken for a coward
+  insultBar: string | null
+  cowardBar: string | null
   surrenderBar: string | null
   unsurrenderBar: string | null
   surrendered: boolean
@@ -56,6 +64,8 @@ export function getSocialPanel(state: CombatState, id: string): SocialPanel {
   return {
     bar: getSayBar(state, id, 'intimidate', targets.map((t) => t.id)),
     negotiateBar: getSocialBar(state, id),
+    insultBar: getInsultBar(state, id, targets.map((t) => t.id)),
+    cowardBar: getStressSocial(state, id) ? null : 'not compelled to a social action',
     surrenderBar: getSurrenderBar(state, id),
     unsurrenderBar: getUnsurrenderBar(state, id),
     surrendered: state.surrendered.includes(id),

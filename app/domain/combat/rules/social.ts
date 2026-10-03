@@ -4,11 +4,17 @@ import { getAfflictions } from '../../character/rules/afflictions'
 import { canAffordRest } from '../../character/rules/rest'
 import { getOpenAction } from './log'
 import { getSituationalAfflictions } from './situational'
+import { getStressSocial } from './stress'
 
-// Who a social action is said to: others in the fight, once each. combat.tex
-// "Taunt": a taunt "triggers a morale test for one enemy".
+// Who anything is said to: others in the fight, once each.
+export function getOthers(state: CombatState, id: string, targets: string[]): string[] {
+  return targets.filter((t, i) => t !== id && state.characters[t] && targets.indexOf(t) === i)
+}
+
+// Who a social action is said to. combat.tex "Taunt": a taunt "triggers a
+// morale test for one enemy".
 export function getSocialTargets(state: CombatState, id: string, kind: SocialAction, targets: string[]): string[] {
-  const said = targets.filter((t, i) => t !== id && state.characters[t] && targets.indexOf(t) === i)
+  const said = getOthers(state, id, targets)
   return kind === 'taunt' ? said.slice(0, 1) : said
 }
 
@@ -25,6 +31,13 @@ export function getSocialBar(state: CombatState, id: string): string | null {
 
 export function getSayBar(state: CombatState, id: string, kind: SocialAction, targets: string[]): string | null {
   return getSocialBar(state, id) ?? (getSocialTargets(state, id, kind, targets).length === 0 ? 'nobody to say it to' : null)
+}
+
+// creating.tex "Limit Stress Actions" (abusive): why the character cannot
+// insult now, or null — only the abusive in their owed turn, to someone.
+export function getInsultBar(state: CombatState, id: string, targets: string[]): string | null {
+  if (getStressSocial(state, id) !== 'insult') return 'not compelled to insult'
+  return getSocialBar(state, id) ?? (getOthers(state, id, targets).length === 0 ? 'nobody to insult' : null)
 }
 
 // combat.tex "Surrender": the flag is raised once.

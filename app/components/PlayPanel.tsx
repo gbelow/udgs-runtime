@@ -458,6 +458,7 @@ function MoralePanel(){
             <span className='text-xs text-muted'>{r.result}</span>
           }
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
+          {r.owed ? <span className='text-xs text-muted'>{r.owed}</span> : null}
         </div>
       ))}
     </div>
@@ -469,8 +470,8 @@ function MoralePanel(){
 // at the next round's beginning. Negotiating and surrendering cost the same
 // and take no one; the table plays out what they come to.
 function SocialPanel(){
-  const { bar, negotiateBar, surrenderBar, unsurrenderBar, surrendered, value, kinds, targets } = useSocial()
-  const { say, negotiate, surrender, unsurrender } = useCombatCommands()
+  const { bar, negotiateBar, insultBar, cowardBar, surrenderBar, unsurrenderBar, surrendered, value, kinds, targets } = useSocial()
+  const { say, insult, negotiate, defaultToCoward, surrender, unsurrender } = useCombatCommands()
   const [picked, setPicked] = useState<string[]>([])
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
 
@@ -487,6 +488,12 @@ function SocialPanel(){
         <Button key={kind} size='xs' aria-label={`social ${kind}`} disabled={bar !== null || picked.length === 0} title={bar ?? undefined} onClick={() => say(kind, picked)}>{kind} · {value}</Button>
       ))}
       <Button size='xs' aria-label='social negotiate' disabled={negotiateBar !== null} title={negotiateBar ?? undefined} onClick={negotiate}>negotiate</Button>
+      {insultBar === null || cowardBar === null ? (
+        <>
+          <Button size='xs' aria-label='social insult' disabled={insultBar !== null || picked.length === 0} title={insultBar ?? undefined} onClick={() => insult(picked)}>insult</Button>
+          <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} title={cowardBar ?? undefined} onClick={defaultToCoward}>default to coward</Button>
+        </>
+      ) : null}
       {surrendered
         ? <Button size='xs' aria-label='social unsurrender' disabled={unsurrenderBar !== null} title={unsurrenderBar ?? undefined} onClick={unsurrender}>unsurrender</Button>
         : <Button size='xs' aria-label='social surrender' disabled={surrenderBar !== null} title={surrenderBar ?? undefined} onClick={surrender}>surrender</Button>}
