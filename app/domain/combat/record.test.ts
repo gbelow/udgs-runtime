@@ -43,6 +43,20 @@ describe('what a played-out fight records', () => {
           if (recorded > 0) injuries++
         }
 
+        // what a step's actions record as changed is what changed
+        const known = (st: typeof state) => new Map([...st.actions, ...st.record].map((a) => [a.id, a.changes.length]))
+        const was = known(state)
+        const added = [...next.actions, ...next.record].flatMap((a) => a.changes.slice(was.get(a.id) ?? 0))
+        if (added.length > 0) {
+          for (const id of ['a', 'b']) {
+            for (const what of ['AP', 'STA', 'injury level']) {
+              const recorded = added.filter((c) => c.kind === 'value' && c.id === id && c.what === what).reduce((sum, c) => sum + (c.kind === 'value' ? c.to - c.from : 0), 0)
+              const read = (st: typeof state) => (what === 'injury level' ? st.characters[id].injuries.injuryLevel : st.characters[id].resources[what as 'AP' | 'STA'])
+              expect(read(next) - read(state)).toBe(recorded)
+            }
+          }
+        }
+
         // nothing leaves play without landing or reaching the journal, but a
         // draft that was never committed
         const kept = new Set([...next.actions, ...next.record, ...next.journal.map((j) => j.action)].map((a) => a.id))

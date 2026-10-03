@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, CombatState, CostTerm, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
+import type { Action, ActionRoll, Change, CombatState, CostTerm, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
@@ -22,6 +22,7 @@ export type ReactionLine = {
   costTerms: CostTerm[]
   surged: Action['surged']
   roll: ActionRoll | null
+  changes: string[]
 }
 
 // Something committed or offered that left play without landing, and why.
@@ -36,6 +37,8 @@ export type EpisodeEntry = ActionReport & {
   cost: ActionCost | null
   costTerms: CostTerm[]
   surged: Action['surged']
+  // what its roll and its landing changed, a line each
+  changes: string[]
   // how it came to be played, when not on its actor's own initiative
   cause: string | null
   // why it came to less than it was declared as, when it did
@@ -55,7 +58,7 @@ export function getLastEpisode(state: CombatState): EpisodeEntry[] | null {
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, cause: getCause(state, a), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -100,7 +103,7 @@ function describeWithdrawal(state: CombatState, { action, reason }: JournalEntry
 function getReactionLines(state: CombatState, root: Action): ReactionLine[] {
   return getReactionsTo(state, root.id)
     .filter((r) => r.step === 'done')
-    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, cost: r.cost, costTerms: r.costTerms, surged: r.surged, roll: r.roll }))
+    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, cost: r.cost, costTerms: r.costTerms, surged: r.surged, roll: r.roll, changes: r.changes.map((c) => describeChange(state, c)) }))
 }
 
 function describe(state: CombatState, action: Action): string {
@@ -147,4 +150,13 @@ function getStopCause(state: CombatState, move: MoveAction, facts: MoveFacts): s
   if (blocked) return getFightName(state, blocked.id)
   const by = getMoveOverride(state, move)?.by
   return by ? describe(state, by) : null
+}
+
+function describeChange(state: CombatState, change: Change): string {
+  const who = getFightName(state, change.id)
+  switch (change.kind) {
+    case 'value': return `${who}: ${change.what} ${change.from} → ${change.to}`
+    case 'gain': return `${who}: ${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
+    case 'move': return `${change.name}: ${change.from} → ${change.to}`
+  }
 }

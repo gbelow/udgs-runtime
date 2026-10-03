@@ -9,6 +9,7 @@ import { settleBinds } from './bind'
 import { holdMoveTest } from './heldTest'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
+import { getChanges } from '../rules/changes'
 import { getBrokenArcs } from '../rules/fireAgain'
 import { releaseSpell } from '../../character/commands/spells'
 import { deliverAll } from '../../character/commands/deliver'
@@ -68,14 +69,22 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 // carried its swimmer's test for the round makes it theirs as it is rolled.
 export function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((held, action) => {
-    const s = phase === 'roll' && action.kind === 'move' ? holdMoveTest(held, action) : held
-    if (phase === 'resolve' && isVoided(s, action)) return s
-    const board = s.board ? reduceBoard(s, action, phase)(s.board) : null
-    const fire = phase === 'resolve' ? getFireTouched({ ...s, board }, action) : null
-    const next = mapCharacters(s, reduceCharacter(action, phase, fire))
-    const placed = { ...next, board, floor: reduceFloor(s, action, phase)(s.floor), binds: reduceBinds(s, action, phase)(next.binds) }
-    return settleSevered(s, action.id)(settleBinds(phase === 'resolve' ? settleArcs(placed) : placed))
+    const applied = applyOne(held, action, phase)
+    const changes = getChanges(held, applied, phase)
+    if (changes.length === 0) return applied
+    const note = (a: Action) => (a.id === action.id ? { ...a, changes: [...a.changes, ...changes] } : a)
+    return { ...applied, actions: applied.actions.map(note), record: applied.record.map(note) }
   }, state)
+}
+
+function applyOne(s: CombatState, action: Action, phase: Phase): CombatState {
+  const rolled = phase === 'roll' && action.kind === 'move' ? holdMoveTest(s, action) : s
+  if (phase === 'resolve' && isVoided(rolled, action)) return rolled
+  const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
+  const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null
+  const next = mapCharacters(rolled, reduceCharacter(action, phase, fire))
+  const placed = { ...next, board, floor: reduceFloor(rolled, action, phase)(rolled.floor), binds: reduceBinds(rolled, action, phase)(next.binds) }
+  return settleSevered(rolled, action.id)(settleBinds(phase === 'resolve' ? settleArcs(placed) : placed))
 }
 
 // spells.tex "Sustained Lightning": an arc that breaks ends its spell, and a

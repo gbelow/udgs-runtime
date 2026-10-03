@@ -45,6 +45,19 @@ export const ActionCostSchema = z.object({
 export const ResultSchema = z.object({ targetId: str, outcome: OutcomeSchema, steps: z.array(OutcomeStepSchema).default([]) }).strip()
 export type Result = z.infer<typeof ResultSchema>
 
+// What a phase of an action changed in the fight, found by comparing it
+// before and after: a number a character carries (a resource, an injury), a
+// thing a character gained or lost (a wound, an affliction, a part, a surge),
+// or a thing that went from one place to another (an item, a character on the
+// board).
+const ChangePhase = z.enum(['roll', 'save', 'resolve'])
+export const ChangeSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('value'), phase: ChangePhase, id: str, what: str, from: num, to: num }).strip(),
+  z.object({ kind: z.literal('gain'), phase: ChangePhase, id: str, what: z.enum(['wound', 'affliction', 'part', 'surge']), name: str, gained: z.boolean() }).strip(),
+  z.object({ kind: z.literal('move'), phase: ChangePhase, id: str, what: z.enum(['item', 'character']), name: str, from: str, to: str }).strip(),
+])
+export type Change = z.infer<typeof ChangeSchema>
+
 // One line of what an action costs, named for what it comes from; a price is
 // the sum of its lines.
 export const CostTermSchema = z.object({ label: str, AP: num.default(0), STA: num.default(0) }).strip()
@@ -188,6 +201,9 @@ const ActionBase = {
   roll: ActionRollSchema.nullable().default(null),
   // what its damage came to on each it reached, written as it lands
   results: z.array(ResultSchema).default([]),
+  // what its roll and its landing changed in the fight, written as they are
+  // applied
+  changes: z.array(ChangeSchema).default([]),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
