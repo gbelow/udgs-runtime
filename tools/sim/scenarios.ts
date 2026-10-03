@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { CombatState } from '../../app/domain/combat/types'
 import type { CampaignCharacter } from '../../app/domain/types'
-import type { Party } from '../../app/domain/bot/party'
+import type { Party, Tuning } from '../../app/domain/bot/party'
 import { makeCampaignCharacter } from '../../app/domain/factories'
 import { addCharacterToCombat } from '../../app/domain/combat/factories'
 import { board } from '../../app/domain/bot/fixtures'
@@ -18,6 +18,8 @@ export type Matchup = {
   sides: string[][]
   // cells between one side's line and the next
   distance: number
+  // how the bots weigh (Party.tuning): one entry for every side, or one per side
+  tuning?: Partial<Tuning>[]
 }
 
 export type Scenario = {
@@ -58,18 +60,19 @@ function labelOf(names: string[]): string {
 
 // Each side stands on a line of its own, `distance` cells from the last, its
 // members one row apart.
-export function makeScenario({ name, sides, distance }: Matchup): Scenario {
+export function makeScenario({ name, sides, distance, tuning = [] }: Matchup): Scenario {
   const named = sides.map((entries) => entries.flatMap(expand))
   const labels = named.map(labelOf)
   return {
     name,
-    about: `${labels.join(' vs ')}, ${distance} cells apart, a bot each`,
+    about: `${labels.join(' vs ')}, ${distance} cells apart, a bot each${tuning.length > 0 ? `, tuned ${tuning.map((t) => JSON.stringify(t)).join(' / ')}` : ''}`,
     build: () => {
       let n = 0
       const newId = () => `c${++n}`
       const characters: CampaignCharacter[] = []
       const placements: Record<string, [number, number]> = {}
       const parties = named.map((names, side): Party => ({
+        tuning: tuning.length === 1 ? tuning[0] : tuning[side],
         members: names.map((catalogName, row) => {
           const added = addCharacterToCombat({ ...loadCatalogCharacter(catalogName), id: newId() }, Object.fromEntries(characters.map((c) => [c.id, c])), newId)
           characters.push(added)

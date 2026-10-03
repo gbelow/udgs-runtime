@@ -8,6 +8,7 @@ export type OptionScore = {
   threat: number
   engage: number
   resources: number
+  waiting: number
 }
 
 export type Decision = {

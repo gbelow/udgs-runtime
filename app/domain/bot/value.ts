@@ -16,7 +16,7 @@ import { aimStrike, getStrikes } from './weapons'
 // character and the nearest foe, plus the AP and STA it has left over its
 // foes'. Higher is better.
 
-export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number }
+export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number; waiting: number }
 
 const FACES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -80,11 +80,11 @@ export function evaluate(state: CombatState, party: Party, actorId: string, tuni
   const foes = getLiveFoes(state, party)
   const sum = (ids: readonly string[]) => ids.reduce((total, id) => total + (state.characters[id] ? fraction(state.characters[id]) : 0), 0)
   const wounds = sum(foes) - sum(party.members)
-  const threat = tuning.threat * getThreat(state, party, newId)
+  const threat = tuning.threat > 0 ? tuning.threat * getThreat(state, party, newId) : 0
   const engage = tuning.engage * getGap(state, actorId, foes)
   const left = (ids: readonly string[], pick: (c: CampaignCharacter) => number) => ids.reduce((total, id) => total + (state.characters[id] ? pick(state.characters[id]) : 0), 0)
   const ap = (c: CampaignCharacter) => c.resources.AP + c.resources.surgeAP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(party.members, ap) - left(foes, ap)) + tuning.sta * (left(party.members, sta) - left(foes, sta))
-  return { total: wounds - threat - engage + resources, wounds, threat, engage, resources }
+  return { total: wounds - threat - engage + resources, wounds, threat, engage, resources, waiting: 0 }
 }

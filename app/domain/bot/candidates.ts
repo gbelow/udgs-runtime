@@ -34,7 +34,7 @@ function byWounds(state: CombatState): (a: string, b: string) => number {
 // the options looked at few.
 const VARIANTS_TRIED = 3
 
-function attacks(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
+export function getAttackCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
   const foes = getLiveFoes(state, party)
   const tried = new Map<string, number>()
   return (['strike', 'shoot'] as const).flatMap((kind) => getArmedAttacks(state, id, kind, newId).flatMap((armed) =>
@@ -54,7 +54,7 @@ function attacks(state: CombatState, party: Party, id: string, newId: () => stri
 
 // For each kind of movement, the walk to the reachable cell nearest a foe, if
 // it is nearer than where the character stands.
-function approaches(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
+export function getApproachCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
   const origin = state.board?.placements[id]?.cell
   const foes: Coord[] = getLiveFoes(state, party).flatMap((f) => state.board?.placements[f]?.cell ?? [])
   if (!origin || foes.length === 0) return []
@@ -83,5 +83,5 @@ function approaches(state: CombatState, party: Party, id: string, newId: () => s
 }
 
 export function getCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
-  return [...attacks(state, party, id, newId), ...approaches(state, party, id, newId)]
+  return [...getAttackCandidates(state, party, id, newId), ...getApproachCandidates(state, party, id, newId)]
 }

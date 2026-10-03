@@ -100,14 +100,35 @@ export function hasOpenAnswer(state: CombatState, ids: readonly string[] = Objec
 // the weapon it blocks with. While a surge's AP is left, only what it allows
 // is open.
 export function getAvailableActions(state: CombatState, characterId: string): ActionOption[] {
+  const byCharacter = listed.get(state) ?? new Map<string, ActionOption[]>()
+  const known = byCharacter.get(characterId)
+  if (known) return known
+  const options = computeAvailableActions(state, characterId)
+  byCharacter.set(characterId, options)
+  listed.set(state, byCharacter)
+  return options
+}
+
+// A state is replaced, never changed, so what a character may declare in it is
+// worked out once; the panel, the commands that refuse what it shows closed and
+// whoever asks "can anyone answer" all read the same list.
+const listed = new WeakMap<CombatState, Map<string, ActionOption[]>>()
+
+function computeAvailableActions(state: CombatState, characterId: string): ActionOption[] {
   const c = state.characters[characterId]
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c))))))))
+  if (!open) return closeOwn(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
   return withReactionSurge(state, c, open)
+}
+
+// What stands closed among the character's own actions: who they are, what they
+// are doing, what surge is in hand, whose turn it is.
+function closeOwn(state: CombatState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))
 }
 
 // combat.tex "Action surge": the reaction surge is made outside one's own turn,
@@ -403,6 +424,10 @@ function closeOutOfTurn(state: CombatState, c: CampaignCharacter, options: Actio
 // The option a draft would take, so a command can refuse exactly what the
 // list shows as closed.
 export function findOption(state: CombatState, characterId: string, draft: ActionDraft): ActionOption | null {
+  const c = state.characters[characterId]
+  if (c && !getOpenAction(state) && draft.kind in OWN_OPTIONS) {
+    return closeOwn(state, c, OWN_OPTIONS[draft.kind as DeclarableKind](state, c)).find((o) => sameDraft(o.draft, draft)) ?? null
+  }
   return getAvailableActions(state, characterId).find((o) => sameDraft(o.draft, draft)) ?? null
 }
 
