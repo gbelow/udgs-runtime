@@ -232,6 +232,8 @@ app/domain/combat/
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
+│   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdMoveTest makes a move's own die the round's (called by applyPhase at the roll)
+│   ├── swim.ts         sink, sinkInArmor: the swimmer goes deeper, no deeper than the floor
 │   ├── social.ts       say: intimidate, taunt, rally or an abusive's insult for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free), negotiate (5 AP only), defaultToCoward
 │   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.stress`; tanatosis and a martyr who can pay make theirs at once), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
 │   ├── resetCombat.ts
@@ -276,6 +278,9 @@ app/domain/combat/
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions
 │   ├── morale.ts       aggravators and the DL (social pressure of the round before included), who a round calls to a test, the outcome of each degree; `state.morale` holds the calls, and a turn waits on them
+│   ├── heldRoll.ts     held tests, the reads: a character's roll for the round, whether they were called, what bars a roll or the turn
+│   ├── heldTest.ts     held tests, the registry (`HELD_DEFS`, typed over the kinds): who the round calls, the skill terms, the DL of a call, the ways it may be rolled
+│   ├── swim.ts         the water a footprint stands in (surface, floor, DL), depth, whether a swim move needs its die, each metre's degree off the held score, the dive
 │   ├── social.ts       who a social action may be said to, and when it, a surrender, an unsurrender or a negotiation is barred
 │   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: `getDefenderSteps`)
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
@@ -285,7 +290,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts, morale.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, labels.ts, turn.ts, morale.ts, heldTests.ts
     └── perState.ts     memoize once per state object
 ```
 

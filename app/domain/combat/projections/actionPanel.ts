@@ -19,6 +19,7 @@ import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
@@ -179,6 +180,11 @@ export type OpenActionView = {
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
+  // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
+  // swim ends, and the dive a metre nearer the surface or the floor would be
+  // (null where the water allows no more); null off a swim
+  dive: number
+  diveSteps: { up: number | null; down: number | null } | null
   // how far the move will actually get and why it stops there
   walked: { cells: number; stop: MoveStop } | null
   // opened by a reaction — an opportunity attack, a follow, a riposte —
@@ -366,6 +372,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       chargeItemId: gear?.chargeItemId ?? '',
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
+      dive: open.kind === 'move' ? open.dive : 0,
+      diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
       spawned: open.spawnedBy !== null,
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,

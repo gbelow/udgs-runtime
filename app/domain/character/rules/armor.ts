@@ -14,6 +14,11 @@ export function isVisorClosed(c: Character): boolean {
   return !!c.hasHelm && !c.visorOpen
 }
 
+// gear.tex "Metallic armors": armor made of metal.
+export function isMetalArmored(c: Character): boolean {
+  return getArmor(c).material === 'metal'
+}
+
 // Armor has no oversize allowance: it fits only a wearer of the size it is
 // made for. The creature's own hide is its own size by definition.
 export function armorFits(c: Character): boolean {

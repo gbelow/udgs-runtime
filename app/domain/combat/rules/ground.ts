@@ -29,9 +29,17 @@ export function readGround(state: CombatState, mover: string): Ground | null {
   }
 }
 
-// Off blocking cells, and in the water exactly when swimming.
-export function isCrossable(footprint: Coord[], ground: Ground, movement: MoveAction['movement']): boolean {
-  return !footprint.some(ground.blocked) && footprint.some(ground.liquid) === (movement === 'swim')
+// Off blocking cells, and in the water exactly when swimming — except that a
+// swimmer may step out of the water onto dry ground (`fromWater`: the step
+// before was wet).
+export function isCrossable(footprint: Coord[], ground: Ground, movement: MoveAction['movement'], fromWater = false): boolean {
+  if (footprint.some(ground.blocked)) return false
+  const wet = footprint.some(ground.liquid)
+  return movement === 'swim' ? wet || fromWater : !wet
+}
+
+export function isWet(footprint: Coord[], ground: Ground): boolean {
+  return footprint.some(ground.liquid)
 }
 
 export function canRest(state: CombatState, c: Character, footprint: Coord[], ground: Ground): boolean {

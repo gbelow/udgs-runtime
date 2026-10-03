@@ -6,6 +6,7 @@ import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } fr
 import { isVoided } from '../rules/opportunity'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
+import { holdMoveTest } from './heldTest'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getBrokenArcs } from '../rules/fireAgain'
@@ -54,9 +55,11 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 }
 
 // A voided action lands nothing at its resolve (combat.tex
-// "Interruption"); its price was already taken at the roll.
+// "Interruption"); its price was already taken at the roll. A move that
+// carried its swimmer's test for the round makes it theirs as it is rolled.
 export function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
-  return actions.reduce((s, action) => {
+  return actions.reduce((held, action) => {
+    const s = phase === 'roll' && action.kind === 'move' ? holdMoveTest(held, action) : held
     if (phase === 'resolve' && isVoided(s, action)) return s
     const board = s.board ? reduceBoard(s, action, phase)(s.board) : null
     const fire = phase === 'resolve' ? getFireTouched({ ...s, board }, action) : null

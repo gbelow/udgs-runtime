@@ -13,6 +13,7 @@ import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
 import { isGuardingShot, isHighGround } from './board'
 import { getBalanceDL } from './move'
+import { getSwimTestTerms, getSwimTestWater, needsSwimTest } from './swim'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
@@ -450,6 +451,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
     case 'cut':
       return onDegrees({ skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL })
     case 'move':
+      if (needsSwimTest(state, root)) return onDegrees({ skill: getSwimTestTerms(actor), DL: [{ label: 'water', value: getSwimTestWater(state, root, root.actorId)?.DL ?? 0 }] })
       return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
     // spells.tex "Telepathic Link": the target's die, against the caster
     case 'spellTest':

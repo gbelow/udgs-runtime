@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from './dice'
@@ -60,6 +60,8 @@ export const PlacementSchema = z.object({
   cell: CoordSchema.default({ q: 0, r: 0 }),
   orientation: DirectionSchema.default(0),
   elevation: num.default(0), // metres; combat.tex "High Ground"
+  // metres below the water's surface, 0 for a swimmer who breathes; combat.tex "Swimming"
+  depth: num.default(0),
   focus: str.nullable().default(null),
 }).strip()
 export type Placement = z.infer<typeof PlacementSchema>
@@ -96,6 +98,8 @@ export const TerrainCellSchema = z.object({
   transparent: z.boolean().default(false),
   difficult: z.boolean().default(false),
   liquid: z.boolean().default(false),
+  // metres of water below the surface, which is the cell's elevation
+  depth: num.default(0),
   elevation: num.default(0),
   visibility: VisibilitySchema.default('good'),
   suffocating: z.boolean().default(false),
@@ -547,6 +551,9 @@ export const MoveActionSchema = z.object({
   movement: MoveKindSchema.default('basic'),
   path: z.array(CoordSchema).default([]),
   orientation: DirectionSchema.nullable().default(null),
+  // combat.tex "Swimming": metres a swimmer goes deeper by the move's end,
+  // below zero towards the surface, swum like a metre of the path
+  dive: num.default(0),
   // the most AP it may cost, for a move a reaction opened (combat.tex
   // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
   // "use up to 2 AP to move"); null is no cap
@@ -886,6 +893,21 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+// A test made once in a round whose score then stands against every DL the
+// round puts to the character (combat.tex "Swimming": "The swimming test
+// should not be redone more than once per round"). Only the score is kept;
+// the degree is read off it against each DL (`rules/heldTest.ts`). A call with
+// no roll is a test owed.
+export const HeldRollSchema = z.object({
+  mode: z.enum(ROLL_MODES),
+  die: z.number(),
+  skill: z.number(),
+  score: z.number(),
+})
+export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null) })
+export type HeldRoll = z.infer<typeof HeldRollSchema>
+export type HeldTest = z.infer<typeof HeldTestSchema>
+
 // combat.tex "Social actions": what a character said to another in the round
 // `round`, weighing on that one's morale test at the next round's beginning.
 export const PressureSchema = z.object({
@@ -958,6 +980,8 @@ export const CombatStateSchema = z.object({
   // tests activated, the worst test first — each taken as a turn before
   // anyone else's, and kept to the round's end for what a martyr still owes
   stress: z.array(StressTurnSchema).default([]),
+  // The tests called or made once for the round, kept to the round's end
+  heldTests: z.array(HeldTestSchema).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Surrender": who has flagged themselves surrendered

@@ -21,6 +21,10 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
   rough: 'rough',
   raise: '+1 m',
   lower: '−1 m',
+  deepen: 'deeper',
+  shoal: 'shallower',
+  harder: 'DL +1',
+  easier: 'DL −1',
   clear: 'clear',
 }
 
@@ -155,12 +159,13 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
   const ring = token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
   return (
     <g className='cursor-pointer' onClick={onClick}>
-      <title>{`${token.name}${token.elevation ? ` · ${token.elevation} m` : ''}`}</title>
+      <title>{`${token.name}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       <g transform={`translate(${token.x} ${token.y})`}>
         <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
+        {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}
       </g>
     </g>
   )

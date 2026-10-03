@@ -86,6 +86,18 @@ export const MOVEMENT_BLOCK_COST: Record<MovementKind, { AP: number; STA: number
   swim:    { AP: 1, STA: 0 },
 }
 
+// combat.tex "Swimming": a graze or a failed swimming test is "1m per 5 AP",
+// and a failure adds "+1STA" to it. The speed is metres per AP; the STA is
+// per metre swum. A failure also "sinks 1m", and gear.tex "Metallic armors"
+// sink the swimmer "1m per turn".
+export const SWIM_STRUGGLE_SPEED = 0.2
+export const SWIM_FAILURE_STA = 1
+export const SWIM_FAILURE_SINK = 1
+export const SWIM_ARMOR_SINK = 1
+// combat.tex "Swimming": "Characters attempting to swim with one hand receive
+// a -3 penalty on the test."
+export const SWIM_ONE_HAND_PENALTY = -3
+
 // gear.tex "Short, Long I/II": "Short-range attacks ... have a range of 1m x
 // RM. Long-range attacks have an extended range of 1m x RM per level." The
 // metres before the RM.

@@ -14,6 +14,7 @@ import type { CombatState } from '../types'
 import { getHazardOf } from '../rules/hazard'
 import { isSuffocating } from '../rules/situational'
 import { getMoraleCalled } from '../rules/morale'
+import { getHeldCalled } from '../rules/heldTest'
 import { getHold, getUpkeepAims } from '../rules/fireAgain'
 import { makeAction } from '../factories'
 import { cure } from '../../character/commands/addAffliction'
@@ -58,8 +59,8 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 export function nextRound(dice: Dice, newId: () => string): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], stress: [] }
-    const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })) }
+    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], stress: [] }
+    const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }
 }

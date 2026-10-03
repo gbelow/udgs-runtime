@@ -145,14 +145,22 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
-          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [] })} />)}
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0 })} />)}
+        </div>
+      ) : null}
+      {open.diveSteps ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>dive</SectionLabel>
+          <Button size='xs' aria-label='swim up' disabled={open.diveSteps.up === null} onClick={() => open.diveSteps?.up !== null && amend({ dive: open.diveSteps?.up })}>up</Button>
+          <span className='font-mono text-xs'>{open.dive}</span>
+          <Button size='xs' aria-label='swim down' disabled={open.diveSteps.down === null} onClick={() => open.diveSteps?.down !== null && amend({ dive: open.diveSteps?.down })}>down</Button>
         </div>
       ) : null}
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-x-3 items-center text-xs text-muted'>
           <span>cells <span className='font-mono'>{open.path.length}</span> <Cost cost={open.cost} /></span>
           {open.walked && open.walked.stop !== 'end' ? <span className='text-bad'>stops after {open.walked.cells} ({open.walked.stop})</span> : null}
-          {open.path.length === 0 && open.movement !== 'stand' && open.movement !== 'prone' ? <span>pick a path on the board</span> : null}
+          {open.path.length === 0 && open.dive === 0 && open.movement !== 'stand' && open.movement !== 'prone' ? <span>pick a path on the board</span> : null}
         </div>
       ) : null}
 

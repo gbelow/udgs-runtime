@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
-import { MOVEMENT_BLOCK_COST, RUN_START_AP } from '../../tables'
+import { MOVEMENT_BLOCK_COST, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -11,8 +11,9 @@ import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { isTetherKept } from './bind'
-import { canRest, isCrossable, isInLiquid, readGround, type Ground } from './ground'
+import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
+import { getSwimDegrees, isDiveLegal, readWater } from './swim'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
@@ -38,13 +39,28 @@ export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number):
 // is printed to two places (0.33 for a third), so the quotient is read to a
 // tenth before it is rounded up, or a third of a metre three times would
 // cost a fourth block.
-export function getMoveCost(c: Character, kind: MoveKind, cells: number): ActionCost {
+export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = []): ActionCost {
   if (isPosture(kind)) return getPostureCost(c, kind)
   const speed = getMovementSpeed(c, kind)
   if (cells <= 0 || speed <= 0) return { AP: 0, STA: 0 }
+  if (kind === 'swim') return getSwimCost(c, cells, swum)
   const blocks = Math.ceil(Math.round((cells / speed) * 10) / 10)
   const block = MOVEMENT_BLOCK_COST[kind]
   return { AP: blocks * block.AP, STA: blocks * block.STA }
+}
+
+// combat.tex "Swimming": each metre is swum as the held test came to against
+// its water — perfectly at the swimmer's speed, on a graze or a failure at
+// 1m per 5 AP, a failure costing STA besides. The AP of the metres adds up
+// and is bought in whole blocks, as every move is; a speed printed to two
+// places (0.33 for a third) leaves up to a tenth over a whole block, which
+// does not buy another.
+function getSwimCost(c: Character, cells: number, swum: Degree[]): ActionCost {
+  const block = MOVEMENT_BLOCK_COST.swim
+  const speed = getMovementSpeed(c, 'swim')
+  const metres = Array.from({ length: cells }, (_, i) => swum[i] ?? 'hit')
+  const AP = metres.reduce((total, degree) => total + block.AP / (degree === 'graze' || degree === 'miss' ? SWIM_STRUGGLE_SPEED : speed), 0)
+  return { AP: Math.ceil(AP - 0.1), STA: metres.filter((degree) => degree === 'miss').length * SWIM_FAILURE_STA }
 }
 
 export function isPosture(kind: MoveKind): kind is Posture {
@@ -60,8 +76,8 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 // What the move as declared costs its actor, less what the reaction that
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
-export function getMovePrice(c: Character, action: MoveAction, cells: number): ActionCost {
-  const cost = getMoveCost(c, action.movement, cells)
+export function getMovePrice(state: CombatState, c: Character, action: MoveAction, cells: number): ActionCost {
+  const cost = getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, cells))
   return { AP: Math.max(0, cost.AP - action.prepaid), STA: runsFree(c, action.movement) ? 0 : cost.STA }
 }
 
@@ -96,6 +112,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const prone = hasAffliction(c, 'prone')
   const lame = hasAffliction(c, 'lame')
   const swimming = isInLiquid(state, c)
+  const waterNear = swimming || isNextToWater(state, c)
   const granted = action?.movements ?? null
   const budget = action?.budget ?? null
   const held = isInGrapple(state, c.id)
@@ -103,7 +120,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, granted, budget)
+      : movementGate(kind, prone, lame, swimming, waterNear, granted, budget)
     const block = MOVEMENT_BLOCK_COST[kind]
     return { kind, speed: getMovementSpeed(c, kind), block: runsFree(c, kind) ? { ...block, STA: 0 } : block, ...gate }
   })
@@ -116,14 +133,22 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (!withinBudget(MOVEMENT_BLOCK_COST[kind], budget)) return { available: false, reason: 'more AP than the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
-  if (!swimming && kind === 'swim') return { available: false, reason: 'not in water' }
+  if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
   if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
   return { available: true, reason: null }
+}
+
+// Whether some cell the character stands on borders water, so a swim can
+// take them into it.
+function isNextToWater(state: CombatState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  const ground = readGround(state, c.id)
+  return !!placement && !!ground && getFootprint(c, placement).some((cell) => disk(cell, 1).some(ground.liquid))
 }
 
 // combat.tex "Lame": "Cannot run, jump or use basic movement"
@@ -146,22 +171,26 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const ground = readGround(state, action.actorId)
   if (!c || !getMovementOptions(state, c, action).find((o) => o.kind === action.movement)?.available) return false
   if (isPosture(action.movement)) return action.path.length === 0
-  if (!from || !ground || action.path.length === 0) return false
-  if (!withinBudget(getMoveCost(c, action.movement, action.path.length), action.budget)) return false
+  const diving = action.movement === 'swim' && action.dive !== 0
+  if (!from || !ground || (action.path.length === 0 && !diving)) return false
+  if (!withinBudget(getMoveCost(c, action.movement, action.path.length + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
   const ceiling = getJumpCeiling(c, from)
   let cursor = from.cell
+  let wet = isWet(getFootprint(c, from), ground)
   for (const [i, cell] of action.path.entries()) {
     if (distance(cursor, cell) !== 1) return false
     const last = i === action.path.length - 1
     const orientation = last && action.orientation !== null ? action.orientation : from.orientation
     const footprint = getFootprint(c, { ...from, cell, orientation })
-    if (!canPass(action.movement, footprint, ground, last, ceiling)) return false
+    if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
     if (!isTetherKept(state, c.id, footprint)) return false
     if (last && !canRest(state, c, footprint, ground)) return false
     cursor = cell
+    wet = isWet(footprint, ground)
   }
-  return true
+  const end = getFootprint(c, { ...from, cell: cursor, orientation: action.orientation ?? from.orientation })
+  return isDiveLegal(state, action, state.board ? readWater(state.board, end) : null)
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
@@ -175,9 +204,9 @@ function clears(footprint: Coord[], ground: Ground, ceiling: number): boolean {
   return footprint.every((cell) => ground.elevation(cell) < ceiling)
 }
 
-function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number): boolean {
+function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number, fromWater: boolean): boolean {
   if (kind === 'jump' && !clears(footprint, ground, ceiling)) return false
-  return touchesGround(kind, lands) ? isCrossable(footprint, ground, kind) : !footprint.some(ground.blocked)
+  return touchesGround(kind, lands) ? isCrossable(footprint, ground, kind, fromWater) : !footprint.some(ground.blocked)
 }
 
 function withinBudget(cost: ActionCost, budget: number | null): boolean {
@@ -398,15 +427,20 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   if (!c || !from || !ground || isPosture(kind)) return []
   if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
+  // the walk stops where even the best swum path outruns the price; the path
+  // found is then priced as it is swum
+  const best = { ...action, dive: 0, path: [] }
   const affordable = (steps: number) => {
-    return canAfford(c, getMovePrice(c, action, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
+    return canAfford(c, getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)
-  const enter = (cell: Coord) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling)
+  const wetBefore = (path: Coord[]) => isWet(getFootprint(c, path.length > 1 ? { ...from, cell: path[path.length - 2] } : from), ground)
+  const enter = (cell: Coord, path: Coord[]) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling, wetBefore(path))
   return walkOut(from.cell, affordable, enter)
-    .filter(({ cell }) => {
+    .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return isCrossable(footprint, ground, kind) && canRest(state, c, footprint, ground)
+      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground)
     })
-    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(c, action, steps), path }))
+    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path }, steps), path }))
+    .filter(({ cost }) => canAfford(c, cost))
 }

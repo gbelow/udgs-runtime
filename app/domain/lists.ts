@@ -182,7 +182,11 @@ export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
-export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'raise', 'lower', 'clear'] as const
+export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'clear'] as const
+
+// The tests a character makes once for a round and scores against every DL
+// the round puts to them, in the order the rulebook introduces them.
+export const HELD_TESTS = ['swim'] as const
 
 // creating.tex "Size and Space Occupation": "Other creatures may have
 // different shapes." The shapes a footprint can take; the cells each one

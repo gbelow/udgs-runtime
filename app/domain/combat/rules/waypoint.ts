@@ -61,6 +61,7 @@ export function isHookedRunner(state: CombatState, action: MoveAction, at: numbe
 export function getMoveDestination(state: CombatState, action: MoveAction, path: Coord[]): Placement | null {
   const from = getMoveOrigin(state, action)
   const cell = path[path.length - 1]
-  if (!from || !cell) return null
+  if (!from) return null
+  if (!cell) return action.path.length === 0 ? { ...from, orientation: action.orientation ?? from.orientation } : null
   return { ...placeAt(state.board, from, cell), orientation: action.orientation ?? from.orientation }
 }

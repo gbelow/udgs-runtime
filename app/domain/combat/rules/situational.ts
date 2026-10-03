@@ -3,15 +3,25 @@ import type { CombatState } from '../types'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { getHazardOf } from './hazard'
 import { getGrappleAfflictionsOf } from './grapple'
+import { isVisorClosed } from '../../character/rules/armor'
+import { clampDepth, getWaterOf } from './swim'
 
 // What the fight puts on the character on top of what they carry, read off
 // the fight rather than stored on them: suffocation while their footprint is
 // inside a suffocating gas (combat.tex "Gas": "anyone that is inside a
 // suffocating gas is suffocating by default"), and what their grapples put
-// on them. Nothing outside a fight.
+// on them, and below the surface of the water (combat.tex "Swimming": a
+// swimmer breathes when "height is level with the surface"). Nothing outside
+// a fight.
 export function getSituationalAfflictions(state: CombatState | null, id: string): AfflictionKey[] {
   if (!state) return []
-  return [...(getHazardOf(state, id).suffocating ? ['suffocating' as const] : []), ...getGrappleAfflictionsOf(state, id)]
+  const c = state.characters[id]
+  const water = getWaterOf(state, id)
+  // gear.tex "Closed helmet": "makes swimming always suffocating"
+  const helmeted = water !== null && !!c && isVisorClosed(c)
+  const submerged = clampDepth(water, state.board?.placements[id]?.depth ?? 0) > 0
+  const cannotBreathe = getHazardOf(state, id).suffocating || submerged || helmeted
+  return [...(cannotBreathe ? ['suffocating' as const] : []), ...getGrappleAfflictionsOf(state, id)]
 }
 
 // Whether the character has the affliction, by the sheet or by the fight.

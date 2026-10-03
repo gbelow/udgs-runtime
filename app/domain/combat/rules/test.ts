@@ -23,6 +23,11 @@ function scoreTest(over: number): Degree {
   return over >= 10 ? 'critical' : over >= 5 ? 'hit' : over >= 0 ? 'graze' : 'miss'
 }
 
+// The degree a score comes to against a DL.
+export function getDegree(score: number, DL: number): Degree {
+  return scoreTest(score - DL)
+}
+
 export function resolveTest(test: Test, dice: Dice): ActionRoll {
   const die = dice(test.explodes)
   const score = die + test.skill

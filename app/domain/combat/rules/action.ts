@@ -8,6 +8,7 @@ import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
+import { needsSwimTest } from './swim'
 import { canAfford } from '../../character/rules/cost'
 import { hasGrant } from '../../character/rules/abilities'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
@@ -202,7 +203,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'counterattack':
       return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
-      return getMovePrice(c, action, getMoveFacts(state, action).path.length)
+      return getMovePrice(state, c, action, getMoveFacts(state, action).path.length)
     case 'drag':
       return getPushPrice(state, action, action)
     case 'resist':
@@ -348,9 +349,10 @@ export function isAnswerable(state: CombatState, open: Action): boolean {
 // Whether the action is closed by a die: a strike always, a move when it
 // crosses difficult terrain (combat.tex "Balance"), an explosion when a
 // reaction declared against it is a test of its own (combat.tex "Avoiding
-// an Explosion").
+// an Explosion"), and a swim move the first time the swimmer is in water in
+// the round (combat.tex "Swimming").
 export function needsDie(state: CombatState, action: Action): boolean {
-  if (action.kind === 'move') return needsBalanceTest(state, action)
+  if (action.kind === 'move') return needsBalanceTest(state, action) || needsSwimTest(state, action)
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }

@@ -6,6 +6,7 @@ import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
 import { getLog, getOpenAction } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
+import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
@@ -45,7 +46,7 @@ function getTurnlessReason(state: CombatState, id: string): string | null {
 // "Morale": "at the beginning of a round") come first.
 export function getStartTurnBar(state: CombatState, id: string): string | null {
   if (getTurnHolder(state) === id) return 'already in turn'
-  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getStressStartBar(state, id)
+  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
 }
 
 // What the fight is busy with, if anything: someone's turn, or an action

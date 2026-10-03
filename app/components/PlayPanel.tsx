@@ -10,7 +10,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useMorale, useSocial, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -64,6 +64,7 @@ export function PlayPanel(){
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       <MoralePanel />
+      <HeldTestsPanel />
       {isThereActiveCharacter ? <SocialPanel /> : null}
       {
         isThereActiveCharacter ?
@@ -459,6 +460,34 @@ function MoralePanel(){
           }
           {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
           {r.owed ? <span className='text-xs text-muted'>{r.owed}</span> : null}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// combat.tex "Swimming": the round begins with a swimming test for whoever
+// stands in water; its score then stands against every water the round has
+// them swim in.
+function HeldTestsPanel(){
+  const rows = useHeldTests()
+  const { rollHeld } = useCombatCommands()
+  if (rows.length === 0) return null
+
+  return(
+    <div className='flex flex-col gap-1 py-2 border-b border-line text-sm'>
+      <SectionLabel>Held tests</SectionLabel>
+      {rows.map((r) => (
+        <div key={`${r.id}:${r.kind}`} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
+          <span className='font-medium'>{r.name}</span>
+          <span className='text-muted'>{r.kind} DL <span className='font-mono text-fg'>{r.DL}</span></span>
+          {
+            !r.result ?
+            r.modes.map((mode) => (
+              <Button key={mode} size='xs' aria-label={`${r.kind} ${mode} ${r.name}`} onClick={() => rollHeld(r.id, r.kind, mode)}>{mode}</Button>
+            )) :
+            <span className='text-xs text-muted'>{r.result}</span>
+          }
         </div>
       ))}
     </div>

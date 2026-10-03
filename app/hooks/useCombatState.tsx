@@ -2,6 +2,7 @@ import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../do
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
 import { getMoraleDigest, getMoraleRows, getSocialPanel, MoraleRow, SocialPanel } from "../domain/combat/projections/morale";
+import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/combat/projections/heldTests";
 import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
@@ -64,6 +65,13 @@ export function useCombatSurgeOptions(): SurgeOption[] {
 export function useMorale(): MoraleRow[] {
   useCombatStore(getMoraleDigest);
   return getMoraleRows(useCombatStore.getState());
+}
+
+// The tests held for the round (combat.tex "Swimming") — who is owed one and
+// each one's result, gated on a digest since the rows are freshly allocated.
+export function useHeldTests(): HeldTestRow[] {
+  useCombatStore(getHeldDigest);
+  return getHeldRows(useCombatStore.getState());
 }
 
 const NO_SOCIAL: SocialPanel = { bar: NO_ONE, negotiateBar: NO_ONE, insultBar: NO_ONE, cowardBar: NO_ONE, surrenderBar: NO_ONE, unsurrenderBar: NO_ONE, surrendered: false, value: 0, kinds: [], targets: [] }

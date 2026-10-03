@@ -1,5 +1,7 @@
 import type { CampaignCharacter } from '../../types'
-import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type Tether, type Trample } from '../types'
+import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
+import { getFootprint } from '../rules/board'
+import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
@@ -272,6 +274,16 @@ function trampledBy(tramples: Trample[], c: CampaignCharacter): CampaignCharacte
 // action and applies the part that moves anyone. Where a move ends was
 // worked out from the fight as it stood at the resolve, so the board is
 // handed the state it is part of.
+// combat.tex "Swimming": where the swimmer ends a move they are in the water
+// at the depth the dive took them, if the move went to its end, and out of the
+// water at none.
+function settleDepth(state: CombatState, action: MoveAction, destination: Placement): Placement {
+  const mover = state.characters[action.actorId]
+  if (!mover || !state.board) return destination
+  const water = readWater(state.board, getFootprint(mover, destination))
+  return { ...destination, depth: getDepthAfter(state, action, water, action.facts?.stop === 'end') }
+}
+
 export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
   return (board: Board) => {
     if (phase !== 'resolve') return board
@@ -279,7 +291,7 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       const placements = board.placements
       // a jump away from an opportunity attack put the mover where it landed
       const destination = action.facts && action.facts.stop !== 'jump' ? getMoveDestination(state, action, action.facts.path) : null
-      return { ...board, placements: destination ? { ...placements, [action.actorId]: destination } : placements }
+      return { ...board, placements: destination ? { ...placements, [action.actorId]: settleDepth(state, action, destination) } : placements }
     }
     if (action.kind === 'strike') {
       // abilities.tex "Defender", "Defensive Advance": whoever stepped to

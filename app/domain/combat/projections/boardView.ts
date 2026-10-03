@@ -12,6 +12,7 @@ import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells, isAimable } from '../rules/explosion'
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
+import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPartner, holds } from '../rules/partners'
@@ -69,6 +70,8 @@ export type BoardTokenView = {
   y: number
   cells: { key: string; x: number; y: number }[]
   elevation: number
+  // metres below the water's surface, 0 for one who breathes
+  depth: number
   orientation: number
   isActive: boolean
   isInTurn: boolean
@@ -251,6 +254,7 @@ function buildBoardView(state: CombatState): BoardView {
       y: anchor.y,
       cells: footprint,
       elevation: placement.elevation,
+      depth: getDepth(state, id),
       orientation: placement.orientation,
       isActive: id === state.activeCharacterId,
       isInTurn: id === state.inTurnCharacter,

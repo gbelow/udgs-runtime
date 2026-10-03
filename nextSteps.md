@@ -37,7 +37,6 @@
 - climbing
 - falling
 - balance tests
-- swimming tests
 - jumping over things
 
 ## healing
@@ -87,6 +86,9 @@
 - permissions gm/player
 - 
 
+# record
+- what more logs need to be exposed?
+
 ## explore integration with VTTs
 
 ## improve interface - make it pretty
@@ -110,12 +112,12 @@ think corrosive damage
 prepared reaction
 unconscious must disable all actions
 
+
 # left for combat
-- items on the terrain
 - stealth/senses
 - movement and terrain
 - abilities and spells
-- analyse to find items, feint
+- analyse to find items
 - riding
 - combat snapshots, do/undo action, list of last actions
 

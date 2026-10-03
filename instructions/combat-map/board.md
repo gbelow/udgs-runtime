@@ -27,6 +27,20 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
 - `rules/move.ts`, `rules/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
   runs, Balance tests, reachable cells, where the mover stands along a path, where a move
   was cut short, tramples.
+- **Water and held tests.** A liquid cell has a surface (its elevation), a depth below it and a
+  DL. A swimmer's `Placement.depth` is how far below the surface they are; it is read through
+  the water they stand in, so it never exceeds the floor, and below the surface they are
+  suffocating (`situational.ts`). A **held test** is a test made once a round whose score then
+  stands against every DL the round puts to the character: `state.heldTests` holds the calls
+  and the rolls (cleared and called again by `nextRound`), only the score is kept, and the
+  degree is read off it against each DL (`getDegree`). A call is owed at the round's beginning
+  and bars the turn, as morale does; a need that arises mid-round is met by the die of the
+  action that has it (a swim move that enters water with no roll yet), which `applyPhase`
+  makes the round's. What a roll does once, when made, is the effect registry in
+  `commands/heldTest.ts`. A new kind of held test is a word in `HELD_TESTS` (`lists.ts`) and
+  its entries in the two registries, which do not compile until they have them. Swim moves
+  are priced per metre by the degree that metre's water gives the score, and a dive is swum
+  like a metre of path.
 - Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
