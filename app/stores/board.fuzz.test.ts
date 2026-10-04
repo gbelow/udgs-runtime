@@ -7,7 +7,7 @@ import { getAvailableActions } from '../domain/combat/rules/options'
 import { isReaction } from '../domain/combat/rules/actionCatalog'
 import { getOpenAction } from '../domain/combat/rules/log'
 import { coordKey } from '../domain/combat/geometry'
-import { acceptSpellTest, amendAction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
+import { acceptSpellTest, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
 import { chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { endTurn, surge } from '../domain/combat/commands/turn'
@@ -26,6 +26,7 @@ import { openHarness, type Harness } from './boardHarness'
 // it, and a click the view calls closed changes nothing.
 
 const SEEDS = Array.from({ length: 16 }, (_, i) => i + 1)
+const DUEL_SEEDS = SEEDS.slice(0, 8)
 const STEPS = 200
 const STORAGE_EVERY = 8
 
@@ -189,6 +190,21 @@ function assertSound(h: Harness, storage: boolean) {
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
 }
 
+function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Picker) {
+  const bag = menu.flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
+  const trail: string[] = []
+  for (let step = 0; step < steps; step++) {
+    const play = pick(bag)
+    trail.push(play.name)
+    try {
+      play.run(h, pick)
+      assertSound(h, step % STORAGE_EVERY === 0 || step === steps - 1)
+    } catch (e) {
+      throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
+    }
+  }
+}
+
 describe('pressing everything on the board, in any order', () => {
   it.each(SEEDS)('keeps the fight sound (seed %i)', (seed) => {
     const rng = seededRng(seed)
@@ -201,18 +217,73 @@ describe('pressing everything on the board, in any order', () => {
       h.cell(q, r)
     }
     h.select('Ann')
-
-    const menu = plays().flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
-    const trail: string[] = []
-    for (let step = 0; step < STEPS; step++) {
-      const play = pick(menu)
-      trail.push(play.name)
-      try {
-        play.run(h, pick)
-        assertSound(h, step % STORAGE_EVERY === 0 || step === STEPS - 1)
-      } catch (e) {
-        throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
-      }
-    }
+    session(h, seed, STEPS, plays(), pick)
   })
+})
+
+// Two characters and nothing else on the board, each turn an exchange: one
+// declares something likelier to be a grapple, a push, a shot, a strike or a
+// move, the others answer with whatever defences are offered, and the roll
+// runs on to its end.
+const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike', 'move']
+
+// Plays the open action out: the die, the payment, the resolution, and what a
+// resolution opens in turn.
+function playOut(h: Harness, pick: Picker) {
+  for (let i = 0; i < 8; i++) {
+    for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    const open = getActionPanel(h.state()).open
+    if (open && pick([true, false, false])) h.press(chooseManeuver(open.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }))
+    if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))
+  }
+}
+
+function exchange(h: Harness, pick: Picker) {
+  if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
+  playOut(h, pick)
+  if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
+  const names = Object.values(h.state().characters).map((c) => c.name)
+  h.select(pick(names))
+  h.startTurn()
+  const open = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+  if (!open.length) return
+  const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
+  h.declare(pick(leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
+  finishDeclaration(h, pick)
+  const answers = () => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
+  for (let tries = pick([0, 1, 2, 3, 4]); tries > 0 && answers().length; tries--) {
+    const answer = pick(answers())
+    h.press(declareReaction(answer.id, answer.draft, h.newId))
+    const there = h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
+    if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
+    if (pick([true, false])) h.press(amendReaction(answer.id, {}))
+  }
+  playOut(h, pick)
+  if (pick([true, false])) h.press(endTurn)
+}
+
+const DUELS = [
+  { name: 'two brawlers', a: brawler, b: brawler, apart: 1 },
+  { name: 'two archers', a: archer, b: archer, apart: 3 },
+  { name: 'a brawler and an archer', a: brawler, b: archer, apart: 2 },
+  { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
+]
+
+describe('two characters grappling, pushing, shooting and defending', () => {
+  for (const duel of DUELS) {
+    it.each(DUEL_SEEDS)(`keeps ${duel.name} sound (seed %i)`, (seed) => {
+      const rng = seededRng(seed)
+      const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+      const h = openHarness((explodes) => rollD10(explodes, rng))
+      h.bring(duel.a('Ann'), duel.b('Bob'))
+      h.createBoard(4)
+      h.select('Ann')
+      h.cell(0, 0)
+      h.select('Bob')
+      h.cell(duel.apart, 0)
+      h.select('Ann')
+      const duelPlays = plays().filter((p) => !['paint a cell', 'drop a held item', 'take a whole action'].includes(p.name))
+      session(h, seed, 120, [...duelPlays, { name: 'exchange', weight: 12, run: exchange }], pick)
+    })
+  }
 })

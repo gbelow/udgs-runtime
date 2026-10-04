@@ -130,6 +130,10 @@ click to what stands afterwards. It is admitted, under these terms.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
   a spell, a target clicked, a landing clicked) so that an action gets as far as being rolled.
+  A second run puts only two characters on the board (brawlers, archers, a spearman) and
+  plays exchanges: one declares something leaning to a grapple, a push, a shot, a strike or a
+  move, the other is answered with whatever defences are offered, and the roll runs on to its
+  end.
   What it reaches is bounded by the fixtures: a command no fixture character can declare is
   not exercised, so give the fixtures the gear and the abilities the commands need.
 - **Terrain is painted by clicking.** Scenes are built with the same brushes a player holds,
