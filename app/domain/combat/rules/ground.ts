@@ -29,15 +29,16 @@ export function readGround(state: CombatState, mover: string): Ground | null {
   }
 }
 
-// Off blocking cells. Any movement may enter water; a swim is in the water
-// except for its step out onto dry ground (`fromWater`: the step before was
-// wet), and out of the water only a swim or a climb leaves, a jump having
-// touched nothing between where it set out and where it lands.
+// Off blocking cells. A swim is in the water except for its step out onto dry
+// ground (`fromWater`: the step before was wet). A move is made in the water
+// or on land, never both, so any other movement stops at the first water it
+// reaches: nothing follows a wet step but a climb out of it. A jump touches
+// nothing between where it sets out and where it lands, so water it passes over
+// does not stop it.
 export function isCrossable(footprint: Coord[], ground: Ground, movement: MoveAction['movement'], fromWater = false): boolean {
   if (footprint.some(ground.blocked)) return false
-  const wet = footprint.some(ground.liquid)
-  if (movement === 'swim') return wet || fromWater
-  return wet || !fromWater || movement === 'climb' || movement === 'jump'
+  if (movement === 'swim') return footprint.some(ground.liquid) || fromWater
+  return !fromWater || movement === 'climb' || movement === 'jump'
 }
 
 export function isWet(footprint: Coord[], ground: Ground): boolean {
