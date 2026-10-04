@@ -25,7 +25,7 @@ import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
+import { getAttackVariant, getOpportunityAction, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, isTargeted } from './cast'
 import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
@@ -318,6 +318,15 @@ export function getCostTerms(state: CombatState, action: Action): CostTerm[] | n
 
 function costChange(label: string, after: ActionCost, before: ActionCost): CostTerm[] {
   return after.AP === before.AP && after.STA === before.STA ? [] : [{ label, AP: after.AP - before.AP, STA: after.STA - before.STA }]
+}
+
+// Whether the follow-up an opportunity attack opens is one its attacker can
+// pay for, the surge AP they hold included; a declaration still too
+// incomplete to price is not yet unaffordable.
+export function canAffordOpportunity(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
+  const c = state.characters[reaction.actorId]
+  const cost = c && getOwnCost(state, getOpportunityAction(state, reaction, `${reaction.id}-follow-up`))
+  return !c || !cost || canAfford(c, cost)
 }
 
 // What the action's own price is named for: the weapon row and variation of

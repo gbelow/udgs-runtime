@@ -2,7 +2,7 @@ import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type Cast
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, getClimbRedoCount, getCostTerms, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, getClimbRedoCount, getCostTerms, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
@@ -201,7 +201,9 @@ export function amendReaction(actorId: string, fields: Partial<ActionDraft>): Up
     if (!open) return state
     const reaction = getLiveReactionsTo(state, open.id).find((r) => r.actorId === actorId)
     if (!reaction || (fields.kind !== undefined && fields.kind !== reaction.kind)) return state
-    return pruneReactions(replaceActions(state, [ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })]))
+    const amended = ActionSchema.parse({ ...reaction, ...fields, kind: reaction.kind })
+    const next = pruneReactions(replaceActions(state, [amended]))
+    return amended.kind === 'opportunityAttack' && !canAffordOpportunity(next, amended) ? state : next
   }
 }
 

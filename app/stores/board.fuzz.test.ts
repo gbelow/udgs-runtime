@@ -465,38 +465,28 @@ const DUELS = [
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'drop a held item', 'take a whole action'].includes(p.name))
 
+function playDuel(duel: (typeof DUELS)[number], seed: number) {
+  const rng = seededRng(seed)
+  const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+  const h = openHarness((explodes) => rollD10(explodes, rng))
+  h.bring(duel.a('Ann'), duel.b('Bob'))
+  h.createBoard(4)
+  h.select('Ann')
+  h.cell(0, 0)
+  h.select('Bob')
+  h.cell(duel.apart, 0)
+  h.select('Ann')
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
+}
+
 describe('two characters grappling, pushing, shooting and defending', () => {
   for (const duel of DUELS) {
-    it.each(DUEL_SEEDS)(`keeps ${duel.name} sound (seed %i)`, (seed) => {
-      const rng = seededRng(seed)
-      const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-      const h = openHarness((explodes) => rollD10(explodes, rng))
-      h.bring(duel.a('Ann'), duel.b('Bob'))
-      h.createBoard(4)
-      h.select('Ann')
-      h.cell(0, 0)
-      h.select('Bob')
-      h.cell(duel.apart, 0)
-      h.select('Ann')
-      session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
-    })
+    it.each(DUEL_SEEDS)(`keeps ${duel.name} sound (seed %i)`, (seed) => playDuel(duel, seed))
   }
-})
 
-describe('an opportunity attack the attacker cannot pay for', () => {
-  it.fails('does not leave the root waiting (two brawlers, seed 10)', () => {
-    const rng = seededRng(10)
-    const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-    const h = openHarness((explodes) => rollD10(explodes, rng))
-    h.bring(brawler('Ann'), brawler('Bob'))
-    h.createBoard(4)
-    h.select('Ann')
-    h.cell(0, 0)
-    h.select('Bob')
-    h.cell(1, 0)
-    h.select('Ann')
-    session(h, 10, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
-  })
+  // A brawler was offered an opportunity attack as a maneuver it had not the
+  // stamina to pay for, and the root waited on it for good.
+  it('never opens an opportunity attack its attacker cannot pay for (two brawlers, seed 10)', () => playDuel(DUELS[0], 10))
 })
 
 // Seven of them crowded onto ground with a pond and a cliff painted on it,

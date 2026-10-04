@@ -5,7 +5,7 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canPayAll, needsDie, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -115,7 +115,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
         ? {
             options: declared.kind === 'joinShot'
               ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
-              : getFreeAttackOptions(state, c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant)),
+              : getFreeAttackOptions(state, c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant) && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }))),
             shot: declared.kind === 'joinShot',
             ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
             ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
@@ -128,7 +128,7 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             grabbable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? ''),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
-            maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '')),
+            maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
             maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
