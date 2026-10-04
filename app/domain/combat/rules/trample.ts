@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { CombatState, Coord, MoveAction, StrikeAction, Trample } from '../types'
+import type { CombatState, Coord, MoveAction, Placement, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
 import { getMovementSpeed } from '../../character/rules/movement'
 import { sameCell } from '../geometry'
@@ -50,8 +50,9 @@ function crash(moverId: string, targetId: string, at: number, mover: number, tar
 // The move's path as walked against everyone standing in it, step by step:
 // the first step whose footprint comes into one is their crash, at the
 // mover's Force against theirs. Passed, the mover goes on through them;
-// blocked, the mover stops a space short of them — `stop`, the steps
-// walked. Left out are whoever "Evades: ... free passage", whoever is prone,
+// blocked, the mover stops a space short of them, or short of the last space
+// no one stands in — one passed or evaded on the way does not make room —
+// `stop`, the steps walked. Left out are whoever "Evades: ... free passage", whoever is prone,
 // and a bracer or catcher whose blow on this move was its crash already.
 export function getMoveTramples(state: CombatState, action: MoveAction, path: Coord[]): { trampled: Trample[]; stop: number | null } {
   const mover = state.characters[action.actorId]
@@ -76,10 +77,24 @@ export function getMoveTramples(state: CombatState, action: MoveAction, path: Co
       met.add(id)
       const result = crash(mover.id, id, i + 1, getMoverForce(mover, action, i + 1), getForce(other) + (braced.has(id) ? BRACED : 0))
       trampled.push(result)
-      if (result.result === 'blocked') return { trampled, stop: i }
+      if (result.result === 'blocked') {
+        let stop = i
+        while (stop > 0 && isStoodIn(state, mover, { ...from, cell: path[stop - 1] })) stop--
+        return { trampled, stop }
+      }
     }
   }
   return { trampled, stop: null }
+}
+
+// Whether anyone but the mover stands where the mover would, so that coming to
+// rest there would put two on a space.
+function isStoodIn(state: CombatState, mover: Character, at: Placement): boolean {
+  const footprint = getFootprint(mover, at)
+  return Object.entries(state.board?.placements ?? {}).some(([id, placement]) => {
+    const other = state.characters[id]
+    return id !== mover.id && other !== undefined && getFootprint(other, placement).some((t) => footprint.some((f) => sameCell(f, t)))
+  })
 }
 
 // The crash a blow on a mover sets off — a braced one, or a catch: the mover

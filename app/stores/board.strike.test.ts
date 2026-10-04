@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { fighter, spearman } from '../domain/bot/fixtures'
-import { amendAction, cancelAction, declareReaction, withdrawReaction } from '../domain/combat/commands/action'
+import { fighter, spearman, warden } from '../domain/bot/fixtures'
+import { amendAction, cancelAction, declareReaction, payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
 import { getActionPanel } from '../domain/combat/projections/actionPanel'
 import { getOpenAction } from '../domain/combat/rules/log'
 import { getAvailableActions } from '../domain/combat/rules/options'
@@ -115,5 +115,37 @@ describe('answering a committed strike', () => {
       }
     }
     expect(tried).toBeGreaterThan(0)
+  })
+})
+
+// The fuzzer found two answers to one strike landing on the same space: the
+// evader's jump and the guard's step are each offered the space the other has
+// taken, and both end on it. Known violation of the one-character-per-space
+// invariant; this passes once the second is refused or offered another.
+describe('two answers that move', () => {
+  it.fails('do not both come to rest on the same space', () => {
+    const h = openHarness()
+    h.bring(fighter('Gus'), fighter('Dee'), warden('Ann'))
+    h.createBoard(5)
+    for (const [name, q, r] of [['Gus', -2, 1], ['Dee', -1, 1], ['Ann', -2, 3]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Gus')
+    h.startTurn()
+    h.declare({ kind: 'strike' })
+    const row = getActionPanel(h.state()).attacks[0]
+    h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+    h.token('Dee')
+    h.commit()
+    const jump = getAvailableActions(h.state(), h.idOf('Dee')).find((o) => o.draft.kind === 'evasiveJump' && o.available)!
+    h.press(declareReaction(h.idOf('Dee'), jump.draft, h.newId))
+    const block = getAvailableActions(h.state(), h.idOf('Ann')).find((o) => o.draft.kind === 'block' && o.available)!
+    h.press(declareReaction(h.idOf('Ann'), block.draft, h.newId))
+    h.cell(-1, 2)
+    h.cell(-1, 2)
+    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    const cells = Object.values(h.state().board!.placements).map((p) => `${p.cell.q},${p.cell.r}`)
+    expect(new Set(cells).size).toBe(cells.length)
   })
 })

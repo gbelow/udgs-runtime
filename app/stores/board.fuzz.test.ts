@@ -15,7 +15,7 @@ import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
 import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
-import { archer, brawler, mage, spearman, trained, warden } from '../domain/bot/fixtures'
+import { archer, bomber, brawler, mage, netter, spearman, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
 
@@ -27,8 +27,12 @@ import { useCombatStore } from './useCombatStore'
 // round-trips, the board is never drawn inconsistent with the characters on
 // it, and a click the view calls closed changes nothing.
 
-const SEEDS = Array.from({ length: 16 }, (_, i) => i + 1)
-const DUEL_SEEDS = SEEDS.slice(0, 8)
+// FUZZ_SEEDS=n runs n seeds of every session instead of the few that keep the
+// suite quick.
+const seeds = (n: number) => Array.from({ length: Number(process.env.FUZZ_SEEDS) || n }, (_, i) => i + 1)
+const SEEDS = seeds(16)
+const DUEL_SEEDS = seeds(3)
+const CROWD_SEEDS = seeds(4)
 const STEPS = 200
 const STORAGE_EVERY = 8
 
@@ -45,8 +49,14 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (row && !panel().open?.weapon) h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
   const ammo = first(panel().ammo)
   if (ammo) h.press(amendAction({ ammoId: ammo.itemId }))
-  const spell = first(panel().spells.filter((s) => s.castable))
+  const castable = panel().spells.filter((s) => s.castable)
+  const favoured = castable.filter((s) => s.key === 'flamethrower' || s.key === 'telepathic-link')
+  const spell = first(favoured.length && pick([true, true, false]) ? favoured : castable)
   if (spell && !panel().open?.spell) h.press(chooseSpell(spell.key, false))
+  const thrown = first(panel().open?.floor.filter((f) => f.available) ?? [])
+  if (thrown && getOpenAction(h.state())?.kind === 'throw' && !panel().open?.item) h.press(amendAction({ itemId: thrown.itemId }))
+  const gear = first(panel().gear)
+  if (gear && getOpenAction(h.state())?.kind === 'cast') h.press(amendAction({ itemId: gear.itemId }))
   const target = first(h.view().tokens.filter((t) => t.targetable))
   if (target) h.click({ on: 'token', id: target.id })
   const there = first(h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center))
@@ -288,39 +298,18 @@ describe('pressing everything on the board, in any order', () => {
   })
 })
 
-// Two characters and nothing else on the board, each turn an exchange: one
-// declares something likelier to be a grapple, a push, a shot, a strike or a
-// move, the others answer with whatever defences are offered, and the roll
-// runs on to its end.
-const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike']
+// Fights where each turn is an exchange: one character declares something
+// likelier to be a grapple, a push, a shot, a throw or a spell than a walk,
+// the others answer with whatever defences are offered, and the roll runs on
+// to its end, taking up whatever it opens.
+const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike', 'cast', 'fireAgain', 'throw', 'cut', 'slip', 'release', 'holdBack', 'fall', 'pickUp']
 
-// Plays the open action out: the die, the payment, the resolution, and what a
-// resolution opens in turn.
-function playOut(h: Harness, pick: Picker) {
-  for (let i = 0; i < 8; i++) {
-    for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
-    const open = getActionPanel(h.state()).open
-    if (open && pick([true, false, false])) h.press(chooseManeuver(open.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) }))
-    if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))
-  }
-}
-
-function exchange(h: Harness, pick: Picker) {
-  if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
-  playOut(h, pick)
-  if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
-  const names = Object.values(h.state().characters).map((c) => c.name)
-  h.select(pick(names))
-  h.startTurn()
-  if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
-  const every = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
-  const open = every.some((o) => o.draft.kind !== 'move') ? every.filter((o) => o.draft.kind !== 'move') : every
-  if (!open.length) return
-  const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
-  h.declare(pick(leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
-  finishDeclaration(h, pick)
+// Answers the committed action with up to `tries` of the defences offered to
+// anyone, a kind at a time so the rarer ones are not drowned by the many
+// variants of the common ones.
+function answerOpen(h: Harness, pick: Picker, tries: number) {
   const answers = () => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
-  for (let tries = pick([0, 1, 2, 3, 4]); tries > 0 && answers().length; tries--) {
+  for (let left = tries; left > 0 && answers().length; left--) {
     const offered = answers()
     const kind = pick([...new Set(offered.map((o) => o.draft.kind))])
     const answer = pick(offered.filter((o) => o.draft.kind === kind))
@@ -329,8 +318,74 @@ function exchange(h: Harness, pick: Picker) {
     if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
     answerWithAStrike(h, answer.id, pick)
   }
+}
+
+// Plays the open action out: declares what a resolution asks of its actor,
+// answers it, then the die, the payment, the resolution and what it opens.
+function playOut(h: Harness, pick: Picker) {
+  for (let i = 0; i < 10; i++) {
+    const open = getOpenAction(h.state())
+    if (open?.step === 'define') finishDeclaration(h, pick)
+    if (open?.step === 'react' && pick([true, true, false])) answerOpen(h, pick, pick([1, 2, 3]))
+    if (open?.kind === 'blast' || open?.kind === 'explosion') {
+      const aimed = h.view().cells.filter((c) => open.kind === 'blast' || c.center)
+      if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
+    }
+    for (const step of [rollAction(h.dice, h.newId), acceptSpellTest(h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    const panel = getActionPanel(h.state()).open
+    if (panel && pick([true, false, false])) h.press(chooseManeuver(panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }))
+    if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))
+  }
+}
+
+function startTurnOf(h: Harness, pick: Picker) {
+  if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
+  playOut(h, pick)
+  if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
+  const { characters, binds } = h.state()
+  const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
+  h.select(characters[pick(bound.length && pick([true, true, false]) ? bound : Object.keys(characters))].name)
+  h.startTurn()
+  if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
+}
+
+const OWN = (h: Harness) => getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+
+function exchange(h: Harness, pick: Picker) {
+  startTurnOf(h, pick)
+  const every = OWN(h)
+  const open = every.some((o) => o.draft.kind !== 'move') ? every.filter((o) => o.draft.kind !== 'move') : every
+  if (!open.length) return
+  const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
+  const grabs = open.filter((o) => o.draft.kind === 'strike' && 'grab' in o.draft && o.draft.grab)
+  h.declare(pick(grabs.length && pick([true, false]) ? grabs : leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
+  finishDeclaration(h, pick)
+  answerOpen(h, pick, pick([0, 1, 2, 3, 4]))
   playOut(h, pick)
   if (pick([true, false])) h.press(endTurn)
+}
+
+// A walk, a swim, a climb, a jump or a run, as far as the board lets it go,
+// with a dive added when it swims.
+function travel(h: Harness, pick: Picker) {
+  startTurnOf(h, pick)
+  if (!OWN(h).some((o) => o.draft.kind === 'move')) return
+  h.declare({ kind: 'move' })
+  const moves = getActionPanel(h.state()).moves.filter((m) => m.available)
+  const special = moves.filter((m) => ['swim', 'climb', 'jump', 'run', 'crawl'].includes(m.kind))
+  if (moves.length) h.press(amendAction({ movement: pick(special.length && pick([true, true, false]) ? special : moves).kind }))
+  for (let i = pick([1, 2, 3, 4]); i > 0; i--) {
+    const cells = h.view().cells.filter((c) => c.reachable !== null)
+    if (cells.length) h.click({ on: 'cell', cell: pick(cells).cell })
+  }
+  if (pick([true, false])) h.press(amendAction({ dive: pick([-1, 1, 2]) }))
+  const climb = getActionPanel(h.state()).open?.climbSteps
+  if (climb && pick([true, false])) h.press(amendAction({ metres: 1 + Math.floor(pick([0, 1, 2]) % climb.metres) }))
+  const modes = getActionPanel(h.state()).open?.climbModes ?? []
+  if (modes.length) h.press(amendAction({ mode: pick(modes) }))
+  h.commit()
+  answerOpen(h, pick, pick([0, 1, 2]))
+  playOut(h, pick)
 }
 
 const DUELS = [
@@ -341,7 +396,12 @@ const DUELS = [
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
   { name: 'two wardens', a: warden, b: warden, apart: 1 },
+  { name: 'a mage and a warden', a: mage, b: warden, apart: 2 },
+  { name: 'a bomber and a warden', a: bomber, b: warden, apart: 2 },
+  { name: 'a netter and a warden', a: netter, b: warden, apart: 2 },
 ]
+
+const duelPlays = () => plays().filter((p) => !['paint a cell', 'drop a held item', 'take a whole action'].includes(p.name))
 
 describe('two characters grappling, pushing, shooting and defending', () => {
   for (const duel of DUELS) {
@@ -356,8 +416,35 @@ describe('two characters grappling, pushing, shooting and defending', () => {
       h.select('Bob')
       h.cell(duel.apart, 0)
       h.select('Ann')
-      const duelPlays = plays().filter((p) => !['paint a cell', 'drop a held item', 'take a whole action'].includes(p.name))
-      session(h, seed, 120, [...duelPlays, { name: 'exchange', weight: 12, run: exchange }], pick)
+      session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
     })
   }
+})
+
+// Seven of them crowded onto ground with a pond and a cliff painted on it,
+// so that a throw has someone to hit, a net someone to catch, a shot someone
+// to join, and a walk may end in the water or on the rock.
+describe('a crowd on rough ground', () => {
+  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => {
+    const rng = seededRng(seed)
+    const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+    const h = openHarness((explodes) => rollD10(explodes, rng))
+    h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), brawler('Gus'))
+    h.createBoard(5)
+    const paint = (brush: (typeof TERRAIN_BRUSHES)[number], cells: [number, number][], times = 1) => {
+      h.holdBrush(brush)
+      for (const [q, r] of cells) for (let i = 0; i < times; i++) h.cell(q, r)
+      h.holdBrush(null)
+    }
+    paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
+    paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
+    paint('raise', [[-3, 1], [-3, 2]], 2)
+    paint('grip', [[-3, 1], [-3, 2]])
+    for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Ann')
+    session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }], pick)
+  })
 })

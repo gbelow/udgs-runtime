@@ -34,7 +34,7 @@ export function archer(id: string): CampaignCharacter {
 // spent, with the spells that ask for nothing in hand besides.
 export function mage(id: string): CampaignCharacter {
   const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
-  const known = Object.fromEntries(['flamethrower', 'telepathic-link', 'pain', 'frighten', 'sleep'].map((key) => [key, { method: 'intuitive' as const, practice: 0 }]))
+  const known = Object.fromEntries(['flamethrower', 'telepathic-link', 'pain', 'frighten', 'sleep'].map((key) => [key, { method: 'intuitive' as const, practice: 6 }]))
   return { ...holdItem(flamethrower)(fighter(id)), spells: known, usedSurge: 'focus' }
 }
 
@@ -56,6 +56,18 @@ export function warden(id: string): CampaignCharacter {
   const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
   const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
   return trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id))))))
+}
+
+// A thrower with a grenade in hand (gear.tex "Grenade").
+export function bomber(id: string): CampaignCharacter {
+  const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+  return holdItem(grenade)(fighter(id))
+}
+
+// A thrower with a net in both hands (gear.tex "Net").
+export function netter(id: string): CampaignCharacter {
+  const net = ItemSchema.parse({ name: 'Net', type: 'weapon', refId: 'Net', bulk: 2 })
+  return regripItem(net.id, 2)(holdItem(net)(fighter(id)))
 }
 
 export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {

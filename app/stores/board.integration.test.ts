@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
+import { fighter } from '../domain/bot/fixtures'
+import { declareReaction, payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/combat/commands/action'
+import { getAvailableActions } from '../domain/combat/rules/options'
 
 // Click to effect, over the real combat store: what a player does on the
 // board and the panels, and what stands afterwards. Expected values are what
@@ -116,5 +119,34 @@ describe('walking a move across the board', () => {
       h.cell(q, r)
       expect(pathOf(h).at(-1) ?? null, `clicking ${key}`).toBe(offered ? key : null)
     }
+  })
+})
+
+// The fuzzer found a mover who passed an evader and was then blocked: they were
+// stopped a space short of the blocker, which was the evader's own space, and
+// two characters stood on one.
+describe('a move blocked after passing someone who evaded', () => {
+  it('leaves the mover on a space nobody else stands on', () => {
+    const h = openHarness()
+    h.bring(fighter('Cy'), fighter('Bob'), fighter('Fay'))
+    h.createBoard(4)
+    for (const [name, q, r] of [['Cy', 0, 1], ['Bob', 1, 0], ['Fay', 2, -1]] as const) {
+      h.select(name)
+      h.cell(q, r)
+    }
+    h.select('Cy')
+    h.startTurn()
+    h.declare({ kind: 'move' })
+    h.cell(1, 0)
+    h.cell(2, -1)
+    h.cell(2, -2)
+    h.commit()
+    const evade = getAvailableActions(h.state(), h.idOf('Bob')).find((o) => o.draft.kind === 'evade' && o.available)!
+    h.press(declareReaction(h.idOf('Bob'), evade.draft, h.newId))
+    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    const stands = Object.entries(h.state().board!.placements).map(([id, p]) => `${p.cell.q},${p.cell.r}:${id}`)
+    const cells = stands.map((s) => s.split(':')[0])
+    expect(new Set(cells).size).toBe(cells.length)
+    expect(h.view().tokens).toHaveLength(3)
   })
 })
