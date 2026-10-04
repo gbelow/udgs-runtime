@@ -1,6 +1,6 @@
 import { addCharacterToCombat } from '../app/domain/combat/factories'
 import { board } from '../app/domain/bot/fixtures'
-import { estimateAttacks, rankAttacks, type AttackEstimate, type DefenseEstimate } from '../app/domain/bot/estimate'
+import { estimateAttacks, rankAttacks, type AttackEstimate, type BreakEstimate, type DefenseEstimate } from '../app/domain/bot/estimate'
 import { buildFighter } from './lib/fighters'
 
 // What each attack of one fighter would do to another, read off the real action
@@ -8,7 +8,7 @@ import { buildFighter } from './lib/fighters'
 // attacks with: every attack the attacker can pay for and reach with, against
 // every defense the target could answer with, over the attacker's die, the
 // overflow of a hit (HOP) spent on whatever does the most. Attacks are listed
-// best first by injury level (IL) per cost, the target answering as it best can.
+// best first by value (injury level plus equipment breakage) per cost, the target answering as it best can.
 //
 //   pnpm damage "<Attacker>" "<Defender>" [--distance n] [--aim location] [--sta-weight n] [--attack n] [--grid] [--json]
 //
@@ -33,9 +33,13 @@ function positional(args: string[]): string[] {
 const pct = (n: number) => `${(n * 100).toFixed(0)}%`.padStart(4)
 const num = (n: number | null, digits = 2) => (n === null ? '  -  ' : Number.isFinite(n) ? n.toFixed(digits) : 'inf')
 
+function breakText(breaks: BreakEstimate[]): string {
+  return breaks.length === 0 ? 'none' : breaks.map((b) => `${b.owner === 'foe' ? 'foe' : 'own'} ${b.kind} ${pct(b.odds).trim()}`).join(', ')
+}
+
 function defenseLine(d: DefenseEstimate, mark: string): string {
   const label = d.landings > 1 ? `${d.label} (and ${d.landings - 1} landing${d.landings > 2 ? 's' : ''} like it)` : d.label
-  return `${mark} ${label.padEnd(46)} foe pays ${d.cost.AP} AP ${d.cost.STA} STA | hit ${pct(d.pHit)} graze ${pct(d.pGraze)} stun ${pct(d.pStun)} dead ${pct(d.pDead)} | E[IL] ${num(d.expectedIL)} (HOP unspent ${num(d.expectedILUnspent)}) | bleed ${num(d.expectedBleed)} | foe AP lost ${num(d.expectedAPLoss)} | HOP price ${num(d.expectedExtra.AP)} AP ${num(d.expectedExtra.STA)} STA`
+  return `${mark} ${label.padEnd(46)} foe pays ${d.cost.AP} AP ${d.cost.STA} STA | hit ${pct(d.pHit)} graze ${pct(d.pGraze)} stun ${pct(d.pStun)} dead ${pct(d.pDead)} | E[IL] ${num(d.expectedIL)} (HOP unspent ${num(d.expectedILUnspent)}) | bleed ${num(d.expectedBleed)} | foe AP lost ${num(d.expectedAPLoss)} | HOP price ${num(d.expectedExtra.AP)} AP ${num(d.expectedExtra.STA)} STA | breaks ${breakText(d.breaks)} (${num(d.expectedBreakIL)} IL) | value ${num(d.value)}`
 }
 
 function dieLines(d: DefenseEstimate): string[] {
@@ -72,9 +76,9 @@ function main(): void {
   }
 
   const describe = (id: string) => `${state.characters[id].name} [${state.characters[id].held.map((i) => i.name).join(' + ') || 'bare hands'}; ${state.characters[id].worn?.name ?? 'no armor'}]`
-  const lines = [`${describe('a')}  →  ${describe('b')}  (${distance} cell${distance === 1 ? '' : 's'}${aim ? `, aimed at ${aim}` : ''}; an STA counts as ${staWeight} AP)`, '', 'Best first, the target answering as it best can:']
+  const lines = [`${describe('a')}  →  ${describe('b')}  (${distance} cell${distance === 1 ? '' : 's'}${aim ? `, aimed at ${aim}` : ''}; an STA counts as ${staWeight} AP)`, '', 'Best first by value (IL plus equipment breakage) per cost, the target answering as it best can:']
   ranked.forEach((a, i) => {
-    lines.push(`  [${i}] ${a.label.padEnd(40)} costs ${a.totalCost.AP.toFixed(1)} AP ${a.totalCost.STA.toFixed(1)} STA | E[IL] ${num(a.expectedIL)} | IL/AP ${num(a.ilPerAP)} IL/STA ${num(a.ilPerSTA)} IL/cost ${num(a.ilPerCost)} | answered by ${a.guarded.label}`)
+    lines.push(`  [${i}] ${a.label.padEnd(40)} costs ${a.totalCost.AP.toFixed(1)} AP ${a.totalCost.STA.toFixed(1)} STA | E[IL] ${num(a.expectedIL)} breakage ${num(a.expectedBreakIL)} value ${num(a.value)} | IL/AP ${num(a.ilPerAP)} IL/STA ${num(a.ilPerSTA)} IL/cost ${num(a.ilPerCost)} | answered by ${a.guarded.label}`)
   })
   ranked.forEach((a, i) => {
     if (only !== null && only !== i) return
@@ -82,7 +86,7 @@ function main(): void {
     for (const d of a.defenses) lines.push(defenseLine(d, d === a.guarded ? '*' : ' '))
     if (grid) lines.push(...dieLines(a.guarded))
   })
-  lines.push('', '* is the answer assumed (the one that leaves the attacker the least IL). E[IL] is per attack, capped at what the target has left before death, with HOP spent on whatever does the most; HOP price is the AP and STA that spend costs the attacker on top (assassinate, braced, hook).')
+  lines.push('', '* is the answer assumed (the one that leaves the attacker the least value). Breakage counts a weapon as a tier 3 injury and a shield as a tier 2 one (positive when it is the foe, negative when it is the attacker); armor is left out. E[IL] is per attack, capped at what the target has left before death, with HOP spent on whatever does the most; HOP price is the AP and STA that spend costs the attacker on top (assassinate, braced, hook).')
   console.log(lines.join('\n'))
 }
 

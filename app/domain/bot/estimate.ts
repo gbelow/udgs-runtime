@@ -4,7 +4,9 @@ import type { Dice } from '../combat/dice'
 import { declareReaction, rollOrPay } from '../combat/commands/action'
 import { spendHOP } from '../combat/commands/choices'
 import { appendActions } from '../combat/commands/log'
-import { getHOPOptions } from '../combat/rules/damage'
+import { getAttackFacts, getHOPOptions } from '../combat/rules/damage'
+import { getBreakOdds, getBreakRisks } from '../combat/rules/breakage'
+import { injuryMap } from '../tables'
 import { findOption, getAvailableActions } from '../combat/rules/options'
 import { getEvasiveJumpPlacements } from '../combat/rules/move'
 import { getDefaultAim, getFreeAttackOptions } from '../combat/rules/attack'
@@ -23,12 +25,16 @@ import { getStrikes, type Strike } from './weapons'
 // attacker's die, the overflow of a hit (HOP) spent on whatever does the most.
 // A defense is a static DL (combat.tex "Defend"), so only the attacker's die is
 // thrown. The d10 explodes where the test says it does (play.tex "Exploding
-// die"), a normal test; the optional breakage rolls are not modelled.
+// die"), a normal test.
 //
 // The injury level (IL) is what an attack adds to the foe, capped at what it
 // has left before death. What it costs is the attack's own AP and STA, and the
 // AP and STA a HOP purchase adds, so IL per AP, per STA and per weighted cost
-// can be compared across attacks.
+// can be compared across attacks. Equipment breakage (gear.tex "Equipment
+// Breakage") is valued in the same unit by the table's ruling: a weapon that
+// breaks is worth a tier 3 injury and a shield a tier 2 one, to whoever it
+// is taken from. The value of an attack is its IL plus the foe's breakage less
+// the attacker's own. Armor breakage is left out.
 
 export type EstimateOptions = {
   // where the blow is aimed, a body location the foe has; the chest otherwise
@@ -36,6 +42,17 @@ export type EstimateOptions = {
   // how many AP an STA is worth, for the single cost to rank by
   staWeight?: number
 }
+
+export type BreakEstimate = {
+  // whose item gives way
+  owner: 'attacker' | 'foe'
+  kind: 'weapon' | 'shield'
+  // the odds, over the die
+  odds: number
+}
+
+// The IL an item is worth, by the table's ruling.
+const BREAK_IL = { weapon: injuryMap.T3.IL, shield: injuryMap.T2.IL } as const
 
 export type DieResult = {
   die: number
@@ -48,6 +65,7 @@ export type DieResult = {
   spent: HOPPurchase[]
   extra: { AP: number; STA: number }
   outcome: Outcome | null
+  breaks: BreakEstimate[]
 }
 
 export type DefenseEstimate = {
@@ -67,6 +85,12 @@ export type DefenseEstimate = {
   expectedBleed: number
   expectedAPLoss: number
   expectedArrived: number
+  // the items the blow puts at risk, over the die, and what they come to in IL: the foe's
+  // counted for the attacker, the attacker's against it
+  breaks: BreakEstimate[]
+  expectedBreakIL: number
+  // IL added plus the breakage
+  value: number
   // what the best HOP spend costs the attacker on top of the attack, on average
   expectedExtra: { AP: number; STA: number }
   byDie: DieResult[]
@@ -85,6 +109,9 @@ export type AttackEstimate = {
   // the answer that leaves the attacker the least: what the foe is assumed to choose
   guarded: DefenseEstimate
   expectedIL: number
+  expectedBreakIL: number
+  // IL added plus the breakage, what the attacks are ranked by
+  value: number
   // total price with the HOP purchases made, in AP, in STA and weighted
   totalCost: { AP: number; STA: number; weighted: number }
   ilPerAP: number | null
@@ -115,10 +142,13 @@ function distribution(explodes: boolean): { value: number; p: number }[] {
   ]
 }
 
+// The attack's die, then nines for whatever else is thrown with it: the
+// percentiles of breakage are read as chances instead.
 function scripted(value: number, flags?: boolean[]): Dice {
+  let thrown = 0
   return (explodes) => {
     flags?.push(explodes)
-    return value
+    return thrown++ === 0 ? value : 9
   }
 }
 
@@ -131,7 +161,7 @@ function rank(o: Outcome | null): number {
 
 type Defense = { label: string; kind: ActionKind | 'none'; declare: ((state: CombatState, open: RootAction, newId: () => string) => CombatState | null) | null; cost: { AP: number; STA: number } }
 
-type Play = { degree: string; score: number; DL: number; HOP: number; best: Outcome | null; spend: Spend; unspent: Outcome | null }
+type Play = { degree: string; score: number; DL: number; HOP: number; best: Outcome | null; spend: Spend; unspent: Outcome | null; breaks: BreakEstimate[] }
 
 export function estimateAttacks(state: CombatState, attackerId: string, targetId: string, options: EstimateOptions = {}): AttackEstimate[] {
   const staWeight = options.staWeight ?? 1
@@ -170,6 +200,13 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
     return found
   }
 
+  // the items the blow puts at risk as it lands, the armor left out
+  const breaksOf = (s: CombatState, root: AttackAction): BreakEstimate[] =>
+    getBreakRisks(s, root, getAttackFacts(s, root))
+      .filter((risk) => risk.slot === 'defender' || risk.slot === 'attacker')
+      .map((risk) => ({ owner: risk.swung ? 'attacker' as const : 'foe' as const, kind: risk.shield ? 'shield' as const : 'weapon' as const, odds: getBreakOdds(risk) }))
+      .filter((b) => b.odds > 0)
+
   const play = (locked: CombatState, openId: string, defense: Defense, dice: Dice): Play | null => {
     let s = locked
     if (defense.declare) {
@@ -186,18 +223,18 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       const roll = now.roll
       const unspent = outcomeOn(s, now)
       const choices = roll?.degree === 'hit' ? spends(s) : [{ state: s, spend: { purchases: [], AP: 0, STA: 0 } }]
-      let best = { outcome: unspent, spend: choices[0].spend }
+      let best = { outcome: unspent, spend: choices[0].spend, state: choices[0].state }
       for (const c of choices) {
         const o = outcomeOn(c.state, getOpenAction(c.state) as RootAction)
         const better = rank(o) - rank(best.outcome) || best.spend.AP + best.spend.STA - (c.spend.AP + c.spend.STA)
-        if (better > 0) best = { outcome: o, spend: c.spend }
+        if (better > 0) best = { outcome: o, spend: c.spend, state: c.state }
       }
-      return { degree: roll?.degree ?? 'miss', score: roll?.score ?? 0, DL: roll?.DL ?? 0, HOP: roll?.HOP ?? 0, best: best.outcome, spend: best.spend, unspent }
+      return { degree: roll?.degree ?? 'miss', score: roll?.score ?? 0, DL: roll?.DL ?? 0, HOP: roll?.HOP ?? 0, best: best.outcome, spend: best.spend, unspent, breaks: breaksOf(best.state, getOpenAction(best.state) as AttackAction) }
     }
     const landed = getAction(s, openId)
     if (!landed || (landed.kind !== 'strike' && landed.kind !== 'shoot')) return null
     const outcome = landed.results.find((r) => r.targetId === targetId)?.outcome ?? null
-    return { degree: landed.roll?.degree ?? 'miss', score: landed.roll?.score ?? 0, DL: landed.roll?.DL ?? 0, HOP: landed.roll?.HOP ?? 0, best: outcome, spend: { purchases: [], AP: 0, STA: 0 }, unspent: outcome }
+    return { degree: landed.roll?.degree ?? 'miss', score: landed.roll?.score ?? 0, DL: landed.roll?.DL ?? 0, HOP: landed.roll?.HOP ?? 0, best: outcome, spend: { purchases: [], AP: 0, STA: 0 }, unspent: outcome, breaks: breaksOf(s, landed) }
   }
 
   const defensesOf = (locked: CombatState): Defense[] => {
@@ -229,12 +266,13 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
     const flags: boolean[] = []
     if (play(locked, openId, defense, scripted(5, flags)) === null) return null
     const byDie: DieResult[] = []
-    const e = { hit: 0, graze: 0, stun: 0, dead: 0, IL: 0, unspent: 0, bleed: 0, APLoss: 0, arrived: 0, AP: 0, STA: 0 }
+    const e = { hit: 0, graze: 0, stun: 0, dead: 0, IL: 0, unspent: 0, bleed: 0, APLoss: 0, arrived: 0, AP: 0, STA: 0, breakIL: 0 }
+    const broken = new Map<string, BreakEstimate>()
     for (const { value, p } of distribution(flags[0] ?? true)) {
       const r = play(locked, openId, defense, scripted(value))
       if (!r) continue
       const IL = Math.min(r.best?.IL ?? 0, room)
-      byDie.push({ die: value, p, degree: r.degree, score: r.score, DL: r.DL, HOP: r.HOP, spent: r.spend.purchases, extra: { AP: r.spend.AP, STA: r.spend.STA }, outcome: r.best })
+      byDie.push({ die: value, p, degree: r.degree, score: r.score, DL: r.DL, HOP: r.HOP, spent: r.spend.purchases, extra: { AP: r.spend.AP, STA: r.spend.STA }, outcome: r.best, breaks: r.breaks })
       if (r.degree === 'hit') e.hit += p
       if (r.degree === 'graze') e.graze += p
       if (r.best && r.best.interruption !== 'none') e.stun += p
@@ -244,6 +282,11 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       e.bleed += p * (r.best?.bleed ?? 0)
       e.APLoss += p * (r.best?.apLoss ?? 0)
       e.arrived += p * ((r.best?.arrived.blunt ?? 0) + (r.best?.arrived.cut ?? 0))
+      for (const b of r.breaks) {
+        const key = `${b.owner} ${b.kind}`
+        broken.set(key, { ...b, odds: (broken.get(key)?.odds ?? 0) + p * b.odds })
+        e.breakIL += p * b.odds * BREAK_IL[b.kind] * (b.owner === 'foe' ? 1 : -1)
+      }
       e.AP += p * r.spend.AP
       e.STA += p * r.spend.STA
     }
@@ -261,6 +304,9 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       expectedBleed: e.bleed,
       expectedAPLoss: e.APLoss,
       expectedArrived: e.arrived,
+      breaks: [...broken.values()],
+      expectedBreakIL: e.breakIL,
+      value: e.IL + e.breakIL,
       expectedExtra: { AP: e.AP, STA: e.STA },
       byDie: byDie.sort((a, b) => a.die - b.die),
     }
@@ -284,9 +330,9 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       }
       if (defenses.length === 0) return []
 
-      // the foe takes the answer that costs the attacker the most IL, the cheaper
+      // the foe takes the answer that leaves the attacker the least, the cheaper
       // answer when two come to the same
-      const preferred = [...defenses].sort((a, b) => a.expectedIL - b.expectedIL || a.cost.AP + a.cost.STA - (b.cost.AP + b.cost.STA))
+      const preferred = [...defenses].sort((a, b) => a.value - b.value || a.cost.AP + a.cost.STA - (b.cost.AP + b.cost.STA))
       const guarded = preferred[0]
       const open = strike.open
       const priced = getPayableCost(locked, open)
@@ -305,16 +351,18 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
         defenses: preferred,
         guarded,
         expectedIL: guarded.expectedIL,
+        expectedBreakIL: guarded.expectedBreakIL,
+        value: guarded.value,
         totalCost: total,
-        ilPerAP: total.AP > 0 ? guarded.expectedIL / total.AP : null,
-        ilPerSTA: total.STA > 0 ? guarded.expectedIL / total.STA : null,
-        ilPerCost: total.weighted > 0 ? guarded.expectedIL / total.weighted : guarded.expectedIL > 0 ? Infinity : 0,
+        ilPerAP: total.AP > 0 ? guarded.value / total.AP : null,
+        ilPerSTA: total.STA > 0 ? guarded.value / total.STA : null,
+        ilPerCost: total.weighted > 0 ? guarded.value / total.weighted : Math.sign(guarded.value) * Infinity || 0,
       }]
     })
 }
 
-// The attacks ranked best first: the most IL for what they cost, the foe
+// The attacks ranked best first: the most value for what they cost, the foe
 // answering as it best can; ties go to the harder hitting.
 export function rankAttacks(estimates: readonly AttackEstimate[]): AttackEstimate[] {
-  return [...estimates].sort((a, b) => b.ilPerCost - a.ilPerCost || b.expectedIL - a.expectedIL)
+  return [...estimates].sort((a, b) => b.ilPerCost - a.ilPerCost || b.value - a.value)
 }
