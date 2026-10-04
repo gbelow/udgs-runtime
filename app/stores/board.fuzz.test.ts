@@ -52,6 +52,17 @@ function finishDeclaration(h: Harness, pick: Picker) {
   h.commit()
 }
 
+// What an answer that strikes for itself (a counterattack, an opportunity
+// attack) is still asked for, from the reactor's own offers in the panel.
+function answerWithAStrike(h: Harness, id: string, pick: Picker) {
+  const strike = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
+  if (!strike) return
+  if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.press(amendReaction(id, { weaponKey, attack, variant })) }
+  const refreshed = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
+  if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.press(amendReaction(id, { location, part })) }
+  if (refreshed?.maneuvers.length && pick([true, false])) h.press(amendReaction(id, { mode: 'grapple', maneuver: pick(refreshed.maneuvers) }))
+}
+
 function plays(): Play[] {
   const progress = (name: string, command: (h: Harness) => Parameters<Harness['press']>[0]): Play => ({ name, run: (h) => h.press(command(h)) })
   const names = (h: Harness) => Object.values(h.state().characters).map((c) => c.name)
@@ -151,6 +162,7 @@ function plays(): Play[] {
     { name: 'move while resting', run: (h) => h.press(moveWhileResting(h.newId)) },
     { name: 'boost a push', run: (h, pick) => h.press(boostPush(pick([true, false]))) },
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.press(chooseManeuver(open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) })) } },
+    { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
     progress('roll', (h) => rollAction(h.dice, h.newId)),
     progress('pay', (h) => payAction(h.newId)),
@@ -225,7 +237,7 @@ describe('pressing everything on the board, in any order', () => {
 // declares something likelier to be a grapple, a push, a shot, a strike or a
 // move, the others answer with whatever defences are offered, and the roll
 // runs on to its end.
-const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike', 'move']
+const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike']
 
 // Plays the open action out: the die, the payment, the resolution, and what a
 // resolution opens in turn.
@@ -246,18 +258,21 @@ function exchange(h: Harness, pick: Picker) {
   h.select(pick(names))
   h.startTurn()
   if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
-  const open = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+  const every = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+  const open = every.some((o) => o.draft.kind !== 'move') ? every.filter((o) => o.draft.kind !== 'move') : every
   if (!open.length) return
   const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
   h.declare(pick(leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
   finishDeclaration(h, pick)
   const answers = () => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
   for (let tries = pick([0, 1, 2, 3, 4]); tries > 0 && answers().length; tries--) {
-    const answer = pick(answers())
+    const offered = answers()
+    const kind = pick([...new Set(offered.map((o) => o.draft.kind))])
+    const answer = pick(offered.filter((o) => o.draft.kind === kind))
     h.press(declareReaction(answer.id, answer.draft, h.newId))
     const there = h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
     if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
-    if (pick([true, false])) h.press(amendReaction(answer.id, {}))
+    answerWithAStrike(h, answer.id, pick)
   }
   playOut(h, pick)
   if (pick([true, false])) h.press(endTurn)
@@ -270,7 +285,7 @@ const DUELS = [
   { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
-  { name: 'two wardens', a: warden, b: warden, apart: 2 },
+  { name: 'two wardens', a: warden, b: warden, apart: 1 },
 ]
 
 describe('two characters grappling, pushing, shooting and defending', () => {
