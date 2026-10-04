@@ -113,6 +113,7 @@ prepared reaction
 unconscious must disable all actions
 
 no restriction to action while climbing.
+getting out of the water is standing up
 
 
 # left for combat
