@@ -125,7 +125,10 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
       const guess = estimates.get(target)?.find((e) => e.attack === option.attack && e.variant === option.variant && e.weapon === option.weapon)
       const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted)` : ''
       const label = `attack with ${option.weapon} ${option.attack} (${option.variant}) at ${getFightName(state, target)} - ${option.AP} AP, ${option.STA} STA, weapon cut ${option.cut} blunt ${option.blunt}, to-hit penalty ${option.penalty}${expected}`
-      if (!armed) return { label, apply: () => null, unavailable: `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` }
+      if (!armed) {
+        const short = mine.resources.AP < option.AP || mine.resources.STA < option.STA
+        return { label, apply: () => null, unavailable: short ? `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` : 'not allowed now (for instance a turn on the movement surge allows only movement)' }
+      }
       return {
         label,
         apply: (e) => {
@@ -236,6 +239,10 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
     const open = getOpenAction(state)
     if (open) {
       if (open.step === 'define') {
+        if (open.kind === 'fleeFollowUp') {
+          const fleer = open.actorId
+          return { state, next: { kind: 'prompt', side: sideOf(fleer), title: `${getFightName(state, fleer)} has just been struck at. They may flee (combat.tex "Flee"): the movement surge turns their turn into one limited to what that surge allows, and the attacker's turn resumes after it.`, choices: fleeChoices(state, open) } }
+        }
         const settled = open.spawnedBy ? passUp(state, open, env.newId) : null
         if (!settled || settled === state) return { state, next: { kind: 'end', text: 'Stuck: an action was left half-declared.' } }
         state = settled
@@ -276,10 +283,23 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
 
     const bar = getNextRoundBar(state)
     if (bar !== null) return { state, next: { kind: 'end', text: `Stalled: ${bar}.` } }
-    if ((state.round ?? 1) >= maxRounds) return { state, next: { kind: 'end', text: `Draw: still standing after round ${maxRounds}.` } }
+    if (state.round + 1 >= maxRounds) return { state, next: { kind: 'end', text: `Draw: still standing after round ${maxRounds}.` } }
     state = nextRound(env.dice, env.newId)(state)
   }
   return { state, next: { kind: 'end', text: 'Stuck: too many steps without a decision.' } }
+}
+
+function fleeChoices(state: CombatState, open: RootAction): Choice[] {
+  return [
+    { label: 'STAY: do not flee', apply: (e) => passUp(state, open, e.newId) },
+    {
+      label: 'FLEE: activate the movement surge and take a turn limited to movement',
+      apply: (e) => {
+        const committed = commitAction(e.dice, e.newId)(amendAction({ flee: true })(state))
+        return committed === state ? null : committed
+      },
+    },
+  ]
 }
 
 function moraleTitle(state: CombatState, id: string): string {
@@ -347,11 +367,11 @@ function renderEntry(entry: EpisodeEntry): string[] {
 
 function newEvents(before: CombatState, after: CombatState, lastKey: string): { events: string[]; lastKey: string } {
   const morale = after.morale.flatMap((call) => call.roll && !before.morale.some((m) => m.id === call.id && m.roll)
-    ? `round ${after.round ?? 0} | ${getFightName(after, call.id)} | morale test (${call.roll.mode}): d10 ${call.roll.die}, score ${call.roll.score} vs DL ${call.roll.DL}: ${call.roll.degree.toUpperCase()}`
+    ? `round ${after.round + 1} | ${getFightName(after, call.id)} | morale test (${call.roll.mode}): d10 ${call.roll.die}, score ${call.roll.score} vs DL ${call.roll.DL}: ${call.roll.degree.toUpperCase()}`
     : [])
   const key = getHistory(after).at(-1) ?? ''
   const episode = key !== lastKey ? getLastEpisode(after) : null
-  const played = episode ? [`--- round ${after.round ?? 0}`, ...episode.flatMap(renderEntry)] : []
+  const played = episode ? [`--- round ${after.round + 1}`, ...episode.flatMap(renderEntry)] : []
   return { events: [...morale, ...played], lastKey: key }
 }
 
@@ -361,14 +381,14 @@ function status(state: CombatState, side: Side): string {
   const hurt = c.injuries.wounds.map((w) => `${w.key} (${w.part})`)
   const afflictions = getAfflictions(c)
   const held = c.held.map((i) => i.name).join(' + ') || 'bare hands'
-  return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`
+  return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}${c.resources.surgeAP > 0 ? ` (+${c.resources.surgeAP} surge AP, spendable only on what the surge allows)` : ''}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`
 }
 
 function render(saved: Saved, next: Prompt | End, played?: string[]): string {
   const { state } = saved
   const gap = gapBetween(state, IDS.A, IDS.B)
   const lines = [
-    `Round ${state.round ?? 1} | ${gap === null ? '' : `the fighters stand ${gap} cell${gap === 1 ? '' : 's'} apart`}`,
+    `Round ${state.round + 1} | ${gap === null ? '' : `the fighters stand ${gap} cell${gap === 1 ? '' : 's'} apart`}`,
     status(state, 'A'),
     status(state, 'B'),
     '',
