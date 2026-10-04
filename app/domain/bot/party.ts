@@ -20,10 +20,12 @@ import { isDead } from '../character/rules/afflictions'
 // comes of it in the fight played on (exchange.ts): `exchange` weighs the
 // damage it takes on average over the die, once its target has answered as it
 // would weigh it; `drain` what a point of AP is worth that the target pays to
-// answer it.
-export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number }
+// answer it. `defensive`: the bot attacks a foe only once it has no defense left
+// to answer with, and holds until then. 1: a defense only a reaction surge pays
+// for is not counted, so the attack is the one that draws it; 2: any defense is.
+export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number; defensive: number }
 
-export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0.005, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02 }
+export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0.005, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02, defensive: 0 }
 
 // The side a bot plays: the characters it controls. Everyone else in the fight
 // is its foe.

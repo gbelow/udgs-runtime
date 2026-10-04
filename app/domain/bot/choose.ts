@@ -5,7 +5,7 @@ import { getHistory, getLog } from '../combat/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
-import { getExchange } from './exchange'
+import { getExchange, isAnswerable } from './exchange'
 import { playOut, type Answerer } from './open'
 import { getTuning, isMember, type Party } from './party'
 import { rollout } from './rollout'
@@ -36,6 +36,7 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
     const dice: Dice = (explodes) => rollD10(explodes, rng)
     const played = option.play(dice)
     if (!played) return null
+    if (tuning.defensive > 0 && isAnswerable(played, party, actorId, tuning.defensive > 1, newId)) return null
     const exchange = getExchange(played, party, actorId, tuning, newId)
     const settled = playOut(played, parties, dice, newId, decided)
     const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning, newId)
