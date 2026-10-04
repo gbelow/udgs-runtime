@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/combat/dice'
 import { CombatStateSchema, type ActionDraft, type CombatState } from '../domain/combat/types'
 import { getActionPanel } from '../domain/combat/projections/actionPanel'
 import { getFootprint } from '../domain/combat/rules/board'
 import { getAvailableActions } from '../domain/combat/rules/options'
-import { isReaction } from '../domain/combat/rules/actionCatalog'
+import { ACTIONS, isReaction } from '../domain/combat/rules/actionCatalog'
 import { getOpenAction } from '../domain/combat/rules/log'
 import { coordKey } from '../domain/combat/geometry'
 import { acceptSpellTest, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
@@ -16,6 +17,7 @@ import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
 import { archer, brawler, mage, spearman, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
+import { useCombatStore } from './useCombatStore'
 
 // A player who presses whatever there is to press, in no order: every click
 // the board takes and every button the panels dispatch, thrown at a fight of
@@ -202,9 +204,60 @@ function assertSound(h: Harness, storage: boolean) {
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
 }
 
+// With FUZZ_REPORT set, what the sessions did is written to
+// reports/fuzz-coverage.md: for every action in the catalogue, how many
+// actions stood at each of its steps. Seen after each command, so an
+// action that opens and closes inside one is not counted.
+type Step = 'define' | 'react' | 'post' | 'done'
+let sessions = 0
+const reached = new Map<string, { sessions: Set<string>, steps: Record<Step, number> }>()
+
+function record(session: string) {
+  const counted = new Set<string>()
+  return useCombatStore.subscribe((state) => {
+    for (const a of Object.values(state.actions)) {
+      const key = `${a.kind}${a.reactionTo ? ' (reaction)' : ''}${'maneuver' in a && a.kind === 'grapple' ? ` ${a.maneuver}` : ''}`
+      const seen = reached.get(key) ?? { sessions: new Set<string>(), steps: { define: 0, react: 0, post: 0, done: 0 } }
+      seen.sessions.add(session)
+      if (!counted.has(`${a.id}/${a.step}`)) { seen.steps[a.step]++; counted.add(`${a.id}/${a.step}`) }
+      reached.set(key, seen)
+    }
+  })
+}
+
+afterAll(() => {
+  if (!process.env.FUZZ_REPORT) return
+  const total = new Set([...reached.values()].flatMap((r) => [...r.sessions])).size
+  const rows = Object.keys(ACTIONS).flatMap((kind) => {
+    const keys = [...reached.keys()].filter((k) => k === kind || k.startsWith(`${kind} `))
+    return keys.length ? keys : [kind]
+  }).sort()
+  const line = (key: string) => {
+    const r = reached.get(key)
+    const kind = key.split(' ')[0]
+    return `| ${key} | ${kind in ACTIONS ? ACTIONS[kind as keyof typeof ACTIONS].type : ''} | ${r?.sessions.size ?? 0} | ${r?.steps.define ?? 0} | ${r?.steps.react ?? 0} | ${r?.steps.post ?? 0} | ${r?.steps.done ?? 0} |`
+  }
+  const never = rows.filter((k) => !reached.has(k))
+  const body = [
+    '# Fuzz coverage',
+    '',
+    `${total} sessions. Each count is the actions that stood at that step after some command (define: being declared, react: committed and open to answers, post: rolled, done: finished); an action that jumps a step skips its count, as a reaction does from define to done. "sessions" is how many sessions saw the action at all.`,
+    '',
+    '| action | type | sessions | define | react | post | done |',
+    '|---|---|---|---|---|---|---|',
+    ...rows.map(line),
+    '',
+    `Never seen: ${never.length ? never.join(', ') : 'none'}`,
+    '',
+  ].join('\n')
+  mkdirSync('reports', { recursive: true })
+  writeFileSync('reports/fuzz-coverage.md', body)
+})
+
 function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Picker) {
   const bag = menu.flatMap((p) => Array<Play>(p.weight ?? 1).fill(p))
   const trail: string[] = []
+  const stop = record(String(++sessions))
   for (let step = 0; step < steps; step++) {
     const play = pick(bag)
     trail.push(play.name)
@@ -212,9 +265,11 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
       play.run(h, pick)
       assertSound(h, step % STORAGE_EVERY === 0 || step === steps - 1)
     } catch (e) {
+      stop()
       throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
     }
   }
+  stop()
 }
 
 describe('pressing everything on the board, in any order', () => {

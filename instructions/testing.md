@@ -134,6 +134,8 @@ click to what stands afterwards. It is admitted, under these terms.
   plays exchanges: one declares something leaning to a grapple, a push, a shot, a strike or a
   move, the other is answered with whatever defences are offered, and the roll runs on to its
   end.
+  `FUZZ_REPORT=1` writes `reports/fuzz-coverage.md`, a table of every action in the catalogue and
+  how far the sessions took it, as an artifact to read, never asserted on.
   What it reaches is bounded by the fixtures: a command no fixture character can declare is
   not exercised, so give the fixtures the gear and the abilities the commands need.
 - **Terrain is painted by clicking.** Scenes are built with the same brushes a player holds,
