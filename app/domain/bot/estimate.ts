@@ -1,21 +1,18 @@
 import type { ActionKind, AttackAction, CombatState, HOPPurchase, RootAction } from '../combat/types'
 import type { Outcome } from '../types'
 import type { Dice } from '../combat/dice'
-import { declareReaction, rollOrPay } from '../combat/commands/action'
+import { rollOrPay } from '../combat/commands/action'
 import { spendHOP } from '../combat/commands/choices'
 import { appendActions } from '../combat/commands/log'
 import { getAttackFacts, getHOPOptions } from '../combat/rules/damage'
 import { getBreakOdds, getBreakRisks } from '../combat/rules/breakage'
 import { injuryMap } from '../tables'
-import { findOption, getAvailableActions } from '../combat/rules/options'
-import { getEvasiveJumpPlacements } from '../combat/rules/move'
 import { getDefaultAim, getFreeAttackOptions } from '../combat/rules/attack'
 import { getPayableCost } from '../combat/rules/action'
 import { getSettled } from '../combat/rules/settle'
-import { getAction, getLiveReactionsTo, getOpenAction } from '../combat/rules/log'
+import { getAction, getOpenAction } from '../combat/rules/log'
 import { getOutcomes } from '../combat/projections/outcomes'
-import { getOptionLabel } from '../combat/projections/labels'
-import { declareDefense } from './answer'
+import { getStrikeDefenses } from './defenses'
 import { getStrikes, type Strike } from './weapons'
 
 // What an attack would do to one foe as the fight stands, for a bot choosing
@@ -119,10 +116,6 @@ export type AttackEstimate = {
   ilPerCost: number
 }
 
-// What a defense may be declared with by the option alone; an evasive jump also
-// names its landing, so it is found apart.
-const OPTION_DEFENSES: readonly ActionKind[] = ['block', 'evade', 'intercept']
-
 type Spend = { purchases: HOPPurchase[]; AP: number; STA: number }
 
 // The d10 as (value, probability). Where the test explodes, a 9 adds d6s while
@@ -158,6 +151,8 @@ function rank(o: Outcome | null): number {
   if (!o) return -1
   return (o.dead ? 1e9 : 0) + o.IL * 1e6 + ((o.tier ?? -1) + 1) * 1e4 + o.bleed * 1e2 + o.arrived.blunt + o.arrived.cut
 }
+
+const NO_DEFENSE: Defense = { label: 'no defense', kind: 'none', declare: null, cost: { AP: 0, STA: 0 } }
 
 type Defense = { label: string; kind: ActionKind | 'none'; declare: ((state: CombatState, open: RootAction, newId: () => string) => CombatState | null) | null; cost: { AP: number; STA: number } }
 
@@ -237,31 +232,6 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
     return { degree: landed.roll?.degree ?? 'miss', score: landed.roll?.score ?? 0, DL: landed.roll?.DL ?? 0, HOP: landed.roll?.HOP ?? 0, best: outcome, spend: { purchases: [], AP: 0, STA: 0 }, unspent: outcome, breaks: breaksOf(s, landed) }
   }
 
-  const defensesOf = (locked: CombatState): Defense[] => {
-    const found: Defense[] = []
-    const open = getOpenAction(locked)
-    if (open?.step === 'react') {
-      for (const option of getAvailableActions(locked, targetId).filter((o) => o.available && OPTION_DEFENSES.includes(o.draft.kind))) {
-        found.push({ label: getOptionLabel(locked, targetId, option), kind: option.draft.kind, declare: (s, o, id) => declareDefense(s, targetId, o, option, id), cost: { AP: option.cost?.AP ?? 0, STA: option.cost?.STA ?? 0 } })
-      }
-      const jump = findOption(locked, targetId, { kind: 'evasiveJump' })
-      if (jump?.available) {
-        for (const to of getEvasiveJumpPlacements(locked, targetId, attackerId)) {
-          found.push({
-            label: `evasive jump to (${to.cell.q},${to.cell.r})`,
-            kind: 'evasiveJump',
-            declare: (s, o, id) => {
-              const declared = declareReaction(targetId, { kind: 'evasiveJump', to }, id)(s)
-              return getLiveReactionsTo(declared, o.id).some((r) => r.actorId === targetId) ? declared : null
-            },
-            cost: { AP: jump.cost?.AP ?? 0, STA: jump.cost?.STA ?? 0 },
-          })
-        }
-      }
-    }
-    return [...found, { label: 'no defense', kind: 'none', declare: null, cost: { AP: 0, STA: 0 } }]
-  }
-
   const estimateDefense = (locked: CombatState, openId: string, defense: Defense): DefenseEstimate | null => {
     const flags: boolean[] = []
     if (play(locked, openId, defense, scripted(5, flags)) === null) return null
@@ -321,7 +291,7 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       const locked = aimed(strike)
       const openId = strike.open.id
       const defenses: DefenseEstimate[] = []
-      for (const defense of defensesOf(locked)) {
+      for (const defense of [...getStrikeDefenses(locked, targetId, attackerId), NO_DEFENSE]) {
         const estimate = estimateDefense(locked, openId, defense)
         if (!estimate) continue
         const twin = defenses.find((d) => sameResult(d, estimate))
