@@ -14,3 +14,5 @@ Plan each turn:
 2. Both weapons reach 2 cells, so being at 2 gives no edge over the longsword. If the foe is at 1 cell, the shaft is your only attack; compare its estimate with stepping back to 2 cells and using the point.
 3. Do not chase a foe who retreats beyond reach unless the estimate at the new distance justifies the AP.
 4. Report each turn: which attack you chose, its estimate, and what actually happened.
+
+Other choices the menu offers, all priced by the rules: surges (one per round: extra AP for STA), feint, rest, and aiming a blow with `--aim <place>` (a harder place costs to-hit). After a hit with overflow you are asked what to buy with it before the blow lands; the menu shows the result of each purchase. A follow-up (a flee, a riposte) can be taken or declined. When the foe moves into your reach you may be offered an opportunity attack.

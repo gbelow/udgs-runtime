@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CombatStateSchema, type ActionDraft, type ActionKind, type CombatState, type Coord, type RootAction } from '../app/domain/combat/types'
+import { CombatStateSchema, type HitLocation, type ActionDraft, type ActionKind, type CombatState, type Coord, type RootAction } from '../app/domain/combat/types'
 import { rollD10, seededRng, type Dice } from '../app/domain/combat/dice'
 import { buildFighter } from './lib/fighters'
 import type { CampaignCharacter } from '../app/domain/types'
@@ -9,6 +9,8 @@ import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
 import { estimateAttacks } from '../app/domain/bot/estimate'
+import { getHOPOptions, getHOPRemaining } from '../app/domain/combat/rules/damage'
+import { refundHOP, spendHOP } from '../app/domain/combat/commands/choices'
 import { getAvailableActions } from '../app/domain/combat/rules/options'
 import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/combat/rules/action'
 import { canAfford } from '../app/domain/character/rules/cost'
@@ -33,7 +35,7 @@ import { getLastEpisode, type EpisodeEntry } from '../app/domain/combat/projecti
 import type { ActionRoll, CostTerm } from '../app/domain/combat/types'
 import type { ActionCost } from '../app/domain/character/rules/actionCosts'
 import { getActionPanel } from '../app/domain/combat/projections/actionPanel'
-import { getOptionLabel } from '../app/domain/combat/projections/labels'
+import { HOP_LABELS, getOptionLabel } from '../app/domain/combat/projections/labels'
 import { getAfflictions, getInjuryPenalty, isDead } from '../app/domain/character/rules/afflictions'
 
 // A two-sided fight played by hand, one decision at a time, for an agent or a
@@ -66,8 +68,8 @@ type Saved = {
 
 type Env = { dice: Dice; newId: () => string; counters: () => { draws: number; ids: number } }
 
-type Choice = { label: string; apply: (env: Env) => CombatState | null; unavailable?: string }
-type Prompt = { kind: 'prompt'; side: Side; title: string; choices: Choice[] }
+type Choice = { label: string; apply: (env: Env, aim?: string) => CombatState | null; unavailable?: string }
+type Prompt = { kind: 'prompt'; side: Side; title: string; choices: Choice[]; note?: string }
 type End = { kind: 'end'; text: string }
 
 const DIR = path.join(process.cwd(), 'reports', 'duel')
@@ -150,10 +152,25 @@ function strikeChoices(base: Base, id: string, foes: string[], state: CombatStat
     const armed = amendAction(row)(base.state)
     const aimable = getOpenAction(armed)
     const reaches = aimable !== null && getTargetIds(armed, aimable).includes(target)
-    const apply = (e: Env) => committing(base, e, (s) => (base.own ? setTarget(target)(amendAction(row)(s)) : amendAction(row)(s)))
+    const apply = (e: Env, aim?: string) => committing(base, e, (s) => {
+      const aimed = base.own ? setTarget(target)(amendAction(row)(s)) : amendAction(row)(s)
+      return aim ? amendAction(placeOf(aimed, aim))(aimed) : aimed
+    })
     const why = shut ?? (!canAfford(mine, option) ? `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` : !reaches ? 'the foe is out of reach' : null)
     return { label, apply, ...(why ? { unavailable: why } : {}) }
   }))
+}
+
+// Where a blow can be aimed on the target of the declared strike, with what each
+// costs to hit.
+function places(state: CombatState): { location: HitLocation; part: string | null; name: string; penalty: number }[] {
+  return getActionPanel(state).locations
+}
+
+function placeOf(state: CombatState, name: string): { location: HitLocation; part: string | null } {
+  const found = places(state).find((l) => l.name.toLowerCase() === name.toLowerCase())
+  if (!found) throw new Error(`No place "${name}" to aim at here. Choose one of: ${places(state).map((l) => l.name).join(', ')}`)
+  return { location: found.location, part: found.part }
 }
 
 // The places worth walking to from the base, each way of moving, one per
@@ -195,6 +212,16 @@ function plainChoices(base: Base | null, label: string, foes: string[], state: C
     label: target ? `${label} at ${getFightName(state, target)}` : label,
     apply: (e) => committing(base, e, (s) => (target ? setTarget(target)(s) : s)),
   }))
+}
+
+function aimNote(state: CombatState, id: string, foes: string[], env: Env): string | undefined {
+  const foe = foes[0]
+  const base = foe ? begin(state, id, { kind: 'strike' }, env) : null
+  const row = base ? getAttackRows(state, id, 'strike')[0] : undefined
+  if (!base || !foe || !row) return undefined
+  const aimed = setTarget(foe)(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(base.state))
+  const list = places(aimed)
+  return list.length > 1 ? `Aim: an attack is made at the chest unless you add --aim <place>, which changes the to-hit penalty: ${list.map((l) => `${l.name} ${l.penalty >= 0 ? '+' : ''}${l.penalty}`).join(', ')}.` : undefined
 }
 
 function probeOf(env: Env): Env {
@@ -355,6 +382,8 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
         continue
       }
       if (open.step === 'post') {
+        const buying = hopPrompt(state, open)
+        if (buying) return { state, next: buying }
         const landed = resolveAction(env.newId)(state)
         if (landed === state) return { state, next: { kind: 'end', text: 'Stuck: the open action cannot land.' } }
         state = landed
@@ -365,7 +394,7 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
 
     const holder = getTurnHolder(state)
     if (holder) {
-      return { state, next: { kind: 'prompt', side: sideOf(holder), title: `${getFightName(state, holder)}'s turn.`, choices: turnChoices(state, holder, env) } }
+      return { state, next: { kind: 'prompt', side: sideOf(holder), title: `${getFightName(state, holder)}'s turn.`, choices: turnChoices(state, holder, env), note: aimNote(state, holder, getLiveFoes(state, partyOf(holder)), env) } }
     }
 
     const called = state.morale.find((call) => call.roll === null && state.characters[call.id])
@@ -383,6 +412,43 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
     state = nextRound(env.dice, env.newId)(state)
   }
   return { state, next: { kind: 'end', text: 'Stuck: too many steps without a decision.' } }
+}
+
+function previewOf(state: CombatState): string {
+  const lines = getActionPanel(state).outcomes.map(({ target, outcome }) => {
+    if (outcome.stopped) return `${target}: intercepted`
+    const wound = outcome.wound ? `, WOUND ${outcome.wound.name}` : ''
+    const result = outcome.tier === null ? 'no injury' : `tier ${outcome.tier}, IL +${outcome.IL}${outcome.bleed ? `, bleed +${outcome.bleed}` : ''}${wound}${outcome.interruption !== 'none' ? `, ${outcome.interruption}` : ''}${outcome.dead ? ', DEAD' : ''}`
+    return `${target}: ${outcome.damage} ${outcome.type} damage vs armor ${outcome.armor} -> ${result}`
+  })
+  return lines.join('; ') || 'no effect'
+}
+
+// A hit with overflow left (combat.tex "Success Overflow"): the attacker may
+// buy effects with it before the blow lands, each priced and gated by the rules.
+function hopPrompt(state: CombatState, open: RootAction): Prompt | null {
+  if ((open.kind !== 'strike' && open.kind !== 'shoot') || !open.targetId || !state.characters[open.targetId] || !state.characters[open.actorId]) return null
+  const target = state.characters[open.targetId]
+  const options = getHOPOptions(state, open)
+  const bought = options.filter((o) => o.bought > 0)
+  if (options.length === 0 || (!options.some((o) => o.available) && bought.length === 0)) return null
+  const remaining = getHOPRemaining(open, target)
+  const spend = options.map((o): Choice => {
+    const next = spendHOP(o.purchase)(state)
+    const price = o.price && (o.price.AP || o.price.STA) ? `, and ${o.price.AP} AP ${o.price.STA} STA` : ''
+    return {
+      label: `BUY ${HOP_LABELS[o.purchase]}: ${o.cost} HOP${price}${o.bought > 0 ? ` (bought ${o.bought} already)` : ''}${next === state ? '' : ` -> then: ${previewOf(next)}`}`,
+      apply: () => (next === state ? null : next),
+      ...(o.available && next !== state ? {} : { unavailable: o.reason ?? 'closed' }),
+    }
+  })
+  const back = bought.map((o): Choice => ({ label: `TAKE BACK ${HOP_LABELS[o.purchase]}`, apply: () => { const undone = refundHOP(o.purchase)(state); return undone === state ? null : undone } }))
+  return {
+    kind: 'prompt',
+    side: sideOf(open.actorId),
+    title: `${getFightName(state, open.actorId)} hit, with ${remaining} HOP left to spend (hit overflow). As it stands the blow does: ${previewOf(state)}.`,
+    choices: [{ label: 'LAND THE BLOW as it stands', apply: (e) => { const landed = resolveAction(e.newId)(state); return landed === state ? null : landed } }, ...spend, ...back],
+  }
 }
 
 function moraleTitle(state: CombatState, id: string): string {
@@ -480,7 +546,7 @@ function render(saved: Saved, next: Prompt | End, played?: string[]): string {
   const recent = played ?? saved.events.slice(start)
   if (recent.length > 0) lines.push(played ? 'What just happened:' : 'Last thing that happened:', ...recent.map((e) => `  ${e}`), '')
   if (next.kind === 'end') return [...lines, `THE FIGHT IS OVER. ${next.text}`].join('\n')
-  return [...lines, `SIDE ${next.side} TO ACT. ${next.title}`, ...next.choices.map((c, i) => `  ${i + 1}. ${c.unavailable ? `(unavailable: ${c.unavailable}) ` : ''}${c.label}`), '', 'Take one with: pnpm duel do <number> [--expect "text from its label"]. Numbers hold while this turn lasts, but show again after every move or attack. Dice are 0-9: on a normal test a 9 explodes upward and a 0 downward, so "d10 0" is a real 0, not a 10.'].join('\n')
+  return [...lines, `SIDE ${next.side} TO ACT. ${next.title}`, ...next.choices.map((c, i) => `  ${i + 1}. ${c.unavailable ? `(unavailable: ${c.unavailable}) ` : ''}${c.label}`), '', ...(next.note ? [next.note, ''] : []), 'Take one with: pnpm duel do <number> [--expect "text from its label"] [--aim <place>]. Numbers hold while this turn lasts, but show again after every move or attack. Dice are 0-9: on a normal test a 9 explodes upward and a 0 downward, so "d10 0" is a real 0, not a 10.'].join('\n')
 }
 
 function file(game: string): string {
@@ -547,7 +613,7 @@ function main(): void {
     const expect = flag(args, 'expect', '')
     if (expect && !choice.label.toLowerCase().includes(expect.toLowerCase())) throw new Error(`Choice ${n} is "${choice.label}", which does not contain "${expect}". Nothing was done; run show.`)
     if (choice.unavailable) throw new Error(`Choice ${n} is unavailable: ${choice.unavailable}`)
-    const applied = choice.apply(env)
+    const applied = choice.apply(env, flag(args, 'aim', '') || undefined)
     if (!applied) throw new Error(`Choice ${n} was refused by the rules`)
     const after = advance(applied, env, saved.maxRounds)
     const played = newEvents(state, after.state, saved.lastKey)

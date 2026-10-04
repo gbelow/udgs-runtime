@@ -15,3 +15,5 @@ Plan each turn:
 2. If no attack reaches or none has a useful estimate, move to the distance where the best estimate appears, not necessarily the nearest cell.
 3. Keep AP back to defend only when the foe's attacks are strong; compare the estimate they would have against you.
 4. Report each turn: which attack you chose, its estimate, and what actually happened.
+
+Other choices the menu offers, all priced by the rules: surges (one per round: extra AP for STA), feint, rest, and aiming a blow with `--aim <place>` (a harder place costs to-hit). After a hit with overflow you are asked what to buy with it before the blow lands; the menu shows the result of each purchase. A follow-up (a flee, a riposte) can be taken or declined. When the foe moves into your reach you may be offered an opportunity attack.
