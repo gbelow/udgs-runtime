@@ -210,6 +210,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   const diving = action.movement === 'swim' && action.dive !== 0
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
   const cells = action.movement === 'climb' ? getClimbCells(state, action) : action.path.length
+  if (action.movement === 'jump' && cells > getMovementSpeed(c, 'jump')) return false
   if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
   if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1))) return false
@@ -236,7 +237,9 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
 }
 
 // combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
-// to half the horizontal distance"; it clears ground no higher than that
+// to half the horizontal distance", and "Movement cannot be voluntarily
+// interrupted in the middle of a jump", so one jump is one block's distance;
+// it clears ground no higher than that
 // above where it sets out, so a 2m jump goes up a metre.
 function getJumpCeiling(c: Character, from: Placement): number {
   return from.elevation + getMovementSpeed(c, 'jump') / 2
@@ -541,6 +544,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   // found is then priced as it is swum
   const best = { ...action, dive: 0, path: [] }
   const affordable = (steps: number) => {
+    if (kind === 'jump' && steps > getMovementSpeed(c, 'jump')) return false
     return canAfford(c, getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)
