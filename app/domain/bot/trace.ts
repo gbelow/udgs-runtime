@@ -9,6 +9,7 @@ export type OptionScore = {
   engage: number
   resources: number
   waiting: number
+  exchange: number
 }
 
 export type Decision = {

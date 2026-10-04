@@ -5,6 +5,7 @@ import { getHistory, getLog } from '../combat/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
+import { getExchange } from './exchange'
 import { playOut, type Answerer } from './open'
 import { getTuning, isMember, type Party } from './party'
 import { rollout } from './rollout'
@@ -21,7 +22,7 @@ type Option = { label: string; play: (dice: Dice) => CombatState | null; waiting
 
 function mean(values: Value[]): Value {
   const of = (part: keyof Value) => values.reduce((sum, v) => sum + v[part], 0) / values.length
-  return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), waiting: of('waiting') }
+  return { total: of('total'), wounds: of('wounds'), threat: of('threat'), engage: of('engage'), resources: of('resources'), waiting: of('waiting'), exchange: of('exchange') }
 }
 
 // An option's value to `actorId`'s party: played out with each of the sample
@@ -35,9 +36,10 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
     const dice: Dice = (explodes) => rollD10(explodes, rng)
     const played = option.play(dice)
     if (!played) return null
+    const exchange = getExchange(played, party, actorId, tuning, newId)
     const settled = playOut(played, parties, dice, newId, decided)
     const end = evaluate(tuning.horizon > 0 ? rollout(settled, parties, dice, newId, tuning.horizon) : settled, party, actorId, tuning, newId)
-    values.push({ ...end, total: end.total - (option.waiting ?? 0), waiting: -(option.waiting ?? 0) })
+    values.push({ ...end, total: end.total + exchange - (option.waiting ?? 0), waiting: -(option.waiting ?? 0), exchange })
   }
   return mean(values)
 }
@@ -61,7 +63,7 @@ function pick(state: CombatState, parties: readonly Party[], party: Party, actor
     kind,
     actorId,
     actor: getFightName(state, actorId),
-    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, threat: value.threat, engage: value.engage, resources: value.resources, waiting: value.waiting })),
+    options: scored.map(({ label, value }) => ({ label, value: value.total, wounds: value.wounds, threat: value.threat, engage: value.engage, resources: value.resources, waiting: value.waiting, exchange: value.exchange })),
     chosen: scored.indexOf(best),
   })
   return best.index

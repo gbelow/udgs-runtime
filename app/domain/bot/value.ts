@@ -16,7 +16,7 @@ import { aimStrike, getStrikes } from './weapons'
 // character and the nearest foe, plus the AP and STA it has left over its
 // foes'. Higher is better.
 
-export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number; waiting: number }
+export type Value = { total: number; wounds: number; threat: number; engage: number; resources: number; waiting: number; exchange: number }
 
 const FACES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -27,7 +27,7 @@ function fraction(c: CampaignCharacter): number {
 // What the attack waiting on its die, locked and answered as it stands, takes
 // from its target on average over the die: the preview the panel shows
 // (rules/settle.ts `getSettled`), once for each degree the die can give.
-function expectedLoss(state: CombatState, targetId: string): number {
+export function expectedLoss(state: CombatState, targetId: string): number {
   const open = getOpenAction(state)
   const target = state.characters[targetId]
   const test = open && getRootTest(state, open)
@@ -86,5 +86,5 @@ export function evaluate(state: CombatState, party: Party, actorId: string, tuni
   const ap = (c: CampaignCharacter) => c.resources.AP + c.resources.surgeAP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(party.members, ap) - left(foes, ap)) + tuning.sta * (left(party.members, sta) - left(foes, sta))
-  return { total: wounds - threat - engage + resources, wounds, threat, engage, resources, waiting: 0 }
+  return { total: wounds - threat - engage + resources, wounds, threat, engage, resources, waiting: 0, exchange: 0 }
 }

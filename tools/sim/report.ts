@@ -91,10 +91,10 @@ const DECISIONS_SHOWN = 60
 // the ground to the foe), the one taken in bold.
 export function renderDecisions(run: Run): string {
   const part = (n: number) => (n >= 0 ? '+' : '-') + Math.abs(n).toFixed(2)
-  const lines: string[] = [`## Decisions, seed ${run.seed}`, '', 'Each option: value (wounds, threat, gap, resources, waiting). Higher is better; the one taken is bold.', '']
+  const lines: string[] = [`## Decisions, seed ${run.seed}`, '', 'Each option: value (wounds, threat, gap, resources, waiting, exchange). Higher is better; the one taken is bold.', '']
   for (const d of run.sim.decisions.slice(0, DECISIONS_SHOWN)) {
     const options = d.options.map((o, i) => {
-      const text = `${o.label} ${part(o.value)} (${part(o.wounds)}, ${part(-o.threat)}, ${part(-o.engage)}, ${part(o.resources)}, ${part(o.waiting)})`
+      const text = `${o.label} ${part(o.value)} (${part(o.wounds)}, ${part(-o.threat)}, ${part(-o.engage)}, ${part(o.resources)}, ${part(o.waiting)}, ${part(o.exchange)})`
       return i === d.chosen ? `**${text}**` : text
     })
     lines.push(`- r${d.round} ${d.actor} ${d.kind}: ${options.join(' · ')}`)

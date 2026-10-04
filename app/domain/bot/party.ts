@@ -16,9 +16,14 @@ import { isDead } from '../character/rules/afflictions'
 // valued as it stands). `patience`: what holding costs for each round the fight
 // has already gone on, so that bots that each wait for the other to come do not
 // wait for ever. `samples`: how many dice each option is played with.
-export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number }
+// `exchange`, `drain`: what an attack is worth as it is committed, besides what
+// comes of it in the fight played on (exchange.ts): `exchange` weighs the
+// damage it takes on average over the die, once its target has answered as it
+// would weigh it; `drain` what a point of AP is worth that the target pays to
+// answer it.
+export type Tuning = { threat: number; engage: number; ap: number; sta: number; horizon: number; patience: number; samples: number; exchange: number; drain: number }
 
-export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0.005, sta: 0.005, horizon: 3, patience: 0.03, samples: 5 }
+export const DEFAULT_TUNING: Tuning = { threat: 0, engage: 0.02, ap: 0.005, sta: 0.005, horizon: 3, patience: 0.03, samples: 5, exchange: 1, drain: 0.02 }
 
 // The side a bot plays: the characters it controls. Everyone else in the fight
 // is its foe.
