@@ -492,22 +492,33 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
 // so that a throw has someone to hit, a net someone to catch, a shot someone
 // to join, and a walk may end in the water or on the rock.
+function playCrowd(seed: number) {
+  const rng = seededRng(seed)
+  const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+  const h = openHarness((explodes) => rollD10(explodes, rng))
+  h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), brawler('Gus'))
+  h.createBoard(5)
+  h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
+  h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
+  h.paint('raise', [[-3, 1], [-3, 2]], 2)
+  h.paint('grip', [[-3, 1], [-3, 2]])
+  for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
+    h.select(name)
+    h.cell(q, r)
+  }
+  h.select('Ann')
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }], pick)
+}
+
 describe('a crowd on rough ground', () => {
-  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => {
-    const rng = seededRng(seed)
-    const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
-    const h = openHarness((explodes) => rollD10(explodes, rng))
-    h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), brawler('Gus'))
-    h.createBoard(5)
-    h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
-    h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
-    h.paint('raise', [[-3, 1], [-3, 2]], 2)
-    h.paint('grip', [[-3, 1], [-3, 2]])
-    for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
-      h.select(name)
-      h.cell(q, r)
-    }
-    h.select('Ann')
-    session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }], pick)
-  })
+  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', playCrowd)
+
+  // A reaction took the AP a committed opportunity attack still had to pay
+  // its follow-up with, and the throw waited on that follow-up for good.
+  it('keeps the AP of a committed opportunity attack from other answers (seed 6)', () => playCrowd(6))
+
+  // A pusher with no AP committed a drag that cost nothing while the force
+  // comparison forbade moving the block; a helper's assist turned it into one
+  // costing 4, and the drag waited for good.
+  it('never lets a help leave the push unpayable (seed 24)', () => playCrowd(24))
 })

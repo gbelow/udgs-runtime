@@ -32,7 +32,7 @@ import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
-import { getAction, getDrawnOpportunityAttacks, getOpenAction, getReactionsTo, getRootOf } from './log'
+import { getAction, getDrawnOpportunityAttacks, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
@@ -326,7 +326,30 @@ function costChange(label: string, after: ActionCost, before: ActionCost): CostT
 export function canAffordOpportunity(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const c = state.characters[reaction.actorId]
   const cost = c && getOwnCost(state, getOpportunityAction(state, reaction, `${reaction.id}-follow-up`))
-  return !c || !cost || canAfford(c, cost)
+  return !c || !cost || canAfford(withoutReserve(state, c, reaction.reactionTo), cost)
+}
+
+// What the character's committed opportunity attacks, against actions other
+// than `except`, have yet to pay: each opens its follow-up in turn, priced as
+// the strike or maneuver it was declared with, and that price is theirs to
+// keep back from whatever else they answer meanwhile. One still to be
+// declared is not yet priced.
+function getOpportunityReserve(state: CombatState, actorId: string, except: string | null): ActionCost {
+  return state.actions.reduce((sum, a) => {
+    if (a.kind !== 'opportunityAttack' || a.actorId !== actorId || a.reactionTo === except || getOpenedBy(state, a)) return sum
+    const cost = getOwnCost(state, getOpportunityAction(state, a, `${a.id}-follow-up`))
+    return cost ? { AP: sum.AP + cost.AP, STA: sum.STA + cost.STA } : sum
+  }, { AP: 0, STA: 0 })
+}
+
+// The character as they stand to answer something new: the points their
+// other committed opportunity attacks will need set aside, AP first.
+export function withoutReserve(state: CombatState, c: CampaignCharacter, except: string | null): CampaignCharacter {
+  const reserve = getOpportunityReserve(state, c.id, except)
+  if (reserve.AP <= 0 && reserve.STA <= 0) return c
+  const { AP, surgeAP, STA } = c.resources
+  const fromAP = Math.min(AP, reserve.AP)
+  return { ...c, resources: { ...c.resources, AP: AP - fromAP, surgeAP: Math.max(0, surgeAP - (reserve.AP - fromAP)), STA: Math.max(0, STA - reserve.STA) } }
 }
 
 // What the action's own price is named for: the weapon row and variation of

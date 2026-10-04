@@ -18,7 +18,7 @@ import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, lessRepurposed, withGuardStep } from './action'
+import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepurposed, withGuardStep, withoutReserve } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
@@ -146,7 +146,26 @@ function withReactionSurge(state: CombatState, c: CampaignCharacter, open: RootA
   })
 }
 
-function getAnswers(state: CombatState, c: CampaignCharacter, open: RootAction): ActionOption[] {
+function getAnswers(state: CombatState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
+  const options = listAnswers(state, answerer, open)
+  return open.kind === 'drag' ? closeIfPushUnpayable(state, answerer.id, open, options) : options
+}
+
+// combat.tex "Push and drag": what the pusher pays for walking the block
+// depends on what the others declare, so a help or a resist that would leave
+// the push or any answer to it beyond its payers is not open.
+function closeIfPushUnpayable(state: CombatState, characterId: string, open: RootAction, options: ActionOption[]): ActionOption[] {
+  if (!canPayAll(state, open)) return options
+  const others = state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === characterId))
+  return options.map((o) => {
+    if (!o.available) return o
+    const probe = makeAction(o.draft.kind, { ...o.draft, id: '', actorId: characterId, reactionTo: open.id })
+    return canPayAll({ ...state, actions: [...others, probe] }, open) ? o : { ...o, available: false, reason: 'the push could not pay for it' }
+  })
+}
+
+function listAnswers(state: CombatState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
+  const c = withoutReserve(state, answerer, open.id)
   const characterId = c.id
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
