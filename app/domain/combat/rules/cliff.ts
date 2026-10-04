@@ -3,6 +3,7 @@ import type { ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, Mov
 import { CLIMB_HEIGHT, FALL } from '../../tables'
 import { hasGrant } from '../../character/rules/abilities'
 import { getRM } from '../../character/rules/size'
+import { getClimbTerms } from '../../character/rules/skills'
 import type { RollMode } from '../dice'
 import { coordKey, sameCell } from '../geometry'
 import { getDegree } from './test'
@@ -143,9 +144,20 @@ function getClimbMemory(state: CombatState, action: MoveAction): ClimbTest | nul
   const at = state.record.findIndex((a) => a.id === action.id)
   const before = at === -1 ? state.record : state.record.slice(0, at)
   for (const a of [...before].reverse()) {
-    if (a.kind === 'move' && a.actorId === action.actorId && a.round === action.round && a.test === 'climb' && a.roll) return { roll: a.roll, mode: a.mode }
+    if (a.kind === 'move' && a.actorId === action.actorId && a.round === action.round && a.test === 'climb' && a.roll) return { roll: withHolds(state, action, a.roll), mode: a.mode }
   }
   return null
+}
+
+// combat.tex "Climbing": "Add or remove the penalty to the climbing test to
+// redetermine the climbing performance" — the die and every other term stay as
+// rolled; the term for the free holds is the one the climber has now.
+function withHolds(state: CombatState, action: MoveAction, roll: ActionRoll): ActionRoll {
+  const c = state.characters[action.actorId]
+  const now = c && getClimbTerms(c).find((t) => t.label === 'holds')?.value
+  if (now === undefined) return roll
+  const then = roll.skillTerms.find((t) => t.label === 'holds')?.value ?? 0
+  return { ...roll, score: roll.score + now - then }
 }
 
 // Whether the climb is closed by a die of its own: the climber has not tested
