@@ -104,7 +104,7 @@ lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReact
 
 | Step (`step`) | UI sub-step (`getNextStep`) | Commands (`commands/action.ts` unless noted) |
 |---|---|---|
-| `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `pickCell` / `turnMove` (`commands/board.ts`) |
+| `define` | `declare`, `target`, `aim`, `commit` | `declareAction`, `amendAction`, `setTarget`, `commitAction`, `cancelAction`, `withdrawSpawnedAction`; board clicks through `resolveClick` (`commands/click.ts`), which picks `pickCell` / `turnMove` and the rest |
 | `react` | `react` | `declareReaction`, `amendReaction`, `withdrawReaction`, `withdrawLastReaction`, `boostPush` (the pusher's +5, also at `define`); then `rollAction(dice, newId)` or, for an action with no die, `payAction(newId)` |
 | `post` | `spend`, `aim`, `choose`, `confirm` | `commands/choices.ts`: `spendHOP` / `refundHOP`, `improveSpell` / `refundImprovement`, `saveGraze`, `aimExplosion`, `chooseManeuver`; then `resolveAction(newId)` |
 | `done` | — | — |
@@ -244,6 +244,7 @@ app/domain/combat/
 │   ├── bind.ts         settleBinds
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off
 │   ├── board.ts        board editing, pickCell / turnMove (clicks during an action)
+│   ├── click.ts        resolveClick: what a click on a cell, token, floor item or the turn button does
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
@@ -294,6 +295,7 @@ app/domain/combat/
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
 │   ├── ground.ts       crossable and restable cells
+│   ├── boardMode.ts    getBoardMode (what the open action wants of a click), getFloorPicker
 │   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom

@@ -3,18 +3,17 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
 import { getFootprint, getOccupancy } from '../rules/board'
-import { findOption } from '../rules/options'
 import { getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
 import { getFightName } from '../rules/fighters'
-import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells, isAimable } from '../rules/explosion'
+import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } from '../rules/explosion'
+import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/boardMode'
 import { getAim } from '../rules/aim'
 import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
 import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
-import { canPickUp, getReachableFloor } from '../rules/floor'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 import { getCellHazard } from '../rules/hazard'
@@ -116,7 +115,7 @@ export type BoardGhostView = {
 }
 
 // What a click on a cell does right now.
-export type BoardMode = 'idle' | 'path' | 'jump' | 'aim' | 'locked'
+export type { BoardMode }
 
 export type BoardView = {
   present: boolean
@@ -171,7 +170,7 @@ function buildBoardView(state: CombatState): BoardView {
 
   // the landings open to the target of a committed strike, while the jump
   // is still theirs to declare
-  const jumper = open?.kind === 'strike' && open.step === 'react' && open.targetId && findOption(state, open.targetId, { kind: 'evasiveJump' })?.available ? open.targetId : null
+  const jumper = getEvasiveJumper(state)
   const landings = new Set(jumper && open ? getEvasiveJumpPlacements(state, jumper, open.actorId).map((p) => coordKey(p.cell)) : [])
   const jump = open && jumper ? getReactionsTo(state, open.id).find((r) => r.actorId === jumper && r.kind === 'evasiveJump') : undefined
   const jumpTo = jump?.kind === 'evasiveJump' ? jump.to?.cell ?? null : null
@@ -189,7 +188,6 @@ function buildBoardView(state: CombatState): BoardView {
   const throwing = open?.kind === 'throw' && open.step === 'define' ? open : null
   const laid = blast ?? (explosion ? getBlastOf(state, explosion) : throwing ? getImpactBlast(state, throwing) : null)
   const aim = getAim(state, open)
-  const aiming = (blast !== null && isAimable(state, blast)) || aim !== null
   const aimedAt = laid?.center ?? throwing?.to ?? null
   // combat.tex "Push and drag": where everyone the block moves ends up,
   // shown until it is walked
@@ -263,11 +261,8 @@ function buildBoardView(state: CombatState): BoardView {
     }]
   })
 
-  const picker = open?.kind === 'pickUp' && open.step === 'define' ? open.actorId
-    : !open && state.activeCharacterId && findOption(state, state.activeCharacterId, { kind: 'pickUp' })?.available ? state.activeCharacterId
-    : null
-  const pickerCharacter = picker ? state.characters[picker] : undefined
-  const pickable = new Set(pickerCharacter ? getReachableFloor(state, pickerCharacter.id).filter((f) => canPickUp(pickerCharacter, f.item)).map((f) => f.item.id) : [])
+  const floorPicker = getFloorPicker(state)
+  const pickable = new Set(floorPicker?.itemIds ?? [])
   const stacks = new Map<string, number>()
   const floor: BoardFloorItemView[] = state.floor.flatMap((f) => {
     if (!f.cell) return []
@@ -305,9 +300,9 @@ function buildBoardView(state: CombatState): BoardView {
     floor,
     binds,
     ghosts,
-    picker: pickable.size > 0 ? picker : null,
+    picker: floorPicker?.picker ?? null,
     unplaced: Object.values(state.characters).filter((c) => !board.placements[c.id]).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
-    mode: move || group ? 'path' : landings.size > 0 ? 'jump' : aiming ? 'aim' : open ? 'locked' : 'idle',
+    mode: getBoardMode(state),
     move: move && mover
       ? { actorId: move.actorId, orientation: move.orientation ?? mover.orientation, canTurn: getFootprint(state.characters[move.actorId], mover).length > 1 }
       : null,

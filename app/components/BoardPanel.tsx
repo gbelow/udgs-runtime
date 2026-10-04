@@ -73,10 +73,10 @@ export function BoardPanel(){
           </marker>
         </defs>
         {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
-        {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id, t.targetable)} />)}
+        {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
-        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId, f.pickable)} />)}
+        {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId)} />)}
       </svg>
 
       <LinkRow />

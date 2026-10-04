@@ -77,6 +77,9 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
 - Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
+- What a click on the board means is `resolveClick` (`commands/click.ts`), read off the state
+  at the click through `getBoardMode` and `getFloorPicker` (`rules/boardMode.ts`); the hook
+  only dispatches it.
 
 ## Reading for the UI: projections
 
