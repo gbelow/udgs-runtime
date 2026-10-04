@@ -34,12 +34,9 @@
 - analyse - wait until multiplayer. allow seeing character without controlling
 
 # movement
-- climbing - one test per round, redone when falling
-- falling - one test per fall
 - balance tests - write in book that the test is sticky per round, redone when fallen
 - jumping over things - 
 - layering in UI for height.
-- reset balance test when falling
 
 ## healing
 - sleep
@@ -113,10 +110,10 @@ prepared reaction
 unconscious must disable all actions
 
 no restriction to action while climbing.
-getting out of the water is standing up
 
 
 # left for combat
+- environmental effects - storm, avalanche
 - stealth/senses
 - abilities and spells
 - analyse to find items
