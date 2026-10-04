@@ -8,7 +8,6 @@ import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
-import { needsSwimTest } from './swim'
 import { isTrivialClimb, needsClimbTest } from './cliff'
 import { canAfford } from '../../character/rules/cost'
 import { hasGrant } from '../../character/rules/abilities'
@@ -143,6 +142,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'fleeFollowUp':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
       return true
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
@@ -239,6 +239,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'fleeFollowUp':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
     case 'blast':
     case 'release':
     case 'feint':
@@ -387,7 +388,7 @@ export function isAnswerable(state: CombatState, open: Action): boolean {
 // terrain (combat.tex "Balance"), a swim the first time the swimmer is in
 // water in the round (combat.tex "Swimming").
 export function needsOwnDie(state: CombatState, action: MoveAction): boolean {
-  return action.movement === 'climb' ? needsClimbTest(state, action) : needsBalanceTest(state, action) || needsSwimTest(state, action)
+  return action.movement === 'climb' ? needsClimbTest(state, action) : needsBalanceTest(state, action)
 }
 
 // How many tests an interrupting attack could have the climber make: one for
@@ -453,6 +454,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'fleeFollowUp':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
       return 'confirm'
   }
 }
@@ -538,6 +540,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'fleeFollowUp':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
       return []
   }
 }

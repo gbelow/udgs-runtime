@@ -1,6 +1,6 @@
 import type { Degree } from '../../types'
 import { SWIM_FAILURE_SINK } from '../../tables'
-import type { CombatState, HeldRoll, MoveAction, Updater } from '../types'
+import type { CombatState, HeldRoll, SwimTestAction, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../dice'
 import { getHeldBar, getHeldRoll, type HeldKind } from '../rules/heldRoll'
 import { getHeldModes, getHeldTest } from '../rules/heldTest'
@@ -34,10 +34,10 @@ export function rollHeld(id: string, kind: HeldKind, mode: RollMode, dice: Dice)
   }
 }
 
-// The roll of a swim move that was its swimmer's test for the round, written
-// down as the round's.
-export function holdMoveTest(state: CombatState, action: MoveAction): CombatState {
+// The roll of a swim test a move opened, written down as the swimmer's for the
+// round as it is thrown.
+export function holdSwimTest(state: CombatState, action: SwimTestAction): CombatState {
   const { actorId, roll } = action
-  if (action.movement !== 'swim' || !roll || getHeldRoll(state, actorId, 'swim')) return state
+  if (!roll || getHeldRoll(state, actorId, 'swim')) return state
   return holdRoll(actorId, 'swim', { mode: 'normal', die: roll.die, skill: roll.score - roll.die, score: roll.score }, roll.DL)(state)
 }

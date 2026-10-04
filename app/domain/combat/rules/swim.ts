@@ -1,5 +1,5 @@
 import type { Character, Degree } from '../../types'
-import type { Board, CombatState, Coord, MoveAction } from '../types'
+import type { Board, CombatState, Coord, MoveAction, SwimTestAction } from '../types'
 import { SWIM_ONE_HAND_PENALTY } from '../../tables'
 import { getSwimTerms } from '../../character/rules/skills'
 import type { Term } from '../../character/rules/terms'
@@ -8,7 +8,7 @@ import { coordKey } from '../geometry'
 import { getFootprint } from './board'
 import { getHeldRoll } from './heldRoll'
 import { getDegree } from './test'
-import { getMoveOrigin } from './waypoint'
+import { getMoveOrigin, touchesGround } from './waypoint'
 
 // combat.tex "Swimming": the body of water a footprint stands in, read off the
 // cells of it that are liquid. The surface is the cells' elevation and the
@@ -59,38 +59,31 @@ export function getSwimTestTerms(c: Character): Term[] {
   return [...getSwimTerms(c), ...(swimsWithOneHand(c) ? [{ label: 'one hand', value: SWIM_ONE_HAND_PENALTY }] : [])]
 }
 
-// The water each cell of the move's path is swum in, null where it is dry.
+// The water each cell of the move's path is in, null where it is dry or, for a
+// jump, only passed over.
 export function getSwimWaters(state: CombatState, action: MoveAction): (Water | null)[] {
   const c = state.characters[action.actorId]
   const from = getMoveOrigin(state, action)
   const board = state.board
   if (!c || !from || !board) return []
-  return action.path.map((cell) => readWater(board, getFootprint(c, { ...from, cell })))
-}
-
-// The water a swimming test is made in: the first the move enters, or for a
-// test with no move the water the swimmer is in.
-export function getSwimTestWater(state: CombatState, action: MoveAction | null, id: string): Water | null {
-  return (action ? getSwimWaters(state, action).find((w) => w !== null) ?? null : null) ?? getWaterOf(state, id)
+  return action.path.map((cell, i) => (touchesGround(action.movement, i === action.path.length - 1) ? readWater(board, getFootprint(c, { ...from, cell })) : null))
 }
 
 function isSwim(action: MoveAction): boolean {
   return action.movement === 'swim'
 }
 
-// combat.tex "Swimming": "While in the water, make a swimming check against
-// the DL of the body of water", held for the round: a swim move is closed by
-// a die when it swims in water and the swimmer has not tested this round. A
-// move that carries the test keeps asking for it once rolled.
-export function needsSwimTest(state: CombatState, action: MoveAction): boolean {
-  if (!isSwim(action) || getSwimTestWater(state, action, action.actorId) === null) return false
-  return action.roll !== null || getHeldRoll(state, action.actorId, 'swim') === null
+// combat.tex "Swimming": "When entering the water ... make a swimming check
+// against the DL of the body of water": the test of the swimmer a move left in
+// it, in the water they are in.
+export function getSwimTestRootTerms(state: CombatState, action: SwimTestAction): { skill: Term[]; DL: Term[] } | null {
+  const c = state.characters[action.actorId]
+  return c ? { skill: getSwimTestTerms(c), DL: [{ label: 'water', value: getWaterOf(state, action.actorId)?.DL ?? 0 }] } : null
 }
 
-// The score the move is swum on: the round's, or the one the move itself is
-// rolling.
+// The score the move is swum on: the round's test.
 export function getSwimScore(state: CombatState, action: MoveAction): number | null {
-  return getHeldRoll(state, action.actorId, 'swim')?.score ?? action.roll?.score ?? null
+  return getHeldRoll(state, action.actorId, 'swim')?.score ?? null
 }
 
 // How well each of the first `cells` cells of the path is swum: the held
@@ -107,6 +100,14 @@ export function getSwimDegrees(state: CombatState, action: MoveAction, cells: nu
   const walked = getSwimWaters(state, action).slice(0, cells)
   const dived = Array<Water | null>(Math.abs(action.dive)).fill(walked.findLast((w) => w !== null) ?? getWaterOf(state, action.actorId))
   return [...walked, ...dived].map((water) => (score === null || water === null ? 'hit' : getDegree(score, water.DL)))
+}
+
+// combat.tex "Movement": swimming "also applies the prone condition", and as
+// with a climb's top (combat.tex "Climbing") the one who comes out of the water
+// onto land must spend AP to stand up: a swim whose walked path ends dry leaves
+// its swimmer prone.
+export function getSwimFinish(state: CombatState, action: MoveAction, walked: Coord[]): 'prone' | null {
+  return isSwim(action) && walked.length > 0 && getSwimWaters(state, action)[walked.length - 1] === null ? 'prone' : null
 }
 
 // The depth a swim move leaves its swimmer at: where the dive takes them once

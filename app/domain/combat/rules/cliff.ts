@@ -23,12 +23,12 @@ export function isCliff(from: number, to: number): boolean {
 // Whether a kind of movement may take a step from ground at one height to
 // ground at another. A walk crosses no cliff; a jump goes up as far as it
 // clears (`getJumpCeiling`) and comes down as a fall; a climb is the way over;
-// a swimmer's water has its own surface. combat.tex "Climbing": a climb is
+// a swimmer leaves the water only onto a bank level with its surface. combat.tex "Climbing": a climb is
 // over cliffs alone; the ground between them is not climbed, and the next
 // cliff starts a climb of its own.
 export function canStepOver(kind: MoveKind, from: number, to: number): boolean {
   if (kind === 'climb') return isCliff(from, to)
-  return kind === 'swim' || kind === 'jump' || !isCliff(from, to)
+  return kind === 'jump' || !isCliff(from, to)
 }
 
 // The height of the ground the mover sets out from and then of each cell of

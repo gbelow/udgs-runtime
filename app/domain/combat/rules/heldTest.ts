@@ -10,8 +10,8 @@ import { getSwimTestTerms, getWaterOf } from './swim'
 
 // Tests a character makes once a round and then scores against every DL the
 // round puts to them. The round calls whoever the kind says it must at its
-// beginning; a test the character comes to need mid-round is rolled with the
-// action that needs it (see `rules/swim.ts` `needsSwimTest`).
+// beginning; a test the character comes to need mid-round is an action of its
+// own, opened by the one that brought them to it (`openSwimTest`).
 type HeldDef = {
   called: (state: CombatState, id: string) => boolean
   skill: (c: Character) => Term[]
@@ -37,15 +37,18 @@ export function getHeldModes(c: Character, kind: HeldKind): readonly RollMode[] 
   return HELD_DEFS[kind].modes(c)
 }
 
-// Who the beginning of the round calls to which tests: the living and awake
-// whose kind of test is due.
+// Whether a kind of test is due from a character: the living and awake whose
+// situation calls for it.
+export function isHeldCalled(state: CombatState, id: string, kind: HeldKind): boolean {
+  const c = state.characters[id]
+  return !!c && HELD_DEFS[kind].called(state, id) && !isDead(c) && !getAfflictions(c, getSituationalAfflictions(state, id)).includes('unconscious')
+}
+
+// Who the beginning of the round calls to which tests.
 export function getHeldCalled(state: CombatState): HeldTest[] {
   return (Object.keys(HELD_DEFS) as HeldKind[]).flatMap((kind) =>
     Object.keys(state.characters)
-      .filter((id) => {
-        const c = state.characters[id]
-        return HELD_DEFS[kind].called(state, id) && !isDead(c) && !getAfflictions(c, getSituationalAfflictions(state, id)).includes('unconscious')
-      })
+      .filter((id) => isHeldCalled(state, id, kind))
       .map((id) => ({ id, kind, roll: null })),
   )
 }

@@ -89,6 +89,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           if (c.id !== action.actorId) return trampled
           if (action.movement === 'stand') return action.facts?.stop === 'end' ? standUp(c) : c
           if (action.movement === 'prone') return fallProne(c)
+          if (action.movement === 'swim' && action.facts?.finish === 'prone') return fallProne(trampled)
           if (action.movement === 'climb') return action.facts?.finish === 'prone' ? fallProne(trampled) : action.facts?.finish === 'standing' ? standUp(trampled) : trampled
           return action.facts?.fell ? fallProne(trampled) : trampled
         }

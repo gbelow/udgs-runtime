@@ -15,7 +15,7 @@ import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHan
 import { hasGrant } from '../../character/rules/abilities'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
-import { getSwimDegrees, isDiveLegal, needsSwimTest, readWater } from './swim'
+import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
 import { getDegree } from './test'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
@@ -122,7 +122,8 @@ export type MovementOption = {
 }
 
 // combat.tex "Movement": crawling "is the only usable movement speed while
-// prone", swimming "the only usable movement speed while swimming". A move
+// prone", swimming "the only usable movement speed while swimming" — a swimmer
+// may also climb out over a bank higher than the water. A move
 // a reaction opened may name the kinds it grants instead (combat.tex
 // "Avoiding an Explosion": on a critical "the character can run").
 // combat.tex "Lame": "Cannot run, jump or use basic
@@ -160,7 +161,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
 function movementGate(kind: MovementKind, block: ActionCost, hanging: boolean, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (!withinBudget(block, budget)) return { available: false, reason: 'more AP than the reaction allows' }
-  if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
+  if (swimming && kind !== 'swim' && kind !== 'climb') return { available: false, reason: 'swimming' }
   if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
   if (hanging) return kind === 'climb' ? { available: true, reason: null } : { available: false, reason: 'hanging on a face' }
   if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
@@ -285,11 +286,11 @@ export function needsBalanceTest(state: CombatState, action: MoveAction): boolea
   return firstDifficultStep(state, action) !== null && getBalanceMemory(state, action) === null
 }
 
-// The test a move's die is thrown as: its way over a cliff, its swim, or its
-// walk across difficult terrain.
+// The test a move's die is thrown as: its way over a cliff, or its walk across
+// difficult terrain.
 export function getMoveTest(state: CombatState, action: MoveAction): NonNullable<MoveAction['test']> {
   if (action.movement === 'climb') return 'climb'
-  return needsSwimTest(state, action) ? 'swim' : 'balance'
+  return 'balance'
 }
 
 // The table's ruling on combat.tex "Balance" — "Difficult terrain": the test
@@ -429,7 +430,7 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     stop = 'fall'
   }
   const fall = getMoveFall(state, action, path, false)
-  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
 // combat.tex "Climbing": a climb goes up the face it is on, as far as the metres

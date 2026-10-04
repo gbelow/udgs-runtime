@@ -56,5 +56,6 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }
     case 'fall': return { ...open, step: 'done', facts: getFallFacts(state, open) }
+    case 'swimTest': return { ...open, step: 'done' }
   }
 }

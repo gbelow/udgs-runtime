@@ -6,7 +6,7 @@ import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } fr
 import { isVoided } from '../rules/opportunity'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
-import { holdMoveTest } from './heldTest'
+import { holdSwimTest } from './heldTest'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getChanges } from '../rules/changes'
@@ -65,8 +65,8 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 }
 
 // A voided action lands nothing at its resolve (combat.tex
-// "Interruption"); its price was already taken at the roll. A move that
-// carried its swimmer's test for the round makes it theirs as it is rolled.
+// "Interruption"); its price was already taken at the roll. A swim test makes
+// the roll the swimmer's for the round as it is thrown.
 export function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((held, action) => {
     const applied = applyOne(held, action, phase)
@@ -78,7 +78,7 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
 }
 
 function applyOne(s: CombatState, action: Action, phase: Phase): CombatState {
-  const rolled = phase === 'roll' && action.kind === 'move' ? holdMoveTest(s, action) : s
+  const rolled = phase === 'roll' && action.kind === 'swimTest' ? holdSwimTest(s, action) : s
   if (phase === 'resolve' && isVoided(rolled, action)) return rolled
   const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null

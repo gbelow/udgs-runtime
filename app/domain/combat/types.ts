@@ -600,7 +600,8 @@ export const MoveFactsSchema = z.object({
   trampled: z.array(TrampleSchema).default([]),
   // combat.tex "Climbing": how a climb leaves its climber once it is over —
   // prone at the top, or standing where a climb no taller than they are
-  // came to
+  // came to; combat.tex "Movement": a swim that came out of the water onto
+  // land leaves its swimmer prone
   finish: z.enum(['prone', 'standing']).nullable().default(null),
   // combat.tex "Climbing": where a climb that stopped short of the top left its
   // climber, hanging on the face
@@ -625,7 +626,7 @@ export const MoveActionSchema = z.object({
   // the ways the climber's abilities allow (abilities.tex "Climber")
   mode: z.enum(ROLL_MODES).default('normal'),
   // the test its die was thrown as, once it has been
-  test: z.enum(['climb', 'swim', 'balance']).nullable().default(null),
+  test: z.enum(['climb', 'balance']).nullable().default(null),
   // combat.tex "Climbing": the test each opportunity attack drawn against
   // the climb would have the climber make if it interrupted them, at a
   // penalty, in the order the attacks are fought and thrown with the climb's
@@ -875,6 +876,14 @@ export const FallActionSchema = z.object({
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Swimming": "When entering the water ... make a swimming check
+// against the DL of the body of water", the actor's own test, opened by the
+// move that put them in it; its roll is theirs for the round.
+export const SwimTestActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('swimTest'),
+}).strip()
+
 // combat.tex "Grapple Maneuvers": "require the defender to spend 2 AP+1 STA
 // or suffer a -5 penalty". combat.tex "Push and drag": resisting a push is
 // the defender's "spend 2 AP to gain 5 force"; one who chooses nothing
@@ -923,6 +932,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ThrowActionSchema,
   RestActionSchema,
   FallActionSchema,
+  SwimTestActionSchema,
   ResistActionSchema,
   AssistActionSchema,
   CarryActionSchema,
@@ -957,6 +967,7 @@ export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>
+export type SwimTestAction = z.infer<typeof SwimTestActionSchema>
 // The actions, not reactions, the catalog does not mark `movement`
 // (rules/actionCatalog.ts): those a reaction made in their middle
 // interrupts.

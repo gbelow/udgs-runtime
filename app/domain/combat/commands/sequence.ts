@@ -16,6 +16,8 @@ import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
 import { canTakeQueuedTurn, getFleeFollowUps, getFleersOf } from '../rules/flee'
 import { getTurnHolder } from '../rules/turn'
+import { getHeldRoll } from '../rules/heldRoll'
+import { isHeldCalled } from '../rules/heldTest'
 import { getFeinted } from '../rules/feint'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
@@ -155,6 +157,7 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
     ...getRecipeFollowUps(state, root, newId),
     ...openSweepLink(state, root, newId),
+    ...openSwimTest(state, root, newId),
     ...openFall(root, newId),
   ]
 }
@@ -166,6 +169,15 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
 function openFall(root: RootAction, newId: () => string): Action[] {
   const fall = root.kind === 'move' ? root.facts?.fall : null
   return fall ? [makeAction('fall', { id: newId(), actorId: root.actorId, height: fall.height, to: fall.to, spawnedBy: root.id, step: 'react' })] : []
+}
+
+// combat.tex "Swimming": a move that left its mover in the water, who has not
+// tested this round, has them make the swimming check, committed as it opens:
+// nobody answers it, and it waits only on the swimmer's die. The fall a move
+// ended in is played out before it.
+function openSwimTest(state: CombatState, root: RootAction, newId: () => string): Action[] {
+  const owed = root.kind === 'move' && isHeldCalled(state, root.actorId, 'swim') && getHeldRoll(state, root.actorId, 'swim') === null
+  return owed ? [makeAction('swimTest', { id: newId(), actorId: root.actorId, spawnedBy: root.id, step: 'react' })] : []
 }
 
 // combat.tex "Sweeping Attack": the strike at the sweep's next target, with

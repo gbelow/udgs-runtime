@@ -61,8 +61,11 @@ export const ACTIONS = {
   // spells.tex "Telepathic Link": a target's test against a spell worked
   // through a link, opened by the cast; nobody answers it
   spellTest:   { label: 'spell test', rule: 'spells.tex "Telepathic Link"',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
+  // combat.tex "Swimming": the swimmer's check on entering the water, opened by
+  // the move that took them in; nobody answers it
+  swimTest:    { label: 'swim test', rule: 'combat.tex "Swimming"',   type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
   // combat.tex "Movement"
-  move:        { label: 'move', rule: 'combat.tex "Movement"',         type: 'action',   price: null,          reactsTo: [],         die: false, movement: true },
+  move:      { label: 'move', rule: 'combat.tex "Movement"',         type: 'action',   price: null,          reactsTo: [],         die: false, movement: true },
   // combat.tex "Defend": "There are four types of defense: Evade, Evasive
   // Jump, Intercept, and Block." "Evade: ... This can be used to avoid
   // being trampled" — a move whose path comes into the evader.

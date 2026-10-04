@@ -104,6 +104,7 @@ function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: Roo
     case 'blast':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
     case 'grapple':
     case 'drag':
     case 'release':
@@ -313,6 +314,7 @@ function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): 
     case 'fireAgain':
     case 'spellTest':
     case 'fall':
+    case 'swimTest':
     case 'move':
     case 'grapple':
     case 'drag':

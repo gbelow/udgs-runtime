@@ -90,6 +90,7 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'spellTest': return []
     // the faller's own test: nobody answers it
     case 'fall': return []
+    case 'swimTest': return []
     // letting go and grappling back draw nothing; nor does resting, which
     // is no standard action (combat.tex "Opportunity Attack"), nor firing a
     // held spell again (step 6 makes it a reaction of its own)
