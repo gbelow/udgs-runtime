@@ -92,6 +92,11 @@ export const PlacementSchema = z.object({
   // metres below the water's surface, 0 for a swimmer who breathes; combat.tex "Swimming"
   depth: num.default(0),
   focus: str.nullable().default(null),
+  // combat.tex "Climbing": a climber part of the way up (or down) the face
+  // between the cell they are in and `to`, with the metres of it they have
+  // covered, the height they started at included; `elevation` is how high
+  // their feet are
+  climb: z.object({ to: CoordSchema, covered: num.default(0), upright: z.boolean().default(false) }).strip().nullable().default(null),
 }).strip()
 export type Placement = z.infer<typeof PlacementSchema>
 
@@ -597,6 +602,9 @@ export const MoveFactsSchema = z.object({
   // prone at the top, or standing where a climb no taller than they are
   // came to
   finish: z.enum(['prone', 'standing']).nullable().default(null),
+  // combat.tex "Climbing": where a climb that stopped short of the top left its
+  // climber, hanging on the face
+  hang: z.object({ to: CoordSchema, covered: num, upright: z.boolean(), elevation: num }).strip().nullable().default(null),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
 
@@ -629,6 +637,9 @@ export const MoveActionSchema = z.object({
   // abilities.tex "Jumper II": the climber spends a jump to start the climb
   // higher
   leap: z.boolean().default(false),
+  // combat.tex "Climbing": how many metres of the face the climb goes, null
+  // for all that is left of it
+  metres: num.nullable().default(null),
   // the most AP it may cost, for a move a reaction opened (combat.tex
   // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
   // "use up to 2 AP to move"); null is no cap

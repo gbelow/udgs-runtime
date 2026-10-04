@@ -134,8 +134,9 @@ export const ACTIONS = {
   // combat.tex "Rest"
   rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false },
   // combat.tex "Balance" ("Fall skill test"): the faller's own Balance test,
-  // opened by the jump down or the climb that failed, never declared
-  fall:        { label: 'fall', rule: 'combat.tex "Balance"',        type: 'action',   price: null,          reactsTo: [],         die: true, generated: true },
+  // opened by the jump down or the climb that failed, or declared by a climber
+  // who lets go
+  fall:        { label: 'fall', rule: 'combat.tex "Balance"',        type: 'action',   price: null,          reactsTo: [],         die: true },
 } as const satisfies { [K in ActionKind]: ActionDef<K> }
 
 // The flags as the catalog declares them, read through the general shape

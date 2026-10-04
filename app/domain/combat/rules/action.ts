@@ -205,7 +205,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'counterattack':
       return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
-      return getMovePrice(state, c, action, getMoveFacts(state, action).path.length)
+      return getMovePrice(state, c, action, action.movement === 'climb' ? action.path.length : getMoveFacts(state, action).path.length)
     case 'drag':
       return getPushPrice(state, action, action)
     case 'resist':

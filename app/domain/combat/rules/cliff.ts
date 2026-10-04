@@ -1,10 +1,10 @@
 import type { Character, MoveKind } from '../../types'
-import type { ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFall } from '../types'
+import type { ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, MoveFall, Placement } from '../types'
 import { CLIMB_HEIGHT, FALL } from '../../tables'
 import { hasGrant } from '../../character/rules/abilities'
 import { getRM } from '../../character/rules/size'
 import type { RollMode } from '../dice'
-import { coordKey } from '../geometry'
+import { coordKey, sameCell } from '../geometry'
 import { getDegree } from './test'
 import { isCampaignCharacter } from '../../utils'
 import { readGround } from './ground'
@@ -39,16 +39,6 @@ export function getPathElevations(state: CombatState, action: MoveAction, path: 
   return from && ground ? [ground.elevation(from.cell), ...path.map((cell) => ground.elevation(cell))] : null
 }
 
-function hasCliff(elevations: number[]): boolean {
-  return elevations.some((height, i) => i > 0 && isCliff(elevations[i - 1], height))
-}
-
-// Whether the path crosses a cliff, which a climb must.
-export function crossesCliff(state: CombatState, action: MoveAction, path: Coord[]): boolean {
-  const elevations = getPathElevations(state, action, path)
-  return elevations !== null && hasCliff(elevations)
-}
-
 // combat.tex "Climbing": "Any character starts a climb at their own height"
 // (creating.tex "Reach Multiplier (RM)"); abilities.tex "Jumper II": the jump
 // spent to start the climb gains "+1m xRM to the starting distance".
@@ -57,50 +47,82 @@ export function getClimbStart(c: Character, leap: boolean): number {
   return CLIMB_HEIGHT * RM + (leap && hasGrant(c, 'climbLeap') ? RM : 0)
 }
 
-// The metres of cliff a climb goes over; a climb is made of nothing else.
-function getClimbRise(state: CombatState, action: MoveAction, path: Coord[]): number | null {
-  const elevations = getPathElevations(state, action, path)
-  return elevations && path.reduce((total, _, i) => total + Math.abs(elevations[i + 1] - elevations[i]), 0)
+// combat.tex "Climbing": a climb is on one face — the step from the cell the
+// climber is in to the next, over a cliff — and "can be in an intermediate
+// position" on it. How it goes, read off the declaration: the height of the
+// face, the climber's start (which only the first move of a climb takes),
+// the metres this move covers and where that leaves them.
+type Face = { from: Placement; height: number; up: boolean; low: Coord; high: Coord }
+
+function getFace(state: CombatState, action: MoveAction): Face | null {
+  const from = getMoveOrigin(state, action)
+  const to = action.path[0]
+  const ground = readGround(state, action.actorId)
+  if (!from || !to || action.path.length !== 1 || !ground) return null
+  const [here, there] = [ground.elevation(from.cell), ground.elevation(to)]
+  if (!isCliff(here, there)) return null
+  return { from, height: Math.abs(there - here), up: there > here, low: there > here ? from.cell : to, high: there > here ? to : from.cell }
 }
 
-// How much of the path there is to climb: what is left of the cliffs' height
-// after the climber's start.
-export function getClimbCells(state: CombatState, action: MoveAction, path: Coord[]): number {
-  const c = state.characters[action.actorId]
-  const rise = getClimbRise(state, action, path)
-  return c && rise !== null ? Math.max(0, rise - getClimbStart(c, action.leap)) : path.length
+export type ClimbPlan = {
+  face: Face
+  first: boolean
+  credit: number
+  remaining: number
+  metres: number
+  covered: number
+  trivial: boolean
+  top: boolean
 }
 
-// combat.tex "Climbing": "Any climb with height equal or lower than the
-// character's height can be done by just standing up in the new location" —
-// one step over a cliff no higher than the climber starts at has nothing left
-// to climb.
-export function isTrivialClimb(state: CombatState, action: MoveAction, path: Coord[] = action.path): boolean {
+export function getClimbPlan(state: CombatState, action: MoveAction): ClimbPlan | null {
   const c = state.characters[action.actorId]
-  const rise = action.movement === 'climb' && path.length === 1 ? getClimbRise(state, action, path) : null
-  return !!c && rise !== null && rise > 0 && rise <= getClimbStart(c, action.leap)
+  const face = getFace(state, action)
+  if (action.movement !== 'climb' || !c || !face) return null
+  const first = face.from.climb === null
+  const credit = first ? getClimbStart(c, action.leap) : 0
+  const before = (face.from.climb?.covered ?? 0) + credit
+  // combat.tex "Climbing": "Any climb with height equal or lower than the
+  // character's height can be done by just standing up in the new location"
+  const trivial = first && face.height <= credit
+  const remaining = Math.max(0, face.height - before)
+  const metres = trivial ? 0 : Math.min(action.metres ?? remaining, remaining)
+  return { face, first, credit, remaining, metres, covered: before + metres, trivial, top: before + metres >= face.height }
+}
+
+// How much of the face this move climbs, which is what it pays for.
+export function getClimbCells(state: CombatState, action: MoveAction): number {
+  return getClimbPlan(state, action)?.metres ?? 0
+}
+
+// What the panel offers of a climb: the metres this move goes and how many of
+// the face are left to go; null where there is nothing to choose.
+export function getClimbSteps(state: CombatState, action: MoveAction): { metres: number; remaining: number } | null {
+  const plan = getClimbPlan(state, action)
+  return plan && !plan.trivial ? { metres: plan.metres, remaining: plan.remaining } : null
+}
+
+export function isTrivialClimb(state: CombatState, action: MoveAction): boolean {
+  return getClimbPlan(state, action)?.trivial ?? false
 }
 
 // combat.tex "Climbing": "To determine the difficulty of climbing, consider
 // ... the quality of the grips and the distance between holds" — the board
-// paints the DL of each face (`climbDL`) and the hardest face the climb takes
-// hold of counts; a face with no DL has nothing to hold. Distance adds
-// nothing: the STA every block costs already pays for it.
-export function getClimbDL(state: CombatState, action: MoveAction, path: Coord[] = action.path): number | null {
-  const elevations = getPathElevations(state, action, path)
-  const origin = getMoveOrigin(state, action)
-  const board = state.board
-  if (!elevations || !origin || !board) return null
-  const faces = path.map((cell, i) => (elevations[i] >= elevations[i + 1] ? (i === 0 ? origin.cell : path[i - 1]) : cell))
-  const DLs = faces.map((cell) => board.terrain[coordKey(cell)]?.climbDL ?? null)
-  return DLs.length === 0 || DLs.includes(null) ? null : Math.max(...(DLs as number[]))
+// paints the DL of each face (`climbDL`, on the higher cell); a face with no
+// DL has nothing to hold. Distance adds nothing: the metres climbed are
+// already paid for.
+export function getClimbDL(state: CombatState, action: MoveAction): number | null {
+  const plan = getClimbPlan(state, action)
+  return plan ? state.board?.terrain[coordKey(plan.face.high)]?.climbDL ?? null : null
 }
 
-// combat.tex "Climbing": whether the path is a climb that can be made: over
-// cliffs alone, each with something to hold, unless it is no taller than the
-// climber.
-export function isClimbable(state: CombatState, action: MoveAction, path: Coord[]): boolean {
-  return crossesCliff(state, action, path) && (getClimbDL(state, action, path) !== null || isTrivialClimb(state, action, path))
+// combat.tex "Climbing": whether the move is a climb that can be made: up or
+// down one face with something to hold, unless it is no taller than the
+// climber, and one already under way goes on up the face it is on.
+export function isClimbable(state: CombatState, action: MoveAction): boolean {
+  const plan = getClimbPlan(state, action)
+  const hanging = plan?.face.from.climb
+  return !!plan && (!hanging || sameCell(hanging.to, action.path[0])) && (plan.trivial || getClimbDL(state, action) !== null)
 }
 
 // abilities.tex "Climber": safe climbing from the first level, risky from the
@@ -159,19 +181,34 @@ export function hasClimbFailed(state: CombatState, action: MoveAction, redoFell:
   return getClimbDegree(state, action) === 'miss' || redoFell
 }
 
+// The feet of a climber after the metres this move climbs: up the face from
+// where they were, or down it from the start they hang from.
+function getClimbFeet(plan: ClimbPlan): number {
+  return plan.face.up ? plan.face.from.elevation + plan.metres : plan.face.from.elevation - plan.credit - plan.metres
+}
+
 // combat.tex "Climbing": "On a failure, the character simply falls from the
-// surface" — the table's ruling is from the highest point the climb reached,
-// less the height the climber started it at, to the lower of where it began
-// and where it was bound; null where that is no fall at all.
-function getClimbFall(state: CombatState, action: MoveAction, path: Coord[]): MoveFall | null {
-  const elevations = getPathElevations(state, action, path)
-  const origin = getMoveOrigin(state, action)
-  if (!elevations || !origin) return null
-  const last = elevations.length - 1
-  const landsAtEnd = elevations[last] < elevations[0]
-  const c = state.characters[action.actorId]
-  const height = Math.max(0, Math.max(...elevations) - elevations[landsAtEnd ? last : 0] - (c ? getClimbStart(c, action.leap) : 0))
-  return height >= FALL.minHeight ? { height, to: landsAtEnd ? path[path.length - 1] : origin.cell } : null
+// surface" — from the height they had climbed to, or, where an interrupting
+// attack made them lose their hold before the move began, from the height
+// they hung at (none at all for one still on the ground); null where that is
+// no fall at all.
+function getClimbFall(state: CombatState, action: MoveAction, redoFell: boolean): MoveFall | null {
+  const plan = getClimbPlan(state, action)
+  const ground = readGround(state, action.actorId)
+  if (!plan || !ground) return null
+  const floor = ground.elevation(plan.face.low)
+  const feet = redoFell ? (plan.first ? floor : plan.face.from.elevation) : getClimbFeet(plan)
+  return feet - floor >= FALL.minHeight ? { height: feet - floor, to: plan.face.low } : null
+}
+
+// combat.tex "Balance": a climber who lets go falls from where they hang,
+// down the face they are on.
+export function getHangingFall(state: CombatState, id: string): MoveFall | null {
+  const placement = state.board?.placements[id]
+  const ground = readGround(state, id)
+  if (!placement?.climb || !ground) return null
+  const [here, there] = [ground.elevation(placement.cell), ground.elevation(placement.climb.to)]
+  return { height: Math.max(0, placement.elevation - Math.min(here, there)), to: there > here ? placement.cell : placement.climb.to }
 }
 
 // combat.tex "Fall skill test": a jump that comes down on lower ground lands
@@ -186,17 +223,28 @@ function getJumpFall(state: CombatState, action: MoveAction, path: Coord[]): Mov
 // combat.tex "Climbing": "Once they reach the top, they must spend AP to stand
 // up or finish the climb prone" — except abilities.tex "Climber III" on a
 // critical — and a climb no taller than the climber is lands them standing.
-export function getClimbFinish(state: CombatState, action: MoveAction, path: Coord[], fall: MoveFall | null): 'prone' | 'standing' | null {
+export function getClimbFinish(state: CombatState, action: MoveAction, fall: MoveFall | null): 'prone' | 'standing' | null {
+  const plan = getClimbPlan(state, action)
   const c = state.characters[action.actorId]
-  if (action.movement !== 'climb' || path.length === 0 || fall !== null || !c) return null
-  if (isTrivialClimb(state, action, path)) return 'standing'
+  if (!plan || !c || fall !== null) return null
+  if (plan.trivial) return 'standing'
+  if (!plan.top) return null
   return hasGrant(c, 'climbUpright') && getClimbDegree(state, action) === 'critical' ? null : 'prone'
+}
+
+// combat.tex "Climbing": a climb that stops short of the top leaves its
+// climber hanging on the face, at the height they climbed to.
+export function getClimbHang(state: CombatState, action: MoveAction, fall: MoveFall | null): MoveFacts['hang'] {
+  const plan = getClimbPlan(state, action)
+  const c = state.characters[action.actorId]
+  if (!plan || !c || fall !== null || plan.trivial || plan.top) return null
+  return { to: action.path[0], covered: plan.covered, upright: hasGrant(c, 'climbUpright') && getClimbDegree(state, action) === 'critical', elevation: getClimbFeet(plan) }
 }
 
 // The fall a move as walked ends in, if any; `redoFell` is whether the test an
 // attack had the climber make on the way was failed.
 export function getMoveFall(state: CombatState, action: MoveAction, path: Coord[], redoFell: boolean): MoveFall | null {
   if (action.movement === 'jump') return getJumpFall(state, action, path)
-  if (action.movement === 'climb' && hasClimbFailed(state, action, redoFell)) return getClimbFall(state, action, path)
+  if (action.movement === 'climb' && !isTrivialClimb(state, action) && hasClimbFailed(state, action, redoFell)) return getClimbFall(state, action, redoFell)
   return null
 }

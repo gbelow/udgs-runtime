@@ -8,6 +8,7 @@ import { canAfford } from '../../character/rules/cost'
 import { canSurge, getSurged } from '../../character/rules/surge'
 import { hasGrant } from '../../character/rules/abilities'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
+import { getHangingFall } from './cliff'
 import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
@@ -311,6 +312,12 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       ...(isInAnyGrapple(state, c) ? [option({ kind: 'drag' }, null, reason)] : []),
       ...(getPullTargets(state, c.id).length > 0 ? [option({ kind: 'drag', pull: true }, null, reason)] : []),
     ]
+  },
+  // combat.tex "Balance": a climber hanging on a face lets go and falls from
+  // where they hang
+  fall: (state, c) => {
+    const fall = getHangingFall(state, c.id)
+    return fall ? [option({ kind: 'fall', height: fall.height, to: fall.to }, { AP: 0, STA: 0 }, null)] : []
   },
   release: (state, c) => {
     if (!isInAnyGrapple(state, c)) return []

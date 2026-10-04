@@ -47,7 +47,7 @@ export function getOccupancy(board: Board, characters: Record<string, Character>
 // A placement moved to `cell`, at the height of the ground there (combat.tex
 // "High Ground"); off any board, the ground is at 0.
 export function placeAt(board: Board | null, placement: Placement, cell: Coord): Placement {
-  return { ...placement, cell, elevation: board?.terrain[coordKey(cell)]?.elevation ?? 0 }
+  return { ...placement, cell, elevation: board?.terrain[coordKey(cell)]?.elevation ?? 0, climb: null }
 }
 
 // The fight with the given characters standing elsewhere, for reading what
@@ -89,12 +89,18 @@ export function getReach(weapon: Weapon, range: MeleeRange): number {
   return Math.max(1, REACH[range] * RMArr[weapon.scale - 1])
 }
 
+// The height of the ground someone stands on; a climber hanging on a face
+// stands on none.
+function getStanding(state: CombatState, placement: Placement): number {
+  return placement.climb ? state.board?.terrain[coordKey(placement.cell)]?.elevation ?? 0 : placement.elevation
+}
+
 // combat.tex "High Ground": "standing on terrain around 1m higher than its
 // surroundings". Positive when `a` stands above `b`.
 function getElevationDifference(state: CombatState, a: string, b: string): number | null {
   const pa = state.board?.placements[a]
   const pb = state.board?.placements[b]
-  return pa && pb ? pa.elevation - pb.elevation : null
+  return pa && pb ? getStanding(state, pa) - getStanding(state, pb) : null
 }
 
 export function isHighGround(state: CombatState, a: string, b: string): boolean {

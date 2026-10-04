@@ -41,26 +41,25 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   latest of their moves this turn whose die was thrown as a balance test, cleared by a fall or the
   turn's end). A move without a die scores the remembered result against its own DL. The move
   records which test its die was (`test`). A miss leaves the mover prone, with no fall height.
-- **Climbing.** The climber's test stands for the round: the first climb of a round throws the
-  die (in the mode it declares, among `getClimbModes`: safe from Climber I, risky from Climber II
-  and only during a movement surge), and the climbs after it score that result against their own
-  DL (`getClimbMemory`, read off the record the way `getBalanceMemory` is, scoped by the `round`
-  an action is stamped with). A climb starts at the climber's height (`getClimbStart`: 2 m × RM, more by the jump a
-  Jumper II spends to begin it, `leap`): only what the cliffs rise above that is climbed and priced
-  (`getClimbCells`); a climb is over cliffs alone (`canStepOver`), and the next cliff starts a climb of its own. One step over a cliff no higher than the start
-  is trivial (`isTrivialClimb`): no test, no fall, the price of standing up (or of the jump), and it
-  leaves the climber standing (`facts.finish`); a real climb leaves them prone at the top, unless
-  Climber III and a critical, and a climb may begin prone. The fall of a failed climb is the height
-  reached less the start. The DL is the hardest `climbDL` painted on the faces the climb
-  takes hold of (the higher cell of each cliff step), with no floor; a face with none has nothing to hold,
-  so only a trivial climb crosses it (`isClimbable`). A graze doubles each block's AP and not its STA; a climber who cannot
-  pay for that gives up (`gaveUp`, stamped as the die is paid) and falls like a miss. An attack
-  that interrupts a climber does not cancel the climb but has them make a new −3 test (one die per
-  attack drawn, thrown with the climb in `redos`): the first that misses cuts the path where they
-  were caught and they fall from the highest point reached. A climber is prone while the climb is
-  under way (`getSituationalAfflictions`), unless Climber III and a critical. The test's `holds`
-  term counts the free parts that take hold (`canClimbWith`: a hand unless the body's part says
-  `climbs`), −3 for one and −8 for none.
+- **Climbing.** A climb is on one face: the step over a cliff from the cell the climber is in to
+  the next (`getClimbPlan`), with the DL painted on the higher cell (`climbDL`; a face with none
+  has nothing to hold, so only a trivial climb crosses it, `isClimbable`). The climber's test
+  stands for the round: the first climb of a round throws the die (in the mode it declares, among
+  `getClimbModes`), and the climbs after it score that result against their own DL
+  (`getClimbMemory`, scoped by the `round` an action is stamped with). A climb starts at the
+  climber's height (`getClimbStart`: 2 m × RM, more by the jump a Jumper II spends, `leap`), and
+  only the first move up a face takes that: what is left is climbed in moves of `metres` each, at
+  a block's price per metre. One step over a face no higher than the start is trivial: no test, no
+  fall, the price of standing up (or of the jump), and the climber is left standing. A move that
+  stops short leaves the climber hanging (`Placement.climb`, `elevation` their feet): prone, with
+  no high ground, able to climb on or let go (a declared `fall` from where they hang, DL by
+  height). A graze costs 5 AP a metre and a climber who cannot pay gives up (`gaveUp`) and falls
+  like a miss, from the height the declared metres reached; a critical costs no STA, and 1 AP a
+  metre when risky. An attack that interrupts a climber has them make a new −3 test (one die per
+  attack drawn, thrown with the climb in `redos`); a miss cancels the move and they fall from the
+  height they hung at. Reaching the top leaves them prone, unless Climber III and a critical. The
+  test's `holds` term counts the free parts that take hold (`canClimbWith`: a hand unless the
+  body's part says `climbs`), −3 for one and −8 for none.
 - **Water and held tests.** A liquid cell has a surface (its elevation), a depth below it and a
   DL. A swimmer's `Placement.depth` is how far below the surface they are; it is read through
   the water they stand in, so it never exceeds the floor, and below the surface they are

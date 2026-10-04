@@ -32,6 +32,8 @@ export function getSituationalAfflictions(state: CombatState | null, id: string)
 // fought), and not for one with abilities.tex "Climber III" whose test was a
 // critical.
 function isClimbing(state: CombatState, id: string): boolean {
+  const hanging = state.board?.placements[id]?.climb
+  if (hanging) return !hanging.upright
   const climb = findOpenRoot(state, 'move', (m) => m.actorId === id && m.movement === 'climb' && m.step === 'post')
   const c = state.characters[id]
   return !!climb && !!c && !isTrivialClimb(state, climb) && !(hasGrant(c, 'climbUpright') && getClimbDegree(state, climb) === 'critical')

@@ -20,7 +20,7 @@ import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
-import { getClimbModes } from '../rules/cliff'
+import { getClimbModes, getClimbSteps } from '../rules/cliff'
 import { hasGrant } from '../../character/rules/abilities'
 import type { RollMode } from '../dice'
 import { getDiveSteps } from '../rules/swim'
@@ -191,6 +191,8 @@ export type OpenActionView = {
   // abilities.tex "Jumper II": whether the climb may start with a jump, and
   // whether it does
   canLeap: boolean
+  // combat.tex "Climbing": the metres of the face the climb goes, and how many are left of it
+  climbSteps: { metres: number; remaining: number } | null
   leap: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be
@@ -389,6 +391,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       path: open.kind === 'move' ? open.path : [],
       mode: open.kind === 'move' ? open.mode : 'normal',
       climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor) : [],
+      climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
       leap: open.kind === 'move' && open.leap,
       dive: open.kind === 'move' ? open.dive : 0,

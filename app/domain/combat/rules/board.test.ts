@@ -36,8 +36,8 @@ const newId = () => `a${++n}`
 describe('a fight without a board is a fight where every positional gate passes', () => {
   const open: Board = {
     placements: {
-      atk: { cell: { q: 0, r: 0 }, orientation: 0, elevation: 0, depth: 0, focus: null },
-      def: { cell: { q: 1, r: 0 }, orientation: 0, elevation: 0, depth: 0, focus: null },
+      atk: { cell: { q: 0, r: 0 }, orientation: 0, elevation: 0, depth: 0, focus: null, climb: null },
+      def: { cell: { q: 1, r: 0 }, orientation: 0, elevation: 0, depth: 0, focus: null, climb: null },
     },
     terrain: {},
     origin: { q: 0, r: 0 },

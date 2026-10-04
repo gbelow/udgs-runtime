@@ -11,7 +11,7 @@ import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 import { isTetherKept } from './bind'
-import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbModes, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
+import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
 import { hasGrant } from '../../character/rules/abilities'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
@@ -73,17 +73,16 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
 export function getMovePrice(state: CombatState, c: Character, action: MoveAction, cells: number): ActionCost {
-  const path = action.path.slice(0, cells)
-  const climbing = action.movement === 'climb' && path.length > 0
-  const leap = climbing && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
+  const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
+  const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
   // standing up it is, or the jump that started it
-  if (climbing && isTrivialClimb(state, action, path)) {
+  if (plan?.trivial) {
     const price = action.leap ? leap : getPostureCost(c, 'stand')
     return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
   }
   const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
-  const moved = action.movement === 'climb' && path.length > 0 ? getClimbCells(state, action, path) : cells
+  const moved = plan ? plan.metres : cells
   const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveBlock(state, c, action, climbed))
   return { AP: Math.max(0, cost.AP + leap.AP - action.prepaid), STA: (runsFree(c, action.movement) ? 0 : cost.STA) + leap.STA }
 }
@@ -137,6 +136,7 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const swimming = isInLiquid(state, c)
   const waterNear = swimming || isNextToWater(state, c)
   const cliffNear = isNextToCliff(state, c)
+  const hanging = state.board?.placements[c.id]?.climb != null
   const granted = action?.movements ?? null
   const budget = action?.budget ?? null
   const held = isInGrapple(state, c.id)
@@ -145,23 +145,24 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
     const { AP, STA } = getMovementBlock(c, kind)
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, { AP, STA }, prone, lame, swimming, waterNear, cliffNear, granted, budget)
+      : movementGate(kind, { AP, STA }, hanging, prone, lame, swimming, waterNear, cliffNear, granted, budget)
     return { kind, speed: getMovementSpeed(c, kind), block: { AP, STA: runsFree(c, kind) ? 0 : STA }, ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
   const postures = POSTURES.map((kind): MovementOption => {
-    const reason = immobile ? 'immobile' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
+    const reason = immobile ? 'immobile' : hanging ? 'hanging on a face' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
     return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
   })
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, block: ActionCost, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, block: ActionCost, hanging: boolean, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
   if (!withinBudget(block, budget)) return { available: false, reason: 'more AP than the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
+  if (hanging) return kind === 'climb' ? { available: true, reason: null } : { available: false, reason: 'hanging on a face' }
   if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
   if (prone && !swimming && kind !== 'crawl' && kind !== 'climb') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
@@ -207,9 +208,10 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   if (isPosture(action.movement)) return action.path.length === 0
   const diving = action.movement === 'swim' && action.dive !== 0
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
-  if (!withinBudget(getMoveCost(c, action.movement, action.path.length + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
+  const cells = action.movement === 'climb' ? getClimbCells(state, action) : action.path.length
+  if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
-  if (action.movement === 'climb' && !isClimbable(state, action, action.path)) return false
+  if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1))) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
   if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c).includes(action.mode))) return false
 
@@ -401,6 +403,7 @@ function getClimbFailedAt(state: CombatState, action: MoveAction): number | null
 // tramples are those on the path as walked, and the fall is the one a jump
 // down or a climb that failed ends in (`getMoveFall`).
 export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts {
+  if (action.movement === 'climb' && !isTrivialClimb(state, action)) return getClimbFacts(state, action)
   let path = action.path
   let stop: MoveFacts['stop'] = 'end'
   const flee = getFleeStep(state, action)
@@ -425,14 +428,27 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, difficult)
     stop = 'fall'
   }
-  const failedAt = getClimbFailedAt(state, action)
-  const redoFell = failedAt !== null && failedAt < path.length
-  if (redoFell && getClimbDegree(state, action) !== 'miss') {
-    path = path.slice(0, failedAt)
-    stop = 'reaction'
+  const fall = getMoveFall(state, action, path, false)
+  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+}
+
+// combat.tex "Climbing": a climb goes up the face it is on, as far as the metres
+// it declares, or ends in the fall of a test that failed — the climber's, or
+// the one an interrupting attack had them make — and leaves its climber at
+// the top, or hanging part of the way.
+function getClimbFacts(state: CombatState, action: MoveAction): MoveFacts {
+  const plan = getClimbPlan(state, action)
+  const redoFell = getClimbFailedAt(state, action) !== null
+  const fall = getMoveFall(state, action, action.path, redoFell)
+  return {
+    path: plan?.top && fall === null ? action.path : [],
+    stop: redoFell ? 'reaction' : fall ? 'fall' : 'end',
+    fell: false,
+    fall,
+    finish: getClimbFinish(state, action, fall),
+    hang: getClimbHang(state, action, fall),
+    trampled: [],
   }
-  const fall = getMoveFall(state, action, path, redoFell)
-  return { path, stop, fell, fall, finish: getClimbFinish(state, action, path, fall), trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
 // ---------------------------------------------------------------------------
@@ -534,8 +550,8 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || isClimbable(state, action, path))
+      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
     })
-    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path }, steps), path }))
+    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, steps), path }))
     .filter(({ cost }) => canAfford(c, cost))
 }
