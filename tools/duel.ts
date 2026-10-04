@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CombatStateSchema, type CombatState, type Coord } from '../app/domain/combat/types'
+import { CombatStateSchema, type CombatState, type Coord, type RootAction } from '../app/domain/combat/types'
 import { rollD10, seededRng, type Dice } from '../app/domain/combat/dice'
 import { buildFighter } from './lib/fighters'
 import type { CampaignCharacter } from '../app/domain/types'
@@ -9,6 +9,7 @@ import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getArmedAttacks } from '../app/domain/bot/weapons'
 import { estimateAttacks } from '../app/domain/bot/estimate'
+import { getStrikeDefenses } from '../app/domain/bot/defenses'
 import { declareDefense, getDefenseOptions } from '../app/domain/bot/answer'
 import { hold } from '../app/domain/bot/engine'
 import { passUp } from '../app/domain/bot/table'
@@ -17,7 +18,7 @@ import { getReachableCells } from '../app/domain/combat/rules/move'
 import { amendAction, commitAction, declareAction, resolveAction, rollOrPay, setTarget } from '../app/domain/combat/commands/action'
 import { endTurn, startTurn, toggleAgreeToEnd } from '../app/domain/combat/commands/turn'
 import { nextRound } from '../app/domain/combat/commands/nextRound'
-import { getAction, getHistory, getOpenAction } from '../app/domain/combat/rules/log'
+import { canAnswer, getAction, getHistory, getLiveReactionsTo, getOpenAction } from '../app/domain/combat/rules/log'
 import { getNextRoundBar, getTurnHolder, hasAgreedToEnd } from '../app/domain/combat/rules/turn'
 import { getMoraleTest } from '../app/domain/combat/rules/morale'
 import { rollMorale } from '../app/domain/combat/commands/morale'
@@ -168,15 +169,36 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
   ]
 }
 
-// What the target of a committed attack may answer it with.
-function defenseChoices(state: CombatState, id: string): Choice[] {
-  const open = getOpenAction(state)
-  if (!open) return []
-  const defenses = getDefenseOptions(state, id, open).map((o): Choice => ({
+// What the target of a committed attack may answer it with, bar taking it: the
+// bot's reflexes, and for a strike or a shot what the panel offers beyond them
+// (an intercept, an evasive jump to each distance from the attacker it can land at).
+function defenseOffers(state: CombatState, id: string, open: RootAction): Choice[] {
+  const reflexes = getDefenseOptions(state, id, open).map((o): Choice => ({
     label: `${getOptionLabel(state, id, o)} — ${o.cost?.AP ?? 0} AP, ${o.cost?.STA ?? 0} STA`,
     apply: (e) => declareDefense(state, id, open, o, e.newId),
   }))
-  return [{ label: 'NO DEFENSE: take the attack', apply: (e) => rollOrPay(e.dice, e.newId)(state) }, ...defenses]
+  const answerable = open.targetId === id && canAnswer(open, id) && !getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)
+  if ((open.kind !== 'strike' && open.kind !== 'shoot') || !answerable) return reflexes
+  const from = cellOf(state, open.actorId)
+  const landings = new Set<number>()
+  const extra = getStrikeDefenses(state, id, open.actorId).filter((d) => {
+    if (d.kind === 'intercept') return true
+    if (d.kind !== 'evasiveJump' || !d.landing || !from) return false
+    const gap = setDistance([d.landing.cell], [from])
+    if (landings.has(gap)) return false
+    landings.add(gap)
+    return true
+  }).map((d): Choice => ({
+    label: `${d.kind === 'evasiveJump' && d.landing && from ? `evasive jump, landing ${setDistance([d.landing.cell], [from])} cell${setDistance([d.landing.cell], [from]) === 1 ? '' : 's'} from the attacker` : d.label} — ${d.cost.AP} AP, ${d.cost.STA} STA`,
+    apply: (e) => d.declare(state, open, e.newId),
+  }))
+  return [...reflexes, ...extra]
+}
+
+function defenseChoices(state: CombatState, id: string): Choice[] {
+  const open = getOpenAction(state)
+  if (!open) return []
+  return [{ label: 'NO DEFENSE: take the attack', apply: (e) => rollOrPay(e.dice, e.newId)(state) }, ...defenseOffers(state, id, open)]
 }
 
 function terms(list: readonly { label: string; value: number }[]): string {
@@ -214,7 +236,7 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
       }
       if (open.step === 'react') {
         const target = open.targetId
-        if (target && state.characters[target] && getDefenseOptions(state, target, open).length > 0) {
+        if (target && state.characters[target] && defenseOffers(state, target, open).length > 0) {
           return { state, next: { kind: 'prompt', side: sideOf(target), title: `${getFightName(state, target)} is attacked. ${threat(state)}`, choices: defenseChoices(state, target) } }
         }
         const rolled = rollOrPay(env.dice, env.newId)(state)
