@@ -128,6 +128,8 @@ click to what stands afterwards. It is admitted, under these terms.
   active and in-turn characters are in the fight, no two footprints share a cell, the board
   draws every placed character, and a click on a board the view calls locked changes nothing.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
+  Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
+  a spell, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   What it reaches is bounded by the fixtures: a command no fixture character can declare is
   not exercised, so give the fixtures the gear and the abilities the commands need.
 - **Terrain is painted by clicking.** Scenes are built with the same brushes a player holds,

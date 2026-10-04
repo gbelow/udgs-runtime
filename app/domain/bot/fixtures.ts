@@ -30,6 +30,20 @@ export function archer(id: string): CampaignCharacter {
   return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
+// A caster holding a flamethrower (spells.tex "Flamethrower"), the focus surge
+// spent, with the spells that ask for nothing in hand besides.
+export function mage(id: string): CampaignCharacter {
+  const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
+  const known = Object.fromEntries(['flamethrower', 'telepathic-link', 'pain', 'frighten', 'sleep'].map((key) => [key, { method: 'intuitive' as const, practice: 0 }]))
+  return { ...holdItem(flamethrower)(fighter(id)), spells: known, usedSurge: 'focus' }
+}
+
+// A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II").
+export function brawler(id: string): CampaignCharacter {
+  const gauntlet = ItemSchema.parse({ name: 'Gauntlet', type: 'weapon', refId: 'Gauntlet', bulk: 1 })
+  return holdItem(gauntlet)(fighter(id))
+}
+
 export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
   return { ...CombatStateSchema.parse({ board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
