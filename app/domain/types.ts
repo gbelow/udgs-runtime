@@ -142,7 +142,7 @@ function movementBlock(key: keyof typeof MOVEMENT_BLOCKS) {
     return { distance: key === 'basic' || key === 'fast swim' ? n : Math.max(base.distance, n) }
   }
   return z.preprocess(
-    (v) => (typeof v === 'number' ? (Number.isFinite(v) ? legacy(v) : {}) : v !== null && typeof v === 'object' ? v : {}),
+    (v) => (typeof v === 'number' ? (Number.isFinite(v) ? legacy(v) : {}) : v !== null && typeof v === 'object' ? Object.fromEntries(Object.entries(v).filter(([, n]) => typeof n === 'number' && Number.isFinite(n))) : {}),
     MovementBlockSchema.transform((b) => ({ ...base, ...b })),
   ).default(base)
 }
