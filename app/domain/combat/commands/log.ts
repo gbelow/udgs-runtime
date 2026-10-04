@@ -24,7 +24,7 @@ import { deliverAll } from '../../character/commands/deliver'
 // gone leaves, and what leaves having landed goes into the record, the
 // reactions to it before it.
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
-  const stamped = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn } : a))
+  const stamped = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
   const landed = state.stack.filter((id) => !live.has(id) && stamped.some((a) => a.id === id))
   const entering = landed.flatMap((id) => [...stamped.filter((a) => a.reactionTo === id), stamped.find((a) => a.id === id)!])

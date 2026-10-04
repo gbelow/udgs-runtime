@@ -8,6 +8,12 @@ export function getWorkingParts(c: Character): BodyPart[] {
   return c.body.filter((part) => !part.lost && !isPartWounded(c, part.id))
 }
 
+// combat.tex "Climbing": whether the part takes hold of a surface — a hand
+// unless its body says otherwise, or whatever the body flags.
+export function canClimbWith(part: BodyPart): boolean {
+  return part.climbs ?? part.location === 'hand'
+}
+
 // The legs the creature is short of: cut off or broken, the one as bad as
 // the other.
 export function getLegsShort(c: Character): number {

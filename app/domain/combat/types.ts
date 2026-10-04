@@ -195,6 +195,8 @@ const ActionBase = {
   // The turn this action was declared in (`CombatState.turn`), stamped when it
   // enters the log; null until then.
   turn: num.nullable().default(null),
+  // the round it was declared in, stamped with the turn
+  round: num.nullable().default(null),
   cost: ActionCostSchema.nullable().default(null),
   // the lines `cost` is the sum of, written with it
   costTerms: z.array(CostTermSchema).default([]),
@@ -587,6 +589,10 @@ export const MoveFactsSchema = z.object({
   fell: z.boolean().default(false),
   fall: MoveFallSchema.nullable().default(null),
   trampled: z.array(TrampleSchema).default([]),
+  // combat.tex "Climbing": how a climb leaves its climber once it is over —
+  // prone at the top, or standing where a climb no taller than they are
+  // came to
+  finish: z.enum(['prone', 'standing']).nullable().default(null),
 }).strip()
 export type MoveFacts = z.infer<typeof MoveFactsSchema>
 
@@ -603,6 +609,22 @@ export const MoveActionSchema = z.object({
   // combat.tex "Swimming": metres a swimmer goes deeper by the move's end,
   // below zero towards the surface, swum like a metre of the path
   dive: num.default(0),
+  // play.tex "Safe and risky tests": how the climbing test is thrown, among
+  // the ways the climber's abilities allow (abilities.tex "Climber")
+  mode: z.enum(ROLL_MODES).default('normal'),
+  // the test its die was thrown as, once it has been
+  test: z.enum(['climb', 'swim', 'balance']).nullable().default(null),
+  // combat.tex "Climbing": the test each opportunity attack drawn against
+  // the climb would have the climber make if it interrupted them, at a
+  // penalty, in the order the attacks are fought and thrown with the climb's
+  // own die
+  redos: z.array(ActionRollSchema).default([]),
+  // combat.tex "Climbing": a graze the climber could not pay the doubled
+  // price of gives up the climb, and falls
+  gaveUp: z.boolean().default(false),
+  // abilities.tex "Jumper II": the climber spends a jump to start the climb
+  // higher
+  leap: z.boolean().default(false),
   // the most AP it may cost, for a move a reaction opened (combat.tex
   // "Follow": "cannot cost more AP than" the move it answers; "Evasion":
   // "use up to 2 AP to move"); null is no cap

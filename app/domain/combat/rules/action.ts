@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, GrappleAction, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -9,6 +9,7 @@ import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { needsSwimTest } from './swim'
+import { isTrivialClimb, needsClimbTest } from './cliff'
 import { canAfford } from '../../character/rules/cost'
 import { hasGrant } from '../../character/rules/abilities'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
@@ -32,7 +33,7 @@ import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
-import { getAction, getOpenAction, getReactionsTo, getRootOf } from './log'
+import { getAction, getDrawnOpportunityAttacks, getOpenAction, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
@@ -381,14 +382,26 @@ export function isAnswerable(state: CombatState, open: Action): boolean {
   return open.step === 'react'
 }
 
-// Whether the action is closed by a die: a strike always, a move when it
-// crosses difficult terrain (combat.tex "Balance"), an explosion when a
+// Whether the move is closed by a die of its own: a climb the first time its
+// climber climbs in the round (combat.tex "Climbing"), a walk across difficult
+// terrain (combat.tex "Balance"), a swim the first time the swimmer is in
+// water in the round (combat.tex "Swimming").
+export function needsOwnDie(state: CombatState, action: MoveAction): boolean {
+  return action.movement === 'climb' ? needsClimbTest(state, action) : needsBalanceTest(state, action) || needsSwimTest(state, action)
+}
+
+// How many tests an interrupting attack could have the climber make: one for
+// each opportunity attack drawn against the climb (combat.tex "Climbing").
+export function getClimbRedoCount(state: CombatState, action: MoveAction): number {
+  return action.movement === 'climb' && !isTrivialClimb(state, action) ? getDrawnOpportunityAttacks(state, action).length : 0
+}
+
+// Whether the action is closed by a die: a strike always, a move with a test
+// of its own, or a climb with attacks drawn against it, an explosion when a
 // reaction declared against it is a test of its own (combat.tex "Avoiding
-// an Explosion"), and a swim move the first time the swimmer is in water in
-// the round (combat.tex "Swimming"), and a climb always (combat.tex
-// "Climbing").
+// an Explosion").
 export function needsDie(state: CombatState, action: Action): boolean {
-  if (action.kind === 'move') return action.movement === 'climb' || needsBalanceTest(state, action) || needsSwimTest(state, action)
+  if (action.kind === 'move') return needsOwnDie(state, action) || getClimbRedoCount(state, action) > 0
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)
 }

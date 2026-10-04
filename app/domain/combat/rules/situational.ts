@@ -4,6 +4,9 @@ import { hasAffliction } from '../../character/rules/afflictions'
 import { getHazardOf } from './hazard'
 import { getGrappleAfflictionsOf } from './grapple'
 import { isVisorClosed } from '../../character/rules/armor'
+import { hasGrant } from '../../character/rules/abilities'
+import { getClimbDegree, isTrivialClimb } from './cliff'
+import { findOpenRoot } from './log'
 import { clampDepth, getWaterOf } from './swim'
 
 // What the fight puts on the character on top of what they carry, read off
@@ -11,8 +14,8 @@ import { clampDepth, getWaterOf } from './swim'
 // inside a suffocating gas (combat.tex "Gas": "anyone that is inside a
 // suffocating gas is suffocating by default"), and what their grapples put
 // on them, and below the surface of the water (combat.tex "Swimming": a
-// swimmer breathes when "height is level with the surface"). Nothing outside
-// a fight.
+// swimmer breathes when "height is level with the surface"), and prone while
+// climbing. Nothing outside a fight.
 export function getSituationalAfflictions(state: CombatState | null, id: string): AfflictionKey[] {
   if (!state) return []
   const c = state.characters[id]
@@ -21,7 +24,17 @@ export function getSituationalAfflictions(state: CombatState | null, id: string)
   const helmeted = water !== null && !!c && isVisorClosed(c)
   const submerged = clampDepth(water, state.board?.placements[id]?.depth ?? 0) > 0
   const cannotBreathe = getHazardOf(state, id).suffocating || submerged || helmeted
-  return [...(cannotBreathe ? ['suffocating' as const] : []), ...getGrappleAfflictionsOf(state, id)]
+  return [...(cannotBreathe ? ['suffocating' as const] : []), ...(isClimbing(state, id) ? ['prone' as const] : []), ...getGrappleAfflictionsOf(state, id)]
+}
+
+// combat.tex "Climbing": "A character who is climbing is considered prone" —
+// while the climb is under way (the opportunity attacks along it are being
+// fought), and not for one with abilities.tex "Climber III" whose test was a
+// critical.
+function isClimbing(state: CombatState, id: string): boolean {
+  const climb = findOpenRoot(state, 'move', (m) => m.actorId === id && m.movement === 'climb' && m.step === 'post')
+  const c = state.characters[id]
+  return !!climb && !!c && !isTrivialClimb(state, climb) && !(hasGrant(c, 'climbUpright') && getClimbDegree(state, climb) === 'critical')
 }
 
 // Whether the character has the affliction, by the sheet or by the fight.

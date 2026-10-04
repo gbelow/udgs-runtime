@@ -46,6 +46,11 @@ export function rollModed(mode: RollMode, explodes: boolean, dice: Dice): number
   }
 }
 
+// The die of a test made in the given mode.
+export function moded(mode: RollMode, dice: Dice): Dice {
+  return (explodes) => rollModed(mode, explodes, dice)
+}
+
 // A reproducible source of entropy for `rollD10`: the same seed gives the same
 // run of numbers, in [0, 1).
 export function seededRng(seed: number): () => number {

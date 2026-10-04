@@ -145,7 +145,19 @@ export function ActionPanel(){
       {view.moves.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>movement</SectionLabel>
-          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0 })} />)}
+          {view.moves.map((m) => <MovementButton key={m.kind} option={m} active={m.kind === open.movement} onClick={() => amend({ movement: m.kind, path: [], dive: 0, mode: 'normal', leap: false })} />)}
+        </div>
+      ) : null}
+      {open.climbModes.length > 1 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>climb</SectionLabel>
+          {open.climbModes.map((mode) => <Button key={mode} size='xs' {...toggle(mode === open.mode)} onClick={() => amend({ mode })}>{mode}</Button>)}
+        </div>
+      ) : null}
+      {open.canLeap ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>start</SectionLabel>
+          <Button size='xs' {...toggle(open.leap)} onClick={() => amend({ leap: !open.leap })}>jump</Button>
         </div>
       ) : null}
       {open.diveSteps ? (

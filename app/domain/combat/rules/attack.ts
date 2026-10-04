@@ -2,7 +2,7 @@ import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProp
 import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, StrikeAction } from '../types'
-import { LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
+import { CLIMB_REDO_PENALTY, LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
@@ -12,10 +12,10 @@ import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
 import { isGuardingShot, isHighGround } from './board'
-import { getBalanceDL } from './move'
+import { getBalanceDL, getMoveTest } from './move'
 import { getClimbDL } from './cliff'
 import { getFallTestTerms } from './fall'
-import { getSwimTestTerms, getSwimTestWater, needsSwimTest } from './swim'
+import { getSwimTestTerms, getSwimTestWater } from './swim'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
@@ -454,9 +454,11 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
     case 'fall':
       return onDegrees(getFallTestTerms(state, root))
     case 'move':
-      if (root.movement === 'climb') return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) }] })
-      if (needsSwimTest(state, root)) return onDegrees({ skill: getSwimTestTerms(actor), DL: [{ label: 'water', value: getSwimTestWater(state, root, root.actorId)?.DL ?? 0 }] })
-      return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
+      switch (getMoveTest(state, root)) {
+        case 'climb': return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) }] })
+        case 'swim': return onDegrees({ skill: getSwimTestTerms(actor), DL: [{ label: 'water', value: getSwimTestWater(state, root, root.actorId)?.DL ?? 0 }] })
+        case 'balance': return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
+      }
     // spells.tex "Telepathic Link": the target's die, against the caster
     case 'spellTest':
       return onDegrees({ skill: getSpellTestSkillTerms(state, root), DL: getDLTerms(state, root) })
@@ -486,6 +488,15 @@ export function getRootTest(state: CombatState, root: RootAction): Test | null {
   if (!terms) return null
   const base = { skill: sumTerms(terms.skill), DL: sumTerms(terms.DL), explodes: false, terms: { skill: terms.skill, DL: terms.DL } }
   return terms.scale === 'overflow' ? { ...base, scale: 'overflow', grazes: terms.grazes } : { ...base, scale: 'degrees' }
+}
+
+// combat.tex "Climbing": the test an interrupted climber redoes, "with a -3
+// penalty".
+export function getClimbRedoTest(state: CombatState, root: MoveAction): Test | null {
+  const terms = root.movement === 'climb' ? getRootTestTerms(state, root) : null
+  if (!terms) return null
+  const skill = [...terms.skill, { label: 'interrupted', value: -CLIMB_REDO_PENALTY }]
+  return { skill: sumTerms(skill), DL: sumTerms(terms.DL), explodes: false, scale: 'degrees', terms: { skill, DL: terms.DL } }
 }
 
 function getManeuverTerms(c: Character): Term[] {

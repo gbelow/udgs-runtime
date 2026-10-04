@@ -6,6 +6,9 @@ import { getBuffBonus } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
 import { isVisorClosed } from './armor'
+import { canClimbWith, getWorkingParts } from './body'
+import { hasGrant } from './abilities'
+import { CLIMB_NO_HAND_PENALTY, CLIMB_ONE_HAND_PENALTY } from '../../tables'
 
 export { sumTerms }
 export type { Term }
@@ -131,6 +134,14 @@ export function getBalance(c: Character) {
   return sumTerms(getBalanceTerms(c))
 }
 
+// combat.tex "Climbing": "Climbing with only one hand, claw or other climbing
+// equipment incurs a -3 penalty. Climbing without any gives a -8 penalty" —
+// the free parts that take hold, a hand holding something being no hand.
+function getHoldPenalty(c: Character): number {
+  const holds = getWorkingParts(c).filter((part) => canClimbWith(part) && part.itemId === '').length
+  return holds >= 2 ? 0 : holds === 1 ? CLIMB_ONE_HAND_PENALTY : CLIMB_NO_HAND_PENALTY
+}
+
 export function getClimbTerms(c: Character): Term[] {
   const SM = getSM(c)
   return [
@@ -138,6 +149,9 @@ export function getClimbTerms(c: Character): Term[] {
     { label: 'climb', value: skill(c, 'climb').value },
     { label: 'size', value: -2 * SM },
     { label: 'gear', value: -3 * c.hasGauntlets },
+    // abilities.tex "Claws": "improves climbing by +1 if not wearing gloves"
+    { label: 'claws', value: hasGrant(c, 'clawGrip') && !c.hasGauntlets ? 1 : 0 },
+    { label: 'holds', value: -getHoldPenalty(c) },
     { label: 'affliction', value: -getAfflictionPenalty(c, 'climb') },
     { label: 'abilities', value: getBuffBonus(c, 'skill:climb') },
   ]

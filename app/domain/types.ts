@@ -376,6 +376,9 @@ export const BodyPartSchema = z.object({
   name: str.default(''),
   location: HitLocationSchema.default('chest'),
   grip: z.boolean().default(false),
+  // whether the part takes hold of a surface to climb it (combat.tex
+  // "Climbing": "hand, claw or other climbing equipment"); unsaid, a hand does
+  climbs: z.boolean().optional(),
   itemId: str.default(''),
   naturalWeapon: str.default(''),
   lost: z.boolean().default(false),
@@ -871,7 +874,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks

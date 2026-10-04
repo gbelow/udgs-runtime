@@ -1,15 +1,18 @@
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type RootAction, type Updater } from '../types'
+import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, getCostTerms, getNextStep, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, getClimbRedoCount, getCostTerms, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
-import { getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
+import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
 import { resolveTest } from '../rules/test'
 import { findTrigger } from '../rules/reactions'
-import { rollPercent, type Dice } from '../dice'
+import { getMoveTest } from '../rules/move'
+import { getClimbDegree } from '../rules/cliff'
+import { canAfford } from '../../character/rules/cost'
+import { moded, rollPercent, type Dice } from '../dice'
 import { getDragComparison } from '../rules/drag'
 import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
@@ -266,11 +269,30 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     if (!actor || !areReactionsComplete(state, open)) return state
 
     const rootTest = getRootTest(state, open)
-    const test = rootTest ? resolveTest(rootTest, dice) : null
-    if (!test && ACTIONS[open.kind].die) return state
-    const rolled = withPercentileRolls(state, test ? { ...open, roll: test } : open, dice)
+    const rootDice = open.kind === 'move' ? moded(open.mode, dice) : dice
+    const own = open.kind !== 'move' || needsOwnDie(state, open)
+    const test = rootTest && own ? resolveTest(rootTest, rootDice) : null
+    if (!test && own && ACTIONS[open.kind].die) return state
+    const thrown = withPercentileRolls(state, test ? { ...open, roll: test } : open, dice)
+    const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, withClimbRolls(state, { ...thrown, test: test ? getMoveTest(state, open) : null }, rootDice)) : thrown
     return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
+}
+
+// combat.tex "Climbing": the test each attack drawn against the climb would
+// have the climber make if it interrupted them, a fresh one for each, thrown
+// with the climb's own and used only if the attack comes.
+function withClimbRolls(state: CombatState, move: MoveAction, dice: Dice): MoveAction {
+  const test = getClimbRedoTest(state, move)
+  return test ? { ...move, redos: Array.from({ length: getClimbRedoCount(state, move) }, () => resolveTest(test, dice)) } : move
+}
+
+// combat.tex "Climbing": "On a graze, decide to go at 2AP+1STA or give up and
+// fall" — a climber who cannot pay for going on gives up.
+function withClimbGiveUp(state: CombatState, move: MoveAction): MoveAction {
+  const actor = state.characters[move.actorId]
+  const cost = move.movement === 'climb' && getClimbDegree(state, move) === 'graze' ? getOwnCost(state, move) : null
+  return actor && cost && !canAfford(actor, cost) ? { ...move, gaveUp: true } : move
 }
 
 // The percentile dice thrown with the root's test, after it and before any
@@ -316,7 +338,7 @@ export function payAction(newId: () => string): Updater {
     if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
-    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open, newId)
+    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : open, newId)
   }
 }
 

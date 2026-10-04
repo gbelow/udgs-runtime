@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { Action, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
-import { CLIMB_GRAZE_PRICE, FALL, MOVEMENT_BLOCK_COST, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
+import type { Action, ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import { CLIMB_GRAZE_AP, CLIMB_RISKY_SPEED, FALL, MOVEMENT_BLOCK_COST, RUN_START_AP, STAND_STA, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -11,10 +11,12 @@ import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 import { isTetherKept } from './bind'
-import { canStepOver, crossesCliff, getMoveFall, isCliff } from './cliff'
+import { canStepOver, crossesCliff, getClimbCells, getClimbDegree, getClimbFinish, getClimbModes, getMoveFall, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
+import { hasGrant } from '../../character/rules/abilities'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
-import { getSwimDegrees, isDiveLegal, readWater } from './swim'
+import { getSwimDegrees, isDiveLegal, needsSwimTest, readWater } from './swim'
+import { getDegree } from './test'
 import { isCampaignCharacter } from '../../utils'
 import { getMoveTramples } from './trample'
 import { isInGrapple } from './partners'
@@ -32,7 +34,13 @@ import { getFleeStep } from './flee'
 
 // How many cells of a movement the given AP buys, whole blocks only.
 export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
-  return Math.floor(AP / MOVEMENT_BLOCK_COST[kind].AP) * getMovementSpeed(c, kind)
+  return Math.floor(AP / MOVEMENT_BLOCK_COST[kind].AP) * exactSpeed(getMovementSpeed(c, kind))
+}
+
+// A speed printed as 0.33 is a third of a metre (combat.tex "Movement Costs
+// and Speeds").
+function exactSpeed(speed: number): number {
+  return speed === 0.33 ? 1 / 3 : speed
 }
 
 // combat.tex "Movement": "moving only a fraction of a space is impossible",
@@ -40,12 +48,11 @@ export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number):
 // is printed to two places (0.33 for a third), so the quotient is read to a
 // tenth before it is rounded up, or a third of a metre three times would
 // cost a fourth block.
-export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = []): ActionCost {
+export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = [], speed = isPosture(kind) ? 0 : getMovementSpeed(c, kind)): ActionCost {
   if (isPosture(kind)) return getPostureCost(c, kind)
-  const speed = getMovementSpeed(c, kind)
   if (cells <= 0 || speed <= 0) return { AP: 0, STA: 0 }
   if (kind === 'swim') return getSwimCost(c, cells, swum)
-  const blocks = Math.ceil(Math.round((cells / speed) * 10) / 10)
+  const blocks = Math.ceil(Math.round((cells / exactSpeed(speed)) * 10) / 10)
   const block = MOVEMENT_BLOCK_COST[kind]
   return { AP: blocks * block.AP, STA: blocks * block.STA }
 }
@@ -68,30 +75,45 @@ export function isPosture(kind: MoveKind): kind is Posture {
   return (POSTURES as readonly string[]).includes(kind)
 }
 
-// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP", never
-// less than 1 AP (the table's ruling); going prone is free.
+// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP +1STA",
+// never less than 1 AP (the table's ruling); going prone is free.
 function getPostureCost(c: Character, posture: Posture): ActionCost {
-  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: 0 } : { AP: 0, STA: 0 }
+  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: STAND_STA } : { AP: 0, STA: 0 }
 }
 
 // What the move as declared costs its actor, less what the reaction that
 // opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
 // move and does not need to be spent again, but any STA cost must be paid").
 export function getMovePrice(state: CombatState, c: Character, action: MoveAction, cells: number): ActionCost {
-  const cost = getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, cells))
-  const scale = getClimbPriceScale(action)
-  return { AP: Math.max(0, cost.AP * scale - action.prepaid), STA: runsFree(c, action.movement) || isClimbedFree(action) ? 0 : cost.STA * scale }
+  const path = action.path.slice(0, cells)
+  const climbing = action.movement === 'climb' && path.length > 0
+  const leap = climbing && action.leap ? MOVEMENT_BLOCK_COST.jump : NO_COST
+  // combat.tex "Climbing": a climb no taller than the climber costs the
+  // standing up it is, or the jump that started it
+  if (climbing && isTrivialClimb(state, action, path)) {
+    const price = action.leap ? leap : getPostureCost(c, 'stand')
+    return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
+  }
+  const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
+  const moved = action.movement === 'climb' && path.length > 0 ? getClimbCells(state, action, path) : cells
+  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveSpeed(state, c, action, climbed))
+  const AP = cost.AP * (climbed === 'graze' ? CLIMB_GRAZE_AP : 1) + leap.AP
+  return { AP: Math.max(0, AP - action.prepaid), STA: (runsFree(c, action.movement) || climbed === 'critical' ? 0 : cost.STA) + leap.STA }
 }
 
-// combat.tex "Climbing": "On a near miss, decide to go twice as slow or give
-// up" — a graze is twice the price.
-function getClimbPriceScale(action: MoveAction): number {
-  return action.movement === 'climb' && action.roll?.degree === 'graze' ? CLIMB_GRAZE_PRICE : 1
-}
+const NO_COST: ActionCost = { AP: 0, STA: 0 }
 
-// combat.tex "Climbing": "On a critical, it does not cost STA."
-function isClimbedFree(action: MoveAction): boolean {
-  return action.movement === 'climb' && action.roll?.degree === 'critical'
+// combat.tex "Climbing": "On a graze, decide to go at 2AP+1STA" — a block's AP
+// doubles, its STA does not — and "On a critical, it does not cost STA". The
+// test is the one standing for the climb (`getClimbDegree`).
+
+// abilities.tex "Climber II": a climb attempted in a risky manner goes at 1m a
+// block on a crit.
+function getMoveSpeed(state: CombatState, c: Character, action: MoveAction, climbed: Degree | null): number {
+  const kind = action.movement
+  if (isPosture(kind)) return 0
+  const speed = getMovementSpeed(c, kind)
+  return isClimbRisky(state, action) && climbed === 'critical' ? Math.max(speed, CLIMB_RISKY_SPEED) : speed
 }
 
 // combat.tex "Action surge": "Running costs no STA during a movement surge"
@@ -153,7 +175,7 @@ function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimmin
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
   if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
-  if (prone && !swimming && kind !== 'crawl') return { available: false, reason: 'prone' }
+  if (prone && !swimming && kind !== 'crawl' && kind !== 'climb') return { available: false, reason: 'prone' }
   if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
   return { available: true, reason: null }
 }
@@ -200,6 +222,8 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   if (!withinBudget(getMoveCost(c, action.movement, action.path.length + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
   if (action.movement === 'climb' && !crossesCliff(state, action, action.path)) return false
+  if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
+  if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c).includes(action.mode))) return false
 
   const ceiling = getJumpCeiling(c, from)
   let cursor = from.cell
@@ -265,9 +289,41 @@ function isWithinCone(offset: Coord, heading: number): boolean {
 
 // combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
 // move whose path enters a difficult cell is committed by a die — for a
-// jump, only the cell it lands on.
+// jump, only the cell it lands on — unless the mover's test stands from
+// earlier in the turn (`getBalanceMemory`).
 export function needsBalanceTest(state: CombatState, action: MoveAction): boolean {
-  return firstDifficultStep(state, action) !== null
+  return firstDifficultStep(state, action) !== null && getBalanceMemory(state, action) === null
+}
+
+// The test a move's die is thrown as: its way over a cliff, its swim, or its
+// walk across difficult terrain.
+export function getMoveTest(state: CombatState, action: MoveAction): NonNullable<MoveAction['test']> {
+  if (action.movement === 'climb') return 'climb'
+  return needsSwimTest(state, action) ? 'swim' : 'balance'
+}
+
+// The table's ruling on combat.tex "Balance" — "Difficult terrain": the test
+// the mover made on difficult terrain stands for their turn, its score
+// against the DL of every difficult cell the turn's later moves enter, until
+// a fall (a move that fell, or a fall of its own) has them test again.
+// Read off what landed before the move, whose own die is not one of them.
+export function getBalanceMemory(state: CombatState, action: MoveAction): ActionRoll | null {
+  const at = state.record.findIndex((a) => a.id === action.id)
+  const before = at === -1 ? state.record : state.record.slice(0, at)
+  for (const a of [...before].reverse()) {
+    if (a.actorId !== action.actorId) continue
+    if (a.turn !== action.turn || a.kind === 'fall' || (a.kind === 'move' && a.facts?.fell)) return null
+    if (a.kind === 'move' && a.test === 'balance' && a.roll) return a.roll
+  }
+  return null
+}
+
+// What the mover's balance came to on the terrain: their own die's degree, or
+// the remembered score against this move's DL.
+function getTerrainDegree(state: CombatState, action: MoveAction): Degree | null {
+  if (action.roll) return action.roll.degree
+  const memory = getBalanceMemory(state, action)
+  return memory ? getDegree(memory.score, getBalanceDL(state, action)) : null
 }
 
 function firstDifficultStep(state: CombatState, action: MoveAction): number | null {
@@ -330,10 +386,22 @@ export function getMoveOverride(state: CombatState, action: MoveAction): { step:
     const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
     const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
     if (jumped) return { step: reaction.at! - 1, stop: 'jump', by: strike }
-    if ((stoppable && getInterruptionOf(strike, action.actorId) !== 'none') || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction', by: strike }
+    const interrupted = stoppable && (action.movement !== 'climb' || isTrivialClimb(state, action)) && getInterruptionOf(strike, action.actorId) !== 'none'
+    if (interrupted || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction', by: strike }
     if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample', by: strike }
   }
   return null
+}
+
+// combat.tex "Climbing": "An attack that interrupts the climber will require
+// them to make a climbing test with a -3 penalty to avoid falling on a miss"
+// instead of cancelling the climb — a fresh test for each attack, thrown with
+// the climb (`redos`) — the path step the first of them failed at, or null.
+function getClimbFailedAt(state: CombatState, action: MoveAction): number | null {
+  if (action.movement !== 'climb' || isTrivialClimb(state, action)) return null
+  const failed = getDrawnOpportunityAttacks(state, action).find(({ spawned }, i) =>
+    spawned?.kind === 'strike' && spawned.step === 'done' && getInterruptionOf(spawned, action.actorId) !== 'none' && action.redos[i]?.degree === 'miss')
+  return failed ? failed.reaction.at! - 1 : null
 }
 
 // The path as it will be walked and why it ends where it does: someone
@@ -363,12 +431,20 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     stop = 'trample'
   }
   const difficult = firstDifficultStep(state, action)
-  const fell = difficult !== null && difficult <= path.length && action.roll !== null && !isSafeOnDifficultTerrain(action.movement, action.roll.degree)
+  const terrain = difficult !== null ? getTerrainDegree(state, action) : null
+  const fell = difficult !== null && difficult <= path.length && terrain !== null && !isSafeOnDifficultTerrain(action.movement, terrain)
   if (fell) {
     path = path.slice(0, difficult)
     stop = 'fall'
   }
-  return { path, stop, fell, fall: getMoveFall(state, action, path), trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+  const failedAt = getClimbFailedAt(state, action)
+  const redoFell = failedAt !== null && failedAt < path.length
+  if (redoFell && getClimbDegree(state, action) !== 'miss') {
+    path = path.slice(0, failedAt)
+    stop = 'reaction'
+  }
+  const fall = getMoveFall(state, action, path, redoFell)
+  return { path, stop, fell, fall, finish: getClimbFinish(state, action, path, fall), trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
 }
 
 // ---------------------------------------------------------------------------

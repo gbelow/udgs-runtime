@@ -87,12 +87,30 @@ export const MOVEMENT_BLOCK_COST: Record<MovementKind, { AP: number; STA: number
   swim:    { AP: 1, STA: 0 },
 }
 
-// combat.tex "Climbing": "On a critical, it does not cost STA"; "On a near
-// miss, decide to go twice as slow or give up" — taken as twice the price. An
-// "easy climb, with minimal chances of falling, is considered a DL of 5" and
-// "for every meter, the difficulty increases by 1".
-export const CLIMB_GRAZE_PRICE = 2
+// combat.tex "Climbing": "On a critical, it does not cost STA"; "On a graze,
+// decide to go at 2AP+1STA or give up and fall" — a block's AP doubles. "An
+// easy climb, with minimal chances of falling, is considered a DL of 5", the
+// DL of a surface nobody painted.
+export const CLIMB_GRAZE_AP = 2
 export const CLIMB_EASY_DL = 5
+
+// combat.tex "Climbing": an interrupted climber makes "a climbing test with a
+// -3 penalty to avoid falling on a miss"; "climbing with only one hand, claw or
+// other climbing equipment incurs a -3 penalty. Climbing without any gives a
+// -8 penalty". abilities.tex "Climber II": "during a movement surge, the
+// character can attempt climbing in a risky manner and make climbing speed
+// equal to 1m on a hit or crit".
+export const CLIMB_REDO_PENALTY = 3
+export const CLIMB_ONE_HAND_PENALTY = 3
+export const CLIMB_NO_HAND_PENALTY = 8
+export const CLIMB_RISKY_SPEED = 1
+
+// combat.tex "Climbing": "Any character starts a climb at their own height"; creating.tex "Reach Multiplier (RM)":
+// "For human shaped ones and by default, height is equal to 2m xRM".
+export const CLIMB_HEIGHT = 2
+
+// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP +1STA".
+export const STAND_STA = 1
 
 // combat.tex "Choosing Fall DL": "As a common exception to the rule, DLs for
 // 1m can be considered trivial at -5, then 0 for 2m", else "1 per meter until

@@ -206,7 +206,9 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "climbLeap"
+        ]
       }
     ]
   },
@@ -241,7 +243,9 @@
         "description": "Learns to make climbing tests safely.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "safeClimb"
+        ]
       },
       {
         "XPcost": 0,
@@ -261,7 +265,9 @@
         "description": "Learns to spend 1 STA to make the test in a risky manner and make climbing speed equal to 1m on a hit or crit.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "riskyClimb"
+        ]
       },
       {
         "XPcost": 0,
@@ -281,7 +287,9 @@
         "description": "The character is not considered prone while climbing if they crit on their climbing test.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "climbUpright"
+        ]
       }
     ]
   },
@@ -7279,7 +7287,9 @@
         "description": "Gives an unarmed attack that uses claws, defined in gear. Also improves climbing by +1 if not wearing gloves.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [
+          "clawGrip"
+        ]
       }
     ]
   },

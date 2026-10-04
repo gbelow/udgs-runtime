@@ -20,6 +20,9 @@ import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { getClimbModes } from '../rules/cliff'
+import { hasGrant } from '../../character/rules/abilities'
+import type { RollMode } from '../dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
@@ -181,6 +184,14 @@ export type OpenActionView = {
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
+  // play.tex "Safe and risky tests": how a climb is thrown, and the ways its
+  // climber may throw it (just the normal one without Climber)
+  mode: RollMode
+  climbModes: RollMode[]
+  // abilities.tex "Jumper II": whether the climb may start with a jump, and
+  // whether it does
+  canLeap: boolean
+  leap: boolean
   // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
   // swim ends, and the dive a metre nearer the surface or the floor would be
   // (null where the water allows no more); null off a swim
@@ -376,6 +387,10 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       chargeItemId: gear?.chargeItemId ?? '',
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
+      mode: open.kind === 'move' ? open.mode : 'normal',
+      climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor) : [],
+      canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
+      leap: open.kind === 'move' && open.leap,
       dive: open.kind === 'move' ? open.dive : 0,
       diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
