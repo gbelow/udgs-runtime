@@ -1,6 +1,6 @@
 import type { Character, MoveKind } from '../../types'
 import type { ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFall } from '../types'
-import { CLIMB_EASY_DL, CLIMB_HEIGHT, FALL } from '../../tables'
+import { CLIMB_HEIGHT, FALL } from '../../tables'
 import { hasGrant } from '../../character/rules/abilities'
 import { getRM } from '../../character/rules/size'
 import type { RollMode } from '../dice'
@@ -81,16 +81,26 @@ export function isTrivialClimb(state: CombatState, action: MoveAction, path: Coo
   return !!c && rise !== null && rise > 0 && rise <= getClimbStart(c, action.leap)
 }
 
-// combat.tex "Climbing": "An easy climb ... is considered a DL of 5", the DL
-// of ground nobody painted; some are easier, and the board paints the DL of
-// the ground the climb takes hold of — the hardest of it counts. Distance adds
+// combat.tex "Climbing": "To determine the difficulty of climbing, consider
+// ... the quality of the grips and the distance between holds" — the board
+// paints the DL of each face (`climbDL`) and the hardest face the climb takes
+// hold of counts; a face with no DL has nothing to hold. Distance adds
 // nothing: the STA every block costs already pays for it.
-export function getClimbDL(state: CombatState, action: MoveAction): number {
-  const elevations = getPathElevations(state, action, action.path)
+export function getClimbDL(state: CombatState, action: MoveAction, path: Coord[] = action.path): number | null {
+  const elevations = getPathElevations(state, action, path)
+  const origin = getMoveOrigin(state, action)
   const board = state.board
-  if (!elevations || !board) return CLIMB_EASY_DL
-  const gripped = action.path.filter((_, i) => isCliff(elevations[i], elevations[i + 1]))
-  return gripped.length === 0 ? CLIMB_EASY_DL : Math.max(...gripped.map((cell) => board.terrain[coordKey(cell)]?.DL ?? CLIMB_EASY_DL))
+  if (!elevations || !origin || !board) return null
+  const faces = path.map((cell, i) => (elevations[i] >= elevations[i + 1] ? (i === 0 ? origin.cell : path[i - 1]) : cell))
+  const DLs = faces.map((cell) => board.terrain[coordKey(cell)]?.climbDL ?? null)
+  return DLs.length === 0 || DLs.includes(null) ? null : Math.max(...(DLs as number[]))
+}
+
+// combat.tex "Climbing": whether the path is a climb that can be made: over
+// cliffs alone, each with something to hold, unless it is no taller than the
+// climber.
+export function isClimbable(state: CombatState, action: MoveAction, path: Coord[]): boolean {
+  return crossesCliff(state, action, path) && (getClimbDL(state, action, path) !== null || isTrivialClimb(state, action, path))
 }
 
 // abilities.tex "Climber": safe climbing from the first level, risky from the
@@ -132,7 +142,8 @@ export function getClimbDegree(state: CombatState, action: MoveAction): Degree |
   if (action.gaveUp) return 'miss'
   if (isTrivialClimb(state, action)) return null
   const test = getClimbTest(state, action)
-  return test && getDegree(test.roll.score, getClimbDL(state, action))
+  const DL = getClimbDL(state, action)
+  return test && DL !== null ? getDegree(test.roll.score, DL) : null
 }
 
 // abilities.tex "Climber II": whether the test that stands for the climb was

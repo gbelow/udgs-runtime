@@ -5,6 +5,7 @@ import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
 import { getOpenAction } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
+import { CLIMB_EASY_DL } from '../../tables'
 import { placeAt, withPlacements } from '../rules/board'
 import { getEvasiveJumpPlacements, getReachableCells, type ReachableCell } from '../rules/move'
 import { canStandAt } from '../rules/ground'
@@ -56,7 +57,8 @@ export function turnCharacter(id: string): Updater {
 // "High Ground"), `soft` toggles ground that halves a fall (combat.tex "Fall
 // damage"), `deepen` and `shoal` the depth of its water and `harder` and
 // `easier` the DL of its balance or swimming test (combat.tex "Balance",
-// "Swimming"); the others set what the cell is, and `clear` returns it to
+// "Swimming"), `grip` and `slip` the DL of climbing its face, starting from an
+// easy climb, and `bare` leaves it nothing to hold (combat.tex "Climbing"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there.
 export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
   return (state) => {
@@ -75,6 +77,9 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
         case 'shoal': return { ...current, depth: Math.max(0, current.depth - 1) }
         case 'harder': return { ...current, DL: current.DL + 1 }
         case 'easier': return { ...current, DL: current.DL - 1 }
+        case 'grip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL + 1 }
+        case 'slip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL - 1 }
+        case 'bare': return { ...current, climbDL: null }
         case 'clear': return null
       }
     })()

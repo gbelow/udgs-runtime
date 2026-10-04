@@ -455,7 +455,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
       return onDegrees(getFallTestTerms(state, root))
     case 'move':
       switch (getMoveTest(state, root)) {
-        case 'climb': return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) }] })
+        case 'climb': return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) ?? 0 }] })
         case 'swim': return onDegrees({ skill: getSwimTestTerms(actor), DL: [{ label: 'water', value: getSwimTestWater(state, root, root.actorId)?.DL ?? 0 }] })
         case 'balance': return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
       }

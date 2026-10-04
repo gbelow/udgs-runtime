@@ -51,8 +51,9 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   is trivial (`isTrivialClimb`): no test, no fall, the price of standing up (or of the jump), and it
   leaves the climber standing (`facts.finish`); a real climb leaves them prone at the top, unless
   Climber III and a critical, and a climb may begin prone. The fall of a failed climb is the height
-  reached less the start. The DL is the board's painted DL of the ground gripped, 5 where
-  unpainted, with no floor. A graze doubles each block's AP and not its STA; a climber who cannot
+  reached less the start. The DL is the hardest `climbDL` painted on the faces the climb
+  takes hold of (the higher cell of each cliff step), with no floor; a face with none has nothing to hold,
+  so only a trivial climb crosses it (`isClimbable`). A graze doubles each block's AP and not its STA; a climber who cannot
   pay for that gives up (`gaveUp`, stamped as the die is paid) and falls like a miss. An attack
   that interrupts a climber does not cancel the climb but has them make a new −3 test (one die per
   attack drawn, thrown with the climb in `redos`): the first that misses cuts the path where they

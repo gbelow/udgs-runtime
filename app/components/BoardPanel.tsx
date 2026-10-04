@@ -26,6 +26,9 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
   shoal: 'shallower',
   harder: 'DL +1',
   easier: 'DL −1',
+  grip: 'grip +1',
+  slip: 'grip −1',
+  bare: 'no grip',
   clear: 'clear',
 }
 

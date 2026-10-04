@@ -138,6 +138,10 @@ export const TerrainCellSchema = z.object({
   // combat.tex "Balance": the DL of the difficult terrain test, "based on how
   // slippery, unstable, long, and narrow the path is" — the table's call
   DL: num.default(5),
+  // combat.tex "Climbing": the DL of climbing the face of this cell, "the quality
+  // of the grips and the distance between holds"; null is a face with nothing
+  // to hold, which only a climb no taller than the climber can cross
+  climbDL: num.nullable().default(null),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 

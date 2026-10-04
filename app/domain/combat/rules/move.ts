@@ -11,7 +11,7 @@ import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMove
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 import { isTetherKept } from './bind'
-import { canStepOver, crossesCliff, getClimbCells, getClimbDegree, getClimbFinish, getClimbModes, getMoveFall, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
+import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbModes, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
 import { hasGrant } from '../../character/rules/abilities'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
@@ -221,7 +221,7 @@ export function isPathLegal(state: CombatState, action: MoveAction): boolean {
   if (!from || !ground || (action.path.length === 0 && !diving)) return false
   if (!withinBudget(getMoveCost(c, action.movement, action.path.length + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
 
-  if (action.movement === 'climb' && !crossesCliff(state, action, action.path)) return false
+  if (action.movement === 'climb' && !isClimbable(state, action, action.path)) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
   if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c).includes(action.mode))) return false
 
@@ -546,7 +546,7 @@ export function getReachableCells(state: CombatState, action: MoveAction): Reach
   return walkOut(from.cell, affordable, enter)
     .filter(({ cell, path }) => {
       const footprint = getFootprint(c, { ...from, cell })
-      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || crossesCliff(state, action, path))
+      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || isClimbable(state, action, path))
     })
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path }, steps), path }))
     .filter(({ cost }) => canAfford(c, cost))
