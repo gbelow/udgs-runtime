@@ -8,11 +8,11 @@ import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { Button, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
-import { Characteristics, Movement, Skills } from '../domain/types';
+import { MovementPanel } from './MovementPanel';
+import { Characteristics, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
-import { useMovementLens } from '../hooks/useMovementLens';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useTextLens } from '../hooks/useTextLens';
 import { useActiveCharacterData, useSTARegen } from '../hooks/useCharacterData';
@@ -22,16 +22,6 @@ import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists';
 
-const MOVES: { name: keyof Movement, title: string }[] = [
-  { name: 'basic', title: 'basic' },
-  { name: 'careful', title: 'careful' },
-  { name: 'crawl', title: 'crawl' },
-  { name: 'climb', title: 'climb' },
-  { name: 'run', title: 'run' },
-  { name: 'swim', title: 'swim' },
-  { name: 'jump', title: 'jump' },
-  { name: 'stand', title: 'stand up' },
-]
 const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', ]
 const TALENTS: (keyof Characteristics)[] = [ 'CON', 'DEX', 'INT', 'SPI']
 const TRAINABLES: (keyof Characteristics)[] = ['melee', 'ranged', 'awareness', 'sorcery', 'charisma', 'devotion']
@@ -97,10 +87,7 @@ export function CharacterCreator() {
           <span className='ml-auto text-xs text-muted'>AP <span className='font-mono text-fg'>6</span> · STA <span className='font-mono text-fg'>{STA}</span> · STA regen <span className='font-mono text-fg'>{STARegen}</span></span>
         </div>
 
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Movement</SectionLabel>
-          <Tiles>{MOVES.map((m) => <Movementinput key={m.name} movementName={m.name} title={m.title} />)}</Tiles>
-        </div>
+        <MovementPanel />
 
         <div className='flex flex-row gap-3'>
           <div className='flex flex-col gap-1'>
@@ -282,7 +269,3 @@ const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes', mode: 'normal' | '
     <TextInput className='w-64 text-base font-medium' title={keyName} placeholder='name' value={value+''} onChange={(e) => setValue(e.target.value)} />
 }
 
-function Movementinput  ({movementName, title}:{movementName: keyof Movement, title: string}){
-  const [value, setValue] = useMovementLens(movementName)
-  return <StatTile label={title} value={value} onChange={setValue} step={0.1} className='w-22' />
-}

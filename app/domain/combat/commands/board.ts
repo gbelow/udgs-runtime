@@ -5,7 +5,7 @@ import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
 import { getOpenAction } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getAim } from '../rules/aim'
-import { CLIMB_EASY_DL } from '../../tables'
+import { CLIMB_EASY_DL, SWIM_DEFAULT_DL } from '../../tables'
 import { placeAt, withPlacements } from '../rules/board'
 import { getEvasiveJumpPlacements, getReachableCells, type ReachableCell } from '../rules/move'
 import { canStandAt } from '../rules/ground'
@@ -68,7 +68,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
     const painted = (() => {
       switch (brush) {
         case 'wall': return { ...current, blocking: !current.blocking, liquid: false, difficult: false }
-        case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false }
+        case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false, DL: current.liquid ? current.DL : SWIM_DEFAULT_DL }
         case 'rough': return { ...current, difficult: !current.difficult, blocking: false, liquid: false }
         case 'soft': return { ...current, soft: !current.soft }
         case 'raise': return { ...current, elevation: current.elevation + 1 }

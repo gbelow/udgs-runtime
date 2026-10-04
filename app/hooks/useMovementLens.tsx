@@ -1,9 +1,9 @@
-import { movementLenses } from "../domain/character/lenses";
+import { movementCostLenses, movementLenses } from "../domain/character/lenses";
 import { Character, Movement } from "../domain/types";
 import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
-export function useMovementLens(movementName: keyof Movement) {
-  const lens = movementLenses[movementName];
+export function useMovementLens(movementName: keyof Movement, field: 'distance' | 'AP' | 'STA' = 'distance') {
+  const lens = field === 'distance' ? movementLenses[movementName] : movementCostLenses[movementName][field];
   const update = useActiveCharacterUpdate();
 
   // Select the derived value INSIDE the store selector so re-renders are gated

@@ -34,10 +34,12 @@
 - analyse - wait until multiplayer. allow seeing character without controlling
 
 # movement
-- climbing
-- falling
-- balance tests
-- jumping over things
+- climbing - one test per round, redone when falling
+- falling - one test per fall
+- balance tests - write in book that the test is sticky per round, redone when fallen
+- jumping over things - 
+- layering in UI for height.
+- reset balance test when falling
 
 ## healing
 - sleep
@@ -99,7 +101,6 @@
 - actions becomes main game interface
 
 ## issues
-erasing field gives no default. errors field
 defending net with weapon binds weapon.
 attacking items on floor
 blast/spell damage on weapon breakage
@@ -107,15 +108,15 @@ blast/spell damage on weapon breakage
 wound healing is undefined - possession healing neither
 retweak morale based spells
 
-swimming in armor
 think corrosive damage
 prepared reaction
 unconscious must disable all actions
 
+no restriction to action while climbing.
+
 
 # left for combat
 - stealth/senses
-- movement and terrain
 - abilities and spells
 - analyse to find items
 - riding

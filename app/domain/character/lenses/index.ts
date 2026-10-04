@@ -5,7 +5,7 @@ import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamani
 import { getSize } from "../rules/size";
 import { getTGH } from "../rules/misc";
 import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
-import { makeMovementLens } from "./movement";
+import { makeMovementCostLens, makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSenseRangePenaltyLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
 import { skillTermGetters } from "../rules/skills";
@@ -66,6 +66,20 @@ export const movementLenses: Record<keyof Movement, Lens<Character, number>> = {
   crawl: makeMovementLens("crawl", getCrawlMovement),
   jump: makeMovementLens("jump", getJumpMovement),
   run: makeMovementLens("run", getRunMovement)
+}
+
+// combat.tex "Movement Costs and Speeds": the AP and STA of one block of each
+// movement. Standing up has the AGI-reduced AP of its own lens above.
+export const movementCostLenses: Record<keyof Movement, Record<'AP' | 'STA', Lens<Character, number>>> = {
+  basic: { AP: makeMovementCostLens("basic", "AP"), STA: makeMovementCostLens("basic", "STA") },
+  careful: { AP: makeMovementCostLens("careful", "AP"), STA: makeMovementCostLens("careful", "STA") },
+  stand: { AP: movementLenses.stand, STA: makeMovementCostLens("stand", "STA") },
+  climb: { AP: makeMovementCostLens("climb", "AP"), STA: makeMovementCostLens("climb", "STA") },
+  swim: { AP: makeMovementCostLens("swim", "AP"), STA: makeMovementCostLens("swim", "STA") },
+  "fast swim": { AP: makeMovementCostLens("fast swim", "AP"), STA: makeMovementCostLens("fast swim", "STA") },
+  crawl: { AP: makeMovementCostLens("crawl", "AP"), STA: makeMovementCostLens("crawl", "STA") },
+  jump: { AP: makeMovementCostLens("jump", "AP"), STA: makeMovementCostLens("jump", "STA") },
+  run: { AP: makeMovementCostLens("run", "AP"), STA: makeMovementCostLens("run", "STA") },
 }
 
 export const senseLenses: Record<keyof Senses, {

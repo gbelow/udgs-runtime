@@ -138,6 +138,7 @@ export const FALL_DM2 = [0.25, 0.5, 1, 2, 4, 9, 16] as const
 // per metre swum. A failure also "sinks 1m", and gear.tex "Metallic armors"
 // sink the swimmer "1m per turn".
 export const SWIM_STRUGGLE_AP = 5
+export const SWIM_DEFAULT_DL = -2
 export const SWIM_FAILURE_STA = 1
 export const SWIM_FAILURE_SINK = 1
 export const SWIM_ARMOR_SINK = 1
