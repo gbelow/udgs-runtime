@@ -8,7 +8,7 @@ import { getAvailableActions } from '../domain/combat/rules/options'
 import { ACTIONS, isReaction } from '../domain/combat/rules/actionCatalog'
 import { getOpenAction } from '../domain/combat/rules/log'
 import { coordKey } from '../domain/combat/geometry'
-import { acceptSpellTest, amendAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
+import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
 import { chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { endTurn, surge } from '../domain/combat/commands/turn'
@@ -214,6 +214,31 @@ function assertSound(h: Harness, storage: boolean) {
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
 }
 
+// The offers are the panel's promise: what getAvailableActions shows open can
+// be pressed and does something, and what it shows closed is refused with the
+// state left as it was. An own action can only be declared while none is open.
+function assertOffersHold(h: Harness) {
+  const s = h.state()
+  let n = 0
+  const newId = () => `probe-${n++}`
+  const free = getOpenAction(s) === null
+  for (const id of Object.keys(s.characters)) {
+    for (const o of getAvailableActions(s, id)) {
+      const own = o.reactionTo === null && !isReaction(o.draft.kind)
+      const label = `${id}'s ${o.draft.kind}${o.reason ? ` (${o.reason})` : ''}`
+      const after = own ? declareAction(id, o.draft, newId)(s) : declareReaction(id, o.draft, newId)(s)
+      if (!o.available) {
+        expect(after, `${label} is closed but was accepted`).toBe(s)
+        continue
+      }
+      if (own && !free) continue
+      const before = new Set(Object.keys(s.actions))
+      const made = Object.values(after.actions).filter((a) => !before.has(a.id) && a.actorId === id && a.kind === o.draft.kind)
+      expect(made.length, `${label} is offered but pressing it does nothing`).toBeGreaterThan(0)
+    }
+  }
+}
+
 // With FUZZ_REPORT set, what the sessions did is written to
 // reports/fuzz-coverage.md: for every action in the catalogue, how many
 // actions stood at each of its steps. Seen after each command, so an
@@ -274,6 +299,7 @@ function session(h: Harness, seed: number, steps: number, menu: Play[], pick: Pi
     try {
       play.run(h, pick)
       assertSound(h, step % STORAGE_EVERY === 0 || step === steps - 1)
+      assertOffersHold(h)
     } catch (e) {
       stop()
       throw new Error(`seed ${seed}, step ${step}: ${(e as Error).message}\nlast plays: ${trail.slice(-12).join(' → ')}`, { cause: e })
@@ -338,9 +364,35 @@ function playOut(h: Harness, pick: Picker) {
   }
 }
 
+// Closure: once the roll, the payment, the resolution and every answer have
+// been pressed for as long as they do anything, no action is left committed
+// and waiting. An answer still being declared holds the action back, and
+// taking it back always frees it.
+function assertSettled(h: Harness) {
+  const stuck = () => { const open = getOpenAction(h.state()); return open && open.step !== 'define' ? open : null }
+  if (stuck()) {
+    for (let i = 0; i < 8; i++) h.press(withdrawLastReaction())
+    for (let i = 0; i < 10; i++) {
+      const aiming = getOpenAction(h.state())
+      if (aiming?.kind === 'blast' || aiming?.kind === 'explosion') {
+        for (const c of h.view().cells.filter((c) => aiming.kind === 'blast' || c.center)) {
+          h.click({ on: 'cell', cell: c.cell })
+          const now = getOpenAction(h.state())
+          if (now?.kind === 'blast' && now.center !== null) break
+          if (now?.kind === 'explosion' && now.center !== null) break
+        }
+      }
+      for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    }
+  }
+  const open = stuck()
+  expect(open ? `${open.kind} stuck at ${open.step}` : null).toBeNull()
+}
+
 function startTurnOf(h: Harness, pick: Picker) {
   if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
   playOut(h, pick)
+  assertSettled(h)
   if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
   const { characters, binds } = h.state()
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
@@ -419,6 +471,22 @@ describe('two characters grappling, pushing, shooting and defending', () => {
       session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
     })
   }
+})
+
+describe('an opportunity attack the attacker cannot pay for', () => {
+  it.fails('does not leave the root waiting (two brawlers, seed 10)', () => {
+    const rng = seededRng(10)
+    const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+    const h = openHarness((explodes) => rollD10(explodes, rng))
+    h.bring(brawler('Ann'), brawler('Bob'))
+    h.createBoard(4)
+    h.select('Ann')
+    h.cell(0, 0)
+    h.select('Bob')
+    h.cell(1, 0)
+    h.select('Ann')
+    session(h, 10, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
+  })
 })
 
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
