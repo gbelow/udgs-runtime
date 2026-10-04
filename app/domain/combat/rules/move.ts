@@ -294,53 +294,54 @@ export function getMoveTest(state: CombatState, action: MoveAction): NonNullable
 }
 
 // The table's ruling on combat.tex "Balance" — "Difficult terrain": the test
-// the mover made on difficult terrain stands for their turn, its score
-// against the DL of every difficult cell the turn's later moves enter, until
+// the mover made on difficult terrain stands for the round, its score
+// against the DL of every difficult cell the round's later moves enter, until
 // a fall (a move that fell, or a fall of its own) has them test again.
 // Read off what landed before the move, whose own die is not one of them.
 export function getBalanceMemory(state: CombatState, action: MoveAction): ActionRoll | null {
   const at = state.record.findIndex((a) => a.id === action.id)
   const before = at === -1 ? state.record : state.record.slice(0, at)
+  const round = action.round ?? state.round
   for (const a of [...before].reverse()) {
     if (a.actorId !== action.actorId) continue
-    if (a.turn !== action.turn || a.kind === 'fall' || (a.kind === 'move' && a.facts?.fell)) return null
+    if (a.round !== round || a.kind === 'fall' || (a.kind === 'move' && a.facts?.fell)) return null
     if (a.kind === 'move' && a.test === 'balance' && a.roll) return a.roll
   }
   return null
 }
 
-// What the mover's balance came to on the terrain: their own die's degree, or
-// the remembered score against this move's DL.
-function getTerrainDegree(state: CombatState, action: MoveAction): Degree | null {
-  if (action.roll) return action.roll.degree
-  const memory = getBalanceMemory(state, action)
-  return memory ? getDegree(memory.score, getBalanceDL(state, action)) : null
+// Every step of the path that comes down on difficult ground, with the DL of
+// the worst difficult cell the mover's footprint covers there. combat.tex
+// "Balance": each is held against the one stored score.
+function getDifficultSteps(state: CombatState, action: MoveAction): { step: number; DL: number }[] {
+  const c = state.characters[action.actorId]
+  const from = getMoveOrigin(state, action)
+  const board = state.board
+  if (!c || !from || !board) return []
+  return action.path.flatMap((cell, at) => {
+    if (!touchesGround(action.movement, at === action.path.length - 1)) return []
+    const DLs = getFootprint(c, { ...from, cell }).map((f) => board.terrain[coordKey(f)]).filter((t) => t?.difficult).map((t) => t.DL)
+    return DLs.length > 0 ? [{ step: at + 1, DL: Math.max(...DLs) }] : []
+  })
 }
 
 function firstDifficultStep(state: CombatState, action: MoveAction): number | null {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
-  const board = state.board
-  if (!c || !from || !board) return null
-  const i = action.path.findIndex((cell, at) =>
-    touchesGround(action.movement, at === action.path.length - 1) && getFootprint(c, { ...from, cell }).some((f) => board.terrain[coordKey(f)]?.difficult),
-  )
-  return i === -1 ? null : i + 1
+  return getDifficultSteps(state, action)[0]?.step ?? null
 }
 
-// The DL of the first difficult cell the move enters.
+// The DL the move's own die is thrown against: that of the first difficult
+// cell the move enters.
 export function getBalanceDL(state: CombatState, action: MoveAction): number {
-  const c = state.characters[action.actorId]
-  const from = getMoveOrigin(state, action)
-  const board = state.board
-  const step = firstDifficultStep(state, action)
-  if (!c || !from || !board || step === null) return 0
-  const cell = action.path[step - 1]
-  const DLs = getFootprint(c, { ...from, cell })
-    .map((f) => board.terrain[coordKey(f)])
-    .filter((t) => t?.difficult)
-    .map((t) => t.DL)
-  return Math.max(...DLs)
+  return getDifficultSteps(state, action)[0]?.DL ?? 0
+}
+
+// The step the mover falls at: the first difficult cell whose DL their
+// balance — their own die's score, or the remembered one — does not clear
+// for the way they move.
+function getFallStep(state: CombatState, action: MoveAction): number | null {
+  const score = (action.roll ?? getBalanceMemory(state, action))?.score
+  if (score === undefined) return null
+  return getDifficultSteps(state, action).find(({ DL }) => !isSafeOnDifficultTerrain(action.movement, getDegree(score, DL)))?.step ?? null
 }
 
 // combat.tex "Balance" — "Difficult terrain": "On a critical, all movement is
@@ -422,11 +423,10 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, tramples.stop)
     stop = 'trample'
   }
-  const difficult = firstDifficultStep(state, action)
-  const terrain = difficult !== null ? getTerrainDegree(state, action) : null
-  const fell = difficult !== null && difficult <= path.length && terrain !== null && !isSafeOnDifficultTerrain(action.movement, terrain)
+  const fallAt = getFallStep(state, action)
+  const fell = fallAt !== null && fallAt <= path.length
   if (fell) {
-    path = path.slice(0, difficult)
+    path = path.slice(0, fallAt)
     stop = 'fall'
   }
   const fall = getMoveFall(state, action, path, false)

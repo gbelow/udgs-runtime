@@ -37,10 +37,12 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   the landing delivers. Where the mover stands afterwards is read off the ground there, as for
   any move. A displacement that ends in a fall (a push, a drag) is not wired in yet.
 - **Balance on difficult terrain.** A move across difficult cells is closed by a Balance die
-  unless the mover's test stands for the turn (`getBalanceMemory`, read off the record: the
-  latest of their moves this turn whose die was thrown as a balance test, cleared by a fall or the
-  turn's end). A move without a die scores the remembered result against its own DL. The move
-  records which test its die was (`test`). A miss leaves the mover prone, with no fall height.
+  unless the mover's test stands for the round (`getBalanceMemory`, read off the record: the
+  latest of their moves this round whose die was thrown as a balance test, cleared by a fall or the
+  round's end). The one score is held against the DL of every difficult cell on the path
+  (`getDifficultSteps`), and the mover falls at the first the way they move is not safe on
+  (`getFallStep`); the die's own DL is the first cell's. The move records which test its die was
+  (`test`). A miss leaves the mover prone, with no fall height.
 - **Climbing.** A climb is on one face: the step over a cliff from the cell the climber is in to
   the next (`getClimbPlan`), with the DL painted on the higher cell (`climbDL`; a face with none
   has nothing to hold, so only a trivial climb crosses it, `isClimbable`). The climber's test
