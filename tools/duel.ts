@@ -7,7 +7,7 @@ import type { CampaignCharacter } from '../app/domain/types'
 import { addCharacterToCombat } from '../app/domain/combat/factories'
 import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
-import { getArmedAttacks } from '../app/domain/bot/weapons'
+import { getArmedAttacks, getAttackRows } from '../app/domain/bot/weapons'
 import { estimateAttacks } from '../app/domain/bot/estimate'
 import { getStrikeDefenses } from '../app/domain/bot/defenses'
 import { declareDefense, getDefenseOptions } from '../app/domain/bot/answer'
@@ -59,7 +59,7 @@ type Saved = {
 
 type Env = { dice: Dice; newId: () => string; counters: () => { draws: number; ids: number } }
 
-type Choice = { label: string; apply: (env: Env) => CombatState | null }
+type Choice = { label: string; apply: (env: Env) => CombatState | null; unavailable?: string }
 type Prompt = { kind: 'prompt'; side: Side; title: string; choices: Choice[] }
 type End = { kind: 'end'; text: string }
 
@@ -117,17 +117,24 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
   const party = partyOf(id)
   const foes = getLiveFoes(state, party)
   const estimates = new Map(foes.map((f) => [f, estimateAttacks(state, id, f)]))
-  const attacks = getArmedAttacks(state, id, 'strike', env.newId).flatMap((armed) =>
-    armed.targets.filter((t) => foes.includes(t)).map((target): Choice => {
-      const guess = estimates.get(target)?.find((e) => e.attack === armed.option.attack && e.variant === armed.option.variant && e.weapon === armed.option.weapon)
+  const armedNow = getArmedAttacks(state, id, 'strike', env.newId)
+  const mine = state.characters[id]
+  const attacks = getAttackRows(state, id, 'strike').flatMap((option) =>
+    foes.map((target): Choice => {
+      const armed = armedNow.find((a) => a.option.weapon === option.weapon && a.option.attack === option.attack && a.option.variant === option.variant)
+      const guess = estimates.get(target)?.find((e) => e.attack === option.attack && e.variant === option.variant && e.weapon === option.weapon)
       const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted)` : ''
+      const label = `attack with ${option.weapon} ${option.attack} (${option.variant}) at ${getFightName(state, target)} - ${option.AP} AP, ${option.STA} STA, weapon cut ${option.cut} blunt ${option.blunt}, to-hit penalty ${option.penalty}${expected}`
+      if (!armed) return { label, apply: () => null, unavailable: `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` }
       return {
-      label: `attack with ${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) at ${getFightName(state, target)} — ${armed.option.AP} AP, ${armed.option.STA} STA, weapon cut ${armed.option.cut} blunt ${armed.option.blunt}, to-hit penalty ${armed.option.penalty}${expected}`,
-      apply: (e) => {
-        const committed = commitAction(e.dice, e.newId)(setTarget(target)(armed.state))
-        return isCommitted(committed, armed.openId) ? committed : null
-      },
-    }}))
+        label,
+        apply: (e) => {
+          const committed = commitAction(e.dice, e.newId)(setTarget(target)(armed.state))
+          return isCommitted(committed, armed.openId) ? committed : null
+        },
+        ...(armed.targets.includes(target) ? {} : { unavailable: 'the foe is out of reach' }),
+      }
+    }))
 
   const origin = cellOf(state, id)
   const foeCells = foes.flatMap((f) => cellOf(state, f) ?? [])
@@ -163,9 +170,9 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
 
   const probe: Env = { dice: () => 5, newId: (() => { let n = 0; return () => `probe${++n}` })(), counters: env.counters }
   return [
-    { label: 'END TURN (the other side may act; you may be asked to start another turn this round)', apply: () => { const ended = endTurn(state); return ended === state ? null : ended } },
+    { label: 'END TURN (the other side may act. If it has nothing left to do you are asked to start another turn; PASS is what stops you acting for the round)', apply: () => { const ended = endTurn(state); return ended === state ? null : ended } },
     { label: 'PASS for the rest of the round, keeping the AP you have left to defend with', apply: () => hold(state, id) },
-    ...[...attacks, ...moves].filter((c) => c.apply(probe) !== null),
+    ...[...attacks, ...moves].map((c): Choice => (c.unavailable || c.apply(probe) !== null ? c : { ...c, unavailable: 'cannot be done now (not enough AP or STA, or not allowed)' })),
   ]
 }
 
@@ -277,7 +284,7 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
 
 function moraleTitle(state: CombatState, id: string): string {
   const test = getMoraleTest(state, id)
-  return `${getFightName(state, id)} is called to a morale test (will ${test?.skill} against DL ${test?.DL}); a graze leaves them afraid, a miss makes them afraid and triggers their limit stress action.`
+  return `${getFightName(state, id)} is called to a morale test (will ${test?.skill} against DL ${test?.DL}); a graze leaves them afraid; a miss leaves them afraid and, with a foe near, activates their limit stress action if they have one.`
 }
 
 function moraleChoices(state: CombatState, id: string): Choice[] {
@@ -357,20 +364,20 @@ function status(state: CombatState, side: Side): string {
   return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`
 }
 
-function render(saved: Saved, next: Prompt | End): string {
+function render(saved: Saved, next: Prompt | End, played?: string[]): string {
   const { state } = saved
   const gap = gapBetween(state, IDS.A, IDS.B)
   const lines = [
-    `Round ${state.round ?? 1} · ${gap === null ? '' : `the fighters stand ${gap} cell${gap === 1 ? '' : 's'} apart`}`,
+    `Round ${state.round ?? 1} | ${gap === null ? '' : `the fighters stand ${gap} cell${gap === 1 ? '' : 's'} apart`}`,
     status(state, 'A'),
     status(state, 'B'),
     '',
   ]
   const start = saved.events.map((e, i) => (e.startsWith('--- ') ? i : -1)).filter((i) => i >= 0).at(-1) ?? Math.max(0, saved.events.length - 1)
-  const recent = saved.events.slice(start)
-  if (recent.length > 0) lines.push('What just happened:', ...recent.map((e) => `  ${e}`), '')
+  const recent = played ?? saved.events.slice(start)
+  if (recent.length > 0) lines.push(played ? 'What just happened:' : 'Last thing that happened:', ...recent.map((e) => `  ${e}`), '')
   if (next.kind === 'end') return [...lines, `THE FIGHT IS OVER. ${next.text}`].join('\n')
-  return [...lines, `SIDE ${next.side} TO ACT. ${next.title}`, ...next.choices.map((c, i) => `  ${i + 1}. ${c.label}`), '', `Take one with: pnpm duel do <number>`].join('\n')
+  return [...lines, `SIDE ${next.side} TO ACT. ${next.title}`, ...next.choices.map((c, i) => `  ${i + 1}. ${c.unavailable ? `(unavailable: ${c.unavailable}) ` : ''}${c.label}`), '', 'Take one with: pnpm duel do <number> [--expect "text from its label"]. Numbers hold while this turn lasts, but show again after every move or attack. Dice are 0-9: on a normal test a 9 explodes upward and a 0 downward, so "d10 0" is a real 0, not a 10.'].join('\n')
 }
 
 function file(game: string): string {
@@ -434,17 +441,27 @@ function main(): void {
     if (next.kind === 'end') { say(render({ ...saved, state }, next)); return }
     const choice = next.choices[n - 1]
     if (!choice) throw new Error(`No choice ${n}: there are ${next.choices.length}`)
+    const expect = flag(args, 'expect', '')
+    if (expect && !choice.label.toLowerCase().includes(expect.toLowerCase())) throw new Error(`Choice ${n} is "${choice.label}", which does not contain "${expect}". Nothing was done; run show.`)
+    if (choice.unavailable) throw new Error(`Choice ${n} is unavailable: ${choice.unavailable}`)
     const applied = choice.apply(env)
     if (!applied) throw new Error(`Choice ${n} was refused by the rules`)
     const after = advance(applied, env, saved.maxRounds)
     const played = newEvents(state, after.state, saved.lastKey)
-    const updated: Saved = { ...saved, ...env.counters(), state: after.state, events: [...saved.events, ...played.events], lastKey: played.lastKey }
+    const sameSideAgain = choice.label.startsWith('END TURN') && after.next.kind === 'prompt' && next.kind === 'prompt' && after.next.side === next.side && after.next.title.includes('turn.')
+    const events = [...played.events, ...(sameSideAgain ? ['The turn ended, but the other side has nothing left to do this round, so a new turn starts for the same side. PASS stops acting for the round.'] : [])]
+    const updated: Saved = { ...saved, ...env.counters(), state: after.state, events: [...saved.events, ...events], lastKey: played.lastKey }
     save(game, updated)
-    say(render(updated, after.next))
+    say(render(updated, after.next, events.length > 0 ? events : ['(nothing was rolled or resolved)']))
     return
   }
 
   throw new Error('usage: pnpm duel new | show | do <n> | log')
 }
 
-main()
+try {
+  main()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
+}

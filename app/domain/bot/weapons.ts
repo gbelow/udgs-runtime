@@ -54,8 +54,16 @@ function withAmmo(state: CombatState, id: string): CombatState {
 function getRows(state: CombatState, id: string, kind: 'strike' | 'shoot'): { ready: CombatState; options: AttackOption[] } {
   const ready = withFocus(kind, state, id)
   const c = ready.characters[id]
-  const options = getFreeAttackOptions(ready, c, kind).filter((o) => canAfford(c, o) && !isThrownRow(c, o)).sort(byOffense)
+  const options = getAttackRows(state, id, kind).filter((o) => canAfford(c, o))
   return { ready, options }
+}
+
+// Every row and variation the character holds an attack with, whether or not it
+// can pay for it now, in the order the bot prefers them.
+export function getAttackRows(state: CombatState, id: string, kind: 'strike' | 'shoot'): AttackOption[] {
+  const ready = withFocus(kind, state, id)
+  const c = ready.characters[id]
+  return getFreeAttackOptions(ready, c, kind).filter((o) => !isThrownRow(c, o)).sort(byOffense)
 }
 
 export function getArmedAttacks(state: CombatState, id: string, kind: 'strike' | 'shoot', newId: () => string): Armed[] {
