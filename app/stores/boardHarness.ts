@@ -7,6 +7,7 @@ import { createBoard } from '../domain/combat/commands/board'
 import { amendAction, commitAction, declareAction } from '../domain/combat/commands/action'
 import { startTurn } from '../domain/combat/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
+import type { CampaignCharacter } from '../domain/types'
 import { useCombatStore } from './useCombatStore'
 
 // The board as a player works it, over the real combat store: a click goes
@@ -38,12 +39,16 @@ export function openHarness(dice: Dice = () => 5) {
 
   return {
     state,
+    press,
+    click,
+    newId,
+    dice,
     view: (): BoardView => getBoardView(state()),
     idOf,
     active,
 
     // the sidebar: bring a character into the fight, and the board into being
-    bring: (...names: string[]) => names.forEach((name) => useCombatStore.getState().loadCharacter(makeCampaignCharacter({ name }))),
+    bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCombatStore.getState().loadCharacter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
     createBoard: (radius: number) => press(createBoard(radius)),
 
     // the board

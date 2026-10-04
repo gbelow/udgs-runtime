@@ -3,9 +3,6 @@ import { CombatStateSchema, type Action, type CombatState, type Coord } from '..
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
-import { addItemToContainer } from '../../item/commands/items'
-import { putOnFromCatalog } from '../../item/commands/containers'
-import { getCatalogItem } from '../../item/rules/items'
 import { getAvailableActions } from '../rules/options'
 import { getHistory, getLiveReactionsTo, getLog, getOpenAction, getOpeningReaction } from '../rules/log'
 import { getTriggers } from '../rules/reactions'
@@ -22,6 +19,7 @@ import { nextRound } from './nextRound'
 import { getStartTurnBar } from '../rules/turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+import { archer } from '../../bot/fixtures'
 import { getTethers } from '../rules/partners'
 import { getSpellOptions } from '../rules/cast'
 
@@ -32,18 +30,6 @@ const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnA
 function fighter(id: string, abilities: string[] = []): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
   return { ...base, id, fightName: id, abilities, resources: { ...base.resources, AP: 12, STA: 6 } }
-}
-
-// A shooter with a bow in both hands, the focus surge spent (combat.tex
-// "Focus surge": "required to use ranged attacks") and a quiver of arrows
-// slung on the belt (gear.tex "Quiver").
-function archer(id: string): CampaignCharacter {
-  const bow = ItemSchema.parse({ name: 'Short Bow', type: 'weapon', refId: 'Short Bow', bulk: 2 })
-  const arrows = ItemSchema.parse({ id: 'arrows', name: 'Broadhead Arrow', type: 'ammo', refId: 'Broadhead Arrow', bulk: 0, amount: 20 })
-  const quiver = getCatalogItem('Quiver')!
-  const belted = putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))
-  const { containers } = addItemToContainer(quiver.id, 'quick', arrows)(addItemToContainer('Belt', 'quick', quiver)(belted))
-  return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
 function wielder(id: string, weapon: string, abilities: string[] = []): CampaignCharacter {

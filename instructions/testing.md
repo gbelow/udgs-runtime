@@ -121,6 +121,15 @@ click to what stands afterwards. It is admitted, under these terms.
   the view promised, and that acting on any other leaves the state alone. The author of that
   property is the architecture (the view is what the board is drawn from), not the code.
   It checks that two paths agree, not that either is right.
+- **A fuzzer for breadth.** `board.fuzz.test.ts` presses everything there is to press, in
+  seeded random order: every click, every panel command, terrain painted by brush. After each
+  press it asserts what the architecture promises of any session and nothing about a rule's
+  output: nothing throws, the state is one the schema accepts and storage round-trips, the
+  active and in-turn characters are in the fight, no two footprints share a cell, the board
+  draws every placed character, and a click on a board the view calls locked changes nothing.
+  A failure names its seed, step and the plays before it; pin what it found as a scenario.
+  What it reaches is bounded by the fixtures: a command no fixture character can declare is
+  not exercised, so give the fixtures the gear and the abilities the commands need.
 - **Terrain is painted by clicking.** Scenes are built with the same brushes a player holds,
   so painting is covered and no fixture invents a board the UI could not make.
 - **The harness is the contract.** A new button or click goes into the harness as the command
