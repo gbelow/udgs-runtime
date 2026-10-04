@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "damage": "tsx tools/damage.ts",
     "test": "vitest",
     "test:run": "vitest run"
   },
