@@ -102,12 +102,32 @@ broke, not with what it checks, and keep it even when it looks redundant.
 - **Tests over rulebook worked output** (bestiary statblocks, printed example characters).
 - **Coverage-driven tests.** Coverage is not a goal; the categories above are.
 
-## Undecided
+## Integration
 
-The project has no integration tests and no rule admitting them. Seams whose correctness rests
-on an argument in a comment rather than on types or purity are a real risk, but the tradeoff
-has not been felt here yet, so nothing is pre-authorized: decide it against the first seam that
-actually demands it, and write the rule from that case.
+One seam has so far demanded an integration test: what a player does on the board, from the
+click to what stands afterwards. It is admitted, under these terms.
+
+- **What runs.** The real combat store, with the click resolved by the domain's own
+  `resolveClick` and every panel button dispatched as the command its hook dispatches. Nothing
+  is mocked, and no DOM is rendered: `onClick={...}` is the one line left unexercised, and it
+  holds no decision. The harness lives in `app/stores/`, beside the store it drives, because
+  the domain may not import stores.
+- **Where the expected value comes from.** From what the clicks asked for, never from a rule's
+  output: the character stands where the cell was clicked, a refused click changes nothing,
+  painting touches only the clicked cell. A scenario that needs a game number (a cost, a
+  degree, a damage) is a rules test and belongs in the domain.
+- **Invariants over the view.** The view says what a click would mean, and the click must
+  agree: loop over the cells or tokens the view offers and check that acting on each does what
+  the view promised, and that acting on any other leaves the state alone. The author of that
+  property is the architecture (the view is what the board is drawn from), not the code.
+  It checks that two paths agree, not that either is right.
+- **Terrain is painted by clicking.** Scenes are built with the same brushes a player holds,
+  so painting is covered and no fixture invents a board the UI could not make.
+- **The harness is the contract.** A new button or click goes into the harness as the command
+  its hook dispatches. If a hook decides anything beyond which command to dispatch, move the
+  decision into the domain first and have the harness call that.
+- **Other seams stay undecided.** Panels, persistence and the VTT link are not covered by this
+  rule; decide each against the first case that demands it.
 
 ## Conventions
 
