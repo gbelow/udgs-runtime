@@ -23,12 +23,13 @@ import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists';
 
 const MOVES: { name: keyof Movement, title: string }[] = [
-  { name: 'basic', title: 'basic · 1AP' },
-  { name: 'careful', title: 'careful · 1AP' },
-  { name: 'crawl', title: 'crawl · 1AP' },
-  { name: 'run', title: 'run · 2AP' },
-  { name: 'swim', title: 'swim · 1AP' },
-  { name: 'jump', title: 'jump · 1AP+1STA' },
+  { name: 'basic', title: 'basic' },
+  { name: 'careful', title: 'careful' },
+  { name: 'crawl', title: 'crawl' },
+  { name: 'climb', title: 'climb' },
+  { name: 'run', title: 'run' },
+  { name: 'swim', title: 'swim' },
+  { name: 'jump', title: 'jump' },
   { name: 'stand', title: 'stand up' },
 ]
 const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', ]

@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
-import { ACTION_COSTS, AFFLICTIONS, ActionKind, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -128,15 +128,35 @@ export const CharacteristicsSchema = AttributesSchema
 
 export type Characteristics = z.infer<typeof CharacteristicsSchema>
 
+// combat.tex "Movement Costs and Speeds": what one block of a movement costs
+// the character and how far it goes. A number is the stored form of a
+// character from before blocks were stored whole: the speed itself for a
+// walk, what a run or jump had over its base, what standing up had over its
+// AP; a speed below a metre is the metre it has been since.
+const MovementBlockSchema = z.object({ AP: num, STA: num, distance: num }).partial()
+function movementBlock(key: keyof typeof MOVEMENT_BLOCKS) {
+  const base = MOVEMENT_BLOCKS[key]
+  const legacy = (n: number) => {
+    if (key === 'stand') return { AP: base.AP + n }
+    if (key === 'run' || key === 'jump') return { distance: base.distance + n }
+    return { distance: key === 'basic' || key === 'fast swim' ? n : Math.max(base.distance, n) }
+  }
+  return z.preprocess(
+    (v) => (typeof v === 'number' ? (Number.isFinite(v) ? legacy(v) : {}) : v !== null && typeof v === 'object' ? v : {}),
+    MovementBlockSchema.transform((b) => ({ ...base, ...b })),
+  ).default(base)
+}
+
 export const MovementSchema = z.object({
-  basic: num.default(1),
-  careful: num.default(0.5),
-  crawl: num.default(0.33),
-  run: num.default(0),
-  jump: num.default(0),
-  swim: num.default(0.33),
-  'fast swim': num.default(0.5),
-  stand: num.default(0),
+  basic: movementBlock('basic'),
+  careful: movementBlock('careful'),
+  crawl: movementBlock('crawl'),
+  climb: movementBlock('climb'),
+  run: movementBlock('run'),
+  jump: movementBlock('jump'),
+  swim: movementBlock('swim'),
+  'fast swim': movementBlock('fast swim'),
+  stand: movementBlock('stand'),
 }).strip()
 
 export type Movement = z.infer<typeof MovementSchema>

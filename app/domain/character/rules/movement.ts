@@ -1,52 +1,55 @@
 import { Character, Movement, MovementKind } from "../../types";
+import { MOVEMENT_BLOCKS, type MovementBlock } from "../../tables";
 import { getAGI } from "./characteristics";
 import { getBuffBonus } from "./effects";
 
-// The stored value from character.movement plus whatever abilities add to it.
-export function getRaw (c: Character, key: keyof Character["movement"]) {
-  return c.movement[key] + getBuffBonus(c, `movement:${key}`);
-};
+// How far the stored block goes plus whatever abilities add to it.
+function getDistance(c: Character, key: keyof Movement) {
+  return c.movement[key].distance + getBuffBonus(c, `movement:${key}`);
+}
 
-export function getBasicMovement(c: Character) { 
-  return getRaw(c, "basic");
+export function getBasicMovement(c: Character) {
+  return getDistance(c, "basic");
 }
 export function getCarefulMovement(c: Character) {
-  return getRaw(c, "careful");
+  return getDistance(c, "careful");
 }
 export function getCrawlMovement(c: Character) {
-  return getRaw(c, "crawl");
+  return getDistance(c, "crawl");
 }
-// combat.tex "Movement Costs and Speeds": Run and Jump are flat speeds; the
-// stored term is a bonus on top of them.
+export function getClimbMovement(c: Character) {
+  return getDistance(c, "climb");
+}
 export function getRunMovement(c: Character) {
-  return 3 + getRaw(c, "run");
+  return getDistance(c, "run");
 }
 export function getSwimMovement(c: Character) {
-  return getRaw(c, "swim");
+  return getDistance(c, "swim");
 }
 export function getFastSwimMovement(c: Character) {
-  return getRaw(c, "fast swim");
+  return getDistance(c, "fast swim");
 }
 export function getJumpMovement(c: Character) {
-  return 2 + getRaw(c, "jump");
+  return getDistance(c, "jump");
 }
 // combat.tex "jumping": "If performed during a run, increase the base
 // calculation of the horizontal distance of a long jump to match that of
 // running."
 export function getRunningJumpMovement(c: Character) {
-  return 3 + getRaw(c, "jump");
+  return getJumpMovement(c) + MOVEMENT_BLOCKS.run.distance - MOVEMENT_BLOCKS.jump.distance;
 }
 // combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP", AGI
 // with the injury penalty on it (combat.tex "Afflictions": "It affects all
 // other usages of attributes").
 export function getStandMovement(c: Character) {
-  return 5 - Math.floor(getAGI(c) / 5) + getRaw(c, "stand");
+  return c.movement.stand.AP - Math.floor(getAGI(c) / 5) + getBuffBonus(c, "movement:stand");
 }
 
 export const movementGetters: Record<keyof Movement, (c: Character) => number> = {
   basic: getBasicMovement,
   careful: getCarefulMovement,
   crawl: getCrawlMovement,
+  climb: getClimbMovement,
   run: getRunMovement,
   jump: getJumpMovement,
   swim: getSwimMovement,
@@ -54,8 +57,13 @@ export const movementGetters: Record<keyof Movement, (c: Character) => number> =
   stand: getStandMovement,
 };
 
-// combat.tex "Movement Costs and Speeds": metres per block of the kind.
-// combat.tex "Climbing": "The climbing speed is equal to the crawling speed".
+// combat.tex "Movement Costs and Speeds": metres a block of the kind goes.
 export function getMovementSpeed(c: Character, kind: MovementKind): number {
-  return kind === "climb" ? getCrawlMovement(c) : movementGetters[kind](c);
+  return movementGetters[kind](c);
+}
+
+// What a block of the kind costs the character and how far it goes.
+export function getMovementBlock(c: Character, kind: MovementKind): MovementBlock {
+  const { AP, STA } = c.movement[kind];
+  return { AP, STA, distance: getMovementSpeed(c, kind) };
 }

@@ -1,13 +1,13 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { Action, ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
-import { CLIMB_GRAZE_AP, CLIMB_RISKY_SPEED, FALL, MOVEMENT_BLOCK_COST, RUN_START_AP, STAND_STA, SWIM_FAILURE_STA, SWIM_STRUGGLE_SPEED } from '../../tables'
+import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { isImmobile } from './situational'
 import { canStand } from '../../character/rules/body'
-import { getJumpMovement, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
+import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
 import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 import { isTetherKept } from './bind'
@@ -34,41 +34,29 @@ import { getFleeStep } from './flee'
 
 // How many cells of a movement the given AP buys, whole blocks only.
 export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
-  return Math.floor(AP / MOVEMENT_BLOCK_COST[kind].AP) * exactSpeed(getMovementSpeed(c, kind))
-}
-
-// A speed printed as 0.33 is a third of a metre (combat.tex "Movement Costs
-// and Speeds").
-function exactSpeed(speed: number): number {
-  return speed === 0.33 ? 1 / 3 : speed
+  const block = getMovementBlock(c, kind)
+  return Math.floor(AP / block.AP) * block.distance
 }
 
 // combat.tex "Movement": "moving only a fraction of a space is impossible",
-// so a move is bought in whole blocks, as many as cover the cells. A speed
-// is printed to two places (0.33 for a third), so the quotient is read to a
-// tenth before it is rounded up, or a third of a metre three times would
-// cost a fourth block.
-export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = [], speed = isPosture(kind) ? 0 : getMovementSpeed(c, kind)): ActionCost {
+// so a move is bought in whole blocks, as many as cover the cells.
+export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = [], block = isPosture(kind) ? NO_BLOCK : getMovementBlock(c, kind)): ActionCost {
   if (isPosture(kind)) return getPostureCost(c, kind)
-  if (cells <= 0 || speed <= 0) return { AP: 0, STA: 0 }
+  if (cells <= 0 || block.distance <= 0) return NO_COST
   if (kind === 'swim') return getSwimCost(c, cells, swum)
-  const blocks = Math.ceil(Math.round((cells / exactSpeed(speed)) * 10) / 10)
-  const block = MOVEMENT_BLOCK_COST[kind]
+  const blocks = Math.ceil(cells / block.distance)
   return { AP: blocks * block.AP, STA: blocks * block.STA }
 }
 
 // combat.tex "Swimming": each metre is swum as the held test came to against
 // its water — perfectly at the swimmer's speed, on a graze or a failure at
 // 1m per 5 AP, a failure costing STA besides. The AP of the metres adds up
-// and is bought in whole blocks, as every move is; a speed printed to two
-// places (0.33 for a third) leaves up to a tenth over a whole block, which
-// does not buy another.
+// and is bought in whole blocks, as every move is.
 function getSwimCost(c: Character, cells: number, swum: Degree[]): ActionCost {
-  const block = MOVEMENT_BLOCK_COST.swim
-  const speed = getMovementSpeed(c, 'swim')
+  const block = getMovementBlock(c, 'swim')
   const metres = Array.from({ length: cells }, (_, i) => swum[i] ?? 'hit')
-  const AP = metres.reduce((total, degree) => total + block.AP / (degree === 'graze' || degree === 'miss' ? SWIM_STRUGGLE_SPEED : speed), 0)
-  return { AP: Math.ceil(AP - 0.1), STA: metres.filter((degree) => degree === 'miss').length * SWIM_FAILURE_STA }
+  const AP = metres.reduce((total, degree) => total + (degree === 'graze' || degree === 'miss' ? SWIM_STRUGGLE_AP : block.AP / block.distance), 0)
+  return { AP: Math.ceil(AP), STA: metres.filter((degree) => degree === 'miss').length * SWIM_FAILURE_STA }
 }
 
 export function isPosture(kind: MoveKind): kind is Posture {
@@ -78,7 +66,7 @@ export function isPosture(kind: MoveKind): kind is Posture {
 // combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP +1STA",
 // never less than 1 AP (the table's ruling); going prone is free.
 function getPostureCost(c: Character, posture: Posture): ActionCost {
-  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: STAND_STA } : { AP: 0, STA: 0 }
+  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: c.movement.stand.STA } : NO_COST
 }
 
 // What the move as declared costs its actor, less what the reaction that
@@ -87,7 +75,7 @@ function getPostureCost(c: Character, posture: Posture): ActionCost {
 export function getMovePrice(state: CombatState, c: Character, action: MoveAction, cells: number): ActionCost {
   const path = action.path.slice(0, cells)
   const climbing = action.movement === 'climb' && path.length > 0
-  const leap = climbing && action.leap ? MOVEMENT_BLOCK_COST.jump : NO_COST
+  const leap = climbing && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
   // combat.tex "Climbing": a climb no taller than the climber costs the
   // standing up it is, or the jump that started it
   if (climbing && isTrivialClimb(state, action, path)) {
@@ -96,24 +84,24 @@ export function getMovePrice(state: CombatState, c: Character, action: MoveActio
   }
   const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
   const moved = action.movement === 'climb' && path.length > 0 ? getClimbCells(state, action, path) : cells
-  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveSpeed(state, c, action, climbed))
-  const AP = cost.AP * (climbed === 'graze' ? CLIMB_GRAZE_AP : 1) + leap.AP
-  return { AP: Math.max(0, AP - action.prepaid), STA: (runsFree(c, action.movement) || climbed === 'critical' ? 0 : cost.STA) + leap.STA }
+  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveBlock(state, c, action, climbed))
+  return { AP: Math.max(0, cost.AP + leap.AP - action.prepaid), STA: (runsFree(c, action.movement) ? 0 : cost.STA) + leap.STA }
 }
 
 const NO_COST: ActionCost = { AP: 0, STA: 0 }
+const NO_BLOCK: MovementBlock = { AP: 0, STA: 0, distance: 0 }
 
-// combat.tex "Climbing": "On a graze, decide to go at 2AP+1STA" — a block's AP
-// doubles, its STA does not — and "On a critical, it does not cost STA". The
-// test is the one standing for the climb (`getClimbDegree`).
-
-// abilities.tex "Climber II": a climb attempted in a risky manner goes at 1m a
-// block on a crit.
-function getMoveSpeed(state: CombatState, c: Character, action: MoveAction, climbed: Degree | null): number {
+// combat.tex "Climbing": "On a critical, it does not cost STA. ... On a graze,
+// ... 5 AP +1 STA per meter"; abilities.tex "Climber II": a climb attempted
+// in a risky manner goes at "1m per AP" on a crit. The test is the one
+// standing for the climb (`getClimbDegree`).
+function getMoveBlock(state: CombatState, c: Character, action: MoveAction, climbed: Degree | null): MovementBlock {
   const kind = action.movement
-  if (isPosture(kind)) return 0
-  const speed = getMovementSpeed(c, kind)
-  return isClimbRisky(state, action) && climbed === 'critical' ? Math.max(speed, CLIMB_RISKY_SPEED) : speed
+  if (isPosture(kind)) return NO_BLOCK
+  const block = getMovementBlock(c, kind)
+  if (kind !== 'climb') return block
+  if (climbed === 'graze') return { ...block, AP: CLIMB_GRAZE_AP }
+  return climbed === 'critical' ? { ...block, STA: 0, AP: isClimbRisky(state, action) ? CLIMB_RISKY_AP : block.AP } : block
 }
 
 // combat.tex "Action surge": "Running costs no STA during a movement surge"
@@ -154,11 +142,11 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   const held = isInGrapple(state, c.id)
   const immobile = isImmobile(state, c)
   const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
+    const { AP, STA } = getMovementBlock(c, kind)
     const gate = immobile ? { available: false, reason: 'immobile' }
       : held ? { available: false, reason: 'grappled: push or drag instead' }
-      : movementGate(kind, prone, lame, swimming, waterNear, cliffNear, granted, budget)
-    const block = MOVEMENT_BLOCK_COST[kind]
-    return { kind, speed: getMovementSpeed(c, kind), block: runsFree(c, kind) ? { ...block, STA: 0 } : block, ...gate }
+      : movementGate(kind, { AP, STA }, prone, lame, swimming, waterNear, cliffNear, granted, budget)
+    return { kind, speed: getMovementSpeed(c, kind), block: { AP, STA: runsFree(c, kind) ? 0 : STA }, ...gate }
   })
   // standing up and going prone, for a move of the character's own: one a
   // reaction opened is the movement the reaction grants
@@ -169,9 +157,9 @@ export function getMovementOptions(state: CombatState, c: CampaignCharacter, act
   return [...moves, ...postures]
 }
 
-function movementGate(kind: MovementKind, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
+function movementGate(kind: MovementKind, block: ActionCost, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
   if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
-  if (!withinBudget(MOVEMENT_BLOCK_COST[kind], budget)) return { available: false, reason: 'more AP than the reaction allows' }
+  if (!withinBudget(block, budget)) return { available: false, reason: 'more AP than the reaction allows' }
   if (swimming && kind !== 'swim') return { available: false, reason: 'swimming' }
   if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
   if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
@@ -349,7 +337,7 @@ export function getBalanceDL(state: CombatState, action: MoveAction): number {
     .map((f) => board.terrain[coordKey(f)])
     .filter((t) => t?.difficult)
     .map((t) => t.DL)
-  return Math.max(0, ...DLs)
+  return Math.max(...DLs)
 }
 
 // combat.tex "Balance" — "Difficult terrain": "On a critical, all movement is

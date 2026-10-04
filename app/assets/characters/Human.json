@@ -59,14 +59,51 @@
     "acting": 0
   },
   "movement": {
-    "basic": 1,
-    "careful": 0.5,
-    "crawl": 0.33,
-    "run": 0,
-    "jump": 0,
-    "swim": 0.33,
-    "fast swim": 0.5,
-    "stand": 0
+    "basic": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 1
+    },
+    "careful": {
+      "AP": 2,
+      "STA": 0,
+      "distance": 1
+    },
+    "crawl": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "climb": {
+      "AP": 3,
+      "STA": 1,
+      "distance": 1
+    },
+    "run": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 3
+    },
+    "jump": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 2
+    },
+    "swim": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "fast swim": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 0.5
+    },
+    "stand": {
+      "AP": 5,
+      "STA": 1,
+      "distance": 0
+    }
   },
   "hasGauntlets": 0,
   "hasHelm": 0,

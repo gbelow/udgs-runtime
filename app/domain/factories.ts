@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { isBaseCharacter } from './utils'
 
@@ -41,10 +41,10 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
     
     // deep merge the important nested objects
     trainables: mergeTrainables(emptyCharacter.trainables, parsedCharacter.trainables),
-    movement: {
+    movement: MovementSchema.parse({
       ...emptyCharacter.movement,
       ...parsedCharacter.movement,
-    },
+    }),
     armor: {
       ...emptyCharacter.armor,
       ...parsedCharacter.armor,
@@ -140,15 +140,6 @@ function readWounds(raw: unknown, body: BodyPart[]): Wound[] {
   })
 }
 
-const safeNumber = z.preprocess(
-  v => {
-    const n = Number(v)
-    return Number.isFinite(n) ? n : undefined
-  },
-  z.number().default(1)
-)
-
-
 const CharacterIngestValues = {
   id: z.string().optional(),
   name: z.string().optional(),
@@ -158,7 +149,7 @@ const CharacterIngestValues = {
   size: z.number().optional(),
   shape: ShapeSchema.optional(),
   TGH: z.number().optional(),
-  movement: z.record(z.string(), safeNumber).optional(),
+  movement: z.record(z.string(), z.unknown()).optional(),
 
   hasGauntlets: z.number().optional(),
   hasHelm: z.number().optional(),

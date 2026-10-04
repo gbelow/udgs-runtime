@@ -4,7 +4,7 @@ import { makeInvertingLens, makeTrainableValueLens } from "./factories";
 import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "../rules/magic";
 import { getSize } from "../rules/size";
 import { getTGH } from "../rules/misc";
-import { getBasicMovement, getCarefulMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
+import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
 import { makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSenseRangePenaltyLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
@@ -59,7 +59,8 @@ export const characteristicLenses: Record<keyof Characteristics, Lens<Character,
 export const movementLenses: Record<keyof Movement, Lens<Character, number>> = {
   basic: makeMovementLens("basic", getBasicMovement),
   careful: makeMovementLens("careful", getCarefulMovement),
-  stand: makeMovementLens("stand", getStandMovement),
+  stand: makeMovementLens("stand", getStandMovement, "AP"),
+  climb: makeMovementLens("climb", getClimbMovement),
   swim: makeMovementLens("swim", getSwimMovement),
   "fast swim": makeMovementLens("fast swim", getFastSwimMovement),
   crawl: makeMovementLens("crawl", getCrawlMovement),
