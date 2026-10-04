@@ -14,7 +14,7 @@ import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
 import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
-import { archer, brawler, mage, spearman } from '../domain/bot/fixtures'
+import { archer, brawler, mage, spearman, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 
 // A player who presses whatever there is to press, in no order: every click
@@ -245,6 +245,7 @@ function exchange(h: Harness, pick: Picker) {
   const names = Object.values(h.state().characters).map((c) => c.name)
   h.select(pick(names))
   h.startTurn()
+  if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
   const open = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
   if (!open.length) return
   const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
@@ -267,6 +268,9 @@ const DUELS = [
   { name: 'two archers', a: archer, b: archer, apart: 3 },
   { name: 'a brawler and an archer', a: brawler, b: archer, apart: 2 },
   { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
+  { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
+  { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
+  { name: 'two wardens', a: warden, b: warden, apart: 2 },
 ]
 
 describe('two characters grappling, pushing, shooting and defending', () => {

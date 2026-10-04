@@ -44,6 +44,20 @@ export function brawler(id: string): CampaignCharacter {
   return holdItem(gauntlet)(fighter(id))
 }
 
+// The abilities that open a defence the bare fighter has no answer with: the
+// counterattack, the reflexes, the jump and the defender's guard.
+export function trained(c: CampaignCharacter): CampaignCharacter {
+  return { ...c, abilities: [...c.abilities, 'counterattack', 'precise-reflexes', 'precise-evasion', 'archer-s-reflexes', 'jumper', 'defender'] }
+}
+
+// A spear in one hand and a shield in the other, trained: every defence is
+// open to them, a guard against a shot among them (combat.tex "Guard").
+export function warden(id: string): CampaignCharacter {
+  const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
+  const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+  return trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id))))))
+}
+
 export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
   return { ...CombatStateSchema.parse({ board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
