@@ -54,6 +54,8 @@ export function BoardPanel(){
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
+        <Button size='xs' variant={brush === null ? 'primary' : 'default'} className={brush === null ? 'bg-accent/15' : ''}
+          onClick={() => setBrush(null)}>control</Button>
         {TERRAIN_BRUSHES.map((b) =>
           <Button key={b} size='xs' variant={brush === b ? 'primary' : 'default'} className={brush === b ? 'bg-accent/15' : ''}
             onClick={() => setBrush(brush === b ? null : b)}>{BRUSH_LABEL[b]}</Button>)}
