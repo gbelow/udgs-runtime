@@ -151,7 +151,7 @@ function getAnswers(state: CombatState, c: CampaignCharacter, open: RootAction):
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
-  return closeBySurge(state, c, closeWhileConcentrating(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
+  return closeBySurge(state, c, closeWhileConcentrating(c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
     const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
@@ -254,7 +254,7 @@ function getAnswers(state: CombatState, c: CampaignCharacter, open: RootAction):
         return [answer({ kind }, null, reason)]
       }
     }
-  })))
+  }))))
 }
 
 // The actions a character may take on their own initiative, one entry per
