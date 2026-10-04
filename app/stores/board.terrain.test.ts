@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import type { TerrainBrush } from '../domain/types'
 import { fighter } from '../domain/bot/fixtures'
 
 // Water and cliffs, painted with the brushes a player holds. Expected values
@@ -11,12 +10,6 @@ import { fighter } from '../domain/bot/fixtures'
 const strong = (name: string) => {
   const f = fighter(name)
   return { ...f, resources: { ...f.resources, AP: 30, STA: 30 } }
-}
-
-const paint = (h: Harness, brush: TerrainBrush, cells: [number, number][], times = 1) => {
-  h.holdBrush(brush)
-  cells.forEach(([q, r]) => Array.from({ length: times }).forEach(() => h.cell(q, r)))
-  h.holdBrush(null)
 }
 
 const placement = (h: Harness, name: string) => h.state().board!.placements[h.idOf(name)]
@@ -32,8 +25,8 @@ function pond(): Harness {
   h.createBoard(6)
   h.select('Ann')
   h.cell(0, 0)
-  paint(h, 'water', POND)
-  paint(h, 'deepen', POND, DEPTH)
+  h.paint('water', POND)
+  h.paint('deepen', POND, DEPTH)
   h.startTurn()
   h.declare({ kind: 'move' })
   h.amend({ movement: 'swim' })
@@ -105,8 +98,8 @@ function cliff(gripped = true): Harness {
   h.createBoard(6)
   h.select('Ann')
   h.cell(0, 0)
-  paint(h, 'raise', CLIFF, HEIGHT)
-  if (gripped) paint(h, 'grip', CLIFF)
+  h.paint('raise', CLIFF, HEIGHT)
+  if (gripped) h.paint('grip', CLIFF)
   h.startTurn()
   h.declare({ kind: 'move' })
   h.amend({ movement: 'climb' })

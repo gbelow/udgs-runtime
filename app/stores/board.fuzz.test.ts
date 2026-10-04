@@ -39,6 +39,20 @@ const STORAGE_EVERY = 8
 type Play = { name: string, weight?: number, run: (h: Harness, pick: Picker) => void }
 type Picker = <T>(from: readonly T[]) => T
 
+const highlighted = (h: Harness) => h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
+
+// What the character may declare of their own now.
+const ownOptions = (h: Harness, id: string) => getAvailableActions(h.state(), id).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+
+// The defences open to anyone against the committed action.
+const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
+
+// The cells a blast or an explosion may be aimed at.
+const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c) => open.kind === 'blast' || c.center)
+
+// The presses that carry a committed action to its end.
+const carryOn = (h: Harness) => [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
+
 // Fills in whatever the open declaration is still asked for from the panel's
 // own offers, aims it by clicking, and locks it.
 function finishDeclaration(h: Harness, pick: Picker) {
@@ -59,7 +73,7 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (gear && getOpenAction(h.state())?.kind === 'cast') h.press(amendAction({ itemId: gear.itemId }))
   const target = first(h.view().tokens.filter((t) => t.targetable))
   if (target) h.click({ on: 'token', id: target.id })
-  const there = first(h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center))
+  const there = first(highlighted(h))
   if (there) h.click({ on: 'cell', cell: there.cell })
   h.commit()
 }
@@ -95,7 +109,7 @@ function plays(): Play[] {
       name: 'click a highlighted cell',
       weight: 3,
       run: (h, pick) => {
-        const offered = h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
+        const offered = highlighted(h)
         if (offered.length) h.click({ on: 'cell', cell: pick(offered).cell })
       },
     },
@@ -126,7 +140,7 @@ function plays(): Play[] {
       weight: 3,
       run: (h, pick) => {
         const id = h.active()
-        const open = id ? getAvailableActions(h.state(), id).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null) : []
+        const open = id ? ownOptions(h, id) : []
         const kinds = [...new Set(open.map((o) => o.draft.kind))]
         if (!kinds.length) return
         const kind = pick(kinds)
@@ -136,7 +150,7 @@ function plays(): Play[] {
     {
       name: 'react',
       run: (h, pick) => {
-        const options = Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
+        const options = answersOffered(h)
         if (options.length) { const o = pick(options); h.press(declareReaction(o.id, o.draft, h.newId)) }
       },
     },
@@ -148,11 +162,11 @@ function plays(): Play[] {
       run: (h, pick) => {
         h.select(pick(names(h)))
         h.startTurn()
-        const open = getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
+        const open = ownOptions(h, h.active()!)
         if (!open.length) return
         h.declare(pick(open).draft as ActionDraft)
         finishDeclaration(h, pick)
-        for (let i = 0; i < 6; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+        for (let i = 0; i < 6; i++) for (const step of carryOn(h)) h.press(step)
       },
     },
     { name: 'commit', weight: 3, run: (h) => h.commit() },
@@ -334,13 +348,12 @@ const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike', 'cast', 'fireAgai
 // anyone, a kind at a time so the rarer ones are not drowned by the many
 // variants of the common ones.
 function answerOpen(h: Harness, pick: Picker, tries: number) {
-  const answers = () => Object.keys(h.state().characters).flatMap((id) => getAvailableActions(h.state(), id).filter((o) => o.available && o.reactionTo !== null).map((o) => ({ id, draft: o.draft })))
-  for (let left = tries; left > 0 && answers().length; left--) {
-    const offered = answers()
+  for (let left = tries; left > 0 && answersOffered(h).length; left--) {
+    const offered = answersOffered(h)
     const kind = pick([...new Set(offered.map((o) => o.draft.kind))])
     const answer = pick(offered.filter((o) => o.draft.kind === kind))
     h.press(declareReaction(answer.id, answer.draft, h.newId))
-    const there = h.view().cells.filter((c) => c.reachable !== null || c.jump || c.step || c.center)
+    const there = highlighted(h)
     if (there.length && pick([true, false])) h.click({ on: 'cell', cell: pick(there).cell })
     answerWithAStrike(h, answer.id, pick)
   }
@@ -354,7 +367,7 @@ function playOut(h: Harness, pick: Picker) {
     if (open?.step === 'define') finishDeclaration(h, pick)
     if (open?.step === 'react' && pick([true, true, false])) answerOpen(h, pick, pick([1, 2, 3]))
     if (open?.kind === 'blast' || open?.kind === 'explosion') {
-      const aimed = h.view().cells.filter((c) => open.kind === 'blast' || c.center)
+      const aimed = aimable(h, open)
       if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
     }
     for (const step of [rollAction(h.dice, h.newId), acceptSpellTest(h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
@@ -375,14 +388,13 @@ function assertSettled(h: Harness) {
     for (let i = 0; i < 10; i++) {
       const aiming = getOpenAction(h.state())
       if (aiming?.kind === 'blast' || aiming?.kind === 'explosion') {
-        for (const c of h.view().cells.filter((c) => aiming.kind === 'blast' || c.center)) {
+        for (const c of aimable(h, aiming)) {
           h.click({ on: 'cell', cell: c.cell })
           const now = getOpenAction(h.state())
-          if (now?.kind === 'blast' && now.center !== null) break
-          if (now?.kind === 'explosion' && now.center !== null) break
+          if (now && 'center' in now && now.center !== null) break
         }
       }
-      for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+      for (const step of carryOn(h)) h.press(step)
     }
   }
   const open = stuck()
@@ -401,11 +413,9 @@ function startTurnOf(h: Harness, pick: Picker) {
   if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
 }
 
-const OWN = (h: Harness) => getAvailableActions(h.state(), h.active()!).filter((o) => o.available && !isReaction(o.draft.kind) && o.reactionTo === null)
-
 function exchange(h: Harness, pick: Picker) {
   startTurnOf(h, pick)
-  const every = OWN(h)
+  const every = ownOptions(h, h.active()!)
   const open = every.some((o) => o.draft.kind !== 'move') ? every.filter((o) => o.draft.kind !== 'move') : every
   if (!open.length) return
   const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
@@ -421,7 +431,7 @@ function exchange(h: Harness, pick: Picker) {
 // with a dive added when it swims.
 function travel(h: Harness, pick: Picker) {
   startTurnOf(h, pick)
-  if (!OWN(h).some((o) => o.draft.kind === 'move')) return
+  if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'move')) return
   h.declare({ kind: 'move' })
   const moves = getActionPanel(h.state()).moves.filter((m) => m.available)
   const special = moves.filter((m) => ['swim', 'climb', 'jump', 'run', 'crawl'].includes(m.kind))
@@ -499,15 +509,10 @@ describe('a crowd on rough ground', () => {
     const h = openHarness((explodes) => rollD10(explodes, rng))
     h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), brawler('Gus'))
     h.createBoard(5)
-    const paint = (brush: (typeof TERRAIN_BRUSHES)[number], cells: [number, number][], times = 1) => {
-      h.holdBrush(brush)
-      for (const [q, r] of cells) for (let i = 0; i < times; i++) h.cell(q, r)
-      h.holdBrush(null)
-    }
-    paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
-    paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
-    paint('raise', [[-3, 1], [-3, 2]], 2)
-    paint('grip', [[-3, 1], [-3, 2]])
+    h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
+    h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
+    h.paint('raise', [[-3, 1], [-3, 2]], 2)
+    h.paint('grip', [[-3, 1], [-3, 2]])
     for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
       h.select(name)
       h.cell(q, r)

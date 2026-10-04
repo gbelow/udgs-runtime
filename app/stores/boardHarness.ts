@@ -58,6 +58,12 @@ export function openHarness(dice: Dice = () => 5) {
     turn: () => click({ on: 'turn' }),
     select: (name: string) => useCombatStore.getState().setActiveCharacter(idOf(name)),
     holdBrush: (b: TerrainBrush | null) => { brush = b },
+    // the brush held, a click on each cell `times` over, and put down again
+    paint: (b: TerrainBrush, cells: [number, number][], times = 1) => {
+      brush = b
+      for (const [q, r] of cells) for (let i = 0; i < times; i++) click({ on: 'cell', cell: { q, r } })
+      brush = null
+    },
 
     // the action panel and turn controls, which act for the active character
     startTurn: () => press(startTurn(active()!)),

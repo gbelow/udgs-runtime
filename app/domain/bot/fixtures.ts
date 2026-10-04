@@ -13,8 +13,10 @@ export function fighter(id: string): CampaignCharacter {
   return { ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
+const shortSpear = () => ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
+
 export function spearman(id: string): CampaignCharacter {
-  const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
+  const spear = shortSpear()
   return regripItem(spear.id, 2)(holdItem(spear)(fighter(id)))
 }
 
@@ -53,7 +55,7 @@ export function trained(c: CampaignCharacter): CampaignCharacter {
 // A spear in one hand and a shield in the other, trained: every defence is
 // open to them, a guard against a shot among them (combat.tex "Guard").
 export function warden(id: string): CampaignCharacter {
-  const spear = ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
+  const spear = shortSpear()
   const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
   return trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id))))))
 }
