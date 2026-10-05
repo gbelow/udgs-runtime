@@ -19,7 +19,7 @@ type Rung = AfflictionRow & { forced: boolean }
 function getRungs(c: Character, situational: readonly AfflictionKey[]): Rung[] {
   const forced = new Set([...getForcedAfflictions(c), ...situational])
   const active = new Set(getAfflictions(c, situational))
-  return (Object.keys(AFFLICTIONS) as AfflictionKey[]).map((key) => ({
+  return (Object.keys(AFFLICTIONS) as AfflictionKey[]).filter((key) => !AFFLICTIONS[key].hidden).map((key) => ({
     key,
     controlable: AFFLICTIONS[key].controlable,
     active: active.has(key),

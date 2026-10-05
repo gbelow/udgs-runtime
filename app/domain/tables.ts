@@ -253,6 +253,7 @@ export type AfflictionDef = {
   supersedes?: string
   controlable: boolean
   category: AfflictionCategory
+  hidden?: boolean
 }
 
 // Display order of the headings.
@@ -269,8 +270,8 @@ const AFFLICTION_DEFS = {
   blind: { controlable: true, category: "sensory" },
   deaf: { controlable: true, category: "sensory" },
 
-  corroding0: { group: 'corroding', rank: 1, controlable: true, category: "damage" },
-  corroding1: { group: 'corroding', rank: 2, controlable: true, category: "damage" },
+  corroding0: { group: 'corroding', rank: 1, controlable: true, category: "damage", hidden: true },
+  corroding1: { group: 'corroding', rank: 2, controlable: true, category: "damage", hidden: true },
 
   unconscious: { controlable: true, category: "mental" },
 
