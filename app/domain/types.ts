@@ -586,7 +586,7 @@ export type Interruption = z.infer<typeof InterruptionSchema>
 // combat.tex "Defend", "Reflex": how the target met the attack, none being
 // the SD — the four melee defenses against a strike, evasion and guard
 // against a shot, the reflex test against an explosion.
-export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard', 'avoidExplosion'])
+export const DefenseKindSchema = z.enum(['none', 'evade', 'evasiveJump', 'block', 'intercept', 'evasion', 'guard', 'avoidExplosion', 'blockExplosion'])
 export type DefenseKind = z.infer<typeof DefenseKindSchema>
 
 // combat.tex "Types of damage": the six kinds, each defended by its own
@@ -726,7 +726,18 @@ export const TetherEffectSchema = z.object({
   }).strip().default({ critical: null, hit: null, graze: null }),
 }).strip()
 
+// gear.tex "Equipment Breakage": an item put at risk by a collision. The
+// producer works out the `chance` it gives way from the blow it took, the
+// percentile `roll` was thrown with the action, and it breaks when the roll
+// falls under the chance.
+export const BreakEffectSchema = z.object({
+  itemId: str.default(''),
+  chance: num.default(0),
+  roll: num.default(0),
+}).strip()
+
 export const EffectSchema = z.discriminatedUnion('type', [
+  z.object({ ...EffectBase, type: z.literal('break'), effect: BreakEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),

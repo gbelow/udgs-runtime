@@ -10,8 +10,14 @@ import { getMoveFacts } from './move'
 import { getFallFacts } from './fall'
 import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
-import { getBlowBreakage } from './breakage'
+import { getAreaBreaks, getAttackBreaks } from './breakage'
 import { isObjectStrike } from './equipment'
+
+// The armor each character wears is put at risk by what the action's effects
+// did to them (gear.tex "Equipment Breakage").
+function withBreaks<A extends Extract<RootAction, { kind: 'blast' | 'cast' | 'fireAgain' }>>(state: CombatState, settled: A): A {
+  return { ...settled, breaks: getAreaBreaks(state, settled.facts ?? {}, settled.armorRolls) }
+}
 
 // The action as it lands: closed, with what it came to written down per
 // kind, read off the state as it stands. The resolve writes exactly this,
@@ -29,11 +35,11 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'strike': {
       const blow = getAttackFacts(state, open)
       const facts = isObjectStrike(open) ? null : blow
-      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, blow), ...getStrikeLanding(state, open, facts) }
+      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
       const facts = getAttackFacts(state, open)
-      return { ...open, step: 'done', facts, broke: getBlowBreakage(state, open, facts), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
+      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, facts), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest': return { ...open, step: 'done' }
@@ -49,9 +55,9 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     case 'holdBack': return { ...open, step: 'done', facts: getHoldBackFacts(state, open) }
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
-    case 'blast': return { ...open, step: 'done', facts: getExplosionFacts(state, open), paint: getTerrainPaint(state, open) }
-    case 'cast': return { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) }
-    case 'fireAgain': return { ...open, step: 'done', facts: getFireAgainFacts(state, open) }
+    case 'blast': return withBreaks(state, { ...open, step: 'done', facts: getExplosionFacts(state, open, open.spawnedBy), paint: getTerrainPaint(state, open) })
+    case 'cast': return withBreaks(state, { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) })
+    case 'fireAgain': return withBreaks(state, { ...open, step: 'done', facts: getFireAgainFacts(state, open) })
     case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }

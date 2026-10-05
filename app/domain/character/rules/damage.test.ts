@@ -78,3 +78,18 @@ describe('hand wounds', () => {
     expect(outcome.wound?.part?.id).toBe('handR')
   })
 })
+
+// combat.tex "Explosion Block": "the explosion damage gets reduced by the
+// defenses from the shield."
+describe('an explosion blocked with a shield', () => {
+  const shield = { defense: 'blockExplosion' as const, block: 100, blockCap: 100, shield: true }
+  const burn = (defended: boolean) => getOutcome(DamageSchema.parse({ damage: [{ kind: 'burn', value: 20 }], ...(defended ? shield : {}) }), 'hit', target)
+
+  it('absorbs the damage, impact included', () => {
+    expect(burn(false).damage).toBeGreaterThan(0)
+    expect(burn(true).damage).toBe(0)
+    const impact = (defended: boolean) => getOutcome(DamageSchema.parse({ damage: [{ kind: 'blunt', value: 20 }], ...(defended ? shield : {}) }), 'critical', target)
+    expect(impact(false).damage).toBeGreaterThan(0)
+    expect(impact(true).damage).toBe(0)
+  })
+})

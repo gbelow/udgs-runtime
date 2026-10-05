@@ -86,7 +86,7 @@ function playOut(start: CombatState, face: number): { state: CombatState; landed
     if (!open) return { state: s, landed, openedTriggers }
     if (open.step === 'react' && getOpeningReaction(s, open)) openedTriggers.push(...getTriggers(s, open).map((t) => t.kind))
     const passedUp = open.step === 'define' && (open.kind === 'fleeFollowUp' || (open.kind === 'move' && open.spawnedBy !== null) || (open.kind === 'grapple' && (open.maneuver === 'escape' || open.recipe === 'interceptDisarm')))
-    const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId), resolveAction(newId)]
+    const steps = passedUp ? [withdrawSpawnedAction(newId)] : [rollAction(() => face, newId), payAction(newId, () => 5), resolveAction(newId)]
     const next = steps.map((step) => step(s)).find((t) => t !== s)
     if (!next) throw new Error(`stuck on ${open.kind} (${open.step})`)
     for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
@@ -324,6 +324,78 @@ describe('an explosion', () => {
   })
 })
 
+// gear.tex "Equipment Breakage": "Objects can be destroyed by any kind of
+// damage" — armor is pitted by what reaches it from an explosion as by a blow.
+// A shock explosive (blunt 15, radius 3) goes off at the middle of the area on
+// a gambeson-wearer (RES 10), who takes a hit and makes no escape; every percentile digit is `digit`.
+describe('an explosion on armor', () => {
+  const gambeson = ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
+
+  function gone(digit: number, breakage = true): CombatState {
+    const base = fighter('t')
+    const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
+    const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
+    let s = { ...onBoard({ t: [-5, 0], x: [1, 0] }, thrower, { ...fighter('x'), worn: gambeson }), breakage }
+    s = commitAction(() => digit, newId)(declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s))
+    for (let i = 0; i < 20 && getOpenAction(s); i++) {
+      const next = [rollAction(() => digit, newId), payAction(newId, () => digit), resolveAction(newId), aimExplosion(0), commitAction(() => digit, newId)].map((step) => step(s)).find((t) => t !== s)
+      if (!next) break
+      s = next
+    }
+    return s
+  }
+
+  it('pits the armor on a low percentile, and not on a high one', () => {
+    expect(gone(0).characters.x.worn?.broken).toBe(true)
+    expect(gone(9).characters.x.worn?.broken).toBe(false)
+  })
+
+  it('does nothing with the rule switched off', () => {
+    expect(gone(0, false).characters.x.worn?.broken).toBe(false)
+  })
+})
+
+// combat.tex "Explosion Block": a shield-bearer's reflex + cover test against
+// the explosion's DL; on a hit or better the shield's defenses reduce what
+// reaches them.
+describe('an explosion met with a shield', () => {
+  const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
+
+  function reached(bearer: CampaignCharacter, blocks: boolean) {
+    const base = fighter('t')
+    const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
+    const charged = { ...grenade, charge: { key: 'shock-explosive', effects: produceEffects(base, SPELLS['shock-explosive'].effects) } }
+    const thrower = { ...(holdItem(charged)(base)), usedSurge: 'focus' as const }
+    let s = onBoard({ t: [-5, 0], x: [1, 0] }, thrower, bearer)
+    s = commitAction(() => 9, newId)(declareAction('t', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 0 } }, newId)(s))
+    for (let i = 0; i < 20 && getOpenAction(s); i++) {
+      const open = getOpenAction(s)
+      const option = getAvailableActions(s, 'x').find((o) => o.draft.kind === 'blockExplosion' && o.available)
+      if (blocks && option && open?.kind === 'explosion' && open.step === 'react' && !getLiveReactionsTo(s, open.id).some((r) => r.actorId === 'x')) {
+        s = declareReaction('x', option.draft, newId)(s)
+        continue
+      }
+      const next = [rollAction(() => 9, newId), payAction(newId, () => 9), resolveAction(newId), aimExplosion(0), commitAction(() => 9, newId)].map((step) => step(s)).find((t) => t !== s)
+      if (!next) break
+      s = next
+    }
+    const blast = getLog(s).find((a) => a.kind === 'blast')
+    const delivery = blast?.kind === 'blast' ? blast.facts?.x?.[0] : undefined
+    return delivery?.effect.type === 'damage' ? delivery.effect.effect.defense : null
+  }
+
+  it('is met by what the shield absorbs once the test is passed', () => {
+    expect(reached(holdItem(shield)(fighter('x')), true)).toBe('blockExplosion')
+    expect(reached(holdItem(shield)(fighter('x')), false)).toBe('none')
+  })
+
+  it('is not offered to one without a shield', () => {
+    const s = onBoard({ t: [-5, 0], x: [1, 0] }, fighter('t'), fighter('x'))
+    expect(getAvailableActions(s, 'x').some((o) => o.draft.kind === 'blockExplosion' && o.available)).toBe(false)
+  })
+})
+
 // A spearman's thrust at the character, committed.
 function thrustAt(target: CampaignCharacter): CombatState {
   let s = onBoard({ atk: [0, 0], [target.id]: [1, 0] }, spearman('atk'), target)
@@ -490,7 +562,7 @@ describe('a hook attack', () => {
     const option = getAvailableActions(s, 'h').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
     s = declareReaction('h', option.draft, newId)(s)
     s = amendReaction('h', { weaponKey: s.characters.h.held[0].id, attack: 'hook', variant: 'hook', location })(s)
-    s = rollAction(() => 9, newId)(payAction(newId)(s))
+    s = rollAction(() => 9, newId)(payAction(newId, () => 5)(s))
     expect(getOpenAction(s)?.roll?.degree).toBe('hit')
     return resolveAction(newId)(buy ? spendHOP('hook')(s) : s)
   }
@@ -702,7 +774,7 @@ describe('a spray', () => {
   })
 
   it('reaches only the cone it is pointed in once the reflexes are done', () => {
-    const s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(flamesCast())))
+    const s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(flamesCast())))
     const blast = getLog(s).find((a) => a.kind === 'blast')
     expect(Object.keys(blast?.kind === 'blast' ? blast.facts ?? {} : {})).toEqual(['x'])
   })
@@ -717,7 +789,7 @@ describe('a held spray retargeted as a reaction', () => {
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     let s = onBoard({ c: [0, 0], z: [6, 0] }, caster, fighter('z'))
     s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
-    s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(s)))
+    s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(s)))
     s = declareAction('z', { kind: 'move' }, newId)(s)
     return commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [5, 4, 3].map((q) => ({ q, r: 0 })) })(s))
   }
@@ -734,7 +806,7 @@ describe('a held spray retargeted as a reaction', () => {
     s = declareReaction('c', option.draft, newId)(s)
     const landed: Action[] = []
     for (let i = 0; i < 50 && getOpenAction(s); i++) {
-      const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
+      const next = [rollAction(() => MISS, newId), payAction(newId, () => 5), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
       if (!next) throw new Error('stuck')
       for (const id of getHistory(next).slice(getHistory(s).length)) landed.push(getLog(next).find((a) => a.id === id)!)
       s = next
@@ -752,7 +824,7 @@ describe('a held spray aimed at the round change', () => {
     const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
     let s = onBoard({ c: [0, 0], z: [3, 0] }, caster, fighter('z'))
     s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
-    s = resolveAction(newId)(aimExplosion(0)(payAction(newId)(s)))
+    s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(s)))
     return nextRound(() => 0, newId)(s)
   }
 
@@ -763,7 +835,7 @@ describe('a held spray aimed at the round change', () => {
     const ap = s.characters.c.resources.AP
     const blasts: Action[] = []
     for (let i = 0; i < 50 && getOpenAction(s); i++) {
-      const next = [rollAction(() => MISS, newId), payAction(newId), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
+      const next = [rollAction(() => MISS, newId), payAction(newId, () => 5), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
       if (!next) throw new Error('stuck')
       blasts.push(...getHistory(next).slice(getHistory(s).length).map((id) => getLog(next).find((a) => a.id === id)!).filter((a) => a.kind === 'blast'))
       s = next

@@ -51,7 +51,7 @@ const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap
 const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c) => open.kind === 'blast' || c.center)
 
 // The presses that carry a committed action to its end.
-const carryOn = (h: Harness) => [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
+const carryOn = (h: Harness) => [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
 
 // Fills in whatever the open declaration is still asked for from the panel's
 // own offers, aims it by clicking, and locks it.
@@ -191,7 +191,7 @@ function plays(): Play[] {
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
     progress('roll', (h) => rollAction(h.dice, h.newId)),
-    progress('pay', (h) => payAction(h.newId)),
+    progress('pay', (h) => payAction(h.newId, h.dice)),
     { ...progress('resolve', (h) => resolveAction(h.newId)), weight: 2 },
     progress('skip', (h) => withdrawSpawnedAction(h.newId)),
     progress('cancel', () => cancelAction()),
@@ -370,7 +370,7 @@ function playOut(h: Harness, pick: Picker) {
       const aimed = aimable(h, open)
       if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
     }
-    for (const step of [rollAction(h.dice, h.newId), acceptSpellTest(h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    for (const step of [rollAction(h.dice, h.newId), acceptSpellTest(h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
     const panel = getActionPanel(h.state()).open
     if (panel && pick([true, false, false])) h.press(chooseManeuver(panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }))
     if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))

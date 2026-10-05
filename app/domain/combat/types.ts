@@ -261,12 +261,14 @@ const AttackDeclaration = {
 // aimed at. The percentiles are thrown with the roll, one per
 // object; `broke` is written at the resolve: the items the blow broke and
 // whose they were.
-export const BrokenItemSchema = z.object({ ownerId: str, itemId: str, name: str.default('') })
-export type BrokenItem = z.infer<typeof BrokenItemSchema>
+// gear.tex "Equipment Breakage": the percentile thrown for the armor each
+// character wears when an action's damage reaches several of them, by id,
+// with the action's commit; none when the fight has no breakage.
+const ArmorRolls = z.record(z.string(), num).default({})
 
 const Breakage = {
   breakRolls: z.object({ defender: num, attacker: num, armor: num, object: num }).default({ defender: 0, attacker: 0, armor: 0, object: 0 }),
-  broke: z.array(BrokenItemSchema).default([]),
+  breaks: DeliveriesSchema.default({}),
 }
 
 // combat.tex "Sweeping Attack": "Decide whether to attack from right to left
@@ -458,6 +460,7 @@ export const ExplosionActionSchema = z.object({
   // a held spray aimed again: it lays its ground and harms nobody (the
   // table's ruling)
   paintOnly: z.boolean().default(false),
+  armorRolls: ArmorRolls,
 }).strip()
 
 // combat.tex "Explosions", "Sprays": the explosion going off, once everyone
@@ -478,6 +481,7 @@ export const BlastActionSchema = z.object({
   direction: DirectionSchema.nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
   paintOnly: z.boolean().default(false),
+  armorRolls: ArmorRolls,
   // combat.tex "Gas", "Fire": what it leaves on the ground, cell by cell
   paint: z.array(z.object({ cell: CoordSchema, hazard: HazardSchema })).default([]),
 }).strip()
@@ -512,6 +516,7 @@ export const CastActionSchema = z.object({
   // the percentile die thrown with the cast for a fraction of a charge
   // (spells.tex "Amplify Spell": charges times the VM)
   chargeRoll: num.default(0),
+  armorRolls: ArmorRolls,
   // a hit that did nothing, written when it lands: short of the
   // amplifications or the range its HOP had to buy
   failed: z.boolean().default(false),
@@ -533,6 +538,7 @@ export const FireAgainActionSchema = z.object({
   // the free aim paying the upkeep at the round change gives (the table's
   // ruling): nothing is paid or drawn for it
   upkeep: z.boolean().default(false),
+  armorRolls: ArmorRolls,
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -578,6 +584,11 @@ export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guar
 // reaction's `roll`, thrown with the root's; what its degree lets the
 // reactor do is a move opened before or after the blast.
 export const AvoidExplosionActionSchema = z.object({ ...ActionBase, kind: z.literal('avoidExplosion') }).strip()
+
+// combat.tex "Explosion Block": the other reaction to an explosion, a reflex
+// test with the cover of the shield it names; a hit or better lets the
+// shield's defenses reduce what reaches the reactor.
+export const BlockExplosionActionSchema = z.object({ ...ActionBase, kind: z.literal('blockExplosion'), ...WeaponRowRef }).strip()
 
 // Where a move actually ended and why: the path as walked, cut short by a
 // reaction that interrupted it, by the mover's own jump
@@ -908,6 +919,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   EvasionActionSchema,
   GuardActionSchema,
   AvoidExplosionActionSchema,
+  BlockExplosionActionSchema,
   EvadeActionSchema,
   BraceActionSchema,
   EvasiveJumpActionSchema,

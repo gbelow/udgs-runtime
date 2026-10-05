@@ -57,7 +57,7 @@ export function useCombatActions() {
   const commit = () => update(commitAction(realDice, newId));
   const back = () => update(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));
-  const pay = () => update(payAction(newId));
+  const pay = () => update(payAction(newId, realDice));
   const accept = () => update(acceptSpellTest(newId));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));

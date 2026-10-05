@@ -249,7 +249,10 @@ function dragApproaches(state: CombatState, root: DragAction, reachOf: (c: Chara
 // stands in the area is a target of it.
 function explosionTriggers(state: CombatState, root: ExplosionAction): Trigger[] {
   if (!isAvoidable(root)) return []
-  return getThreatenedIds(state, getBlastOf(state, root)).map((id): Trigger => ({ characterId: id, kind: 'avoidExplosion', at: null }))
+  return getThreatenedIds(state, getBlastOf(state, root)).flatMap((id): Trigger[] => [
+    { characterId: id, kind: 'avoidExplosion', at: null },
+    { characterId: id, kind: 'blockExplosion', at: null },
+  ])
 }
 
 // combat.tex "Opportunity Attack": "Triggering actions include casting

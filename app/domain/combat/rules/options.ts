@@ -22,7 +22,7 @@ import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepu
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
-import { defRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
+import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
@@ -192,6 +192,12 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
         })
       case 'guard':
         return guardRows(state, c, open).map((row) => {
+          const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
+          return answer(draft, cost, gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))
+        })
+      // combat.tex "Explosion Block": only with a shield
+      case 'blockExplosion':
+        return explosionBlockRows(c).map((row) => {
           const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
           return answer(draft, cost, gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))
         })

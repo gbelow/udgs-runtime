@@ -43,6 +43,7 @@ function getAbsorbedShare(damage: number, value: number): number {
 // "A miss increases block value by 50%", a shield absorbing no more than its
 // RES however it was met (the table's ruling); null when no block met it.
 function getBlockShare(facts: Damage, degree: Degree, measured: number): number | null {
+  if (facts.defense === 'blockExplosion') return getAbsorbedShare(measured, getBlockValue(facts, degree))
   if ((degree !== 'graze' && degree !== 'miss') || (facts.defense !== 'block' && facts.defense !== 'guard')) return null
   return getAbsorbedShare(measured, getBlockValue(facts, degree))
 }
@@ -99,7 +100,10 @@ function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; 
 // combat.tex "Explosions": "The damage from explosions is 150% on a
 // critical" — the one attack whose degree can be the critical, the zone at
 // its centre.
+// combat.tex "Explosion Block": the shield's defenses reduce the explosion's
+// damage, which its zone has scaled already.
 function afterDefense(facts: Damage, degree: Degree, damage: number, blockShare: number | null): number {
+  if (facts.defense === 'blockExplosion' && blockShare !== null) return Math.floor(getUndefendedDamage(damage, degree) * blockShare)
   if (blockShare !== null) return Math.floor(damage * blockShare)
   if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) return damage
   return getUndefendedDamage(damage, degree)

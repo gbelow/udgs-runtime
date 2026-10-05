@@ -14,7 +14,10 @@ import { getItemWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
 import { findFloorItem } from './floor'
-import { getAction } from './log'
+import { getAction, getReactionsTo } from './log'
+import { findWeaponRow } from './weaponRow'
+import type { Defense } from './delivery'
+import { getBlockValue } from '../../character/rules/gear'
 
 // combat.tex "Explosions", "Sprays": what goes off, where it reaches and how
 // hard it hits there. The payload is read off the source the action names
@@ -28,14 +31,14 @@ export type ZoneCell = { cell: Coord; degree: Degree }
 // An area laid out on the board: who set it off, where it was aimed, and
 // the effects that cover it — an explosion as declared, before it goes off,
 // or the blast it goes off as. A spray is pointed only on the blast.
-export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects' | 'paintOnly'>
+export type BlastShape = Pick<BlastAction, 'actorId' | 'center' | 'direction' | 'effects' | 'paintOnly' | 'armorRolls'>
 
 export function getBlastOf(state: CombatState, action: ExplosionAction): BlastShape {
   return toBlast(action, getExplosionPayload(state, action))
 }
 
 function toBlast(action: ExplosionAction, payload: Payload | null): BlastShape {
-  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly }
+  return { actorId: action.actorId, center: action.center, direction: null, effects: payload?.effects ?? [], paintOnly: action.paintOnly, armorRolls: action.armorRolls }
 }
 
 type Payload = { effects: SpellEffect[]; producer: CampaignCharacter }
@@ -263,19 +266,35 @@ export function getAffected(state: CombatState, action: BlastShape): { id: strin
 // stand in, at that zone's degree, made by whoever set it off (spells.tex
 // "Casting spells"; gear.tex "Explosion": "applies the weapon's damage ...
 // and any other effects"). What goes to the ground is not here.
-export function getExplosionFacts(state: CombatState, action: BlastShape): Deliveries {
+export function getExplosionFacts(state: CombatState, action: BlastShape, explosionId: string | null = null): Deliveries {
   const producer = state.characters[action.actorId]
   if (!producer || action.paintOnly) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
+    const blocked = explosionId ? getExplosionBlock(state, explosionId, id) : null
     const deliveries = action.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
       const degree = getZoneOf(state, action, id, e.area)
-      return degree ? [{ ...produceSpellEffect(producer, e), degree, test: null }] : []
+      if (!degree) return []
+      const delivery = { ...produceSpellEffect(producer, e), degree, test: null }
+      return [blocked && delivery.effect.type === 'damage' ? { ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked } } } : delivery]
     })
     if (deliveries.length > 0) facts[id] = deliveries
   }
   return facts
+}
+
+// combat.tex "Explosion Block": "If successful or critical, the explosion
+// damage gets reduced by the defenses from the shield" — what the shield
+// the reactor blocked with absorbs, once their test came to a hit or better;
+// null when they did not block or the test failed.
+function getExplosionBlock(state: CombatState, explosionId: string, id: string): Defense | null {
+  const block = getReactionsTo(state, explosionId).find((r) => r.actorId === id && r.kind === 'blockExplosion')
+  const reactor = state.characters[id]
+  if (block?.kind !== 'blockExplosion' || !reactor || (block.roll?.degree !== 'hit' && block.roll?.degree !== 'critical')) return null
+  const row = findWeaponRow(reactor, block.weaponKey, block.attack)
+  if (!row) return null
+  return { defense: 'blockExplosion', defenseAP: block.cost?.AP ?? 0, defenseWeaponKey: block.weaponKey, block: getBlockValue(row.atk, row.weapon, reactor) ?? 0, blockCap: row.atk.RES, shield: true }
 }
 
 // combat.tex "Gas", "Fire": what the explosion leaves on the ground, cell

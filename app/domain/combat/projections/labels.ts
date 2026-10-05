@@ -38,6 +38,7 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
   switch (draft.kind) {
     case 'block':
     case 'guard':
+    case 'blockExplosion':
       return withWeapon(state, actorId, draft, ACTIONS[draft.kind].label)
     case 'intercept':
       return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : ACTIONS.intercept.label)

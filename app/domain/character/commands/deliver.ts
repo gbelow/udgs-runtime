@@ -1,4 +1,6 @@
 import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery } from '../../types'
+import { breaksOn } from '../rules/breakage'
+import { breakItem } from '../../item/commands/items'
 import { WOUNDS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
@@ -37,6 +39,8 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
         const outcome = getOutcome(effect.effect, degree, c)
         return follow(delivery, degree, outcome)(takeOutcome(outcome)(c))
       }
+      case 'break':
+        return follow(delivery, degree, null)(breaksOn(effect.effect.chance, effect.effect.roll) ? breakItem(effect.effect.itemId)(c) : c)
       case 'affliction':
         return follow(delivery, degree, null)(inflict([effect.effect.key])(c))
       case 'buff':

@@ -17,7 +17,7 @@ const ALLOWANCE_KINDS: Record<Exclude<SurgeAllowance, 'grapple'>, readonly Actio
   reactions: (Object.keys(ACTIONS) as ActionKind[]).filter(isReaction).filter((kind) => !GRAPPLE_MOVEMENT.includes(kind)),
   attacks: ['strike', 'opportunityAttack', 'counterattack'],
   defenses: ['evade', 'evasiveJump', 'block', 'intercept', 'brace'],
-  reflexes: ['evasion', 'guard', 'avoidExplosion'],
+  reflexes: ['evasion', 'guard', 'avoidExplosion', 'blockExplosion'],
 }
 
 // Whether the surge's AP may pay for the kind, for the character where they

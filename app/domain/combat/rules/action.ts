@@ -25,7 +25,7 @@ import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityAction, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
+import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, isTargeted } from './cast'
 import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
@@ -75,6 +75,8 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const root = getRootOf(state, action)
       return root !== null && guardRows(state, c, root).some((row) => row.wielded.key === action.weaponKey && row.atk.name === action.attack)
     }
+    case 'blockExplosion':
+      return explosionBlockRows(c).some((row) => row.wielded.key === action.weaponKey && row.atk.name === action.attack)
     case 'evasiveJump':
       return action.to !== null || !hasJumpSpace(state, action.actorId, action.targetId ?? '') || !state.board?.placements[action.actorId]
     case 'opportunityAttack': {
@@ -156,7 +158,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
 // partner alone: an attack's target, or the attacker a defense answers.
 export function isUsedOutsideGrapple(state: CombatState, action: Action): boolean {
   if (!state.binds.some(isGrapple) || !('weaponKey' in action)) return false
-  const against = action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard' ? getRootOf(state, action)?.actorId : action.targetId
+  const against = action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard' || action.kind === 'blockExplosion' ? getRootOf(state, action)?.actorId : action.targetId
   return isSeizedUse(state, action.actorId, action.weaponKey, action.attack, against)
 }
 
@@ -231,6 +233,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'evasiveJump':
     case 'guard':
     case 'avoidExplosion':
+    case 'blockExplosion':
     case 'opportunityAttack':
     case 'retarget':
     case 'joinShot':

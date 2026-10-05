@@ -1,7 +1,7 @@
 import type { Action, ActionRoll, CombatState, DragFacts } from '../types'
 import type { Effect, Item } from '../../types'
 import type { Outcome, OutcomeStep } from '../../character/rules/damage'
-import { isAttackAction } from '../rules/actionCatalog'
+import { getBrokenItems } from '../rules/breakage'
 import { getActionName } from './labels'
 import { getCarriedItems } from '../../item/rules/items'
 import { findFloorItem } from '../rules/floor'
@@ -31,14 +31,14 @@ export function getOutcomes(state: CombatState, settled: Action): { id: string; 
 // action was cancelled before it could do any of it.
 export function getActionNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
-  const broke = isAttackAction(root) ? root.broke.map(({ ownerId, itemId, name }) => ({ target: named(ownerId), text: breakNote(findItem(state, ownerId, itemId), name) })) : []
+  const broke = getBrokenItems(root).map(({ ownerId, itemId, name }) => ({ target: named(ownerId), text: breakNote(state.characters[ownerId]?.worn?.id === itemId, name) }))
   return [...getRootNotes(state, root, named), ...broke]
 }
 
 // gear.tex "Weapon Breakage", "Armor Breakage": a weapon breaks, armor is
 // pitted.
-function breakNote(item: Item | undefined, name: string): string {
-  return `${name || item?.name || item?.refId || 'an item'} ${item?.type === 'armor' ? 'pitted' : 'broke'}`
+function breakNote(isArmor: boolean, name: string): string {
+  return `${name || 'an item'} ${isArmor ? 'pitted' : 'broke'}`
 }
 
 function findItem(state: CombatState, ownerId: string, itemId: string): Item | undefined {

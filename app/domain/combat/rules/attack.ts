@@ -258,12 +258,12 @@ function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
 }
 
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the
-// DL of the explosion" — what a reaction that is a test of its own is
-// rolled with.
+// DL of the explosion"; "Explosion Block": "an active reflex + shield Cover
+// test" — what a reaction that is a test of its own is rolled with.
 function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
-  if (!reactor || reaction.kind !== 'avoidExplosion') return []
-  return [{ label: 'reflex', value: getReflex(reactor) }]
+  if (!reactor || (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion')) return []
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : [])]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -281,7 +281,7 @@ function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
 // "Defensive Advance": an intercept made with one, "adding shield cover to
 // the defense".
 function coverTerms(reactor: Character, reaction: Action): Term[] {
-  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && !(reaction.kind === 'intercept' && reaction.advance)) return []
+  if (reaction.kind !== 'block' && reaction.kind !== 'guard' && reaction.kind !== 'blockExplosion' && !(reaction.kind === 'intercept' && reaction.advance)) return []
   const row = findWeaponRow(reactor, reaction.weaponKey, reaction.attack)
   return row?.weapon.shield ? [{ label: 'cover', value: row.weapon.shield.cover }] : []
 }
@@ -526,6 +526,11 @@ function isPiercingAttack(c: Character, action: AttackAction): boolean {
 // gear.tex "DEF": only a row with the property can block or intercept.
 export function defRows(c: Character): WeaponRow[] {
   return getWeaponRows(c).filter((row) => hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row))
+}
+
+// combat.tex "Explosion Block": "Can only be done with a shield."
+export function explosionBlockRows(c: Character): WeaponRow[] {
+  return defRows(c).filter((row) => row.weapon.shield !== undefined)
 }
 
 // combat.tex "Guard": "If using a shield"; gear.tex "Slow, Fast": a fast

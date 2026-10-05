@@ -144,7 +144,7 @@ describe('two answers that move', () => {
     h.press(declareReaction(h.idOf('Ann'), block.draft, h.newId))
     h.cell(-1, 2)
     h.cell(-1, 2)
-    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    for (let i = 0; i < 3; i++) for (const step of [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
     const cells = Object.values(h.state().board!.placements).map((p) => `${p.cell.q},${p.cell.r}`)
     expect(new Set(cells).size).toBe(cells.length)
   })

@@ -81,6 +81,9 @@ export const ACTIONS = {
   // combat.tex "Avoiding an Explosion": "Spend 3 AP and make a reflex skill
   // test against the DL of the explosion"
   avoidExplosion: { label: 'avoid explosion', rule: 'combat.tex "Avoiding an Explosion"', type: 'reaction', price: 'avoidExplosion', reactsTo: ['explosion'], die: true },
+  // combat.tex "Explosion Block": "Can only be done with a shield. Make an
+  // active reflex + shield Cover test against the DL of the explosion"
+  blockExplosion: { label: 'block explosion', rule: 'combat.tex "Explosion Block"', type: 'reaction', price: 'blockExplosion', reactsTo: ['explosion'], die: true, identity: { weaponKey: '', attack: '' } },
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', rule: 'combat.tex "Opportunity Attack"', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },

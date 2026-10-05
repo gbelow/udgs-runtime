@@ -433,6 +433,8 @@ export const ACTION_COSTS = {
   reflex:         { AP: 2, STA: 0 },
   guard:          { AP: 2, STA: 0 },
   avoidExplosion: { AP: 3, STA: 0 },
+  // combat.tex "Explosion Block" names no price: the table's ruling, a guard's
+  blockExplosion: { AP: 2, STA: 0 },
   // grappling — combat.tex "Grapple"
   grappleManeuver: { AP: 3, STA: 1 },
   grappleDefense:  { AP: 2, STA: 1 },

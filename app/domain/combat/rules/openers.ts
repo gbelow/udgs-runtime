@@ -36,6 +36,7 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
   block: {},
   intercept: {},
   guard: {},
+  blockExplosion: {},
   resist: {},
   assist: {},
   carry: {},

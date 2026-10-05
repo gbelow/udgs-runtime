@@ -1,9 +1,8 @@
-import type { ActionOf, AttackAction, BrokenItem, CombatState, StrikeAction } from '../types'
-import type { Armor, Damage, Delivery, Item } from '../../types'
-import { getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
-import { getHardness, getItemArmor } from '../../item/rules/items'
-import { getUndefendedDamage, isArmorBare } from '../../character/rules/damage'
-import { hasProperty } from '../../weaponProperties'
+import type { Action, ActionOf, AttackAction, CombatState, Deliveries, StrikeAction } from '../types'
+import type { Armor, Character, Damage, Delivery, Item } from '../../types'
+import { breaksOn, getArmorBreakChance, getBlow, getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
+import { getItemArmor } from '../../item/rules/items'
+import { getUndefendedDamage } from '../../character/rules/damage'
 import { getDefendingReaction } from './attack'
 import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
@@ -32,9 +31,9 @@ export function getBreakingDefense(state: CombatState, root: AttackAction): Acti
   return reaction && (reaction.kind === 'block' || reaction.kind === 'guard') ? reaction : null
 }
 
-// The armor item the target wears, while it is whole, and what it is.
-function getWornArmor(state: CombatState, root: AttackAction): { item: Item; armor: Armor } | null {
-  const item = root.targetId ? state.characters[root.targetId]?.worn : null
+// The armor item a character wears, while it is whole, and what it is.
+function getWornArmor(target: Character | undefined): { item: Item; armor: Armor } | null {
+  const item = target?.worn
   const armor = item && !item.broken ? getItemArmor(item) : undefined
   return item && armor ? { item, armor } : null
 }
@@ -42,12 +41,7 @@ function getWornArmor(state: CombatState, root: AttackAction): { item: Item; arm
 // Whether the attack puts anything at risk, and so needs its percentiles: the
 // object that meets it, or the armor worn.
 export function needsBreakRolls(state: CombatState, root: AttackAction): boolean {
-  return state.breakage && (isObjectStrike(root) || getBreakingDefense(state, root) !== null || getWornArmor(state, root) !== null)
-}
-
-function getBlow({ damage, hardness, properties }: Damage): BreakingBlow {
-  const total = (kind: 'blunt' | 'cut') => damage.filter((d) => d.kind === kind).reduce((sum, d) => sum + d.value, 0)
-  return { blunt: total('blunt'), cut: total('cut'), hardness, piercing: hasProperty(properties, 'piercing') }
+  return state.breakage && (isObjectStrike(root) || getBreakingDefense(state, root) !== null || getWornArmor(root.targetId ? state.characters[root.targetId] : undefined) !== null)
 }
 
 // An item a character holds that can give way: never a natural weapon, nor
@@ -75,10 +69,6 @@ export function getBreakOdds({ chance }: Pick<BreakRisk, 'chance'>): number {
   return Math.min(1, Math.ceil(chance * 100) / 100)
 }
 
-function isBroken(risk: BreakRisk, roll: number): boolean {
-  return roll < risk.chance * 100
-}
-
 // The object that met the blow takes its blunt and cutting damage; the
 // attacker's weapon takes the impact back, and no cutting. A shot has no
 // weapon of the shooter's to strike back with.
@@ -98,15 +88,22 @@ function getObjectRisks(state: CombatState, root: AttackAction, blow: BreakingBl
   ]
 }
 
-// The armor worn takes the damage that arrived past the defense, unless the
-// blow found the body bare there.
-function getArmorRisks(state: CombatState, root: AttackAction, facts: Delivery, damage: Damage): BreakRisk[] {
+// The armor a character wears takes the damage that arrived past the degree
+// and any defense, whatever dealt it — a blow, a shot, a spell, an explosion
+// — as one blow for everything that reached them in the action.
+export function getArmorRisk(target: Character, deliveries: Delivery[]): BreakRisk | null {
+  const hits = deliveries.flatMap((d) => {
+    const outcome = outcomeOf(d, target)
+    return outcome && d.effect.type === 'damage' ? [{ damage: d.effect.effect, outcome }] : []
+  })
+  const chance = getArmorBreakChance(target, hits)
+  return chance > 0 ? { slot: 'armor', ownerId: target.id, itemId: target.worn?.id ?? '', chance, swung: false, shield: false } : null
+}
+
+function getArmorRisks(state: CombatState, root: AttackAction, facts: Delivery): BreakRisk[] {
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  const worn = getWornArmor(state, root)
-  const arrived = target && worn && !isArmorBare(target, damage) ? outcomeOf(facts, target)?.arrived : undefined
-  if (!target || !worn || !arrived) return []
-  const blow = { ...getBlow(damage), ...arrived }
-  return [{ slot: 'armor', ownerId: target.id, itemId: worn.item.id, chance: getBreakChance(blow, { RES: worn.armor.RES, hardness: getHardness(worn.armor.material) }), swung: false, shield: false }]
+  const risk = target && getArmorRisk(target, [facts])
+  return risk ? [risk] : []
 }
 
 // combat.tex "Attack against equipment": a hit or a critical lands the blow,
@@ -121,21 +118,52 @@ function getEquipmentRisks(state: CombatState, root: StrikeAction, damage: Damag
   return [{ slot: 'object', ownerId: target.id, itemId: root.object, chance: getBreakChance(landed, part), swung: false, shield: false }]
 }
 
-// An item the blow broke, named while it can still be found.
-function broken(state: CombatState, ownerId: string, itemId: string): BrokenItem {
-  return { ownerId, itemId, name: getItemName(state, ownerId, itemId) }
-}
-
 // The items the blow puts at risk as it lands, each with its chance.
 export function getBreakRisks(state: CombatState, root: AttackAction, facts: Delivery | null): BreakRisk[] {
   if (!state.breakage || facts?.effect.type !== 'damage' || facts.degree === null) return []
   const damage = facts.effect.effect
-  const struck = isObjectStrike(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts, damage)
+  const struck = isObjectStrike(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts)
   return [...getObjectRisks(state, root, getBlow(damage)), ...struck]
 }
 
-// The items the attack broke as it landed, from the percentiles thrown with
-// its roll.
-export function getBlowBreakage(state: CombatState, root: AttackAction, facts: Delivery | null): BrokenItem[] {
-  return getBreakRisks(state, root, facts).filter((risk) => isBroken(risk, root.breakRolls[risk.slot])).map((risk) => broken(state, risk.ownerId, risk.itemId))
+// An item at risk as the break that carries it to its owner, with the
+// percentile thrown for it, named while it can still be found.
+function makeBreak(state: CombatState, { ownerId, itemId, chance }: BreakRisk, roll: number): { id: string; delivery: Delivery } {
+  const effect = { name: getItemName(state, ownerId, itemId), trigger: 'instant' as const, type: 'break' as const, effect: { itemId, chance, roll } }
+  return { id: ownerId, delivery: { effect, degree: null, test: null, when: null, then: [], locks: null } }
+}
+
+function byOwner(breaks: { id: string; delivery: Delivery }[]): Deliveries {
+  const grouped: Deliveries = {}
+  for (const { id, delivery } of breaks) grouped[id] = [...(grouped[id] ?? []), delivery]
+  return grouped
+}
+
+// gear.tex "Equipment Breakage": every item a blow puts at risk becomes a
+// break delivered to its owner, tested with the percentile thrown for its
+// slot with the roll.
+export function getAttackBreaks(state: CombatState, root: AttackAction, facts: Delivery | null): Deliveries {
+  return byOwner(getBreakRisks(state, root, facts).filter((risk) => risk.chance > 0).map((risk) => makeBreak(state, risk, root.breakRolls[risk.slot])))
+}
+
+// The armor each character wears is put at risk by what the action's
+// effects did to them, with the percentile thrown for that character.
+export function getAreaBreaks(state: CombatState, facts: Deliveries, rolls: Record<string, number>): Deliveries {
+  if (!state.breakage) return {}
+  return byOwner(Object.entries(facts).flatMap(([id, deliveries]) => {
+    const target = state.characters[id]
+    const risk = target && getArmorRisk(target, deliveries)
+    return risk && rolls[id] !== undefined ? [makeBreak(state, risk, rolls[id])] : []
+  }))
+}
+
+// What the action's breaks reach, per owner.
+export function getBreaks(action: Action): Deliveries {
+  return 'breaks' in action ? action.breaks : {}
+}
+
+// The items the action broke, from the percentiles thrown with it.
+export function getBrokenItems(action: Action): { ownerId: string; itemId: string; name: string }[] {
+  return Object.entries(getBreaks(action)).flatMap(([ownerId, deliveries]) => deliveries.flatMap(({ effect }) =>
+    effect.type === 'break' && breaksOn(effect.effect.chance, effect.effect.roll) ? [{ ownerId, itemId: effect.effect.itemId, name: effect.name }] : []))
 }

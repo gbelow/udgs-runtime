@@ -125,8 +125,17 @@ function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: Roo
 export function rollOrPay(dice: Dice, newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'react')
-    return open && needsDie(state, open) ? rollAction(dice, newId)(state) : payAction(newId)(state)
+    return open && needsDie(state, open) ? rollAction(dice, newId)(state) : payAction(newId, dice)(state)
   }
+}
+
+// gear.tex "Equipment Breakage": the percentile thrown for the armor each
+// character wears, with the action whose effects reach several of them — a
+// cast, an explosion, a spray fired again — when it is rolled or paid. None
+// when the fight has no breakage, so the dice are not touched.
+function withArmorRolls<A extends RootAction>(state: CombatState, root: A, dice: Dice): A {
+  if (!state.breakage || (root.kind !== 'cast' && root.kind !== 'explosion' && root.kind !== 'fireAgain')) return root
+  return { ...root, armorRolls: Object.fromEntries(Object.keys(state.characters).map((id) => [id, rollPercent(dice)])) }
 }
 
 // spells.tex "Requirements": the gear the cast is made with and the object
@@ -276,7 +285,7 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     const own = open.kind !== 'move' || needsOwnDie(state, open)
     const test = rootTest && own ? resolveTest(rootTest, rootDice) : null
     if (!test && own && ACTIONS[open.kind].die) return state
-    const thrown = withPercentileRolls(state, test ? { ...open, roll: test } : open, dice)
+    const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice)
     const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, withClimbRolls(state, { ...thrown, test: test ? getMoveTest(state, open) : null }, rootDice)) : thrown
     return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
@@ -336,13 +345,13 @@ function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): 
 // "Movement": a move is bought, not rolled). Prices it and its reactions off
 // their actors as they stand and takes every price, in one update; refused
 // when a reaction has not said all it must or someone cannot pay.
-export function payAction(newId: () => string): Updater {
+export function payAction(newId: () => string, dice: Dice): Updater {
   return (state) => {
     const open = getOpenAt(state, 'react')
     if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
-    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : open, newId)
+    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withArmorRolls(state, open, dice), newId)
   }
 }
 

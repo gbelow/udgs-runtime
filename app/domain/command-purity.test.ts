@@ -193,7 +193,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
-  payAction: (s) => combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
+  payAction: (s) => combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
@@ -247,7 +247,7 @@ function cleared(s: CombatState): CombatState {
 function spawnedFollow(s: CombatState): CombatState {
   const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(declaredMove(s))))
   const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
-  return combatCommands.payAction(newId)(followed)
+  return combatCommands.payAction(newId, () => 5)(followed)
 }
 
 // A charged grenade of `a`'s, thrown past the wall, landed with nobody
@@ -256,7 +256,7 @@ function rolledExplosion(s: CombatState): CombatState {
   const charged = { ...grenadeItem, charge: { key: 'shock-explosive', effects: produceEffects(s.characters.a, SPELLS['shock-explosive'].effects) } }
   const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(charged)(s.characters.a) } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 3 } }, newId)(armed))
-  return combatCommands.payAction(newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declared)))
+  return combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declared)))
 }
 
 // A cast of `a`'s sleep, rolled high enough to have HOP to spend, on a
