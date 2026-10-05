@@ -95,16 +95,17 @@
 
 ## issues
 defending net with weapon binds weapon.
-ranged attacks aimed at items
 
 wound healing is undefined - possession healing neither
 retweak morale based spells
 
-think corrosive damage
 prepared reaction
 
-GM tools, manual insers
+GM tools, manual inserts
 explosions with multiple instances
+
+ranged combat penalty for distance left for later. to be decided
+corrosion left commented out for further design.
 
 
 # left for combat

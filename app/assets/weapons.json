@@ -328,7 +328,7 @@
     "scale": 3,
     "attacks": [
       {
-        "name": "thrust",
+        "name": "2h thrust",
         "handed": "two",
         "range": "long I",
         "material": "metal",
@@ -380,6 +380,22 @@
           "slow"
         ],
         "payload": []
+      },
+      {
+        "name": "1h thrust",
+        "handed": "one",
+        "range": "short",
+        "material": "metal",
+        "RES": 20,
+        "blunt": 2,
+        "cut": 20,
+        "AP": 3,
+        "payload": [],
+        "properties": [
+          "braced",
+          "piercing",
+          "penetrating"
+        ]
       }
     ]
   },

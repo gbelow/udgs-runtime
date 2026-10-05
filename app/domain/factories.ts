@@ -6,7 +6,8 @@ import { isBaseCharacter } from './utils'
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
 // never by the incoming data: an ingested trainable supplies a value, not an
 // identity. Merging per field rather than per trainable also keeps a partial
-// entry from dropping the fields it does not mention.
+// entry from dropping the fields it does not mention. A value that is not a
+// number reads as the default.
 function mergeTrainables(
   defaults: Trainables,
   incoming: Record<string, unknown> | undefined,
@@ -15,7 +16,8 @@ function mergeTrainables(
   const entries = Object.entries(defaults).map(([key, base]) => {
     const raw = incoming[key]
     if (raw === null || typeof raw !== 'object') return [key, base]
-    return [key, { ...base, ...raw, type: base.type }]
+    const value = 'value' in raw && typeof raw.value === 'number' && Number.isFinite(raw.value) ? raw.value : base.value
+    return [key, { ...base, ...raw, value, type: base.type }]
   })
   return Object.fromEntries(entries) as Trainables
 }
