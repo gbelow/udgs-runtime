@@ -202,10 +202,10 @@ function BindLink({ link }: { link: BoardBindView }){
 // An item lying on the floor, drawn above any token on its cell.
 function FloorItem({ item, onClick }: { item: BoardFloorItemView, onClick: () => void }){
   return (
-    <g transform={`translate(${item.x} ${item.y})`} className={item.pickable ? 'cursor-pointer' : ''} onClick={onClick}>
-      <title>{item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`}</title>
+    <g transform={`translate(${item.x} ${item.y})`} className={item.pickable || item.targetable ? 'cursor-pointer' : ''} onClick={onClick}>
+      <title>{item.targetable ? `strike ${item.name}` : item.pickable ? `pick up ${item.name}` : `on the floor: ${item.name}`}</title>
       <rect x={-0.16} y={-0.16} width={0.32} height={0.32} rx={0.05}
-        className={item.pickable ? 'fill-accent stroke-fg hover:fill-good' : 'fill-muted stroke-line'} strokeWidth={0.04} />
+        className={item.pickable || item.targetable ? 'fill-accent stroke-fg hover:fill-good' : 'fill-muted stroke-line'} strokeWidth={0.04} />
     </g>
   )
 }

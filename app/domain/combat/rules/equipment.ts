@@ -1,7 +1,7 @@
 import type { Character, Item } from '../../types'
 import type { AttackAction, StrikeAction } from '../types'
 import type { Breakable } from '../../character/rules/breakage'
-import { getItemWeapon } from '../../item/rules/items'
+import { getItemArmor, getItemWeapon } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 
 // combat.tex "Attack against equipment": "An attack can be made against a
@@ -12,6 +12,12 @@ export const EQUIPMENT_ATTACK_PENALTY = 10
 
 export function isObjectStrike(action: AttackAction): action is StrikeAction {
   return action.kind === 'strike' && action.object !== ''
+}
+
+// A strike aimed at an item lying on the floor: it names the item and no
+// character.
+export function isFloorStrike(action: AttackAction): action is StrikeAction {
+  return isObjectStrike(action) && action.targetId === null
 }
 
 // The items the target holds that a strike can be aimed at: weapons and
@@ -36,4 +42,11 @@ export function isObjectOnTarget(target: Character | undefined, objectId: string
 export function getWeakestPart(item: Item): Breakable | null {
   const weakest = [...(getItemWeapon(item)?.attacks ?? [])].sort((a, b) => a.RES - b.RES)[0]
   return weakest ? { RES: weakest.RES } : null
+}
+
+// What a blow tests on an object: its weapon's weakest part, or the RES of an
+// armor. Null for an object without a RES, which a blow cannot break.
+export function getObjectPart(item: Item): Breakable | null {
+  const armor = getItemArmor(item)
+  return getWeakestPart(item) ?? (armor ? { RES: armor.RES } : null)
 }

@@ -3,7 +3,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
 import { getFootprint, getOccupancy } from '../rules/board'
-import { getDeclaredTargets } from '../rules/action'
+import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
 import { getRole, type Role } from './roster'
@@ -89,6 +89,8 @@ export type BoardFloorItemView = {
   x: number
   y: number
   pickable: boolean
+  // the open strike could be aimed at it
+  targetable: boolean
 }
 
 // A bind between two characters, drawn as a link between the two tokens:
@@ -263,6 +265,7 @@ function buildBoardView(state: CombatState): BoardView {
 
   const floorPicker = getFloorPicker(state)
   const pickable = new Set(floorPicker?.itemIds ?? [])
+  const struck = new Set(getDeclaredFloorTargets(state, open).map((f) => f.item.id))
   const stacks = new Map<string, number>()
   const floor: BoardFloorItemView[] = state.floor.flatMap((f) => {
     if (!f.cell) return []
@@ -270,7 +273,7 @@ function buildBoardView(state: CombatState): BoardView {
     const stack = stacks.get(key) ?? 0
     stacks.set(key, stack + 1)
     const { x, y } = toPlane(f.cell)
-    return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id) }]
+    return [{ itemId: f.item.id, name: f.item.name, x: x + 0.55, y: y - 0.5 + stack * 0.36, pickable: pickable.has(f.item.id), targetable: struck.has(f.item.id) }]
   })
 
   const binds: BoardBindView[] = state.binds.flatMap((g) => {

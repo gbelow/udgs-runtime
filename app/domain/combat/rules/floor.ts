@@ -47,6 +47,16 @@ export function canPickUp(c: Character, item: Item): boolean {
   return canHoldWith(c, item, 1)
 }
 
+// gear.tex "Equipment Breakage": one of a floor stack broken — the last of
+// them, or one split off under an id named after the action that broke it.
+export function breakOne(floor: FloorItem[], itemId: string, actionId: string): FloorItem[] {
+  return floor.flatMap((f) => {
+    if (f.item.id !== itemId) return [f]
+    if (f.item.amount <= 1) return [{ ...f, item: { ...f.item, broken: true } }]
+    return [{ ...f, item: { ...f.item, amount: f.item.amount - 1 } }, { ...f, item: { ...takeOne(f.item, actionId), broken: true } }]
+  })
+}
+
 // One of a floor stack gone — thrown away, or destroyed by the charge it
 // went off with; what is left of the stack carries no charge (spells.tex
 // "Charged": the spell activates one object).

@@ -308,7 +308,8 @@ app/domain/combat/
 │   ├── social.ts       who a social action may be said to, and when it, a surrender, an unsurrender or a negotiation is barred
 │   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: `getDefenderSteps`)
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
-│   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack
+│   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack, one broken
+│   ├── floorStrike.ts  a strike aimed at an item on the floor: its DL, what it can be aimed at, the explosion it sets off
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item

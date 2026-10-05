@@ -1,11 +1,11 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
-import type { Area, Character, MoveKind } from '../../types'
+import type { Area, Character, Item, MoveKind } from '../../types'
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -28,7 +28,8 @@ import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
-import { EQUIPMENT_ATTACK_PENALTY, getAimableItems } from '../rules/equipment'
+import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorStrike } from '../rules/equipment'
+import { getFloorObject } from '../rules/floorStrike'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
@@ -364,6 +365,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
   const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
   const declaredTargets = getDeclaredTargets(state, open)
+  const floorTargets = getDeclaredFloorTargets(state, open)
+  const floorStruck = open.kind === 'strike' ? getFloorObject(state, open) : null
   // the aim is offered once the attack has a target it may be aimed at
   const aimable = !!attack && attack.targetId !== null && (attack.step !== 'define' || declaredTargets.includes(attack.targetId))
 
@@ -373,7 +376,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       id: open.id,
       label: getOpenLabel(state, open),
       actor: getFightName(state, open.actorId),
-      target: target?.fightName ?? null,
+      target: target?.fightName ?? (floorStruck ? getItemLabel(floorStruck.item) : null),
       targetId: open.targetId,
       weapon: swung?.weaponKey ?? '',
       attack: swung?.attack ?? '',
@@ -432,7 +435,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
-          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o)))))
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o) && !(isFloorStrike(open) && isSweepVariant(o.variant))))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
@@ -451,8 +454,11 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     items: aimable && attack?.kind === 'strike' && target
       ? getAimableItems(target).map((item) => ({ id: item.id, name: item.name || item.refId, penalty: EQUIPMENT_ATTACK_PENALTY, selected: item.id === attack.object }))
       : [],
-    targets: declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
-    noTargets: step === 'target' && declaredTargets.length === 0
+    targets: [
+      ...declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
+      ...floorTargets.map((f) => ({ id: f.item.id, name: getItemLabel(f.item), selected: f.item.id === floorStruck?.item.id })),
+    ],
+    noTargets: step === 'target' && declaredTargets.length === 0 && floorTargets.length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
     canCommit: step === 'commit' && getPayableCost(state, open) !== null,
@@ -476,6 +482,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
   }
 }
+
+const getItemLabel = (item: Item) => item.name || item.refId
 
 // While the first strike of a sweep is declared, the arc it would reach as
 // everyone stands; once committed, the arc it was swung through.

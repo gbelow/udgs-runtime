@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, GrappleAction, MoveAction, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -23,6 +23,7 @@ import { getCutStrike, getCutTargets } from './cut'
 import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { canPickUp, getReachableFloor } from './floor'
+import { getFloorTargets } from './floorStrike'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
@@ -456,7 +457,7 @@ export function getNextStep(state: CombatState): ActionStep | null {
   if (open.kind === 'drag' && !aimed) return 'target'
   if (!isDeclarationComplete(state, actor, open)) return 'declare'
   if (!needsTarget(open)) return 'commit'
-  if (open.targetId === null || !getTargetIds(state, open).includes(open.targetId)) return 'target'
+  if (!isTargetAimed(state, open)) return 'target'
   return 'commit'
 }
 
@@ -519,6 +520,21 @@ export function getDeclaredTargets(state: CombatState, open: RootAction | null):
   const actor = state.characters[open.actorId]
   if (isAttackAction(open) && (!actor || getAttackVariant(actor, open) === null)) return []
   return getTargetIds(state, open)
+}
+
+// The items on the floor the open strike can be aimed at, once it is declared
+// with a row that reaches them.
+export function getDeclaredFloorTargets(state: CombatState, open: RootAction | null): FloorItem[] {
+  if (open?.kind !== 'strike' || open.step !== 'define') return []
+  const actor = state.characters[open.actorId]
+  return actor && getAttackVariant(actor, open) !== null ? getFloorTargets(state, open) : []
+}
+
+// Whether the action is aimed at someone it may be aimed at: a character
+// among its targets, or for a strike an item on the floor.
+export function isTargetAimed(state: CombatState, open: RootAction): boolean {
+  if (open.targetId !== null) return getTargetIds(state, open).includes(open.targetId)
+  return open.kind === 'strike' && getFloorTargets(state, open).some((f) => f.item.id === open.object)
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.

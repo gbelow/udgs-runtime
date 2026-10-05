@@ -31,7 +31,7 @@ export function getOutcomes(state: CombatState, settled: Action): { id: string; 
 // action was cancelled before it could do any of it.
 export function getActionNotes(state: CombatState, root: Action): { target: string; text: string }[] {
   const named = (id: string) => getFightName(state, id)
-  const broke = getBrokenItems(root).map(({ ownerId, itemId, name }) => ({ target: named(ownerId), text: breakNote(state.characters[ownerId]?.worn?.id === itemId, name) }))
+  const broke = getBrokenItems(root).map(({ ownerId, itemId, name }) => ({ target: state.characters[ownerId] ? named(ownerId) : 'floor', text: breakNote(state.characters[ownerId]?.worn?.id === itemId, name) }))
   return [...getRootNotes(state, root, named), ...broke]
 }
 

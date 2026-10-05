@@ -11,10 +11,11 @@ import { findAmmoStack } from '../../item/rules/ammo'
 import { removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
-import { onFloor, withoutOne } from '../rules/floor'
+import { breakOne, onFloor, withoutOne } from '../rules/floor'
+import { isFloorStrike } from '../rules/equipment'
 import { getMoveDestination } from '../rules/waypoint'
 import { isAttackAction } from '../rules/actionCatalog'
-import { getBreaks } from '../rules/breakage'
+import { getBreaks, getBrokenItems } from '../rules/breakage'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
 import { HOP_PURCHASES } from '../../lists'
 import { getGrappleFacts, replacePair } from '../rules/grapple'
@@ -261,6 +262,8 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     // leaves nothing behind on the floor
     if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), onFloor(action.thrown, action.to)] : floor
     if (action.kind === 'explosion' && action.source !== 'cast') return withoutOne(floor, action.itemId)
+    // what a blow on an object broke
+    if (action.kind === 'strike' && isFloorStrike(action)) return getBrokenItems(action).reduce((acc, { itemId }) => breakOne(acc, itemId, action.id), floor)
     return floor
   }
 }

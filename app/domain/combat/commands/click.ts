@@ -1,6 +1,6 @@
 import type { TerrainBrush } from '../../types'
 import type { CombatState, Coord, Updater } from '../types'
-import { getDeclaredTargets } from '../rules/action'
+import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { getBoardMode, getFloorPicker } from '../rules/boardMode'
 import { getOpenAction } from '../rules/log'
 import { setTarget } from './action'
@@ -23,14 +23,16 @@ export type ClickContext = { brush: TerrainBrush | null, newId: () => string }
 // jump while one may be declared, where an explosion is aimed while one waits
 // to be, otherwise a placement of the active character by hand. A token is
 // aimed at while the open action waits for a target and becomes the active
-// character otherwise; an item on the floor is picked up when the picker
-// could take it. A click that means nothing leaves the state as it was.
+// character otherwise; an item on the floor is aimed at when the open strike
+// could hit it, else picked up when the picker could take it. A click that
+// means nothing leaves the state as it was.
 export function resolveClick(click: Click, ctx: ClickContext): Updater {
   return (state) => {
     switch (click.on) {
       case 'cell': return clickCell(state, click.cell, ctx)(state)
       case 'token': return (getDeclaredTargets(state, getOpenAction(state)).includes(click.id) ? setTarget(click.id) : selectCharacter(click.id))(state)
       case 'floor': {
+        if (getDeclaredFloorTargets(state, getOpenAction(state)).some((f) => f.item.id === click.itemId)) return setTarget(click.itemId)(state)
         const picker = getFloorPicker(state)
         return picker?.itemIds.includes(click.itemId) ? pickFloorItem(picker.picker, click.itemId, ctx.newId)(state) : state
       }

@@ -6,7 +6,8 @@ import { getUndefendedDamage } from '../../character/rules/damage'
 import { getDefendingReaction } from './attack'
 import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
-import { getWeakestPart, isObjectStrike } from './equipment'
+import { getObjectPart, isObjectStrike } from './equipment'
+import { getFloorObject } from './floorStrike'
 import { getOpenAction } from './log'
 import { getItemName } from './fighters'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
@@ -110,12 +111,14 @@ function getArmorRisks(state: CombatState, root: AttackAction, facts: Delivery):
 // at that degree, on the weakest part of the item the strike was aimed at.
 function getEquipmentRisks(state: CombatState, root: StrikeAction, damage: Damage, degree: NonNullable<Delivery['degree']>): BreakRisk[] {
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  const item = target && getHeldItem(target, root.object)
-  const part = item && getWeakestPart(item)
-  if (!target || !part || (degree !== 'hit' && degree !== 'critical')) return []
+  const floor = getFloorObject(state, root)
+  const item = floor ? floor.item : target && getHeldItem(target, root.object)
+  const ownerId = floor ? floor.item.id : target?.id
+  const part = item && getObjectPart(item)
+  if (!ownerId || !part || (degree !== 'hit' && degree !== 'critical')) return []
   const blow = getBlow(damage)
   const landed = { ...blow, blunt: getUndefendedDamage(blow.blunt, degree), cut: getUndefendedDamage(blow.cut, degree) }
-  return [{ slot: 'object', ownerId: target.id, itemId: root.object, chance: getBreakChance(landed, part), swung: false, shield: false }]
+  return [{ slot: 'object', ownerId, itemId: root.object, chance: getBreakChance(landed, part), swung: false, shield: false }]
 }
 
 // The items the blow puts at risk as it lands, each with its chance.

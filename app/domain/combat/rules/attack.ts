@@ -23,7 +23,8 @@ import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
 import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
-import { EQUIPMENT_ATTACK_PENALTY, isObjectOnTarget, isObjectStrike } from './equipment'
+import { EQUIPMENT_ATTACK_PENALTY, isFloorStrike, isObjectOnTarget, isObjectStrike } from './equipment'
+import { getFloorObject, getFloorStrikeDL } from './floorStrike'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -85,6 +86,7 @@ export function getDefaultAim(target: Character | undefined): Aim {
 // Whether the attack is aimed at a place its target has: one with a part
 // still there, or anywhere on a target with no body drawn.
 export function isAimOnTarget(state: CombatState, action: { targetId: string | null; location: HitLocation; object?: string }): boolean {
+  if (action.targetId === null && action.object) return getFloorObject(state, { targetId: null, object: action.object }) !== null
   const target = action.targetId ? state.characters[action.targetId] : undefined
   if (!isObjectOnTarget(target, action.object)) return false
   if (!target || target.body.length === 0) return true
@@ -242,7 +244,7 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
-    isObjectStrike(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty },
+    ...(isFloorStrike(action) ? [] : [isObjectStrike(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
   ]
 }
@@ -387,6 +389,8 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
 // combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
 // against each other" — on the SD as much as on an active defense.
 function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
+  const floor = getFloorObject(state, root)
+  if (floor) return getFloorStrikeDL(floor.item)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)

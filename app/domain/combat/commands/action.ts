@@ -2,7 +2,7 @@ import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type Cast
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, getClimbRedoCount, getCostTerms, getNextStep, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
@@ -54,11 +54,16 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
 }
 
 // Aims the open action. A part picked on the old target is not one of the
-// new target's: the aim goes back to the new target's default.
+// new target's: the aim goes back to the new target's default. A strike may
+// be aimed at an item on the floor by its id, which leaves it no character
+// to aim at.
 export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
+    if (open.kind === 'strike' && getDeclaredFloorTargets(state, open).some((f) => f.item.id === targetId)) {
+      return replaceActions(state, [{ ...open, targetId: null, object: targetId, ...getDefaultAim(undefined) }])
+    }
     if (!getTargetIds(state, open).includes(targetId)) return state
     const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(open.kind === 'strike' ? { object: '' } : {}) } : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
@@ -80,7 +85,7 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (open.kind === 'fleeFollowUp' && !open.flee) return withdrawSpawnedAction(newId)(state)
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
-    if (needsTarget(open) && (open.targetId === null || !getTargetIds(state, open).includes(open.targetId))) return state
+    if (needsTarget(open) && !isTargetAimed(state, open)) return state
     if (!getPayableCost(state, open)) return state
     const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), step: 'react' }])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)

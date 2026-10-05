@@ -7,7 +7,7 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   one of a stack, charge and all; if it goes off on impact (`goesOffOnImpact`: an `impact`
   charge, or a mundane explosive's row `payload`) the throw opens an `explosion` at the
   landing cell, committed and waiting on the reflexes, DL the thrower's Accuracy. A
-  detonation sets off only `detonate` charges. Nothing reads the `fire` trigger yet.
+  detonation sets off only `detonate` charges. Nothing reads the `fire` trigger yet; a blow on an object on the floor sets off its `impact` charge (see Attack against an object on the floor).
   Whatever the charge went off in is destroyed as the explosion lands, held or on the floor.
 - **Links and concentration** (`character/rules/concentration.ts`) — a caster holding a
   sustained spell is concentrating: every option but a cast is closed (`options.ts`), and
@@ -101,3 +101,13 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   on a hit or a critical tests the item's weakest part (`getWeakestPart`) with the blow at that
   degree, from `breakRolls.object`. A graze or a miss does nothing to it. A sweep ends at it and its
   hook knockdown is not offered; a block that meets it is tested as any block is.
+- **Attack against an object on the floor** (`rules/floorStrike.ts`) — a plain melee strike may be aimed
+  at an item in `state.floor`: `targetId` null and `object` the item's id (`isFloorStrike`), chosen
+  by `setTarget` or a click on the item. Nobody answers it (`strikeTriggers` gives none) and it
+  draws no penalty; the DL is the immobile-object DL read off the item's bulk (`getFloorStrikeDL`:
+  −bulk). It is offered only for an item a blow would do something to: one with a RES to test
+  (`getObjectPart`: a weapon's weakest part, or an armor's RES, while `state.breakage` is on) or one
+  whose charge goes off on impact. A hit or critical tests the RES (the break lands on the floor
+  copy: `breakOne` in `reduceFloor`, keyed by the item's id in `breaks`) and opens the impact
+  explosion at the item's cell (`struckExplosion`, `commands/sequence.ts`). Grabs, sweeps and
+  opportunity attacks never aim at the floor.
