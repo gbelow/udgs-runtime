@@ -14,6 +14,8 @@ import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHO
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
+import { rollHeld } from '../domain/combat/commands/heldTest'
+import { getHeldRows } from '../domain/combat/projections/heldTests'
 import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
 import { archer, bomber, brawler, mage, netter, spearman, trained, warden } from '../domain/bot/fixtures'
@@ -213,6 +215,7 @@ function plays(): Play[] {
     { name: 'choose along or an item', run: (h, pick) => { const open = getActionPanel(h.state()).open; h.press(chooseManeuver(open?.disarm.length ? { item: pick(open.disarm).itemId } : { along: pick([true, false]) })) } },
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
+    { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.dice)) } } },
     progress('roll', (h) => rollAction(h.dice, h.newId)),
     progress('pay', (h) => payAction(h.newId, h.dice)),
     { ...progress('resolve', (h) => resolveAction(h.newId)), weight: 2 },

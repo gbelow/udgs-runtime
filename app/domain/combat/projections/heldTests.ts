@@ -2,15 +2,15 @@ import type { CombatState } from '../types'
 import { getFightName } from '../rules/fighters'
 import { getHeldBar } from '../rules/heldRoll'
 import type { RollMode } from '../dice'
-import { getHeldModes, getHeldTest, isCalledKind, type CalledKind } from '../rules/heldTest'
-import { getDegree } from '../rules/test'
+import { describeHeld, getHeldDL, getHeldModes, isCalledKind, type CalledKind } from '../rules/heldTest'
 import { perState } from './perState'
 
 export type HeldTestRow = {
   id: string
   name: string
   kind: CalledKind
-  DL: number
+  // null for a test with no DL
+  DL: number | null
   // the ways the test may be rolled
   modes: readonly RollMode[]
   // why the test cannot be rolled now, null while it waits to be
@@ -24,8 +24,7 @@ export type HeldTestRow = {
 function buildHeldRows(state: CombatState): HeldTestRow[] {
   return state.heldTests.flatMap(({ id, kind, roll }) => {
     if (!state.characters[id] || !isCalledKind(kind)) return []
-    const test = getHeldTest(state, id, kind)
-    const DL = test?.DL ?? 0
+    const DL = getHeldDL(state, id, kind)
     return [{
       id,
       name: getFightName(state, id),
@@ -33,7 +32,7 @@ function buildHeldRows(state: CombatState): HeldTestRow[] {
       DL,
       modes: getHeldModes(state.characters[id], kind),
       bar: getHeldBar(state, id, kind),
-      result: roll ? `${roll.mode} · ${kind} ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${DL} → ${getDegree(roll.score, DL)}` : '',
+      result: roll ? describeHeld(kind, roll, DL ?? 0) : '',
     }]
   })
 }

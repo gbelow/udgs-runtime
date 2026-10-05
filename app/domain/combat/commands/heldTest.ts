@@ -15,6 +15,7 @@ const HELD_EFFECTS: Record<HeldKind, (id: string, degree: Degree) => Updater> = 
   swim: (id, degree) => (degree === 'miss' ? sink(id, SWIM_FAILURE_SINK) : (state) => state),
   climb: () => (state) => state,
   balance: () => (state) => state,
+  stealth: () => (state) => state,
 }
 
 // Writes down the roll a character made on a held test, where the round

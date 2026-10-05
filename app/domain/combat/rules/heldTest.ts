@@ -1,6 +1,6 @@
 import type { Character } from '../../types'
 import { CALLED_TESTS } from '../../lists'
-import type { CombatState, HeldTest } from '../types'
+import type { CombatState, HeldRoll, HeldTest } from '../types'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import type { RollMode } from '../dice'
@@ -8,6 +8,9 @@ import type { Test } from './test'
 import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
+import { getStealthTerms } from '../../character/rules/skills'
+import { getSenseReaches } from './detection'
+import { getDegree } from './test'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
 
@@ -28,6 +31,9 @@ type HeldDef = {
   // play.tex "Safe and risky tests": "can only be used when indicated in the
   // skill or ability or when the GM allows it".
   modes: (c: Character) => readonly RollMode[]
+  // Whether the score is made against a DL; a stealth value is a score the
+  // round's detections are held against, with no DL of its own.
+  versus: boolean
 }
 
 const HELD_DEFS: Record<CalledKind, HeldDef> = {
@@ -38,7 +44,30 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
     skill: getSwimTestTerms,
     DL: (state, id) => getWaterOf(state, id)?.DL ?? 0,
     modes: () => ['normal'],
+    versus: true,
   },
+  // combat.tex "Stealth in combat": "The stealth value is rolled in the
+  // beginning of the round for each character in stealth individually. This is
+  // only done for characters that started their round undetectable to any
+  // opponent active senses."
+  stealth: {
+    called: (state, id) => Object.keys(state.characters).every((other) => other === id || !getSenseReaches(state, other, id).some((r) => r.active)),
+    skill: getStealthTerms,
+    DL: () => 0,
+    modes: () => ['normal'],
+    versus: false,
+  },
+}
+
+// The test as it was made, for the table to read.
+export function describeHeld(kind: CalledKind, roll: HeldRoll, DL: number): string {
+  const made = `${roll.mode} · ${kind} ${roll.skill} + die ${roll.die} = ${roll.score}`
+  return HELD_DEFS[kind].versus ? `${made} vs DL ${DL} → ${getDegree(roll.score, DL)}` : made
+}
+
+// The DL a test is made against, null for one with none.
+export function getHeldDL(state: CombatState, id: string, kind: CalledKind): number | null {
+  return HELD_DEFS[kind].versus ? HELD_DEFS[kind].DL(state, id) : null
 }
 
 export function getHeldModes(c: Character, kind: CalledKind): readonly RollMode[] {

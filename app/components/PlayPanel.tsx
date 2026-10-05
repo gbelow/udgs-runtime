@@ -481,7 +481,7 @@ function HeldTestsPanel(){
       {rows.map((r) => (
         <div key={`${r.id}:${r.kind}`} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
           <span className='font-medium'>{r.name}</span>
-          <span className='text-muted'>{r.kind} DL <span className='font-mono text-fg'>{r.DL}</span></span>
+          <span className='text-muted'>{r.kind}{r.DL !== null && <> DL <span className='font-mono text-fg'>{r.DL}</span></>}</span>
           {
             !r.result ?
             r.modes.map((mode) => (
