@@ -547,7 +547,7 @@ export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path
 // walk over cells its footprint (as oriented now) may cross, stopping where
 // the price outruns what it has or the move's cap. Cells it may cross but
 // not rest on are walked through and left out.
-export function getReachableCells(state: CombatState, action: MoveAction): ReachableCell[] {
+export function getWalkableCells(state: CombatState, action: MoveAction): ReachableCell[] {
   const { actorId, movement: kind } = action
   const c = state.characters[actorId]
   const from = state.board?.placements[actorId]

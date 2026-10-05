@@ -1,6 +1,5 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
-import { getUsableCells } from '../rules/prepared'
 import type { Area, Character, Item, MoveKind } from '../../types'
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
@@ -20,7 +19,8 @@ import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
-import { MovementOption, ReachableCell, getMovementOptions, getReachableCells } from '../rules/move'
+import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move'
+import { getReachableCells } from '../rules/reach'
 import { getClimbModes, getClimbSteps } from '../rules/cliff'
 import { hasGrant } from '../../character/rules/abilities'
 import type { RollMode } from '../dice'
@@ -486,7 +486,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
-    reachable: move ? getUsableCells(state, move, getReachableCells(state, move)) : [],
+    reachable: move ? getReachableCells(state, move) : [],
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
       : { remaining: 0, options: [] },

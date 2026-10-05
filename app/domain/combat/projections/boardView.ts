@@ -1,5 +1,4 @@
 import type { Bind, CombatState, Coord, Degree, Placement } from '../types'
-import { getUsableCells } from '../rules/prepared'
 import type { Fuel } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -13,7 +12,8 @@ import { getFightName } from '../rules/fighters'
 import { getBlastOf, getExplosionZones, getImpactBlast, getThreatenedCells } from '../rules/explosion'
 import { getBoardMode, getEvasiveJumper, getFloorPicker, type BoardMode } from '../rules/boardMode'
 import { getAim } from '../rules/aim'
-import { getEvasiveJumpPlacements, getMoveCost, getReachableCells } from '../rules/move'
+import { getEvasiveJumpPlacements, getMoveCost } from '../rules/move'
+import { getReachableCells } from '../rules/reach'
 import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
@@ -166,7 +166,7 @@ function buildBoardView(state: CombatState): BoardView {
   const pusher = group ? state.characters[group.actorId] : undefined
   const targets = new Set(getDeclaredTargets(state, open))
   const occupancy = getOccupancy(board, state.characters)
-  const reachable = move ? getUsableCells(state, move, getReachableCells(state, move))
+  const reachable = move ? getReachableCells(state, move)
     : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))
     : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))

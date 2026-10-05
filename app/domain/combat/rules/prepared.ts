@@ -13,7 +13,7 @@ import { line, setDistance } from '../geometry'
 import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, seesAcross, withPlacements } from './board'
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
-import { getMoveBlockCells, getMovementOptions, getReachableCells } from './move'
+import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMoveWaypoint } from './waypoint'
 import { getAction, getLiveReactionsTo, getLog, getRootOf } from './log'
 import { ACTIONS, isReaction } from './actionCatalog'
@@ -218,7 +218,7 @@ function getDefensePlacements(state: CombatState, root: StrikeAction | ShootActi
   const probe = makeAction('move', { id: '', actorId: owner.id, budget })
   const reached = budget <= 0 ? [] : getMovementOptions(state, owner, probe)
     .filter((o) => o.available && o.speed > 0)
-    .flatMap((o) => getReachableCells(state, { ...probe, movement: o.kind }).map(({ cell }): Placement => ({ ...from, cell })))
+    .flatMap((o) => getWalkableCells(state, { ...probe, movement: o.kind }).map(({ cell }): Placement => ({ ...from, cell })))
   return [from, ...reached].filter((placement) => isPlacedToDefend(state, root, owner, p, placement))
 }
 

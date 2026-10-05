@@ -290,6 +290,7 @@ app/domain/combat/
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
 │   ├── approach.ts     how a mover's way brings them to someone: distances along it, the step that first comes within a range
 │   ├── prepared.ts     prepared reactions: what is prepared in the round, its zone and triggers (a move's, and an attack's for a defense made for an ally), what a fired one opened, a defense's reposition, cancelling and no chaining
+│   ├── reach.ts        getReachableCells: the spaces a declared move may be taken to (every reader of a move's reach asks here; `move.ts` `getWalkableCells` is the raw walk)
 │   ├── cliff.ts        what is a cliff, which movement may step over one, the climb's DL, the fall a move ends in
 │   ├── fall.ts         a fall: its DL, damage, what each degree of the Balance test leaves of it
 │   ├── waypoint.ts     where the mover stands along a path
