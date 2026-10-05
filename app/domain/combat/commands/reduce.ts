@@ -18,6 +18,7 @@ import { getBurnOf } from '../rules/ignition'
 import { isVoided } from '../rules/opportunity'
 import { isStoppedByGuard } from '../rules/attack'
 import { getMoveDestination } from '../rules/waypoint'
+import { getActionHeading } from '../rules/detection'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getBreaks, getBrokenItems } from '../rules/breakage'
 import { getChargedWeapon, getHOPPrice } from '../rules/damage'
@@ -316,6 +317,21 @@ function settleDepth(state: CombatState, action: MoveAction, destination: Placem
 }
 
 export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
+  const land = landOnBoard(state, action, phase)
+  return (board) => (phase === 'resolve' ? turnToHeading(state, action, land(board)) : board)
+}
+
+// A character who covers one cell faces the way their last action went; a
+// larger one turns only as its moves say, since turning moves its footprint.
+function turnToHeading(state: CombatState, action: Action, board: Board): Board {
+  const heading = getActionHeading(state, action, board)
+  const placement = board.placements[action.actorId]
+  const c = state.characters[action.actorId]
+  if (heading === null || !placement || !c || getFootprint(c, placement).length > 1) return board
+  return { ...board, placements: { ...board.placements, [action.actorId]: { ...placement, orientation: heading } } }
+}
+
+function landOnBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
   return (board: Board) => {
     if (phase !== 'resolve') return board
     const lit = isAttackAction(action) ? lightBurned(state, action, board) : board

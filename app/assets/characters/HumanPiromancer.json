@@ -275,7 +275,7 @@
     "vision": {
       "name": "Vision",
       "active": true,
-      "rangePenalty": 2,
+      "rangePenalty": 3,
       "bonus": 0,
       "hasSense": true
     },

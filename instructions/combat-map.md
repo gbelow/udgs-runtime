@@ -323,11 +323,12 @@ app/domain/combat/
 │   ├── floorAttack.ts  a strike or a shot aimed at an item on the floor or a space of the ground: its DL, what it can be aimed at, the explosion it sets off, where it lands
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
+│   ├── detection.ts    senses: which of an observer's senses reach a target (facing arc, sight, zero visibility, touch in a grapple), and what each detects at; `getActionHeading`, the way a landed action leaves its actor facing (written by `reduceBoard`)
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, prepare.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts
     └── perState.ts     memoize once per state object
 ```
 

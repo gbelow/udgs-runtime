@@ -159,6 +159,14 @@ export const REACH: Record<MeleeRange, number> = {
   'long II': 3,
 }
 
+// combat.tex "Visibility": "Bad visibility applies -2 visibility penalties to
+// anyone targeting them".
+export const BAD_VISIBILITY_PENALTY = -2
+
+// combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
+// inside of it to 2m by default".
+export const FOG_VISION_RADIUS = 2
+
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.
 export const injuryMap: Record<string, { IL: number; bleed: number }> = {

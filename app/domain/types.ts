@@ -513,7 +513,7 @@ export const SenseSchema = z.object({
 export type Sense = z.infer<typeof SenseSchema>
 
 export const SensesSchema = z.object({
-  vision: SenseSchema.default({ name: 'Vision', active: true, rangePenalty: 2, bonus: 0, hasSense: true }),
+  vision: SenseSchema.default({ name: 'Vision', active: true, rangePenalty: 3, bonus: 0, hasSense: true }),
   hearing: SenseSchema.default({ name: 'Hearing', active: false, rangePenalty: 5, bonus: 0, hasSense: true }),
   smell: SenseSchema.default({ name: 'Smell', active: false, rangePenalty: 5, bonus: 0, hasSense: true }),
   touch: SenseSchema.default({ name: 'Touch', active: true, rangePenalty: 100, bonus: 0, hasSense: true }),
