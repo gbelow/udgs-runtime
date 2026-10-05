@@ -24,7 +24,8 @@ import { deliverAll } from '../../character/commands/deliver'
 // actions still being played out: `pushed` goes on top, anything resolved or
 // gone leaves, and what leaves having landed goes into the record, the
 // reactions to it before it. A move past its declaration carries the held
-// tests its mover had made when it got there.
+// tests its mover had made when it got there, and the turn it was committed
+// in is noted as taken.
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
   const stamped = declared.map((a) => stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
@@ -35,11 +36,21 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
     actions: stamped.filter((a) => !entering.includes(a)),
     stack: [...state.stack, ...pushed].filter((id) => live.has(id)),
     record: [...state.record, ...entering],
+    turnsTaken: stamped.reduce(noteTurn, state.turnsTaken),
   }
 }
 
 function stampHeld(state: CombatState, action: Action): Action {
   return action.kind === 'move' && action.step !== 'define' && action.held === null ? { ...action, held: getHeldRolls(state, action.actorId) } : action
+}
+
+function noteTurn(turns: CombatState['turnsTaken'], action: Action): CombatState['turnsTaken'] {
+  if (action.step === 'define' || action.turn === null) return turns
+  const taken = turns.find((t) => t.turn === action.turn)
+  const rests = action.kind === 'rest' && !taken?.rested.includes(action.actorId)
+  if (taken && !rests) return turns
+  const rested = [...(taken?.rested ?? []), ...(rests ? [action.actorId] : [])]
+  return [...turns.filter((t) => t !== taken), { turn: action.turn, rested }]
 }
 
 // Takes a draft back: it was never committed, so nothing is kept of it.

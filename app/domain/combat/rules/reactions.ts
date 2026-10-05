@@ -73,7 +73,7 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const opportunity = getOpeningReaction(state, root) !== null
   const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
   const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
-  const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(state, root).filter((id) => id !== root.targetId) : []
+  const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(root).filter((id) => id !== root.targetId) : []
   return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId))
 }
 

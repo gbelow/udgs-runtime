@@ -40,23 +40,39 @@ export function getHistory(state: CombatState): string[] {
   return state.record.filter((a) => a.reactionTo === null).map((a) => a.id)
 }
 
-// The action that started the chain this one belongs to: what it answers,
-// what opened it, or what it is a follow-up of, all the way back. An action
-// of its own initiative is its own origin.
-export function getOrigin(state: CombatState, action: Action): Action {
-  const seen = new Set([action.id])
+// What the action answers, what opened it, or what it is a follow-up of, and
+// so on back, the nearest first.
+export function getAncestry(state: CombatState, action: Action): Action[] {
+  const ancestors: Action[] = []
   let current = action
   for (;;) {
     const parentId = current.reactionTo ?? current.spawnedBy ?? current.followUpOf
     const parent = parentId ? getAction(state, parentId) : null
-    if (!parent || seen.has(parent.id)) return current
-    seen.add(parent.id)
+    if (!parent || parent.id === action.id || ancestors.some((a) => a.id === parent.id)) return ancestors
+    ancestors.push(parent)
     current = parent
   }
 }
 
+// The action that started the chain this one belongs to. An action of its
+// own initiative is its own origin.
+export function getOrigin(state: CombatState, action: Action): Action {
+  return getAncestry(state, action).at(-1) ?? action
+}
+
 export function getReactionsTo(state: CombatState, id: string): Action[] {
   return getLog(state).filter((a) => a.reactionTo === id)
+}
+
+// What the action opened: the strike an opportunity attack opens, a prepared
+// reaction's move and main action, the fall a move ended in.
+export function getSpawned(state: CombatState, id: string): Action[] {
+  return getLog(state).filter((a) => a.spawnedBy === id)
+}
+
+// What the action opened that its actor passed up instead of playing out.
+export function getPassedUp(state: CombatState, id: string): Action[] {
+  return state.journal.flatMap((e) => (e.reason === 'passedUp' && e.action.spawnedBy === id ? [e.action] : []))
 }
 
 // The reactions to the action declared but not yet paid for, and so still
@@ -85,7 +101,7 @@ export function getRootOf(state: CombatState, action: Action): RootAction | null
 // What the reaction opened, once it has: the strike, maneuver or push an
 // opportunity attack opens, a counterattack's strike.
 export function getOpenedBy(state: CombatState, reaction: Action): Action | null {
-  return getLog(state).find((a) => a.spawnedBy === reaction.id) ?? null
+  return getSpawned(state, reaction.id)[0] ?? null
 }
 
 // The opportunity attack that opened the action; null for one opened any
@@ -104,7 +120,7 @@ function isOpportunityAction(action: Action | null): action is OpportunityAction
 // The action a prepared reaction opened for the preparation itself, once it
 // has; its movement, which comes first, is not it.
 export function getOpenedMain(state: CombatState, reaction: Action): Action | null {
-  return getLog(state).find((a) => a.spawnedBy === reaction.id && a.preparedPart === 'main') ?? null
+  return getSpawned(state, reaction.id).find((a) => a.preparedPart === 'main') ?? null
 }
 
 // What fights the root along its way: an opportunity attack, or a prepared

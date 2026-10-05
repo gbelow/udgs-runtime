@@ -210,7 +210,7 @@ function openSweepLink(state: CombatState, root: RootAction, newId: () => string
   const share = getNextShare(state, root)
   if (share === 0) return []
   const { weaponKey, attack, variant, sweepDirection } = root
-  const base = { id: newId(), actorId: root.actorId, weaponKey, attack, variant, sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id }
+  const base = { id: newId(), actorId: root.actorId, weaponKey, attack, variant, sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id, swept: [...root.swept, ...(root.targetId ? [root.targetId] : [])] }
   if (state.board) {
     const next = getNextSwept(state, root)
     return next ? [makeAction('strike', { ...base, ...next, ...getDefaultAim(state.characters[next.targetId]), step: 'react' })] : []

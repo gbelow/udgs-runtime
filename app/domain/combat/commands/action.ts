@@ -175,9 +175,10 @@ function withHold(state: CombatState, actor: CampaignCharacter, open: FireAgainA
 // The actor's way out of an action another opened for them, while it is
 // still only declared, and the fight carries on from the action beneath. An
 // opportunity attack goes with its strike, as if never declared, or the
-// root would open it again. For anything else the offer is noted as passed
-// up, so it is not made twice; the reaction that opened it (a follow, an
-// evasion, a reflex against a blast) was paid for and stays on the record.
+// root would open it again. For anything else the journal's entry is what
+// keeps the offer from being made twice; the reaction that opened it (a
+// follow, an evasion, a reflex against a blast) was paid for and stays on the
+// record.
 // What a prepared reaction opened is passed up only as the book allows
 // (`isPreparedRequired`).
 export function withdrawSpawnedAction(newId: () => string): Updater {
@@ -185,8 +186,7 @@ export function withdrawSpawnedAction(newId: () => string): Updater {
     const open = getOpenAt(state, 'define')
     if (!open || !open.spawnedBy || isPreparedRequired(state, open)) return state
     const reaction = getOpeningReaction(state, open)
-    const passed = reaction ? state : { ...state, passed: [...state.passed, { by: open.spawnedBy, kind: open.preparedPart ? `prepared ${open.preparedPart}` : open.kind }] }
-    return advance(withdrawActions(passed, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId)
+    return advance(withdrawActions(state, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId)
   }
 }
 

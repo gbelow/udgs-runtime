@@ -15,7 +15,7 @@ import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMoveWaypoint } from './waypoint'
-import { getAction, getLiveReactionsTo, getLog, getRootOf } from './log'
+import { getAction, getAncestry, getLiveReactionsTo, getLog, getPassedUp, getRootOf, getSpawned } from './log'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
@@ -266,11 +266,11 @@ function getTriggerStep(state: CombatState, mover: Character, placements: Placem
 // The movement a prepared reaction opened, once it has, and which of its parts
 // were passed up instead.
 export function getPreparedParts(state: CombatState, reaction: Action): { move: Action | null; passedMove: boolean; passedMain: boolean } {
-  const passed = (part: string) => state.passed.some((p) => p.by === reaction.id && p.kind === `prepared ${part}`)
+  const passed = getPassedUp(state, reaction.id)
   return {
-    move: getLog(state).find((a) => a.spawnedBy === reaction.id && a.preparedPart === 'move') ?? null,
-    passedMove: passed('move'),
-    passedMain: passed('main'),
+    move: getSpawned(state, reaction.id).find((a) => a.preparedPart === 'move') ?? null,
+    passedMove: passed.some((a) => a.preparedPart === 'move'),
+    passedMain: passed.some((a) => a.preparedPart === 'main'),
   }
 }
 
@@ -296,20 +296,6 @@ export function isFromPrepared(state: CombatState, action: Action): boolean {
 
 export function isPreparedDefense(action: Action): action is PreparedDefense {
   return action.kind === 'block' || action.kind === 'intercept' || action.kind === 'guard'
-}
-
-// What the action comes of, nearest first: what it answers, what opened it, or
-// what it is a follow-up of, all the way back.
-function getAncestry(state: CombatState, action: Action): Action[] {
-  const ancestors: Action[] = []
-  let current: Action = action
-  for (;;) {
-    const parentId = current.reactionTo ?? current.spawnedBy ?? current.followUpOf
-    const parent = parentId ? getAction(state, parentId) : null
-    if (!parent || ancestors.some((a) => a.id === parent.id)) return ancestors
-    ancestors.push(parent)
-    current = parent
-  }
 }
 
 // Where the mover stands while the prepared action is fought: on the cell that

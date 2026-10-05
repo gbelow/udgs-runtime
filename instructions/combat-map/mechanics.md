@@ -82,7 +82,7 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   absorb it, `getPassedShare` in `character/rules/damage.ts`). Nothing opens once the share is
   0 — an intercept stopped it, or it was absorbed — or the arc is spent. On a fight without a
   board the next strike opens at `define`, for the attacker to aim at anyone not yet swept or
-  pass up. A later strike (`isSweepLink`: its `sweepOf` names the first) is prepaid, keeps the sweep's row
+  pass up. A later strike (`isSweepLink`: its `sweepOf` names the first, its `swept` who the sweep met before it) is prepaid, keeps the sweep's row
   and variation, carries no charge, and draws no opportunity attack; the first draws none from
   any of the sweep's targets. None of the sweep's targets may protect another.
 - **Breakage** (`rules/breakage.ts`, `character/rules/breakage.ts`) — a block or guard that meets a
@@ -144,8 +144,8 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   `preparedPart: 'move'`, capped at the 2 AP less what the action needs (`getPreparedMoveBudget`),
   then the action itself, `'main'`, each declared and committed by the preparer like a follow's
   move. `isPreparedRequired` says what may be passed up: the movement unless it is the only way
-  the action has someone in reach, the action only when nobody is. Parts passed up are
-  remembered in `state.passed` as `prepared move` / `prepared main`. A reaction the preparer
+  the action has someone in reach, the action only when nobody is. A part passed up is
+  read off its journal entry (`getPassedUp`). A reaction the preparer
   makes to anything the chain opened cancels what is left of it (`isPreparedCancelled`), and
   nothing a prepared action opens triggers another (`isFromPrepared`). A prepared strike is
   fought like an opportunity attack for what it may do to the mover (`getDrawnOpportunityAttacks`

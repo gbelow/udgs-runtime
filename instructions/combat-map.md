@@ -95,10 +95,16 @@ and `ActionDraft` (what a click declares).
 | Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
-Two links tie the log together: `reactionTo` (a reaction points at its root) and
-`spawnedBy` (an opened action points at whatever opened it). `rules/log.ts` holds every
-lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReaction`,
-`getDrawnOpportunityAttacks`).
+Three links tie the log together: `reactionTo` (a reaction points at its root),
+`spawnedBy` (an opened action points at whatever opened it) and `followUpOf` (a follow-up
+points at the action it follows). `rules/log.ts` holds every lookup over them, and nothing
+else walks them: up (`getAncestry`, `getOrigin`, `getRootOf`, `getOpeningReaction`) and down
+(`getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
+opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
+remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`,
+`turnsTaken`: the turns something was committed in and who rested in each, written by
+`setActions`), or stamped on the action that needs it (a move's `held`, a sweep link's
+`swept`), never found by scanning the record.
 
 ## The pipeline, step by step
 
@@ -202,8 +208,9 @@ resolveAction ─────────► land(top)
   triggers (`pruneReactions`) and a forgone follow-up take it out of play through
   `withdrawActions`, with what answers it; each is written to `state.journal` with its reason
   (`WithdrawalReason`). Only a draft taken back before its commit (`discardDraft`) leaves nothing.
-  An offer made once (a rest's move) is remembered in `state.passed` (`hasRestMove`); an
-  opportunity attack's strike goes together with its reaction.
+  An offer made once (a rest's move) is not made again once its journal entry says it was
+  passed up (`getPassedUp`, `hasRestMove`); an opportunity attack's strike goes together with
+  its reaction.
 - **What the table is told** — `projections/episode.ts` `getLastEpisode`: the chain around the
   last action to land (`getOrigin`, `rules/log.ts`), each action with its cost lines
   (`costTerms`, the lines `getOwnCost` sums), the terms of its roll, the surge made for it

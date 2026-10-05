@@ -7,7 +7,6 @@ import { canAffordRest } from '../../character/rules/rest'
 import { canSurge } from '../../character/rules/surge'
 import type { CombatState, StressTurn } from '../types'
 import { getFightName } from './fighters'
-import { getLog } from './log'
 import { getSituationalAfflictions, isSuffocating } from './situational'
 
 // creating.tex "Limit Stress Actions": what each compels. The coward, the
@@ -92,7 +91,7 @@ export function getStressRoundBar(state: CombatState): string | null {
 }
 
 function hasRestedThisTurn(state: CombatState, id: string): boolean {
-  return getLog(state).some((a) => a.turn === state.turn && a.kind === 'rest' && a.actorId === id)
+  return state.turnsTaken.some((t) => t.turn === state.turn && t.rested.includes(id))
 }
 
 // creating.tex "Limit Stress Actions" and combat.tex "Compulsions": "They

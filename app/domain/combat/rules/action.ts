@@ -37,7 +37,7 @@ import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
 import { getAction, getDrawnOpportunityAttacks, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
-import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
+import { canBeSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 
@@ -609,7 +609,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
   const others = Object.keys(state.characters).filter((id) => id !== root.actorId)
   switch (root.kind) {
     case 'strike': {
-      const swept = isSweep(root) ? getSwept(state, root) : null
+      const swept = isSweep(root) ? root.swept : null
       return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
         && (swept === null || canBeSwept(state, swept, id)))
     }

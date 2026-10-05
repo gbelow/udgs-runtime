@@ -126,7 +126,8 @@ click to what stands afterwards. It is admitted, under these terms.
   press it asserts what the architecture promises of any session and nothing about a rule's
   output: nothing throws, the state is one the schema accepts and storage round-trips, the
   active and in-turn characters are in the fight, no two footprints share a cell, the board
-  draws every placed character, and a click on a board the view calls locked changes nothing.
+  draws every placed character, every link an action in the log holds names an action in the
+  log or the journal, and a click on a board the view calls locked changes nothing.
   Two more checks run over the panel's own promises: every option `getAvailableActions` shows open can be
   declared and does something, and every one it shows closed is refused with the state left as it was; and
   after an exchange has been played out, nothing is left committed and waiting, once an answer still being

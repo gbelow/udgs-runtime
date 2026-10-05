@@ -434,9 +434,11 @@ export const StrikeActionSchema = z.object({
   // and what is left of the blow when it comes to this target (combat.tex
   // "Damage absorption"), 1 for the first. Each target after the first is
   // a strike of its own, opened by the one before it, naming the sweep's
-  // first strike in `sweepOf` (null on the first, and on any other strike).
+  // first strike in `sweepOf` (null on the first, and on any other strike),
+  // and who the sweep met before it, the first one first, in `swept`.
   arc: z.array(str).default([]),
   sweepOf: str.nullable().default(null),
+  swept: z.array(str).default([]),
   share: num.default(1),
 }).strip()
 
@@ -1217,6 +1219,9 @@ export const CombatStateSchema = z.object({
   stress: z.array(StressTurnSchema).default([]),
   // The tests called or made once for the round, kept to the round's end
   heldTests: z.array(HeldTestSchema).default([]),
+  // The round's turns something has been committed in, by the number its
+  // actions carry, and who rested in each, kept to the round's end
+  turnsTaken: z.array(z.object({ turn: num, rested: z.array(str).default([]) })).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Surrender": who has flagged themselves surrendered
@@ -1248,9 +1253,6 @@ export const CombatStateSchema = z.object({
   // opportunity attack lands before the action it answers. Only ever added
   // to.
   record: z.array(ActionSchema).default([]),
-  // The one-time offers their actor passed up, by the action each came from:
-  // a withdrawn action leaves the log, and this is all that is kept of it.
-  passed: z.array(z.object({ by: z.string(), kind: z.string() })).default([]),
   // What each character who has left the fight went by in it, so the log
   // still names them.
   names: z.record(str, str).default({}),

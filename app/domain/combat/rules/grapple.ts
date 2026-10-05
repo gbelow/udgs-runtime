@@ -5,7 +5,7 @@ import { getStrikeDamage } from '../../character/rules/gear'
 import { getGrapple } from '../../character/rules/skills'
 import { Term } from '../../character/rules/terms'
 import { hasProperty } from '../../weaponProperties'
-import { getLog, getReactionsTo } from './log'
+import { getReactionsTo, getSpawned } from './log'
 import { getItemName } from './fighters'
 import { allowsAlong, type RuleRecipeId } from './recipes'
 import { findGrapple, getGrapples, getGrapplesOf, getPartner, holds } from './partners'
@@ -323,7 +323,7 @@ function getLooseManeuverFacts(state: CombatState, root: GrappleAction, pair: [s
 
 // Whether the knockdown the strike's hook opened put the character down.
 export function isKnockedDownByHook(state: CombatState, strike: StrikeAction, id: string): boolean {
-  return getLog(state).some((a) => a.kind === 'grapple' && a.recipe === ('hookKnockdown' satisfies RuleRecipeId) && a.spawnedBy === strike.id && a.step === 'done' && (a.facts?.prone.includes(id) ?? false))
+  return getSpawned(state, strike.id).some((a) => a.kind === 'grapple' && a.recipe === ('hookKnockdown' satisfies RuleRecipeId) && a.step === 'done' && (a.facts?.prone.includes(id) ?? false))
 }
 
 // combat.tex "Escape": "Being stunned allows for a reaction to escape

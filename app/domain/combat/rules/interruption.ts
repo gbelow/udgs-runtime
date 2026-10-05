@@ -1,6 +1,6 @@
 import type { Interruption } from '../../types'
 import type { Action, CombatState } from '../types'
-import { getAction, getHistory, getLog, getRootOf } from './log'
+import { getAction, getHistory, getReactionsTo, getRootOf, getSpawned } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
 import { getDeliveryInterruption } from './damage'
@@ -31,8 +31,8 @@ function getDescendantIds(state: CombatState, action: Action): Set<string> {
   const queue = [action.id]
   while (queue.length > 0) {
     const id = queue.shift()!
-    for (const a of getLog(state)) {
-      if ((a.reactionTo === id || a.spawnedBy === id) && !found.has(a.id)) {
+    for (const a of [...getReactionsTo(state, id), ...getSpawned(state, id)]) {
+      if (!found.has(a.id)) {
         found.add(a.id)
         queue.push(a.id)
       }
