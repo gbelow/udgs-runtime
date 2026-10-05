@@ -102,7 +102,6 @@ retweak morale based spells
 GM tools, manual inserts
 explosions with multiple instances
 
-ranged combat penalty for distance left for later. to be decided
 corrosion left commented out for further design.
 
 show morale test inside the actions panel. 

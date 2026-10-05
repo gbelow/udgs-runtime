@@ -30,19 +30,19 @@ export function rollD10(explodes: boolean, rng: () => number): number {
   return total
 }
 
-// play.tex "Safe and risky tests": one die reads 0 to 9 and the other 1 to 10,
-// each exploding at its own highest and lowest face. Both are thrown in full
-// and only then compared — safe keeps the one closest to 5, risky the one
-// farthest. Results equally far from 5 are a draw and are thrown again.
+// play.tex "Safe and risky tests": both dice are thrown in full, explosions
+// included, and only then compared — safe keeps the one closest to 5, risky
+// the one farthest. Two different results equally far from 5 are a draw and
+// are thrown again.
 export function rollModed(mode: RollMode, explodes: boolean, dice: Dice): number {
   if (mode === 'normal') return dice(explodes)
   for (;;) {
     const a = dice(explodes)
-    const b = dice(explodes) + 1
+    const b = dice(explodes)
     const da = Math.abs(a - 5)
     const db = Math.abs(b - 5)
-    if (da === db) continue
-    return (mode === 'safe') === (da < db) ? a : b
+    if (da === db && a !== b) continue
+    return (mode === 'safe') === (da <= db) ? a : b
   }
 }
 

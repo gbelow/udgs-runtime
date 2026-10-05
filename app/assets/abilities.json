@@ -610,7 +610,17 @@
             "level": 1
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "attribute",
+              "name": "STR",
+              "level": 10,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The range of thrown weapons is increased by 50%.",
         "effect": [],
         "recipes": [],
@@ -625,7 +635,17 @@
             "level": 3
           }
         ],
-        "requirements": [],
+        "requirements": [
+          [
+            {
+              "kind": "attribute",
+              "name": "STR",
+              "level": 13,
+              "op": ">=",
+              "not": false
+            }
+          ]
+        ],
         "description": "The range of thrown weapons is increased by 100%.",
         "effect": [],
         "recipes": [],
@@ -656,7 +676,7 @@
           }
         ],
         "requirements": [],
-        "description": "Learns to shoot with bows, removing the penalty.",
+        "description": "Learns to shoot with bows, removing the penalty and allowing quick shot and snipe.",
         "effect": [],
         "recipes": [],
         "grants": [

@@ -284,7 +284,7 @@ function isWithinCone(offset: Coord, heading: number): boolean {
 // combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
 // move whose path enters a difficult cell is committed by a die — for a
 // jump, only the cell it lands on — unless the mover's test stands from
-// earlier in the turn (`getBalanceMemory`).
+// earlier in the round (`getBalanceMemory`).
 export function needsBalanceTest(state: CombatState, action: MoveAction): boolean {
   return firstDifficultStep(state, action) !== null && getBalanceMemory(state, action) === null
 }

@@ -60,8 +60,9 @@ const ENFORCED: Requirement['kind'][] = ['ability', 'spell', 'attribute']
 // short of it otherwise.
 function attributeValue(req: Requirement, meet: boolean): number {
   const above = req.op === '>' || req.op === '>='
-  const past = req.op === '>' || req.op === '<' ? 1 : 0
-  return above === meet ? req.level + past : req.level - past
+  const strict = req.op === '>' || req.op === '<'
+  const step = above ? 1 : -1
+  return meet ? req.level + (strict ? step : 0) : req.level - (strict ? 0 : step)
 }
 
 // Grants or withholds one requirement item on a character; nothing the
