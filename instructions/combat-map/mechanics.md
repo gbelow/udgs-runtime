@@ -111,3 +111,11 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   copy: `breakOne` in `reduceFloor`, keyed by the item's id in `breaks`) and opens the impact
   explosion at the item's cell (`struckExplosion`, `commands/sequence.ts`). Grabs, sweeps and
   opportunity attacks never aim at the floor.
+- **Fuel and fire on the ground** (`rules/hazard.ts`, `rules/extinguish.ts`) — an item with `fuel`
+  (`oil`, `alcohol`: a flask) thrown breaks where it lands instead of lying there: `reduceBoard`
+  lays a `HazardLayer` with `fuel` and no fire on the cell (`coatCell`). A coat is harmless until
+  something burns in its space; `igniteCell` then sets it burning at the hotter of the fuel's
+  burn (`FUEL_BURN`) and the hottest fire there, whether the fire was there already or a blast
+  paints it in the same landing. A fire layer lasts until put out: `extinguish` (4 AP, own space
+  or next to it, aimed like a throw's landing: `getAim`) removes what burns in the chosen space
+  (`extinguishCell`), a coat that was burning with it. Fire does not spread.

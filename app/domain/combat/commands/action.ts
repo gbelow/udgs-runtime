@@ -119,6 +119,7 @@ function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: Roo
     case 'holdBack':
     case 'pickUp':
     case 'throw':
+    case 'extinguish':
     case 'rest':
     case 'fleeFollowUp':
       return open
@@ -340,6 +341,7 @@ function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): 
     case 'holdBack':
     case 'pickUp':
     case 'throw':
+    case 'extinguish':
     case 'rest':
     case 'fleeFollowUp':
       return root

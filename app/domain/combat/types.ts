@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -115,7 +115,9 @@ export type Hazard = z.infer<typeof HazardSchema>
 // they stop holding it (spells.tex "Sustained Spells"); the rest last until they
 // are put out or the fight ends (combat.tex "Fire": "A burning surface lasts
 // at minimum until the end of combat, or until extinguished").
+// A layer of fuel that is not burning (`fire` 0) is a coat waiting for a flame.
 export const HazardLayerSchema = HazardSchema.extend({
+  fuel: FuelSchema.nullable().default(null),
   heldBy: z.object({ id: str.default(''), key: str.default(''), explosionId: str.default(''), origin: CoordSchema.nullable().default(null) }).strip().nullable().default(null),
 }).strip()
 export type HazardLayer = z.infer<typeof HazardLayerSchema>
@@ -149,6 +151,7 @@ export const TerrainCellSchema = z.object({
   climbDL: num.nullable().default(null),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
+export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
 // The spatial facts of a fight, in game units. The real grid is a VTT's; this
 // is what the domain needs of it to judge distance, reach, cover and where a
@@ -868,6 +871,14 @@ export const ThrowActionSchema = z.object({
   thrown: ItemSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Fire": muffling a fire, in the burning space of the actor or
+// next to it.
+export const ExtinguishActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('extinguish'),
+  to: CoordSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Rest": "an action that costs 4 AP and recovers STA by an
 // amount equal to STA/4".
 export const RestActionSchema = z.object({
@@ -943,6 +954,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   HoldBackActionSchema,
   PickUpActionSchema,
   ThrowActionSchema,
+  ExtinguishActionSchema,
   RestActionSchema,
   FallActionSchema,
   SwimTestActionSchema,
@@ -978,6 +990,7 @@ export type ActionOf<K extends ActionKind> = Extract<Action, { kind: K }>
 export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
+export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>
 export type SwimTestAction = z.infer<typeof SwimTestActionSchema>

@@ -42,7 +42,8 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
       return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, facts), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
-    case 'rest': return { ...open, step: 'done' }
+    case 'rest':
+    case 'extinguish': return { ...open, step: 'done' }
     case 'pickUp': {
       const lying = getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }

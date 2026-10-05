@@ -1,6 +1,7 @@
-import type { Visibility } from '../../types'
-import type { Action, BlastAction, Board, CombatState, Coord, Hazard, HazardLayer, MoveAction, Placement } from '../types'
+import type { Fuel, Visibility } from '../../types'
+import { HazardLayerSchema, type Action, type BlastAction, type Board, type CombatState, type Coord, type Hazard, type HazardLayer, type MoveAction, type Placement, type TerrainCell } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
+import { FUEL_BURN } from '../../tables'
 import { isSpellActive } from '../../character/rules/effects'
 import { coordKey, sameCell } from '../geometry'
 import { getFootprint, getPlacedFootprint } from './board'
@@ -70,12 +71,33 @@ export function getLiveBoard(state: CombatState): Board | null {
   return state.board ? { ...state.board, terrain: filterLayers(state.board.terrain, (l) => isLayerLive(state, l)) } : null
 }
 
+// combat.tex "Fire": fuel in a space where something burns catches at once,
+// as hot as the hottest fire there — `fresh` is a fire laid in the space as
+// this is worked out. The cell is the same one when nothing catches.
+export function igniteCell(state: CombatState, cell: TerrainCell, fresh = 0): TerrainCell {
+  const hottest = Math.max(fresh, ...cell.layers.filter((l) => isLayerLive(state, l)).map((l) => l.fire))
+  if (hottest <= 0 || !cell.layers.some((l) => l.fuel && l.fire === 0)) return cell
+  return { ...cell, layers: cell.layers.map((l) => (l.fuel && l.fire === 0 ? { ...l, fire: Math.max(FUEL_BURN[l.fuel], hottest) } : l)) }
+}
+
+// gear.tex "Special Items": the space coated in fuel, which burns at once if
+// it is already afire.
+export function coatCell(state: CombatState, cell: TerrainCell, fuel: Fuel): TerrainCell {
+  return igniteCell(state, { ...cell, layers: [...cell.layers, HazardLayerSchema.parse({ fuel })] })
+}
+
 // What one cell does to whoever stands in it.
 export function getCellHazard(state: CombatState, cell: Coord): Hazard {
   const terrain = state.board?.terrain[coordKey(cell)]
   if (!terrain) return NO_HAZARD
   const drawn: Hazard = { fire: 0, suffocating: terrain.suffocating, visibility: terrain.visibility === 'good' ? null : terrain.visibility }
   return terrain.layers.filter((l) => isLayerLive(state, l)).reduce<Hazard>(combineHazards, drawn)
+}
+
+// The fuels coating a cell, burning or not.
+export function getCellFuels(state: CombatState, cell: Coord): Fuel[] {
+  const layers = state.board?.terrain[coordKey(cell)]?.layers ?? []
+  return [...new Set(layers.filter((l) => isLayerLive(state, l)).flatMap((l) => (l.fuel ? [l.fuel] : [])))]
 }
 
 // The worst of the cells a footprint covers.

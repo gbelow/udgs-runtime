@@ -1,5 +1,5 @@
 import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, SHOT_RANGES } from './lists'
-import type { AfflictionKey, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
+import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -35,6 +35,10 @@ export const SkillPenaltyTable = {
     "health",
   ],
 }
+
+// combat.tex "Fire": the burning damage a flammable surface causes when it
+// covers the same space as a character ("Burning Oil/Alcohol").
+export const FUEL_BURN: Record<Fuel, number> = { oil: 8, alcohol: 8 }
 
 // combat.tex "End of the round": "all characters get reset to 8 AP minus
 // any negative AP they had".
@@ -445,6 +449,8 @@ export const ACTION_COSTS = {
   // everything else — combat.tex "Rest", "Preparing a reaction", "Analyze",
   // "Standard Action", "Flanking", "Social actions"
   rest:           { AP: 4, STA: 0 },
+  // combat.tex "Fire": "Both muffling and throwing water require 4 AP by default"
+  extinguish:     { AP: 4, STA: 0 },
   prepare:        { AP: 1, STA: 0 },
   analyze:        { AP: 4, STA: 1 },
   standardAction: { AP: 3, STA: 0 },

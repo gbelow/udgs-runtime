@@ -133,6 +133,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     : cell.reachable || cell.jump || cell.step || cell.center ? 'fill-good/15'
     : cell.threatened ? 'fill-bad/10'
     : cell.fire > 0 ? 'fill-injury-2/30'
+    : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
@@ -141,6 +142,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     cell.terrain !== 'open' ? cell.terrain : null,
     cell.elevation ? `${cell.elevation} m` : null,
     cell.fire > 0 ? `fire ${cell.fire}` : null,
+    cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
     cell.suffocating ? 'suffocating gas' : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,

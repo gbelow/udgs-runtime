@@ -82,6 +82,8 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'throw': return opportunityTriggers(state, root.actorId)
     case 'grapple': return grappleTriggers(root)
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
+    // muffling a fire draws no opportunity attack
+    case 'extinguish': return []
     // nobody answers the blast: the reflexes were against the explosion
     case 'blast': return []
     // the flee is its surge; what the fleer does with it comes in their turn

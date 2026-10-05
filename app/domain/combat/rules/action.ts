@@ -22,6 +22,7 @@ import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getCutStrike, getCutTargets } from './cut'
 import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
+import { isExtinguishCell } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { getFloorTargets } from './floorStrike'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
@@ -115,6 +116,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
       const item = findThrowSource(state, action.actorId, action.itemId)
       return !!item && canThrowItem(c, item) && action.to !== null && isThrowCell(state, action.actorId, action.itemId, action.to)
     }
+    // combat.tex "Fire": a burning space within its reach
+    case 'extinguish':
+      return isExtinguishCell(state, action)
     // combat.tex "Push and drag": on the board, at a speed open to the
     // actor, along a way the block allows
     case 'drag': {
@@ -249,6 +253,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'feint':
     case 'holdBack':
     case 'pickUp':
+    case 'extinguish':
     case 'rest':
     case 'grapple':
       return getCatalogCost(c, action.kind)
@@ -487,6 +492,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'holdBack':
     case 'pickUp':
     case 'throw':
+    case 'extinguish':
     case 'rest':
     case 'fireAgain':
     case 'fleeFollowUp':
@@ -588,6 +594,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'move':
     case 'pickUp':
     case 'throw':
+    case 'extinguish':
     case 'rest':
     case 'fireAgain':
     case 'fleeFollowUp':

@@ -16,6 +16,7 @@ import { getHoldBackTargets, getManeuverTargets, getReleaseTargets } from './gra
 import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
+import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepurposed, withGuardStep, withoutReserve } from './action'
@@ -375,6 +376,14 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : throwable.length === 0 ? 'nothing it can throw'
       : throwable.some((item) => canAfford(c, getThrowCost(c, item.id))) ? null : 'cannot afford'
     return [option({ kind: 'throw' }, null, reason)]
+  },
+  // combat.tex "Fire": a burning space the actor stands in or is next to
+  extinguish: (state, c) => {
+    const cost = getActionCost(c, 'extinguish')
+    const reason = !isPlaced(state, c) ? 'not on the board'
+      : getExtinguishCells(state, c.id).length === 0 ? 'nothing burning within reach'
+      : afford(c, cost)
+    return [option({ kind: 'extinguish' }, cost, reason)]
   },
   // combat.tex "Rest"
   rest: (state, c) => {

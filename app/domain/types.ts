@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
@@ -273,6 +273,8 @@ export type Ammo = z.infer<typeof AmmoSchema>
 // tiny 0, small 1, medium 2, large 3, then numeric — and scaling an item
 // scales its bulk with it. One Item is a stack of `amount` identical units.
 export const EdgeSchema = z.enum(EDGES)
+export const FuelSchema = z.enum(FUELS)
+export type Fuel = z.infer<typeof FuelSchema>
 export type Edge = z.infer<typeof EdgeSchema>
 
 export const ItemTypeSchema = z.enum(ITEM_TYPES)
@@ -324,6 +326,9 @@ export const ItemSchema = z.object({
   broken: z.boolean().default(false),
   // gear.tex "Gear condition": Sharp and Dull, a blade's edge beyond the usual
   edge: EdgeSchema.nullable().default(null),
+  // gear.tex "Special Items": a flask that breaks where it lands and coats the
+  // space in this fuel
+  fuel: FuelSchema.nullable().default(null),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),

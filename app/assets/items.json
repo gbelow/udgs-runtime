@@ -375,7 +375,8 @@
     "bulk": 1,
     "refId": "",
     "charge": null,
-    "source": null
+    "source": null,
+    "fuel": "alcohol"
   },
   "Oil Flask": {
     "name": "Oil Flask",
@@ -384,7 +385,8 @@
     "bulk": 1,
     "refId": "",
     "charge": null,
-    "source": null
+    "source": null,
+    "fuel": "oil"
   },
   "Pitch Pot": {
     "name": "Pitch Pot",

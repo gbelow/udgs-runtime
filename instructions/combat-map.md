@@ -296,7 +296,8 @@ app/domain/combat/
 │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
 │   ├── ground.ts       crossable and restable cells
 │   ├── boardMode.ts    getBoardMode (what the open action wants of a click), getFloorPicker
-│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched
+│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched, fuel catching fire
+│   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with

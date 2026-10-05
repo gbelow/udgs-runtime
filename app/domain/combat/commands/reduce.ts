@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
+import { HazardLayerSchema, TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
 import { getFootprint, placeAt } from '../rules/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
@@ -35,7 +35,8 @@ import { restCharacter, restWhileCasting } from '../../character/commands/rest'
 import { getInterruptionOf } from '../rules/interruption'
 import { loseConcentration } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
-import { filterLayers, getHolderOf, isSupersededBy, type FireTouched } from '../rules/hazard'
+import { extinguishCell } from '../rules/extinguish'
+import { coatCell, filterLayers, igniteCell, getHolderOf, isSupersededBy, type FireTouched } from '../rules/hazard'
 import { actionSurge } from '../../character/commands/actionSurge'
 
 // The moments an action touches a character: `roll`, when the die is thrown
@@ -260,7 +261,7 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     if (action.kind === 'pickUp') return withoutOne(floor, action.itemId)
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor
-    if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), onFloor(action.thrown, action.to)] : floor
+    if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), ...(action.thrown.fuel ? [] : [onFloor(action.thrown, action.to)])] : floor
     if (action.kind === 'explosion' && action.source !== 'cast') return withoutOne(floor, action.itemId)
     // what a blow on an object broke
     if (action.kind === 'strike' && isFloorStrike(action)) return getBrokenItems(action).reduce((acc, { itemId }) => breakOne(acc, itemId, action.id), floor)
@@ -331,9 +332,20 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       for (const { cell, hazard } of action.paint) {
         const key = coordKey(cell)
         const was = terrain[key] ?? TerrainCellSchema.parse({})
-        terrain[key] = { ...was, layers: [...was.layers, { ...hazard, heldBy }] }
+        terrain[key] = igniteCell(state, { ...was, layers: [...was.layers, HazardLayerSchema.parse({ ...hazard, heldBy })] }, hazard.fire)
       }
       return { ...board, terrain }
+    }
+    // combat.tex "Fire": what burned in the muffled space is out
+    if (action.kind === 'extinguish' && action.to) {
+      const key = coordKey(action.to)
+      const was = board.terrain[key]
+      return was ? { ...board, terrain: { ...board.terrain, [key]: extinguishCell(state, was) } } : board
+    }
+    // gear.tex "Special Items": a flask breaks where it lands and coats the space
+    if (action.kind === 'throw' && action.thrown?.fuel && action.to) {
+      const key = coordKey(action.to)
+      return { ...board, terrain: { ...board.terrain, [key]: coatCell(state, board.terrain[key] ?? TerrainCellSchema.parse({}), action.thrown.fuel) } }
     }
     return board
   }

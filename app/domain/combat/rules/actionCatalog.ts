@@ -137,6 +137,8 @@ export const ACTIONS = {
   // combat.tex "Throw", "Standard Action": a held item or one off the
   // floor, to the floor, at its throwing row's price or a standard action's
   throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false },
+  // combat.tex "Fire": muffling a burning space, the actor's own or next to it
+  extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
   // combat.tex "Rest"
   rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false },
   // combat.tex "Balance" ("Fall skill test"): the faller's own Balance test,

@@ -89,6 +89,10 @@ export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 // ammo.json, armors.json, containers.json).
 export const ITEM_TYPES = ['weapon', 'ammo', 'armor', 'container', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
 
+// gear.tex "Special Items": what a flask can coat a space in. A coat burns
+// when fire reaches it (combat.tex "Fire").
+export const FUELS = ['oil', 'alcohol'] as const
+
 // gear.tex "Quiver": "carries 20 arrows or bolts" — the two kinds of
 // ammunition, each loaded by its own shooting weapons.
 export const AMMO_KINDS = ['arrow', 'bolt'] as const
