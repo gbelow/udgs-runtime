@@ -539,8 +539,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // the schemas so a key added to a group is a valid target the same day; the
 // getter behind each group is what actually reads the bonus (skills add it as
 // a term, movement and senses add it to the stored value, surges to AP,
-// `ap:`/`sta:` move the price of an action in ACTION_COSTS, `reach:` the
-// metres a way of shooting covers and `hit:` its test).
+// `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
+// penalty a way of shooting takes per 10m and `hit:` its test).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -552,7 +552,7 @@ export const BUFF_TARGETS = [
   ...prefixed('surge', SurgeKindSchema.options),
   ...prefixed('ap', Object.keys(ACTION_COSTS) as ActionKind[]),
   ...prefixed('sta', Object.keys(ACTION_COSTS) as ActionKind[]),
-  ...prefixed('reach', Object.keys(SHOTS) as ShotKind[]),
+  ...prefixed('distance', Object.keys(SHOTS) as ShotKind[]),
   ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]

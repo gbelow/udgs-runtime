@@ -698,7 +698,7 @@
             }
           ]
         ],
-        "description": "Snipe gets +1 to hit. From level II, snipe costs 1 AP less.",
+        "description": "Snipe gets +1 to hit. From level III, snipe costs 1 AP less.",
         "effect": [
           {
             "name": "",
@@ -734,7 +734,7 @@
             }
           ]
         ],
-        "description": "Snipe gets +2 to hit. From level II, snipe costs 1 AP less.",
+        "description": "Snipe gets +2 to hit. From level III, snipe costs 1 AP less.",
         "effect": [
           {
             "name": "",
@@ -744,16 +744,6 @@
               "target": "hit:snipe",
               "operation": "+",
               "value": 1
-            }
-          },
-          {
-            "name": "",
-            "trigger": "instant",
-            "type": "buff",
-            "effect": {
-              "target": "ap:snipe",
-              "operation": "+",
-              "value": -1
             }
           }
         ],
@@ -780,7 +770,7 @@
             }
           ]
         ],
-        "description": "Snipe gets +3 to hit. From level II, snipe costs 1 AP less.",
+        "description": "Snipe gets +3 to hit. From level III, snipe costs 1 AP less.",
         "effect": [
           {
             "name": "",
@@ -790,6 +780,16 @@
               "target": "hit:snipe",
               "operation": "+",
               "value": 1
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "ap:snipe",
+              "operation": "+",
+              "value": -1
             }
           }
         ],
@@ -831,16 +831,16 @@
             }
           ]
         ],
-        "description": "Increases distance for shoot to 50m.",
+        "description": "Reduces distance penalty of quick shots to -2.",
         "effect": [
           {
             "name": "",
             "trigger": "instant",
             "type": "buff",
             "effect": {
-              "target": "reach:shoot",
+              "target": "distance:quickShot",
               "operation": "+",
-              "value": 20
+              "value": -1
             }
           }
         ],
@@ -867,16 +867,16 @@
             }
           ]
         ],
-        "description": "Increases distance for quick shots to 30m.",
+        "description": "Reduces distance penalty of normal shots to -1.",
         "effect": [
           {
             "name": "",
             "trigger": "instant",
             "type": "buff",
             "effect": {
-              "target": "reach:quickShot",
+              "target": "distance:shoot",
               "operation": "+",
-              "value": 20
+              "value": -1
             }
           }
         ],
@@ -903,7 +903,7 @@
             }
           ]
         ],
-        "description": "Reduces cost of quick shot by 1 AP.",
+        "description": "Reduces AP cost of quick shots by 1.",
         "effect": [
           {
             "name": "",

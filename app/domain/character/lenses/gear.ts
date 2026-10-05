@@ -165,7 +165,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.rows
           .map((r) =>
             [r.name, r.kind, r.handed, r.usable, r.needsFocus, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
-             r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}/${v.reach}`).join('~')]
+             r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}/${v.reach}/${v.distance}`).join('~')]
               .join(','),
           )
           .join(';'),

@@ -1,17 +1,18 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
 import { getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
-import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, StrikeAction } from '../types'
+import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
+import { setDistance } from '../geometry'
 import { CLIMB_REDO_PENALTY, LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
-import { AttackVariant, getShotKind, needsFocus } from '../../character/rules/gear'
+import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
-import { isGuardingCells, isGuardingShot, isHighGround } from './board'
+import { getDistanceBetween, getPlacedFootprint, isGuardingCells, isGuardingShot, isHighGround } from './board'
 import { getBalanceDL, getMoveTest } from './move'
 import { getClimbDL } from './cliff'
 import { getFallTestTerms } from './fall'
@@ -164,6 +165,8 @@ export type AttackOption = {
   cut: number
   // metres, for a shot; null for a strike
   reach: number | null
+  // the penalty per 10m of distance, for a shot; null for a strike
+  distance: number | null
 }
 
 export function getAttackOptions(c: Character, kind: AttackAction['kind']): AttackOption[] {
@@ -180,6 +183,7 @@ export function getAttackOptions(c: Character, kind: AttackAction['kind']): Atta
       blunt: v.blunt,
       cut: v.cut,
       reach: v.reach,
+      distance: v.distance,
     }))
   })
 }
@@ -227,11 +231,20 @@ export function isShotLoaded(c: Character, action: ActionOf<'shoot'>): boolean {
 // ---------------------------------------------------------------------------
 // The test
 
+// The metres between the shooter and what the shot is aimed at, edge to
+// edge; null with no board to measure on.
+function getShotDistance(state: CombatState, shot: ShootAction): number | null {
+  if (shot.targetId !== null) return getDistanceBetween(state, shot.actorId, shot.targetId)
+  const cell = getGroundCell(state, shot)
+  const from = getPlacedFootprint(state, shot.actorId)
+  return cell && from ? setDistance(from, [cell]) : null
+}
+
 // combat.tex "Strike": strike, less the variation's penalty (combat.tex
 // "Heavy Attack") and the location's (combat.tex "Localized damage").
-// combat.tex "Accuracy": a shot is the Accuracy test instead, and the way of
-// shooting may carry a bonus of its own (abilities.tex "Elite Sniper":
-// "Snipe gets +1|2|3 to hit").
+// combat.tex "Accuracy": a shot is the Accuracy test instead, less the
+// distance penalty of the way of shooting, and that may carry a bonus of its
+// own (abilities.tex "Elite Sniper": "Snipe gets +1|2|3 to hit").
 // combat.tex "Attack and Defend": a grapple row "can use the grapple skill
 // instead of strike to attack during a grapple".
 function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
@@ -245,6 +258,7 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
+    ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
   ]

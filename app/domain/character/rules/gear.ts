@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
-import { BOWS, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -104,6 +104,8 @@ export type AttackVariant = {
   // how far a shot carries, in metres; null for anything but a shot, whose
   // reach is the row's own (gear.tex "Short, Long I/II")
   reach: number | null
+  // the penalty a shot takes per 10m to its target; null for anything but a shot
+  distance: number | null
 }
 
 // The way of shooting a variation of a shoot row is, by the name the list
@@ -112,14 +114,24 @@ export function getShotKind(variant: string): ShotKind | null {
   return (Object.keys(SHOTS) as ShotKind[]).find((kind) => SHOTS[kind].variant === variant) ?? null
 }
 
-// combat.tex "Shoot", "Quick Shot", "Snipe": the metres the way of shooting
-// covers, moved by the shooter's abilities (abilities.tex "Quick Shooter":
-// "Increases distance for shoot to 50m"), never past the weapon's own
-// range at its scale (creating.tex "Reach Multiplier (RM): multiplies the
-// range of all weapons").
-export function getShotReach(kind: ShotKind, atk: WeaponAttack, weapon: Weapon, c: Character): number {
-  const weaponRange = (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1]
-  return Math.min(weaponRange, (SHOTS[kind].reach ?? weaponRange) + getBuffBonus(c, `reach:${kind}`))
+// creating.tex "Reach Multiplier (RM): multiplies the range of all weapons":
+// the metres a shooting row carries, at its weapon's scale.
+export function getShotReach(atk: WeaponAttack, weapon: Weapon): number {
+  return (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1]
+}
+
+// combat.tex "Shoot", "Quick Shot", "Snipe": the penalty a way of shooting
+// takes per 10m, moved by the shooter's abilities (abilities.tex "Quick
+// Shooter": "Reduces distance penalty of quick shots to -2").
+export function getShotDistanceRate(kind: ShotKind, c: Character): number {
+  return Math.max(0, SHOTS[kind].distance + getBuffBonus(c, `distance:${kind}`))
+}
+
+// combat.tex "Accuracy": "a penalty of -2 per 10m of distance" — none under
+// 10m, one step for 10 to 19m and so on — and "Ranged attacks outside the
+// combat area": "5x the shot's distance penalty", where it stops growing.
+export function getDistancePenalty(rate: number, metres: number): number {
+  return rate * Math.min(DISTANCE_PENALTY_CAP_STEPS, Math.floor(metres / DISTANCE_STEP))
 }
 
 // combat.tex "Heavy Attack". Degree n adds n/2 x STR x DM to damage; the
@@ -168,25 +180,28 @@ export function getAttacksList ({ atk, weapon }: { atk: WeaponAttack; weapon: We
         penalty,
         ...plus(Math.floor(STRmul * STRxDM)),
         reach: null,
+        distance: null,
       }
     }
 
     // Variation prices are deltas on the row's AP (combat.tex "Strike").
     const quickCost = getActionCost(c, 'quickShot')
     const snipeCost = getActionCost(c, 'snipe')
-    const reach = (shot: ShotKind) => (kind === 'shoot' ? getShotReach(shot, atk, weapon, c) : null)
     // combat.tex "Throw": a throw carries the row's own figure, at the
     // weapon's scale ("Throwable weapons gain range based on STR" names no
-    // formula, so none is applied).
-    const thrown = kind === 'throw' ? (getRangeMetres(atk.range) ?? 0) * RMArr[weapon.scale - 1] : reach('shoot')
-    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach: thrown }
+    // formula, so none is applied), and "Accuracy" charges it the distance
+    // penalty a shot is charged.
+    const shooting = kind === 'shoot' || kind === 'throw'
+    const reach = shooting ? getShotReach(atk, weapon) : null
+    const distance = (shot: ShotKind) => (shooting ? getShotDistanceRate(shot, c) : null)
+    const basic: AttackVariant = { name: SHOTS.shoot.variant, type, AP, STA: 0, penalty: 0, blunt, cut, reach, distance: distance('shoot') }
     // combat.tex "Braced Attack", "Hook Attack": declared at the normal
     // attack's price; what they add is bought after the hit
-    const braced: AttackVariant = { ...basic, name: 'braced', reach: null }
-    const hook: AttackVariant = { ...basic, name: 'hook', reach: null }
-    // combat.tex "Quick Shot": cheaper and range-limited, with no penalty to hit.
-    const quickShot: AttackVariant = { name: SHOTS.quickShot.variant, type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut, reach: reach('quickShot') }
-    const snipe: AttackVariant = { name: SHOTS.snipe.variant, type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut, reach: reach('snipe') }
+    const braced: AttackVariant = { ...basic, name: 'braced', reach: null, distance: null }
+    const hook: AttackVariant = { ...basic, name: 'hook', reach: null, distance: null }
+    // combat.tex "Quick Shot": cheaper, at a steeper distance penalty.
+    const quickShot: AttackVariant = { name: SHOTS.quickShot.variant, type, AP: AP + quickCost.AP, STA: quickCost.STA, penalty: 0, blunt, cut, reach, distance: distance('quickShot') }
+    const snipe: AttackVariant = { name: SHOTS.snipe.variant, type, AP: AP + snipeCost.AP, STA: snipeCost.STA, penalty: 0, blunt, cut, reach, distance: distance('snipe') }
 
     const attacks: AttackVariant[] = []
 

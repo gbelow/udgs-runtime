@@ -53,7 +53,6 @@ export function getDefend(c: Character) {
 export function getReflexTerms(c: Character): Term[] {
   const SM = getSM(c)
   return [
-    { label: 'awareness', value: getAwareness(c) },
     { label: 'ranged', value: getRanged(c) },
     { label: 'gear', value: isVisorClosed(c) ? -2 : 0 }, // gear.tex "Closed helmet": -2 reflexes
     { label: 'size', value: -SM },
