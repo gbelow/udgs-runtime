@@ -11,7 +11,7 @@ import { getFallFacts } from './fall'
 import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getAreaBreaks, getAttackBreaks } from './breakage'
-import { isObjectStrike } from './equipment'
+import { isObjectAttack } from './equipment'
 
 // The armor each character wears is put at risk by what the action's effects
 // did to them (gear.tex "Equipment Breakage").
@@ -34,12 +34,13 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
   switch (open.kind) {
     case 'strike': {
       const blow = getAttackFacts(state, open)
-      const facts = isObjectStrike(open) ? null : blow
+      const facts = isObjectAttack(open) ? null : blow
       return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
-      const facts = getAttackFacts(state, open)
-      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, facts), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
+      const blow = getAttackFacts(state, open)
+      const facts = isObjectAttack(open) ? null : blow
+      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), interruption: getInterruption(state, open, facts), thrown: getThrownItem(state, open) }
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest':

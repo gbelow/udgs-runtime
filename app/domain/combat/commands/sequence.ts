@@ -1,5 +1,5 @@
 import { SPELLS, isSpellKey } from '../../spells'
-import type { Action, CastAction, CombatState, ExplosionAction, FeintAction, FireAgainAction, QueuedTurn, RootAction, StrikeAction, ThrowAction } from '../types'
+import type { Action, AttackAction, CastAction, CombatState, ExplosionAction, FeintAction, FireAgainAction, QueuedTurn, RootAction, ThrowAction } from '../types'
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
@@ -7,7 +7,7 @@ import { getDefaultAim } from '../rules/attack'
 import { getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
 import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
-import { getFloorObject, getStrikeExplosion } from '../rules/floorStrike'
+import { getFloorObject, getAttackExplosion } from '../rules/floorAttack'
 import { isTying } from '../rules/tether'
 import { isVoided } from '../rules/opportunity'
 import { isInterruptedBy } from '../rules/interruption'
@@ -156,7 +156,7 @@ function generateFollowUps(state: CombatState, root: RootAction, newId: () => st
     ...(root.kind === 'cast' && opensExplosion(state, root) ? [castExplosion(state, root, newId)] : []),
     ...(root.kind === 'fireAgain' && isSpellKey(root.key) && isAreaSpell(root.key) ? [reaimedSpray(state, root, newId)] : []),
     ...(root.kind === 'throw' ? impactExplosion(state, root, newId) : []),
-    ...(root.kind === 'strike' ? struckExplosion(state, root, newId) : []),
+    ...(root.kind === 'strike' || root.kind === 'shoot' ? struckExplosion(state, root, newId) : []),
     ...getRecipeFollowUps(state, root, newId),
     ...openSweepLink(state, root, newId),
     ...openSwimTest(state, root, newId),
@@ -230,14 +230,14 @@ function impactExplosion(state: CombatState, root: ThrowAction, newId: () => str
   return explosion ? [explosion] : []
 }
 
-// spells.tex "Charged": a hit or a critical on an object lying on the floor
-// whose charge goes off on impact sets it off where it lies, committed as it
-// opens like a thrown one's.
-function struckExplosion(state: CombatState, root: StrikeAction, newId: () => string): ExplosionAction[] {
+// spells.tex "Charged": a hit or a critical, by a blow or a shot, on an object
+// lying on the floor whose charge goes off on impact sets it off where it
+// lies, committed as it opens like a thrown one's.
+function struckExplosion(state: CombatState, root: AttackAction, newId: () => string): ExplosionAction[] {
   const found = getFloorObject(state, root)
   const degree = root.roll?.degree
   if (!found || (degree !== 'hit' && degree !== 'critical')) return []
-  const explosion = getStrikeExplosion(state, root, found, { id: newId(), spawnedBy: root.id, step: 'react' })
+  const explosion = getAttackExplosion(state, root, found, { id: newId(), spawnedBy: root.id, step: 'react' })
   return explosion ? [explosion] : []
 }
 

@@ -1,5 +1,5 @@
 import type { Character, Item } from '../../types'
-import type { AttackAction, StrikeAction } from '../types'
+import type { AttackAction } from '../types'
 import type { Breakable } from '../../character/rules/breakage'
 import { getItemArmor, getItemWeapon } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
@@ -7,17 +7,18 @@ import { getHeldItem } from '../../item/rules/hands'
 // combat.tex "Attack against equipment": "An attack can be made against a
 // weapon, shield, or any object in order to break them." A strike aimed at an
 // item the target holds is scored as a strike at its holder, with a penalty
-// like the hand's (the table's ruling), and what it lands on is the item.
+// like the hand's (the table's ruling), and what it lands on is the item. A
+// shot aimed at one is scored the same way.
 export const EQUIPMENT_ATTACK_PENALTY = 10
 
-export function isObjectStrike(action: AttackAction): action is StrikeAction {
-  return action.kind === 'strike' && action.object !== ''
+export function isObjectAttack(action: AttackAction): boolean {
+  return action.object !== ''
 }
 
-// A strike aimed at an item lying on the floor: it names the item and no
+// An attack aimed at an item lying on the floor: it names the item and no
 // character.
-export function isFloorStrike(action: AttackAction): action is StrikeAction {
-  return isObjectStrike(action) && action.targetId === null
+export function isFloorAttack(action: AttackAction): boolean {
+  return isObjectAttack(action) && action.targetId === null
 }
 
 // The items the target holds that a strike can be aimed at: weapons and

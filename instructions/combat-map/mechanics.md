@@ -101,16 +101,21 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   on a hit or a critical tests the item's weakest part (`getWeakestPart`) with the blow at that
   degree, from `breakRolls.object`. A graze or a miss does nothing to it. A sweep ends at it and its
   hook knockdown is not offered; a block that meets it is tested as any block is.
-- **Attack against an object on the floor** (`rules/floorStrike.ts`) — a plain melee strike may be aimed
-  at an item in `state.floor`: `targetId` null and `object` the item's id (`isFloorStrike`), chosen
+- **Attack against an object on the floor** (`rules/floorAttack.ts`) — a plain melee strike or a shot may be aimed
+  at an item in `state.floor`: `targetId` null and `object` the item's id (`isFloorAttack`), chosen
   by `setTarget` or a click on the item. Nobody answers it (`strikeTriggers` gives none) and it
-  draws no penalty; the DL is the immobile-object DL read off the item's bulk (`getFloorStrikeDL`:
+  draws no penalty; the DL is the immobile-object DL read off the item's bulk (`getFloorAttackDL`:
   −bulk). It is offered only for an item a blow would do something to: one with a RES to test
   (`getObjectPart`: a weapon's weakest part, or an armor's RES, while `state.breakage` is on) or one
   whose charge goes off on impact. A hit or critical tests the RES (the break lands on the floor
   copy: `breakOne` in `reduceFloor`, keyed by the item's id in `breaks`) and opens the impact
   explosion at the item's cell (`struckExplosion`, `commands/sequence.ts`). Grabs, sweeps and
-  opportunity attacks never aim at the floor.
+  opportunity attacks never aim at the floor. A shot reaches the floor within the row's carry and in
+  sight (`isAimableCell`); a thrown row lands on the item's cell. A shot may equally be aimed at an
+  item its target holds, scored as a strike at it is (`isObjectAttack`). Burning damage a hit or
+  graze carries (`getBurnOf`: the burn in the contact charge of the item it is made with) lights
+  the fuel on the cells it lands on (`lightBurned` in `reduceBoard`, `igniteCell` at the burn's
+  heat), and an item standing in unlit fuel is offered to a burning attack for that alone.
 - **Fuel and fire on the ground** (`rules/hazard.ts`, `rules/extinguish.ts`) — an item with `fuel`
   (`oil`, `alcohol`: a flask) thrown breaks where it lands instead of lying there: `reduceBoard`
   lays a `HazardLayer` with `fuel` and no fire on the cell (`coatCell`). A coat is harmless until

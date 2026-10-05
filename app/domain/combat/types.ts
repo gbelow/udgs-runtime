@@ -258,6 +258,13 @@ const AttackDeclaration = {
   part: str.nullable().default(null),
 }
 
+// combat.tex "Attack against equipment": the item the target holds that a
+// strike or a shot is aimed at, by id; '' aims it at the body. With no
+// target character it names an item lying on the floor.
+const ObjectAim = {
+  object: str.default(''),
+}
+
 // gear.tex "Equipment Breakage": a blow met by a block or a guard strikes the
 // object in the way, and the attacker's own weapon with it; one that lands
 // strikes the armor worn; an attack against equipment strikes the item it is
@@ -381,9 +388,7 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
-  // combat.tex "Attack against equipment": the item the target holds that the
-  // strike is aimed at, by id; '' aims it at the body
-  object: str.default(''),
+  ...ObjectAim,
   facts: DeliverySchema.nullable().default(null),
   ...Breakage,
   // what landing did to the target's action, written at the resolve: a move
@@ -423,6 +428,7 @@ export const ShootActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('shoot'),
   ...AttackDeclaration,
+  ...ObjectAim,
   facts: DeliverySchema.nullable().default(null),
   ...Breakage,
   // what landing did to the target's action, written at the resolve: an

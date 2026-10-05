@@ -1,7 +1,7 @@
 import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
-import { ACTIONS, isReaction } from '../rules/actionCatalog'
+import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, canAffordOpportunity, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
@@ -54,18 +54,18 @@ export function amendAction(fields: Partial<ActionDraft>): Updater {
 }
 
 // Aims the open action. A part picked on the old target is not one of the
-// new target's: the aim goes back to the new target's default. A strike may
-// be aimed at an item on the floor by its id, which leaves it no character
-// to aim at.
+// new target's: the aim goes back to the new target's default. A strike or a
+// shot may be aimed at an item on the floor by its id, which leaves it no
+// character to aim at.
 export function setTarget(targetId: string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
     if (!open) return state
-    if (open.kind === 'strike' && getDeclaredFloorTargets(state, open).some((f) => f.item.id === targetId)) {
+    if (isAttackAction(open) && getDeclaredFloorTargets(state, open).some((f) => f.item.id === targetId)) {
       return replaceActions(state, [{ ...open, targetId: null, object: targetId, ...getDefaultAim(undefined) }])
     }
     if (!getTargetIds(state, open).includes(targetId)) return state
-    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(open.kind === 'strike' ? { object: '' } : {}) } : {}
+    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(isAttackAction(open) ? { object: '' } : {}) } : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
   }
 }

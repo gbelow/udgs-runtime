@@ -1,4 +1,4 @@
-import type { Action, ActionOf, AttackAction, CombatState, Deliveries, StrikeAction } from '../types'
+import type { Action, ActionOf, AttackAction, CombatState, Deliveries } from '../types'
 import type { Armor, Character, Damage, Delivery, Item } from '../../types'
 import { breaksOn, getArmorBreakChance, getBlow, getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
 import { getItemArmor } from '../../item/rules/items'
@@ -6,8 +6,8 @@ import { getUndefendedDamage } from '../../character/rules/damage'
 import { getDefendingReaction } from './attack'
 import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
-import { getObjectPart, isObjectStrike } from './equipment'
-import { getFloorObject } from './floorStrike'
+import { getObjectPart, isObjectAttack } from './equipment'
+import { getFloorObject } from './floorAttack'
 import { getOpenAction } from './log'
 import { getItemName } from './fighters'
 import { findWeaponRow, type WeaponRow } from './weaponRow'
@@ -42,7 +42,7 @@ function getWornArmor(target: Character | undefined): { item: Item; armor: Armor
 // Whether the attack puts anything at risk, and so needs its percentiles: the
 // object that meets it, or the armor worn.
 export function needsBreakRolls(state: CombatState, root: AttackAction): boolean {
-  return state.breakage && (isObjectStrike(root) || getBreakingDefense(state, root) !== null || getWornArmor(root.targetId ? state.characters[root.targetId] : undefined) !== null)
+  return state.breakage && (isObjectAttack(root) || getBreakingDefense(state, root) !== null || getWornArmor(root.targetId ? state.characters[root.targetId] : undefined) !== null)
 }
 
 // An item a character holds that can give way: never a natural weapon, nor
@@ -109,7 +109,7 @@ function getArmorRisks(state: CombatState, root: AttackAction, facts: Delivery):
 
 // combat.tex "Attack against equipment": a hit or a critical lands the blow,
 // at that degree, on the weakest part of the item the strike was aimed at.
-function getEquipmentRisks(state: CombatState, root: StrikeAction, damage: Damage, degree: NonNullable<Delivery['degree']>): BreakRisk[] {
+function getEquipmentRisks(state: CombatState, root: AttackAction, damage: Damage, degree: NonNullable<Delivery['degree']>): BreakRisk[] {
   const target = root.targetId ? state.characters[root.targetId] : undefined
   const floor = getFloorObject(state, root)
   const item = floor ? floor.item : target && getHeldItem(target, root.object)
@@ -125,7 +125,7 @@ function getEquipmentRisks(state: CombatState, root: StrikeAction, damage: Damag
 export function getBreakRisks(state: CombatState, root: AttackAction, facts: Delivery | null): BreakRisk[] {
   if (!state.breakage || facts?.effect.type !== 'damage' || facts.degree === null) return []
   const damage = facts.effect.effect
-  const struck = isObjectStrike(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts)
+  const struck = isObjectAttack(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts)
   return [...getObjectRisks(state, root, getBlow(damage)), ...struck]
 }
 

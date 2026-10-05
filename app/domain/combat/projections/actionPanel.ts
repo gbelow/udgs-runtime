@@ -28,8 +28,8 @@ import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
 import { canGrab, getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
-import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorStrike } from '../rules/equipment'
-import { getFloorObject } from '../rules/floorStrike'
+import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
+import { getFloorObject } from '../rules/floorAttack'
 import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
 import { findGrapple, getGrapples } from '../rules/partners'
 import { getRecipeOf } from '../rules/recipes'
@@ -368,7 +368,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
   const declaredTargets = getDeclaredTargets(state, open)
   const floorTargets = getDeclaredFloorTargets(state, open)
-  const floorStruck = open.kind === 'strike' ? getFloorObject(state, open) : null
+  const floorStruck = isAttackAction(open) ? getFloorObject(state, open) : null
   // the aim is offered once the attack has a target it may be aimed at
   const aimable = !!attack && attack.targetId !== null && (attack.step !== 'define' || declaredTargets.includes(attack.targetId))
 
@@ -437,7 +437,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
-          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorStrike(open) && isSweepVariant(o.variant))))))
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
@@ -453,7 +453,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
         }))
       : [],
     locations: aimable && attack ? getLocationOptions(target, attack) : [],
-    items: aimable && attack?.kind === 'strike' && target
+    items: aimable && attack && target
       ? getAimableItems(target).map((item) => ({ id: item.id, name: item.name || item.refId, penalty: EQUIPMENT_ATTACK_PENALTY, selected: item.id === attack.object }))
       : [],
     targets: [

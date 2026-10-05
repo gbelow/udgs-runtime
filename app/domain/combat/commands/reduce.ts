@@ -1,5 +1,5 @@
 import type { CampaignCharacter } from '../../types'
-import { HazardLayerSchema, TerrainCellSchema, type Action, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
+import { HazardLayerSchema, TerrainCellSchema, type Action, type AttackAction, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
 import { getFootprint, placeAt } from '../rules/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
@@ -12,7 +12,10 @@ import { removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
 import { breakOne, onFloor, withoutOne } from '../rules/floor'
-import { isFloorStrike } from '../rules/equipment'
+import { isFloorAttack } from '../rules/equipment'
+import { getFloorObject, getStruckCells } from '../rules/floorAttack'
+import { getBurnOf } from '../rules/ignition'
+import { isVoided } from '../rules/opportunity'
 import { getMoveDestination } from '../rules/waypoint'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getBreaks, getBrokenItems } from '../rules/breakage'
@@ -257,16 +260,36 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
       const item = owner ? getHeldItem(owner, itemId) : undefined
       return item ? [...floor, onFloor(item, cellOf(ownerId))] : floor
     }
-    if (action.kind === 'shoot') return action.thrown ? [...floor, onFloor(action.thrown, cellOf(action.targetId))] : floor
+    // what a blow on an object broke; a thrown row lands where it was aimed
+    if (action.kind === 'shoot') {
+      const hit = isFloorAttack(action) ? withBroken(floor, action) : floor
+      return action.thrown ? [...hit, onFloor(action.thrown, getFloorObject(state, action)?.cell ?? cellOf(action.targetId))] : hit
+    }
     if (action.kind === 'pickUp') return withoutOne(floor, action.itemId)
     // lands where it was thrown, gone from wherever it lay before — a hand
     // leaves nothing behind on the floor
     if (action.kind === 'throw') return action.thrown ? [...withoutOne(floor, action.itemId), ...(action.thrown.fuel ? [] : [onFloor(action.thrown, action.to)])] : floor
     if (action.kind === 'explosion' && action.source !== 'cast') return withoutOne(floor, action.itemId)
-    // what a blow on an object broke
-    if (action.kind === 'strike' && isFloorStrike(action)) return getBrokenItems(action).reduce((acc, { itemId }) => breakOne(acc, itemId, action.id), floor)
+    if (action.kind === 'strike' && isFloorAttack(action)) return withBroken(floor, action)
     return floor
   }
+}
+
+function withBroken(floor: FloorItem[], attack: AttackAction): FloorItem[] {
+  return getBrokenItems(attack).reduce((acc, { itemId }) => breakOne(acc, itemId, attack.id), floor)
+}
+
+// combat.tex "Fire": burning damage that lands sets alight the fuel where it
+// lands, as hot as the burn it dealt.
+function lightBurned(state: CombatState, attack: AttackAction, board: Board): Board {
+  const burn = getBurnOf(state, attack)
+  if (burn <= 0 || !attack.roll || attack.roll.degree === 'miss' || isVoided(state, attack)) return board
+  const terrain = { ...board.terrain }
+  for (const cell of getStruckCells(state, attack)) {
+    const key = coordKey(cell)
+    if (terrain[key]) terrain[key] = igniteCell(state, terrain[key], burn)
+  }
+  return { ...board, terrain }
 }
 
 // combat.tex "Crash": who it stunned, and the target it knocked prone —
@@ -296,6 +319,7 @@ function settleDepth(state: CombatState, action: MoveAction, destination: Placem
 export function reduceBoard(state: CombatState, action: Action, phase: Phase): (board: Board) => Board {
   return (board: Board) => {
     if (phase !== 'resolve') return board
+    const lit = isAttackAction(action) ? lightBurned(state, action, board) : board
     if (action.kind === 'move') {
       const placements = board.placements
       // a jump away from an opportunity attack put the mover where it landed
@@ -311,8 +335,8 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       const stepped = Object.fromEntries(getReactionsTo(state, action.id).flatMap((r) => ((r.kind === 'block' || r.kind === 'intercept') && r.to ? [[r.actorId, r.to]] : [])))
       const placements = { ...board.placements, ...stepped }
       // combat.tex "Evasive Jump": the defender lands where the jump said
-      if (!action.jumpedTo || !action.targetId) return { ...board, placements }
-      return { ...board, placements: { ...placements, [action.targetId]: action.jumpedTo } }
+      if (!action.jumpedTo || !action.targetId) return { ...lit, placements }
+      return { ...lit, placements: { ...placements, [action.targetId]: action.jumpedTo } }
     }
     // combat.tex "Balance": the faller lands where the fall took them, at the
     // height of the ground there
@@ -347,6 +371,6 @@ export function reduceBoard(state: CombatState, action: Action, phase: Phase): (
       const key = coordKey(action.to)
       return { ...board, terrain: { ...board.terrain, [key]: coatCell(state, board.terrain[key] ?? TerrainCellSchema.parse({}), action.thrown.fuel) } }
     }
-    return board
+    return lit
   }
 }

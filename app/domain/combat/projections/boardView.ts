@@ -91,7 +91,7 @@ export type BoardFloorItemView = {
   x: number
   y: number
   pickable: boolean
-  // the open strike could be aimed at it
+  // the open strike or shot could be aimed at it
   targetable: boolean
 }
 

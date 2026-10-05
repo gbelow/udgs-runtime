@@ -24,7 +24,7 @@ import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
-import { getFloorTargets } from './floorStrike'
+import { getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
@@ -530,19 +530,19 @@ export function getDeclaredTargets(state: CombatState, open: RootAction | null):
   return getTargetIds(state, open)
 }
 
-// The items on the floor the open strike can be aimed at, once it is declared
-// with a row that reaches them.
+// The items on the floor the open strike or shot can be aimed at, once it is
+// declared with a row that reaches them.
 export function getDeclaredFloorTargets(state: CombatState, open: RootAction | null): FloorItem[] {
-  if (open?.kind !== 'strike' || open.step !== 'define') return []
+  if (!open || !isAttackAction(open) || open.step !== 'define') return []
   const actor = state.characters[open.actorId]
   return actor && getAttackVariant(actor, open) !== null ? getFloorTargets(state, open) : []
 }
 
 // Whether the action is aimed at someone it may be aimed at: a character
-// among its targets, or for a strike an item on the floor.
+// among its targets, or for a strike or a shot an item on the floor.
 export function isTargetAimed(state: CombatState, open: RootAction): boolean {
   if (open.targetId !== null) return getTargetIds(state, open).includes(open.targetId)
-  return open.kind === 'strike' && getFloorTargets(state, open).some((f) => f.item.id === open.object)
+  return isAttackAction(open) && getFloorTargets(state, open).some((f) => f.item.id === open.object)
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.

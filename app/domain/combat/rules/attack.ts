@@ -23,8 +23,8 @@ import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
 import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
-import { EQUIPMENT_ATTACK_PENALTY, isFloorStrike, isObjectOnTarget, isObjectStrike } from './equipment'
-import { getFloorObject, getFloorStrikeDL } from './floorStrike'
+import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAttack } from './equipment'
+import { getFloorObject, getFloorAttackDL } from './floorAttack'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -243,7 +243,7 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
-    ...(isFloorStrike(action) ? [] : [isObjectStrike(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
+    ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
   ]
 }
@@ -390,7 +390,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
 // against each other" — on the SD as much as on an active defense.
 function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
   const floor = getFloorObject(state, root)
-  if (floor) return getFloorStrikeDL(floor.item)
+  if (floor) return getFloorAttackDL(floor.item)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
@@ -404,6 +404,8 @@ function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
 function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
+  const floor = getFloorObject(state, root)
+  if (floor) return getFloorAttackDL(floor.item)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
