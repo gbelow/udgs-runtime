@@ -31,7 +31,7 @@ import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRow
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
 import { isGuardPlaced } from './protect'
-import { isPreparedCancelled } from './prepared'
+import { isDefensePlaced, isPreparedCancelled } from './prepared'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
 import { getLinkDL } from './link'
 import { getCounterStrike, getOpeningCounter } from './counter'
@@ -349,7 +349,7 @@ function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Ac
 // whose defense the damage meets — is whichever puts up the most.
 function getShotDefense(state: CombatState, root: Action): Action | null {
   return getReactionsTo(state, getShotLead(state, root).id)
-    .filter((r) => r.kind === 'evasion' || (r.kind === 'guard' && guardsShot(state, root, r) && (r.preparedId === '' || !isPreparedCancelled(state, r))))
+    .filter((r) => r.kind === 'evasion' || (r.kind === 'guard' && (r.preparedId === '' ? guardsShot(state, root, r) : isDefensePlaced(state, r) && !isPreparedCancelled(state, r))))
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
 }
 

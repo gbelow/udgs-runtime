@@ -1,4 +1,5 @@
 import type { TerrainBrush } from '../../types'
+import { getUsableCells } from '../rules/prepared'
 import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord, type MoveAction, type Updater } from '../types'
 import { makeBoard } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
@@ -130,7 +131,7 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
 // back if it is the path's end, one more step if it is next to the end,
 // the shortest way there if it is reachable at all, and nothing otherwise.
 function pickPathCell(state: CombatState, action: MoveAction, cell: Coord): Coord[] | null {
-  return pickWayCell(getMoveOrigin(state, action)?.cell ?? null, action.path, getReachableCells(state, action), cell)
+  return pickWayCell(getMoveOrigin(state, action)?.cell ?? null, action.path, getUsableCells(state, action, getReachableCells(state, action)), cell)
 }
 
 function pickWayCell(from: Coord | null, path: Coord[], reachable: Pick<ReachableCell, 'cell' | 'steps' | 'path'>[], cell: Coord): Coord[] | null {

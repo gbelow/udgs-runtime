@@ -9,7 +9,8 @@ import { isCampaignCharacter } from '../../utils'
 import { makeAction } from '../factories'
 import { firstStep, getPathDistances } from './approach'
 import { getActionCost } from '../../character/rules/actionCosts'
-import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, isGuardingShot, seesAcross, withPlacements } from './board'
+import { line, setDistance } from '../geometry'
+import { getFootprint, getPlacedFootprint, getShotReachOf, getStrikeReach, seesAcross, withPlacements } from './board'
 import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getReachableCells } from './move'
@@ -221,12 +222,21 @@ function getDefensePlacements(state: CombatState, root: StrikeAction | ShootActi
   return [from, ...reached].filter((placement) => isPlacedToDefend(state, root, owner, p, placement))
 }
 
+// A guard prepared for an ally stands anywhere along the arrow's way (the
+// table's ruling): within one space of the line between shooter and target, and
+// nearer the shooter than the target is.
+function isOnShotLine(state: CombatState, shot: ShootAction, guard: CampaignCharacter, placement: Placement): boolean {
+  const from = state.board?.placements[shot.actorId]
+  const to = shot.targetId ? state.board?.placements[shot.targetId] : undefined
+  const shooter = getPlacedFootprint(state, shot.actorId)
+  const target = shot.targetId ? getPlacedFootprint(state, shot.targetId) : null
+  if (!from || !to || !shooter || !target || guard.id === shot.actorId) return false
+  const mine = getFootprint(guard, placement)
+  return setDistance(mine, line(from.cell, to.cell)) <= 1 && setDistance(shooter, mine) < setDistance(shooter, target)
+}
+
 function isPlacedToDefend(state: CombatState, root: StrikeAction | ShootAction, owner: CampaignCharacter, p: PrepareAction, placement: Placement): boolean {
-  if (root.kind === 'shoot') {
-    const there = withPlacements(state, { [owner.id]: placement })
-    return !!root.targetId && isGuardingShot(there, root.actorId, root.targetId, owner.id)
-      && guardRows(there, owner, root).some((row) => row.wielded.key === p.weaponKey && row.atk.name === p.attack)
-  }
+  if (root.kind === 'shoot') return isOnShotLine(state, root, owner, placement) && guardRows(state, owner, root).some((row) => row.wielded.key === p.weaponKey && row.atk.name === p.attack)
   if (!isOnProtectLine(state, root, owner.id, placement)) return false
   return p.main !== 'intercept' || isInInterceptRange(state, root, owner.id, placement, p.weaponKey, p.attack)
 }
@@ -376,4 +386,15 @@ export function isRepositionPlaced(state: CombatState, move: ActionOf<'move'>): 
   const end = move.path.at(-1)
   if (!setting || !from || !end) return false
   return isPlacedToDefend(state, setting.root, setting.owner, setting.prepared, { ...from, cell: end })
+}
+
+// Of the spaces a move can reach, the ones it is worth walking to: for the
+// reposition of a prepared defense, only those it can be made from; every other
+// move may go anywhere it reaches.
+export function getUsableCells<C extends { cell: Coord }>(state: CombatState, move: ActionOf<'move'>, cells: C[]): C[] {
+  const reaction = move.preparedPart === 'move' && move.spawnedBy ? getAction(state, move.spawnedBy) : null
+  const setting = reaction && isPreparedDefense(reaction) && reaction.preparedId !== '' ? getDefenseSetting(state, reaction) : null
+  const from = state.board?.placements[move.actorId]
+  if (!setting || !from) return cells
+  return cells.filter(({ cell }) => isPlacedToDefend(state, setting.root, setting.owner, setting.prepared, { ...from, cell }))
 }

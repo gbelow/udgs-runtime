@@ -159,7 +159,7 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   line from where they stand or from any space the movement they carry reaches
   (`getDefensePlacements`: `getReachableCells` at the budget `getPreparedMoveBudget` leaves, each
   tested with the same geometry the plain defense uses — `isOnProtectLine`, `isInInterceptRange`,
-  `isGuardingShot`). Declared at the react step like any defense, with `preparedId` among its
+  `isOnShotLine` for a guard, anywhere along the arrow's way: the table's ruling, where the plain guard stays adjacent as the book has it). Declared at the react step like any defense, with `preparedId` among its
   identity fields. The die is scored against the defense as it stands, so the movement is walked
   **before it**: `rollAction` first calls `repositionDefenders` (`commands/sequence.ts`), which
   opens the next preparer's move (`preparedPart: 'move'`, spawned by the defense, a root of its own

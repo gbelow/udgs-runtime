@@ -1,5 +1,6 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 
+import { getUsableCells } from '../rules/prepared'
 import type { Area, Character, Item, MoveKind } from '../../types'
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
@@ -485,7 +486,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
     canBack: step === 'react' && reactions.length > 0,
     moves: move && actor ? getMovementOptions(state, actor, move) : [],
-    reachable: move ? getReachableCells(state, move) : [],
+    reachable: move ? getUsableCells(state, move, getReachableCells(state, move)) : [],
     hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
       ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
       : { remaining: 0, options: [] },

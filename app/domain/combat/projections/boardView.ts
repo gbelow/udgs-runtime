@@ -1,4 +1,5 @@
 import type { Bind, CombatState, Coord, Degree, Placement } from '../types'
+import { getUsableCells } from '../rules/prepared'
 import type { Fuel } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -165,7 +166,7 @@ function buildBoardView(state: CombatState): BoardView {
   const pusher = group ? state.characters[group.actorId] : undefined
   const targets = new Set(getDeclaredTargets(state, open))
   const occupancy = getOccupancy(board, state.characters)
-  const reachable = move ? getReachableCells(state, move)
+  const reachable = move ? getUsableCells(state, move, getReachableCells(state, move))
     : group && pusher ? getDragReach(state, group).map((r) => ({ ...r, cost: getMoveCost(pusher, group.movement, r.steps) }))
     : []
   const reachableByKey = new Map(reachable.map((r) => [coordKey(r.cell), r]))

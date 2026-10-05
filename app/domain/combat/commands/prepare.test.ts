@@ -6,6 +6,7 @@ import { holdItem, regripItem } from '../../item/commands/hands'
 import { getAvailableActions } from '../rules/options'
 import { defRows, getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { archer } from '../../bot/fixtures'
+import { getBoardView } from '../projections/boardView'
 import { getHistory, getLog, getOpenAction } from '../rules/log'
 import { getTriggersFor } from '../rules/reactions'
 import { getPrepared, getPreparedZone } from '../rules/prepared'
@@ -406,20 +407,31 @@ describe('preparing a defense for an ally', () => {
   })
 
   // combat.tex "Guard": "as long as they are closer to the projectile source
-  // than the adjacent character" — next to the target, on the shooter's side.
-  it('can be prepared as a guard against an arrow', () => {
-    const shot = (moves: boolean) => {
-      let s = onBoard({ a: [0, 0], def: [-6, 0], p: [-4, 1] }, archer('a'), fighter('def'), shielded('p'))
+  // than the adjacent character" — a guard prepared for an ally stands anywhere
+  // along the arrow's way, within a space of the line (the table's ruling).
+  describe('as a guard against an arrow', () => {
+    const shot = (from: [number, number], moves: boolean) => {
+      let s = onBoard({ a: [0, 0], def: [-6, 0], p: from }, archer('a'), fighter('def'), shielded('p'))
       s = prepareDefense(s, 'p', 'guard', moves)
       s = declareAction('a', { kind: 'shoot', weaponKey: s.characters.a.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
       return commitAction(() => MISS, newId)(setTarget('def')(s))
     }
-    expect(triggersOf(shot(true), 'p')).toContain('guard')
-    expect(triggersOf(shot(false), 'p')).not.toContain('guard')
-    const start = shot(true)
-    let s = rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start))
-    expect(isRepositioning(s)).toBe(true)
-    s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: -4, r: 0 }, { q: -5, r: 0 }] })(s)), MISS, backAtTheAttack)
-    expect(getDefendingReaction(s, attackOf(s))?.actorId).toBe('p')
+
+    it('is offered to one standing on the way, adjacent to the target or not, and to one the movement can put there', () => {
+      expect(triggersOf(shot([-3, 1], false), 'p')).toContain('guard')
+      expect(triggersOf(shot([-4, 3], false), 'p')).not.toContain('guard')
+      expect(triggersOf(shot([-4, 3], true), 'p')).toContain('guard')
+    })
+
+    it('has the guard walk to the way before the die, and offers only the spaces it can be made from', () => {
+      const start = shot([-4, 3], true)
+      let s = rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start))
+      expect(isRepositioning(s)).toBe(true)
+      const offered = getBoardView(s).cells.filter((c) => c.reachable !== null)
+      expect(offered.length).toBeGreaterThan(0)
+      expect(offered.every(({ cell }) => Math.abs(cell.r) <= 1)).toBe(true)
+      s = playOut(commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [{ q: -4, r: 2 }, { q: -4, r: 1 }] })(s)), MISS, backAtTheAttack)
+      expect(getDefendingReaction(s, attackOf(s))?.actorId).toBe('p')
+    })
   })
 })
