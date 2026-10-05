@@ -195,7 +195,11 @@ export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'soft', 'raise', 'lowe
 
 // The tests a character makes once for a round and scores against every DL
 // the round puts to them, in the order the rulebook introduces them.
-export const HELD_TESTS = ['swim'] as const
+export const HELD_TESTS = ['swim', 'climb', 'balance'] as const
+
+// The held tests the beginning of a round calls for; the rest are first made
+// as the die of the move that needs them.
+export const CALLED_TESTS = ['swim'] as const satisfies readonly (typeof HELD_TESTS)[number][]
 
 // creating.tex "Size and Space Occupation": "Other creatures may have
 // different shapes." The shapes a footprint can take; the cells each one

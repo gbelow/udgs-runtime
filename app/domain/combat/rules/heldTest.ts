@@ -1,4 +1,5 @@
 import type { Character } from '../../types'
+import { CALLED_TESTS } from '../../lists'
 import type { CombatState, HeldTest } from '../types'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { sumTerms, type Term } from '../../character/rules/terms'
@@ -8,10 +9,17 @@ import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 
+export type CalledKind = (typeof CALLED_TESTS)[number]
+
+export function isCalledKind(kind: HeldKind): kind is CalledKind {
+  return (CALLED_TESTS as readonly HeldKind[]).includes(kind)
+}
+
 // Tests a character makes once a round and then scores against every DL the
 // round puts to them. The round calls whoever the kind says it must at its
 // beginning; a test the character comes to need mid-round is an action of its
-// own, opened by the one that brought them to it (`openSwimTest`).
+// own, opened by the one that brought them to it (`openSwimTest`), or the die
+// of the move that needs it (a climb, a walk across difficult ground).
 type HeldDef = {
   called: (state: CombatState, id: string) => boolean
   skill: (c: Character) => Term[]
@@ -22,7 +30,7 @@ type HeldDef = {
   modes: (c: Character) => readonly RollMode[]
 }
 
-const HELD_DEFS: Record<HeldKind, HeldDef> = {
+const HELD_DEFS: Record<CalledKind, HeldDef> = {
   // combat.tex "Swimming": "While in the water, make a swimming check against
   // the DL of the body of water."
   swim: {
@@ -33,20 +41,20 @@ const HELD_DEFS: Record<HeldKind, HeldDef> = {
   },
 }
 
-export function getHeldModes(c: Character, kind: HeldKind): readonly RollMode[] {
+export function getHeldModes(c: Character, kind: CalledKind): readonly RollMode[] {
   return HELD_DEFS[kind].modes(c)
 }
 
 // Whether a kind of test is due from a character: the living and awake whose
 // situation calls for it.
-export function isHeldCalled(state: CombatState, id: string, kind: HeldKind): boolean {
+export function isHeldCalled(state: CombatState, id: string, kind: CalledKind): boolean {
   const c = state.characters[id]
   return !!c && HELD_DEFS[kind].called(state, id) && !isDead(c) && !getAfflictions(c, getSituationalAfflictions(state, id)).includes('unconscious')
 }
 
 // Who the beginning of the round calls to which tests.
 export function getHeldCalled(state: CombatState): HeldTest[] {
-  return (Object.keys(HELD_DEFS) as HeldKind[]).flatMap((kind) =>
+  return CALLED_TESTS.flatMap((kind) =>
     Object.keys(state.characters)
       .filter((id) => isHeldCalled(state, id, kind))
       .map((id) => ({ id, kind, roll: null })),
@@ -54,7 +62,10 @@ export function getHeldCalled(state: CombatState): HeldTest[] {
 }
 
 // The test a call is rolled as.
-export function getHeldTest(state: CombatState, id: string, kind: HeldKind): Test | null {
+export function getHeldTest(state: CombatState, id: string, kind: CalledKind): Test | null {
   const c = state.characters[id]
-  return c ? { skill: sumTerms(HELD_DEFS[kind].skill(c)), DL: HELD_DEFS[kind].DL(state, id), explodes: false, scale: 'degrees' } : null
+  if (!c) return null
+  const skill = HELD_DEFS[kind].skill(c)
+  const DL = HELD_DEFS[kind].DL(state, id)
+  return { skill: sumTerms(skill), DL, explodes: false, scale: 'degrees', terms: { skill, DL: [{ label: kind, value: DL }] } }
 }

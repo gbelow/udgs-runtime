@@ -1,5 +1,5 @@
 import type { Character, MoveKind } from '../../types'
-import type { ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, MoveFall, Placement } from '../types'
+import type { CombatState, Coord, Degree, HeldRoll, MoveAction, MoveFacts, MoveFall, Placement } from '../types'
 import { CLIMB_HEIGHT, FALL } from '../../tables'
 import { hasGrant } from '../../character/rules/abilities'
 import { getRM } from '../../character/rules/size'
@@ -10,6 +10,7 @@ import { getDegree } from './test'
 import { isCampaignCharacter } from '../../utils'
 import { readGround } from './ground'
 import { getMoveOrigin } from './waypoint'
+import { getMoveHeld } from './heldRoll'
 
 // Where the ground drops or rises too far to be walked: the cliffs of a move,
 // the climb that crosses one, and the fall that follows a jump down or a
@@ -134,40 +135,34 @@ export function getClimbModes(c: Character): RollMode[] {
   return ['normal', ...(hasGrant(c, 'safeClimb') ? ['safe' as const] : []), ...(hasGrant(c, 'riskyClimb') && surging ? ['risky' as const] : [])]
 }
 
-type ClimbTest = { roll: ActionRoll; mode: RollMode }
+type ClimbTest = { score: number; mode: RollMode }
 
 // combat.tex "Climbing": "The same test result is saved for the entire
-// round" — the one the climber's latest climb earlier this round was rolled
-// with, and the way it was rolled. Read off what landed before the move,
-// whose own die, if it has one, is not one of them.
-function getClimbMemory(state: CombatState, action: MoveAction): ClimbTest | null {
-  const at = state.record.findIndex((a) => a.id === action.id)
-  const before = at === -1 ? state.record : state.record.slice(0, at)
-  for (const a of [...before].reverse()) {
-    if (a.kind === 'move' && a.actorId === action.actorId && a.round === action.round && a.test === 'climb' && a.roll) return { roll: withHolds(state, action, a.roll), mode: a.mode }
-  }
-  return null
+// round" — the climber's held climbing test, and the way it was rolled.
+function getHeldClimb(state: CombatState, action: MoveAction): ClimbTest | null {
+  const held = getMoveHeld(state, action, 'climb')
+  return held ? { score: withHolds(state, action, held), mode: held.mode } : null
 }
 
 // combat.tex "Climbing": "Add or remove the penalty to the climbing test to
 // redetermine the climbing performance" — the die and every other term stay as
 // rolled; the term for the free holds is the one the climber has now.
-function withHolds(state: CombatState, action: MoveAction, roll: ActionRoll): ActionRoll {
+function withHolds(state: CombatState, action: MoveAction, held: HeldRoll): number {
   const c = state.characters[action.actorId]
   const now = c && getClimbTerms(c).find((t) => t.label === 'holds')?.value
-  if (now === undefined) return roll
-  const then = roll.skillTerms.find((t) => t.label === 'holds')?.value ?? 0
-  return { ...roll, score: roll.score + now - then }
+  if (now === undefined) return held.score
+  const then = held.skillTerms.find((t) => t.label === 'holds')?.value ?? 0
+  return held.score + now - then
 }
 
 // Whether the climb is closed by a die of its own: the climber has not tested
 // this round, or the move carries the test it was rolled with.
 export function needsClimbTest(state: CombatState, action: MoveAction): boolean {
-  return !isTrivialClimb(state, action) && (action.roll !== null || getClimbMemory(state, action) === null)
+  return !isTrivialClimb(state, action) && (action.roll !== null || getHeldClimb(state, action) === null)
 }
 
 function getClimbTest(state: CombatState, action: MoveAction): ClimbTest | null {
-  return action.roll ? { roll: action.roll, mode: action.mode } : getClimbMemory(state, action)
+  return action.roll ? { score: action.roll.score, mode: action.mode } : getHeldClimb(state, action)
 }
 
 // What the climb's test came to against this climb's DL; a climb given up is
@@ -177,7 +172,7 @@ export function getClimbDegree(state: CombatState, action: MoveAction): Degree |
   if (isTrivialClimb(state, action)) return null
   const test = getClimbTest(state, action)
   const DL = getClimbDL(state, action)
-  return test && DL !== null ? getDegree(test.roll.score, DL) : null
+  return test && DL !== null ? getDegree(test.score, DL) : null
 }
 
 // abilities.tex "Climber II": whether the test that stands for the climb was

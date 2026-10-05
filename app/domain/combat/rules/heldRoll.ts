@@ -1,4 +1,4 @@
-import type { CombatState, HeldRoll, HeldTest } from '../types'
+import type { CombatState, HeldRoll, HeldTest, MoveAction } from '../types'
 import { getFightName } from './fighters'
 
 export type HeldKind = HeldTest['kind']
@@ -10,6 +10,17 @@ function findHeld(state: CombatState, id: string, kind: HeldKind): HeldTest | un
 // The score a character made on a held test this round, if they have made it.
 export function getHeldRoll(state: CombatState, id: string, kind: HeldKind): HeldRoll | null {
   return findHeld(state, id, kind)?.roll ?? null
+}
+
+// Every held test the character has made this round, by kind.
+export function getHeldRolls(state: CombatState, id: string): Partial<Record<HeldKind, HeldRoll>> {
+  return Object.fromEntries(state.heldTests.flatMap((t) => (t.id === id && t.roll ? [[t.kind, t.roll]] : [])))
+}
+
+// The held test the move goes on: the round's while it is being declared, and
+// from its commit the one written on it then.
+export function getMoveHeld(state: CombatState, action: MoveAction, kind: HeldKind): HeldRoll | null {
+  return action.held ? action.held[kind] ?? null : getHeldRoll(state, action.actorId, kind)
 }
 
 // Why the character cannot roll a held test now, or null.

@@ -1,5 +1,6 @@
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
-import type { Action, ActionRoll, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import type { Action, CombatState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import { getMoveHeld } from './heldRoll'
 import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -284,9 +285,11 @@ function isWithinCone(offset: Coord, heading: number): boolean {
 // combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
 // move whose path enters a difficult cell is committed by a die — for a
 // jump, only the cell it lands on — unless the mover's test stands from
-// earlier in the round (`getBalanceMemory`).
+// earlier in the round (the table's ruling: the test made on difficult
+// terrain is held for the round, until a fall has the mover test again,
+// `dropFallenBalance`).
 export function needsBalanceTest(state: CombatState, action: MoveAction): boolean {
-  return firstDifficultStep(state, action) !== null && getBalanceMemory(state, action) === null
+  return firstDifficultStep(state, action) !== null && getMoveHeld(state, action, 'balance') === null
 }
 
 // The test a move's die is thrown as: its way over a cliff, or its walk across
@@ -294,23 +297,6 @@ export function needsBalanceTest(state: CombatState, action: MoveAction): boolea
 export function getMoveTest(state: CombatState, action: MoveAction): NonNullable<MoveAction['test']> {
   if (action.movement === 'climb') return 'climb'
   return 'balance'
-}
-
-// The table's ruling on combat.tex "Balance" — "Difficult terrain": the test
-// the mover made on difficult terrain stands for the round, its score
-// against the DL of every difficult cell the round's later moves enter, until
-// a fall (a move that fell, or a fall of its own) has them test again.
-// Read off what landed before the move, whose own die is not one of them.
-export function getBalanceMemory(state: CombatState, action: MoveAction): ActionRoll | null {
-  const at = state.record.findIndex((a) => a.id === action.id)
-  const before = at === -1 ? state.record : state.record.slice(0, at)
-  const round = action.round ?? state.round
-  for (const a of [...before].reverse()) {
-    if (a.actorId !== action.actorId) continue
-    if (a.round !== round || a.kind === 'fall' || (a.kind === 'move' && a.facts?.fell)) return null
-    if (a.kind === 'move' && a.test === 'balance' && a.roll) return a.roll
-  }
-  return null
 }
 
 // Every step of the path that comes down on difficult ground, with the DL of
@@ -342,7 +328,7 @@ export function getBalanceDL(state: CombatState, action: MoveAction): number {
 // balance — their own die's score, or the remembered one — does not clear
 // for the way they move.
 function getFallStep(state: CombatState, action: MoveAction): number | null {
-  const score = (action.roll ?? getBalanceMemory(state, action))?.score
+  const score = (action.roll ?? getMoveHeld(state, action, 'balance'))?.score
   if (score === undefined) return null
   return getDifficultSteps(state, action).find(({ DL }) => !isSafeOnDifficultTerrain(action.movement, getDegree(score, DL)))?.step ?? null
 }

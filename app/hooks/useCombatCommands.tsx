@@ -5,7 +5,7 @@ import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
 import { rollMorale as testMorale } from "../domain/combat/commands/morale"
 import { rollHeld as testHeld } from "../domain/combat/commands/heldTest"
-import type { HeldKind } from "../domain/combat/rules/heldRoll"
+import type { CalledKind } from "../domain/combat/rules/heldTest"
 import { say as saySocial, insult as insultSocial, negotiate as negotiateSocial, defaultToCoward as defaultToCowardSocial, surrender as surrenderSocial, unsurrender as unsurrenderSocial } from "../domain/combat/commands/social"
 import type { SocialAction } from "../domain/tables"
 import type { Updater } from "../domain/combat/types"
@@ -67,7 +67,7 @@ export function useCombatCommands() {
     updateCombatState(testMorale(id, mode, enemyNear, realDice))
   }
 
-  const rollHeld = (id: string, kind: HeldKind, mode: RollMode) => {
+  const rollHeld = (id: string, kind: CalledKind, mode: RollMode) => {
     updateCombatState(testHeld(id, kind, mode, realDice))
   }
 

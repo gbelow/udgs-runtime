@@ -6,7 +6,8 @@ import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } fr
 import { isVoided } from '../rules/opportunity'
 import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
-import { holdSwimTest } from './heldTest'
+import { dropFallenBalance, holdThrown } from './heldTest'
+import { getHeldRolls } from '../rules/heldRoll'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getChanges } from '../rules/changes'
@@ -22,9 +23,10 @@ import { deliverAll } from '../../character/commands/deliver'
 // The fight with the actions in play rewritten, and the stack kept to the
 // actions still being played out: `pushed` goes on top, anything resolved or
 // gone leaves, and what leaves having landed goes into the record, the
-// reactions to it before it.
+// reactions to it before it. A move past its declaration carries the held
+// tests its mover had made when it got there.
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
-  const stamped = declared.map((a) => (a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
+  const stamped = declared.map((a) => stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
   const landed = state.stack.filter((id) => !live.has(id) && stamped.some((a) => a.id === id))
   const entering = landed.flatMap((id) => [...stamped.filter((a) => a.reactionTo === id), stamped.find((a) => a.id === id)!])
@@ -34,6 +36,10 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
     stack: [...state.stack, ...pushed].filter((id) => live.has(id)),
     record: [...state.record, ...entering],
   }
+}
+
+function stampHeld(state: CombatState, action: Action): Action {
+  return action.kind === 'move' && action.step !== 'define' && action.held === null ? { ...action, held: getHeldRolls(state, action.actorId) } : action
 }
 
 // Takes a draft back: it was never committed, so nothing is kept of it.
@@ -65,8 +71,9 @@ function mapCharacters(state: CombatState, f: (c: CampaignCharacter) => Campaign
 }
 
 // A voided action lands nothing at its resolve (combat.tex
-// "Interruption"); its price was already taken at the roll. A swim test makes
-// the roll the swimmer's for the round as it is thrown.
+// "Interruption"); its price was already taken at the roll. A held test's die
+// is its actor's for the round as it is thrown, and a fall has them test their
+// balance again.
 export function applyPhase(state: CombatState, actions: Action[], phase: Phase): CombatState {
   return actions.reduce((held, action) => {
     const applied = applyOne(held, action, phase)
@@ -78,8 +85,9 @@ export function applyPhase(state: CombatState, actions: Action[], phase: Phase):
 }
 
 function applyOne(s: CombatState, action: Action, phase: Phase): CombatState {
-  const rolled = phase === 'roll' && action.kind === 'swimTest' ? holdSwimTest(s, action) : s
-  if (phase === 'resolve' && isVoided(rolled, action)) return rolled
+  const thrown = phase === 'roll' ? holdThrown(s, action) : s
+  if (phase === 'resolve' && isVoided(thrown, action)) return thrown
+  const rolled = phase === 'resolve' ? dropFallenBalance(thrown, action) : thrown
   const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null
   const next = mapCharacters(rolled, reduceCharacter(action, phase, fire))

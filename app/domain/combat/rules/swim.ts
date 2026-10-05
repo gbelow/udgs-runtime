@@ -6,7 +6,7 @@ import type { Term } from '../../character/rules/terms'
 import { getFreeHoldingHands } from '../../item/rules/hands'
 import { coordKey } from '../geometry'
 import { getFootprint } from './board'
-import { getHeldRoll } from './heldRoll'
+import { getMoveHeld } from './heldRoll'
 import { getDegree } from './test'
 import { getMoveOrigin, touchesGround } from './waypoint'
 
@@ -83,7 +83,7 @@ export function getSwimTestRootTerms(state: CombatState, action: SwimTestAction)
 
 // The score the move is swum on: the round's test.
 export function getSwimScore(state: CombatState, action: MoveAction): number | null {
-  return getHeldRoll(state, action.actorId, 'swim')?.score ?? null
+  return getMoveHeld(state, action, 'swim')?.score ?? null
 }
 
 // How well each of the first `cells` cells of the path is swum: the held

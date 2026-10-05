@@ -27,6 +27,21 @@ export const ActionRollSchema = z.object({
 }).strip()
 export type ActionRoll = z.infer<typeof ActionRollSchema>
 
+// A test made once in a round whose score then stands against every DL the
+// round puts to the character (combat.tex "Swimming": "The swimming test
+// should not be redone more than once per round"; "Climbing": "The same test
+// result is saved for the entire round"). Only the score is kept, with the
+// terms it was added up from; the degree is read off it against each DL
+// (`rules/heldTest.ts`).
+export const HeldRollSchema = z.object({
+  mode: z.enum(ROLL_MODES),
+  die: z.number(),
+  skill: z.number(),
+  score: z.number(),
+  skillTerms: z.array(TermSchema).default([]),
+})
+export type HeldRoll = z.infer<typeof HeldRollSchema>
+
 // What an action produced for each character it reached, keyed by id: the
 // deliveries that character's own effect processor lands.
 export const DeliveriesSchema = z.record(z.string(), z.array(DeliverySchema))
@@ -656,6 +671,9 @@ export const MoveActionSchema = z.object({
   mode: z.enum(ROLL_MODES).default('normal'),
   // the test its die was thrown as, once it has been
   test: z.enum(['climb', 'balance']).nullable().default(null),
+  // the held tests its mover had made in the round when it was committed, by
+  // kind; null while it is still being declared, when the round's are read
+  held: z.partialRecord(z.enum(HELD_TESTS), HeldRollSchema).nullable().default(null),
   // combat.tex "Climbing": the test each opportunity attack drawn against
   // the climb would have the climber make if it interrupted them, at a
   // penalty, in the order the attacks are fought and thrown with the climb's
@@ -1103,19 +1121,9 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
-// A test made once in a round whose score then stands against every DL the
-// round puts to the character (combat.tex "Swimming": "The swimming test
-// should not be redone more than once per round"). Only the score is kept;
-// the degree is read off it against each DL (`rules/heldTest.ts`). A call with
-// no roll is a test owed.
-export const HeldRollSchema = z.object({
-  mode: z.enum(ROLL_MODES),
-  die: z.number(),
-  skill: z.number(),
-  score: z.number(),
-})
+// The round's held test of a character, by kind (`HeldRollSchema`). A call
+// with no roll is a test owed.
 export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null) })
-export type HeldRoll = z.infer<typeof HeldRollSchema>
 export type HeldTest = z.infer<typeof HeldTestSchema>
 
 // combat.tex "Social actions": what a character said to another in the round

@@ -37,9 +37,8 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   the landing delivers. Where the mover stands afterwards is read off the ground there, as for
   any move. A displacement that ends in a fall (a push, a drag) is not wired in yet.
 - **Balance on difficult terrain.** A move across difficult cells is closed by a Balance die
-  unless the mover's test stands for the round (`getBalanceMemory`, read off the record: the
-  latest of their moves this round whose die was thrown as a balance test, cleared by a fall or the
-  round's end). The one score is held against the DL of every difficult cell on the path
+  unless the mover's test stands for the round (a held test, below: the first move's die is
+  held, and a fall drops it, `dropFallenBalance`). The one score is held against the DL of every difficult cell on the path
   (`getDifficultSteps`), and the mover falls at the first the way they move is not safe on
   (`getFallStep`); the die's own DL is the first cell's. The move records which test its die was
   (`test`). A miss leaves the mover prone, with no fall height.
@@ -47,8 +46,8 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   the next (`getClimbPlan`), with the DL painted on the higher cell (`climbDL`; a face with none
   has nothing to hold, so only a trivial climb crosses it, `isClimbable`). The climber's test
   stands for the round: the first climb of a round throws the die (in the mode it declares, among
-  `getClimbModes`), and the climbs after it score that result against their own DL
-  (`getClimbMemory`, scoped by the `round` an action is stamped with). A climb starts at the
+  `getClimbModes`), which is held, and the climbs after it score that result against their own
+  DL, with the `holds` term swapped for the one the climber has now (`withHolds`). A climb starts at the
   climber's height (`getClimbStart`: 2 m × RM, more by the jump a Jumper II spends, `leap`), and
   only the first move up a face takes that: what is left is climbed in moves of `metres` each, at
   a block's price per metre. One step over a face no higher than the start is trivial: no test, no
@@ -67,13 +66,19 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   the water they stand in, so it never exceeds the floor, and below the surface they are
   suffocating (`situational.ts`). A **held test** is a test made once a round whose score then
   stands against every DL the round puts to the character: `state.heldTests` holds the calls
-  and the rolls (cleared and called again by `nextRound`), only the score is kept, and the
-  degree is read off it against each DL (`getDegree`). A call is owed at the round's beginning
-  and bars the turn, as morale does; a need that arises mid-round is met by the die of the
-  action that has it (a swim move that enters water with no roll yet), which `applyPhase`
-  makes the round's. What a roll does once, when made, is the effect registry in
-  `commands/heldTest.ts`. A new kind of held test is a word in `HELD_TESTS` (`lists.ts`) and
-  its entries in the two registries, which do not compile until they have them. Swim moves
+  and the rolls (cleared and called again by `nextRound`), only the score and its skill terms
+  are kept, and the degree is read off it against each DL (`getDegree`). Held tests are swim,
+  climb and balance. Only swim is called (`CALLED_TESTS`): a call is owed at the round's
+  beginning and bars the turn, as morale does. A need that arises mid-round is met by the die
+  of the action that has it (the swim test a move into water opens, a climb, a walk across
+  difficult ground), which `applyPhase` makes the round's (`holdThrown`). A move carries the
+  held tests its mover had made when it left its declaration (`held`, written by
+  `setActions`), and from then on reads those (`getMoveHeld`), never the round's, so a landed
+  move still reads as it was resolved. What a roll does once, when made, is the effect
+  registry in `commands/heldTest.ts`. A new kind of held test is a word in `HELD_TESTS`
+  (`lists.ts`) and its effect, which does not compile until it has one; a called kind is also
+  a word in `CALLED_TESTS` and its entry in `HELD_DEFS`. Rules ask the registry what holds for
+  the round; they do not scan the record for it. Swim moves
   are priced per metre by the degree that metre's water gives the score, and a dive is swum
   like a metre of path.
 - Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,
