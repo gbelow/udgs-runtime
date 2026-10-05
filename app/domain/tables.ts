@@ -434,7 +434,7 @@ export const ACTION_COSTS = {
   defenderStep:     { AP: 0, STA: 1 },
   defensiveAdvance: { AP: 0, STA: 1 },
   // ranged reactions — combat.tex "Reflex"
-  reflex:         { AP: 2, STA: 0 },
+  reflex:         { AP: 3, STA: 0 },
   guard:          { AP: 2, STA: 0 },
   avoidExplosion: { AP: 3, STA: 0 },
   // combat.tex "Explosion Block" names no price: the table's ruling, a guard's

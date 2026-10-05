@@ -398,7 +398,7 @@ export function withGuardStep(c: CampaignCharacter, action: ActionOf<'block'> | 
   return step ? { AP: cost.AP + step.AP, STA: cost.STA + step.STA } : cost
 }
 
-// combat.tex "Evasion": "spend 2 AP to react"; abilities.tex "Precise
+// combat.tex "Evasion": "spend 3 AP to react"; abilities.tex "Precise
 // Reflexes": "If the character uses reflexes without moving, reflexes only
 // cost 1 AP."
 export function getEvasionCost(c: CampaignCharacter, stay: boolean): ActionCost {
