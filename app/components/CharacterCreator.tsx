@@ -15,7 +15,7 @@ import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useTextLens } from '../hooks/useTextLens';
-import { useActiveCharacterData, useSTARegen } from '../hooks/useCharacterData';
+import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
@@ -73,18 +73,12 @@ function ResetAllSkillsButton(){
 }
 
 export function CharacterCreator() {
-
-  const STA = useCharacteristicLens('STA')[0] ?? 0
-  // combat.tex "Rest" — recovery amount comes from the domain, not from here.
-  const STARegen = useSTARegen()
-
   return (
     <div className='grid grid-cols-1 md:grid-cols-12 w-full gap-4 py-3 text-left'>
       <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
         <div className='flex flex-row flex-wrap items-center gap-2'>
           <TextItem keyName={'name'} mode='normal'/>
           <SaveBaseCharacterButton />
-          <span className='ml-auto text-xs text-muted'>AP <span className='font-mono text-fg'>6</span> · STA <span className='font-mono text-fg'>{STA}</span> · STA regen <span className='font-mono text-fg'>{STARegen}</span></span>
         </div>
 
         <MovementPanel />
