@@ -53,10 +53,10 @@ type Waits = { event: 'enters' | 'sighted'; who?: string | null }
 
 // The character's turn: a strike prepared, with or without the movement it may
 // carry, waiting for the trigger.
-function prepareStrike(s: CombatState, id: string, moves: boolean, waits: Waits = { event: 'enters' }): CombatState {
+function prepareStrike(s: CombatState, id: string, waits: Waits = { event: 'enters' }): CombatState {
   const row = getAttackOptions(s.characters[id], 'strike')[0]
   const declared = declareAction(id, { kind: 'prepare' }, newId)(s)
-  const filled = amendAction({ main: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant, moves, trigger: { event: waits.event, who: waits.who ?? null } })(declared)
+  const filled = amendAction({ main: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant, trigger: { event: waits.event, who: waits.who ?? null } })(declared)
   return commitAction(() => MISS, newId)(filled)
 }
 
@@ -72,8 +72,8 @@ const triggersOf = (s: CombatState, id: string) => getTriggersFor(s, getOpenActi
 
 // A spearman at the origin who has prepared a strike with its movement, and a
 // mover far along the row; the walk to `to` is declared and committed.
-function walkIntoIt(to: number, { moves = true, waits }: { moves?: boolean; waits?: Waits } = {}): CombatState {
-  const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p', moves, waits)
+function walkIntoIt(to: number, { waits }: { waits?: Waits } = {}): CombatState {
+  const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p', waits)
   return commitAction(() => MISS, newId)(walking(s, 'm', -10, to))
 }
 
@@ -89,19 +89,14 @@ describe('what a preparation waits for', () => {
   // The table's ruling: the area trigger includes the movement range — a
   // mover who stops short of it draws nothing, and one who comes into it does.
   it('fires on a mover who comes into its zone, and not on one who stays outside it', () => {
-    const declared = (to: number) => walking(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p', true), 'm', -10, to)
+    const declared = (to: number) => walking(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p'), 'm', -10, to)
     const inside = [-9, -8, -7, -6, -5, -4, -3, -2].find((to) => triggersOf(declared(to), 'p').includes('prepared'))
     expect(inside).toBeDefined()
     expect(triggersOf(declared(inside! - 1), 'p')).not.toContain('prepared')
   })
 
-  it('reaches further when it carries movement than when it does not', () => {
-    const first = (moves: boolean) => [-9, -8, -7, -6, -5, -4, -3, -2].find((to) => triggersOf(walking(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p', moves), 'm', -10, to), 'p').includes('prepared'))
-    expect(first(true)!).toBeLessThan(first(false)!)
-  })
-
   it('waits only for the one it names', () => {
-    const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], x: [-10, 1] }, spearman('p'), fighter('m'), fighter('x')), 'p', true, { event: 'enters', who: 'x' })
+    const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], x: [-10, 1] }, spearman('p'), fighter('m'), fighter('x')), 'p', { event: 'enters', who: 'x' })
     expect(triggersOf(walking(s, 'm', -10, -2), 'p')).not.toContain('prepared')
   })
 
@@ -113,7 +108,7 @@ describe('what a preparation waits for', () => {
   })
 
   it('lapses when the round ends', () => {
-    const prepared = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p', true)
+    const prepared = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p')
     expect(getPrepared(prepared)).toHaveLength(1)
     const later = nextRound(() => MISS, newId)(prepared)
     expect(getPrepared(later)).toHaveLength(0)
@@ -125,7 +120,7 @@ describe('what a preparation waits for', () => {
   it('can wait for a mover to come into sight', () => {
     const cover = CombatStateSchema.parse({ board: { placements: { p: { cell: { q: 0, r: 0 } }, m: { cell: { q: -6, r: 0 } } }, terrain: { '-3,0': { blocking: true } } } })
     const s = { ...cover, characters: { p: spearman('p'), m: fighter('m') } }
-    const prepared = prepareStrike(s, 'p', false, { event: 'sighted' })
+    const prepared = prepareStrike(s, 'p', { event: 'sighted' })
     const hidden = triggersOf(walking(prepared, 'm', -6, -5), 'p')
     const seen = triggersOf(walking(prepared, 'm', -6, -1), 'p')
     expect(hidden).not.toContain('prepared')
@@ -222,7 +217,7 @@ describe('what must be performed', () => {
     expect(steps.length).toBeGreaterThan(0)
     const { from, to } = steps[0]
     const s = { ...cover, characters: { p: spearman('p'), m: fighter('m') }, board: { ...cover.board!, placements: { ...cover.board!.placements, m: { ...cover.board!.placements.p, cell: from } } } }
-    const committed = commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [to] })(declareAction('m', { kind: 'move' }, newId)(prepareStrike(s, 'p', true, { event: 'sighted' }))))
+    const committed = commitAction(() => MISS, newId)(amendAction({ movement: 'basic', path: [to] })(declareAction('m', { kind: 'move' }, newId)(prepareStrike(s, 'p', { event: 'sighted' }))))
     const opened = atMovement(committed)
     const skipped = withdrawSpawnedAction(newId)(opened)
     expect(skipped).not.toBe(opened)
@@ -252,7 +247,7 @@ describe('what must be performed', () => {
 // it closer to his spear while already within its reach: the movement draws an
 // opportunity attack (combat.tex "Opportunity Attack").
 function drawingAnAttack(): CombatState {
-  const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], s: [-2, 1] }, spearman('p'), fighter('m'), spearman('s')), 'p', true)
+  const s = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], s: [-2, 1] }, spearman('p'), fighter('m'), spearman('s')), 'p')
   return commitAction(() => MISS, newId)(walking(s, 'm', -10, -3))
 }
 
@@ -296,7 +291,7 @@ describe('a prepared action', () => {
   // The table's ruling: no chaining. What a prepared action opens never draws
   // another's — the same walk, made on the preparer's own turn, does.
   it('opens nothing that triggers another prepared action', () => {
-    const setUp = () => prepareStrike(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], q: [-3, 1] }, spearman('p'), fighter('m'), spearman('q')), 'p', true), 'q', false, { event: 'enters', who: 'p' })
+    const setUp = () => prepareStrike(prepareStrike(onBoard({ p: [0, 0], m: [-10, 0], q: [-5, 1] }, spearman('p'), fighter('m'), spearman('q')), 'p'), 'q', { event: 'enters', who: 'p' })
     const plain = amendAction({ movement: 'basic', path: [{ q: -1, r: 0 }, { q: -2, r: 0 }] })(declareAction('p', { kind: 'move' }, newId)(setUp()))
     expect(triggersOf(plain, 'q')).toContain('prepared')
 
@@ -315,17 +310,17 @@ describe('a prepared action', () => {
 describe('preparing a defense for an ally', () => {
   const shielded = (id: string) => holdItem(ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 }))(fighter(id))
 
-  function prepareDefense(s: CombatState, id: string, main: 'block' | 'intercept' | 'guard', moves: boolean, who: string | null = null): CombatState {
+  function prepareDefense(s: CombatState, id: string, main: 'block' | 'intercept' | 'guard', who: string | null = null): CombatState {
     const row = defRows(s.characters[id]).find((r) => r.weapon.shield !== undefined)!
     const declared = declareAction(id, { kind: 'prepare' }, newId)(s)
-    const filled = amendAction({ main, weaponKey: row.wielded.key, attack: row.atk.name, moves, trigger: { event: 'attacked', who } })(declared)
+    const filled = amendAction({ main, weaponKey: row.wielded.key, attack: row.atk.name, trigger: { event: 'attacked', who } })(declared)
     return commitAction(() => MISS, newId)(filled)
   }
 
   // `atk` thrusts at `def`, two spaces along the row; `p` stands at `from`
-  function thrust(from: [number, number], moves: boolean, extra: Record<string, [number, number]> = {}, others: CampaignCharacter[] = [], who: string | null = null): CombatState {
+  function thrust(from: [number, number], extra: Record<string, [number, number]> = {}, others: CampaignCharacter[] = [], who: string | null = null): CombatState {
     let s = onBoard({ atk: [0, 0], def: [2, 0], p: from, ...extra }, spearman('atk'), fighter('def'), shielded('p'), ...others)
-    s = prepareDefense(s, 'p', 'block', moves, who)
+    s = prepareDefense(s, 'p', 'block', who)
     const [row] = getAttackOptions(s.characters.atk, 'strike')
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction(() => MISS, newId)(setTarget('def')(s))
@@ -333,18 +328,17 @@ describe('preparing a defense for an ally', () => {
   const preparedDefense = (s: CombatState, id: string) => getAvailableActions(s, id).find((o) => (o.draft.kind === 'block' || o.draft.kind === 'guard') && o.draft.preparedId)
 
   it('is offered to one the movement can put on the line, and not to one it cannot', () => {
-    expect(triggersOf(thrust([1, -3], true), 'p')).toContain('block')
-    expect(triggersOf(thrust([1, -3], false), 'p')).not.toContain('block')
-    expect(triggersOf(thrust([1, -12], true), 'p')).not.toContain('block')
+    expect(triggersOf(thrust([1, -3]), 'p')).toContain('block')
+    expect(triggersOf(thrust([1, -12]), 'p')).not.toContain('block')
   })
 
   it('waits only for the one it names', () => {
-    expect(triggersOf(thrust([1, -3], true, { x: [5, 5] }, [fighter('x')], 'x'), 'p')).not.toContain('block')
-    expect(triggersOf(thrust([1, -3], true, {}, [], 'def'), 'p')).toContain('block')
+    expect(triggersOf(thrust([1, -3], { x: [5, 5] }, [fighter('x')], 'x'), 'p')).not.toContain('block')
+    expect(triggersOf(thrust([1, -3], {}, [], 'def'), 'p')).toContain('block')
   })
 
   it('is never offered to the one attacked', () => {
-    const s = thrust([1, -3], true)
+    const s = thrust([1, -3])
     expect(preparedDefense(s, 'p')?.available).toBe(true)
     expect(preparedDefense(s, 'def')).toBeUndefined()
   })
@@ -357,7 +351,7 @@ describe('preparing a defense for an ally', () => {
   // The die is scored against the defense as it stands, so it is not thrown
   // until the preparer has walked to the line.
   it('has the preparer walk to the line before the die is thrown, and the defense counts from there', () => {
-    const start = thrust([1, -3], true)
+    const start = thrust([1, -3])
     let s = declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)
     expect(getDefendingReaction(s, getOpenAction(s)!)).toBeNull()
     s = rollAction(() => MISS, newId)(s)
@@ -374,7 +368,7 @@ describe('preparing a defense for an ally', () => {
   // combat.tex "Preparing a reaction": the movement "can be skipped" — by one
   // already on the line, whose defense it leaves made.
   it('lets one already on the line pass the movement up, and not one off it', () => {
-    const reposition = (from: [number, number]) => { const start = thrust(from, true); return rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)) }
+    const reposition = (from: [number, number]) => { const start = thrust(from); return rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)) }
     const off = reposition([1, -3])
     expect(withdrawSpawnedAction(newId)(off)).toBe(off)
     const on = reposition([1, -1])
@@ -387,7 +381,7 @@ describe('preparing a defense for an ally', () => {
   // combat.tex "Preparing a reaction": the movement draws opportunity attacks
   // like any other (the table's ruling), fought before the die.
   it('draws opportunity attacks on the way to the line', () => {
-    const start = thrust([1, -3], true, { e: [2, -1] }, [spearman('e')])
+    const start = thrust([1, -3], { e: [2, -1] }, [spearman('e')])
     const s = toTheLine(rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)))
     expect(getOpenAction(s)).toMatchObject({ kind: 'move', actorId: 'p', step: 'react' })
     expect(triggersOf(s, 'e')).toContain('opportunityAttack')
@@ -396,7 +390,7 @@ describe('preparing a defense for an ally', () => {
   // combat.tex "Preparing a reaction": "Reacting to anything else while
   // performing the prepared action will cancel it."
   it('is cancelled by a reaction its preparer makes to what the movement drew', () => {
-    const start = thrust([1, -3], true, { e: [2, -1] }, [spearman('e')])
+    const start = thrust([1, -3], { e: [2, -1] }, [spearman('e')])
     let s = toTheLine(rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)))
     const attack = getAvailableActions(s, 'e').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
     s = declareReaction('e', attack.draft, newId)(s)
@@ -410,21 +404,21 @@ describe('preparing a defense for an ally', () => {
   // than the adjacent character" — a guard prepared for an ally stands anywhere
   // along the arrow's way, within a space of the line (the table's ruling).
   describe('as a guard against an arrow', () => {
-    const shot = (from: [number, number], moves: boolean) => {
+    const shot = (from: [number, number]) => {
       let s = onBoard({ a: [0, 0], def: [-6, 0], p: from }, archer('a'), fighter('def'), shielded('p'))
-      s = prepareDefense(s, 'p', 'guard', moves)
+      s = prepareDefense(s, 'p', 'guard')
       s = declareAction('a', { kind: 'shoot', weaponKey: s.characters.a.held[0].id, attack: 'shoot', variant: 'basic', ammoId: 'arrows' }, newId)(s)
       return commitAction(() => MISS, newId)(setTarget('def')(s))
     }
 
     it('is offered to one standing on the way, adjacent to the target or not, and to one the movement can put there', () => {
-      expect(triggersOf(shot([-3, 1], false), 'p')).toContain('guard')
-      expect(triggersOf(shot([-4, 3], false), 'p')).not.toContain('guard')
-      expect(triggersOf(shot([-4, 3], true), 'p')).toContain('guard')
+      expect(triggersOf(shot([-3, 1]), 'p')).toContain('guard')
+      expect(triggersOf(shot([-4, 12]), 'p')).not.toContain('guard')
+      expect(triggersOf(shot([-4, 3]), 'p')).toContain('guard')
     })
 
     it('has the guard walk to the way before the die, and offers only the spaces it can be made from', () => {
-      const start = shot([-4, 3], true)
+      const start = shot([-4, 3])
       let s = rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start))
       expect(isRepositioning(s)).toBe(true)
       const offered = getBoardView(s).cells.filter((c) => c.reachable !== null)

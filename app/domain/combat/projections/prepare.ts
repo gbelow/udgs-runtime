@@ -23,8 +23,6 @@ export type PrepareView = {
   defenses: { weaponKey: string; attack: string; weapon: string; selected: boolean }[]
   spells: SpellOptionView[]
   movements: MovementOption[]
-  // whether it carries the 2 AP of movement
-  moves: boolean
   // what it can wait for, and for whom; the zone is how far from the preparer
   // the trigger reaches, null before the action is declared
   events: { event: PreparedTrigger['event']; label: string; selected: boolean }[]
@@ -63,7 +61,6 @@ export function getPrepareView(state: CombatState, open: PrepareAction): Prepare
     defenses: isDefenseMain(open.main) ? rowsOf(open.main).map((row) => ({ weaponKey: row.wielded.key, attack: row.atk.name, weapon: row.weapon.name, selected: row.wielded.key === open.weaponKey && row.atk.name === open.attack })) : [],
     spells: open.main === 'cast' ? spells.map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     movements: open.main === 'move' ? movements : [],
-    moves: open.moves,
     events: getPreparedEvents(open.main).map((event) => ({ event, label: getEventLabel(event, zone), selected: open.trigger?.event === event })),
     who: [
       { id: null, name: 'anyone', selected: open.trigger?.who === null },
@@ -97,5 +94,5 @@ function getPreparedText(state: CombatState, p: PrepareAction): string {
   const actor = state.characters[p.actorId]
   const zone = isCampaignCharacter(actor) ? getPreparedZone(state, actor, p) : null
   const who = p.trigger?.who ? getFightName(state, p.trigger.who) : 'anyone'
-  return `${what}${p.moves ? ' (with up to 2 AP of movement)' : ''} when ${who} ${p.trigger ? getEventLabel(p.trigger.event, zone) : ''}`.trim()
+  return `${what} when ${who} ${p.trigger ? getEventLabel(p.trigger.event, zone) : ''}`.trim()
 }

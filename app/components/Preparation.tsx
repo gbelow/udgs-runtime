@@ -23,7 +23,6 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
         {view.mains.map((m) =>
           <Button key={m.kind} size='xs' {...toggle(m.selected)} disabled={!m.available} title={m.reason ?? undefined}
             onClick={() => onAmend({ main: m.kind, ...NO_MAIN, trigger: null })}>{m.kind}</Button>)}
-        <Button size='xs' {...toggle(view.moves)} title='up to 2 AP of movement, which may be skipped when it is done' onClick={() => onAmend({ moves: !view.moves })}>+2 AP of movement</Button>
       </div>
 
       {view.attacks.length > 0 ? (

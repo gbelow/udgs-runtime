@@ -132,8 +132,8 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
 - **Prepared reactions** (`rules/prepared.ts`; combat.tex "Preparing a reaction") — a `prepare`
   root is declared in the preparer's turn: first the action it is for (`main`: a strike, shot,
   cast or move, with the row, spell or movement it is made with), then what it waits for
-  (`trigger`: an event and who, `enters` or `sighted`), and whether it carries 2 AP of movement
-  (`moves`). It is paid at its commit and lands as any root, and is never stored apart from the
+  (`trigger`: an event and who, `enters`, `sighted` or, for a defense, `attacked`); it always
+  carries 2 AP of movement, which is never worse to have. It is paid at its commit and lands as any root, and is never stored apart from the
   log: what is prepared is every `prepare` that has landed in the current round (`getPrepared`),
   so the round changing is all it takes for it to lapse. `getPreparedTriggers`, read by
   `getTriggers`, offers a `prepared` reaction to a preparer when a committed move comes into the

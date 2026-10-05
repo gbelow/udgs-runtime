@@ -95,7 +95,6 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   if (castable.length) h.press(chooseSpell(pick(castable).key, false))
   const moves = made.movements.filter((m) => m.available)
   if (moves.length) h.press(amendAction({ movement: pick(moves).kind }))
-  h.press(amendAction({ moves: pick([true, false]) }))
   const waits = view()!
   const event = anyoneEntering ? waits.events.find((e) => e.event !== 'sighted') ?? waits.events[0] : pick(waits.events)
   h.press(amendAction({ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }))

@@ -767,7 +767,7 @@ export type PreparableKind = z.infer<typeof PreparableKindSchema>
 // movement and one other action". The action is declared first (`main`, with
 // what it is made with: the row, the spell, the way of moving), and the
 // triggers it can wait for are offered from that. What it is aimed at is
-// declared when it fires. `moves` is whether it carries the movement. A
+// declared when it fires. It always carries the 2 AP of movement. A
 // prepared action stays prepared until the end of the round it was made in,
 // so it needs no record of its own: it is read off the log (rules/prepared.ts).
 export const PrepareActionSchema = z.object({
@@ -781,7 +781,6 @@ export const PrepareActionSchema = z.object({
   quicken: z.boolean().default(false),
   extend: num.default(0),
   movement: MoveKindSchema.default('basic'),
-  moves: z.boolean().default(false),
   trigger: PreparedTriggerSchema.nullable().default(null),
 }).strip()
 

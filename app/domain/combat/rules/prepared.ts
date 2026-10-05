@@ -122,7 +122,7 @@ export function getPreparedBar(state: CombatState, c: CampaignCharacter, p: Prep
 // once the action that must be performed is paid for.
 export function getPreparedMoveBudget(state: CombatState, c: CampaignCharacter, p: PrepareAction): number {
   const cost = getMainCost(state, c, p)
-  if (!p.moves || !cost) return 0
+  if (!cost) return 0
   const spare = c.resources.AP + c.resources.surgeAP - cost.AP
   return Math.max(0, Math.min(PREPARED_MOVE_AP, spare))
 }
@@ -144,7 +144,7 @@ export function isPrepareComplete(state: CombatState, c: Character, p: PrepareAc
 // action's own reach and the movement it may carry — "the area trigger should
 // include the movement range" (the table's ruling).
 export function getPreparedZone(state: CombatState, c: CampaignCharacter, p: PrepareAction): number {
-  const movement = p.moves ? Math.max(getMoveBlockCells(c, 'basic', PREPARED_MOVE_AP), getMoveBlockCells(c, 'careful', PREPARED_MOVE_AP)) : 0
+  const movement = Math.max(getMoveBlockCells(c, 'basic', PREPARED_MOVE_AP), getMoveBlockCells(c, 'careful', PREPARED_MOVE_AP))
   return getMainReach(state, c, p) + movement
 }
 
