@@ -127,6 +127,9 @@ export const HEAVY_MAX_DEGREE = 3
 // characteristics and conditions an armor can carry, in the book's order. Its
 // material is not among these: "Fiber" and "Metallic" are the armor's
 // `material`.
+// gear.tex "Gear condition": what a blade's edge can be, beyond the usual.
+export const EDGES = ['sharp', 'dull'] as const
+
 export const ARMOR_PROPERTIES = [
   'rigid',
   'pitted',

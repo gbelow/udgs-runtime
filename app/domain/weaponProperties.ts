@@ -6,6 +6,12 @@ export function hasProperty(properties: readonly WeaponProperty[], property: Wea
   return properties.includes(property)
 }
 
+// gear.tex "Bladed": a bladed weapon "can be sharpened" — all but a piercing
+// one, which slices for double already (combat.tex "Success Overflow").
+export function canSharpen(properties: readonly WeaponProperty[]): boolean {
+  return hasProperty(properties, 'bladed') && !hasProperty(properties, 'piercing')
+}
+
 // The heavy degrees an attack offers, or null when it has no heavy property.
 // gear.tex "Explosion": a row that "resolves like an explosion" — it has
 // the property. Whether it has anything to go off with is its payload's or

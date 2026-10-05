@@ -61,7 +61,7 @@ describe('items.json', () => {
 
   it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
     const { id: _id, ...parsed } = ItemSchema.parse(raw)
-    expect(parsed, key).toEqual({ amount: 1, broken: false, ...(raw as object) })
+    expect(parsed, key).toEqual({ amount: 1, broken: false, edge: null, ...(raw as object) })
   })
 
   it.each(entries)('%s stamps a fresh stack each time it is drawn', (key) => {

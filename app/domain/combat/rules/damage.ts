@@ -1,11 +1,11 @@
-import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon } from '../../types'
+import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon, WeaponProperty, Edge } from '../../types'
 import type { AttackAction, CombatState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
 import { Outcome, getOutcome } from '../../character/rules/damage'
-import { getBlockValue, getBracedBonus, getHookBonus } from '../../character/rules/gear'
+import { getBlockValue, getBracedBonus, getHookBonus, getSliceBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
 import { getDM } from '../../character/rules/size'
@@ -56,12 +56,13 @@ function addTo(damage: Damage, kind: DamageKind, value: number): Damage {
 }
 
 // combat.tex "Success Overflow", "Hand": what each purchase does to the
-// damage on its way, bought `times` over. "Extra cut: Increases cutting
-// damage by 1xDM per HOP"; "Smash: ... add 2 xDM extra damage and upgrades
+// damage on its way, bought `times` over. "Slice: Increases cutting damage by
+// 1xDM per HOP", 2xDM for a bladed and piercing weapon, 1.5xDM when sharp
+// (gear.tex "Gear condition"); "Smash: ... add 2 xDM extra damage and upgrades
 // an interrupt to a stun"; the rest mark the damage for the target's side
 // to read — the bypass against their armor, the cut against equal hardness,
 // the switch to the hand.
-type Buyer = { state: CombatState; root: AttackAction; attacker: Character; weapon: Weapon }
+type Buyer = { state: CombatState; root: AttackAction; attacker: Character; weapon: Weapon; properties: WeaponProperty[]; edge: Edge | null }
 
 // A bonus that adds to the physical damage, blunt and cutting alike, as the
 // heavy one does (combat.tex "Heavy Attack").
@@ -70,7 +71,7 @@ function addPhysical(damage: Damage, value: number): Damage {
 }
 
 const HOP_TRANSFORMS: Record<HOPPurchase, (damage: Damage, times: number, buyer: Buyer) => Damage> = {
-  slice: (d, times, { attacker }) => addTo(d, 'cut', times * Math.floor(1 * getDM(attacker))),
+  slice: (d, times, { attacker, properties, edge }) => addTo(d, 'cut', times * getSliceBonus(properties, edge, attacker)),
   smash: (d, times, { attacker }) => ({ ...addTo(d, 'blunt', times * Math.floor(2 * getDM(attacker))), smash: true }),
   bypass: (d) => ({ ...d, bypass: true }),
   bust: (d) => ({ ...d, bust: true }),
@@ -143,7 +144,8 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
   const base = getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root))
-  const buyer: Buyer = { state, root, attacker, weapon: row.weapon }
+  const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
+  const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
@@ -260,6 +262,8 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     const closed = (reason: string): HOPOption => ({ purchase, cost, price, bought, available: false, reason })
     if ((purchase === 'assassinate' || purchase === 'braced' || purchase === 'hook') && root.kind !== 'strike') return closed('strikes only')
     if (property && !hasProperty(properties, property)) return closed(`needs ${property}`)
+    // gear.tex "Gear condition": "Dull - Bladed weapon cannot use Slice."
+    if (purchase === 'slice' && row.wielded.edge === 'dull') return closed('dull')
     if (purchase !== 'slice' && bought > 0) return closed('bought')
     // combat.tex "Assassinate": "requires a short range ... weapon attack",
     // "Can only be done against SD, not against active defense".

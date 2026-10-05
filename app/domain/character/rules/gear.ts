@@ -1,9 +1,9 @@
-import { AttackType, Character, Weapon, WeaponAttack } from "../../types";
+import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
 import { BOWS, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { getActionCost } from "./actionCosts";
-import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty } from "../../weaponProperties";
+import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./abilities";
 import { isCampaignCharacter } from "../../utils";
@@ -26,6 +26,15 @@ export function isWieldable(weapon: Weapon, c: Character): boolean {
 // The STR that goes into this weapon's damage.
 function getWieldSTR(weapon: Weapon, c: Character): number {
   return getSTR(c) - (isOversize(weapon, c) ? 5 : 0)
+}
+
+// combat.tex "Success Overflow", "Slice": "Increases cutting damage by 1xDM per
+// HOP ... Weapons that are bladed and piercing increase cutting damage by 2xDM
+// per HOP"; gear.tex "Gear condition": a sharp weapon deals "1.5 x DM extra
+// damage per HOP with Slice".
+export function getSliceBonus(properties: readonly WeaponProperty[], edge: Edge | null, c: Character): number {
+  const multiplier = hasProperty(properties, 'piercing') ? 2 : edge === 'sharp' && canSharpen(properties) ? 1.5 : 1
+  return Math.floor(multiplier * getDM(c))
 }
 
 // combat.tex "Braced Attack": "damage bonus of +1.5x STR x DM on a hit".

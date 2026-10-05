@@ -1,4 +1,4 @@
-import { BodyPart, Character, Handed, Item, Weapon } from '../../types'
+import { BodyPart, Character, Edge, Handed, Item, Weapon } from '../../types'
 import { getCatalogWeapon, getItemWeapon } from './items'
 import { getSize, scaleWeapon } from '../../character/rules/size'
 import { getWorkingParts } from '../../character/rules/body'
@@ -60,6 +60,8 @@ export type Wielded = {
   natural: boolean
   // gear.tex "Weapon Breakage": the item is broken; a natural weapon never is.
   broken: boolean
+  // gear.tex "Gear condition": the item's edge; a natural weapon has none.
+  edge: Edge | null
 }
 
 // Every weapon the character can attack with right now: the held stacks that
@@ -84,7 +86,7 @@ const wielded = new WeakMap<Character, Wielded[]>()
 function computeWieldedWeapons(c: Character): Wielded[] {
   const held = c.held.flatMap((item) => {
     const weapon = getItemWeapon(item)
-    return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false, broken: item.broken }] : []
+    return weapon ? [{ key: item.id, weapon, grip: getGrip(c, item.id), itemId: item.id, natural: false, broken: item.broken, edge: item.edge }] : []
   })
   const natural = new Map<string, number>()
   for (const part of getFreeParts(c)) {
@@ -93,7 +95,7 @@ function computeWieldedWeapons(c: Character): Wielded[] {
   }
   const fromParts = [...natural].flatMap(([name, grip]) => {
     const weapon = getCatalogWeapon(name)
-    return weapon ? [{ key: `natural:${name}`, weapon: scaleWeapon(weapon, getSize(c)), grip, itemId: '', natural: true, broken: false }] : []
+    return weapon ? [{ key: `natural:${name}`, weapon: scaleWeapon(weapon, getSize(c)), grip, itemId: '', natural: true, broken: false, edge: null }] : []
   })
   return [...held, ...fromParts]
 }
