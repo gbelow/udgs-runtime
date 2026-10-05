@@ -61,7 +61,7 @@ export function PlayPanel(){
       <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
         <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
         <CharacterList />
-        <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>next round</Button>
+        <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       <MoralePanel />

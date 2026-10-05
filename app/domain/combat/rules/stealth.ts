@@ -1,5 +1,6 @@
 import type { Action, CombatState } from '../types'
 import { STEALTH_MELEE_PENALTY, STEALTH_MOVEMENT_PENALTY, STEALTH_RANGED_PENALTY } from '../../tables'
+import { isAttackAction } from './actionCatalog'
 import { getSenseReaches } from './detection'
 import { getHeldRoll } from './heldRoll'
 import { getPartners } from './partners'
@@ -42,13 +43,23 @@ export function getStealthValue(state: CombatState, id: string): number | null {
 // graze in stealth)." A character not in stealth is detected.
 export type Notice = 'detected' | 'sensed' | 'unnoticed'
 
-// What the observer makes of the target: by the best sense that reaches it. A
-// grapple partner is touching them, which "is immediately detected".
-export function getNotice(state: CombatState, observerId: string, targetId: string): Notice {
+// combat.tex "Attacking from stealth": "Being attacked automatically causes
+// detection through touch after the attack, which means that a second attack
+// can always be reacted to."
+function hasBeenStruckBy(state: CombatState, observerId: string, targetId: string): boolean {
+  return state.record.some((a) => a.round === state.round && a.actorId === targetId && isAttackAction(a) && a.targetId === observerId)
+}
+
+// What the observer makes of the target: by the best sense that reaches it,
+// against the stealth value less what `event` takes off it, if it is an action
+// of the target's yet to land. A grapple partner is touching them, which "is
+// immediately detected".
+export function getNotice(state: CombatState, observerId: string, targetId: string, event: Action | null = null): Notice {
   const value = getStealthValue(state, targetId)
   if (value === null || getPartners(state, observerId).includes(targetId)) return 'detected'
+  const pending = event && !state.record.some((a) => a.id === event.id) ? getStealthPenalty(event) : 0
   const detections = getSenseReaches(state, observerId, targetId).map((r) => r.detection)
-  if (detections.length === 0) return 'unnoticed'
-  const degree = getDegree(value, Math.max(...detections))
-  return degree === 'miss' ? 'detected' : degree === 'graze' ? 'sensed' : 'unnoticed'
+  const degree = detections.length === 0 ? 'hit' : getDegree(value + pending, Math.max(...detections))
+  const noticed: Notice = degree === 'miss' ? 'detected' : degree === 'graze' ? 'sensed' : 'unnoticed'
+  return noticed === 'unnoticed' && hasBeenStruckBy(state, observerId, targetId) ? 'sensed' : noticed
 }

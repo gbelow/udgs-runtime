@@ -9,7 +9,7 @@ import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 import { getStealthTerms } from '../../character/rules/skills'
-import { getSenseReaches } from './detection'
+import { isSeenByActiveSense } from './detection'
 import { getDegree } from './test'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
@@ -51,7 +51,7 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
   // only done for characters that started their round undetectable to any
   // opponent active senses."
   stealth: {
-    called: (state, id) => Object.keys(state.characters).every((other) => other === id || !getSenseReaches(state, other, id).some((r) => r.active)),
+    called: (state, id) => !isSeenByActiveSense(state, id),
     skill: getStealthTerms,
     DL: () => 0,
     modes: () => ['normal'],

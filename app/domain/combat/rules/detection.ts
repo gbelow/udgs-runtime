@@ -4,6 +4,7 @@ import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
+import { isDead } from '../../character/rules/afflictions'
 import { DIRECTIONS, angleBetween, angularGap, directionTo, sameCell, toPlane } from '../geometry'
 import { getDistanceBetween, getPlacedFootprint, hasLineOfSight } from './board'
 import { getHazardOf } from './hazard'
@@ -78,6 +79,13 @@ const REACHES: Record<keyof Senses, Reaches> = {
   touch: (state, o, t) => getPartners(state, o).includes(t),
   // abilities.tex: the sense reaches as far as its ability's radius, which nothing models yet
   synesthesia: () => false,
+}
+
+// combat.tex "Stealth in combat", "Staying in stealth": whether some living
+// opponent has an active sense that takes the character in, which is what
+// keeps them from being undetectable.
+export function isSeenByActiveSense(state: CombatState, id: string): boolean {
+  return Object.entries(state.characters).some(([other, c]) => other !== id && !isDead(c) && getSenseReaches(state, other, id).some((r) => r.active))
 }
 
 export type SenseReach = { sense: keyof Senses; active: boolean; terms: Term[]; detection: number }

@@ -24,6 +24,7 @@ import { getFeinted } from '../rules/feint'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 import { getResults } from './results'
+import { revealIfSeen } from './stealth'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -78,7 +79,7 @@ function forceSurge(state: CombatState, feint: FeintAction): CombatState {
 // is numbered `turn` — a fresh one unless it is one resumed.
 export function beginTurn(state: CombatState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): CombatState {
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
-  return { ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }
+  return revealIfSeen({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }, id)
 }
 
 // combat.tex "Flee": "This reaction interrupts the opponents turn, which is

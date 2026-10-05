@@ -256,6 +256,7 @@ app/domain/combat/
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
+│   ├── stealth.ts      revealIfSeen: a character in stealth whom an active sense reaches at the start or end of their turn loses their stealth test
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
 │   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdThrown makes the die of a held test thrown as an action's (a swim test, a climb, a balance test) the round's (called by applyPhase at the roll); dropFallenBalance (at the resolve)
@@ -324,7 +325,7 @@ app/domain/combat/
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── detection.ts    senses: which of an observer's senses reach a target (facing arc, sight, zero visibility, touch in a grapple), and what each detects at; `getActionHeading`, the way a landed action leaves its actor facing (written by `reduceBoard`)
-│   ├── stealth.ts      the stealth value (the round's held test less what the actor has done since), what each landed action takes off it, and what an observer makes of a target in stealth (`getNotice`); `getTargetIds` closes who is not `detected`
+│   ├── stealth.ts      the stealth value (the round's held test less what the actor has done since), what each landed action takes off it, and what an observer makes of a target in stealth (`getNotice`, with the event's own penalty and the touch a struck character has of their attacker); `getTargetIds` closes who is not `detected`, `getTriggers` drops who has not noticed the actor
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item
 │

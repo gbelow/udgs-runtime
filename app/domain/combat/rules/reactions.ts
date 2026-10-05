@@ -21,6 +21,7 @@ import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
+import { getNotice } from './stealth'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -74,7 +75,17 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
   const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(root).filter((id) => id !== root.targetId) : []
-  return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId))
+  return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId) && canReactTo(state, root, t))
+}
+
+// combat.tex "Stealth in combat": nobody answers what they have not noticed,
+// and an answer that attacks the one who did it needs more than a sense of
+// them: "cannot target the spot directly".
+const ATTACKS_ACTOR: readonly ReactionKind[] = ['opportunityAttack', 'counterattack']
+
+function canReactTo(state: CombatState, root: RootAction, trigger: Trigger): boolean {
+  const notice = getNotice(state, trigger.characterId, root.actorId, root)
+  return notice === 'detected' || (notice === 'sensed' && !ATTACKS_ACTOR.includes(trigger.kind))
 }
 
 function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
