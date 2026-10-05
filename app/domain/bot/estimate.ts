@@ -81,6 +81,8 @@ export type DefenseEstimate = {
   expectedILUnspent: number
   expectedBleed: number
   expectedAPLoss: number
+  // the best the blow comes to on a high die with the overflow spent best
+  best: { tier: number | null; IL: number }
   expectedArrived: number
   // the items the blow puts at risk, over the die, and what they come to in IL: the foe's
   // counted for the attacker, the attacker's against it
@@ -107,6 +109,8 @@ export type AttackEstimate = {
   guarded: DefenseEstimate
   expectedIL: number
   expectedBreakIL: number
+  // the best the attack comes to when nothing is answered
+  bestCase: { tier: number | null; IL: number }
   // IL added plus the breakage, what the attacks are ranked by
   value: number
   // total price with the HOP purchases made, in AP, in STA and weighted
@@ -114,6 +118,23 @@ export type AttackEstimate = {
   ilPerAP: number | null
   ilPerSTA: number | null
   ilPerCost: number
+}
+
+// An attack whose best case, unanswered, falls short of this tier does not
+// threaten enough to be worth the AP.
+export const WORTH_TIER = 2
+
+// The highest die the best case is read at: a 9 and one d6 more, not the rare
+// longer runs of explosions.
+const BEST_DIE = 14
+
+// The tier first, then the injury it adds.
+function rankBest(tier: number | null, IL: number): number {
+  return (tier ?? -1) * 1e3 + IL
+}
+
+export function isWorthTheAP(attack: Pick<AttackEstimate, 'bestCase'>): boolean {
+  return (attack.bestCase.tier ?? -1) >= WORTH_TIER
 }
 
 type Spend = { purchases: HOPPurchase[]; AP: number; STA: number }
@@ -238,10 +259,12 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
     const byDie: DieResult[] = []
     const e = { hit: 0, graze: 0, stun: 0, dead: 0, IL: 0, unspent: 0, bleed: 0, APLoss: 0, arrived: 0, AP: 0, STA: 0, breakIL: 0 }
     const broken = new Map<string, BreakEstimate>()
+    let best: DefenseEstimate['best'] = { tier: null, IL: 0 }
     for (const { value, p } of distribution(flags[0] ?? true)) {
       const r = play(locked, openId, defense, scripted(value))
       if (!r) continue
       const IL = Math.min(r.best?.IL ?? 0, room)
+      if (value <= BEST_DIE && r.best && rankBest(r.best.tier, r.best.IL) > rankBest(best.tier, best.IL)) best = { tier: r.best.tier, IL: Math.min(r.best.IL, room) }
       byDie.push({ die: value, p, degree: r.degree, score: r.score, DL: r.DL, HOP: r.HOP, spent: r.spend.purchases, extra: { AP: r.spend.AP, STA: r.spend.STA }, outcome: r.best, breaks: r.breaks })
       if (r.degree === 'hit') e.hit += p
       if (r.degree === 'graze') e.graze += p
@@ -273,6 +296,7 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       expectedILUnspent: e.unspent,
       expectedBleed: e.bleed,
       expectedAPLoss: e.APLoss,
+      best,
       expectedArrived: e.arrived,
       breaks: [...broken.values()],
       expectedBreakIL: e.breakIL,
@@ -321,6 +345,7 @@ export function guardedBy(attack: Pick<AttackEstimate, 'kind' | 'weapon' | 'atta
     guarded,
     expectedIL: guarded.expectedIL,
     expectedBreakIL: guarded.expectedBreakIL,
+    bestCase: (answers.find((a) => a.kind === 'none') ?? guarded).best,
     value: guarded.value,
     totalCost: total,
     ilPerAP: total.AP > 0 ? guarded.value / total.AP : null,

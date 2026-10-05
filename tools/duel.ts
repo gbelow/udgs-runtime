@@ -8,7 +8,7 @@ import { addCharacterToCombat } from '../app/domain/combat/factories'
 import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
-import { rankAttacks } from '../app/domain/bot/estimate'
+import { isWorthTheAP, rankAttacks, WORTH_TIER } from '../app/domain/bot/estimate'
 import { getStanding, type Evaluations } from '../app/domain/bot/evaluation'
 import { makeAftermathReader } from '../app/domain/bot/afterAttack'
 import { readGrabs, type Posture } from '../app/domain/bot/grapplePosture'
@@ -172,7 +172,7 @@ function strikeChoices(base: Base, id: string, foes: string[], state: CombatStat
     const guess = estimates.get(target)?.find((e) => e.attack === option.attack && e.variant === option.variant && e.weapon === option.weapon)
     const after = guess && readers.get(target)?.(guess)
     const afterNote = after ? `; then you have ${after.attackerLeft.AP} AP ${after.attackerLeft.STA} STA, they ${after.foeLeft.AP} AP ${after.foeLeft.STA} STA, and their best attack on you is ${after.reply ? `${after.reply.weapon} ${after.reply.attack} (${after.reply.variant}), expected injury ${after.reply.expectedIL.toFixed(2)} against your ${after.reply.guarded.label}` : 'none'}` : ''
-    const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted)${afterNote}` : ''
+    const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted); best case unanswered: ${guess.bestCase.tier === null ? 'no injury' : `tier ${guess.bestCase.tier}, IL +${guess.bestCase.IL}`}${isWorthTheAP(guess) ? '' : ` (below tier ${WORTH_TIER}, not worth the AP)`}${afterNote}` : ''
     const grabbing = grabNote(isGrappleRowOf(mine, option.weaponKey, option.attack) ? grabsAt(target).find((g) => g.weapon === option.weaponKey && g.attack === option.attack && g.variant === option.variant) : undefined)
     const label = `attack with ${option.weapon} ${option.attack} (${option.variant}) at ${getFightName(state, target)} - ${option.AP} AP, ${option.STA} STA, weapon cut ${option.cut} blunt ${option.blunt}, to-hit penalty ${option.penalty}${expected}${grabbing}`
     const row = { weaponKey: option.weaponKey, attack: option.attack, variant: option.variant }
