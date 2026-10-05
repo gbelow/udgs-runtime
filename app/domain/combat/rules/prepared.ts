@@ -15,7 +15,7 @@ import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMoveWaypoint } from './waypoint'
-import { getAction, getAncestry, getLiveReactionsTo, getLog, getPassedUp, getRootOf, getSpawned } from './log'
+import { getAction, getAncestry, getDescendants, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
@@ -285,7 +285,7 @@ export function isPreparedReached(reaction: ActionOf<'prepared'>, walked: number
 // made a reaction of their own to anything the prepared action opened, or to
 // what that opened in turn.
 export function isPreparedCancelled(state: CombatState, reaction: Action): boolean {
-  return getLog(state).some((a) => a.actorId === reaction.actorId && isReaction(a.kind) && a.kind !== 'prepared' && getAncestry(state, a).some((x) => x.id === reaction.id))
+  return getDescendants(state, reaction.id).some((a) => a.actorId === reaction.actorId && isReaction(a.kind) && a.kind !== 'prepared')
 }
 
 // "No chaining": whether the action is, or comes of, a prepared reaction — a

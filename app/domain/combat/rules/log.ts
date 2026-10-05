@@ -40,18 +40,45 @@ export function getHistory(state: CombatState): string[] {
   return state.record.filter((a) => a.reactionTo === null).map((a) => a.id)
 }
 
-// What the action answers, what opened it, or what it is a follow-up of, and
-// so on back, the nearest first.
+// What the action comes of: what it answers, what opened it, or what it is a
+// follow-up of.
+function getParentId(action: Action): string | null {
+  return action.reactionTo ?? action.spawnedBy ?? action.followUpOf
+}
+
+// What the action comes of, and so on back, the nearest first.
 export function getAncestry(state: CombatState, action: Action): Action[] {
   const ancestors: Action[] = []
   let current = action
   for (;;) {
-    const parentId = current.reactionTo ?? current.spawnedBy ?? current.followUpOf
+    const parentId = getParentId(current)
     const parent = parentId ? getAction(state, parentId) : null
     if (!parent || parent.id === action.id || ancestors.some((a) => a.id === parent.id)) return ancestors
     ancestors.push(parent)
     current = parent
   }
+}
+
+// Everything that comes of the action, the way `getAncestry` walks back: its
+// reactions, what it opened, its follow-ups, and so on down.
+export function getDescendants(state: CombatState, id: string): Action[] {
+  const children = new Map<string, Action[]>()
+  for (const a of getLog(state)) {
+    const parentId = getParentId(a)
+    if (parentId) children.set(parentId, [...(children.get(parentId) ?? []), a])
+  }
+  const found: Action[] = []
+  const seen = new Set([id])
+  const queue = [id]
+  while (queue.length > 0) {
+    for (const a of children.get(queue.shift()!) ?? []) {
+      if (seen.has(a.id)) continue
+      seen.add(a.id)
+      found.push(a)
+      queue.push(a.id)
+    }
+  }
+  return found
 }
 
 // The action that started the chain this one belongs to. An action of its

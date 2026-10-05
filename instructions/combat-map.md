@@ -99,7 +99,7 @@ Three links tie the log together: `reactionTo` (a reaction points at its root),
 `spawnedBy` (an opened action points at whatever opened it) and `followUpOf` (a follow-up
 points at the action it follows). `rules/log.ts` holds every lookup over them, and nothing
 else walks them: up (`getAncestry`, `getOrigin`, `getRootOf`, `getOpeningReaction`) and down
-(`getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
+(`getDescendants`, `getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
 opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
 remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`,
 `turnsTaken`: the turns something was committed in and who rested in each, written by
