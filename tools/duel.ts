@@ -8,7 +8,11 @@ import { addCharacterToCombat } from '../app/domain/combat/factories'
 import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
-import { estimateAttacks } from '../app/domain/bot/estimate'
+import { rankAttacks } from '../app/domain/bot/estimate'
+import { getStanding, type Evaluations } from '../app/domain/bot/evaluation'
+import { makeAftermathReader } from '../app/domain/bot/afterAttack'
+import { readGrabs, type Posture } from '../app/domain/bot/grapplePosture'
+import { isGrappleRowOf } from '../app/domain/combat/rules/grapple'
 import { canGrapple, getHOPOptions, getHOPRemaining } from '../app/domain/combat/rules/damage'
 import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/combat/commands/choices'
 import { getAvailableActions } from '../app/domain/combat/rules/options'
@@ -45,7 +49,8 @@ import { getAfflictions, getInjuryPenalty, isDead } from '../app/domain/characte
 // done for them.
 //
 //   pnpm duel new "Human Warrior:Longsword" "Human Warrior:Halberd" [--seed n] [--distance n] [--rounds n] [--game name]
-//   pnpm duel show [--game name]      what the side to act sees
+//   pnpm duel show [--ahead] [--game name]   what the side to act sees; --ahead adds what
+//                                     each attack leaves the table and what a grab changes
 //   pnpm duel do <n> [--game name]    take choice n
 //   pnpm duel log [--game name]       every action so far
 
@@ -64,7 +69,13 @@ type Saved = {
   maxRounds: number
   events: string[]
   lastKey: string
+  // what the attacks come to for the gear and gap met so far
+  evaluations?: Evaluations
 }
+
+// The evaluations kept between calls and whether the lines that look one action
+// ahead are worked out; set once per call.
+const session: { evaluations: Evaluations; ahead: boolean } = { evaluations: {}, ahead: false }
 
 type Env = { dice: Dice; newId: () => string; counters: () => { draws: number; ids: number } }
 
@@ -140,14 +151,30 @@ function committing(base: Base, e: Env, amend: (s: CombatState) => CombatState):
 // Every strike the character may make from the base: each row and variation
 // at each foe it could be aimed at. A row it cannot pay for or reach stays
 // listed with the reason, so the numbers do not move.
+// What taking hold does to each side's prospects, against the same hit left
+// unheld: how much it can do to the other, and how much the other can do to it.
+function grabNote(reading: ReturnType<typeof readGrabs>[number] | undefined): string {
+  if (!reading) return ''
+  const word = (was: number, now: number, goodWhenUp: boolean) => Math.abs(now - was) < 0.05 ? 'the same' : (now > was) === goodWhenUp ? 'better' : 'worse'
+  const side = (who: string, was: Posture['attacker'], now: Posture['attacker']) =>
+    `${who} offense ${word(was.offense, now.offense, true)} (${was.offense.toFixed(2)} to ${now.offense.toFixed(2)}), defense ${word(was.taken, now.taken, false)} (injury taken ${was.taken.toFixed(2)} to ${now.taken.toFixed(2)}, ${now.answers} answer${now.answers === 1 ? "" : "s"} left)`
+  return `; if it hits and you grab: ${side('yours', reading.apart.attacker, reading.held.attacker)}; ${side('theirs', reading.apart.foe, reading.held.foe)}`
+}
+
 function strikeChoices(base: Base, id: string, foes: string[], state: CombatState, shut: string | null): Choice[] {
   const mine = state.characters[id]
   const targets = base.own ? foes : base.open.targetId ? [base.open.targetId] : []
-  const estimates = base.own ? new Map(targets.map((f) => [f, estimateAttacks(state, id, f)])) : new Map<string, ReturnType<typeof estimateAttacks>>()
+  const estimates = base.own ? new Map(targets.map((f) => [f, getStanding(session.evaluations, state, id, f)])) : new Map<string, ReturnType<typeof getStanding>>()
+  const readers = new Map(session.ahead ? targets.map((f) => [f, makeAftermathReader(session.evaluations, state, id, f)]) : [])
+  const grabs = new Map<string, ReturnType<typeof readGrabs>>()
+  const grabsAt = (f: string) => grabs.get(f) ?? grabs.set(f, session.ahead && base.own ? readGrabs(session.evaluations, state, id, f) : []).get(f)!
   return getAttackRows(state, id, 'strike').flatMap((option) => targets.map((target): Choice => {
     const guess = estimates.get(target)?.find((e) => e.attack === option.attack && e.variant === option.variant && e.weapon === option.weapon)
-    const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted)` : ''
-    const label = `attack with ${option.weapon} ${option.attack} (${option.variant}) at ${getFightName(state, target)} - ${option.AP} AP, ${option.STA} STA, weapon cut ${option.cut} blunt ${option.blunt}, to-hit penalty ${option.penalty}${expected}`
+    const after = guess && readers.get(target)?.(guess)
+    const afterNote = after ? `; then you have ${after.attackerLeft.AP} AP ${after.attackerLeft.STA} STA, they ${after.foeLeft.AP} AP ${after.foeLeft.STA} STA, and their best attack on you is ${after.reply ? `${after.reply.weapon} ${after.reply.attack} (${after.reply.variant}), expected injury ${after.reply.expectedIL.toFixed(2)} against your ${after.reply.guarded.label}` : 'none'}` : ''
+    const expected = guess ? `; estimate vs best answer (${guess.guarded.label}): hit ${(guess.guarded.pHit * 100).toFixed(0)}%, graze ${(guess.guarded.pGraze * 100).toFixed(0)}%, expected injury ${guess.expectedIL.toFixed(2)} for ${guess.totalCost.AP.toFixed(1)} AP ${guess.totalCost.STA.toFixed(1)} STA (${guess.ilPerCost.toFixed(2)} per cost, breakage not counted)${afterNote}` : ''
+    const grabbing = grabNote(isGrappleRowOf(mine, option.weaponKey, option.attack) ? grabsAt(target).find((g) => g.weapon === option.weaponKey && g.attack === option.attack && g.variant === option.variant) : undefined)
+    const label = `attack with ${option.weapon} ${option.attack} (${option.variant}) at ${getFightName(state, target)} - ${option.AP} AP, ${option.STA} STA, weapon cut ${option.cut} blunt ${option.blunt}, to-hit penalty ${option.penalty}${expected}${grabbing}`
     const row = { weaponKey: option.weaponKey, attack: option.attack, variant: option.variant }
     const armed = amendAction(row)(base.state)
     const aimable = getOpenAction(armed)
@@ -222,6 +249,17 @@ function aimNote(state: CombatState, id: string, foes: string[], env: Env): stri
   const aimed = setTarget(foe)(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(base.state))
   const list = places(aimed)
   return list.length > 1 ? `Aim: an attack is made at the chest unless you add --aim <place>, which changes the to-hit penalty: ${list.map((l) => `${l.name} ${l.penalty >= 0 ? '+' : ''}${l.penalty}`).join(', ')}.` : undefined
+}
+
+// What each foe's best attacks would do to this character as things stand, the
+// same estimate as for their own attacks with the roles turned: the character
+// answering as it best can, the foe paying what each attack costs.
+function threatNote(state: CombatState, id: string, foes: string[]): string | undefined {
+  const lines = foes.flatMap((foe) => rankAttacks(getStanding(session.evaluations, state, foe, id)).slice(0, 3).map((e) => {
+    const g = e.guarded
+    return `  ${getFightName(state, foe)} with ${e.weapon} ${e.attack} (${e.variant}), ${e.cost.AP} AP ${e.cost.STA} STA: answered by ${g.label} (${g.cost.AP} AP ${g.cost.STA} STA), hit ${(g.pHit * 100).toFixed(0)}%, graze ${(g.pGraze * 100).toFixed(0)}%, expected injury ${e.expectedIL.toFixed(2)}`
+  }))
+  return lines.length > 0 ? `Their best attacks on you now, with you answering as you best can:\n${lines.join('\n')}` : undefined
 }
 
 function probeOf(env: Env): Env {
@@ -394,7 +432,7 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
 
     const holder = getTurnHolder(state)
     if (holder) {
-      return { state, next: { kind: 'prompt', side: sideOf(holder), title: `${getFightName(state, holder)}'s turn.`, choices: turnChoices(state, holder, env), note: aimNote(state, holder, getLiveFoes(state, partyOf(holder)), env) } }
+      return { state, next: { kind: 'prompt', side: sideOf(holder), title: `${getFightName(state, holder)}'s turn.`, choices: turnChoices(state, holder, env), note: [aimNote(state, holder, getLiveFoes(state, partyOf(holder)), env), threatNote(state, holder, getLiveFoes(state, partyOf(holder)))].filter(Boolean).join('\n\n') || undefined } }
     }
 
     const called = state.morale.find((call) => call.roll === null && state.characters[call.id])
@@ -563,7 +601,7 @@ function load(game: string): Saved {
 
 function save(game: string, saved: Saved): void {
   mkdirSync(DIR, { recursive: true })
-  writeFileSync(file(game), JSON.stringify(saved))
+  writeFileSync(file(game), JSON.stringify({ ...saved, evaluations: session.evaluations }))
 }
 
 function flag(args: string[], name: string, fallback: string): string {
@@ -584,6 +622,8 @@ function main(): void {
   if (command === 'new') {
     const [a, b] = positional(args)
     if (!a || !b) throw new Error('usage: pnpm duel new "<Character>:<Weapon>[+<Offhand>]" "<Character>:<Weapon>" [--seed n] [--distance n] [--rounds n] [--game name]')
+    session.evaluations = {}
+    session.ahead = args.includes('--ahead')
     const created = create(a, b, Number(flag(args, 'seed', '1')), Number(flag(args, 'distance', '4')), Number(flag(args, 'rounds', '12')))
     const env = makeEnv(created)
     const { state, next } = advance(created.state, env, created.maxRounds)
@@ -594,6 +634,8 @@ function main(): void {
   }
 
   const saved = load(game)
+  session.evaluations = saved.evaluations ?? {}
+  session.ahead = args.includes('--ahead')
   const env = makeEnv(saved)
   const { state, next } = advance(saved.state, env, saved.maxRounds)
 

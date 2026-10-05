@@ -83,10 +83,6 @@
 - character ownership split
 - sync gameplay
 - permissions gm/player
-- 
-
-# record
-- what more logs need to be exposed?
 
 ## explore integration with VTTs
 
@@ -99,17 +95,16 @@
 
 ## issues
 defending net with weapon binds weapon.
-attacking items on floor
-blast/spell damage on weapon breakage
+ranged attacks aimed at items
 
 wound healing is undefined - possession healing neither
 retweak morale based spells
 
 think corrosive damage
 prepared reaction
-unconscious must disable all actions
 
-no restriction to action while climbing.
+GM tools, manual insers
+explosions with multiple instances
 
 
 # left for combat

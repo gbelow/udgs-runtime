@@ -300,35 +300,33 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
       }
       if (defenses.length === 0) return []
 
-      // the foe takes the answer that leaves the attacker the least, the cheaper
-      // answer when two come to the same
-      const preferred = [...defenses].sort((a, b) => a.value - b.value || a.cost.AP + a.cost.STA - (b.cost.AP + b.cost.STA))
-      const guarded = preferred[0]
       const open = strike.open
       const priced = getPayableCost(locked, open)
       const cost = { AP: priced?.AP ?? 0, STA: priced?.STA ?? 0 }
       const weapon = getFreeAttackOptions(state, state.characters[attackerId], open.kind).find((o) => o.weaponKey === open.weaponKey && o.attack === open.attack && o.variant === open.variant)?.weapon ?? open.weaponKey
-      const total = { AP: cost.AP + guarded.expectedExtra.AP, STA: cost.STA + guarded.expectedExtra.STA, weighted: 0 }
-      total.weighted = total.AP + staWeight * total.STA
-      const label = `${weapon} ${open.attack} (${open.variant})`
-      return [{
-        kind: open.kind,
-        weapon,
-        attack: open.attack,
-        variant: open.variant,
-        label,
-        cost,
-        defenses: preferred,
-        guarded,
-        expectedIL: guarded.expectedIL,
-        expectedBreakIL: guarded.expectedBreakIL,
-        value: guarded.value,
-        totalCost: total,
-        ilPerAP: total.AP > 0 ? guarded.value / total.AP : null,
-        ilPerSTA: total.STA > 0 ? guarded.value / total.STA : null,
-        ilPerCost: total.weighted > 0 ? guarded.value / total.weighted : Math.sign(guarded.value) * Infinity || 0,
-      }]
+      return [guardedBy({ kind: open.kind, weapon, attack: open.attack, variant: open.variant, label: `${weapon} ${open.attack} (${open.variant})`, cost }, defenses, staWeight)]
     })
+}
+
+// The attack as the foe answers it: of the answers it has, the one that leaves
+// the attacker the least, the cheaper answer when two come to the same.
+export function guardedBy(attack: Pick<AttackEstimate, 'kind' | 'weapon' | 'attack' | 'variant' | 'label' | 'cost'>, answers: readonly DefenseEstimate[], staWeight = 1): AttackEstimate {
+  const preferred = [...answers].sort((a, b) => a.value - b.value || a.cost.AP + a.cost.STA - (b.cost.AP + b.cost.STA))
+  const guarded = preferred[0]
+  const total = { AP: attack.cost.AP + guarded.expectedExtra.AP, STA: attack.cost.STA + guarded.expectedExtra.STA, weighted: 0 }
+  total.weighted = total.AP + staWeight * total.STA
+  return {
+    ...attack,
+    defenses: preferred,
+    guarded,
+    expectedIL: guarded.expectedIL,
+    expectedBreakIL: guarded.expectedBreakIL,
+    value: guarded.value,
+    totalCost: total,
+    ilPerAP: total.AP > 0 ? guarded.value / total.AP : null,
+    ilPerSTA: total.STA > 0 ? guarded.value / total.STA : null,
+    ilPerCost: total.weighted > 0 ? guarded.value / total.weighted : Math.sign(guarded.value) * Infinity || 0,
+  }
 }
 
 // The attacks ranked best first: the most value for what they cost, the foe

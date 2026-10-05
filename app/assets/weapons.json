@@ -111,7 +111,7 @@
         "material": "metal",
         "RES": 15,
         "blunt": 0,
-        "cut": 11,
+        "cut": 16,
         "AP": 3,
         "heavy": {
           "min": 0,
@@ -179,7 +179,7 @@
         "material": "metal",
         "RES": 15,
         "blunt": 0,
-        "cut": 11,
+        "cut": 18,
         "AP": 3,
         "heavy": {
           "min": 0,
@@ -253,7 +253,7 @@
         "material": "metal",
         "RES": 20,
         "blunt": 0,
-        "cut": 12,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "piercing",
@@ -489,7 +489,7 @@
         "material": "metal",
         "RES": 20,
         "blunt": 0,
-        "cut": 12,
+        "cut": 16,
         "AP": 3,
         "heavy": {
           "min": 0,
@@ -509,7 +509,7 @@
         "material": "metal",
         "RES": 20,
         "blunt": 0,
-        "cut": 12,
+        "cut": 16,
         "AP": 3,
         "properties": [
           "piercing",
