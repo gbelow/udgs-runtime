@@ -260,9 +260,11 @@ const AttackDeclaration = {
 
 // combat.tex "Attack against equipment": the item the target holds that a
 // strike or a shot is aimed at, by id; '' aims it at the body. With no
-// target character it names an item lying on the floor.
+// target character it names an item lying on the floor, or `cell` a space of
+// the ground.
 const ObjectAim = {
   object: str.default(''),
+  cell: CoordSchema.nullable().default(null),
 }
 
 // gear.tex "Equipment Breakage": a blow met by a block or a guard strikes the

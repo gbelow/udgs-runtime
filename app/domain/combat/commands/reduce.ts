@@ -13,9 +13,10 @@ import { findWeaponRow } from '../rules/weaponRow'
 import { getAttackKind } from '../../weaponProperties'
 import { breakOne, onFloor, withoutOne } from '../rules/floor'
 import { isFloorAttack } from '../rules/equipment'
-import { getFloorObject, getStruckCells } from '../rules/floorAttack'
+import { getGroundCell } from '../rules/floorAttack'
 import { getBurnOf } from '../rules/ignition'
 import { isVoided } from '../rules/opportunity'
+import { isStoppedByGuard } from '../rules/attack'
 import { getMoveDestination } from '../rules/waypoint'
 import { isAttackAction } from '../rules/actionCatalog'
 import { getBreaks, getBrokenItems } from '../rules/breakage'
@@ -263,7 +264,7 @@ export function reduceFloor(state: CombatState, action: Action, phase: Phase): (
     // what a blow on an object broke; a thrown row lands where it was aimed
     if (action.kind === 'shoot') {
       const hit = isFloorAttack(action) ? withBroken(floor, action) : floor
-      return action.thrown ? [...hit, onFloor(action.thrown, getFloorObject(state, action)?.cell ?? cellOf(action.targetId))] : hit
+      return action.thrown ? [...hit, onFloor(action.thrown, getGroundCell(state, action) ?? cellOf(action.targetId))] : hit
     }
     if (action.kind === 'pickUp') return withoutOne(floor, action.itemId)
     // lands where it was thrown, gone from wherever it lay before — a hand
@@ -279,17 +280,15 @@ function withBroken(floor: FloorItem[], attack: AttackAction): FloorItem[] {
   return getBrokenItems(attack).reduce((acc, { itemId }) => breakOne(acc, itemId, attack.id), floor)
 }
 
-// combat.tex "Fire": burning damage that lands sets alight the fuel where it
-// lands, as hot as the burn it dealt.
+// combat.tex "Fire": burning damage that lands on the ground sets alight the
+// fuel there, as hot as the burn it dealt (the table's ruling: only an attack
+// aimed at the ground does, and a guard stops one aimed by a shot).
 function lightBurned(state: CombatState, attack: AttackAction, board: Board): Board {
+  const ground = getGroundCell(state, attack)
   const burn = getBurnOf(state, attack)
-  if (burn <= 0 || !attack.roll || attack.roll.degree === 'miss' || isVoided(state, attack)) return board
-  const terrain = { ...board.terrain }
-  for (const cell of getStruckCells(state, attack)) {
-    const key = coordKey(cell)
-    if (terrain[key]) terrain[key] = igniteCell(state, terrain[key], burn)
-  }
-  return { ...board, terrain }
+  if (!ground || burn <= 0 || !attack.roll || attack.roll.degree === 'miss' || isVoided(state, attack) || isStoppedByGuard(state, attack)) return board
+  const key = coordKey(ground)
+  return board.terrain[key] ? { ...board, terrain: { ...board.terrain, [key]: igniteCell(state, board.terrain[key], burn) } } : board
 }
 
 // combat.tex "Crash": who it stunned, and the target it knocked prone —

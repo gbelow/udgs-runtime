@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
-import { getAdjacentIds, getFlankers, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
+import { getAdjacentIds, getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
 import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
@@ -13,6 +13,7 @@ import { sameCell, setDistance } from '../geometry'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
 import { hasShootingRow } from './attack'
+import { getGroundCell } from './floorAttack'
 import { drawsOpportunity, getContestRecipe } from './recipes'
 import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
@@ -164,7 +165,11 @@ function opportunityTriggers(state: CombatState, actorId: string): Trigger[] {
 // shot draws no defense of its own, only the opportunity attacks its shooter
 // draws, and no further join.
 function shootTriggers(state: CombatState, root: ShootAction): Trigger[] {
-  if (!root.targetId) return []
+  const ground = getGroundCell(state, root)
+  if (!root.targetId) {
+    const guards = ground ? Object.keys(state.characters).filter((id) => isGuardingCells(state, root.actorId, [ground], id)) : []
+    return ground ? [...guards.map((id): Trigger => ({ characterId: id, kind: 'guard', at: null })), ...opportunityTriggers(state, root.actorId)] : []
+  }
   const opportunities = opportunityTriggers(state, root.actorId)
   if (getJoinReaction(state, root)) return opportunities
   const own = (Object.keys(ACTIONS) as ActionKind[])

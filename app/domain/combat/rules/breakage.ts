@@ -3,7 +3,7 @@ import type { Armor, Character, Damage, Delivery, Item } from '../../types'
 import { breaksOn, getArmorBreakChance, getBlow, getBreakChance, getRowBreakTerms, type Breakable, type BreakingBlow } from '../../character/rules/breakage'
 import { getItemArmor } from '../../item/rules/items'
 import { getUndefendedDamage } from '../../character/rules/damage'
-import { getDefendingReaction } from './attack'
+import { getDefendingReaction, isStoppedByGuard } from './attack'
 import { outcomeOf } from './damage'
 import { getHeldItem } from '../../item/rules/hands'
 import { getObjectPart, isObjectAttack } from './equipment'
@@ -125,7 +125,7 @@ function getEquipmentRisks(state: CombatState, root: AttackAction, damage: Damag
 export function getBreakRisks(state: CombatState, root: AttackAction, facts: Delivery | null): BreakRisk[] {
   if (!state.breakage || facts?.effect.type !== 'damage' || facts.degree === null) return []
   const damage = facts.effect.effect
-  const struck = isObjectAttack(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts)
+  const struck = isStoppedByGuard(state, root) ? [] : isObjectAttack(root) ? getEquipmentRisks(state, root, damage, facts.degree) : getArmorRisks(state, root, facts)
   return [...getObjectRisks(state, root, getBlow(damage)), ...struck]
 }
 

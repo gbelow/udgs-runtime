@@ -3,7 +3,7 @@ import type { Action, AttackAction, CastAction, CombatState, ExplosionAction, Fe
 import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
-import { getDefaultAim } from '../rules/attack'
+import { getDefaultAim, isStoppedByGuard } from '../rules/attack'
 import { getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
 import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
@@ -236,7 +236,7 @@ function impactExplosion(state: CombatState, root: ThrowAction, newId: () => str
 function struckExplosion(state: CombatState, root: AttackAction, newId: () => string): ExplosionAction[] {
   const found = getFloorObject(state, root)
   const degree = root.roll?.degree
-  if (!found || (degree !== 'hit' && degree !== 'critical')) return []
+  if (!found || (degree !== 'hit' && degree !== 'critical') || isStoppedByGuard(state, root)) return []
   const explosion = getAttackExplosion(state, root, found, { id: newId(), spawnedBy: root.id, step: 'react' })
   return explosion ? [explosion] : []
 }

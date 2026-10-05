@@ -1,6 +1,7 @@
 import type { CampaignCharacter, Character } from '../../types'
-import type { Action, ActionKind, ActionOf, AttackAction, CombatState, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
+import type { Action, ActionKind, ActionOf, AttackAction, CombatState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
+import { sameCell } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -24,7 +25,7 @@ import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
-import { getFloorTargets } from './floorAttack'
+import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
@@ -538,11 +539,22 @@ export function getDeclaredFloorTargets(state: CombatState, open: RootAction | n
   return actor && getAttackVariant(actor, open) !== null ? getFloorTargets(state, open) : []
 }
 
+// The spaces of the ground the open strike or shot can be aimed at, once it
+// is declared with a row that reaches them.
+export function getDeclaredCellTargets(state: CombatState, open: RootAction | null): Coord[] {
+  if (!open || !isAttackAction(open) || open.step !== 'define') return []
+  const actor = state.characters[open.actorId]
+  return actor && getAttackVariant(actor, open) !== null ? getCellTargets(state, open) : []
+}
+
 // Whether the action is aimed at someone it may be aimed at: a character
-// among its targets, or for a strike or a shot an item on the floor.
+// among its targets, or for a strike or a shot an item on the floor or a
+// space of the ground.
 export function isTargetAimed(state: CombatState, open: RootAction): boolean {
   if (open.targetId !== null) return getTargetIds(state, open).includes(open.targetId)
-  return isAttackAction(open) && getFloorTargets(state, open).some((f) => f.item.id === open.object)
+  if (!isAttackAction(open)) return false
+  const cell = open.cell
+  return cell !== null ? getCellTargets(state, open).some((c) => sameCell(c, cell)) : getFloorTargets(state, open).some((f) => f.item.id === open.object)
 }
 
 // Whether the declaration has to be aimed at someone before it is committed.

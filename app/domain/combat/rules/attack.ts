@@ -11,7 +11,7 @@ import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
-import { isGuardingShot, isHighGround } from './board'
+import { isGuardingCells, isGuardingShot, isHighGround } from './board'
 import { getBalanceDL, getMoveTest } from './move'
 import { getClimbDL } from './cliff'
 import { getFallTestTerms } from './fall'
@@ -24,7 +24,7 @@ import { getSlipTerms } from './tether'
 import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
 import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAttack } from './equipment'
-import { getFloorObject, getFloorAttackDL } from './floorAttack'
+import { getFloorObject, getGroundCell, getGroundDL } from './floorAttack'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
@@ -336,7 +336,16 @@ function getShotDefense(state: CombatState, root: Action): Action | null {
 // Whether the guard stands in front of this shot. Its row was checked when
 // it was declared (`guardRows`); a shield the shot breaks still guarded it.
 function guardsShot(state: CombatState, shot: Action, guard: Action): boolean {
-  return shot.targetId !== null && !!state.characters[guard.actorId] && guard.kind === 'guard' && isGuardingShot(state, shot.actorId, shot.targetId, guard.actorId)
+  if (guard.kind !== 'guard' || !state.characters[guard.actorId]) return false
+  if (shot.targetId !== null) return isGuardingShot(state, shot.actorId, shot.targetId, guard.actorId)
+  const ground = shot.kind === 'shoot' ? getGroundCell(state, shot) : null
+  return ground !== null && isGuardingCells(state, shot.actorId, [ground], guard.actorId)
+}
+
+// combat.tex "Guard": a shot aimed at the ground is stopped by the guard
+// that answers it, and reaches nothing (the table's ruling).
+export function isStoppedByGuard(state: CombatState, shot: AttackAction): boolean {
+  return shot.kind === 'shoot' && isFloorAttack(shot) && getDefendingReaction(state, shot) !== null
 }
 
 // The DL the root is rolled against — by its own test, or for an explosion
@@ -389,8 +398,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
 // combat.tex "High Ground": "Both receive a +2 bonus to their melee defense
 // against each other" — on the SD as much as on an active defense.
 function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
-  const floor = getFloorObject(state, root)
-  if (floor) return getFloorAttackDL(floor.item)
+  if (isFloorAttack(root)) return getGroundDL(state, root)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
   const reaction = getDefendingReaction(state, root)
@@ -404,11 +412,10 @@ function getStrikeDLTerms(state: CombatState, root: StrikeAction): Term[] {
 // or their SD, should they choose not to react"; "Guard": "Shield Cover is
 // added to guard as a bonus", the guard's own reflexes when it is an ally's.
 function getShotDLTerms(state: CombatState, root: ActionOf<'shoot'>): Term[] {
-  const floor = getFloorObject(state, root)
-  if (floor) return getFloorAttackDL(floor.item)
+  const reaction = getDefendingReaction(state, root)
+  if (isFloorAttack(root)) return reaction ? shotDefenseTerms(state, reaction) : getGroundDL(state, root)
   const defender = root.targetId ? state.characters[root.targetId] : undefined
   if (!defender) return []
-  const reaction = getDefendingReaction(state, root)
   return reaction ? shotDefenseTerms(state, reaction) : [{ label: 'SD', value: getSD(defender, getSituationalAfflictions(state, defender.id)) }]
 }
 

@@ -2,29 +2,39 @@ import type { Item } from '../../types'
 import type { Term } from '../../character/rules/terms'
 import type { AttackAction, Coord, CombatState, ExplosionAction, FloorItem } from '../types'
 import { setDistance } from '../geometry'
-import { getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board'
+import { getAimableCells, getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board'
 import { getObjectPart } from './equipment'
 import { getImpactExplosion } from './explosion'
 import { findFloorItem } from './floor'
 import { getBurnOf } from './ignition'
-import { getCellFuels } from './hazard'
+import { hasUnlitFuel } from './hazard'
 import { isSweep } from './sweep'
 
-// A strike or a shot aimed at an item on the floor: `object` names it and the
-// attack has no target character. An object cannot defend itself, so the blow
-// is scored against a DL alone; it does something only to an object with a RES
-// to test or a charge that goes off on impact.
+// A strike or a shot aimed at the ground: an item lying on the floor, named
+// by `object`, or a space, named by `cell`; the attack has no target
+// character. The ground cannot defend itself, so the blow is scored against a
+// DL alone; it does something only to an object with a RES to test or a
+// charge that goes off on impact, or, carrying burning damage, to fuel.
 
 // The item an attack on the floor is aimed at.
 export function getFloorObject(state: CombatState, attack: Pick<AttackAction, 'targetId' | 'object'>): FloorItem | null {
   return attack.targetId === null && attack.object !== '' ? findFloorItem(state, attack.object) : null
 }
 
+// The space of the ground the attack is aimed at, or lands on: the cell of
+// the item, else the cell named.
+export function getGroundCell(state: CombatState, attack: Pick<AttackAction, 'targetId' | 'object' | 'cell'>): Coord | null {
+  return attack.targetId === null ? getFloorObject(state, attack)?.cell ?? attack.cell : null
+}
+
 // combat.tex "Immobile": "The DL to hit an immobile target is -5-1*SM". An
 // object is immobile, and its bulk stands for its size: a human-sized object
-// is bulk 5 and a small one 1 (the table's ruling).
-export function getFloorAttackDL(item: Item): Term[] {
-  return [{ label: 'object', value: -item.bulk }]
+// is bulk 5 and a small one 1; a space of the ground is -5, all of them (the
+// table's rulings).
+export function getGroundDL(state: CombatState, attack: Pick<AttackAction, 'targetId' | 'object' | 'cell'>): Term[] {
+  const floor = getFloorObject(state, attack)
+  if (floor) return [{ label: 'object', value: -floor.item.bulk }]
+  return attack.cell ? [{ label: 'cell', value: -5 }] : []
 }
 
 // spells.tex "Charged": a blow that lands on a charge with the impact trigger
@@ -39,15 +49,9 @@ function isBreakable(state: CombatState, item: Item): boolean {
   return state.breakage && !item.broken && getObjectPart(item) !== null
 }
 
-// combat.tex "Fire": burning damage lights the fuel where it lands, so a blow
-// that carries burn on an item standing in unlit fuel does something.
-function lightsFuel(state: CombatState, attack: AttackAction, found: FloorItem): boolean {
-  return found.cell !== null && getBurnOf(state, attack) > 0 && getCellFuels(state, found.cell).length > 0
-}
-
 // Whether a blow on the item would do anything.
 function isWorthHitting(state: CombatState, attack: AttackAction, found: FloorItem): boolean {
-  return !found.item.broken && (isBreakable(state, found.item) || getAttackExplosion(state, attack, found) !== null || lightsFuel(state, attack, found))
+  return !found.item.broken && (isBreakable(state, found.item) || getAttackExplosion(state, attack, found) !== null)
 }
 
 // Within the row's reach of the actor — a strike's, or a shot's carry, in
@@ -60,18 +64,22 @@ function isInFloorReach(state: CombatState, attack: AttackAction, found: FloorIt
   return reach === null || setDistance(footprint, [found.cell]) <= reach
 }
 
-// The items on the floor an attack as declared can be aimed at: the blow of a
-// plain strike, never an opportunity attack or a sweep (the table's ruling: a
-// sweep does not include floor items), or a shot.
+// A plain strike, never an opportunity attack or a sweep (the table's ruling:
+// a sweep does not include the floor), or a shot.
+function mayAimAtGround(attack: AttackAction): boolean {
+  return attack.kind === 'shoot' || !(attack.opportunity || attack.sweepOf !== null || isSweep(attack))
+}
+
+// The items on the floor an attack as declared can be aimed at.
 export function getFloorTargets(state: CombatState, attack: AttackAction): FloorItem[] {
-  if (attack.kind === 'strike' && (attack.opportunity || attack.sweepOf !== null || isSweep(attack))) return []
+  if (!mayAimAtGround(attack)) return []
   return state.floor.filter((f) => isInFloorReach(state, attack, f) && isWorthHitting(state, attack, f))
 }
 
-// Where an attack lands: the cells of the item it was aimed at, or of the
-// character it was.
-export function getStruckCells(state: CombatState, attack: AttackAction): Coord[] {
-  const floor = getFloorObject(state, attack)
-  if (floor) return floor.cell ? [floor.cell] : []
-  return attack.targetId ? getPlacedFootprint(state, attack.targetId) ?? [] : []
+// combat.tex "Fire": burning damage lights fuel, so the spaces within reach
+// that hold fuel not yet alight are worth aiming a burning attack at.
+export function getCellTargets(state: CombatState, attack: AttackAction): Coord[] {
+  if (!mayAimAtGround(attack) || getBurnOf(state, attack) <= 0) return []
+  const reach = attack.kind === 'shoot' ? getShotReachOf(state, attack) : getStrikeReach(state, attack)
+  return reach === null ? [] : getAimableCells(state, attack.actorId, reach).filter((cell) => hasUnlitFuel(state, cell))
 }

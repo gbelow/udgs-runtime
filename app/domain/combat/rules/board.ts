@@ -199,6 +199,14 @@ export function isGuardingShot(state: CombatState, shooterId: string, targetId: 
   return toGuard !== null && toTarget !== null && toGuard < toTarget
 }
 
+// The same for a shot aimed at the ground: whoever stands next to the cells
+// and closer to the shooter than they are.
+export function isGuardingCells(state: CombatState, shooterId: string, cells: Coord[], guardId: string): boolean {
+  const shooter = getPlacedFootprint(state, shooterId)
+  const guard = getPlacedFootprint(state, guardId)
+  return guardId !== shooterId && !!shooter && !!guard && setDistance(guard, cells) <= 1 && setDistance(shooter, guard) < setDistance(shooter, cells)
+}
+
 // Whether the shot can land on the target from where its actor stands: the
 // target within the shot's reach and in sight.
 export function isInShotRange(state: CombatState, action: ShootAction, targetId: string): boolean {

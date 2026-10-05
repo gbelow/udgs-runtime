@@ -5,7 +5,7 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -378,7 +378,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       id: open.id,
       label: getOpenLabel(state, open),
       actor: getFightName(state, open.actorId),
-      target: target?.fightName ?? (floorStruck ? getItemLabel(floorStruck.item) : null),
+      target: target?.fightName ?? (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
       targetId: open.targetId,
       weapon: swung?.weaponKey ?? '',
       attack: swung?.attack ?? '',
@@ -460,7 +460,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       ...declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
       ...floorTargets.map((f) => ({ id: f.item.id, name: getItemLabel(f.item), selected: f.item.id === floorStruck?.item.id })),
     ],
-    noTargets: step === 'target' && declaredTargets.length === 0 && floorTargets.length === 0
+    noTargets: step === 'target' && declaredTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
     canCommit: step === 'commit' && getPayableCost(state, open) !== null,

@@ -12,11 +12,11 @@ import { getHeldItem } from '../../item/rules/hands'
 export const EQUIPMENT_ATTACK_PENALTY = 10
 
 export function isObjectAttack(action: AttackAction): boolean {
-  return action.object !== ''
+  return action.object !== '' || action.cell !== null
 }
 
-// An attack aimed at an item lying on the floor: it names the item and no
-// character.
+// An attack aimed at an item lying on the floor or at a space of the ground:
+// it names no character.
 export function isFloorAttack(action: AttackAction): boolean {
   return isObjectAttack(action) && action.targetId === null
 }

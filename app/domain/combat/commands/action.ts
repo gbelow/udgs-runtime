@@ -1,4 +1,4 @@
-import { ActionSchema, type Action, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
+import { ActionSchema, type Action, type Coord, type ActionDraft, type ActionRoll, type CastAction, type CombatState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
@@ -62,11 +62,21 @@ export function setTarget(targetId: string): Updater {
     const open = getOpenAt(state, 'define')
     if (!open) return state
     if (isAttackAction(open) && getDeclaredFloorTargets(state, open).some((f) => f.item.id === targetId)) {
-      return replaceActions(state, [{ ...open, targetId: null, object: targetId, ...getDefaultAim(undefined) }])
+      return replaceActions(state, [{ ...open, targetId: null, object: targetId, cell: null, ...getDefaultAim(undefined) }])
     }
     if (!getTargetIds(state, open).includes(targetId)) return state
-    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(isAttackAction(open) ? { object: '' } : {}) } : {}
+    const retargeted = 'part' in open && open.targetId !== targetId ? { ...getDefaultAim(state.characters[targetId]), ...(isAttackAction(open) ? { object: '', cell: null } : {}) } : {}
     return replaceActions(state, [{ ...open, targetId, ...retargeted }])
+  }
+}
+
+// Aims the open strike or shot at a space of the ground, which leaves it no
+// character or item to aim at.
+export function aimAtCell(cell: Coord): Updater {
+  return (state) => {
+    const open = getOpenAt(state, 'define')
+    if (!open || !isAttackAction(open)) return state
+    return replaceActions(state, [{ ...open, targetId: null, object: '', cell, ...getDefaultAim(undefined) }])
   }
 }
 

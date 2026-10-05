@@ -182,6 +182,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   declareAction: (s) => combatCommands.declareAction('a', { kind: 'strike' }, newId)(deepFreeze(cleared(s))),
   amendAction: (s) => combatCommands.amendAction({ location: 'head' })(deepFreeze(declaredStrike(s))),
   setTarget: (s) => combatCommands.setTarget('b')(deepFreeze(declaredStrike(s))),
+  aimAtCell: (s) => combatCommands.aimAtCell({ q: 1, r: 0 })(deepFreeze(declaredStrike(s))),
   commitAction: (s) => combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declaredStrike(s)))),
   amendReaction: combatCommands.amendReaction('b', { location: 'head' }),
   withdrawSpawnedAction: (s) => combatCommands.withdrawSpawnedAction(newId)(deepFreeze(spawnedFollow(s))),

@@ -112,10 +112,15 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   explosion at the item's cell (`struckExplosion`, `commands/sequence.ts`). Grabs, sweeps and
   opportunity attacks never aim at the floor. A shot reaches the floor within the row's carry and in
   sight (`isAimableCell`); a thrown row lands on the item's cell. A shot may equally be aimed at an
-  item its target holds, scored as a strike at it is (`isObjectAttack`). Burning damage a hit or
-  graze carries (`getBurnOf`: the burn in the contact charge of the item it is made with) lights
-  the fuel on the cells it lands on (`lightBurned` in `reduceBoard`, `igniteCell` at the burn's
-  heat), and an item standing in unlit fuel is offered to a burning attack for that alone.
+  item its target holds, scored as a strike at it is (`isObjectAttack`). A strike or a shot that
+  carries burn (`getBurnOf`: the burn in the contact charge of the item it is made with) may also be
+  aimed at a space (`cell`, set by `aimAtCell` from a board click: `getAim` field `'cell'`), offered
+  only where unlit fuel lies within reach (`getCellTargets`); a space is scored at DL −5
+  (`getGroundDL`). Burning damage a hit or graze carries lights the fuel only on the ground the
+  attack was aimed at (`getGroundCell`, `lightBurned` in `reduceBoard`, `igniteCell` at the burn's
+  heat) — never under a character it hits. A shot at the ground is answered by guards next to the
+  space and closer to the shooter (`isGuardingCells`); one that answers it stops the shot
+  (`isStoppedByGuard`): no break, no impact charge, no light.
 - **Fuel and fire on the ground** (`rules/hazard.ts`, `rules/extinguish.ts`) — an item with `fuel`
   (`oil`, `alcohol`: a flask) thrown breaks where it lands instead of lying there: `reduceBoard`
   lays a `HazardLayer` with `fuel` and no fire on the cell (`coatCell`). A coat is harmless until

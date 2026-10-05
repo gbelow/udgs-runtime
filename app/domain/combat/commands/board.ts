@@ -10,7 +10,7 @@ import { placeAt, withPlacements } from '../rules/board'
 import { getEvasiveJumpPlacements, getReachableCells, type ReachableCell } from '../rules/move'
 import { canStandAt } from '../rules/ground'
 import { getMoveOrigin } from '../rules/waypoint'
-import { amendAction, amendReaction, declareReaction } from './action'
+import { aimAtCell, amendAction, amendReaction, declareReaction } from './action'
 import { aimExplosion } from './choices'
 import { getDragReach, getWalkerPlacement } from '../rules/drag'
 
@@ -103,7 +103,7 @@ export function pickCell(cell: Coord, newId: () => string): Updater {
     }
     const aim = getAim(state, open)
     if (aim) {
-      return aim.cells.some((c) => sameCell(c, cell)) ? amendAction(aim.field === 'center' ? { center: cell } : { to: cell })(state) : state
+      return aim.cells.some((c) => sameCell(c, cell)) ? (aim.field === 'center' ? amendAction({ center: cell })(state) : aim.field === 'cell' ? aimAtCell(cell)(state) : amendAction({ to: cell })(state)) : state
     }
     if (open.kind === 'blast' && open.step === 'post') {
       const from = state.board?.placements[open.actorId]

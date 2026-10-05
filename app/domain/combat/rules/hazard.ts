@@ -94,6 +94,12 @@ export function getCellHazard(state: CombatState, cell: Coord): Hazard {
   return terrain.layers.filter((l) => isLayerLive(state, l)).reduce<Hazard>(combineHazards, drawn)
 }
 
+// Whether the cell holds fuel that has not caught fire.
+export function hasUnlitFuel(state: CombatState, cell: Coord): boolean {
+  const layers = state.board?.terrain[coordKey(cell)]?.layers ?? []
+  return layers.some((l) => l.fuel && l.fire === 0 && isLayerLive(state, l))
+}
+
 // The fuels coating a cell, burning or not.
 export function getCellFuels(state: CombatState, cell: Coord): Fuel[] {
   const layers = state.board?.terrain[coordKey(cell)]?.layers ?? []

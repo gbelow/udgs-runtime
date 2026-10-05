@@ -310,7 +310,7 @@ app/domain/combat/
 │   ├── stress.ts       limit stress actions: what each compels (`STRESS_DUTIES`), the substitutions, the owed order (worst morale test first), the bars that keep the turn open until the duty is done or cannot be, `isMartyrGuard` (a martyr holding the surge may run onto the protect line: `getDefenderSteps`)
 │   ├── drag.ts         push and drag: sides, the +5 order, prices, the block's way and reach
 │   ├── floor.ts        items on the floor, reachable, a shot's thrown weapon, one of a stack, one broken
-│   ├── floorAttack.ts  a strike or a shot aimed at an item on the floor: its DL, what it can be aimed at, the explosion it sets off, the cells a blow lands on
+│   ├── floorAttack.ts  a strike or a shot aimed at an item on the floor or a space of the ground: its DL, what it can be aimed at, the explosion it sets off, where it lands
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── aim.ts          where the open action waits to be pointed on the board

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
-import { archer, fighter } from '../domain/bot/fixtures'
+import { archer, fighter, warden } from '../domain/bot/fixtures'
 import { produceEffects } from '../domain/character/rules/production'
 import { SPELLS } from '../domain/spells'
 import { holdItem } from '../domain/item/commands/hands'
@@ -10,6 +10,8 @@ import { coordKey } from '../domain/combat/geometry'
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { getActionPanel } from '../domain/combat/projections/actionPanel'
 import { getOpenAction } from '../domain/combat/rules/log'
+import { getAvailableActions } from '../domain/combat/rules/options'
+import { declareReaction, rollAction } from '../domain/combat/commands/action'
 
 // A shot at what lies on the floor, from the click to what stands after.
 // Expected values are what was clicked and what was laid on the ground: the
@@ -34,11 +36,11 @@ const coat: Updater = (s) => {
 
 // Ann with `shooter` in hand at the origin, Cy's `lying` on the floor two
 // cells away; her turn begun and a shot declared with the first row there is.
-function scene(shooter: (name: string) => CampaignCharacter, lying: Item, coated: boolean): Harness {
+function scene(shooter: (name: string) => CampaignCharacter, lying: Item, coated: boolean, guard?: CampaignCharacter): Harness {
   const h = openHarness(() => 10)
-  h.bring(shooter('Ann'), holdItem(lying)(fighter('Cy')))
+  h.bring(shooter('Ann'), holdItem(lying)(fighter('Cy')), ...(guard ? [guard] : []))
   h.createBoard(6)
-  for (const [name, q, r] of [['Ann', 0, 0], ['Cy', 2, 0]] as const) {
+  for (const [name, q, r] of [['Ann', 0, 0], ['Cy', 2, 0], ...(guard ? [[guard.name, 1, 0] as const] : [])] as const) {
     h.select(name)
     h.cell(q, r)
   }
@@ -77,30 +79,48 @@ describe('declaring a shot at the floor', () => {
   })
 })
 
-// combat.tex "Fire": a blow that carries burning damage lights the fuel where
-// it lands.
-describe('a burning shot on fuel', () => {
-  it('is offered at an item standing in a coat, which it lights', () => {
-    const lying = rope()
-    const h = scene(dagger, lying, true)
-    expect(h.view().floor.find((f) => f.itemId === lying.id)!.targetable).toBe(true)
-    h.floor(lying.id)
+// combat.tex "Fire": a blow that carries burning damage and is aimed at the
+// ground lights the fuel there.
+describe('a burning shot at a space', () => {
+  const coated = [coordKey({ q: 2, r: 0 })]
+  const lit = (h: Harness) => h.view().cells.filter((c) => c.fire > 0).map((c) => c.key)
+
+  it('offers the spaces holding unlit fuel, and lights the one clicked', () => {
+    const h = scene(dagger, spear(), true)
+    expect(h.view().cells.filter((c) => c.center).map((c) => c.key)).toEqual(coated)
+    h.cell(2, 0)
+    expect(open(h)).toMatchObject({ targetId: null, object: '', cell: { q: 2, r: 0 } })
     h.commit()
-    const lit = h.view().cells.filter((c) => c.fire > 0).map((c) => c.key)
-    expect(lit).toEqual([coordKey({ q: 2, r: 0 })])
+    expect(lit(h)).toEqual(coated)
   })
 
-  it('is not offered at an item on bare ground', () => {
-    const h = scene(dagger, rope(), false)
-    expect(h.view().floor.every((f) => !f.targetable)).toBe(true)
+  it('offers nothing on bare ground', () => {
+    const h = scene(dagger, spear(), false)
+    expect(h.view().cells.some((c) => c.center)).toBe(false)
   })
 
-  it('lights nothing when the shot is not burning', () => {
+  it('offers nothing to a shot that is not burning', () => {
+    const h = scene(archer, spear(), true)
+    expect(h.view().cells.some((c) => c.center)).toBe(false)
+  })
+
+  it('lights the space an item aimed at lies in, and no other', () => {
     const lying = spear()
-    const h = scene(archer, lying, true)
+    const h = scene(dagger, lying, true)
     h.floor(lying.id)
     h.commit()
-    expect(h.view().cells.every((c) => c.fire === 0)).toBe(true)
+    expect(lit(h)).toEqual(coated)
+  })
+
+  it('is stopped by a guard in front of the space', () => {
+    const h = scene(dagger, spear(), true, warden('Dee'))
+    h.cell(2, 0)
+    h.commit()
+    expect(open(h)).toMatchObject({ kind: 'shoot', step: 'react' })
+    const guard = getAvailableActions(h.state(), h.idOf('Dee')).find((o) => o.draft.kind === 'guard' && o.available)!
+    h.press(declareReaction(h.idOf('Dee'), guard.draft, h.newId))
+    h.press(rollAction(h.dice, h.newId))
+    expect(lit(h)).toEqual([])
   })
 })
 
