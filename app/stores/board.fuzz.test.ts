@@ -4,10 +4,11 @@ import { rollD10, seededRng } from '../domain/combat/dice'
 import { CombatStateSchema, type ActionDraft, type CombatState } from '../domain/combat/types'
 import { getActionPanel } from '../domain/combat/projections/actionPanel'
 import { getFootprint } from '../domain/combat/rules/board'
+import { defRows } from '../domain/combat/rules/attack'
 import { getAvailableActions } from '../domain/combat/rules/options'
 import { ACTIONS, isReaction } from '../domain/combat/rules/actionCatalog'
 import { getOpenAction } from '../domain/combat/rules/log'
-import { coordKey } from '../domain/combat/geometry'
+import { coordKey, distance } from '../domain/combat/geometry'
 import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
 import { dropToFloor } from '../domain/combat/commands/floor'
@@ -58,6 +59,7 @@ const carryOn = (h: Harness) => [rollAction(h.dice, h.newId), payAction(h.newId,
 function finishDeclaration(h: Harness, pick: Picker) {
   const panel = () => getActionPanel(h.state())
   if (getOpenAction(h.state())?.step !== 'define') return
+  if (getOpenAction(h.state())?.kind === 'prepare') fillPreparation(h, pick)
   const first = <T>(from: readonly T[]) => (from.length ? pick(from) : null)
   const row = first(panel().attacks)
   if (row && !panel().open?.weapon) h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
@@ -76,6 +78,27 @@ function finishDeclaration(h: Harness, pick: Picker) {
   const there = first(highlighted(h))
   if (there) h.click({ on: 'cell', cell: there.cell })
   h.commit()
+}
+
+// What a preparation is still asked for: what is prepared and with what, whether
+// it carries movement, and what it waits for, all from the panel's own offers.
+function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only: readonly string[] | null = null) {
+  const view = () => getActionPanel(h.state()).prepare
+  const mains = view()?.mains.filter((m) => m.available && (only === null || only.includes(m.kind))) ?? []
+  if (!mains.length) return
+  h.press(amendAction({ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }))
+  const made = view()!
+  if (made.attacks.length) { const { weaponKey, attack, variant } = pick(made.attacks); h.press(amendAction({ weaponKey, attack, variant })) }
+  if (made.defenses.length) { const { weaponKey, attack } = pick(made.defenses); h.press(amendAction({ weaponKey, attack })) }
+  if (made.ammo.length) h.press(amendAction({ ammoId: pick(made.ammo).itemId }))
+  const castable = made.spells.filter((s) => s.castable)
+  if (castable.length) h.press(chooseSpell(pick(castable).key, false))
+  const moves = made.movements.filter((m) => m.available)
+  if (moves.length) h.press(amendAction({ movement: pick(moves).kind }))
+  h.press(amendAction({ moves: pick([true, false]) }))
+  const waits = view()!
+  const event = anyoneEntering ? waits.events.find((e) => e.event !== 'sighted') ?? waits.events[0] : pick(waits.events)
+  h.press(amendAction({ trigger: { event: event.event, who: anyoneEntering ? null : pick(waits.who).id } }))
 }
 
 // What an answer that strikes for itself (a counterattack, an opportunity
@@ -402,14 +425,14 @@ function assertSettled(h: Harness) {
   expect(open ? `${open.kind} stuck at ${open.step}` : null).toBeNull()
 }
 
-function startTurnOf(h: Harness, pick: Picker) {
+function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = null) {
   if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
   playOut(h, pick)
   assertSettled(h)
   if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
   const { characters, binds } = h.state()
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
-  h.select(characters[pick(bound.length && pick([true, true, false]) ? bound : Object.keys(characters))].name)
+  h.select(characters[pick(only ?? (bound.length && pick([true, true, false]) ? bound : Object.keys(characters)))].name)
   h.startTurn()
   if (pick([true, true, false])) h.press(surge(h.active()!, pick(['focus', 'focus', ...SurgeKindSchema.options])))
 }
@@ -450,6 +473,61 @@ function travel(h: Harness, pick: Picker) {
   playOut(h, pick)
 }
 
+// Someone prepares an action, and then someone else walks as close to them as
+// the board lets them, in the round it was prepared in: what it waits for may
+// come, and be answered with it.
+function ambush(h: Harness, pick: Picker) {
+  startTurnOf(h, pick)
+  const preparer = h.active()!
+  if (!ownOptions(h, preparer).some((o) => o.draft.kind === 'prepare')) return
+  h.declare({ kind: 'prepare' })
+  fillPreparation(h, pick, true)
+  h.commit()
+  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  const at = h.state().board?.placements[preparer]?.cell
+  const mover = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
+  if (!at || !mover) return
+  h.select(mover.name)
+  const [farthest] = h.view().cells.slice().sort((a, b) => distance(b.cell, at) - distance(a.cell, at))
+  if (farthest) h.click({ on: 'cell', cell: farthest.cell })
+  h.startTurn()
+  if (!ownOptions(h, mover.id).some((o) => o.draft.kind === 'move')) return
+  h.declare({ kind: 'move' })
+  const [nearest] = h.view().cells.filter((c) => c.reachable !== null).sort((a, b) => distance(a.cell, at) - distance(b.cell, at))
+  if (nearest) h.click({ on: 'cell', cell: nearest.cell })
+  h.commit()
+  const prepared = answersOffered(h).filter((o) => o.draft.kind === 'prepared')
+  if (prepared.length) { const o = pick(prepared); h.press(declareReaction(o.id, o.draft, h.newId)) }
+  playOut(h, pick)
+}
+
+// Someone prepares a defense of whoever is attacked, and someone else attacks:
+// the preparer is offered the defense, walks to the line before the die and
+// makes it from there.
+function rescue(h: Harness, pick: Picker) {
+  const shielded = Object.values(h.state().characters).filter((c) => defRows(c).some((row) => row.weapon.shield !== undefined)).map((c) => c.id)
+  if (!shielded.length) return
+  startTurnOf(h, pick, shielded)
+  const preparer = h.active()!
+  if (!ownOptions(h, preparer).some((o) => o.draft.kind === 'prepare')) return
+  h.declare({ kind: 'prepare' })
+  fillPreparation(h, pick, true, ['block', 'intercept', 'guard'])
+  h.commit()
+  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  h.press(endTurn)
+  const attacker = pick(Object.values(h.state().characters).filter((c) => c.id !== preparer))
+  if (!attacker) return
+  h.select(attacker.name)
+  h.startTurn()
+  const attacks = ownOptions(h, attacker.id).filter((o) => o.draft.kind === 'strike' || o.draft.kind === 'shoot')
+  if (!attacks.length) return
+  h.declare(pick(attacks).draft as ActionDraft)
+  finishDeclaration(h, pick)
+  const defenses = answersOffered(h).filter((o) => o.id === preparer && 'preparedId' in o.draft && o.draft.preparedId)
+  if (defenses.length) h.press(declareReaction(preparer, pick(defenses).draft, h.newId))
+  playOut(h, pick)
+}
+
 const DUELS = [
   { name: 'two brawlers', a: brawler, b: brawler, apart: 1 },
   { name: 'two archers', a: archer, b: archer, apart: 3 },
@@ -476,7 +554,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number) {
   h.select('Bob')
   h.cell(duel.apart, 0)
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -507,7 +585,7 @@ function playCrowd(seed: number) {
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }], pick)
 }
 
 describe('a crowd on rough ground', () => {

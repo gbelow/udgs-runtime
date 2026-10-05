@@ -139,7 +139,9 @@ click to what stands afterwards. It is admitted, under these terms.
   seven on ground with a pond and a cliff painted on it. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever
   defences are offered, and the roll runs on to its end, aiming what it opens. A walk, swim, climb
-  or jump is its own play.
+  or jump is its own play, and so is an ambush: someone prepares a reaction and someone else is sent
+  walking at them, and a rescue: a shielded character prepares a defense of whoever is attacked and
+  someone attacks.
   `FUZZ_SEEDS=n` runs n seeds of every session instead of the few that keep the suite quick.
   `FUZZ_REPORT=1` writes `reports/fuzz-coverage.md`, a table of every action in the catalogue and
   how far the sessions took it, as an artifact to read, never asserted on.

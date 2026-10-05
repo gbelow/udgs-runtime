@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, ReactionKind, CombatState, Coord, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, Placement, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
@@ -9,7 +9,9 @@ import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { getRetargetOptions } from './fireAgain'
-import { sameCell, setDistance } from '../geometry'
+import { sameCell } from '../geometry'
+import { firstStep, getApproachStep, getPathDistances } from './approach'
+import { getPreparedTriggers } from './prepared'
 import { getAction, getOpeningReaction, getReactionsTo } from './log'
 import { getJoinReaction } from './coordinated'
 import { hasShootingRow } from './attack'
@@ -43,6 +45,9 @@ export type Trigger = {
   recipe?: string
   // the held spray a retarget aims anew
   key?: string
+  // the prepared action a `prepared` reaction answers with, by the id of the
+  // preparation that made it
+  preparedId?: string
 }
 
 // How far the held sprays a character could aim anew reach: the range a
@@ -69,7 +74,7 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
   const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(state, root).filter((id) => id !== root.targetId) : []
-  return drawn.filter((t) => !others.includes(t.characterId))
+  return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId))
 }
 
 function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
@@ -104,6 +109,8 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'holdBack':
     case 'rest':
     case 'fireAgain':
+    // preparing is a thing done on one's own turn, and nobody answers it
+    case 'prepare':
       return []
   }
 }
@@ -115,11 +122,12 @@ export function getTriggersFor(state: CombatState, root: RootAction, characterId
 // The trigger a reaction answers, or would: one of its kind, at the step it
 // names, and against whoever it is aimed at once it is. A reaction that
 // names no step or no target yet matches on what it does name.
-export type TriggerKey = { kind: ActionKind; actorId: string; at?: number | null; targetId?: string | null }
+export type TriggerKey = { kind: ActionKind; actorId: string; at?: number | null; targetId?: string | null; preparedId?: string }
 
 export function findTrigger(state: CombatState, root: RootAction, reaction: TriggerKey): Trigger | null {
   return getTriggersFor(state, root, reaction.actorId).find((t) =>
     t.kind === reaction.kind
+    && (reaction.preparedId ?? '') === (t.preparedId ?? '')
     && (reaction.at === undefined || t.at === reaction.at)
     && (reaction.targetId === undefined || (t.against ?? root.actorId) === reaction.targetId)) ?? null
 }
@@ -344,23 +352,3 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
   return triggers
 }
 
-// How far the mover's footprint stands from the other's at each placement
-// along the way, the one set out from first.
-function getPathDistances(mover: Character, placements: Placement[], other: Coord[]): number[] {
-  return placements.map((p) => setDistance(getFootprint(mover, p), other))
-}
-
-// combat.tex "Opportunity Attack": "moving towards a melee weapon while
-// within its attack range" — the first step taken from within the range to
-// closer still.
-function getApproachStep(distances: number[], range: number): number | null {
-  return firstStep(distances, (previous, now) => previous <= range && now < previous)
-}
-
-// the first step, counted from 1, at which `moved` holds between the
-// distance before it and the distance after it; `distances` starts with the
-// one before the first step
-function firstStep(distances: number[], moved: (previous: number, now: number) => boolean): number | null {
-  for (let i = 1; i < distances.length; i++) if (moved(distances[i - 1], distances[i])) return i
-  return null
-}

@@ -9,6 +9,7 @@ import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionRoll, CostTerm, GrappleManeuver, HitLocation, StrikeAction } from '../domain/combat/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
+import { Preparation } from './Preparation'
 
 // A button's look while it is the one picked.
 const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
@@ -39,6 +40,7 @@ export function ActionPanel(){
           {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
           {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
         </div>
+        <Prepared rows={view.prepared} />
         {view.episode || view.edits.length > 0 ? <Report episode={view.episode ?? []} edits={view.edits} /> : null}
       </Panel>
     )
@@ -55,9 +57,12 @@ export function ActionPanel(){
       pending={step === 'react'}
       actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
-      {declared && open.spawned && open.flee === null ? (
+      {declared && open.spawned && open.flee === null && !open.required ? (
         <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button></div>
       ) : null}
+      {declared && open.required ? <span className='text-xs text-muted'>prepared: it must be done</span> : null}
+
+      {view.prepare ? <Preparation view={view.prepare} onAmend={amend} onSpell={cast} onExtend={extend} /> : null}
 
       {open.flee !== null ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -320,6 +325,17 @@ export function ActionPanel(){
       ) : null}
       {view.episode || view.edits.length > 0 ? <Report episode={view.episode ?? []} edits={view.edits} /> : null}
     </Panel>
+  )
+}
+
+// What is prepared in the round, for the table to read.
+function Prepared({ rows }: { rows: { id: string, actor: string, text: string }[] }){
+  if (rows.length === 0) return null
+  return (
+    <div className='flex flex-col gap-1 pt-2 mt-2 border-t border-line'>
+      <SectionLabel>prepared</SectionLabel>
+      {rows.map((r) => <span key={r.id} className='text-xs text-muted'>{r.actor}: {r.text}</span>)}
+    </div>
   )
 }
 

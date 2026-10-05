@@ -30,6 +30,7 @@ import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain
 import { getFleeBarFor, getSurgeBarFor } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
+import { findPrepared, getPreparedBar } from './prepared'
 import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
@@ -179,6 +180,15 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
     const gate = defenseGate(state, c, open, kind, cost)
     const answer = (draft: ActionDraft, own: ActionCost | null = cost, reason: string | null = gate): ActionOption =>
       option(draft, own, reason, open.id, chosen(draft))
+    // combat.tex "Protect", "Guard": a defense prepared for an ally, made with
+    // the row it was prepared with, from where the movement it carries has put
+    // its preparer — which is walked before the die, not now
+    if (trigger.preparedId && (kind === 'block' || kind === 'intercept' || kind === 'guard')) {
+      const prepared = findPrepared(state, trigger.preparedId)
+      if (!prepared) return []
+      const draft = { kind, weaponKey: prepared.weaponKey, attack: prepared.attack, preparedId: prepared.id }
+      return [answer(draft, cost, gate ?? getPreparedBar(state, c, prepared) ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))]
+    }
     switch (kind) {
       case 'block':
       case 'intercept':
@@ -273,6 +283,13 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
       // paid
       case 'flee':
         return [answer({ kind, at: trigger.at }, getFleeCost(c) ?? { AP: 0, STA: SURGES.movement.STA }, getFleeBar(state, c))]
+      // combat.tex "Preparing a reaction": the action it was prepared as, paid
+      // for as it is made, so it is open only to someone who can make it now
+      case 'prepared': {
+        const prepared = trigger.preparedId ? findPrepared(state, trigger.preparedId) : null
+        if (!prepared) return []
+        return [answer({ kind, preparedId: prepared.id, at: trigger.at }, null, getPreparedBar(state, c, prepared))]
+      }
       // combat.tex "Follow": a move of the follower's own, so it is open only
       // to someone who can pay for one
       case 'follow': {
@@ -384,6 +401,12 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : getExtinguishCells(state, c.id).length === 0 ? 'nothing burning within reach'
       : afford(c, cost)
     return [option({ kind: 'extinguish' }, cost, reason)]
+  },
+  // combat.tex "Preparing a reaction": 1 AP, whatever is prepared; it needs a
+  // board to be triggered on
+  prepare: (state, c) => {
+    const cost = getActionCost(c, 'prepare')
+    return [option({ kind: 'prepare' }, cost, !isPlaced(state, c) ? 'not on the board' : afford(c, cost))]
   },
   // combat.tex "Rest"
   rest: (state, c) => {

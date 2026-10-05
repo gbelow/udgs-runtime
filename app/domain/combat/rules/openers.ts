@@ -1,7 +1,9 @@
 import type { Action, ActionOf, CombatState, MoveAction, ReactionAction, ReactionKind, RootAction } from '../types'
 import { makeAction } from '../factories'
 import { isReactionAction } from './actionCatalog'
-import { getDrawnOpportunityAttacks, getOpenedBy, getReactionsTo } from './log'
+import { getDrawnOpportunityAttacks, getOpenedBy, getOpenedMain, getReactionsTo } from './log'
+import { findPrepared, getPreparedMain, getPreparedMoveBudget, getPreparedParts, getPreparedState, isPreparedCancelled, isPreparedReached } from './prepared'
+import { getMoveFacts } from './move'
 import { getOpportunityAction } from './attack'
 import { getOpportunityState, getOpportunityStop, isFlankInReach, isOpportunityReached, isVoided } from './opportunity'
 import { getJoinedShot } from './coordinated'
@@ -72,6 +74,27 @@ export const REACTION_OPENERS: { [K in ReactionKind]: Opener<K> } = {
       return { state: placed, action: action.kind === 'strike' ? withSweepArc(placed, action) : action }
     },
   },
+  // combat.tex "Preparing a reaction": the prepared action is done before the
+  // root lands, with the mover stood on the cell that brought them into its
+  // trigger. The movement it carries is opened first, for its preparer to make
+  // or pass up, and then the action itself, which they must perform — unless
+  // they have reacted to anything else meanwhile, which cancels it.
+  prepared: {
+    before: (state, root, reaction, newId) => {
+      const prepared = findPrepared(state, reaction.preparedId)
+      const { move, passedMove, passedMain } = getPreparedParts(state, reaction)
+      if (!prepared || root.kind !== 'move' || passedMain || getOpenedMain(state, reaction) || isPreparedCancelled(state, reaction)) return null
+      if (getOpportunityStop(state, root) !== null || !isPreparedReached(reaction, getMoveFacts(state, root).path.length)) return null
+      const placed = getPreparedState(state, reaction)
+      const owner = placed.characters[reaction.actorId]
+      const budget = owner ? getPreparedMoveBudget(placed, owner, prepared) : 0
+      if (!move && !passedMove && budget > 0) {
+        return { state: placed, action: makeAction('move', { id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id, preparedPart: 'move', budget }) }
+      }
+      const main = getPreparedMain(prepared, newId(), reaction.id)
+      return main ? { state: placed, action: main } : null
+    },
+  },
   // a held spray aimed anew, fought like an opportunity attack — before the
   // root's effect, with a mover stood one space short of the stretch that
   // fired it — and opening the paint-only fireAgain it was declared for
@@ -125,7 +148,7 @@ export function getReactionsInOrder(state: CombatState, root: RootAction): React
   const drawn = getDrawnOpportunityAttacks(state, root).map(({ reaction }) => reaction)
   const aimed = reactions.filter((r) => r.kind === 'retarget')
   const byStep = [...drawn, ...aimed].sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
-  return [...byStep, ...reactions.filter((r) => r.kind !== 'opportunityAttack' && r.kind !== 'retarget')]
+  return [...byStep, ...reactions.filter((r) => r.kind !== 'opportunityAttack' && r.kind !== 'retarget' && r.kind !== 'prepared')]
 }
 
 // The reactions whose follow-ups the landed root generates: its own — but a

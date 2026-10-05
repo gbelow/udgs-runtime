@@ -99,13 +99,15 @@ defending net with weapon binds weapon.
 wound healing is undefined - possession healing neither
 retweak morale based spells
 
-prepared reaction
-
 GM tools, manual inserts
 explosions with multiple instances
 
 ranged combat penalty for distance left for later. to be decided
 corrosion left commented out for further design.
+
+show morale test inside the actions panel. 
+check if morale is forcing surge usage.
+UI to select limit stress action.
 
 
 # left for combat

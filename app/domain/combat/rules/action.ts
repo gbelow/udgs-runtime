@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, CombatState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
-import { ACTIONS, getActionDef, isAttackAction } from './actionCatalog'
+import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
 import { sameCell } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
 import { canCastSpell } from '../../character/rules/spells'
@@ -39,6 +39,7 @@ import { getAction, getDrawnOpportunityAttacks, getOpenAction, getOpenedBy, getR
 import { getFleeCost } from './flee'
 import { canBeSwept, getSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
+import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -67,12 +68,13 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':
-      return isPathLegal(state, action)
+      return isPathLegal(state, action) && isRepositionPlaced(state, action)
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
       const root = getRootOf(state, action)
-      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (root?.kind !== 'strike' || isGuardPlaced(state, root, action))
+      // a prepared defense is placed by the movement it carries, before the die
+      return row !== null && hasProperty(row.atk.properties, 'DEF') && isRowUsable(c, row) && (root?.kind !== 'strike' || action.preparedId !== '' || isGuardPlaced(state, root, action))
     }
     case 'guard': {
       const root = getRootOf(state, action)
@@ -120,6 +122,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // combat.tex "Fire": a burning space within its reach
     case 'extinguish':
       return isExtinguishCell(state, action)
+    // combat.tex "Preparing a reaction": an action it can make and a trigger
+    case 'prepare':
+      return isPrepareComplete(state, c, action)
     // combat.tex "Push and drag": on the board, at a speed open to the
     // actor, along a way the block allows
     case 'drag': {
@@ -145,6 +150,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'brace':
     case 'evasion':
     case 'avoidExplosion':
+    case 'prepared':
     case 'follow':
     case 'flee':
     case 'fleeFollowUp':
@@ -174,6 +180,32 @@ export function isUsedOutsideGrapple(state: CombatState, action: Action): boolea
 export function isCatchable(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const root = getRootOf(state, reaction)
   return root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
+}
+
+// combat.tex "Preparing a reaction": "The movement part of the action can be
+// skipped when performing the reaction, but the other action must be
+// performed." What a prepared reaction opened may not be passed up when it is
+// that action and there is someone to do it to, nor the movement when passing
+// it up would leave the action with nobody in reach; an action with nobody
+// to be done to cannot be performed, and is passed up.
+export function isPreparedRequired(state: CombatState, action: Action): boolean {
+  if (action.preparedPart === null || action.step !== 'define') return false
+  if (action.preparedPart === 'main') return isRoot(action) && isPerformable(state, action)
+  const reaction = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  // a defense's movement is its reposition: it may be passed up by one already
+  // on the line, and by nobody else, whose defense it would leave unmade
+  if (reaction && isPreparedDefense(reaction) && reaction.preparedId !== '') return !isDefensePlaced(state, reaction) && canReposition(state, reaction)
+  const prepared = reaction?.kind === 'prepared' ? findPrepared(state, reaction.preparedId) : null
+  const main = prepared ? getPreparedMain(prepared, '') : null
+  return main !== null && !isPerformable(state, main)
+}
+
+function isRoot(action: Action): action is RootAction {
+  return !isReaction(action.kind)
+}
+
+function isPerformable(state: CombatState, main: RootAction): boolean {
+  return !needsTarget(main) || getTargetIds(state, main).length > 0
 }
 
 // Whether every reaction declared against the action has said all it must:
@@ -243,6 +275,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'opportunityAttack':
     case 'retarget':
     case 'joinShot':
+    case 'prepared':
     case 'follow':
     case 'flee':
     case 'fleeFollowUp':
@@ -256,6 +289,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'pickUp':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'grapple':
       return getCatalogCost(c, action.kind)
   }
@@ -495,6 +529,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':
@@ -608,6 +643,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fireAgain':
     case 'fleeFollowUp':
     case 'spellTest':

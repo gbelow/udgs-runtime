@@ -204,6 +204,9 @@ const ActionBase = {
   // for one no recipe gave.
   recipe: str.nullable().default(null),
   step: z.enum(['define', 'react', 'post', 'done']).default('define'),
+  // Which part of a prepared reaction this action is, when a `prepared`
+  // reaction opened it: the movement it may carry, or the action it is for.
+  preparedPart: z.enum(['move', 'main']).nullable().default(null),
   // The turn this action was declared in (`CombatState.turn`), stamped when it
   // enters the log; null until then.
   turn: num.nullable().default(null),
@@ -579,8 +582,11 @@ export const EvasiveJumpActionSchema = z.object({ ...ActionBase, kind: z.literal
 // it, if they do (abilities.tex "Defender", "Defensive Advance"); an
 // intercept made as a Defensive Advance is `advance`.
 const GuardStep = { to: PlacementSchema.nullable().default(null) }
-export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...GuardStep }).strip()
-export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, advance: z.boolean().default(false) }).strip()
+// combat.tex "Preparing a reaction": the preparation a defense was prepared as,
+// by id; '' for one made on the spot. Its reposition is walked before the die.
+const PreparedGuard = { preparedId: str.default('') }
+export const BlockActionSchema = z.object({ ...ActionBase, kind: z.literal('block'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard }).strip()
+export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('intercept'), ...WeaponRowRef, ...GuardStep, ...PreparedGuard, advance: z.boolean().default(false) }).strip()
 
 // combat.tex "Reflex": the two reactions to a shot. Evasion is the reflex
 // test; where it lets the evader move, the move is opened after the shot,
@@ -589,7 +595,7 @@ export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('
 // DEF row it is made with, and may be made by the target or by someone
 // adjacent standing nearer the shooter.
 export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion'), stay: z.boolean().default(false) }).strip()
-export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef }).strip()
+export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef, ...PreparedGuard }).strip()
 
 // combat.tex "Avoiding an Explosion": the reaction to an explosion, a reflex
 // test of the reactor's own against the explosion's DL. The die is on the
@@ -735,6 +741,63 @@ export const JoinShotActionSchema = z.object({
 // with the strike it opens in full. Its die is thrown with the attack's, and
 // the two results say which of them lands first (rules/counter.ts).
 export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...AttackDeclaration, ...SweepDeclaration }).strip()
+
+// combat.tex "Preparing a reaction": what a prepared action waits for. `enters`
+// is a character coming into the zone the action reaches, its own reach and
+// the movement it may carry; `sighted` is a character coming into sight, as a
+// prepared shot waits for (combat.tex "Prepared Shots"). `attacked` is for a
+// defense made on someone's behalf (combat.tex "Protect", "Guard"): the
+// character it protects is attacked. `who` names the one it waits for, null
+// for anyone.
+export const PREPARED_EVENTS = ['enters', 'sighted', 'attacked'] as const
+export const PreparedTriggerSchema = z.object({
+  event: z.enum(PREPARED_EVENTS),
+  who: str.nullable().default(null),
+}).strip()
+export type PreparedTrigger = z.infer<typeof PreparedTriggerSchema>
+
+// What can be prepared: the roots, and the defenses made on someone else's
+// behalf, which are reactions to the attack on them.
+export const PREPARABLE_KINDS = ['strike', 'shoot', 'cast', 'move', 'block', 'intercept', 'guard'] as const
+export const PreparableKindSchema = z.enum(PREPARABLE_KINDS)
+export type PreparableKind = z.infer<typeof PreparableKindSchema>
+
+// combat.tex "Preparing a reaction": "Any action can be prepared on a player's
+// turn, but doing so costs 1 AP ... A prepared action can consist of 2 AP of
+// movement and one other action". The action is declared first (`main`, with
+// what it is made with: the row, the spell, the way of moving), and the
+// triggers it can wait for are offered from that. What it is aimed at is
+// declared when it fires. `moves` is whether it carries the movement. A
+// prepared action stays prepared until the end of the round it was made in,
+// so it needs no record of its own: it is read off the log (rules/prepared.ts).
+export const PrepareActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('prepare'),
+  main: PreparableKindSchema.nullable().default(null),
+  ...WeaponRowRef,
+  variant: str.default(''),
+  ammoId: str.default(''),
+  key: str.default(''),
+  quicken: z.boolean().default(false),
+  extend: num.default(0),
+  movement: MoveKindSchema.default('basic'),
+  moves: z.boolean().default(false),
+  trigger: PreparedTriggerSchema.nullable().default(null),
+}).strip()
+
+// A prepared action whose trigger has happened, answered by its preparer:
+// declared as a reaction to the committed action, and opened before that
+// action lands (combat.tex "Reactions": "A reaction takes effect before the
+// action that caused it"). It opens the movement it may carry, which its
+// preparer may skip, and then the action itself. `at` is counted as an
+// opportunity attack's is, from a move's path, so the mover is stood one step
+// short of it: on the cell that brought them into the trigger.
+export const PreparedActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('prepared'),
+  preparedId: str.default(''),
+  at: num.nullable().default(null),
+}).strip()
 
 // combat.tex "Follow": a reaction to a move by someone in melee range; when
 // the root resolves it opens a move of the follower's own, capped at what
@@ -949,9 +1012,11 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   RetargetActionSchema,
   JoinShotActionSchema,
   CounterattackActionSchema,
+  PreparedActionSchema,
   FollowActionSchema,
   FleeActionSchema,
   FleeFollowUpActionSchema,
+  PrepareActionSchema,
   MoveActionSchema,
   GrappleActionSchema,
   DragActionSchema,
@@ -1000,6 +1065,7 @@ export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
+export type PrepareAction = z.infer<typeof PrepareActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>
 export type SwimTestAction = z.infer<typeof SwimTestActionSchema>
 // The actions, not reactions, the catalog does not mark `movement`

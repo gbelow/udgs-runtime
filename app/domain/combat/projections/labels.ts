@@ -5,6 +5,7 @@ import { getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { getCancellableRoot } from '../rules/opportunity'
 import { findWeaponRow } from '../rules/weaponRow'
+import { findPrepared } from '../rules/prepared'
 import { SPELLS, isSpellKey } from '../../spells'
 
 // What the panel calls things: actions, the options to declare them, and
@@ -36,10 +37,11 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
   switch (draft.kind) {
     case 'block':
     case 'guard':
+      return withWeapon(state, actorId, draft, draft.preparedId ? `prepared ${ACTIONS[draft.kind].label}` : ACTIONS[draft.kind].label)
     case 'blockExplosion':
       return withWeapon(state, actorId, draft, ACTIONS[draft.kind].label)
     case 'intercept':
-      return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : ACTIONS.intercept.label)
+      return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : draft.preparedId ? 'prepared intercept' : ACTIONS.intercept.label)
     case 'evasion':
       return draft.stay ? `${ACTIONS.evasion.label}, staying put` : ACTIONS.evasion.label
     case 'assist':
@@ -50,6 +52,10 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
       return getOpportunityLabel(state, actorId, draft.at ?? null)
     case 'retarget':
       return draft.at ? `${ACTIONS.retarget.label} at step ${draft.at}` : ACTIONS.retarget.label
+    case 'prepared': {
+      const prepared = draft.preparedId ? findPrepared(state, draft.preparedId) : null
+      return prepared?.main ? `prepared ${prepared.main}` : ACTIONS.prepared.label
+    }
     default:
       return getActionName(draft)
   }

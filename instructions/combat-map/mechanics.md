@@ -129,3 +129,45 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   paints it in the same landing. A fire layer lasts until put out: `extinguish` (4 AP, own space
   or next to it, aimed like a throw's landing: `getAim`) removes what burns in the chosen space
   (`extinguishCell`), a coat that was burning with it. Fire does not spread.
+- **Prepared reactions** (`rules/prepared.ts`; combat.tex "Preparing a reaction") — a `prepare`
+  root is declared in the preparer's turn: first the action it is for (`main`: a strike, shot,
+  cast or move, with the row, spell or movement it is made with), then what it waits for
+  (`trigger`: an event and who, `enters` or `sighted`), and whether it carries 2 AP of movement
+  (`moves`). It is paid at its commit and lands as any root, and is never stored apart from the
+  log: what is prepared is every `prepare` that has landed in the current round (`getPrepared`),
+  so the round changing is all it takes for it to lapse. `getPreparedTriggers`, read by
+  `getTriggers`, offers a `prepared` reaction to a preparer when a committed move comes into the
+  trigger — the zone is the action's own reach plus the movement it carries
+  (`getPreparedZone`) — at the step that did, counted as an opportunity attack's `at`, so the
+  mover is stood on that cell while it is done (`getPreparedState`). It is open only to one who
+  can make the action now (`getPreparedBar`). Its opener (`before`) opens the movement first,
+  `preparedPart: 'move'`, capped at the 2 AP less what the action needs (`getPreparedMoveBudget`),
+  then the action itself, `'main'`, each declared and committed by the preparer like a follow's
+  move. `isPreparedRequired` says what may be passed up: the movement unless it is the only way
+  the action has someone in reach, the action only when nobody is. Parts passed up are
+  remembered in `state.passed` as `prepared move` / `prepared main`. A reaction the preparer
+  makes to anything the chain opened cancels what is left of it (`isPreparedCancelled`), and
+  nothing a prepared action opens triggers another (`isFromPrepared`). A prepared strike is
+  fought like an opportunity attack for what it may do to the mover (`getDrawnOpportunityAttacks`
+  lists it), so an interruption stops the move. A preparation answers a move, or, for a defense, an
+  attack; only strikes, shots, casts, moves and defenses are prepared.
+
+  **A prepared defense** (`block`, `intercept`, `guard`; `PREPARED_DEFENSES`) is made for an ally,
+  never for the preparer (combat.tex "Protect", "Guard"), and waits for the `attacked` event — its
+  `who` is the ally, null for anyone but the preparer. `getDefenseTriggers` offers it as a plain
+  `block` / `intercept` / `guard` trigger carrying `preparedId`, when the preparer can be on the
+  line from where they stand or from any space the movement they carry reaches
+  (`getDefensePlacements`: `getReachableCells` at the budget `getPreparedMoveBudget` leaves, each
+  tested with the same geometry the plain defense uses — `isOnProtectLine`, `isInInterceptRange`,
+  `isGuardingShot`). Declared at the react step like any defense, with `preparedId` among its
+  identity fields. The die is scored against the defense as it stands, so the movement is walked
+  **before it**: `rollAction` first calls `repositionDefenders` (`commands/sequence.ts`), which
+  opens the next preparer's move (`preparedPart: 'move'`, spawned by the defense, a root of its own
+  that draws opportunity attacks like any move) and leaves the die unthrown until every one has been
+  walked or passed up; then any defense left off the line, or cancelled by a reaction its preparer
+  made to what the movement drew (`isPreparedCancelled`), is withdrawn as `noLongerTriggered`
+  (`getLapsedDefenses`). `isPreparedRequired` lets the movement be passed up only by one already on
+  the line; a reposition is complete only when it ends where the defense can be made
+  (`isRepositionPlaced`). `getStrikeDefense` / `getShotDefense` count a prepared defense only while
+  it is placed and not cancelled. Nothing the movement opens triggers another prepared action
+  (`isFromPrepared` reads a prepared defense as an ancestor).

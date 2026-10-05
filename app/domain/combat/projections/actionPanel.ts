@@ -5,7 +5,7 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -42,6 +42,7 @@ import { isSweepVariant } from '../../character/rules/gear'
 import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
 import { perState } from './perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
+import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
 
 export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
@@ -206,6 +207,9 @@ export type OpenActionView = {
   // opened by a reaction — an opportunity attack, a follow, a riposte —
   // and whether it is the attack an opportunity attack opens
   spawned: boolean
+  // the action a prepared reaction is for, which must be performed
+  // (combat.tex "Preparing a reaction"), not passed up
+  required: boolean
   // a flee being decided: whether it is taken (null for anything else)
   flee: boolean | null
   opportunity: boolean
@@ -324,9 +328,13 @@ export type ActionPanelView = {
   episode: EpisodeEntry[] | null
   // what commands outside any action changed since it landed
   edits: string[]
+  // while a preparation is declared: what it is made of and what it waits for
+  prepare: PrepareView | null
+  // what everyone has prepared in the round
+  prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -339,7 +347,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const edits = getEditsSince(state)
 
   if (!open) {
-    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode, edits }
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode, edits, prepared: getPreparedRows(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -403,6 +411,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
       walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
       spawned: open.spawnedBy !== null,
+      required: isPreparedRequired(state, open),
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
       opportunity: open.kind === 'strike' && open.opportunity,
       grapples: open.kind === 'strike' && open.step === 'post' && canGrapple(state, open) ? open.grapples : null,
@@ -433,6 +442,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     },
     episode,
     edits,
+    prepare: open.kind === 'prepare' && open.step === 'define' ? getPrepareView(state, open) : null,
+    prepared: getPreparedRows(state),
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor

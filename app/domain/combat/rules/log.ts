@@ -101,7 +101,15 @@ function isOpportunityAction(action: Action | null): action is OpportunityAction
   return action?.kind === 'strike' || action?.kind === 'grapple'
 }
 
-export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; spawned: OpportunityAction | null }
+// The action a prepared reaction opened for the preparation itself, once it
+// has; its movement, which comes first, is not it.
+export function getOpenedMain(state: CombatState, reaction: Action): Action | null {
+  return getLog(state).find((a) => a.spawnedBy === reaction.id && a.preparedPart === 'main') ?? null
+}
+
+// What fights the root along its way: an opportunity attack, or a prepared
+// action whose trigger came, each at the step it fires on.
+export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack' | 'prepared'>; spawned: OpportunityAction | null }
 
 // combat.tex "Opportunity Attack": each threatener the action drew gets one
 // attack, spawned in turn as the one before lands (commands/sequence.ts
@@ -109,12 +117,14 @@ export type DrawnOpportunityAttack = { reaction: ActionOf<'opportunityAttack'>; 
 // fought in the order the root comes to them: along the path, for a move or
 // a push, whose attacks each fire at a step; in the order they were
 // declared, for anything else (combat.tex "Flanking": "resolved in order").
+// A prepared action's strike is fought like one, and may stop a move as one
+// does (combat.tex "Preparing a reaction").
 export function getDrawnOpportunityAttacks(state: CombatState, action: Action): DrawnOpportunityAttack[] {
   return getReactionsTo(state, action.id)
-    .flatMap((r) => (r.kind === 'opportunityAttack' ? [r] : []))
+    .flatMap((r) => (r.kind === 'opportunityAttack' || r.kind === 'prepared' ? [r] : []))
     .sort((a, b) => (a.at ?? 0) - (b.at ?? 0))
     .map((reaction) => {
-      const spawned = getOpenedBy(state, reaction)
+      const spawned = reaction.kind === 'prepared' ? getOpenedMain(state, reaction) : getOpenedBy(state, reaction)
       return { reaction, spawned: isOpportunityAction(spawned) ? spawned : null }
     })
 }

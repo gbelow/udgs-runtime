@@ -44,6 +44,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest':
+    case 'prepare':
     case 'extinguish': return { ...open, step: 'done' }
     case 'pickUp': {
       const lying = getReachableFloor(state, open.actorId).find((f) => f.item.id === open.itemId)?.item

@@ -73,17 +73,22 @@ export const ACTIONS = {
   // combat.tex "Crash": standing firm against the mover, +3 to the Force
   brace:       { label: 'brace', rule: 'combat.tex "Crash"',        type: 'reaction', price: 'brace',       reactsTo: ['move'],   die: false },
   evasiveJump: { label: 'evasive jump', rule: 'combat.tex "Evasive Jump"', type: 'reaction', price: 'evasiveJump', reactsTo: ['strike'], die: false },
-  block:       { label: 'block', rule: 'combat.tex "Defend", "Block"',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '' } },
-  intercept:   { label: 'intercept', rule: 'combat.tex "Defend", "Intercept"',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', advance: false } },
+  block:       { label: 'block', rule: 'combat.tex "Defend", "Block"',        type: 'reaction', price: 'block',       reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', preparedId: '' } },
+  intercept:   { label: 'intercept', rule: 'combat.tex "Defend", "Intercept"',    type: 'reaction', price: 'intercept',   reactsTo: ['strike'], die: false, identity: { weaponKey: '', attack: '', advance: false, preparedId: '' } },
   // combat.tex "Reflex": "Evasion" and "Guard", the two reactions to a shot
   evasion:     { label: 'evasion', rule: 'combat.tex "Reflex", "Evasion"',      type: 'reaction', price: 'reflex',      reactsTo: ['shoot'],  die: false, identity: { stay: false } },
-  guard:       { label: 'guard', rule: 'combat.tex "Reflex", "Guard"',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '' } },
+  guard:       { label: 'guard', rule: 'combat.tex "Reflex", "Guard"',        type: 'reaction', price: 'guard',       reactsTo: ['shoot'],  die: false, identity: { weaponKey: '', attack: '', preparedId: '' } },
   // combat.tex "Avoiding an Explosion": "Spend 3 AP and make a reflex skill
   // test against the DL of the explosion"
   avoidExplosion: { label: 'avoid explosion', rule: 'combat.tex "Avoiding an Explosion"', type: 'reaction', price: 'avoidExplosion', reactsTo: ['explosion'], die: true },
   // combat.tex "Explosion Block": "Can only be done with a shield. Make an
   // active reflex + shield Cover test against the DL of the explosion"
   blockExplosion: { label: 'block explosion', rule: 'combat.tex "Explosion Block"', type: 'reaction', price: 'blockExplosion', reactsTo: ['explosion'], die: true, identity: { weaponKey: '', attack: '' } },
+  // combat.tex "Preparing a reaction": the 1 AP is the whole price of
+  // preparing; what it is prepared for is paid when it comes to be done
+  prepare:     { label: 'prepare', rule: 'combat.tex "Preparing a reaction"', noun: 'preparation', type: 'action', price: 'prepare', reactsTo: [],        die: false },
+  // a prepared action whose trigger came, priced by the actions it opens
+  prepared:    { label: 'prepared action', rule: 'combat.tex "Preparing a reaction"', type: 'reaction', price: null, reactsTo: ['move'], die: false, identity: { preparedId: '' } },
   // combat.tex "Opportunity Attack", "Flanking", "Follow": priced by the
   // action each opens when the root resolves
   opportunityAttack: { label: 'opportunity attack', rule: 'combat.tex "Opportunity Attack"', type: 'reaction', price: null, reactsTo: ['strike', 'move'], die: false, identity: { at: null } },

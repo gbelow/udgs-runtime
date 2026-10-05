@@ -29,6 +29,8 @@ import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
 import { getReactionsTo, getRootOf } from './log'
 import { isDefense } from './actionCatalog'
+import { isGuardPlaced } from './protect'
+import { isPreparedCancelled } from './prepared'
 import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cast'
 import { getLinkDL } from './link'
 import { getCounterStrike, getOpeningCounter } from './counter'
@@ -304,6 +306,10 @@ export function getDefendingReaction(state: CombatState, root: Action): Action |
 function getStrikeDefense(state: CombatState, root: StrikeAction): Action | null {
   return getReactionsTo(state, root.id)
     .filter((r) => (r.actorId === root.targetId && isDefense(r.kind)) || (r.actorId !== root.targetId && (r.kind === 'block' || r.kind === 'intercept')))
+    // combat.tex "Preparing a reaction": a defense prepared for an ally holds
+    // only from the line it has been walked to, and until its preparer reacts
+    // to anything else
+    .filter((r) => (r.kind !== 'block' && r.kind !== 'intercept') || r.preparedId === '' || (isGuardPlaced(state, root, r) && !isPreparedCancelled(state, r)))
     .reduce<Action | null>((best, r) => (best === null || sumTerms(strikeDefenseTerms(state, root, r)) > sumTerms(strikeDefenseTerms(state, root, best)) ? r : best), null)
 }
 
@@ -329,7 +335,7 @@ function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Ac
 // whose defense the damage meets — is whichever puts up the most.
 function getShotDefense(state: CombatState, root: Action): Action | null {
   return getReactionsTo(state, getShotLead(state, root).id)
-    .filter((r) => r.kind === 'evasion' || (r.kind === 'guard' && guardsShot(state, root, r)))
+    .filter((r) => r.kind === 'evasion' || (r.kind === 'guard' && guardsShot(state, root, r) && (r.preparedId === '' || !isPreparedCancelled(state, r))))
     .reduce<Action | null>((best, r) => (best === null || sumTerms(shotDefenseTerms(state, r)) > sumTerms(shotDefenseTerms(state, best)) ? r : best), null)
 }
 
@@ -385,6 +391,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fireAgain':
     case 'fleeFollowUp':
       return []
@@ -490,6 +497,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fireAgain':
     case 'fleeFollowUp':
       return null

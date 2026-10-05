@@ -2,7 +2,7 @@ import { ActionSchema, type Action, type Coord, type ActionDraft, type ActionRol
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
@@ -18,7 +18,7 @@ import { getHold } from '../rules/fireAgain'
 import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
-import { advance, land } from './sequence'
+import { advance, land, repositionDefenders } from './sequence'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 
@@ -131,6 +131,7 @@ function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: Roo
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fleeFollowUp':
       return open
   }
@@ -177,12 +178,14 @@ function withHold(state: CombatState, actor: CampaignCharacter, open: FireAgainA
 // root would open it again. For anything else the offer is noted as passed
 // up, so it is not made twice; the reaction that opened it (a follow, an
 // evasion, a reflex against a blast) was paid for and stays on the record.
+// What a prepared reaction opened is passed up only as the book allows
+// (`isPreparedRequired`).
 export function withdrawSpawnedAction(newId: () => string): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
-    if (!open || !open.spawnedBy) return state
+    if (!open || !open.spawnedBy || isPreparedRequired(state, open)) return state
     const reaction = getOpeningReaction(state, open)
-    const passed = reaction ? state : { ...state, passed: [...state.passed, { by: open.spawnedBy, kind: open.kind }] }
+    const passed = reaction ? state : { ...state, passed: [...state.passed, { by: open.spawnedBy, kind: open.preparedPart ? `prepared ${open.preparedPart}` : open.kind }] }
     return advance(withdrawActions(passed, reaction ? [open.id, reaction.id] : [open.id], 'passedUp'), newId)
   }
 }
@@ -197,7 +200,7 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
     if (!canAnswer(open, actorId)) return state
     const chosen = findOption(state, actorId, draft)
     if (!chosen?.available) return state
-    const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined })
+    const trigger = findTrigger(state, open, { kind: draft.kind, actorId, at: 'at' in draft ? draft.at : undefined, preparedId: 'preparedId' in draft ? draft.preparedId : undefined })
     const targetId = trigger?.against ?? open.actorId
     const parsed = ActionSchema.parse({ ...draft, id: newId(), actorId, targetId, reactionTo: open.id, recipe: trigger?.recipe ?? null })
     const aimed = 'part' in parsed && !('location' in draft) ? { ...parsed, ...getDefaultAim(state.characters[targetId]) } : parsed
@@ -290,7 +293,11 @@ export function cancelAction(): Updater {
 // no test of its own, and each reflex made against it is scored against its
 // DL (combat.tex "Avoiding an Explosion").
 export function rollAction(dice: Dice, newId: () => string): Updater {
-  return (state) => {
+  return (given) => {
+    const attacked = getOpenAt(given, 'react')
+    const placed = attacked?.kind === 'strike' || attacked?.kind === 'shoot' ? repositionDefenders(given, attacked, newId) : { state: given, waiting: false }
+    if (placed.waiting) return placed.state
+    const state = placed.state
     const open = getOpenAt(state, 'react')
     if (!open || !needsDie(state, open)) return state
     const actor = state.characters[open.actorId]
@@ -353,6 +360,7 @@ function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): 
     case 'throw':
     case 'extinguish':
     case 'rest':
+    case 'prepare':
     case 'fleeFollowUp':
       return root
   }
@@ -408,10 +416,12 @@ export function resolveAction(newId: () => string): Updater {
 }
 
 // The spell the cast being declared is of, on the focus surge or quickened
-// without it; the gear picked for another spell is not this one's.
+// without it; the gear picked for another spell is not this one's. A cast being
+// prepared names the spell the same way, and the gear when it is made.
 export function chooseSpell(key: string, quicken: boolean): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
+    if (open?.kind === 'prepare' && open.main === 'cast') return amendAction({ key, quicken })(state)
     if (open?.kind !== 'cast') return state
     const same = key === open.key
     return amendAction({ key, quicken, itemId: same ? open.itemId : '', chargeItemId: same ? open.chargeItemId : '' })(state)
@@ -423,7 +433,7 @@ export function chooseSpell(key: string, quicken: boolean): Updater {
 export function stepExtend(delta: 1 | -1): Updater {
   return (state) => {
     const open = getOpenAt(state, 'define')
-    if (open?.kind !== 'cast') return state
+    if (open?.kind !== 'cast' && !(open?.kind === 'prepare' && open.main === 'cast')) return state
     const extend = Math.max(0, open.extend + delta)
     return extend === open.extend ? state : amendAction({ extend })(state)
   }

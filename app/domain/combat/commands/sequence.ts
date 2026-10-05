@@ -12,6 +12,7 @@ import { isTying } from '../rules/tether'
 import { isVoided } from '../rules/opportunity'
 import { isInterruptedBy } from '../rules/interruption'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
+import { getLapsedDefenses, getPendingReposition } from '../rules/prepared'
 import { getStunEscapes } from '../rules/grapple'
 import { getRecipeFollowUps } from '../rules/recipes'
 import { makeAction } from '../factories'
@@ -101,6 +102,22 @@ export function takeQueuedTurn(state: CombatState): CombatState {
   const queued = { ...state, turnQueue: rest }
   if (!canTakeQueuedTurn(state, next.id)) return takeQueuedTurn(queued)
   return beginTurn(queued, next.id, { fleeing: next.fleeing, turn: next.turn })
+}
+
+// combat.tex "Preparing a reaction": a defense prepared for an ally is made
+// from the line its preparer has walked to, and the die is scored against the
+// defense as it stands, so the movement each carries is played out first — the
+// next of them opened, a move of the preparer's own to make or pass up, which
+// draws opportunity attacks like any other — and the die waits. Once every
+// movement has been walked, the defenses it left off the line, or cancelled by
+// what the movement drew, come to nothing.
+export function repositionDefenders(state: CombatState, root: RootAction, newId: () => string): { state: CombatState; waiting: boolean } {
+  const pending = getPendingReposition(state, root)
+  if (pending) {
+    const { reaction, budget } = pending
+    return { state: appendActions(state, [makeAction('move', { id: newId(), actorId: reaction.actorId, spawnedBy: reaction.id, preparedPart: 'move', budget })]), waiting: true }
+  }
+  return { state: withdrawActions(state, getLapsedDefenses(state, root).map((r) => r.id), 'noLongerTriggered'), waiting: false }
 }
 
 // What the root's reactions open before its effect, the next of them once

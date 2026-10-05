@@ -86,12 +86,12 @@ and `ActionDraft` (what a click declares).
 
 | Group | Kinds |
 |---|---|
-| Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `feint` (a cunning test in melee: the loser is forced to take their turn and use an action surge; `land` hands the turn over, `forcedSurge` holds who owes the surge), `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest` |
+| Declarable roots | `strike`, `shoot`, `cast`, `fireAgain` (a held spell fired again without the casting test), `move`, `grapple`, `drag` (one block of push, drag or circling within a grapple), `release`, `holdBack`, `feint` (a cunning test in melee: the loser is forced to take their turn and use an action surge; `land` hands the turn over, `forcedSurge` holds who owes the surge), `pickUp`, `throw` (an item to a cell: its throwing row's reach and price, else a standard action), `rest`, `prepare` (an action and the trigger it waits for, for 1 AP: see `combat-map/mechanics.md`) |
 | Generated roots | `explosion` (opened by a throw whose object goes off on impact, a cast with an area, or a Detonate Explosive cast), `blast` (an explosion going off), `fleeFollowUp` (the flee a strike or a missed shot leaves), `spellTest` (a target's test against a spell cast through a link: the caster's action, the target's die), `fall` (the faller's Balance test, opened by a move that ended in a fall: a jump down, a climb that failed), `swimTest` (the swimmer's check, opened by a move that ended in water when they have not tested this round; its roll is theirs for the round) — plus strikes, moves, maneuvers and pushes that other actions open, marked by `spawnedBy` |
-| Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` |
+| Defenses (to a strike) | `evade` (also to a move), `evasiveJump`, `block`, `intercept` (a block or intercept may be prepared for an ally: see `combat-map/mechanics.md`) |
 | Trample answers (to a move) | `evade`, `brace` |
-| Reflexes | `evasion`, `guard` (to a shot); `avoidExplosion` (to an explosion) |
-| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `retarget` (the same triggers as an opportunity attack, within a held spray's reach: opens a paint-only `fireAgain` before the root's effect), `counterattack` (strike), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
+| Reflexes | `evasion`, `guard` (to a shot, which may be prepared for an ally); `avoidExplosion` (to an explosion) |
+| Opening reactions | `opportunityAttack` (strike, move, and every triggering kind), `retarget` (the same triggers as an opportunity attack, within a held spray's reach: opens a paint-only `fireAgain` before the root's effect), `counterattack` (strike), `prepared` (move: a preparation whose trigger came; it opens the movement it carries, then its action), `follow` (move), `joinShot` (shoot: a shot of the joiner's own at the same target) |
 | Flee | `flee` (move): the movement surge made as a reaction; opens no action, hands the turn over instead |
 | Grapple answers | `resist` (grapple, drag); `assist`, `carry`, `letGo` (drag) |
 
@@ -124,7 +124,7 @@ lookup over them (`getReactionsTo`, `getRootOf`, `getOpenedBy`, `getOpeningReact
 - **react** — triggers are read off the locked action (`getTriggers`, `rules/reactions.ts`);
   each character gets one answer, and a new one replaces the old. `pruneReactions` drops
   answers the declaration no longer triggers.
-- **roll / pay** (`payAll`) — prices the root and every reaction off their actors as they
+- **roll / pay** (`payAll`) — first, a prepared defense's reposition is walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price
   unpaid. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
@@ -288,6 +288,8 @@ app/domain/combat/
 │   ├── fireAgain.ts    held spells fired again: options, prices, charges, the arcs broken, a shot's facts
 │   ├── explosion.ts    payload, areas, zones, spray vs disk, who is reached, terrain paint
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
+│   ├── approach.ts     how a mover's way brings them to someone: distances along it, the step that first comes within a range
+│   ├── prepared.ts     prepared reactions: what is prepared in the round, its zone and triggers (a move's, and an attack's for a defense made for an ally), what a fired one opened, a defense's reposition, cancelling and no chaining
 │   ├── cliff.ts        what is a cliff, which movement may step over one, the climb's DL, the fall a move ends in
 │   ├── fall.ts         a fall: its DL, damage, what each degree of the Balance test leaves of it
 │   ├── waypoint.ts     where the mover stands along a path
@@ -317,7 +319,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, prepare.ts
     └── perState.ts     memoize once per state object
 ```
 
