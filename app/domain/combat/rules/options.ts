@@ -12,7 +12,7 @@ import { getHangingFall } from './cliff'
 import { isProne } from './ground'
 import { getPushAnswerCost } from './drag'
 import { getTriggersFor } from './reactions'
-import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleRowOf } from './grapple'
+import { getHoldBackTargets, getManeuverTargets, getReleaseTargets } from './grapple'
 import { getPartners, getGrapples, isHeld, isTether } from './partners'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getFeintBar } from './feint'
@@ -288,15 +288,7 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
 type OwnOptions = (state: CombatState, c: CampaignCharacter) => ActionOption[]
 
 const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
-  strike: (state, c) => {
-    const strikes = getFreeAttackOptions(state, c, 'strike')
-    const grabs = strikes.filter((o) => isGrappleRowOf(c, o.weaponKey, o.attack))
-    return [
-      option({ kind: 'strike' }, null, strikes.length > 0 ? null : 'no melee weapon in hand'),
-      // combat.tex "Initiate the Grab": a strike with a grapple row
-      option({ kind: 'strike', grab: true }, null, grabs.length > 0 ? null : 'no grapple weapon in hand'),
-    ]
-  },
+  strike: (state, c) => [option({ kind: 'strike' }, null, getFreeAttackOptions(state, c, 'strike').length > 0 ? null : 'no melee weapon in hand')],
   shoot: (state, c) => {
     const shots = getFreeAttackOptions(state, c, 'shoot')
     const reason = shots.length > 0 ? null

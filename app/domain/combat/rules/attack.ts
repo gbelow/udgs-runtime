@@ -95,12 +95,11 @@ export function isAimOnTarget(state: CombatState, action: { targetId: string | n
 
 // The strike an opportunity attack opens, as declared on the reaction:
 // committed already, since the reaction was, and aimed at whoever it
-// answers — a catch, when it is a grab at a runner (combat.tex "Catch").
-export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, location, part, grab, sweepDirection } = reaction
-  const root = getRootOf(state, reaction)
-  const caught = grab && root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, grab, catch: caught, opportunity: true, spawnedBy: reaction.id, step: 'react' })
+// answers — a catch, when it was declared as one at a runner (combat.tex
+// "Catch").
+export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
+  const { weaponKey, attack, variant, location, part, sweepDirection } = reaction
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, catch: reaction.catch, opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
@@ -109,7 +108,7 @@ export function getOpportunityStrike(state: CombatState, reaction: ActionOf<'opp
 export function getOpportunityAction(state: CombatState, reaction: ActionOf<'opportunityAttack'>, id: string): OpportunityAction {
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
-  return getOpportunityStrike(state, reaction, id)
+  return getOpportunityStrike(reaction, id)
 }
 
 // Whether the strike may be declared as this variation where it is made.

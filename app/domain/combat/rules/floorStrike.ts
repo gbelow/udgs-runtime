@@ -52,9 +52,9 @@ function isInFloorReach(state: CombatState, strike: StrikeAction, found: FloorIt
 }
 
 // The items on the floor a strike as declared can be aimed at: the blow of a
-// plain strike, never a grab, an opportunity attack or a sweep (the table's
-// ruling: a sweep does not include floor items).
+// plain strike, never an opportunity attack or a sweep (the table's ruling: a
+// sweep does not include floor items).
 export function getFloorTargets(state: CombatState, strike: StrikeAction): FloorItem[] {
-  if (strike.grab || strike.opportunity || strike.sweepOf !== null || isSweep(strike)) return []
+  if (strike.opportunity || strike.sweepOf !== null || isSweep(strike)) return []
   return state.floor.filter((f) => isInFloorReach(state, strike, f) && isWorthStriking(state, strike, f))
 }

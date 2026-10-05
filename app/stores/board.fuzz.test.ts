@@ -9,7 +9,7 @@ import { ACTIONS, isReaction } from '../domain/combat/rules/actionCatalog'
 import { getOpenAction } from '../domain/combat/rules/log'
 import { coordKey } from '../domain/combat/geometry'
 import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
-import { chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
+import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
@@ -182,6 +182,7 @@ function plays(): Play[] {
     { name: 'accept a spell test', run: (h) => h.press(acceptSpellTest(h.newId)) },
     { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.press(spendHOP(pick(options).purchase)) } },
     { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.press(refundHOP(pick(options).purchase)) } },
+    { name: 'grapple on the hit', weight: 2, run: (h, pick) => { if (getActionPanel(h.state()).open?.grapples != null) h.press(chooseGrapple(pick([true, false]))) } },
     { name: 'improve a spell', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options.filter((o) => o.available); if (options.length) h.press(improveSpell(pick(options).name)) } },
     { name: 'take back an improvement', run: (h, pick) => { const options = getActionPanel(h.state()).castHOP.options; if (options.length) h.press(refundImprovement(pick(options).name)) } },
     { name: 'save a graze', run: (h) => h.press(saveGraze()) },
@@ -419,8 +420,7 @@ function exchange(h: Harness, pick: Picker) {
   const open = every.some((o) => o.draft.kind !== 'move') ? every.filter((o) => o.draft.kind !== 'move') : every
   if (!open.length) return
   const leaning = open.filter((o) => LEANING.includes(o.draft.kind))
-  const grabs = open.filter((o) => o.draft.kind === 'strike' && 'grab' in o.draft && o.draft.grab)
-  h.declare(pick(grabs.length && pick([true, false]) ? grabs : leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
+  h.declare(pick(leaning.length && pick([true, true, true, false]) ? leaning : open).draft as ActionDraft)
   finishDeclaration(h, pick)
   answerOpen(h, pick, pick([0, 1, 2, 3, 4]))
   playOut(h, pick)

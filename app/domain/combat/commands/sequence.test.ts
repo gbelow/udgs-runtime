@@ -11,7 +11,7 @@ import { getOptionLabel } from '../projections/labels'
 import { getAttackOptions, getDLTerms, getDefendingReaction } from '../rules/attack'
 import { getOwnCost, isDeclarationComplete } from '../rules/action'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawReaction } from './action'
-import { aimExplosion, spendHOP } from './choices'
+import { aimExplosion, chooseGrapple, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
@@ -144,8 +144,8 @@ function pushTowardsSpearman(): CombatState {
 // decide first"), committed for third parties to answer.
 function moveGrabbedGroup(placements: Record<string, [number, number]>, third: CampaignCharacter, path: Coord[]): CombatState {
   let s = onBoard(placements, fighter('a'), fighter('b'), third)
-  s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
-  s = resolveAction(newId)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s))))
+  s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+  s = resolveAction(newId)(chooseGrapple(true)(rollAction(() => 50, newId)(commitAction(() => 5, newId)(setTarget('b')(s)))))
   s = declareAction('a', { kind: 'drag', movement: 'careful', boost: true }, newId)(s)
   s = commitAction(() => 5, newId)(amendAction({ path })(setTarget('b')(s)))
   expect(getOpenAction(s)?.kind).toBe('drag')

@@ -18,7 +18,7 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
-import { getGrabFacts } from './grapple'
+import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 
 // ---------------------------------------------------------------------------
@@ -188,10 +188,18 @@ export function getDeliveryInterruption(delivery: Delivery, target: Character): 
 // grapple".
 const CATCH_HOP = 5
 
+// Whether the hit may grapple its target: made with a grapple row nothing has
+// seized yet, at someone the attacker does not hold, and for a catch only
+// where the mover was stopped or the strike had HOP enough.
+export function canGrapple(state: CombatState, strike: StrikeAction): boolean {
+  if (strike.roll?.degree !== 'hit' || !strike.targetId || !canGrab(state, strike, strike.targetId)) return false
+  return !strike.catch || getStrikeTrample(state, strike)?.result === 'blocked' || (strike.roll.HOP ?? 0) >= CATCH_HOP
+}
+
 export function getStrikeLanding(state: CombatState, strike: StrikeAction, facts: Delivery | null): Pick<StrikeAction, 'interruption' | 'trample' | 'grabbed' | 'jumpedTo'> {
   const interruption = getInterruption(state, strike, facts)
   const trample = getStrikeTrample(state, strike)
-  const grabbed = strike.catch && trample?.result !== 'blocked' && (strike.roll?.HOP ?? 0) < CATCH_HOP ? null : getGrabFacts(state, strike)
+  const grabbed = strike.grapples && canGrapple(state, strike) ? getGrabFacts(state, strike) : null
   const jump = getReactionsTo(state, strike.id).find((r) => r.kind === 'evasiveJump' && r.actorId === strike.targetId)
   return {
     interruption: grabbed && interruption === 'none' ? 'interrupted' : interruption,

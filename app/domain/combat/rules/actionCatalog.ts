@@ -44,7 +44,7 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
 
 export const ACTIONS = {
   // combat.tex "Strike"
-  strike:      { label: 'strike', rule: 'combat.tex "Strike"',       type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true, identity: { grab: false } },
+  strike:      { label: 'strike', rule: 'combat.tex "Strike"',       type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
   // combat.tex "Accuracy", "Shoot"
   shoot:       { label: 'shoot', rule: 'combat.tex "Accuracy", "Shoot"',        noun: 'shot',  type: 'action',   price: null,          reactsTo: [],         die: true, targeted: true },
   // combat.tex "Explosions": no test of the attacker's — "the DL of the

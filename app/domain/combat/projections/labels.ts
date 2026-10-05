@@ -10,11 +10,9 @@ import { SPELLS, isSpellKey } from '../../spells'
 // What the panel calls things: actions, the options to declare them, and
 // the purchases a hit can make.
 
-// What the action is called where it is shown on its own: a strike made as
-// a grab is a grab, a maneuver goes by its name, and the rest by the
-// catalog's label.
+// What the action is called where it is shown on its own: a maneuver goes by
+// its name, and the rest by the catalog's label.
 export function getActionName(action: ActionDraft): string {
-  if (action.kind === 'strike' && action.grab) return 'grab'
   if (action.kind === 'grapple' && action.maneuver) return action.maneuver
   if (action.kind === 'drag' && action.pull) return 'pull'
   if (action.kind === 'fireAgain' && action.key !== undefined && isSpellKey(action.key)) return `${SPELLS[action.key].name} again`

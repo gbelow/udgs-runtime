@@ -1,6 +1,6 @@
 import type { Action, Direction, HOPPurchase, Updater } from '../types'
 import { canSaveGraze, getGrazeSavedRoll, getImprovementOptions } from '../rules/cast'
-import { getHOPOptions } from '../rules/damage'
+import { canGrapple, getHOPOptions } from '../rules/damage'
 import { isSpray } from '../rules/explosion'
 import type { SpellModification } from '../../tables'
 import { appendActions, applyPhase, getRolledOpen, replaceActions } from './log'
@@ -32,6 +32,17 @@ export function refundHOP(purchase: HOPPurchase): Updater {
     if (!open) return state
     const spent = takeOne(open.spent, purchase)
     return spent ? replaceActions(state, [{ ...open, spent }]) : state
+  }
+}
+
+// combat.tex "Initiate the Grapple": a hit made with a grapple row may
+// grapple its target, for nothing; the attacker's call once the die is
+// known, free to change until the strike lands.
+export function chooseGrapple(on: boolean): Updater {
+  return (state) => {
+    const open = getRolledOpen(state, ['strike'])
+    if (!open || open.grapples === on || (on && !canGrapple(state, open))) return state
+    return replaceActions(state, [{ ...open, grapples: on }])
   }
 }
 

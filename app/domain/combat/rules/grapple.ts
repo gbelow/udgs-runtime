@@ -150,7 +150,7 @@ function facts(state: CombatState, pair: [string, string], next: Grapple | null,
 // grappled". "It is possible to grapple back automatically just by having a
 // weapon with grappling property equipped."
 export function getGrabFacts(state: CombatState, strike: StrikeAction): GrappleFacts | null {
-  if (!strike.grab || !strike.targetId || strike.roll?.degree !== 'hit') return null
+  if (!strike.targetId) return null
   const target = state.characters[strike.targetId]
   if (!target) return null
   const pair: [string, string] = [strike.actorId, strike.targetId]
@@ -161,8 +161,8 @@ export function getGrabFacts(state: CombatState, strike: StrikeAction): GrappleF
   return facts(state, pair, { kind: 'grapple', members: was?.members ?? pair, holders, immobile: was?.immobile ?? [], anchors })
 }
 
-// Whether the strike may be a grab at the target: made with a grapple row
-// no grapple has seized, at someone the attacker does not hold yet.
+// Whether the strike may grapple the target: made with a grapple row no
+// grapple has seized, at someone the attacker does not hold yet.
 export function canGrab(state: CombatState, strike: Pick<StrikeAction, 'actorId' | 'weaponKey' | 'attack'>, targetId: string): boolean {
   const c = state.characters[strike.actorId]
   const g = findGrapple(getGrapples(state), strike.actorId, targetId)

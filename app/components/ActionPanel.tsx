@@ -29,7 +29,7 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
@@ -269,6 +269,12 @@ export function ActionPanel(){
               {view.hop.options.map((o) => <HOPButton key={o.purchase} option={o} onBuy={() => spend(o.purchase)} onRefund={() => refund(o.purchase)} />)}
             </div>
           ) : null}
+          {step === 'spend' && open.grapples !== null ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>on the hit</SectionLabel>
+              <Button size='xs' {...toggle(open.grapples)} title='the target is grappled, for nothing' onClick={() => grapple(!open.grapples)}>grapple</Button>
+            </div>
+          ) : null}
           {step === 'spend' && view.castHOP.options.length > 0 ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>HOP <span className='font-mono'>{view.castHOP.remaining}</span></SectionLabel>
@@ -344,7 +350,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
 // A reactor who has chosen an opportunity attack declares the strike it
 // opens here — the row and where it aims. The panel's back takes the choice
 // itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; grab?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string; sweepDirection?: SweepDirection }
+type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; catch?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string; sweepDirection?: SweepDirection }
 
 type SweepDirection = StrikeAction['sweepDirection']
 
@@ -410,13 +416,13 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
           </Button>)}
       </div>
-      {strike.grabbable || strike.grab ? (
+      {strike.catchable || strike.catching ? (
         <div>
-          <Button size='xs' variant={strike.grab ? 'primary' : 'default'} className={strike.grab ? 'bg-accent/15' : ''}
-            title='on a hit, the target is grappled' onClick={() => onAmend({ grab: !strike.grab })}>grab</Button>
+          <Button size='xs' {...toggle(strike.catching)}
+            title='a grapple row at a runner: 3 AP + 1 STA, and a hit is a crash' onClick={() => onAmend({ catch: !strike.catching })}>catch</Button>
         </div>
       ) : null}
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.grab ? 'cannot grab with that, nor a jumper in the air' : strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.catching ? 'cannot catch with that, nor a jumper in the air' : strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
       </> : null}
     </div>
   )

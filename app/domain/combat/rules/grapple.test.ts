@@ -9,7 +9,7 @@ import { getAvailableActions } from './options'
 import { getOpenAction } from './log'
 import { getRootTest } from './attack'
 import { getMovementOptions } from './move'
-import { chooseManeuver } from '../commands/choices'
+import { chooseGrapple, chooseManeuver } from '../commands/choices'
 import { commitAction, declareAction as declareOwnAction, resolveAction, rollAction, setTarget } from '../commands/action'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
@@ -31,9 +31,9 @@ function grappling(): CombatState {
     ...CombatStateSchema.parse({ board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 1, r: 0 } } } } }),
     characters: { a: fighter('a'), b: fighter('b') },
   }
-  s = declareAction('a', { kind: 'strike', grab: true, weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
+  s = declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'grapple', variant: 'basic' }, newId)(s)
   s = commitAction(() => 5, newId)(setTarget('b')(s))
-  return resolveAction(newId)(rollAction(() => 50, newId)(s))
+  return resolveAction(newId)(chooseGrapple(true)(rollAction(() => 50, newId)(s)))
 }
 
 // The open action's test thrown to come out over its DL by exactly `over`.

@@ -192,6 +192,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   rollAction: combatCommands.rollAction(() => 7, newId),
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   refundHOP: (s) => combatCommands.refundHOP('smash')(deepFreeze(combatCommands.spendHOP('smash')(combatCommands.rollAction(() => 20, newId)(s)))),
+  chooseGrapple: (s) => combatCommands.chooseGrapple(true)(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
   payAction: (s) => combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),

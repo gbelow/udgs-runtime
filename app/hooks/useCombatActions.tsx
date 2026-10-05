@@ -20,6 +20,7 @@ import {
   withdrawSpawnedAction,
 } from "../domain/combat/commands/action";
 import {
+  chooseGrapple,
   chooseManeuver,
   improveSpell,
   refundImprovement,
@@ -61,6 +62,7 @@ export function useCombatActions() {
   const accept = () => update(acceptSpellTest(newId));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
+  const grapple = (on: boolean) => update(chooseGrapple(on));
   const resolve = () => update(resolveAction(newId));
   const improve = (name: SpellModification) => update(improveSpell(name));
   const unimprove = (name: SpellModification) => update(refundImprovement(name));
@@ -71,5 +73,5 @@ export function useCombatActions() {
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
 }

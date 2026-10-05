@@ -5,14 +5,14 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, LOCATIONS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
-import { HOPOption, getHOPOptions, getHOPRemaining } from '../rules/damage'
+import { HOPOption, canGrapple, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { getActionNotes, getOutcomes } from './outcomes'
 import { EpisodeEntry, getEditsSince, getLastEpisode } from './episode'
 import { isVoided } from '../rules/opportunity'
@@ -26,7 +26,7 @@ import type { RollMode } from '../dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
-import { canGrab, getDisarmOptions, getManeuverTargets, isGrappleRowOf, isManeuverWon } from '../rules/grapple'
+import { canGrab, getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorStrike } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorStrike'
@@ -84,8 +84,9 @@ export type ReactorOptions = {
     variant: string
     location: HitLocation
     complete: boolean
-    grab: boolean
-    grabbable: boolean
+    // combat.tex "Catch": declared as a catch, and whether it may be
+    catching: boolean
+    catchable: boolean
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
     // instead of the strike
     mode: 'strike' | 'grapple'
@@ -125,8 +126,8 @@ function getReactors(state: CombatState, open: Action): ReactorOptions[] {
             variant: declared.variant,
             location: declared.location,
             complete: isDeclarationComplete(state, c, declared),
-            grab: declared.kind === 'opportunityAttack' && declared.grab,
-            grabbable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? ''),
+            catching: declared.kind === 'opportunityAttack' && declared.catch,
+            catchable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? '') && isCatchable(state, declared),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
@@ -208,10 +209,11 @@ export type OpenActionView = {
   // a flee being decided: whether it is taken (null for anything else)
   flee: boolean | null
   opportunity: boolean
-  // combat.tex "Grapple": a strike made as a grab; the maneuver declared and
-  // whether a hit is to be bought by the attacker's own commitment (null
-  // where the maneuver has none); what a push comes to
-  grab: boolean
+  // combat.tex "Initiate the Grapple": whether the hit grapples, once rolled
+  // (null where it may not); the maneuver declared and whether a hit is to be
+  // bought by the attacker's own commitment (null where the maneuver has
+  // none); what a push comes to
+  grapples: boolean | null
   maneuver: GrappleManeuver | null
   // once a knockdown or an immobilization has hit: whether the attacker
   // commits themselves along (null: nothing to choose)
@@ -403,7 +405,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       spawned: open.spawnedBy !== null,
       flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
       opportunity: open.kind === 'strike' && open.opportunity,
-      grab: open.kind === 'strike' && open.grab,
+      grapples: open.kind === 'strike' && open.step === 'post' && canGrapple(state, open) ? open.grapples : null,
       maneuver: grapple?.maneuver ?? null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
@@ -435,7 +437,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     reactors: step === 'react' ? getReactors(state, open) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
-          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || ((!open.grab || isGrappleRowOf(actor, o.weaponKey, o.attack)) && isSweepRowKept(state, open, o) && !(isFloorStrike(open) && isSweepVariant(o.variant))))))
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorStrike(open) && isSweepVariant(o.variant))))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
     ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],

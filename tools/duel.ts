@@ -9,8 +9,8 @@ import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
 import { estimateAttacks } from '../app/domain/bot/estimate'
-import { getHOPOptions, getHOPRemaining } from '../app/domain/combat/rules/damage'
-import { refundHOP, spendHOP } from '../app/domain/combat/commands/choices'
+import { canGrapple, getHOPOptions, getHOPRemaining } from '../app/domain/combat/rules/damage'
+import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/combat/commands/choices'
 import { getAvailableActions } from '../app/domain/combat/rules/options'
 import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/combat/rules/action'
 import { canAfford } from '../app/domain/character/rules/cost'
@@ -238,7 +238,7 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
     const draft = option.draft
     const label = `${getOptionLabel(state, id, option)} - ${cost(option.cost)}`
     const shut = option.available ? null : option.reason ?? 'closed'
-    if (draft.kind === 'strike' && !draft.grab) {
+    if (draft.kind === 'strike') {
       const base = begin(state, id, draft, env)
       return base ? strikeChoices(base, id, foes, state, shut) : [{ label, apply: () => null, unavailable: shut ?? UNSUPPORTED }]
     }
@@ -431,7 +431,8 @@ function hopPrompt(state: CombatState, open: RootAction): Prompt | null {
   const target = state.characters[open.targetId]
   const options = getHOPOptions(state, open)
   const bought = options.filter((o) => o.bought > 0)
-  if (options.length === 0 || (!options.some((o) => o.available) && bought.length === 0)) return null
+  const grapple = open.kind === 'strike' && canGrapple(state, open) ? open : null
+  if ((options.length === 0 || (!options.some((o) => o.available) && bought.length === 0)) && !grapple) return null
   const remaining = getHOPRemaining(open, target)
   const spend = options.map((o): Choice => {
     const next = spendHOP(o.purchase)(state)
@@ -447,7 +448,8 @@ function hopPrompt(state: CombatState, open: RootAction): Prompt | null {
     kind: 'prompt',
     side: sideOf(open.actorId),
     title: `${getFightName(state, open.actorId)} hit, with ${remaining} HOP left to spend (hit overflow). As it stands the blow does: ${previewOf(state)}.`,
-    choices: [{ label: 'LAND THE BLOW as it stands', apply: (e) => { const landed = resolveAction(e.newId)(state); return landed === state ? null : landed } }, ...spend, ...back],
+    choices: [{ label: 'LAND THE BLOW as it stands', apply: (e) => { const landed = resolveAction(e.newId)(state); return landed === state ? null : landed } }, ...spend, ...back,
+      ...(grapple ? [{ label: grapple.grapples ? 'DO NOT GRAPPLE the target' : 'GRAPPLE the target (free)', apply: () => chooseGrapple(!grapple.grapples)(state) } satisfies Choice] : [])],
   }
 }
 

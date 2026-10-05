@@ -14,8 +14,8 @@ import { hasGrant } from '../../character/rules/abilities'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isGrappleRowOf, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
-import { getHOPOptions } from './damage'
+import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { canGrapple, getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
@@ -52,7 +52,7 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
   if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && isSweepRowKept(state, action, action) && (!action.grab || isGrappleRowOf(c, action.weaponKey, action.attack)) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
     case 'shoot':
       return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
@@ -83,14 +83,14 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     case 'opportunityAttack': {
       const partner = findGrapple(getGrapples(state), action.actorId, action.targetId ?? '') !== null
       if (action.mode === 'grapple') return partner && getManeuverTargets(state, action.actorId, action.maneuver).includes(action.targetId ?? '')
-      const strike = getOpportunityStrike(state, action, '')
+      const strike = getOpportunityStrike(action, '')
       const fought = getOpportunityState(state, action)
       // combat.tex "Catch": a runner only in grabbing reach is a grab or nothing
       const root = getRootOf(state, action)
-      if (root && !action.grab && findTrigger(state, root, action)?.catchOnly) return false
+      if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return false
       const cost = getOwnCost(state, strike)
       return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost) && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant) && isAimOnTarget(state, strike)
-        && (!action.grab || (canGrab(state, strike, action.targetId ?? '') && !isUncatchable(state, action)))
+        && (!action.catch || (canGrab(state, strike, action.targetId ?? '') && isCatchable(state, action)))
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
@@ -166,9 +166,9 @@ export function isUsedOutsideGrapple(state: CombatState, action: Action): boolea
 // combat.tex "Catch" is against a running target; nothing lets a jumper be
 // grabbed in the air (combat.tex "jumping": a jump "cannot be voluntarily
 // interrupted in the middle").
-function isUncatchable(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
+export function isCatchable(state: CombatState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const root = getRootOf(state, reaction)
-  return root?.kind === 'move' && root.movement === 'jump'
+  return root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
 }
 
 // Whether every reaction declared against the action has said all it must:
@@ -462,10 +462,12 @@ export function getNextStep(state: CombatState): ActionStep | null {
 }
 
 // What the root still waits on once its die is thrown or its cost paid,
-// before it lands: HOP to spend on a hit, a way to point, a pick to make.
+// before it lands: HOP to spend on a hit, a grapple to take, a way to point, a
+// pick to make.
 function getPostStep(state: CombatState, open: RootAction): ActionStep {
   switch (open.kind) {
     case 'strike':
+      return open.roll?.degree === 'hit' && (getHOPOptions(state, open).length > 0 || canGrapple(state, open)) ? 'spend' : 'confirm'
     case 'shoot':
       return open.roll?.degree === 'hit' && getHOPOptions(state, open).length > 0 ? 'spend' : 'confirm'
     case 'cast':
@@ -555,7 +557,7 @@ export function getTargetIds(state: CombatState, root: RootAction): string[] {
   switch (root.kind) {
     case 'strike': {
       const swept = isSweep(root) ? getSwept(state, root) : null
-      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && (!root.grab || canGrab(state, root, id)) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
+      return others.filter((id) => isInReach(state, root, id) && isGrappleReach(state, root, id) && !isSeizedUse(state, root.actorId, root.weaponKey, root.attack, id)
         && (swept === null || canBeSwept(state, swept, id)))
     }
     case 'shoot':

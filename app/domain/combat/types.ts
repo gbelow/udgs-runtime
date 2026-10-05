@@ -389,12 +389,13 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Braced Attack": a hit "trigger[s] a trample" — the mover
   // against the bracer, written at the resolve
   trample: TrampleSchema.nullable().default(null),
-  // combat.tex "Initiate the Grab": made with a grapple row, a hit grapples
-  // the target; what it came to is written at the resolve
-  grab: z.boolean().default(false),
+  // combat.tex "Initiate the Grapple": a hit made with a grapple row may
+  // grapple the target, the attacker's call once the die is known; what it
+  // came to is written at the resolve
+  grapples: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
-  // combat.tex "Catch": a grab made at a running target, "3AP+1STA", whose
-  // hit is a crash the catcher gets +3 in
+  // combat.tex "Catch": a strike with a grapple row at a running target,
+  // "3AP+1STA", whose hit is a crash the catcher gets +3 in
   catch: z.boolean().default(false),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
   // at the resolve
@@ -689,7 +690,7 @@ export const OpportunityAttackActionSchema = z.object({
   at: num.nullable().default(null),
   ...AttackDeclaration,
   ...SweepDeclaration,
-  grab: z.boolean().default(false),
+  catch: z.boolean().default(false),
   // combat.tex "Grapple Maneuvers": "can be used like opportunity attacks"
   // — against a grapple partner, what is opened is a maneuver instead of a
   // strike
