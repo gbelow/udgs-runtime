@@ -48,7 +48,7 @@ export function needsBreakRolls(state: CombatState, root: AttackAction): boolean
 // one already broken.
 function getBreakable(row: WeaponRow | null): (Breakable & { itemId: string }) | null {
   if (!row || row.wielded.natural || row.wielded.broken) return null
-  return { itemId: row.wielded.itemId, RES: row.atk.RES, hardness: getRowBreakTerms(row.atk).hardness }
+  return { itemId: row.wielded.itemId, RES: row.atk.RES }
 }
 
 // An item a blow puts at risk: the percentile it is tested with, whose it is,

@@ -2,7 +2,6 @@ import type { Character, Item } from '../../types'
 import type { AttackAction, StrikeAction } from '../types'
 import type { Breakable } from '../../character/rules/breakage'
 import { getItemWeapon } from '../../item/rules/items'
-import { getRowBreakTerms } from '../../character/rules/breakage'
 import { getHeldItem } from '../../item/rules/hands'
 
 // combat.tex "Attack against equipment": "An attack can be made against a
@@ -36,5 +35,5 @@ export function isObjectOnTarget(target: Character | undefined, objectId: string
 // (the table's ruling), the shaft of a spear before its head.
 export function getWeakestPart(item: Item): Breakable | null {
   const weakest = [...(getItemWeapon(item)?.attacks ?? [])].sort((a, b) => a.RES - b.RES)[0]
-  return weakest ? { RES: weakest.RES, hardness: getRowBreakTerms(weakest).hardness } : null
+  return weakest ? { RES: weakest.RES } : null
 }

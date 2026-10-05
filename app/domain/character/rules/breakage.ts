@@ -1,15 +1,15 @@
 import type { Character, Damage, Outcome, WeaponAttack } from '../../types'
-import { getHardness, getItemArmor } from '../../item/rules/items'
+import { getItemArmor } from '../../item/rules/items'
 import { hasProperty } from '../../weaponProperties'
 import { isArmorBare } from './damage'
 
-export type BreakingBlow = { blunt: number; cut: number; hardness: number; piercing: boolean }
-export type Breakable = { RES: number; hardness: number }
+export type BreakingBlow = { blunt: number; cut: number; piercing: boolean }
+export type Breakable = { RES: number }
 
-// What a weapon row brings to a collision besides its damage: the hardness of
-// what it is made of, and whether it is a piercing row.
-export function getRowBreakTerms(atk: WeaponAttack): Pick<BreakingBlow, 'hardness' | 'piercing'> {
-  return { hardness: getHardness(atk.material), piercing: hasProperty(atk.properties, 'piercing') }
+// What a weapon row brings to a collision besides its damage: whether it is
+// a piercing row.
+export function getRowBreakTerms(atk: WeaponAttack): Pick<BreakingBlow, 'piercing'> {
+  return { piercing: hasProperty(atk.properties, 'piercing') }
 }
 
 // gear.tex "Equipment Breakage": the chance an object breaks under one blow.
@@ -26,11 +26,11 @@ export function getBreakChance(blow: BreakingBlow, target: Breakable): number {
   return reaching === 2 ? 1 / 2 : reaching === 1 ? 1 / 6 : 0
 }
 
-// What a damage effect carries into a collision: its blunt and cutting, the
-// hardness of what dealt it, and whether it pierces.
-export function getBlow({ damage, hardness, properties }: Damage): BreakingBlow {
+// What a damage effect carries into a collision: its blunt and cutting, and
+// whether it pierces.
+export function getBlow({ damage, properties }: Damage): BreakingBlow {
   const total = (kind: 'blunt' | 'cut') => damage.filter((d) => d.kind === kind).reduce((sum, d) => sum + d.value, 0)
-  return { blunt: total('blunt'), cut: total('cut'), hardness, piercing: hasProperty(properties, 'piercing') }
+  return { blunt: total('blunt'), cut: total('cut'), piercing: hasProperty(properties, 'piercing') }
 }
 
 // The percentile is thrown 0 to 99 and an item breaks below chance x 100.
@@ -54,8 +54,7 @@ export function getArmorBreakChance(target: Character, hits: Hit[]): number {
   const blow: BreakingBlow = {
     blunt: struck.reduce((sum, { outcome }) => sum + outcome.arrived.blunt, 0),
     cut: struck.reduce((sum, { outcome }) => sum + outcome.arrived.cut, 0),
-    hardness: Math.max(...struck.map(({ damage }) => damage.hardness)),
     piercing: struck.some(({ damage }) => hasProperty(damage.properties, 'piercing')),
   }
-  return getBreakChance(blow, { RES: armor.RES, hardness: getHardness(armor.material) })
+  return getBreakChance(blow, { RES: armor.RES })
 }

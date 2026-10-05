@@ -2,7 +2,7 @@ import type { CampaignCharacter } from '../../types'
 import type { CombatState, CutAction, StrikeAction, Tether } from '../types'
 import { getBreakChance, getRowBreakTerms } from '../../character/rules/breakage'
 import { getStrikeDamage } from '../../character/rules/gear'
-import { getHardness, getItemWeapon } from '../../item/rules/items'
+import { getItemWeapon } from '../../item/rules/items'
 import { getHeldItem } from '../../item/rules/hands'
 import { explodes } from '../../weaponProperties'
 import { makeAction } from '../factories'
@@ -43,11 +43,11 @@ export function getNetTethers(state: CombatState, root: CutAction): Tether[] {
 }
 
 // What the net is made of: the exploding row of the item the holder holds it by.
-function getNetBreakable(state: CombatState, tether: Tether): { RES: number; hardness: number } | null {
+function getNetBreakable(state: CombatState, tether: Tether): { RES: number } | null {
   const holder: CampaignCharacter | undefined = state.characters[tether.holders[0]]
   const item = holder ? getHeldItem(holder, tether.anchors[holder.id]) : undefined
   const row = item ? getItemWeapon(item)?.attacks.find(explodes) : undefined
-  return row ? { RES: row.RES, hardness: getHardness(row.material) } : null
+  return row ? { RES: row.RES } : null
 }
 
 // The chance the blow breaks the net, from the row it was swung with.
