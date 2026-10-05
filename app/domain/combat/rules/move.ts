@@ -426,6 +426,7 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
     path = path.slice(0, tramples.stop)
     stop = 'trample'
   }
+  if (stop !== 'end') path = withoutOccupiedEnd(state, action, path)
   const fallAt = getFallStep(state, action)
   const fell = fallAt !== null && fallAt <= path.length
   if (fell) {
@@ -434,6 +435,20 @@ export function getMoveFacts(state: CombatState, action: MoveAction): MoveFacts 
   }
   const fall = getMoveFall(state, action, path, false)
   return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+}
+
+// A mover stopped partway may have been let through someone (an evaded crash,
+// a prone body) whose space they now stand in: no two characters share a space,
+// so they are left on the last space before it.
+function withoutOccupiedEnd(state: CombatState, action: MoveAction, path: Coord[]): Coord[] {
+  const mover = state.characters[action.actorId]
+  const from = state.board?.placements[action.actorId]
+  if (!mover || !from) return path
+  const others = Object.keys(state.characters).filter((id) => id !== action.actorId).flatMap((id) => getPlacedFootprint(state, id) ?? [])
+  const blocked = (cell: Coord) => getFootprint(mover, { ...from, cell }).some((f) => others.some((o) => sameCell(f, o)))
+  let end = path.length
+  while (end > 0 && blocked(path[end - 1])) end--
+  return path.slice(0, end)
 }
 
 // combat.tex "Climbing": a climb goes up the face it is on, as far as the metres

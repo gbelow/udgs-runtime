@@ -1249,3 +1249,17 @@ describe('a strike aimed at equipment', () => {
     expect(getOpenAction(s)?.step).toBe('define')
   })
 })
+
+// Broke: a move cut short by a flee left its mover standing in the space of
+// someone it had been let through (an evaded crash), two characters on one cell.
+describe('a move cut short while passing through someone', () => {
+  it('stops its mover on the last free space', () => {
+    let s = onBoard({ m: [-6, 0], x: [-3, 0], f: [-2, 4] }, fighter('m'), fighter('x'), fighter('f'))
+    s = declareAction('m', { kind: 'move' }, newId)(s)
+    s = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [-5, -4, -3, -2, -1, 0].map((q) => ({ q, r: 0 })) })(s))
+    s = declareReaction('x', getAvailableActions(s, 'x').find((o) => o.draft.kind === 'evade' && o.available)!.draft, newId)(s)
+    s = declareReaction('f', getAvailableActions(s, 'f').find((o) => o.draft.kind === 'flee' && o.available)!.draft, newId)(s)
+    const { state } = playOut(s, 5)
+    expect(state.board?.placements.m?.cell).not.toEqual(state.board?.placements.x?.cell)
+  })
+})
