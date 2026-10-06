@@ -53,10 +53,12 @@ export function getPreparedEvents(main: PreparableKind | null): PreparedTrigger[
 }
 
 // What is prepared in the round: the preparations that have landed since it
-// began. They are read off the log, never stored apart from it, so the round
-// ending is all it takes for them to lapse.
+// began, of characters still in the fight.
 export function getPrepared(state: CombatState): PrepareAction[] {
-  return state.record.flatMap((a) => (a.kind === 'prepare' && a.step === 'done' && a.round === state.round && state.characters[a.actorId] ? [a] : []))
+  return state.prepared.flatMap((id) => {
+    const a = getAction(state, id)
+    return a?.kind === 'prepare' && state.characters[a.actorId] ? [a] : []
+  })
 }
 
 export function findPrepared(state: CombatState, id: string): PrepareAction | null {

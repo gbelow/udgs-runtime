@@ -86,7 +86,7 @@ export function getHeldCalled(state: CombatState): HeldTest[] {
   return CALLED_TESTS.flatMap((kind) =>
     Object.keys(state.characters)
       .filter((id) => isHeldCalled(state, id, kind))
-      .map((id) => ({ id, kind, roll: null })),
+      .map((id) => ({ id, kind, roll: null, spent: 0 })),
   )
 }
 

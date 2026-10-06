@@ -1124,8 +1124,9 @@ export const MoraleRollSchema = z.object({
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
 // The round's held test of a character, by kind (`HeldRollSchema`). A call
-// with no roll is a test owed.
-export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null) })
+// with no roll is a test owed. `spent` is what the character's actions landed
+// since the call have taken off the score (combat.tex "Stealth penalties").
+export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null), spent: z.number().default(0) })
 export type HeldTest = z.infer<typeof HeldTestSchema>
 
 // combat.tex "Social actions": what a character said to another in the round
@@ -1222,6 +1223,12 @@ export const CombatStateSchema = z.object({
   // The round's turns something has been committed in, by the number its
   // actions carry, and who rested in each, kept to the round's end
   turnsTaken: z.array(z.object({ turn: num, rested: z.array(str).default([]) })).default([]),
+  // The preparations landed in the round, by id, lapsing at its end
+  // (combat.tex "Preparing a reaction")
+  prepared: z.array(str).default([]),
+  // combat.tex "Attacking from stealth": who has been attacked in the round,
+  // and by whom
+  struck: z.array(z.object({ id: str, by: str })).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Surrender": who has flagged themselves surrendered

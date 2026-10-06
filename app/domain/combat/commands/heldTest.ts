@@ -22,7 +22,8 @@ const HELD_EFFECTS: Record<HeldKind, (id: string, degree: Degree) => Updater> = 
 // called them to it or not, and lets it work on the fight.
 export function holdRoll(id: string, kind: HeldKind, roll: HeldRoll, DL: number): Updater {
   return (state) => {
-    const heldTests = [...state.heldTests.filter((t) => t.id !== id || t.kind !== kind), { id, kind, roll }]
+    const spent = state.heldTests.find((t) => t.id === id && t.kind === kind)?.spent ?? 0
+    const heldTests = [...state.heldTests.filter((t) => t.id !== id || t.kind !== kind), { id, kind, roll, spent }]
     return HELD_EFFECTS[kind](id, getDegree(roll.score, DL))({ ...state, heldTests })
   }
 }

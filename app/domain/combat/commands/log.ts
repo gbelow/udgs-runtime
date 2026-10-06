@@ -8,6 +8,8 @@ import { isAnswerable } from '../rules/action'
 import { settleBinds } from './bind'
 import { dropFallenBalance, holdThrown } from './heldTest'
 import { getHeldRolls } from '../rules/heldRoll'
+import { getStealthPenalty } from '../rules/stealth'
+import { isAttackAction } from '../rules/actionCatalog'
 import { settleSevered } from './floor'
 import { getFireTouched } from '../rules/hazard'
 import { getChanges } from '../rules/changes'
@@ -25,7 +27,8 @@ import { deliverAll } from '../../character/commands/deliver'
 // gone leaves, and what leaves having landed goes into the record, the
 // reactions to it before it. A move past its declaration carries the held
 // tests its mover had made when it got there, and the turn it was committed
-// in is noted as taken.
+// in is noted as taken. What lands is noted in the round's registries: the
+// stealth it costs its actor, whom it attacked, the preparation it is.
 export function setActions(state: CombatState, declared: Action[], pushed: string[] = []): CombatState {
   const stamped = declared.map((a) => stampHeld(state, a.turn === null ? { ...a, turn: state.turn, round: state.round } : a))
   const live = new Set(stamped.filter((a) => a.step !== 'done').map((a) => a.id))
@@ -37,7 +40,15 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
     stack: [...state.stack, ...pushed].filter((id) => live.has(id)),
     record: [...state.record, ...entering],
     turnsTaken: stamped.reduce(noteTurn, state.turnsTaken),
+    heldTests: entering.reduce(spendStealth, state.heldTests),
+    struck: [...state.struck, ...entering.flatMap((a) => (isAttackAction(a) && a.targetId ? [{ id: a.targetId, by: a.actorId }] : []))],
+    prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
   }
+}
+
+function spendStealth(tests: CombatState['heldTests'], action: Action): CombatState['heldTests'] {
+  const penalty = getStealthPenalty(action)
+  return penalty === 0 ? tests : tests.map((t) => (t.id === action.actorId && t.kind === 'stealth' ? { ...t, spent: t.spent + penalty } : t))
 }
 
 function stampHeld(state: CombatState, action: Action): Action {

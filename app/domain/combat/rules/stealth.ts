@@ -1,8 +1,6 @@
 import type { Action, CombatState } from '../types'
 import { STEALTH_MELEE_PENALTY, STEALTH_MOVEMENT_PENALTY, STEALTH_RANGED_PENALTY } from '../../tables'
-import { isAttackAction } from './actionCatalog'
 import { getSenseReaches } from './detection'
-import { getHeldRoll } from './heldRoll'
 import { getPartners } from './partners'
 import { getDegree } from './test'
 
@@ -31,10 +29,8 @@ export function getStealthPenalty(action: Action): number {
 // The stealth value of a character in stealth: their test this round, less the
 // penalty of everything they have done since it; null for one who made none.
 export function getStealthValue(state: CombatState, id: string): number | null {
-  const roll = getHeldRoll(state, id, 'stealth')
-  if (!roll) return null
-  const done = state.record.filter((a) => a.actorId === id && a.round === state.round)
-  return roll.score + done.reduce((sum, a) => sum + getStealthPenalty(a), 0)
+  const test = state.heldTests.find((t) => t.id === id && t.kind === 'stealth')
+  return test?.roll ? test.roll.score + test.spent : null
 }
 
 // combat.tex "Stealth in combat": "Enemies cannot target the character unless
@@ -47,7 +43,7 @@ export type Notice = 'detected' | 'sensed' | 'unnoticed'
 // detection through touch after the attack, which means that a second attack
 // can always be reacted to."
 function hasBeenStruckBy(state: CombatState, observerId: string, targetId: string): boolean {
-  return state.record.some((a) => a.round === state.round && a.actorId === targetId && isAttackAction(a) && a.targetId === observerId)
+  return state.struck.some((s) => s.id === observerId && s.by === targetId)
 }
 
 // What the observer makes of the target: by the best sense that reaches it,
@@ -57,7 +53,7 @@ function hasBeenStruckBy(state: CombatState, observerId: string, targetId: strin
 export function getNotice(state: CombatState, observerId: string, targetId: string, event: Action | null = null): Notice {
   const value = getStealthValue(state, targetId)
   if (value === null || getPartners(state, observerId).includes(targetId)) return 'detected'
-  const pending = event && !state.record.some((a) => a.id === event.id) ? getStealthPenalty(event) : 0
+  const pending = event && event.step !== 'done' ? getStealthPenalty(event) : 0
   const detections = getSenseReaches(state, observerId, targetId).map((r) => r.detection)
   const degree = detections.length === 0 ? 'hit' : getDegree(value + pending, Math.max(...detections))
   const noticed: Notice = degree === 'miss' ? 'detected' : degree === 'graze' ? 'sensed' : 'unnoticed'

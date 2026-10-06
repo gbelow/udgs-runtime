@@ -133,9 +133,9 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   root is declared in the preparer's turn: first the action it is for (`main`: a strike, shot,
   cast or move, with the row, spell or movement it is made with), then what it waits for
   (`trigger`: an event and who, `enters`, `sighted` or, for a defense, `attacked`); it always
-  carries 2 AP of movement, which is never worse to have. It is paid at its commit and lands as any root, and is never stored apart from the
-  log: what is prepared is every `prepare` that has landed in the current round (`getPrepared`),
-  so the round changing is all it takes for it to lapse. `getPreparedTriggers`, read by
+  carries 2 AP of movement, which is never worse to have. It is paid at its commit and lands as any root, and its id is noted in the round's
+  `prepared` registry as it lands: what is prepared is every `prepare` named there (`getPrepared`),
+  so the round changing, which empties it, is all it takes for it to lapse. `getPreparedTriggers`, read by
   `getTriggers`, offers a `prepared` reaction to a preparer when a committed move comes into the
   trigger — the zone is the action's own reach plus the movement it carries
   (`getPreparedZone`) — at the step that did, counted as an opportunity attack's `at`, so the

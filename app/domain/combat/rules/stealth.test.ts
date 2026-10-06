@@ -27,7 +27,7 @@ function fight(o: Stand, t: Stand, terrain: Record<string, unknown> = {}): Comba
 
 const hiddenWith = (state: CombatState, score: number): CombatState => ({
   ...state,
-  heldTests: [{ id: 't', kind: 'stealth', roll: { mode: 'normal', die: 1, skill: 0, score, skillTerms: [] } }],
+  heldTests: [{ id: 't', kind: 'stealth', roll: { mode: 'normal', die: 1, skill: 0, score, skillTerms: [] }, spent: 0 }],
 })
 
 const calledToStealth = (state: CombatState) => getHeldCalled(state).filter((t) => t.kind === 'stealth').map((t) => t.id).sort()

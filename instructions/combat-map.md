@@ -101,9 +101,10 @@ points at the action it follows). `rules/log.ts` holds every lookup over them, a
 else walks them: up (`getAncestry`, `getOrigin`, `getRootOf`, `getOpeningReaction`) and down
 (`getDescendants`, `getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
 opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
-remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`,
-`turnsTaken`: the turns something was committed in and who rested in each, written by
-`setActions`), or stamped on the action that needs it (a move's `held`, a sweep link's
+remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`, with
+the stealth each landed action has `spent`; `turnsTaken`: the turns something was committed
+in and who rested in each; `prepared`: the preparations landed; `struck`: who attacked whom;
+all but the tests themselves written by `setActions` as actions land), or stamped on the action that needs it (a move's `held`, a sweep link's
 `swept`), never found by scanning the record.
 
 ## The pipeline, step by step
@@ -325,7 +326,7 @@ app/domain/combat/
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── detection.ts    senses: which of an observer's senses reach a target (facing arc, sight, zero visibility, touch in a grapple), and what each detects at; `getActionHeading`, the way a landed action leaves its actor facing (written by `reduceBoard`)
-│   ├── stealth.ts      the stealth value (the round's held test less what the actor has done since), what each landed action takes off it, and what an observer makes of a target in stealth (`getNotice`, with the event's own penalty and the touch a struck character has of their attacker); `getTargetIds` closes who is not `detected`, `getTriggers` drops who has not noticed the actor
+│   ├── stealth.ts      the stealth value (the round's held test less what the actor's landed actions have `spent`), what each landed action takes off it, and what an observer makes of a target in stealth (`getNotice`, with the event's own penalty and the touch a struck character has of their attacker); `getTargetIds` closes who is not `detected`, `getTriggers` drops who has not noticed the actor
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item
 │

@@ -18,6 +18,8 @@ export function resetCombat(state: CombatState): CombatState {
     stress: [],
     heldTests: [],
     turnsTaken: [],
+    prepared: [],
+    struck: [],
     pressure: [],
     surrendered: [],
     round: 0,
