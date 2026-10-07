@@ -1,5 +1,5 @@
 import type { TerrainBrush } from '../../types'
-import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord, type MoveAction, type Updater } from '../types'
+import { BoardSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
 import { makeBoard } from '../factories'
 import { coordKey, directionTo, distance, sameCell, turn } from '../geometry'
 import { getOpenAction } from '../rules/log'
@@ -22,6 +22,12 @@ import { getDragReach, getWalkerPlacement } from '../rules/drag'
 // A fresh, empty board of the given radius, everyone unplaced.
 export function createBoard(radius: number): Updater {
   return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ radius }) })
+}
+
+// combat.tex "Darkness and light": sets the light everywhere no light
+// source reaches. Refused while an action is open, as painting is.
+export function setLight(light: LightLevel): Updater {
+  return (state) => (!state.board || getOpenAction(state) ? state : { ...state, board: { ...state.board, light } })
 }
 
 // Takes a board in from outside — a VTT's snapshot, a saved one — through the

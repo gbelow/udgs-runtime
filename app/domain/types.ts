@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
 
 const num = z.number()
@@ -340,6 +340,9 @@ export const ItemSchema = z.object({
   // metres, lit while held or lying on the floor (the table's ruling); null
   // for an item that gives no light
   light: num.nullable().default(null),
+  // gear.tex "Potions and Medicine": what drinking it gives, for the rest of
+  // the fight (the table's ruling for "1 ET"); null for no potion
+  potion: z.enum(POTIONS).nullable().default(null),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),
@@ -828,15 +831,16 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
   locks: str.nullable().default(null),
 }).strip()) as unknown as z.ZodType<Delivery, Delivery>
 
-// Something switched on and held: a toggle ability, a held spell, or a
-// curse carried until it is beaten. The character keeps only the reference;
+// Something switched on and held: a toggle ability, a held spell, a curse
+// carried until it is beaten, a potion drunk, or a light cast into an item
+// (`itemId`) — the last two for the rest of the fight. The character keeps only the reference;
 // the effects are read off the owning catalog, so nothing copied into state
 // can go stale. A curse keeps the DL the test to beat it is rolled against
 // (spells.tex "Curse": "until the target shrugs it off"); a held spell that
 // links keeps who it is linked to, by character id, and one cast with gear
 // the item it is held with.
 export const ActiveEntrySchema = z.object({
-  kind: z.enum(['ability', 'spell', 'curse']),
+  kind: z.enum(['ability', 'spell', 'curse', 'potion', 'light']),
   key: str,
   DL: num.optional(),
   itemId: str.optional(),

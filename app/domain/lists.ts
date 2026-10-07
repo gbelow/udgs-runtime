@@ -193,6 +193,14 @@ export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
 export const TERRAIN_BRUSHES = ['wall', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'clear'] as const
 
+// combat.tex "Darkness and light": how much light the fight has where no
+// light source reaches, brightest first.
+export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const
+
+// gear.tex "Potions and Medicine": what a potion gives whoever drinks it, for
+// the rest of the fight.
+export const POTIONS = ['darkseeing'] as const
+
 // The tests a character makes once for a round and scores against every DL
 // the round puts to them, in the order the rulebook introduces them.
 export const HELD_TESTS = ['swim', 'climb', 'balance', 'stealth'] as const

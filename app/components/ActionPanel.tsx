@@ -107,6 +107,17 @@ export function ActionPanel(){
         </div>
       ) : null}
 
+      {open.potions.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>potion</SectionLabel>
+          {open.potions.map((p) =>
+            <Button key={p.itemId} size='xs' variant={p.itemId === open.item ? 'primary' : 'default'} className={p.itemId === open.item ? 'bg-accent/15' : ''}
+              onClick={() => amend({ itemId: p.itemId })}>
+              {p.name}
+            </Button>)}
+        </div>
+      ) : null}
+
       {open.push ? <Push push={open.push} cost={open.cost} onMovement={(movement) => amend({ movement, path: [] })} onBoost={boostPush} /> : null}
 
       {view.spells.length > 0 ? (

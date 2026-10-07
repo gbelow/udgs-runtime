@@ -65,10 +65,11 @@ export function warden(id: string): CampaignCharacter {
   return trained(regripItem(shield.id, 1)(holdItem(shield)(regripItem(spear.id, 1)(holdItem(spear)(fighter(id))))))
 }
 
-// A thrower with a grenade in hand (gear.tex "Grenade").
+// A thrower with a grenade in one hand and a potion in the other (gear.tex
+// "Grenade", "Darkseeing").
 export function bomber(id: string): CampaignCharacter {
   const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
-  return holdItem(grenade)(fighter(id))
+  return holdItem(getCatalogItem('Darkseeing')!)(holdItem(grenade)(fighter(id)))
 }
 
 // A thrower with a net in both hands (gear.tex "Net").

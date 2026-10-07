@@ -4,7 +4,7 @@ import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/combat/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
-import { TERRAIN_BRUSHES } from '../domain/lists'
+import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
 
 const MODE_LABEL = {
@@ -41,7 +41,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // on by hand, and the surface a move is walked on. Everything drawn is a
 // field of the board view; the panel only translates it into shapes.
 export function BoardPanel(){
-  const { view, create, clickCell, clickToken, clickFloorItem, place, turn } = useBoard()
+  const { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
 
   if (!view.present) {
@@ -64,6 +64,13 @@ export function BoardPanel(){
         {TERRAIN_BRUSHES.map((b) =>
           <Button key={b} size='xs' variant={brush === b ? 'primary' : 'default'} className={brush === b ? 'bg-accent/15' : ''}
             onClick={() => setBrush(brush === b ? null : b)}>{BRUSH_LABEL[b]}</Button>)}
+      </div>
+
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>light</SectionLabel>
+        {LIGHT_LEVELS.map((l) =>
+          <Button key={l} size='xs' variant={view.light === l ? 'primary' : 'default'} className={view.light === l ? 'bg-accent/15' : ''}
+            onClick={() => light(l)}>{l}</Button>)}
       </div>
 
       {view.unplaced.length > 0 ? (
@@ -141,6 +148,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
     : cell.visibility === 'zero' || cell.light === 'dark' ? 'fill-fg/35'
+    : cell.light === 'dim' ? 'fill-fg/15'
     : cell.visibility === 'bad' ? 'fill-fg/15'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
@@ -152,7 +160,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
     cell.suffocating ? 'suffocating gas' : null,
     cell.visibility === 'zero' ? 'no visibility' : cell.visibility === 'bad' ? 'bad visibility' : null,
-    cell.light === 'dark' ? 'dark' : cell.light === 'lit' ? 'dark, lit' : null,
+    cell.light === 'dark' ? 'dark' : cell.light === 'dim' ? 'dim light' : cell.lit ? 'lit' : null,
     cell.noise > 0 ? `noise ${cell.noise}` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,

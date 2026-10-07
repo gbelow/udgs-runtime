@@ -1,4 +1,5 @@
 import type { Action, ActionRoll, CombatState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
+import { getHeldPotions } from '../../item/rules/items'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
@@ -232,6 +233,8 @@ export type OpenActionView = {
   // a pick up: what lies within reach, and what was picked; a throw: what
   // can be thrown, from a hand or the floor
   floor: { itemId: string; name: string; available: boolean }[]
+  // gear.tex "Potions and Medicine": the potions in hand a drink can take
+  potions: { itemId: string; name: string }[]
   // once rolled or compared: what it does to the grapple
   grapple: { target: string; text: string }[]
   cost: ActionCost | null
@@ -425,13 +428,14 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       maneuver: grapple?.maneuver ?? null,
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
-      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' ? open.itemId : ''),
+      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
       ammoId: open.kind === 'shoot' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : open.kind === 'throw' && open.step === 'define' && actor
         ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
         : [],
+      potions: open.kind === 'drink' && open.step === 'define' && actor ? getHeldPotions(actor).map((i) => ({ itemId: i.id, name: i.name })) : [],
       push: drag ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,

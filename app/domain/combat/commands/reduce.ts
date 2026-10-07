@@ -32,7 +32,7 @@ import { findSlipTether, getTethersMade, isTying } from '../rules/tether'
 import { isWon } from '../rules/test'
 import { coordKey } from '../geometry'
 import { SPELLS, isSpellKey } from '../../spells'
-import { STUN_AP } from '../../tables'
+import { SPELL_LIGHT, STUN_AP } from '../../tables'
 import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, getLinkOutcome, type LinkOutcome } from '../rules/cast'
 import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
 import { getFireAgainCharges } from '../rules/fireAgain'
@@ -118,6 +118,12 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || action.failed) return landed
           const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)))(landed) : landed
           const spell = SPELLS[action.key]
+          // spells.tex "Lamp", "Revealing Light": the torch it was cast with
+          // shines for the rest of the fight, the last cast into it winning
+          if (action.key in SPELL_LIGHT && action.itemId) {
+            const others = delivered.active.filter((e) => !(e.kind === 'light' && e.itemId === action.itemId))
+            return { ...delivered, active: [...others, { kind: 'light', key: action.key, itemId: action.itemId }] }
+          }
           if (spell.type === 'sustained' && !delivered.active.some((e) => e.kind === 'spell' && e.key === action.key)) {
             const size = getCastSize(c, action.key, action.improved.amplify ?? 0, action.itemId)
             return { ...delivered, active: [...delivered.active, { kind: 'spell', key: action.key, itemId: action.itemId, size, extend: action.extend }] }
@@ -132,6 +138,15 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
+        // gear.tex "Potions and Medicine": the potion is gone and its effect
+        // stays for the rest of the fight; "not cumulative, but they can be
+        // refreshed"
+        if (action.kind === 'drink') {
+          const potion = action.drunk?.potion
+          if (c.id !== action.actorId || !potion) return c
+          const drunk = consumeItem(action.itemId)(c)
+          return { ...drunk, active: [...drunk.active.filter((e) => !(e.kind === 'potion' && e.key === potion)), { kind: 'potion', key: potion }] }
+        }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // combat.tex "Throw": one of what was thrown leaves whichever hand it
         // was thrown from; one thrown off the floor was never in it

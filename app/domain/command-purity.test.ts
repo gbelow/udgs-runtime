@@ -211,6 +211,7 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
+  setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),
   pickCell: (s) => combatCommands.pickCell({ q: 1, r: 0 }, newId)(deepFreeze(declaredMove(s))),
   turnMove: (s) => combatCommands.turnMove()(deepFreeze(declaredMove(s))),
   boostPush: (s) => combatCommands.boostPush(true)(deepFreeze(declaredPush(s))),

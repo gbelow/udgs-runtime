@@ -1,4 +1,4 @@
-import type { Bind, CombatState, Coord, Degree, Placement } from '../types'
+import type { Bind, CombatState, Coord, Degree, LightLevel, Placement } from '../types'
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
@@ -19,7 +19,7 @@ import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 import { getCellFuels, getCellHazard } from '../rules/hazard'
-import { isUnlit } from '../rules/light'
+import { getCellLight } from '../rules/light'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -45,9 +45,10 @@ export type BoardCellView = {
   // and the noise its ground makes per AP (combat.tex "Actions in stealth")
   visibility: Visibility | null
   noise: number
-  // combat.tex "Darkness and light": dark ground, and whether a light
-  // reaches it
-  light: 'dark' | 'lit' | null
+  // combat.tex "Darkness and light": the light on the cell, and whether it
+  // is a light source that makes it bright
+  light: LightLevel
+  lit: boolean
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -137,6 +138,8 @@ export type BoardView = {
   viewBox: string
   // one hexagon's corners around its centre, as an SVG `points` string
   hex: string
+  // combat.tex "Darkness and light": the light where no source reaches
+  light: LightLevel
   cells: BoardCellView[]
   tokens: BoardTokenView[]
   floor: BoardFloorItemView[]
@@ -153,7 +156,7 @@ export type BoardView = {
   move: { actorId: string; orientation: number; canTurn: boolean } | null
 }
 
-const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
+const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
 const HEX = Array.from({ length: 6 }, (_, i) => {
   const angle = (Math.PI / 180) * (60 * i - 30)
@@ -228,6 +231,7 @@ function buildBoardView(state: CombatState): BoardView {
     const { x, y } = toPlane(cell)
     const there = reachableByKey.get(key)
     const hazard = getCellHazard(state, cell)
+    const light = getCellLight(state, cell)
     return {
       key,
       cell,
@@ -241,7 +245,8 @@ function buildBoardView(state: CombatState): BoardView {
       suffocating: hazard.suffocating,
       visibility: hazard.visibility === 'good' ? null : hazard.visibility,
       noise: terrain?.noise ?? 0,
-      light: terrain?.dark ? (isUnlit(state, cell) ? 'dark' : 'lit') : null,
+      light,
+      lit: light === 'bright' && (board.light !== 'bright' || !!terrain?.dark),
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,
@@ -311,6 +316,7 @@ function buildBoardView(state: CombatState): BoardView {
   return {
     present: true,
     radius: board.radius,
+    light: board.light,
     viewBox: `${minX.toFixed(3)} ${minY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`,
     hex: HEX,
     cells,

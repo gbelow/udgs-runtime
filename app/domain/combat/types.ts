@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from './dice'
@@ -174,6 +174,9 @@ export const TerrainCellSchema = z.object({
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>
 
+export const LightLevelSchema = z.enum(LIGHT_LEVELS)
+export type LightLevel = z.infer<typeof LightLevelSchema>
+
 // The spatial facts of a fight, in game units. The real grid is a VTT's; this
 // is what the domain needs of it to judge distance, reach, cover and where a
 // move may end. `placements` is keyed by character id, `terrain` by the cell
@@ -182,6 +185,9 @@ export type TerrainCell = z.infer<typeof TerrainCellSchema>
 export const BoardSchema = z.object({
   placements: z.record(z.string(), PlacementSchema).default({}),
   terrain: z.record(z.string(), TerrainCellSchema).default({}),
+  // combat.tex "Darkness and light": the light everywhere no light source
+  // reaches and no darkness is painted
+  light: LightLevelSchema.default('bright'),
   // where and how far the board is drawn; the rules do not care, the
   // simulation tool does. A VTT puts the origin at its scene's centre.
   origin: CoordSchema.default({ q: 0, r: 0 }),
@@ -973,6 +979,16 @@ export const ThrowActionSchema = z.object({
   thrown: ItemSchema.nullable().default(null),
 }).strip()
 
+// gear.tex "Potions and Medicine": "Potions require a standard action to be
+// consumed" — a potion held in hand, drunk.
+export const DrinkActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('drink'),
+  itemId: str.default(''),
+  // what was drunk, written at the resolve
+  drunk: ItemSchema.nullable().default(null),
+}).strip()
+
 // combat.tex "Fire": muffling a fire, in the burning space of the actor or
 // next to it.
 export const ExtinguishActionSchema = z.object({
@@ -1058,6 +1074,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   HoldBackActionSchema,
   PickUpActionSchema,
   ThrowActionSchema,
+  DrinkActionSchema,
   ExtinguishActionSchema,
   RestActionSchema,
   FallActionSchema,
@@ -1095,6 +1112,7 @@ export type OpportunityAction = StrikeAction | GrappleAction
 export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
+export type DrinkAction = z.infer<typeof DrinkActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
 export type PrepareAction = z.infer<typeof PrepareActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>

@@ -172,6 +172,11 @@ export function getHeldLight(c: Character): number | null {
   return lights.length === 0 ? null : Math.max(...lights)
 }
 
+// gear.tex "Potions and Medicine": the potions the character holds in hand.
+export function getHeldPotions(c: Character): Item[] {
+  return c.held.filter((item) => item.potion !== null)
+}
+
 function getContents(container: Container): Item[] {
   return Object.values(container.slots).flatMap((slot) => slot.items)
 }

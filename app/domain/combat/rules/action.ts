@@ -1,4 +1,5 @@
 import { notices } from './stealth'
+import { getHeldPotions } from '../../item/rules/items'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, CombatState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
@@ -123,6 +124,9 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // combat.tex "Fire": a burning space within its reach
     case 'extinguish':
       return isExtinguishCell(state, action)
+    // gear.tex "Potions and Medicine": a potion in hand
+    case 'drink':
+      return getHeldPotions(c).some((i) => i.id === action.itemId)
     // combat.tex "Preparing a reaction": an action it can make and a trigger
     case 'prepare':
       return isPrepareComplete(state, c, action)
@@ -289,6 +293,7 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
     case 'holdBack':
     case 'pickUp':
     case 'extinguish':
+    case 'drink':
     case 'rest':
     case 'prepare':
     case 'grapple':
@@ -529,6 +534,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'drink':
     case 'rest':
     case 'prepare':
     case 'fireAgain':
@@ -657,6 +663,7 @@ function getAimableIds(state: CombatState, root: RootAction): string[] {
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'drink':
     case 'rest':
     case 'prepare':
     case 'fireAgain':

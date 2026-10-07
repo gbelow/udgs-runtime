@@ -142,6 +142,8 @@ export const ACTIONS = {
   // combat.tex "Throw", "Standard Action": a held item or one off the
   // floor, to the floor, at its throwing row's price or a standard action's
   throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false },
+  // gear.tex "Potions and Medicine": a held potion, at a standard action's price
+  drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false },
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
   extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
   // combat.tex "Rest"

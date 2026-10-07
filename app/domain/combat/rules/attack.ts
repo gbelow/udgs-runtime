@@ -421,6 +421,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'drink':
     case 'rest':
     case 'prepare':
     case 'fireAgain':
@@ -527,6 +528,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
     case 'pickUp':
     case 'throw':
     case 'extinguish':
+    case 'drink':
     case 'rest':
     case 'prepare':
     case 'fireAgain':

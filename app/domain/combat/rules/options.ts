@@ -1,4 +1,5 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
+import { getHeldPotions } from '../../item/rules/items'
 import type { Action, ActionDraft, ActionKind, ActionOf, CombatState, DeclarableKind, RootAction } from '../types'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
@@ -393,6 +394,13 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
       : throwable.length === 0 ? 'nothing it can throw'
       : throwable.some((item) => canAfford(c, getThrowCost(c, item.id))) ? null : 'cannot afford'
     return [option({ kind: 'throw' }, null, reason)]
+  },
+  // gear.tex "Potions and Medicine": "Potions require a standard action to
+  // be consumed"
+  drink: (_state, c) => {
+    const cost = getActionCost(c, 'standardAction')
+    const reason = getHeldPotions(c).length === 0 ? 'no potion in hand' : canAfford(c, cost) ? null : 'cannot afford'
+    return [option({ kind: 'drink' }, cost, reason)]
   },
   // combat.tex "Fire": a burning space the actor stands in or is next to
   extinguish: (state, c) => {

@@ -102,9 +102,34 @@ describe('what an observer senses of a target', () => {
       expect(visionOf({ ...unlit, floor: [{ item: torch, cell: { q: 4, r: 0 } }] })).toBe('none')
     })
 
+    it('does not see a target on a dark board but by a light', () => {
+      const night = fight({ cell: origin, orientation: 0 }, { q: 3, r: 0 })
+      const board = { ...night.board!, light: 'dark' as const }
+      expect(visionOf({ ...night, board })).toBe('total')
+      expect(visionOf(holding({ ...night, board }, 't'))).toBe('none')
+    })
+
     it('does not see a target the torch is too far from', () => {
       const far = fight({ cell: origin, orientation: 0 }, { q: 6, r: 0 }, { '6,0': TerrainCellSchema.parse({ dark: true }) })
       expect(visionOf(holding(far, 'o'))).toBe('total')
+    })
+  })
+
+  // combat.tex "Darkness and light": "Dim light means partial impairment";
+  // gear.tex "Darkseeing": "Allows seeing in dim light at high quality".
+  describe('in dim light', () => {
+    const dusk = (() => {
+      const state = fight({ cell: origin, orientation: 0 }, { q: 3, r: 0 })
+      return { ...state, board: { ...state.board!, light: 'dim' as const } }
+    })()
+
+    it('sees a target only partly', () => {
+      expect(visionOf(dusk)).toBe('partial')
+    })
+
+    it('sees a target clearly with darkseeing', () => {
+      const drunk = { ...dusk, characters: { ...dusk.characters, o: { ...dusk.characters.o, active: [{ kind: 'potion' as const, key: 'darkseeing' }] } } }
+      expect(visionOf(drunk)).toBe('none')
     })
   })
 

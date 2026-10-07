@@ -119,6 +119,9 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     case 'move': return moveTriggers(state, root)
     case 'cast': return castTriggers(state, root)
     case 'pickUp': return pickUpTriggers(state, root)
+    // combat.tex "Opportunity Attack": a standard action, as drinking is
+    // (gear.tex "Potions and Medicine")
+    case 'drink': return opportunityTriggers(state, root.actorId)
     case 'throw': return opportunityTriggers(state, root.actorId)
     case 'grapple': return grappleTriggers(root)
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]

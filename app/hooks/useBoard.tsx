@@ -1,8 +1,8 @@
-import type { Coord } from "../domain/combat/types";
+import type { Coord, LightLevel } from "../domain/combat/types";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest } from "../domain/combat/projections/boardView";
 import { resolveClick } from "../domain/combat/commands/click";
-import { createBoard } from "../domain/combat/commands/board";
+import { createBoard, setLight } from "../domain/combat/commands/board";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
@@ -23,6 +23,7 @@ export function useBoard() {
   const clickFloorItem = (itemId: string) => click({ on: 'floor', itemId });
   const place = (id: string) => setActiveCharacter(id);
   const turn = () => click({ on: 'turn' });
+  const light = (level: LightLevel) => update(setLight(level));
 
-  return { view, create, clickCell, clickToken, clickFloorItem, place, turn } as const;
+  return { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } as const;
 }

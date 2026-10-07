@@ -122,7 +122,8 @@ click to what stands afterwards. It is admitted, under these terms.
   property is the architecture (the view is what the board is drawn from), not the code.
   It checks that two paths agree, not that either is right.
 - **A fuzzer for breadth.** `board.fuzz.test.ts` presses everything there is to press, in
-  seeded random order: every click, every panel command, terrain painted by brush. After each
+  seeded random order: every click, every panel command, terrain painted by brush, the
+  board's light switched. After each
   press it asserts what the architecture promises of any session and nothing about a rule's
   output: nothing throws, the state is one the schema accepts and storage round-trips, the
   active and in-turn characters are in the fight, no two footprints share a cell, the board
@@ -134,9 +135,9 @@ click to what stands afterwards. It is admitted, under these terms.
   declared has been taken back.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
-  a spell, a target clicked, a landing clicked) so that an action gets as far as being rolled.
+  a spell, a potion, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, a
-  spearman, a trained warden with spear and shield, a mage, a bomber, a netter) and a crowd of
+  spearman, a trained warden with spear and shield, a mage, a bomber with a potion, a netter) and a crowd of
   seven on ground with a pond and a cliff painted on it, once in the open and once with walls,
   fog, dim and dark ground between them and a torch in one hand, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever

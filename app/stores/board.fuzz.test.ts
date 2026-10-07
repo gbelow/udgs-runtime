@@ -16,7 +16,7 @@ import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
 import { rollHeld } from '../domain/combat/commands/heldTest'
 import { getHeldRows } from '../domain/combat/projections/heldTests'
-import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
+import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
 import { archer, bomber, brawler, mage, netter, spearman, torchbearer, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
@@ -73,6 +73,8 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (spell && !panel().open?.spell) h.press(chooseSpell(spell.key, false))
   const thrown = first(panel().open?.floor.filter((f) => f.available) ?? [])
   if (thrown && getOpenAction(h.state())?.kind === 'throw' && !panel().open?.item) h.press(amendAction({ itemId: thrown.itemId }))
+  const potion = first(panel().open?.potions ?? [])
+  if (potion && !panel().open?.item) h.press(amendAction({ itemId: potion.itemId }))
   const gear = first(panel().gear)
   if (gear && getOpenAction(h.state())?.kind === 'cast') h.press(amendAction({ itemId: gear.itemId }))
   const target = first(h.view().tokens.filter((t) => t.targetable))
@@ -153,6 +155,7 @@ function plays(): Play[] {
       },
     },
     { name: 'paint a cell', run: (h, pick) => { const cells = h.view().cells; if (!cells.length) return; h.holdBrush(pick(TERRAIN_BRUSHES)); h.click({ on: 'cell', cell: pick(cells).cell }); h.holdBrush(null) } },
+    { name: 'set the light', run: (h, pick) => h.light(pick(LIGHT_LEVELS)) },
     { name: 'click a token', run: (h, pick) => h.token(pick(names(h))) },
     { name: 'click a floor item', run: (h, pick) => { const floor = h.view().floor; if (floor.length) h.floor(pick(floor).itemId) } },
     { name: 'click turn', run: (h) => h.turn() },
@@ -201,6 +204,7 @@ function plays(): Play[] {
     { name: 'pick a movement', run: (h, pick) => { const moves = getActionPanel(h.state()).moves.filter((m) => m.available); if (moves.length) h.press(amendAction({ movement: pick(moves).kind })) } },
     { name: 'pick a maneuver', run: (h, pick) => h.press(amendAction({ maneuver: pick(GRAPPLE_MANEUVERS) })) },
     { name: 'choose a spell', weight: 3, run: (h, pick) => { const spells = getActionPanel(h.state()).spells.filter((s) => s.castable || s.quickenable); if (spells.length) { const s = pick(spells); h.press(chooseSpell(s.key, !s.castable || (s.quickenable && pick([true, false])))) } } },
+    { name: 'pick a potion', run: (h, pick) => { const potions = getActionPanel(h.state()).open?.potions ?? []; if (potions.length) h.press(amendAction({ itemId: pick(potions).itemId })) } },
     { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.press(amendAction({ itemId: pick(gear).itemId })) } },
     { name: 'extend a spell', run: (h, pick) => h.press(stepExtend(pick([1, -1] as const))) },
     { name: 'accept a spell test', run: (h) => h.press(acceptSpellTest(h.newId)) },
@@ -550,7 +554,7 @@ const DUELS = [
   { name: 'a netter and a warden', a: netter, b: warden, apart: 2 },
 ]
 
-const duelPlays = () => plays().filter((p) => !['paint a cell', 'drop a held item', 'take a whole action'].includes(p.name))
+const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'drop a held item', 'take a whole action'].includes(p.name))
 
 function playDuel(duel: (typeof DUELS)[number], seed: number) {
   const rng = seededRng(seed)

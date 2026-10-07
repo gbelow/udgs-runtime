@@ -7,12 +7,12 @@ import { getSenseBonus } from '../../character/lenses/senses'
 import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
-import { directionTo, parseCoordKey, sameCell, setDistance } from '../geometry'
+import { directionTo, disk, parseCoordKey, sameCell, setDistance } from '../geometry'
 import { getDistanceBetween, getPlacedFootprint, hasLineOfSight } from './board'
 import { getCellHazard, getHazardAt, getHazardOf } from './hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './waypoint'
-import { isUnlit } from './light'
+import { getLightAt, getLightOf, isUnlit, seesInDimLight } from './light'
 import { getAction } from './log'
 
 // combat.tex "Detection": what an observer's senses take in of a target, and
@@ -65,18 +65,20 @@ const byRange: Impair = (state, o, t, range) => {
 
 // combat.tex "Vision": how much of what stands on `at` an eye on `from`
 // takes in, the ground between aside. "Darkness and light": "Anyone in the
-// light radius is visible and anyone out is not"; "Visibility": bad
+// light radius is visible and anyone out is not. Dim light means partial
+// impairment", unless the eye sees clearly in it; "Visibility": bad
 // visibility is partial, none is nothing to target; "Fog and smoke": whoever
 // stands in it sees no further than its radius, and others inside within it
 // are in bad visibility.
-function seeInto(state: CombatState, from: Coord[], at: Coord[]): Impairment {
-  if (at.every((cell) => isUnlit(state, cell))) return 'total'
+function seeInto(state: CombatState, from: Coord[], at: Coord[], dimSighted: boolean): Impairment {
+  const light = getLightAt(state, at)
+  if (light === 'dark') return 'total'
   const near = setDistance(from, at) <= FOG_VISION_RADIUS
   const inFog = getHazardAt(state, from).visibility === 'zero'
   const there = getHazardAt(state, at).visibility
   if (there === 'zero') return inFog && near ? 'partial' : 'total'
   if (inFog && !near) return 'total'
-  return there === 'bad' ? 'partial' : 'none'
+  return there === 'bad' || (light === 'dim' && !dimSighted) ? 'partial' : 'none'
 }
 
 // combat.tex "Sensory impairment": how much of the target a sense takes in
@@ -91,7 +93,8 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
     if (!hasLineOfSight(state, o, t)) return 'total'
     const from = getPlacedFootprint(state, o)
     const at = getPlacedFootprint(state, t)
-    const seen = from && at ? seeInto(state, from, at) : 'none'
+    const observer = state.characters[o]
+    const seen = from && at ? seeInto(state, from, at, !!observer && seesInDimLight(observer)) : 'none'
     return seen === 'none' && isCamouflaged(state, t) ? 'partial' : seen
   },
   // combat.tex "Hearing": "triggered by a sound event"; nothing on the board
@@ -132,7 +135,7 @@ const isBeyond: TotalInto = (_, from, at, range) => range !== null && setDistanc
 // whoever stood on `at` — `IMPAIRMENTS` of a place rather than a target,
 // line of sight left out.
 const TOTAL_INTO: Record<keyof Senses, TotalInto> = {
-  vision: (state, from, at) => seeInto(state, from, at) === 'total',
+  vision: (state, from, at) => seeInto(state, from, at, false) === 'total',
   hearing: () => false,
   smell: isBeyond,
   touch: isBeyond,
@@ -141,19 +144,17 @@ const TOTAL_INTO: Record<keyof Senses, TotalInto> = {
 
 // combat.tex "Morale", "Sensory limitation": whether there is ground within
 // `radius` metres of the character that every active sense they can use is
-// totally impaired into. Only painted ground can be such; off the board,
-// none is.
+// totally impaired into. Only painted ground can be such, or any ground on a
+// dark board; off the board, none is.
 export function isNearBlindGround(state: CombatState, id: string, radius: number): boolean {
   const c = state.characters[id]
   const from = getPlacedFootprint(state, id)
   const terrain = state.board?.terrain
   if (!c || !from || !terrain) return false
   const senses = (Object.keys(TOTAL_INTO) as (keyof Senses)[]).filter((s) => c.senses[s].active && canUse(state, c, s))
-  return Object.keys(terrain).some((key) => {
-    const cell = parseCoordKey(key)
-    return !!cell && setDistance(from, [cell]) <= radius && isBlindingGround(state, cell)
-      && senses.every((s) => TOTAL_INTO[s](state, from, [cell], c.senses[s].range))
-  })
+  const cells = state.board?.light === 'dark' ? from.flatMap((at) => disk(at, radius)) : Object.keys(terrain).flatMap((key) => parseCoordKey(key) ?? [])
+  return cells.some((cell) => setDistance(from, [cell]) <= radius && isBlindingGround(state, cell)
+    && senses.every((s) => TOTAL_INTO[s](state, from, [cell], c.senses[s].range)))
 }
 
 // The sensory penalty of relying on a sense, a positive magnitude: its own
@@ -170,7 +171,7 @@ export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boole
 // sense to awareness in detection tests. Any sensory penalties to a sense are
 // added too": the skill, the sense's own bonus, what afflictions take off it
 // and, for vision partly impaired, the bad visibility it is impaired by — the
-// ground's, or the camouflage's degree, whichever hides the target better.
+// ground's or the dim light's, or the camouflage's degree, whichever hides the target better.
 // The sense's own penalty is not among them: it weighs on what is done
 // relying on it (the table's ruling). Combat keeps no distance bands.
 function getDetectionTermsThrough(state: CombatState, observer: Character, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
@@ -178,17 +179,20 @@ function getDetectionTermsThrough(state: CombatState, observer: Character, targe
     ...getDetectionTerms(observer),
     { label: sense, value: getSenseBonus(observer, sense) },
     { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
-    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, targetId) : 0 },
+    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer.id, targetId) : 0 },
   ]
 }
 
-// The bad visibility a partly seen target is in: the ground's, or the
-// degree of their camouflage, whichever is the worse for the observer.
-function getVisibilityTerm(state: CombatState, targetId: string): number {
+// The bad visibility a partly seen target is in: the ground's or the dim
+// light's, or the degree of their camouflage, whichever is the worse for the
+// observer.
+function getVisibilityTerm(state: CombatState, observerId: string, targetId: string): number {
   const target = state.characters[targetId]
   const camouflage = target ? getCamouflage(target) : null
   const ground = getHazardOf(state, targetId).visibility
-  const sources = [...(ground === 'bad' || ground === 'zero' ? [BAD_VISIBILITY_PENALTY] : []), ...(camouflage === null ? [] : [-camouflage])]
+  const observer = state.characters[observerId]
+  const dim = getLightOf(state, targetId) === 'dim' && !(observer && seesInDimLight(observer))
+  const sources = [...(ground === 'bad' || ground === 'zero' || dim ? [BAD_VISIBILITY_PENALTY] : []), ...(camouflage === null ? [] : [-camouflage])]
   return sources.length === 0 ? 0 : Math.min(...sources)
 }
 

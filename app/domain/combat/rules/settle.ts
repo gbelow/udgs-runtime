@@ -51,6 +51,7 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }
     }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
+    case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && i.potion !== null) ?? null }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
     case 'slip':
     case 'feint':

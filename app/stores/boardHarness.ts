@@ -1,9 +1,9 @@
 import type { Dice } from '../domain/combat/dice'
 import type { TerrainBrush } from '../domain/types'
-import { CombatStateSchema, type ActionDraft, type CombatState, type Updater } from '../domain/combat/types'
+import { CombatStateSchema, type ActionDraft, type CombatState, type LightLevel, type Updater } from '../domain/combat/types'
 import { getBoardView, type BoardView } from '../domain/combat/projections/boardView'
 import { resolveClick, type Click } from '../domain/combat/commands/click'
-import { createBoard } from '../domain/combat/commands/board'
+import { createBoard, setLight } from '../domain/combat/commands/board'
 import { amendAction, commitAction, declareAction } from '../domain/combat/commands/action'
 import { startTurn } from '../domain/combat/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
@@ -50,6 +50,7 @@ export function openHarness(dice: Dice = () => 5) {
     // the sidebar: bring a character into the fight, and the board into being
     bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCombatStore.getState().loadCharacter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
     createBoard: (radius: number) => press(createBoard(radius)),
+    light: (level: LightLevel) => press(setLight(level)),
 
     // the board
     cell: (q: number, r: number) => click({ on: 'cell', cell: { q, r } }),

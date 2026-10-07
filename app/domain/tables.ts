@@ -163,6 +163,14 @@ export const REACH: Record<MeleeRange, number> = {
 // anyone targeting them".
 export const BAD_VISIBILITY_PENALTY = -2
 
+// spells.tex "Lamp", "Revealing Light": the light radius, in metres, a cast
+// leaves in its alchemical torch for the rest of the fight (the table's
+// ruling for "1 ET").
+export const SPELL_LIGHT: Record<string, number> = {
+  lamp: 5,
+  'revealing-light': 10,
+}
+
 // combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
 // inside of it to 2m by default".
 export const FOG_VISION_RADIUS = 2
