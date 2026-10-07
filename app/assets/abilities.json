@@ -7508,7 +7508,7 @@
         "karma": 12,
         "talent": [],
         "requirements": [],
-        "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense. This is not as good as vision as a dominant sense, so it leaves the character disoriented when used as the only active sense. This does not work in complete silence.",
+        "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense, but take -2 sensory penalty when doing so.",
         "effect": [],
         "recipes": [],
         "grants": []

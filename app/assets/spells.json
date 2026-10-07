@@ -1042,7 +1042,7 @@
     "ammo": 0,
     "duration": "none",
     "durationETs": 0,
-    "description": "Produces a powerful flash that makes anyone within the area that tries to target the character disoriented if they use vision as active sense.",
+    "description": "Produces a powerful flash that makes anyone within the area that tries to target the character offuscated if they use vision as active sense.",
     "enhance": "",
     "test": null,
     "outcomes": null,
