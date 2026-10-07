@@ -48,9 +48,8 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
 // stealth value until the end of the turn" — counted only for what the
 // turn's holder does in it, at the price it was paid.
 function noteNoise(state: CombatState, turns: CombatState['stealthTurns'], action: Action): CombatState['stealthTurns'] {
-  const c = state.characters[action.actorId]
-  if (!c || action.turn !== state.turn) return turns
-  const noise = getNoise(c, action, action.cost?.AP ?? 0)
+  if (action.turn !== state.turn) return turns
+  const noise = getNoise(state, action, action.cost?.AP ?? 0)
   return turns.map((t) => (t.turn === action.turn && t.id === action.actorId ? { ...t, AP: t.AP + noise.AP, heardAP: t.heardAP + noise.heardAP } : t))
 }
 

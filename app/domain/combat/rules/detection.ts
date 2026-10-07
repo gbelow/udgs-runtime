@@ -4,7 +4,9 @@ import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
-import { hasAffliction } from '../../character/rules/afflictions'
+import { getAfflictedSense } from '../../character/rules/afflictions'
+import { getCamouflage } from '../../item/rules/items'
+import { getSituationalAfflictions } from './situational'
 import { directionTo, sameCell } from '../geometry'
 import { getDistanceBetween, hasLineOfSight } from './board'
 import { getHazardOf } from './hazard'
@@ -78,7 +80,7 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
     const there = getHazardOf(state, t).visibility
     if (there === 'zero') return inFog && near ? 'partial' : 'total'
     if (inFog && !near) return 'total'
-    return there === 'bad' ? 'partial' : 'none'
+    return there === 'bad' || isCamouflaged(state, t) ? 'partial' : 'none'
   },
   // combat.tex "Hearing": "triggered by a sound event"; nothing on the board
   // muffles one yet
@@ -90,29 +92,54 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
   synesthesia: byRange,
 }
 
+// combat.tex "Camouflage": "an item necessary to turn an area into a stealth
+// area with bad visibility for a camouflaged character" — whether the
+// character carries one. Matching it to the ground is the table's to judge.
+function isCamouflaged(state: CombatState, id: string): boolean {
+  const c = state.characters[id]
+  return !!c && getCamouflage(c) !== null
+}
+
 // combat.tex "Afflictions": "Blind: ... Cannot use vision", "Deaf: ... Cannot
 // use hearing".
-function canUse(c: Character, sense: keyof Senses): boolean {
-  if (!c.senses[sense].hasSense) return false
-  if (sense === 'vision') return !hasAffliction(c, 'blind')
-  if (sense === 'hearing') return !hasAffliction(c, 'deaf')
-  return true
+function canUse(state: CombatState, c: Character, sense: keyof Senses): boolean {
+  return c.senses[sense].hasSense && !getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).lost
+}
+
+// The sensory penalty of relying on a sense, a positive magnitude: its own
+// (combat.tex "Senses": "Sensory penalty -3, by default") and what
+// afflictions add to it ("Offuscated: -3 to sensory penalties when using
+// vision").
+export function getSensePenalty(state: CombatState, c: Character, sense: keyof Senses): number {
+  return c.senses[sense].penalty + getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).penalty
 }
 
 export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boolean; impairment: Exclude<Impairment, 'total'>; terms: Term[]; detection: number }
 
 // combat.tex "Detection": "A character adds the value of their best available
 // sense to awareness in detection tests. Any sensory penalties to a sense are
-// added too": the skill, the sense's own bonus and, for vision partly
-// impaired, the bad visibility it is impaired by. The sense's own penalty is
-// not among them: it weighs on what is done relying on it (the table's
-// ruling). Combat keeps no distance bands.
-function getDetectionTermsThrough(observer: Character, sense: keyof Senses, impairment: Impairment): Term[] {
+// added too": the skill, the sense's own bonus, what afflictions take off it
+// and, for vision partly impaired, the bad visibility it is impaired by — the
+// ground's, or the camouflage's degree, whichever hides the target better.
+// The sense's own penalty is not among them: it weighs on what is done
+// relying on it (the table's ruling). Combat keeps no distance bands.
+function getDetectionTermsThrough(state: CombatState, observer: Character, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
   return [
     ...getDetectionTerms(observer),
     { label: sense, value: getSenseBonus(observer, sense) },
-    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? BAD_VISIBILITY_PENALTY : 0 },
+    { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
+    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, targetId) : 0 },
   ]
+}
+
+// The bad visibility a partly seen target is in: the ground's, or the
+// degree of their camouflage, whichever is the worse for the observer.
+function getVisibilityTerm(state: CombatState, targetId: string): number {
+  const target = state.characters[targetId]
+  const camouflage = target ? getCamouflage(target) : null
+  const ground = getHazardOf(state, targetId).visibility
+  const sources = [...(ground === 'bad' || ground === 'zero' ? [BAD_VISIBILITY_PENALTY] : []), ...(camouflage === null ? [] : [-camouflage])]
+  return sources.length === 0 ? 0 : Math.min(...sources)
 }
 
 // Every sense of the observer that takes the target in at all, with how
@@ -122,11 +149,11 @@ export function getSenseReaches(state: CombatState, observerId: string, targetId
   const observer = state.characters[observerId]
   if (!observer || !state.characters[targetId] || observerId === targetId) return []
   return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).flatMap((sense) => {
-    if (!canUse(observer, sense)) return []
+    if (!canUse(state, observer, sense)) return []
     const { active, reactive, range } = observer.senses[sense]
     const impairment = IMPAIRMENTS[sense](state, observerId, targetId, range)
     if (impairment === 'total') return []
-    const terms = getDetectionTermsThrough(observer, sense, impairment)
+    const terms = getDetectionTermsThrough(state, observer, targetId, sense, impairment)
     return [{ sense, active, reactive, impairment, terms, detection: sumTerms(terms) }]
   })
 }

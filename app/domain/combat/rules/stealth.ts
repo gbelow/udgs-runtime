@@ -1,8 +1,10 @@
-import type { Character } from '../../types'
 import type { Action, CombatState, StealthTurn } from '../types'
 import { getArmor } from '../../character/rules/armor'
+import { isMuffled } from '../../item/rules/items'
+import { coordKey } from '../geometry'
+import { getPlacedFootprint } from './board'
 import { isDead } from '../../character/rules/afflictions'
-import { getSenseReaches, type SenseReach } from './detection'
+import { getSensePenalty, getSenseReaches, type SenseReach } from './detection'
 import { getTurnHolder } from './turn'
 import { getMoveDestination } from './waypoint'
 import { getDegree } from './test'
@@ -20,13 +22,24 @@ export type Noise = { AP: number; heardAP: number }
 // combat.tex "Actions in stealth": "Careful movement and crawling add no
 // penalty. All the other actions add -1 per AP spent", and "Hearing: Terrain
 // noise and gear noise" add again per AP to an ear (gear.tex "Noisy":
-// "penalizing stealth by -1 per AP during actions when worn"). Terrain makes
-// no noise yet.
-export function getNoise(c: Character, action: Action, AP: number): Noise {
+// "penalizing stealth by -1 per AP during actions when worn"; "Muffled
+// Boots": "Denies noise penalties from terrain"). The terrain is the
+// loudest the action stands on or walks across.
+export function getNoise(state: CombatState, action: Action, AP: number): Noise {
+  const c = state.characters[action.actorId]
+  if (!c) return { AP: 0, heardAP: 0 }
   const quiet = action.kind === 'move' && (action.movement === 'careful' || action.movement === 'crawl')
   const counted = quiet ? 0 : AP
-  const sources = getArmor(c).properties.includes('noisy') ? 1 : 0
-  return { AP: counted, heardAP: counted * sources }
+  const gear = getArmor(c).properties.includes('noisy') ? 1 : 0
+  const ground = isMuffled(c) ? 0 : getGroundNoise(state, action)
+  return { AP: counted, heardAP: counted * (gear + ground) }
+}
+
+function getGroundNoise(state: CombatState, action: Action): number {
+  const terrain = state.board?.terrain
+  if (!terrain) return 0
+  const cells = [...(getPlacedFootprint(state, action.actorId) ?? []), ...(action.kind === 'move' ? action.path : [])]
+  return Math.max(0, ...cells.map((cell) => terrain[coordKey(cell)]?.noise ?? 0))
 }
 
 // The round's stealth score of a character; null for one not tested.
@@ -101,11 +114,12 @@ export function getHiddenFrom(state: CombatState, id: string): string[] {
 
 // The sensory penalty of reacting to the actor through the least penalised
 // reactive sense of the reactor that takes them in, as a positive magnitude
-// (combat.tex "Senses": "Sensory penalty -3, by default"; the table's ruling:
-// it weighs on the reaction's own test, not on the detection). Zero for one
+// (combat.tex "Senses": "Sensory penalty -3, by default", and what
+// afflictions add; the table's ruling: it weighs on the reaction's own test). Zero for one
 // with no such sense, whom nothing else lets react.
 export function getReactionSensePenalty(state: CombatState, reactorId: string, actorId: string): number {
   const reactor = state.characters[reactorId]
-  const penalties = getSenseReaches(state, reactorId, actorId).filter((r) => r.reactive).map((r) => reactor?.senses[r.sense].penalty ?? 0)
+  if (!reactor) return 0
+  const penalties = getSenseReaches(state, reactorId, actorId).filter((r) => r.reactive).map((r) => getSensePenalty(state, reactor, r.sense))
   return penalties.length === 0 ? 0 : Math.min(...penalties)
 }

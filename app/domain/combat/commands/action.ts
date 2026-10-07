@@ -99,7 +99,7 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (needsTarget(open) && !isTargetAimed(state, open)) return state
     const cost = getPayableCost(state, open)
     if (!cost) return state
-    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), noise: getNoise(actor, open, cost.AP), step: 'react' }])
+    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, cost.AP), step: 'react' }])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
   }
 }

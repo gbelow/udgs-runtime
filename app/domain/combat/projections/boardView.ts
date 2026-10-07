@@ -1,5 +1,5 @@
 import type { Bind, CombatState, Coord, Degree, Placement } from '../types'
-import type { Fuel } from '../../types'
+import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
@@ -40,6 +40,10 @@ export type BoardCellView = {
   fire: number
   fuels: Fuel[]
   suffocating: boolean
+  // how well the cell is seen into (combat.tex "Visibility"), null for good,
+  // and the noise its ground makes per AP (combat.tex "Actions in stealth")
+  visibility: Visibility | null
+  noise: number
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -231,6 +235,8 @@ function buildBoardView(state: CombatState): BoardView {
       fire: hazard.fire,
       fuels: getCellFuels(state, cell),
       suffocating: hazard.suffocating,
+      visibility: hazard.visibility === 'good' ? null : hazard.visibility,
+      noise: terrain?.noise ?? 0,
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,

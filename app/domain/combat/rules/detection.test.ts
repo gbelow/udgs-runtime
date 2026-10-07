@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, PlacementSchema, TerrainCellSchema, type Board, type CombatState, type Coord, type Direction } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import type { CampaignCharacter } from '../../types'
+import { ItemSchema, type CampaignCharacter } from '../../types'
 import { DIRECTIONS, ROTATIONS, add } from '../geometry'
 import { getSenseReaches } from './detection'
 
@@ -63,6 +63,22 @@ describe('what an observer senses of a target', () => {
   it('sees a target in bad visibility only partly', () => {
     const dim = { '2,0': TerrainCellSchema.parse({ visibility: 'bad' }) }
     expect(visionOf(fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }, dim))).toBe('partial')
+  })
+
+  // combat.tex "Afflictions": "Blind: ... Cannot use vision".
+  it('does not see at all when blind', () => {
+    const state = fight({ cell: origin, orientation: 0 }, { q: 1, r: 0 })
+    const blind = { ...state, characters: { ...state.characters, o: { ...state.characters.o, afflictions: ['blind' as const] } } }
+    expect(sensesReaching(blind)).not.toContain('vision')
+  })
+
+  // combat.tex "Camouflage": "an item necessary to turn an area into a
+  // stealth area with bad visibility for a camouflaged character".
+  it('sees a camouflaged target in the open only partly', () => {
+    const state = fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 })
+    const cloak = ItemSchema.parse({ name: 'Camouflage', camouflage: -3 })
+    const hidden = { ...state, characters: { ...state.characters, t: { ...state.characters.t, held: [cloak] } } }
+    expect(visionOf(hidden)).toBe('partial')
   })
 
   it('reaches as it does on open ground when the fight has no board', () => {

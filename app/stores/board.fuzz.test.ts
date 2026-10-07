@@ -579,8 +579,8 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
 // so that a throw has someone to hit, a net someone to catch, a shot someone
 // to join, and a walk may end in the water or on the rock. With `walls`,
-// those cells are painted as walls too, so that some begin out of the
-// others' sight and stealth has someone to hide.
+// those cells are painted as walls too, with fog and dim ground beside them,
+// so that some begin out of the others' sight and stealth has someone to hide.
 function playCrowd(seed: number, walls: [number, number][] = []) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
@@ -591,7 +591,11 @@ function playCrowd(seed: number, walls: [number, number][] = []) {
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
   h.paint('raise', [[-3, 1], [-3, 2]], 2)
   h.paint('grip', [[-3, 1], [-3, 2]])
-  if (walls.length) h.paint('wall', walls)
+  if (walls.length) {
+    h.paint('wall', walls)
+    h.paint('fog', [[-2, -1], [-3, 0]])
+    h.paint('dim', [[1, 1], [2, 1]])
+  }
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
     h.select(name)
     h.cell(q, r)

@@ -168,3 +168,10 @@ export function getIT(_c: CampaignCharacter){
 export function getMentalAfflictionPenalty(c: Character): number {
   return getAfflictions(c).reduce((total: number, key) => total + (AFFLICTIONS[key].mental ?? 0), 0)
 }
+
+// combat.tex "Afflictions": what the character's afflictions do to a sense —
+// whether they have lost it, and the sensory penalty they add to relying on it.
+export function getAfflictedSense(c: Character, sense: string, situational: readonly AfflictionKey[] = []): { lost: boolean; penalty: number } {
+  const hits = getAfflictions(c, situational).map((key) => AFFLICTIONS[key].sense).filter((s) => s?.key === sense)
+  return { lost: hits.some((s) => s?.lost), penalty: hits.reduce((sum, s) => sum + (s?.penalty ?? 0), 0) }
+}

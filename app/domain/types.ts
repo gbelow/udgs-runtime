@@ -329,6 +329,13 @@ export const ItemSchema = z.object({
   // gear.tex "Special Items": a flask that breaks where it lands and coats the
   // space in this fuel
   fuel: FuelSchema.nullable().default(null),
+  // combat.tex "Camouflage": what the item adds to its bearer's stealth
+  // against vision, carried, as the bad visibility it makes of them; null for
+  // an item that is no camouflage (gear.tex "Camouflage for X": "In combat,
+  // gives -3 penalty to stealth, but allows stealth against vision")
+  camouflage: num.nullable().default(null),
+  // gear.tex "Muffled Boots": "Denies noise penalties from terrain"
+  muffles: z.boolean().default(false),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),

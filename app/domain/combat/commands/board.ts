@@ -59,7 +59,9 @@ export function turnCharacter(id: string): Updater {
 // damage"), `deepen` and `shoal` the depth of its water and `harder` and
 // `easier` the DL of its balance or swimming test (combat.tex "Balance",
 // "Swimming"), `grip` and `slip` the DL of climbing its face, starting from an
-// easy climb, and `bare` leaves it nothing to hold (combat.tex "Climbing"); the others set what the cell is, and `clear` returns it to
+// easy climb, and `bare` leaves it nothing to hold (combat.tex "Climbing");
+// `dim` and `fog` toggle bad and zero visibility (combat.tex "Visibility"),
+// `louder` and `quieter` step its noise (combat.tex "Actions in stealth"); the others set what the cell is, and `clear` returns it to
 // open ground by forgetting it, putting out whatever burns or hangs there.
 export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
   return (state) => {
@@ -81,6 +83,10 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
         case 'grip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL + 1 }
         case 'slip': return { ...current, climbDL: current.climbDL === null ? CLIMB_EASY_DL : current.climbDL - 1 }
         case 'bare': return { ...current, climbDL: null }
+        case 'dim': return { ...current, visibility: current.visibility === 'bad' ? 'good' as const : 'bad' as const }
+        case 'fog': return { ...current, visibility: current.visibility === 'zero' ? 'good' as const : 'zero' as const }
+        case 'louder': return { ...current, noise: current.noise + 1 }
+        case 'quieter': return { ...current, noise: Math.max(0, current.noise - 1) }
         case 'clear': return null
       }
     })()

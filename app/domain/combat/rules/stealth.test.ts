@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, PlacementSchema, TerrainCellSchema, type CombatState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
-import type { CampaignCharacter } from '../../types'
+import { ItemSchema, type CampaignCharacter } from '../../types'
 import { amendAction, commitAction, declareAction, setTarget } from '../commands/action'
 import { beginTurn } from '../commands/sequence'
 import { nextRound } from '../commands/nextRound'
@@ -108,5 +108,29 @@ describe('a turn\'s noise', () => {
   it('counts every AP paid for any other action', () => {
     const { counted, paid } = walked('basic')
     expect(counted).toBe(paid)
+  })
+})
+
+// combat.tex "Actions in stealth": "Some features can change how much penalty
+// per AP is gained. Hearing: Terrain noise and gear noise"; gear.tex "Muffled
+// Boots": "Denies noise penalties from terrain".
+describe('noisy ground', () => {
+  const walkedOn = (boots: boolean) => {
+    const loud = { '1,0': TerrainCellSchema.parse({ noise: 2 }) }
+    const start = hiddenWith(fight({ q: 10, r: 0 }, { q: 0, r: 0 }, loud), 100)
+    const shod = boots ? { ...start, characters: { ...start.characters, t: { ...start.characters.t, held: [ItemSchema.parse({ name: 'Muffled Boots', muffles: true })] } } } : start
+    const state = beginTurn(shod, 't')
+    const moved = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
+    const move = moved.record.find((a) => a.kind === 'move')
+    return { heard: getStealthTurn(moved)?.heardAP, paid: move?.cost?.AP ?? 0 }
+  }
+
+  it('is heard again for every AP walked across it', () => {
+    const { heard, paid } = walkedOn(false)
+    expect(heard).toBe(paid * 2)
+  })
+
+  it('is not heard under muffled boots', () => {
+    expect(walkedOn(true).heard).toBe(0)
   })
 })

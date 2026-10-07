@@ -93,8 +93,22 @@ function getDrawnTriggers(state: CombatState, root: RootAction): Trigger[] {
 // combat.tex "Actions in stealth": "The stealthy character cannot be reacted
 // against, unless their stealth value grazes or misses against the reactor's
 // detection."
+// A trample's answers are noticed where the path comes into the one who
+// answers.
 function canReactTo(state: CombatState, root: RootAction, trigger: Trigger): boolean {
-  return notices(state, trigger.characterId, root.actorId, root, trigger.at)
+  const at = trigger.at ?? (root.kind === 'move' ? getEnteringStep(state, root, trigger.characterId) : null)
+  return notices(state, trigger.characterId, root.actorId, root, at)
+}
+
+// The step of the move's path (counted from 1) that first comes into the
+// character's space, null for one it never does.
+function getEnteringStep(state: CombatState, root: MoveAction, id: string): number | null {
+  const mover = state.characters[root.actorId]
+  const from = state.board?.placements[root.actorId]
+  const other = getPlacedFootprint(state, id)
+  if (!mover || !from || !other) return null
+  const step = root.path.findIndex((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))
+  return step === -1 ? null : step + 1
 }
 
 function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
@@ -333,7 +347,7 @@ function moveTriggers(state: CombatState, root: MoveAction): Trigger[] {
     // costs 2 AP to allow free passage", or braces for the crash ("The
     // target can spend 2AP+1STA to get +3"). "Is prone: free passage":
     // nothing to answer.
-    if (isTrampleable(state, id) && path.some((cell) => getFootprint(mover, { ...from, cell }).some((f) => other.some((o) => sameCell(f, o))))) {
+    if (isTrampleable(state, id) && getEnteringStep(state, root, id) !== null) {
       triggers.push({ characterId: id, kind: 'evade', at: null }, { characterId: id, kind: 'brace', at: null })
     }
     const distances = getPathDistances(mover, [from, ...path.map((cell) => ({ ...from, cell }))], other)

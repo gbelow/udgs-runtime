@@ -164,6 +164,9 @@ export const TerrainCellSchema = z.object({
   // of the grips and the distance between holds"; null is a face with nothing
   // to hold, which only a climb no taller than the climber can cross
   climbDL: num.nullable().default(null),
+  // combat.tex "Actions in stealth": "Hearing: Terrain noise" — what each AP
+  // spent on it adds again to an ear, as a positive magnitude
+  noise: num.default(0),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>

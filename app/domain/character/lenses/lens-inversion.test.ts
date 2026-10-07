@@ -127,7 +127,7 @@ function afflicted(): CampaignCharacter {
     size: 5,
     hasHelm: 1,
     hasGauntlets: 1,
-    afflictions: ['disoriented', 'confused'],
+    afflictions: ['offuscated', 'confused'],
     injuries: { ...base.injuries, injuryLevel: 25 },
   }
 }

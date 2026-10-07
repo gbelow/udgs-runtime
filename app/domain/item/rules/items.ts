@@ -152,6 +152,19 @@ export function getCarriedItems(c: Character): Item[] {
   return within([...c.held, ...(c.worn ? [c.worn] : []), ...Object.values(c.containers).flatMap(getContents)])
 }
 
+// combat.tex "Camouflage": the best stealth against vision the character's
+// camouflage gives them, null for one carrying none.
+export function getCamouflage(c: Character): number | null {
+  const worn = getCarriedItems(c).flatMap((item) => (item.camouflage === null ? [] : [item.camouflage]))
+  return worn.length === 0 ? null : Math.max(...worn)
+}
+
+// gear.tex "Muffled Boots": whether the character's steps make no noise of
+// the terrain's.
+export function isMuffled(c: Character): boolean {
+  return getCarriedItems(c).some((item) => item.muffles)
+}
+
 function getContents(container: Container): Item[] {
   return Object.values(container.slots).flatMap((slot) => slot.items)
 }

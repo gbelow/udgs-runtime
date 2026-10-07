@@ -42,10 +42,7 @@ export function getAggravators(state: CombatState, id: string): Term[] {
   const c = state.characters[id]
   if (!c) return []
   const { hostile, rally, insult } = getPressure(state, id)
-  const afflictions = getAfflictions(c, getSituationalAfflictions(state, id))
   const terms: Term[] = []
-  if (afflictions.includes('oblivious')) terms.push({ label: 'oblivious', value: MORALE_AGGRAVATORS.oblivious })
-  else if (afflictions.includes('disoriented')) terms.push({ label: 'disoriented', value: MORALE_AGGRAVATORS.disoriented })
   const injury = getInjuryPenalty(c)
   if (injury > 0) terms.push({ label: 'injured', value: MORALE_AGGRAVATORS.injured * injury })
   if (c.injuries.burning > 0 || isSuffocating(state, c)) terms.push({ label: 'burning or suffocating', value: MORALE_AGGRAVATORS.burning })
