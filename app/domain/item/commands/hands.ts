@@ -219,6 +219,12 @@ export function dischargeItem(itemId: string): HeldUpdater {
   return <C extends Character>(c: C): C => (getHeldItem(c, itemId)?.charge ? { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, charge: null } : i)) } : c)
 }
 
+// gear.tex "Reload": what a held weapon is loaded with, or null once it is
+// fired and left empty.
+export function loadItem(itemId: string, loaded: Item['loaded']): HeldUpdater {
+  return changeReadyUnit(itemId, (i) => ({ ...i, loaded }))
+}
+
 // combat.tex "Throw": what is thrown leaves the hand, and one unit of a held
 // stack is gone — thrown, or gone off where it stood. The last one takes the
 // stack with it; there is no floor yet, so it lands nowhere. The charge went

@@ -1,15 +1,16 @@
 import type { CampaignCharacter } from '../../types'
-import { HazardLayerSchema, TerrainCellSchema, type Action, type AttackAction, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type Tether, type Trample } from '../types'
+import { HazardLayerSchema, TerrainCellSchema, type Action, type AttackAction, type Board, type CombatState, type FloorItem, type Bind, type Grapple, type GrappleFacts, type MoveAction, type Placement, type ShootAction, type Tether, type Trample } from '../types'
 import { getFootprint, placeAt } from '../rules/board'
 import { getDepthAfter, readWater } from '../rules/swim'
 import { payCost } from '../../character/commands/cost'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { deliver, deliverAll, touchFire } from '../../character/commands/deliver'
-import { chargeItem, consumeItem, dischargeItem, drawFromSource, dropItem, holdItem } from '../../item/commands/hands'
+import { chargeItem, consumeItem, dischargeItem, drawFromSource, dropItem, holdItem, loadItem } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
 import { findAmmoStack } from '../../item/rules/ammo'
 import { removeItemFromContainer } from '../../item/commands/items'
 import { findWeaponRow } from '../rules/weaponRow'
+import { needsReload } from '../../character/rules/gear'
 import { getAttackKind } from '../../weaponProperties'
 import { breakOne, onFloor, withoutOne } from '../rules/floor'
 import { isFloorAttack } from '../rules/equipment'
@@ -148,6 +149,9 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           return { ...drunk, active: [...drunk.active.filter((e) => !(e.kind === 'potion' && e.key === potion)), { kind: 'potion', key: potion }] }
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
+        // gear.tex "Reload": one arrow or bolt leaves its stack and waits in
+        // the weapon
+        if (action.kind === 'reload') return c.id === action.actorId && action.loaded ? loadItem(action.weaponKey, action.loaded)(spendAmmo(c, action.ammoId)) : c
         // combat.tex "Throw": one of what was thrown leaves whichever hand it
         // was thrown from; one thrown off the floor was never in it
         if (action.kind === 'throw') return c.id === action.actorId && action.thrown && c.held.some((i) => i.id === action.itemId) ? consumeItem(action.itemId)(c) : c
@@ -167,7 +171,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
             return price ? payCost(price)(acc) : acc
           }, discharged)
           // combat.tex "Throw": what is thrown leaves the hand
-          if (action.kind === 'shoot') return spendAmmo(releaseThrown(paid, action.weaponKey, action.attack), action.ammoId)
+          if (action.kind === 'shoot') return spendShot(releaseThrown(paid, action.weaponKey, action.attack), action)
           // combat.tex "Braced Attack": the crash it triggers, the mover the
           // blow met against the bracer
           return action.trample ? trampledBy([action.trample], paid) : paid
@@ -191,7 +195,13 @@ function releaseThrown(c: CampaignCharacter, weaponKey: string, attack: string):
 }
 
 // gear.tex "Quiver": the shot takes one arrow or bolt from the stack it was
-// loaded from, and it is gone.
+// loaded from, and it is gone; gear.tex "Reload": a row that is reloaded
+// fires what was loaded in it, and leaves the weapon empty.
+function spendShot(c: CampaignCharacter, action: ShootAction): CampaignCharacter {
+  const row = findWeaponRow(c, action.weaponKey, action.attack)
+  return row && needsReload(row.atk) ? loadItem(row.wielded.itemId, null)(c) : spendAmmo(c, action.ammoId)
+}
+
 function spendAmmo(c: CampaignCharacter, ammoId: string): CampaignCharacter {
   const stack = findAmmoStack(c, ammoId)
   return stack ? { ...c, containers: removeItemFromContainer(stack.containerKey, ammoId, 1)(c).containers } : c

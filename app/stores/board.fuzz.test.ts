@@ -18,7 +18,7 @@ import { rollHeld } from '../domain/combat/commands/heldTest'
 import { getHeldRows } from '../domain/combat/projections/heldTests'
 import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema, type Character } from '../domain/types'
-import { archer, bomber, brawler, mage, netter, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { archer, bomber, crossbowman, brawler, mage, netter, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
 
@@ -376,10 +376,10 @@ describe('pressing everything on the board, in any order', () => {
 })
 
 // Fights where each turn is an exchange: one character declares something
-// likelier to be a grapple, a push, a shot, a throw or a spell than a walk,
+// likelier to be a grapple, a push, a shot or its reload, a throw or a spell than a walk,
 // the others answer with whatever defences are offered, and the roll runs on
 // to its end, taking up whatever it opens.
-const LEANING = ['grapple', 'push', 'drag', 'shoot', 'strike', 'cast', 'fireAgain', 'throw', 'cut', 'slip', 'release', 'holdBack', 'fall', 'pickUp']
+const LEANING = ['grapple', 'push', 'drag', 'shoot', 'reload', 'strike', 'cast', 'fireAgain', 'throw', 'cut', 'slip', 'release', 'holdBack', 'fall', 'pickUp']
 
 // Answers the committed action with up to `tries` of the defences offered to
 // anyone, a kind at a time so the rarer ones are not drowned by the many
@@ -578,6 +578,7 @@ const DUELS = [
   { name: 'two archers across a pane that breaks', a: archer, b: archer, apart: 3, pane: [2, 0] as [number, number] },
   { name: 'a brawler and an archer', a: brawler, b: archer, apart: 2 },
   { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
+  { name: 'a spearman and a crossbowman', a: spearman, b: crossbowman, apart: 3 },
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a tower warden and a trained archer', a: towerWarden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },

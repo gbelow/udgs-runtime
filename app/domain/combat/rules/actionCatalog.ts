@@ -144,6 +144,9 @@ export const ACTIONS = {
   throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false },
   // gear.tex "Potions and Medicine": a held potion, at a standard action's price
   drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false },
+  // gear.tex "Reload": priced by the row it loads; part of the shot (the
+  // table's ruling)
+  reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' } },
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
   extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
   // combat.tex "Rest"

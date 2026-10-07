@@ -123,6 +123,9 @@ function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {
     // (gear.tex "Potions and Medicine")
     case 'drink': return opportunityTriggers(state, root.actorId)
     case 'throw': return opportunityTriggers(state, root.actorId)
+    // a reload is part of the shot, which is a ranged attack (the table's
+    // ruling)
+    case 'reload': return opportunityTriggers(state, root.actorId)
     case 'grapple': return grappleTriggers(root)
     case 'drag': return [...dragAnswers(state, root), ...dragOpportunities(state, root)]
     // muffling a fire draws no opportunity attack

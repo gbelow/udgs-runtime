@@ -24,7 +24,9 @@ import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepu
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getOpenAction, getReactionsTo } from './log'
-import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, hasUnfocusedRow, hasUnloadedRow } from './attack'
+import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
+import { getReloadBar, getReloadRows } from './reload'
+import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
@@ -271,7 +273,7 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
       case 'joinShot': {
         const shots = getFreeAttackOptions(state, c, 'shoot')
         const reaching = shots.filter((s) => isJoinInRange(state, c.id, s, trigger.against ?? ''))
-        const reason = shots.length === 0 ? (hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge' : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot' : 'no shooting weapon in hand')
+        const reason = shots.length === 0 ? getRowBar(c, 'shoot')
           : reaching.length === 0 ? 'out of range'
           : reaching.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a shot'
         return [answer({ kind }, null, gate ?? reason)]
@@ -313,10 +315,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   strike: (state, c) => [option({ kind: 'strike' }, null, getFreeAttackOptions(state, c, 'strike').length > 0 ? null : 'no melee weapon in hand')],
   shoot: (state, c) => {
     const shots = getFreeAttackOptions(state, c, 'shoot')
-    const reason = shots.length > 0 ? null
-      : hasUnfocusedRow(c, 'shoot') ? 'needs a focus surge'
-      : hasUnloadedRow(c, 'shoot') ? 'no arrows or bolts in a quick slot'
-      : 'no shooting weapon in hand'
+    const reason = shots.length > 0 ? null : getRowBar(c, 'shoot')
     return [option({ kind: 'shoot' }, null, reason)]
   },
   move: (state, c) => {
@@ -405,6 +404,9 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const reason = getHeldPotions(c).length === 0 ? 'no potion in hand' : canAfford(c, cost) ? null : 'cannot afford'
     return [option({ kind: 'drink' }, cost, reason)]
   },
+  // gear.tex "Reload": each row in hand that is reloaded, at its own price
+  reload: (state, c) => getReloadRows(c).map((row) =>
+    option({ kind: 'reload', weaponKey: row.wielded.key, attack: row.atk.name }, getReloadCost(row.atk, c), getReloadBar(state, c, row))),
   // combat.tex "Fire": a burning space the actor stands in or is next to
   extinguish: (state, c) => {
     const cost = getActionCost(c, 'extinguish')

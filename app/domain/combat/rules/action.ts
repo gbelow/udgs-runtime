@@ -29,7 +29,7 @@ import { isExtinguishCell } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
-import { findWeaponRow, isRowUsable } from './weaponRow'
+import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, isTargeted } from './cast'
 import { canAffordRest } from '../../character/rules/rest'
@@ -41,6 +41,8 @@ import { getAction, getDrawnOpportunityAttacks, getOpenAction, getOpenedBy, getR
 import { getFleeCost } from './flee'
 import { canBeSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
+import { getReloadBar, getReloadRow } from './reload'
+import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
 
 // An action's life in the fight: whether its declaration is complete and
@@ -127,6 +129,12 @@ export function isDeclarationComplete(state: CombatState, c: Character, action: 
     // gear.tex "Potions and Medicine": a potion in hand
     case 'drink':
       return getHeldPotions(c).some((i) => i.id === action.itemId)
+    // gear.tex "Reload": an empty row that is reloaded, and a stack in a
+    // quick slot to load it from
+    case 'reload': {
+      const row = getReloadRow(c, action)
+      return !!row && isCampaignCharacter(c) && getReloadBar(state, c, row) === null && getRowStack(c, row, action.ammoId) !== null
+    }
     // combat.tex "Preparing a reaction": an action it can make and a trigger
     case 'prepare':
       return isPrepareComplete(state, c, action)
@@ -243,6 +251,11 @@ function getDeclaredCost(state: CombatState, c: CampaignCharacter, action: Actio
       return { AP: 0, STA: 0 }
     case 'throw':
       return getThrowCost(c, action.itemId)
+    // gear.tex "Reload": the row's second AP term
+    case 'reload': {
+      const row = getReloadRow(c, action)
+      return row ? getReloadCost(row.atk, c) : null
+    }
     case 'slip':
       return getSlipCost(c)
     case 'cut':
@@ -535,6 +548,7 @@ function getPostStep(state: CombatState, open: RootAction): ActionStep {
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fireAgain':
@@ -664,6 +678,7 @@ function getAimableIds(state: CombatState, root: RootAction): string[] {
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fireAgain':

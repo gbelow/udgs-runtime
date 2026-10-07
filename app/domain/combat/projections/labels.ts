@@ -42,6 +42,10 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
     }
     case 'blockExplosion':
       return withWeapon(state, actorId, draft, ACTIONS[draft.kind].label)
+    case 'reload': {
+      const weapon = getDraftWeapon(state, actorId, draft)
+      return weapon ? `${ACTIONS.reload.label} ${weapon}` : ACTIONS.reload.label
+    }
     case 'intercept':
       return withWeapon(state, actorId, draft, draft.advance ? 'defensive advance' : draft.preparedId ? 'prepared intercept' : ACTIONS.intercept.label)
     case 'evasion':
@@ -64,9 +68,14 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
 }
 
 function withWeapon(state: CombatState, actorId: string, draft: { weaponKey?: string; attack?: string }, label: string): string {
+  const weapon = getDraftWeapon(state, actorId, draft)
+  return weapon ? `${label} with ${weapon}` : label
+}
+
+function getDraftWeapon(state: CombatState, actorId: string, draft: { weaponKey?: string; attack?: string }): string | null {
   const c = state.characters[actorId]
   const row = c && draft.weaponKey !== undefined && draft.attack !== undefined ? findWeaponRow(c, draft.weaponKey, draft.attack) : null
-  return row ? `${label} with ${row.weapon.name}` : label
+  return row?.weapon.name ?? null
 }
 
 // An opportunity attack at a step of the way, or a catch: the step a catch

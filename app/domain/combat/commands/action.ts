@@ -135,6 +135,7 @@ function withCommitFacts(state: CombatState, actor: CampaignCharacter, open: Roo
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fleeFollowUp':
@@ -365,6 +366,7 @@ function withPercentileRolls(state: CombatState, root: RootAction, dice: Dice): 
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fleeFollowUp':

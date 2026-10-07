@@ -32,6 +32,17 @@ export function archer(id: string): CampaignCharacter {
   return { ...(regripItem(bow.id, 2)(holdItem(bow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
 }
 
+// The archer with an empty crossbow instead and bolts in the quiver, which
+// must be reloaded before every shot (gear.tex "Reload").
+export function crossbowman(id: string): CampaignCharacter {
+  const crossbow = ItemSchema.parse({ name: 'Crossbow', type: 'weapon', refId: 'Crossbow', bulk: 3 })
+  const bolts = ItemSchema.parse({ id: 'bolts', name: 'Bodkin Bolt', type: 'ammo', refId: 'Bodkin Bolt', bulk: 0, amount: 20 })
+  const quiver = getCatalogItem('Quiver')!
+  const belted = putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))
+  const { containers } = addItemToContainer(quiver.id, 'quick', bolts)(addItemToContainer('Belt', 'quick', quiver)(belted))
+  return { ...(regripItem(crossbow.id, 2)(holdItem(crossbow)({ ...fighter(id), containers }))), usedSurge: 'focus' }
+}
+
 // A caster holding a flamethrower (spells.tex "Flamethrower"), the focus surge
 // spent, with the spells that ask for nothing in hand besides.
 export function mage(id: string): CampaignCharacter {

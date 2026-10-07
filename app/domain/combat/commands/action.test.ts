@@ -17,6 +17,7 @@ import { cancelAction, commitAction, declareAction as declareOwnAction, declareR
 import { getBlastOf, getTerrainPaint } from '../rules/explosion'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
+import { crossbowman } from '../../bot/fixtures'
 
 // Each action below is declared in its actor's own turn (play.tex "Combat").
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
@@ -240,5 +241,24 @@ describe('gear moved outside one\'s own turn', () => {
   it('allows what is free', () => {
     const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
     expect(updateInventory('a', regrip)(s)).not.toBe(s)
+  })
+})
+
+// gear.tex "Reload": "The weapon requires reloading to attack again".
+describe('a weapon that must be reloaded', () => {
+  const canShoot = (s: CombatState) => getAvailableActions({ ...s, inTurnCharacter: 'atk' }, 'atk').some((o) => o.draft.kind === 'shoot' && o.available)
+
+  it('fires once for each reload', () => {
+    let s = combat(crossbowman('atk'), fighter('def'))
+    const weaponKey = s.characters.atk.held[0].id
+    expect(canShoot(s)).toBe(false)
+    s = commitAction(() => 5, newId)(declareAction('atk', { kind: 'reload', weaponKey, attack: 'shoot', ammoId: 'bolts' }, newId)(s))
+    expect(getOpenAction(s)).toBeNull()
+    expect(canShoot(s)).toBe(true)
+    s = commitAction(() => 5, newId)(setTarget('def')(declareAction('atk', { kind: 'shoot', weaponKey, attack: 'shoot', variant: 'basic' }, newId)(s)))
+    s = rollAction(() => 5, newId)(s)
+    if (getOpenAction(s)) s = resolveAction(newId)(s)
+    expect(getOpenAction(s)).toBeNull()
+    expect(canShoot(s)).toBe(false)
   })
 })

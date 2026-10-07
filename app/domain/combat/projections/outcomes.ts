@@ -53,6 +53,7 @@ function getRootNotes(state: CombatState, root: Action, named: (id: string) => s
   if (root.kind === 'pickUp') return root.picked ? [{ target: named(root.actorId), text: `picked up ${root.picked.name}` }] : []
   if (root.kind === 'throw') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
   if (root.kind === 'drink') return root.drunk ? [{ target: named(root.actorId), text: `drank ${root.drunk.name}` }] : []
+  if (root.kind === 'reload') return root.loaded ? [{ target: named(root.actorId), text: `loaded ${root.loaded.name}` }] : []
   if (root.kind === 'spellTest') return spellTestNotes(root, named)
   if (root.kind === 'fall') return [{ target: named(root.actorId), text: `fell ${root.height}m` }]
   const facts = getGrappleFacts(root)

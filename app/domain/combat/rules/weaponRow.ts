@@ -1,7 +1,7 @@
-import type { Character, Weapon, WeaponAttack, WeaponProperty } from '../../types'
+import type { Ammo, Character, Weapon, WeaponAttack, WeaponProperty } from '../../types'
 import { getWieldedWeapons, isAttackUsable, type Wielded } from '../../item/rules/hands'
-import { getLoadableAmmo, type AmmoStack } from '../../item/rules/ammo'
-import { type AttackVariant, getAttacksList, isWieldable } from '../../character/rules/gear'
+import { getLoadableAmmo, getLoadedAmmo, type AmmoStack } from '../../item/rules/ammo'
+import { type AttackVariant, getAttacksList, isWieldable, needsReload } from '../../character/rules/gear'
 
 // A weapon row is named the way the hands name it: the wielded key (an item
 // id or `natural:<name>`) and the attack row's name.
@@ -33,11 +33,19 @@ export function getRowVariants(c: Character, row: WeaponRow): AttackVariant[] {
 
 // gear.tex "Quiver": a row that loads ammunition fires only with some in a
 // quick slot; the stack it was declared with, while it can still load it.
+// gear.tex "Reload": a row that must be reloaded fires only what is loaded
+// in it, whatever the shot names.
 export function isRowLoadable(c: Character, row: WeaponRow): boolean {
+  if (needsReload(row.atk)) return row.wielded.loaded !== null
   return !row.atk.ammo || getLoadableAmmo(c, row.weapon, row.atk).length > 0
 }
 
-export function getRowAmmo(c: Character, row: WeaponRow, ammoId: string): AmmoStack | null {
+export function getRowAmmo(c: Character, row: WeaponRow, ammoId: string): Ammo | null {
+  return needsReload(row.atk) ? getLoadedAmmo(row.wielded) : getRowStack(c, row, ammoId)?.ammo ?? null
+}
+
+// The stack in a quick slot, named by id, the row can be loaded from.
+export function getRowStack(c: Character, row: WeaponRow, ammoId: string): AmmoStack | null {
   return getLoadableAmmo(c, row.weapon, row.atk).find((s) => s.item.id === ammoId) ?? null
 }
 
@@ -46,7 +54,7 @@ export function getRowAmmo(c: Character, row: WeaponRow, ammoId: string): AmmoSt
 // with.
 export function getRowProperties(c: Character, row: WeaponRow, ammoId: string): WeaponProperty[] {
   const ammo = row.atk.ammo ? getRowAmmo(c, row, ammoId) : null
-  return [...row.atk.properties, ...(ammo?.ammo.properties ?? []).filter((p) => !row.atk.properties.includes(p))]
+  return [...row.atk.properties, ...(ammo?.properties ?? []).filter((p) => !row.atk.properties.includes(p))]
 }
 
 export function findRowVariant(c: Character, row: WeaponRow, variant: string): AttackVariant | null {

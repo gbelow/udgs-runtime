@@ -5,9 +5,21 @@ import ammoCatalog from '../../../assets/ammo.json'
 
 // The arrow or bolt an item is, as the ammunition catalog gives it.
 export function getItemAmmo(item: Item): Ammo | undefined {
-  if (item.type !== 'ammo' || !item.refId) return undefined
-  const raw = (ammoCatalog as Record<string, unknown>)[item.refId]
+  return item.type === 'ammo' ? getCatalogAmmo(item.refId) : undefined
+}
+
+function getCatalogAmmo(refId: string): Ammo | undefined {
+  const raw = refId ? (ammoCatalog as Record<string, unknown>)[refId] : undefined
   return raw ? AmmoSchema.parse(raw) : undefined
+}
+
+// gear.tex "Reload": the arrow or bolt the weapon was loaded with.
+export function getLoadedAmmo(weapon: Pick<Item, 'loaded'>): Ammo | null {
+  return (weapon.loaded && getCatalogAmmo(weapon.loaded.refId)) ?? null
+}
+
+export function getAmmoStackName(stack: AmmoStack): string {
+  return stack.ammo.name || stack.item.name
 }
 
 export type AmmoStack = { containerKey: string; item: Item; ammo: Ammo }

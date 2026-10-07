@@ -2,10 +2,9 @@ import type { AttackKind, AttackType, Character, Handed, Material, Range, Weapon
 import { getWieldedWeapons, isAttackUsable } from '../../item/rules/hands'
 import { getHardness } from '../../item/rules/items'
 import { injuryMap } from '../../tables'
-import { getAttackKind, getAttackPropertyLabels, getAttackType, hasProperty } from '../../weaponProperties'
-import { getActionCost } from '../rules/actionCosts'
+import { getAttackKind, getAttackPropertyLabels, getAttackType } from '../../weaponProperties'
 import { getArmor } from '../rules/armor'
-import { AttackVariant, getAPSurcharge, getAttacksList, getBlockValue, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
+import { AttackVariant, getAPSurcharge, getAttacksList, getBlockValue, getReloadCost, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
 import { getTGH } from '../rules/misc'
 import { getTierThreshold } from '../rules/damage'
 
@@ -44,9 +43,7 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
       // The damage the normal attack deals, STR included — not the bare row.
       ...getStrikeDamage(atk, weapon, c),
       AP: atk.AP + getAPSurcharge(weapon, c),
-      // gear.tex "Reload": the row's own figure, moved by abilities and never
-      // below free; a row without the property stays at 0 whatever it stores.
-      reload: hasProperty(atk.properties, 'reload') ? Math.max(0, (atk.reload ?? 0) + getActionCost(c, 'reload').AP) : 0,
+      reload: getReloadCost(atk, c).AP,
       range: atk.range,
       block: getBlockValue(atk, weapon, c),
       STRreq: atk.STRreq ?? null,

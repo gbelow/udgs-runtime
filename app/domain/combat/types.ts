@@ -995,6 +995,18 @@ export const DrinkActionSchema = z.object({
   drunk: ItemSchema.nullable().default(null),
 }).strip()
 
+// gear.tex "Reload": "The weapon requires reloading to attack again" — a
+// row with the property in hand, loaded with one arrow or bolt from the
+// stack named in a quick slot.
+export const ReloadActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('reload'),
+  ...WeaponRowRef,
+  ammoId: str.default(''),
+  // what went into the weapon, written at the resolve
+  loaded: ItemSchema.shape.loaded,
+}).strip()
+
 // combat.tex "Fire": muffling a fire, in the burning space of the actor or
 // next to it.
 export const ExtinguishActionSchema = z.object({
@@ -1081,6 +1093,7 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   PickUpActionSchema,
   ThrowActionSchema,
   DrinkActionSchema,
+  ReloadActionSchema,
   ExtinguishActionSchema,
   RestActionSchema,
   FallActionSchema,
@@ -1119,6 +1132,7 @@ export type PickUpAction = z.infer<typeof PickUpActionSchema>
 export type ThrowAction = z.infer<typeof ThrowActionSchema>
 export type ExtinguishAction = z.infer<typeof ExtinguishActionSchema>
 export type DrinkAction = z.infer<typeof DrinkActionSchema>
+export type ReloadAction = z.infer<typeof ReloadActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
 export type PrepareAction = z.infer<typeof PrepareActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>

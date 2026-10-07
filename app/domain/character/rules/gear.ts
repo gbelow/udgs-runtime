@@ -2,7 +2,7 @@ import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } fro
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
 import { BOWS, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
-import { getActionCost } from "./actionCosts";
+import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
 import { hasGrant } from "./abilities";
@@ -84,6 +84,22 @@ export function getStrikeDamage(atk: WeaponAttack, weapon: Weapon, c: Character)
 // is withheld there.
 export function needsFocus(atk: WeaponAttack, c: Character): boolean {
   return getAttackKind(atk.range) !== 'melee' && isCampaignCharacter(c) && c.usedSurge !== 'focus'
+}
+
+// gear.tex "Reload": "The weapon requires reloading to attack again" — a
+// row with the property that shoots ammunition fires what a reload put into
+// the weapon, not what is in the quiver.
+export function needsReload(atk: WeaponAttack): boolean {
+  return hasProperty(atk.properties, 'reload') && atk.ammo !== undefined
+}
+
+// gear.tex Ranged Weapons table, "4+4": the second term of the AP column,
+// moved by abilities ("Quick Reload": "Reloads weapons 1|2 AP faster") and
+// never below free; nothing on a row without the property.
+export function getReloadCost(atk: WeaponAttack, c: Character): ActionCost {
+  if (!hasProperty(atk.properties, 'reload')) return { AP: 0, STA: 0 }
+  const ability = getActionCost(c, 'reload')
+  return { AP: Math.max(0, (atk.reload ?? 0) + ability.AP), STA: ability.STA }
 }
 
 // abilities.tex "Archer": "Bows require training to be used effectively.

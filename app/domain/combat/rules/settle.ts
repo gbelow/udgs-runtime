@@ -1,4 +1,5 @@
 import type { CombatState, RootAction } from '../types'
+import { getReloaded } from './reload'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, getReachableFloor, takeOne } from './floor'
 import { getThrownUnit } from './throw'
@@ -52,6 +53,10 @@ export function getSettled(state: CombatState, open: RootAction): RootAction {
     }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
     case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && i.potion !== null) ?? null }
+    case 'reload': {
+      const actor = state.characters[open.actorId]
+      return { ...open, step: 'done', loaded: actor ? getReloaded(actor, open) : null }
+    }
     case 'release': return { ...open, step: 'done', facts: getReleaseFacts(state, open) }
     case 'slip':
     case 'feint':

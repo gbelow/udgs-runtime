@@ -1,11 +1,11 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
-import { getLoadableAmmo } from '../../item/rules/ammo'
+import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { setDistance } from '../geometry'
 import { CLIMB_REDO_PENALTY, LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
-import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus } from '../../character/rules/gear'
+import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
 import { getSituationalAfflictions } from './situational'
 import { getAGI } from '../../character/rules/characteristics'
@@ -61,14 +61,15 @@ function rowFits(atk: WeaponAttack, kind: AttackAction['kind']): boolean {
 
 // Whether the character can fire the row as the attack's kind right now:
 // open, closed, or held of that kind and usable but for the focus surge
-// (combat.tex "Focus surge": "required to use ranged attacks") or for
-// anything to load it with (gear.tex "Quiver").
-type RowState = 'open' | 'unfocused' | 'unloaded' | 'closed'
+// (combat.tex "Focus surge": "required to use ranged attacks"), for
+// anything to load it with (gear.tex "Quiver") or for a reload (gear.tex
+// "Reload").
+export type RowState = 'open' | 'unfocused' | 'unloaded' | 'empty' | 'closed'
 
-function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind']): RowState {
+export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind']): RowState {
   if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
   if (needsFocus(row.atk, c)) return 'unfocused'
-  return isRowLoadable(c, row) ? 'open' : 'unloaded'
+  return isRowLoadable(c, row) ? 'open' : needsReload(row.atk) ? 'empty' : 'unloaded'
 }
 
 // The variation an attack declared, priced against the attacker as they
@@ -208,18 +209,25 @@ export function hasUnfocusedRow(c: CampaignCharacter, kind: AttackAction['kind']
   return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unfocused')
 }
 
-// Whether the character holds a row of the kind with nothing to load it.
-export function hasUnloadedRow(c: CampaignCharacter, kind: AttackAction['kind']): boolean {
-  return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unloaded')
+// Why no row of the kind in hand can be fired, by the nearest any of them
+// comes to it.
+const ROW_BARS: [RowState, string][] = [['unfocused', 'needs a focus surge'], ['empty', 'needs reloading'], ['unloaded', 'no arrows or bolts in a quick slot']]
+
+export function getRowBar(c: CampaignCharacter, kind: AttackAction['kind']): string {
+  const states = new Set(getWeaponRows(c).map((row) => getRowState(c, row, kind)))
+  return ROW_BARS.find(([state]) => states.has(state))?.[1] ?? (kind === 'shoot' ? 'no shooting weapon in hand' : 'no melee weapon in hand')
 }
 
 // What the declared row of a shot can be loaded with, stack by stack, to
-// pick one from; empty while no row is declared or it loads nothing.
+// pick one from; empty while no row is declared, it loads nothing, or it
+// fires what a reload put in it (gear.tex "Reload").
 export type AmmoOption = { itemId: string; name: string; amount: number; properties: WeaponProperty[] }
 
-export function getAmmoOptions(c: Character, action: ActionOf<'shoot'>): AmmoOption[] {
+// A reload is what loads a row that must be reloaded (gear.tex "Reload").
+export function getAmmoOptions(c: Character, action: ActionOf<'shoot' | 'reload'>): AmmoOption[] {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  return row ? getLoadableAmmo(c, row.weapon, row.atk).map((s) => ({ itemId: s.item.id, name: s.ammo.name || s.item.name, amount: s.item.amount, properties: s.ammo.properties })) : []
+  if (!row || needsReload(row.atk) !== (action.kind === 'reload')) return []
+  return getLoadableAmmo(c, row.weapon, row.atk).map((s) => ({ itemId: s.item.id, name: getAmmoStackName(s), amount: s.item.amount, properties: s.ammo.properties }))
 }
 
 // Whether a shot names something its row can be loaded with, if it loads
@@ -431,6 +439,7 @@ export function getDLTerms(state: CombatState, root: RootAction): Term[] {
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fireAgain':
@@ -538,6 +547,7 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'reload':
     case 'rest':
     case 'prepare':
     case 'fireAgain':

@@ -336,6 +336,10 @@ export const ItemSchema = z.object({
   camouflage: num.nullable().default(null),
   // gear.tex "Muffled Boots": "Denies noise penalties from terrain"
   muffles: z.boolean().default(false),
+  // gear.tex "Reload": the arrow or bolt a weapon that must be reloaded
+  // holds, put in by a reload and gone with the next shot; it stays in the
+  // weapon between fights (the table's ruling). Null while it is empty.
+  loaded: z.object({ refId: str.default(''), name: str.default('') }).strip().nullable().default(null),
   // gear.tex "Torch": "Gives 5m light radius when lit" — the radius in
   // metres, lit while held or lying on the floor (the table's ruling); null
   // for an item that gives no light

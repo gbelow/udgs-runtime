@@ -429,7 +429,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
       disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
       item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
-      ammoId: open.kind === 'shoot' ? open.ammoId : '',
+      ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : open.kind === 'throw' && open.step === 'define' && actor
@@ -463,7 +463,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
           .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
           .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
       : [],
-    ammo: open.kind === 'shoot' && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
+    ammo: (open.kind === 'shoot' || open.kind === 'reload') && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
     spells: cast && step === 'declare' && actor ? getSpellOptions(state, actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
     gear: gear && step === 'declare' ? gear.options : [],
     chargeInto: gear && step === 'declare' ? gear.chargeOptions : [],
