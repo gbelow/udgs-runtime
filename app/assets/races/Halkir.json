@@ -1,0 +1,314 @@
+{
+  "name": "Halkir",
+  "description": "",
+  "playable": true,
+  "bonuses": {
+    "AGI": 2,
+    "STA": 1,
+    "DEX": 1
+  },
+  "abilities": [
+    "beautiful",
+    "infrared-vision"
+  ],
+  "size": 3,
+  "shape": "blob",
+  "TGH": 0,
+  "senses": {
+    "vision": {
+      "name": "Vision",
+      "rangePenalty": 3,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": null,
+      "hasSense": true
+    },
+    "hearing": {
+      "name": "Hearing",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": false,
+      "reactive": true,
+      "penalty": 3,
+      "range": null,
+      "hasSense": true
+    },
+    "smell": {
+      "name": "Smell",
+      "rangePenalty": 5,
+      "bonus": 0,
+      "active": true,
+      "reactive": false,
+      "penalty": 5,
+      "range": 0,
+      "hasSense": true
+    },
+    "touch": {
+      "name": "Touch",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 3,
+      "range": 0,
+      "hasSense": true
+    },
+    "synesthesia": {
+      "name": "Synesthesia",
+      "rangePenalty": 100,
+      "bonus": 0,
+      "active": true,
+      "reactive": true,
+      "penalty": 0,
+      "range": 0,
+      "hasSense": false
+    }
+  },
+  "movement": {
+    "basic": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 1
+    },
+    "careful": {
+      "AP": 2,
+      "STA": 0,
+      "distance": 1
+    },
+    "crawl": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "climb": {
+      "AP": 3,
+      "STA": 1,
+      "distance": 1
+    },
+    "run": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 3
+    },
+    "jump": {
+      "AP": 2,
+      "STA": 1,
+      "distance": 2
+    },
+    "swim": {
+      "AP": 3,
+      "STA": 0,
+      "distance": 1
+    },
+    "fast swim": {
+      "AP": 1,
+      "STA": 0,
+      "distance": 0.5
+    },
+    "stand": {
+      "AP": 5,
+      "STA": 1,
+      "distance": 0
+    }
+  },
+  "armor": {
+    "name": "Skin",
+    "material": "flesh",
+    "RES": 0,
+    "INS": 0,
+    "protection": 0,
+    "deflection": 4,
+    "burdenPenalty": 0,
+    "properties": [],
+    "notes": ""
+  },
+  "body": [
+    {
+      "id": "chest",
+      "name": "chest",
+      "location": "chest",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": null,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "shocked",
+          "tier": 3,
+          "smash": true,
+          "effect": "disable",
+          "heal": 5,
+          "affliction": "immobile",
+          "consequence": "immobile"
+        }
+      ],
+      "lost": false
+    },
+    {
+      "id": "head",
+      "name": "head",
+      "location": "head",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 5,
+      "maxTier": null,
+      "flags": [
+        "stunUnconscious",
+        "bypassToFlesh"
+      ],
+      "wounds": [
+        {
+          "name": "death",
+          "tier": 4,
+          "smash": false,
+          "effect": "kill",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "instant death"
+        }
+      ],
+      "lost": false
+    },
+    {
+      "id": "handL",
+      "name": "left hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "smash": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "smash": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false
+    },
+    {
+      "id": "handR",
+      "name": "right hand",
+      "location": "hand",
+      "grip": true,
+      "itemId": "",
+      "naturalWeapon": "Unarmed",
+      "aimPenalty": 10,
+      "maxTier": 2,
+      "flags": [
+        "bareWithoutGauntlets"
+      ],
+      "wounds": [
+        {
+          "name": "broken hand",
+          "tier": 2,
+          "smash": false,
+          "effect": "disable",
+          "heal": 10,
+          "affliction": null,
+          "consequence": "useless hand"
+        },
+        {
+          "name": "amputated hand",
+          "tier": 4,
+          "smash": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses hand"
+        }
+      ],
+      "lost": false
+    },
+    {
+      "id": "legL",
+      "name": "left leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "smash": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "smash": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false
+    },
+    {
+      "id": "legR",
+      "name": "right leg",
+      "location": "leg",
+      "grip": false,
+      "itemId": "",
+      "naturalWeapon": "",
+      "aimPenalty": 0,
+      "maxTier": 3,
+      "flags": [],
+      "wounds": [
+        {
+          "name": "broken leg",
+          "tier": 3,
+          "smash": false,
+          "effect": "disable",
+          "heal": 20,
+          "affliction": null,
+          "consequence": "lame"
+        },
+        {
+          "name": "amputated leg",
+          "tier": 5,
+          "smash": false,
+          "effect": "sever",
+          "heal": 0,
+          "affliction": null,
+          "consequence": "loses leg"
+        }
+      ],
+      "lost": false
+    }
+  ],
+  "stance": {
+    "lameAt": 1,
+    "proneAt": 2
+  }
+}
