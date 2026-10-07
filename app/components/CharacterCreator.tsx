@@ -9,6 +9,7 @@ import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { Button, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
 import { MovementPanel } from './MovementPanel';
+import { SensesPanel } from './SensesPanel';
 import { Characteristics, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
@@ -81,7 +82,10 @@ export function CharacterCreator() {
           <SaveBaseCharacterButton />
         </div>
 
-        <MovementPanel />
+        <div className='flex flex-row flex-wrap gap-6'>
+          <MovementPanel />
+          <SensesPanel />
+        </div>
 
         <div className='flex flex-row gap-3'>
           <div className='flex flex-col gap-1'>
