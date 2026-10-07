@@ -61,9 +61,9 @@ export function turnCharacter(id: string): Updater {
 }
 
 // Paints one cell. `glass` toggles a wall that is seen through but stops
-// what is shot or thrown, `cover` partial cover (combat.tex "Cover"), and
-// `sturdier` and `flimsier` step the RES of what is in the cell (combat.tex
-// "Damage absorption"), from ground nothing breaks. `raise` and `lower` step the elevation a metre (combat.tex
+// what is shot or thrown, and `sturdier` and `flimsier` step the RES of the
+// wall in the cell (combat.tex "Damage absorption"), from a wall nothing
+// breaks. `raise` and `lower` step the elevation a metre (combat.tex
 // "High Ground"), `soft` toggles ground that halves a fall (combat.tex "Fall
 // damage"), `deepen` and `shoal` the depth of its water and `harder` and
 // `easier` the DL of its balance or swimming test (combat.tex "Balance",
@@ -79,12 +79,11 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
     const { [key]: current = TerrainCellSchema.parse({}), ...rest } = state.board.terrain
     const painted = (() => {
       switch (brush) {
-        case 'wall': return { ...current, blocking: !current.blocking, transparent: false, partialCover: false, liquid: false, difficult: false }
+        case 'wall': return { ...current, blocking: !current.blocking, transparent: false, liquid: false, difficult: false }
         case 'glass': {
           const glass = current.blocking && current.transparent
-          return { ...current, blocking: !glass, transparent: !glass, partialCover: false, liquid: false, difficult: false }
+          return { ...current, blocking: !glass, transparent: !glass, liquid: false, difficult: false }
         }
-        case 'cover': return { ...current, partialCover: !current.partialCover, blocking: false, transparent: false }
         case 'sturdier': return { ...current, RES: current.RES === null ? null : current.RES + 5 }
         case 'flimsier': return { ...current, RES: current.RES === null ? COVER_START_RES : Math.max(5, current.RES - 5) }
         case 'water': return { ...current, liquid: !current.liquid, blocking: false, difficult: false, DL: current.liquid ? current.DL : SWIM_DEFAULT_DL }

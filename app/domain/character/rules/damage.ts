@@ -48,25 +48,6 @@ function getBlockShare(facts: Damage, degree: Degree, measured: number): number 
   return getAbsorbedShare(measured, getBlockValue(facts, degree))
 }
 
-// combat.tex "Partial Cover": the share of the measured damage the cover in
-// the blow's way lets past, at its RES, cover nothing breaks absorbing
-// everything — a shot's "On misses and grazes on evasion", an explosion's at
-// every zone once its avoider made a hit or better (combat.tex "Explosion
-// Block"). Null when nothing is in the way or the blow went past it.
-function getCoverShare(facts: Damage, degree: Degree, measured: number): number | null {
-  const cover = facts.cover
-  if (!cover || (!facts.explosion && degree !== 'graze' && degree !== 'miss')) return null
-  return getAbsorbedShare(measured, cover.RES ?? Infinity)
-}
-
-// What stands in the blow's way: cover, for one who evaded it, or a block —
-// never both, as each comes of a reaction of its own.
-type Shares = { cover: number | null; block: number | null }
-
-function getShares(facts: Damage, degree: Degree, measured: number): Shares {
-  return { cover: getCoverShare(facts, degree, measured), block: getBlockShare(facts, degree, measured) }
-}
-
 // What the block that met the blow absorbs at the degree: its value, "A miss
 // increases block value by 50%", no more than the object's RES.
 function getBlockValue(facts: Damage, degree: Degree): number {
@@ -95,18 +76,27 @@ function canCutArmor(facts: Damage, armor: Armor): boolean {
   return facts.hardness > armorHardness || (facts.bust && facts.hardness === armorHardness)
 }
 
-function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; measured: Arriving | null } {
+// combat.tex "Cover": a wall that breaks in the blow's way absorbs the
+// measured damage at its RES as it arrives, before the degree or any defense
+// meets what is left; `wall` is the share it lets past.
+function getArriving(facts: Damage, target: Character): { arriving: Arriving[]; measured: Arriving | null; wall: number } {
   const armor = armorAt(target, facts)
   const canCut = canCutArmor(facts, armor)
   const bypass = (value: number) => (facts.bypass ? Math.floor(value / 2) : 0)
-  const arriving = facts.damage
+  const sent = facts.damage
     .filter(({ kind }) => kind !== 'cut' || canCut)
     .map(({ kind, value }) => {
       const against = armorValue(armor, kind)
       return { type: kind, value: value + bypass(against), against }
     })
-  const measured = arriving.reduce<Arriving | null>((b, a) => (b === null || a.value - a.against > b.value - b.against ? a : b), null)
-  return { arriving, measured }
+  const sentMeasured = getMeasured(sent)
+  const wall = facts.wall && sentMeasured ? getAbsorbedShare(sentMeasured.value, facts.wall.RES) : 1
+  const arriving = sent.map((a) => ({ ...a, value: Math.floor(a.value * wall) }))
+  return { arriving, measured: getMeasured(arriving), wall }
+}
+
+function getMeasured(arriving: Arriving[]): Arriving | null {
+  return arriving.reduce<Arriving | null>((b, a) => (b === null || a.value - a.against > b.value - b.against ? a : b), null)
 }
 
 // combat.tex "Strike", "Defend": what the degree and the defense leave of the
@@ -126,14 +116,6 @@ function afterDefense(facts: Damage, degree: Degree, damage: number, blockShare:
   if (blockShare !== null) return Math.floor(damage * blockShare)
   if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) return damage
   return getUndefendedDamage(damage, degree)
-}
-
-// combat.tex "Partial Cover": cover acting as full cover stands for a shot's
-// degree, as a shield would; an explosion's damage it absorbs once the zone
-// has scaled it.
-function afterCover(facts: Damage, degree: Degree, damage: number, shares: Shares): number {
-  if (shares.cover === null) return afterDefense(facts, degree, damage, shares.block)
-  return Math.floor((facts.explosion ? getUndefendedDamage(damage, degree) : damage) * shares.cover)
 }
 
 // The kinds dealt through the burning counter.
@@ -204,9 +186,9 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   const counter = isCampaignCharacter(target) ? target.injuries.burning : 0
   if (isIntercepted(facts, degree, target)) return { ...NOTHING, stopped: true }
   const { arriving, measured: top } = getArriving(facts, target)
-  const shares = getShares(facts, degree, top?.value ?? 0)
+  const blockShare = getBlockShare(facts, degree, top?.value ?? 0)
   const measured = arriving.map(({ type, value, against }) => {
-    const left = afterCover(facts, degree, value, shares)
+    const left = afterDefense(facts, degree, value, blockShare)
     const damage = isBurning(type) && left > 0 ? left + counter : left
     return { type, damage, armor: against, tier: tierOf(damage, against, TGH) }
   })
@@ -247,16 +229,16 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
 // targets in a sequence still left once it is past this one. A block that
 // met it absorbs first and the body second (the table's ruling), the body at
 // its T2 damage — "For a character, the value equals to T2 damage", the
-// measured kind's armor value and twice TGH; cover in the way absorbs as a
-// block does. A blow that never touched them (a miss with nothing in its way)
-// passes on whole; one an intercept stopped passes nothing on.
+// measured kind's armor value and twice TGH, after a wall that breaks in the
+// way. A blow that never touched them (a miss with nothing in its way) passes
+// on whole; one an intercept stopped passes nothing on.
 export function getPassedShare(facts: Damage, degree: Degree, target: Character): number {
-  const { measured } = getArriving(facts, target)
+  const { measured, wall } = getArriving(facts, target)
   if (!measured || isIntercepted(facts, degree, target)) return 0
-  const { cover, block } = getShares(facts, degree, measured.value)
-  if (degree === 'miss' && block === null && cover === null && facts.defense !== 'intercept') return 1
-  const share = cover ?? block ?? 1
-  return share * getAbsorbedShare(Math.floor(measured.value * share), getTierThreshold(measured.against, getTGH(target), 2))
+  const blockShare = getBlockShare(facts, degree, measured.value)
+  if (degree === 'miss' && blockShare === null && facts.defense !== 'intercept') return wall
+  const share = blockShare ?? 1
+  return wall * share * getAbsorbedShare(Math.floor(measured.value * share), getTierThreshold(measured.against, getTGH(target), 2))
 }
 
 // The part a blow at the location lands on: the one it was aimed at, while
@@ -333,7 +315,8 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
   if (outcome.stopped) return [step('intercepted: the blow never lands', 'combat.tex "Intercept"')]
 
   const armor = armorAt(target, facts)
-  const { arriving, measured } = getArriving(facts, target)
+  const { arriving, measured, wall } = getArriving(facts, target)
+  const share = (s: number) => (s === 0 ? 'none' : s === 0.5 ? 'half' : 'all')
   const steps: OutcomeStep[] = [
     step(`the blow carries ${facts.damage.map((d) => `${d.value} ${d.kind}`).join(' + ') || 'no damage'}${facts.location === 'chest' ? '' : `, aimed at the ${facts.location}`}`, 'combat.tex "Physical attacks"'),
   ]
@@ -342,21 +325,17 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
     steps.push(step(`cutting cannot cut ${armor.name} (hardness ${facts.hardness} against ${getHardness(armor.material)})`, 'combat.tex "What cuts?"'))
   }
   if (facts.bypass) steps.push(step('armor bypass adds half the armor value to the damage', 'combat.tex "Success Overflow", "Bypass"'))
+  if (facts.wall) steps.push(step(`the wall in the way, RES ${facts.wall.RES}, lets ${share(wall)} of the damage past`, 'combat.tex "Cover", "Damage absorption"'))
   for (const a of arriving) {
     steps.push(step(`${a.type} ${a.value} is measured against ${armor.name} ${armorValueName(a.type)} ${a.against}`, 'combat.tex "Types of damage"'))
   }
 
-  const share = (s: number) => (s === 0 ? 'none' : s === 0.5 ? 'half' : 'all')
-  const shares = getShares(facts, degree, measured?.value ?? 0)
-  const coverRES = facts.cover?.RES ?? null
-  if (measured && shares.cover !== null) {
-    steps.push(step(`cover ${coverRES === null ? 'nothing breaks' : `RES ${coverRES}`} against ${measured.value} damage lets ${share(shares.cover)} of it past`, 'combat.tex "Cover", "Damage absorption"'))
-  }
-  if (measured && shares.block !== null) {
-    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${share(shares.block)} of it past`, 'combat.tex "Damage absorption"'))
+  const blockShare = measured ? getBlockShare(facts, degree, measured.value) : null
+  if (blockShare !== null && measured) {
+    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${share(blockShare)} of it past`, 'combat.tex "Damage absorption"'))
   } else if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) {
     steps.push(step('the intercept did not stop the blow: it comes through whole', 'combat.tex "Intercept"'))
-  } else if (!measured || shares.cover === null || facts.explosion) {
+  } else {
     steps.push(step(degree === 'miss' ? 'a miss does nothing' : DEGREE_SHARE[degree], 'combat.tex "Strike", "Defend"'))
   }
   if (isBurning(outcome.type) && outcome.burning !== null) steps.push(step(`the burning counter is added, and halved afterwards to ${outcome.burning}`, 'combat.tex "Burning and radiant damage"'))

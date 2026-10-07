@@ -73,17 +73,16 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   interrupted them (`getShotGroup`).
 - **Cover** (`rules/board.ts`) — sight and fire are two lines: `seesAcross` is cut only by an
   opaque blocking cell, `firesAcross` by any blocking cell, glass included, and `getCoverAcross`
-  finds partial cover on the most open line of fire, met at the sturdiest cell on it.
-  `getCover` answers for a character from a set of cells: total, partial with its RES (null is
-  ground nothing breaks, which absorbs everything), or nothing. Shots, throws and attacks at the
-  floor need a line of fire (`hasLineOfFire`, `isAimableCell` given `firesAcross`); casting,
-  detection and light need sight. Total cover from a blast's origin (`getBlastOrigin`: its centre,
-  or the attacker for a spray) keeps a character out of it. Partial cover gives +3 to every reflex
-  reaction, and absorbs only for those who evade or avoid: it rides on the delivered damage
-  (`Damage.cover`) of a shot met by the target's evasion, absorbed on a graze or a miss as a shield
-  would, and of an explosion whose avoider made a hit or better, absorbed at every zone after the
-  zone's scaling (`Damage.explosion`). A guard or an explosion block works as it does without
-  cover (combat.tex "Partial Cover"). The +3 is `partialCoverTerms`. A guard made with a body
+  finds the weakest wall on the most open line of fire, met at the sturdiest cell on that line.
+  `getCover` answers for a character from a set of cells: total (a blocking cell nothing breaks,
+  or a body shield), a wall that breaks (a blocking cell with a RES), or nothing. Shots at a
+  character need them out of total cover (`hasLineOfFire`); throws, attacks at the floor and a
+  blast's centre need a clear line to the cell (`isAimableCell` given `firesAcross` or
+  `seesAcross`); casting, detection and light need sight. Total cover from a blast's origin
+  (`getBlastOrigin`: its centre, or the attacker for a spray) keeps a character out of it. A wall
+  that breaks lets shots and blasts through and absorbs every blow at its RES as it arrives
+  (`Damage.wall`, in `getArriving`), before the degree or a block meets what is left (combat.tex
+  "Cover"). A guard made with a body
   shield may take `cover`: when it lands, `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
   rounds until its owner lands any action but a careful move. `isBehindBodyShield` reads it, while
   the shield is still in hand, against anything on the shooter's side of them: they can be neither

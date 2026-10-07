@@ -26,7 +26,7 @@ import { getCellLight } from '../rules/light'
 // it covers, and the plane coordinates of all of it — pointy-top hexes of
 // unit spacing, so the panel only has to translate and scale.
 
-export type CellTerrain = 'open' | 'wall' | 'glass' | 'cover' | 'water' | 'rough'
+export type CellTerrain = 'open' | 'wall' | 'glass' | 'water' | 'rough'
 
 export type BoardCellView = {
   key: string
@@ -243,8 +243,8 @@ function buildBoardView(state: CombatState): BoardView {
       cell,
       x,
       y,
-      terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.partialCover ? 'cover' : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
-      strength: terrain?.blocking || terrain?.partialCover ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
+      terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
+      strength: terrain?.blocking ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
       fire: hazard.fire,

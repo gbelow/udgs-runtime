@@ -18,7 +18,7 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
-import { getCover, getPlacedFootprint, toDamageCover } from './board'
+import { getCover, getPlacedFootprint, toDamageWall } from './board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 
@@ -144,7 +144,7 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const physical: DamageComponent[] = [{ kind: 'blunt', value: Math.floor(variant.blunt * share) }, { kind: 'cut', value: Math.floor(variant.cut * share) }]
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
-  const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), cover: getShotCover(state, root) }
+  const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), wall: getShotWall(state, root) }
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
@@ -152,14 +152,11 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
 }
 
-// combat.tex "Partial Cover": the partial cover between a shot's shooter and
-// its target as they stand — "On misses and grazes on evasion, the cover acts
-// as full cover", so only for a target who evades the shot; "Guard ... work[s]
-// normally". Null for a strike, or nothing in the way.
-function getShotCover(state: CombatState, root: AttackAction): Damage['cover'] {
+// combat.tex "Cover": a wall that breaks between a shot's shooter and its
+// target as they stand, which absorbs the shot. Nothing for a strike.
+function getShotWall(state: CombatState, root: AttackAction): Damage['wall'] {
   const from = getPlacedFootprint(state, root.actorId)
-  if (root.kind !== 'shoot' || !root.targetId || !from || getDefendingReaction(state, root)?.kind !== 'evasion') return null
-  return toDamageCover(getCover(state, from, root.targetId))
+  return root.kind === 'shoot' && root.targetId && from ? toDamageWall(getCover(state, from, root.targetId)) : null
 }
 
 // spells.tex "Charged", Taser: "discharges on the first object it comes into

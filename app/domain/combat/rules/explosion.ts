@@ -1,4 +1,4 @@
-import type { Area, CampaignCharacter, Delivery, Item, SpellEffect } from '../../types'
+import type { Area, CampaignCharacter, Damage, Delivery, Item, SpellEffect } from '../../types'
 import { DEGREES, type BlastAction, type CombatState, type Coord, type Degree, type Deliveries, type ExplosionAction, type Hazard, type ThrowAction } from '../types'
 import { makeAction } from '../factories'
 import { getUndefendedDamage } from '../../character/rules/damage'
@@ -9,7 +9,7 @@ import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { explodes } from '../../weaponProperties'
 import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from '../geometry'
-import { getAimableCells, getCover, getPlacedFootprint, seesAcross, toDamageCover, type Cover } from './board'
+import { getAimableCells, getCover, getPlacedFootprint, seesAcross, toDamageWall } from './board'
 import { getItemWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
@@ -239,11 +239,11 @@ export function getExplosionZones(state: CombatState, action: BlastShape): ZoneC
 
 // combat.tex "Explosions": "If a creature occupies multiple spaces, apply
 // the strongest effect." The degree the character's footprint takes from
-// one area where it stands now, and the cover between it and where the area
-// goes off; null outside it, or behind total cover from there (combat.tex
+// one area where it stands now, and the wall that breaks between it and
+// where the area goes off; null outside it, or behind total cover from there (combat.tex
 // "Cover": "A character can protect themselves against projectiles and
-// explosion attacks").
-function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Area): { degree: Degree; cover: Cover | null } | null {
+// explosion attacks") — a wall that breaks lets it through, to be absorbed.
+function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Area): { degree: Degree; wall: Damage['wall'] } | null {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
   const zones = new Map(getAreaZones(state, action, area).map((z) => [coordKey(z.cell), z.degree]))
@@ -251,12 +251,12 @@ function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Are
   if (!degree) return null
   const origin = getBlastOrigin(state, action, area.shape === 'spray')
   const cover = origin ? getCover(state, origin, id) : null
-  return cover?.kind === 'total' ? null : { degree, cover }
+  return cover?.kind === 'total' ? null : { degree, wall: toDamageWall(cover) }
 }
 
 // combat.tex "Cover": where the area goes off, which cover is reckoned from —
 // the centre of a disk, the attacker for a spray.
-export function getBlastOrigin(state: CombatState, action: Pick<BlastShape, 'actorId' | 'center'>, spray: boolean): Coord[] | null {
+function getBlastOrigin(state: CombatState, action: Pick<BlastShape, 'actorId' | 'center'>, spray: boolean): Coord[] | null {
   return spray ? getPlacedFootprint(state, action.actorId) : action.center ? [action.center] : null
 }
 
@@ -279,36 +279,25 @@ export function getAffected(state: CombatState, action: BlastShape): { id: strin
 // What reaches each character in the area: every effect whose area they
 // stand in, at that zone's degree, made by whoever set it off (spells.tex
 // "Casting spells"; gear.tex "Explosion": "applies the weapon's damage ...
-// and any other effects"). What goes to the ground is not here. Damage to
-// one who avoided it with a hit or better carries the partial cover in its
-// way, absorbed as a shield's block absorbs an explosion (combat.tex "Partial
-// Cover", "Explosion Block").
+// and any other effects"). What goes to the ground is not here. Damage
+// carries the wall that breaks in its way (combat.tex "Cover").
 export function getExplosionFacts(state: CombatState, action: BlastShape, explosionId: string | null = null): Deliveries {
   const producer = state.characters[action.actorId]
   if (!producer || action.paintOnly) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
     const blocked = explosionId ? getExplosionBlock(state, explosionId, id) : null
-    const sheltered = explosionId !== null && hasAvoided(state, explosionId, id)
     const deliveries = action.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
       const zone = getZoneOf(state, action, id, e.area)
       if (!zone) return []
       const delivery = { ...produceSpellEffect(producer, e), degree: zone.degree, test: null }
       if (delivery.effect.type !== 'damage') return [delivery]
-      return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, cover: sheltered ? toDamageCover(zone.cover) : null, explosion: true } } }]
+      return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, wall: zone.wall } } }]
     })
     if (deliveries.length > 0) facts[id] = deliveries
   }
   return facts
-}
-
-// combat.tex "Partial Cover": "On hits and crits from avoiding explosion" the
-// cover acts as full cover — whether the character avoided the explosion
-// with a hit or better.
-function hasAvoided(state: CombatState, explosionId: string, id: string): boolean {
-  const degree = getReactionsTo(state, explosionId).find((r) => r.actorId === id && r.kind === 'avoidExplosion')?.roll?.degree
-  return degree === 'hit' || degree === 'critical'
 }
 
 // combat.tex "Explosion Block": "If successful or critical, the explosion

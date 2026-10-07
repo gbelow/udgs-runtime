@@ -162,31 +162,30 @@ export function firesAcross(board: Board, from: readonly Coord[], to: readonly C
 }
 
 // combat.tex "Cover": what stands in the way of something shot or blown at a
-// target — total cover, which nothing gets past, or partial cover, which
-// absorbs at its RES (null: nothing breaks it).
-export type Cover = { kind: 'total' } | { kind: 'partial'; RES: number | null }
+// target — total cover, which nothing gets past, or a wall that breaks, which
+// "acts as a shield, absorbing the damage taken by a certain amount based on
+// RES of the cover".
+export type Cover = { kind: 'total' } | { kind: 'wall'; RES: number }
 
 // What the ground puts between some cell of one set and the other, along the
-// most open line of fire between them: a line that crosses partial cover is
-// met by the sturdiest cell of it on the way. Null when some line crosses
+// most open line of fire between them: a line is met by the sturdiest wall
+// on it, a wall nothing breaks stopping it. Null when some line crosses
 // nothing.
 export function getCoverAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): Cover | null {
-  let weakest: number | null = null
+  let weakest = Infinity
   for (const a of from) {
     for (const b of to) {
-      const cells = crossed(board, a, b)
-      if (cells.some((t) => t?.blocking)) continue
-      const RES = Math.max(-Infinity, ...cells.map((t) => (t?.partialCover ? t.RES ?? Infinity : -Infinity)))
+      const RES = Math.max(-Infinity, ...crossed(board, a, b).map((t) => (t?.blocking ? t.RES ?? Infinity : -Infinity)))
       if (RES === -Infinity) return null
-      weakest = Math.min(weakest ?? Infinity, RES)
+      weakest = Math.min(weakest, RES)
     }
   }
-  return weakest === null ? { kind: 'total' } : { kind: 'partial', RES: Number.isFinite(weakest) ? weakest : null }
+  return weakest === Infinity ? { kind: 'total' } : { kind: 'wall', RES: weakest }
 }
 
-// The partial cover a blow carries to its target (`Damage.cover`).
-export function toDamageCover(cover: Cover | null): Damage['cover'] {
-  return cover?.kind === 'partial' ? { RES: cover.RES } : null
+// The wall that breaks a blow carries to its target (`Damage.wall`).
+export function toDamageWall(cover: Cover | null): Damage['wall'] {
+  return cover?.kind === 'wall' ? { RES: cover.RES } : null
 }
 
 // Whether something can be aimed at the cell from the footprint: within
@@ -254,13 +253,11 @@ export function hasLineOfSight(state: CombatState, a: string, b: string): boolea
 }
 
 // Whether what one character shoots can reach the other: they are not in
-// total cover from them. True on a fight without a board.
+// total cover from them — a wall that breaks lets the shot through, to be
+// absorbed. True on a fight without a board.
 export function hasLineOfFire(state: CombatState, a: string, b: string): boolean {
-  const board = state.board
   const fa = getPlacedFootprint(state, a)
-  const fb = getPlacedFootprint(state, b)
-  if (!board || !fa || !fb) return true
-  return firesAcross(board, fa, fb) && !isBehindBodyShield(state, b, fa)
+  return !fa || getCover(state, fa, b)?.kind !== 'total'
 }
 
 // The metres the shot as declared carries: the variation's reach for this

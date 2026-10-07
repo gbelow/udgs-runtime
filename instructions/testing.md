@@ -136,10 +136,10 @@ click to what stands afterwards. It is admitted, under these terms.
   A failure names its seed, step and the plays before it; pin what it found as a scenario.
   Some plays answer the open declaration from the panel's own offers (a row, a shot's ammo,
   a spell, a potion, a target clicked, a landing clicked) so that an action gets as far as being rolled.
-  Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, a
+  Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, archers across a pane of glass that breaks, a
   spearman, a trained warden with spear and shield, one with a body shield, a mage, a bomber with a potion, a netter) and a crowd of
   seven on ground with a pond and a cliff painted on it, once in the open and once with walls,
-  glass, partial cover, fog, dim and dark ground between them, a torch in one hand and the warden's
+  glass, fog, dim and dark ground between them, a torch in one hand and the warden's
   shield a body shield, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever
   defences are offered, and the roll runs on to its end, aiming what it opens. A walk, swim, climb

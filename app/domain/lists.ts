@@ -191,7 +191,7 @@ export const GRAPPLE_AFFLICTIONS = ['grappled', 'immobile'] as const
 
 // What the simulated board's terrain can be painted with: the cell flags of
 // combat.tex "Positioning and Visibility" and "Balance", one at a time.
-export const TERRAIN_BRUSHES = ['wall', 'glass', 'cover', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'clear'] as const
+export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water', 'rough', 'soft', 'raise', 'lower', 'deepen', 'shoal', 'harder', 'easier', 'grip', 'slip', 'bare', 'dim', 'fog', 'dark', 'louder', 'quieter', 'clear'] as const
 
 // combat.tex "Darkness and light": how much light the fight has where no
 // light source reaches, brightest first.

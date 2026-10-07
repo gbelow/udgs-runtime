@@ -12,7 +12,7 @@ import { getAGI } from '../../character/rules/characteristics'
 import { getBuffBonus } from '../../character/rules/effects'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { explodes, getAttackKind, hasProperty } from '../../weaponProperties'
-import { getCover, getDistanceBetween, getPlacedFootprint, isGuardingCells, isGuardingShot, isHighGround } from './board'
+import { getDistanceBetween, getPlacedFootprint, isGuardingCells, isGuardingShot, isHighGround } from './board'
 import { getBalanceDL, getMoveTest } from './move'
 import { getClimbDL } from './cliff'
 import { getFallTestTerms } from './fall'
@@ -20,7 +20,7 @@ import { getSwimTestRootTerms } from './swim'
 import { getStepDelta, isHookedRunner } from './waypoint'
 import type { Test } from './test'
 import { AT_CHEST, type Aim } from './delivery'
-import { getBlastOf, getBlastOrigin, getExplosionDLTerms, isSpray } from './explosion'
+import { getExplosionDLTerms } from './explosion'
 import { getSlipTerms } from './tether'
 import { getFeintTerms } from './feint'
 import { CUT_DL, getCutStrike } from './cut'
@@ -305,18 +305,7 @@ function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
 function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor || (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion')) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...partialCoverTerms(state, reaction), ...reactionSensoryTerms(state, reaction, 'reflex')]
-}
-
-// combat.tex "Cover": partial cover "provides a bonus, usually +3, for
-// reflexes" — to the reactor's own, against a shot from where it is fired or
-// an explosion from where it goes off (its centre, or the attacker for a
-// spray).
-function partialCoverTerms(state: CombatState, reaction: Action): Term[] {
-  const root = reaction.reactionTo ? getAction(state, reaction.reactionTo) : null
-  if (!root) return []
-  const from = root.kind === 'explosion' ? getBlastOrigin(state, root, isSpray(getBlastOf(state, root))) : getPlacedFootprint(state, root.actorId)
-  return from && getCover(state, from, reaction.actorId)?.kind === 'partial' ? [{ label: 'partial cover', value: 3 }] : []
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -326,7 +315,7 @@ function partialCoverTerms(state: CombatState, reaction: Action): Term[] {
 function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...partialCoverTerms(state, reaction), ...reactionSensoryTerms(state, reaction, 'reflex')]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":

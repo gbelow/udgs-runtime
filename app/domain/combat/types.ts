@@ -138,9 +138,8 @@ export const HazardLayerSchema = HazardSchema.extend({
 export type HazardLayer = z.infer<typeof HazardLayerSchema>
 
 // combat.tex "Positioning and Visibility": what a cell does to what crosses
-// it. A blocking cell is cover and, unless transparent, breaks vision; a
-// cell of partial cover does not break vision but stands in the way of what
-// is shot or blown across it (combat.tex "Cover"); difficult terrain asks for a Balance test (combat.tex "Balance"); the
+// it. A blocking cell is cover and, unless transparent, breaks vision
+// (combat.tex "Cover"); difficult terrain asks for a Balance test (combat.tex "Balance"); the
 // visibility is what the terrain grants whoever stands in it; a suffocating
 // cell is gas the map was drawn with (combat.tex "Gas": "anyone that is
 // inside a suffocating gas is suffocating"). What actions leave on it comes
@@ -148,10 +147,9 @@ export type HazardLayer = z.infer<typeof HazardLayerSchema>
 export const TerrainCellSchema = z.object({
   blocking: z.boolean().default(false),
   transparent: z.boolean().default(false),
-  partialCover: z.boolean().default(false),
   // combat.tex "Damage absorption": "The absorption value is RES of the
-  // target if that is an object" — what the cover in the cell absorbs; null
-  // is ground nothing breaks, which absorbs everything
+  // target if that is an object" — what the wall in the cell absorbs; null
+  // is a wall nothing breaks
   RES: num.nullable().default(null),
   difficult: z.boolean().default(false),
   liquid: z.boolean().default(false),

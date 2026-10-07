@@ -18,7 +18,6 @@ const MODE_LABEL = {
 const BRUSH_LABEL: Record<TerrainBrush, string> = {
   wall: 'wall',
   glass: 'glass',
-  cover: 'partial cover',
   sturdier: 'RES +5',
   flimsier: 'RES −5',
   water: 'water',
@@ -125,7 +124,6 @@ const TERRAIN_FILL = {
   open: 'fill-surface',
   wall: 'fill-line',
   glass: 'fill-accent/25',
-  cover: 'fill-muted/35',
   water: 'fill-accent/10',
   rough: 'fill-muted/20',
 } as const
@@ -134,7 +132,6 @@ const TERRAIN_LABEL = {
   open: null,
   wall: 'wall',
   glass: 'glass',
-  cover: 'partial cover',
   water: 'water',
   rough: 'rough',
 } as const
@@ -143,7 +140,6 @@ const TERRAIN_GLYPH = {
   open: '',
   wall: '',
   glass: '◇',
-  cover: '▤',
   water: '≈',
   rough: '∴',
 } as const
