@@ -80,6 +80,15 @@ describe('an attack in the attacker\'s own turn', () => {
     expect(struckFrom(fog('0,0'), 1000)).toEqual([])
   })
 
+  // combat.tex "Combat log" (the table's ruling): the log says who did not
+  // notice what was done to them.
+  it('is recorded as not noticed by one who could not answer it', () => {
+    const state = beginTurn(hiddenWith(fight({ q: 1, r: 0 }, { q: 0, r: 0 }, fog('0,0')), 1000), 't')
+    const declared = setTarget('o')(declareAction('t', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(state))
+    const committed = commitAction(() => 5, newId)(declared)
+    expect([...committed.actions, ...committed.record].find((a) => a.kind === 'strike')?.unnoticed).toEqual(['o'])
+  })
+
   it('can be answered by one they began the turn hidden from, once their stealth fails', () => {
     expect(struckFrom(fog('0,0'), -1000).length).toBeGreaterThan(0)
   })

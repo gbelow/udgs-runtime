@@ -41,6 +41,8 @@ export type EpisodeEntry = ActionReport & {
   changes: string[]
   // how it came to be played, when not on its actor's own initiative
   cause: string | null
+  // who it would have let answer but who did not notice its actor, by name
+  unnoticed: string[]
   // why it came to less than it was declared as, when it did
   fate: string | null
   reactions: ReactionLine[]
@@ -58,7 +60,7 @@ export function getLastEpisode(state: CombatState): EpisodeEntry[] | null {
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), unnoticed: a.unnoticed.map((id) => getFightName(state, id)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }

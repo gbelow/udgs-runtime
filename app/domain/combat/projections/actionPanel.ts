@@ -6,7 +6,6 @@ import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
 import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
-import { getUnnoticing } from '../rules/reactions'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -454,7 +453,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     prepared: getPreparedRows(state),
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    unnoticed: step === 'react' && isRootAction(open) ? getUnnoticing(state, open).map((id) => getFightName(state, id)) : [],
+    unnoticed: step === 'react' ? open.unnoticed.map((id) => getFightName(state, id)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
           .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))

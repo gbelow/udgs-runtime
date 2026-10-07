@@ -569,6 +569,7 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
         <Cost cost={entry.cost} />
         <RollSummary roll={entry.roll} />
         {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}
+        {entry.unnoticed.length > 0 ? <span className='text-xs text-muted'>not noticed by {entry.unnoticed.join(', ')}</span> : null}
       </div>
       <Breakdown terms={entry.costTerms} roll={entry.roll} surged={entry.surged} changes={entry.changes} />
       {entry.reactions.map((r, i) => (

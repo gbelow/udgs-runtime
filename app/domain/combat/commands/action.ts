@@ -5,6 +5,7 @@ import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { getNoise } from '../rules/stealth'
+import { getUnnoticing } from '../rules/reactions'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
@@ -99,7 +100,8 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (needsTarget(open) && !isTargetAimed(state, open)) return state
     const cost = getPayableCost(state, open)
     if (!cost) return state
-    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, cost.AP), step: 'react' }])
+    const committed: RootAction = { ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, cost.AP), step: 'react' }
+    const locked = replaceActions(state, [{ ...committed, unnoticed: getUnnoticing(state, committed) }])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
   }
 }

@@ -234,6 +234,9 @@ const ActionBase = {
   // combat.tex "Actions in stealth": what the action, as it was committed,
   // will take off its actor's stealth value (rules/stealth.ts `getNoise`)
   noise: z.object({ AP: num, heardAP: num }).strip().nullable().default(null),
+  // combat.tex "Actions in stealth": whoever the action, as it was committed,
+  // would have let answer it but who did not notice its actor, by id
+  unnoticed: z.array(str).default([]),
   // the lines `cost` is the sum of, written with it
   costTerms: z.array(CostTermSchema).default([]),
   // the surge its actor made to take the action, paid when it is declared and
