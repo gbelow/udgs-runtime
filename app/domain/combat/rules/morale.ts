@@ -1,13 +1,14 @@
 import type { AfflictionKey, CampaignCharacter, Degree } from '../../types'
 import type { CombatState, Pressure } from '../types'
-import { MORALE_AGGRAVATORS, MORALE_TRIGGER, SOCIAL_BONUS } from '../../tables'
-import { getAfflictions, getInjuryPenalty, isDead } from '../../character/rules/afflictions'
+import { MORALE_AGGRAVATORS, MORALE_LOW_STA, MORALE_SENSE_RADIUS, MORALE_TRIGGER, SOCIAL_BONUS } from '../../tables'
+import { getAfflictions, getInjuryPenalty, hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getCharisma } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import type { Test } from './test'
 import { getFightName } from './fighters'
-import { getSituationalAfflictions, isSuffocating } from './situational'
+import { getSituationalAfflictions } from './situational'
+import { isNearBlindGround } from './detection'
 
 // combat.tex "Social actions": what was said to the character in the round
 // before, "multiple intimidations and taunts don't stack. Only the highest
@@ -35,26 +36,39 @@ export function getSocialValue(c: CampaignCharacter): number {
   return SOCIAL_BONUS + Math.floor(getCharisma(c) / 2)
 }
 
-// combat.tex "Morale", "Combat morale DL = aggravating factors": what weighs
-// on the character as the fight stands, read off their state and never stored.
-// A rally is a term below zero.
+// combat.tex "Morale", "Combat morale DL = 0 + aggravating factors": what
+// weighs on the character as the fight stands, read off their state and
+// never stored, and the pressure the table judges it puts on them. Immobile
+// and grappled do not add up: the worse counts (the table's ruling). A rally
+// is a term below zero.
 export function getAggravators(state: CombatState, id: string): Term[] {
   const c = state.characters[id]
   if (!c) return []
   const { hostile, rally, insult } = getPressure(state, id)
+  const situational = getSituationalAfflictions(state, id)
+  const tablePressure = state.tablePressure[id] ?? 0
   const terms: Term[] = []
   const injury = getInjuryPenalty(c)
   if (injury > 0) terms.push({ label: 'injured', value: MORALE_AGGRAVATORS.injured * injury })
-  if (c.injuries.burning > 0 || isSuffocating(state, c)) terms.push({ label: 'burning or suffocating', value: MORALE_AGGRAVATORS.burning })
-  if (c.resources.STA <= 0) terms.push({ label: 'out of STA', value: MORALE_AGGRAVATORS.outOfSTA })
+  if (hasAffliction(c, 'immobile', situational)) terms.push({ label: 'immobile', value: MORALE_AGGRAVATORS.immobile })
+  else if (hasAffliction(c, 'grappled', situational)) terms.push({ label: 'grappled', value: MORALE_AGGRAVATORS.grappled })
+  if (isNearBlindGround(state, id, MORALE_SENSE_RADIUS)) terms.push({ label: 'sensory limitation', value: MORALE_AGGRAVATORS.sensoryLimitation })
+  if (hasAffliction(c, 'suffocating', situational)) terms.push({ label: 'suffocating', value: MORALE_AGGRAVATORS.suffocating })
+  if (c.resources.STA < MORALE_LOW_STA) terms.push({ label: 'out of STA', value: MORALE_AGGRAVATORS.outOfSTA })
+  if (tablePressure !== 0) terms.push({ label: 'pressure', value: tablePressure })
   if (hostile) terms.push({ label: hostile.kind, value: hostile.value })
   if (insult) terms.push({ label: 'insult', value: insult.value })
   if (rally) terms.push({ label: 'rally', value: -rally.value })
   return terms
 }
 
+// The DL the aggravating factors add up to.
+export function getMoraleDLOf(aggravators: Term[]): number {
+  return Math.max(0, sumTerms(aggravators))
+}
+
 export function getMoraleDL(state: CombatState, id: string): number {
-  return Math.max(0, sumTerms(getAggravators(state, id)))
+  return getMoraleDLOf(getAggravators(state, id))
 }
 
 // combat.tex "Combat morale test": a will test against the DL, which "can be
@@ -68,7 +82,7 @@ export function getMoraleTest(state: CombatState, id: string): Test | null {
 const MORALE_AFFLICTIONS: readonly AfflictionKey[] = ['afraid', 'enraged', 'confused']
 
 // combat.tex "Morale test triggers": "at the beginning of a round when
-// aggravating factors are at 5 or more, when under specific afflictions" —
+// aggravating factors are at 3 or more, when under specific afflictions" —
 // afraid, enraged or confused. The dead and the unconscious make none.
 export function getMoraleCalled(state: CombatState): string[] {
   return Object.keys(state.characters).filter((id) => {

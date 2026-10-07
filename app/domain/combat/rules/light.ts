@@ -27,9 +27,3 @@ export function isUnlit(state: CombatState, cell: Coord): boolean {
   if (!board?.terrain[coordKey(cell)]?.dark) return false
   return !getLights(state).some((l) => l.cells.some((at) => distance(at, cell) <= l.radius) && seesAcross(board, l.cells, [cell]))
 }
-
-// Whether the character stands wholly in the dark, out of every light.
-export function isInDarkness(state: CombatState, id: string): boolean {
-  const footprint = getPlacedFootprint(state, id)
-  return !!footprint && footprint.every((cell) => isUnlit(state, cell))
-}

@@ -10,7 +10,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -433,12 +433,14 @@ function TurnControl(){
 // combat.tex "Morale": the round begins with a will test for whoever the fight
 // has under stress, made normally, safely or riskily; a miss activates the
 // limit stress action, which the table plays out. Whether an enemy is within
-// 30 m is the table's to say.
+// 30 m is the table's to say, and so is the pressure the fight puts on each
+// fighter, set ahead of the round it weighs on.
 function MoralePanel(){
   const rows = useMorale()
-  const { rollMorale } = useCombatCommands()
+  const pressure = useTablePressure()
+  const { rollMorale, setTablePressure } = useCombatCommands()
   const [enemyNear, setEnemyNear] = useState(true)
-  if (rows.length === 0) return null
+  if (pressure.length === 0) return null
 
   return(
     <div className='flex flex-col gap-1 py-2 border-b border-line text-sm'>
@@ -448,6 +450,15 @@ function MoralePanel(){
           <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
           enemy within 30 m
         </label>
+      </div>
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+        <span>pressure</span>
+        {pressure.map((r) => (
+          <label key={r.id} className='flex gap-1 items-center'>
+            {r.name}
+            <NumberInput className='w-10' aria-label={`pressure ${r.name}`} value={r.value} onChange={(e) => setTablePressure(r.id, parseInt(e.target.value) || 0)} />
+          </label>
+        ))}
       </div>
       {rows.map((r) => (
         <div key={r.id} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>

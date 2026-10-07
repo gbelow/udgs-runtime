@@ -1,6 +1,6 @@
 import { SOCIAL_ACTIONS, type SocialAction } from '../../tables'
 import type { CombatState } from '../types'
-import { getAggravators, getMoraleBar, getMoraleDL, getSocialValue } from '../rules/morale'
+import { getAggravators, getMoraleBar, getMoraleDLOf, getSocialValue } from '../rules/morale'
 import { getInsultBar, getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
@@ -26,16 +26,19 @@ export type MoraleRow = {
 // combat.tex "Morale": everyone the round called to a test, what weighs on
 // them and, once made, how it went.
 function buildMoraleRows(state: CombatState): MoraleRow[] {
-  return state.morale.filter((call) => state.characters[call.id]).map(({ id, roll }) => ({
-    id,
-    name: getFightName(state, id),
-    DL: roll?.DL ?? getMoraleDL(state, id),
-    aggravators: getAggravators(state, id).map((t) => `${t.label} +${t.value}`).join(', '),
-    bar: getMoraleBar(state, id),
-    result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}` : '',
-    limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
-    owed: getStressOwed(state, id),
-  }))
+  return state.morale.filter((call) => state.characters[call.id]).map(({ id, roll }) => {
+    const aggravators = getAggravators(state, id)
+    return {
+      id,
+      name: getFightName(state, id),
+      DL: roll?.DL ?? getMoraleDLOf(aggravators),
+      aggravators: aggravators.map((t) => `${t.label} +${t.value}`).join(', '),
+      bar: getMoraleBar(state, id),
+      result: roll ? `${roll.mode} · will ${roll.skill} + die ${roll.die} = ${roll.score} vs DL ${roll.DL} → ${roll.degree}` : '',
+      limitStress: roll?.limitStress ? getStressAction(state, id) ?? 'not chosen' : null,
+      owed: getStressOwed(state, id),
+    }
+  })
 }
 
 export type SocialPanel = {
@@ -78,3 +81,12 @@ export function getSocialPanel(state: CombatState, id: string): SocialPanel {
 export const getMoraleRows = perState(buildMoraleRows)
 
 export const getMoraleDigest = perState((state) => JSON.stringify(getMoraleRows(state)))
+
+export type TablePressureRow = { id: string; name: string; value: number }
+
+// combat.tex "Morale", "Pressure": everyone in the fight and the pressure the
+// table has set on them.
+export const getTablePressureRows = perState((state): TablePressureRow[] =>
+  Object.keys(state.characters).map((id) => ({ id, name: getFightName(state, id), value: state.tablePressure[id] ?? 0 })))
+
+export const getTablePressureDigest = perState((state) => JSON.stringify(getTablePressureRows(state)))

@@ -3,7 +3,7 @@ import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as begi
 import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
-import { rollMorale as testMorale } from "../domain/combat/commands/morale"
+import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/combat/commands/morale"
 import { rollHeld as testHeld } from "../domain/combat/commands/heldTest"
 import type { CalledKind } from "../domain/combat/rules/heldTest"
 import { say as saySocial, insult as insultSocial, negotiate as negotiateSocial, defaultToCoward as defaultToCowardSocial, surrender as surrenderSocial, unsurrender as unsurrenderSocial } from "../domain/combat/commands/social"
@@ -67,6 +67,10 @@ export function useCombatCommands() {
     updateCombatState(testMorale(id, mode, enemyNear, realDice))
   }
 
+  const setTablePressure = (id: string, value: number) => {
+    updateCombatState(setTablePressureOf(id, value))
+  }
+
   const rollHeld = (id: string, kind: CalledKind, mode: RollMode) => {
     updateCombatState(testHeld(id, kind, mode, realDice))
   }
@@ -99,5 +103,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage }
 }

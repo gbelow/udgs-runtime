@@ -21,6 +21,7 @@ export function resetCombat(state: CombatState): CombatState {
     prepared: [],
     stealthTurns: [],
     pressure: [],
+    tablePressure: {},
     surrendered: [],
     round: 0,
     actions: [],

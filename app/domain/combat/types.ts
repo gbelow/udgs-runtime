@@ -1251,6 +1251,9 @@ export const CombatStateSchema = z.object({
   stealthTurns: z.array(StealthTurnSchema).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
+  // combat.tex "Morale", "Pressure": the table's judgment of how the fight
+  // weighs on each character, by id, kept until the table changes it
+  tablePressure: z.record(z.string(), num).default({}),
   // combat.tex "Surrender": who has flagged themselves surrendered
   surrendered: z.array(z.string()).default([]),
   // combat.tex "Flee": whether the turn being taken is a flee, and the turns

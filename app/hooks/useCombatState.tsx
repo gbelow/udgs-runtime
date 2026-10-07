@@ -1,7 +1,7 @@
 import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
 import { setTarget } from "../domain/combat/commands/action";
 import { getOpenAction } from "../domain/combat/rules/log";
-import { getMoraleDigest, getMoraleRows, getSocialPanel, MoraleRow, SocialPanel } from "../domain/combat/projections/morale";
+import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/combat/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/combat/projections/heldTests";
 import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
@@ -65,6 +65,13 @@ export function useCombatSurgeOptions(): SurgeOption[] {
 export function useMorale(): MoraleRow[] {
   useCombatStore(getMoraleDigest);
   return getMoraleRows(useCombatStore.getState());
+}
+
+// combat.tex "Morale", "Pressure" — the pressure the table has set on each
+// fighter, gated on a digest since the rows are freshly allocated.
+export function useTablePressure(): TablePressureRow[] {
+  useCombatStore(getTablePressureDigest);
+  return getTablePressureRows(useCombatStore.getState());
 }
 
 // The tests held for the round (combat.tex "Swimming") — who is owed one and

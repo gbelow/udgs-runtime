@@ -392,11 +392,15 @@ export const SURGES = {
   focus:    { STA: 0, AP: () => 0, earmarked: false, restriction: 'Required for shooting weapons, spells and use items from containers.' },
 } as const satisfies Record<string, { STA: number; AP: (AGI: number) => number; earmarked: boolean; allows?: readonly SurgeAllowance[]; restriction: string; forbiddenBy?: keyof typeof AFFLICTIONS }>
 
-// combat.tex "Morale": "Combat morale DL = aggravating factors", and a test is
-// triggered at the beginning of a round when they total MORALE_TRIGGER or more.
-// `injured` is per injury penalty.
-export const MORALE_AGGRAVATORS = { injured: 2, burning: 5, outOfSTA: 2 } as const
-export const MORALE_TRIGGER = 5
+// combat.tex "Morale": "Combat morale DL = 0 + aggravating factors", and a
+// test is triggered at the beginning of a round when they total MORALE_TRIGGER
+// or more. `injured` is per injury penalty.
+export const MORALE_AGGRAVATORS = { injured: 1, immobile: 3, grappled: 2, sensoryLimitation: 2, suffocating: 3, outOfSTA: 2 } as const
+export const MORALE_TRIGGER = 3
+// "Sensory limitation": total impairment within this many metres; "Out of
+// STA": STA below this.
+export const MORALE_SENSE_RADIUS = 10
+export const MORALE_LOW_STA = 3
 
 // combat.tex "Social actions": intimidation, taunt and rally, each moving the
 // target's morale DL by 1 + charisma/2 (`bonus` + half the charisma, floored).

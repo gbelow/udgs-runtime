@@ -23,3 +23,14 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
     return getMoraleTurnBar(tested) ? tested : oweStress(tested)
   }
 }
+
+// combat.tex "Morale", "Pressure": the table sets how the fight weighs on the
+// character, held until it is set again; nothing for a character not in the
+// fight.
+export function setTablePressure(id: string, value: number): Updater {
+  return (state) => {
+    if (!state.characters[id]) return state
+    const { [id]: _old, ...rest } = state.tablePressure
+    return { ...state, tablePressure: value === 0 ? rest : { ...rest, [id]: value } }
+  }
+}

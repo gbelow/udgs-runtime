@@ -165,6 +165,7 @@ const newId = () => 'issued'
 const combatCases: Record<string, (s: CombatState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0, () => 'issued'),
   rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
+  setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
   say: (s) => combatCommands.say('a', 'taunt', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a' })),
   negotiate: (s) => combatCommands.negotiate('a')(deepFreeze(cleared(s))),
   insult: (s) => combatCommands.insult('a', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', stress: [{ id: 'a', action: 'abusive', acted: false, taken: false }] })),
