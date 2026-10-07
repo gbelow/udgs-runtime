@@ -8,6 +8,7 @@ import { getFallDM2 } from '../../character/rules/size'
 import type { Term } from '../../character/rules/terms'
 import { coordKey } from '../geometry'
 import { delivering } from './delivery'
+import { getSensoryTermsHere } from './detection'
 
 // combat.tex "Balance": what a fall costs the one who falls — the DL of the
 // landing, the damage it comes to, and what each degree of the Balance test
@@ -23,7 +24,7 @@ export function getFallDL(height: number): number {
 
 export function getFallTestTerms(state: CombatState, action: FallAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[action.actorId]
-  return actor ? { skill: getBalanceTerms(actor), DL: [{ label: 'fall', value: getFallDL(action.height) }] } : null
+  return actor ? { skill: [...getBalanceTerms(actor), ...getSensoryTermsHere(state, actor.id, 'balance')], DL: [{ label: 'fall', value: getFallDL(action.height) }] } : null
 }
 
 // combat.tex "Fall damage": "Soft surfaces, like sand or water halve the

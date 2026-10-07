@@ -14,12 +14,13 @@ import { getLinkDL, getLinkedTargets } from './link'
 import { skillTermGetters } from '../../character/rules/skills'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { Term } from '../../character/rules/terms'
+import { Term, sumTerms } from '../../character/rules/terms'
 import { getDistanceBetween, hasLineOfSight } from './board'
 import { resolveTest, resisted } from './test'
 import { isAreaEffect } from './explosion'
 import { getSituationalAfflictions, isSuffocating } from './situational'
 import { getMoraleDL } from './morale'
+import { getSensoryTermsOfDL } from './detection'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -40,7 +41,8 @@ export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
   const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
-    const theirs = getTargetDeliveries(caster, root.key, root.itemId, size)
+    const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+    const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, size, opener?.reactionTo ? 'reactive' : 'active')
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
   return facts
@@ -50,6 +52,18 @@ export function getCastFacts(state: CombatState, root: CastAction): Deliveries {
 // with this gear at this size, each with the test it leaves the target.
 export function getTargetDeliveries(caster: CampaignCharacter, key: SpellKey, itemId: string, size: number): Delivery[] {
   return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => produceSpellEffect(caster, e, size, key))
+}
+
+// The same, aimed at the target from where the caster stands: a test whose
+// DL is written as the caster's sensory skills ("DL: Accuracy") is set less
+// the sensory penalty of the sense they aim it through (combat.tex
+// "Targeted actions").
+export function getAimedDeliveries(state: CombatState, caster: CampaignCharacter, targetId: string, key: SpellKey, itemId: string, size: number, use: 'active' | 'reactive'): Delivery[] {
+  return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => {
+    const delivery = produceSpellEffect(caster, e, size, key)
+    const sensory = e.resist ? sumTerms(getSensoryTermsOfDL(state, caster.id, e.resist.dl, targetId, use)) : 0
+    return delivery.test && sensory !== 0 ? { ...delivery, test: { ...delivery.test, DL: delivery.test.DL + sensory } } : delivery
+  })
 }
 
 // gear.tex "Electrite": the charges a cast draws from its gear, at the size
@@ -317,10 +331,13 @@ export function getSpellTestDLTerms(state: CombatState, action: SpellTestAction)
   const caster = state.characters[action.actorId]
   const test = isSpellKey(action.key) ? SPELLS[action.key].test : null
   if (!caster || !test) return []
-  return test.dl.split('+').map((t) => t.trim()).filter(Boolean).map((label) => ({
-    label,
-    value: label === 'morale aggravators' && action.targetId ? getMoraleDL(state, action.targetId) : resolveDL(caster, label, test.roll).value ?? 0,
-  }))
+  return [
+    ...test.dl.split('+').map((t) => t.trim()).filter(Boolean).map((label) => ({
+      label,
+      value: label === 'morale aggravators' && action.targetId ? getMoraleDL(state, action.targetId) : resolveDL(caster, label, test.roll).value ?? 0,
+    })),
+    ...(action.targetId ? getSensoryTermsOfDL(state, caster.id, test.dl, action.targetId, 'active') : []),
+  ]
 }
 
 // What reaches the target: the outcome their own degree on the test picks,

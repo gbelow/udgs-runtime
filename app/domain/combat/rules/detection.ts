@@ -1,6 +1,6 @@
-import type { Character, Senses } from '../../types'
+import type { CampaignCharacter, Character, Senses, Skills } from '../../types'
 import type { Action, Board, CombatState, Coord, Direction } from '../types'
-import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS } from '../../tables'
+import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS, SkillPenaltyTable } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
@@ -8,11 +8,11 @@ import { getAfflictedSense } from '../../character/rules/afflictions'
 import { getCamouflage } from '../../item/rules/items'
 import { getSituationalAfflictions } from './situational'
 import { directionTo, disk, parseCoordKey, sameCell, setDistance } from '../geometry'
-import { getDistanceBetween, getPlacedFootprint, hasLineOfSight } from './board'
-import { getCellHazard, getHazardAt, getHazardOf } from './hazard'
+import { getDistanceBetween, getPlacedFootprint, hasLineOfSight, seesAcross } from './board'
+import { getCellHazard, getHazardAt } from './hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './waypoint'
-import { getLightAt, getLightOf, isUnlit, seesInDimLight } from './light'
+import { getLightAt, isUnlit, seesInDimLight } from './light'
 import { getAction } from './log'
 
 // combat.tex "Detection": what an observer's senses take in of a target, and
@@ -157,44 +157,106 @@ export function isNearBlindGround(state: CombatState, id: string, radius: number
     && senses.every((s) => TOTAL_INTO[s](state, from, [cell], c.senses[s].range)))
 }
 
-// The sensory penalty of relying on a sense, a positive magnitude: its own
-// (combat.tex "Senses": "Sensory penalty -3, by default") and what
-// afflictions add to it ("Offuscated: -3 to sensory penalties when using
-// vision").
-export function getSensePenalty(state: CombatState, c: Character, sense: keyof Senses): number {
-  return c.senses[sense].penalty + getAfflictedSense(c, sense, getSituationalAfflictions(state, c.id)).penalty
-}
+// What an observer's sense is aimed at: a character, or cells of the ground.
+export type Toward = string | readonly Coord[]
 
-export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boolean; impairment: Exclude<Impairment, 'total'>; terms: Term[]; detection: number }
+// combat.tex "Sensory Penalties": "Apply when acting under bad sensory
+// conditions ... The penalties add up": the sense's own ("Senses":
+// "Sensory penalty -3, by default"), what afflictions add to it
+// ("Offuscated: -3 to sensory penalties when using vision") and, for vision
+// partly impaired, the bad visibility it is impaired by ("Visibility": "a
+// sensory penalty when targeting anything there").
+function getSensoryTermsOf(state: CombatState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses, impairment: Impairment): Term[] {
+  return [
+    { label: `${sense} penalty`, value: -observer.senses[sense].penalty },
+    { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
+    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer, toward) : 0 },
+  ]
+}
 
 // combat.tex "Detection": "A character adds the value of their best available
 // sense to awareness in detection tests. Any sensory penalties to a sense are
-// added too": the skill, the sense's own bonus, what afflictions take off it
-// and, for vision partly impaired, the bad visibility it is impaired by — the
-// ground's or the dim light's, or the camouflage's degree, whichever hides the target better.
-// The sense's own penalty is not among them: it weighs on what is done
-// relying on it (the table's ruling). Combat keeps no distance bands.
-function getDetectionTermsThrough(state: CombatState, observer: Character, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
+// added too": the skill, the sense's own bonus and its sensory penalty.
+function getDetectionTermsThrough(state: CombatState, observer: CampaignCharacter, targetId: string, sense: keyof Senses, impairment: Impairment): Term[] {
   return [
     ...getDetectionTerms(observer),
     { label: sense, value: getSenseBonus(observer, sense) },
-    { label: 'afflictions', value: -getAfflictedSense(observer, sense, getSituationalAfflictions(state, observer.id)).penalty },
-    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? getVisibilityTerm(state, observer.id, targetId) : 0 },
+    ...getSensoryTermsOf(state, observer, targetId, sense, impairment),
   ]
 }
 
 // The bad visibility a partly seen target is in: the ground's or the dim
 // light's, or the degree of their camouflage, whichever is the worse for the
 // observer.
-function getVisibilityTerm(state: CombatState, observerId: string, targetId: string): number {
-  const target = state.characters[targetId]
+function getVisibilityTerm(state: CombatState, observer: CampaignCharacter, toward: Toward): number {
+  const target = typeof toward === 'string' ? state.characters[toward] : undefined
+  const at = typeof toward === 'string' ? getPlacedFootprint(state, toward) ?? [] : [...toward]
   const camouflage = target ? getCamouflage(target) : null
-  const ground = getHazardOf(state, targetId).visibility
-  const observer = state.characters[observerId]
-  const dim = getLightOf(state, targetId) === 'dim' && !(observer && seesInDimLight(observer))
+  const ground = getHazardAt(state, at).visibility
+  const dim = getLightAt(state, at) === 'dim' && !seesInDimLight(observer)
   const sources = [...(ground === 'bad' || ground === 'zero' || dim ? [BAD_VISIBILITY_PENALTY] : []), ...(camouflage === null ? [] : [-camouflage])]
   return sources.length === 0 ? 0 : Math.min(...sources)
 }
+
+// How much of cells of the ground a sense of the observer takes in from where
+// they stand: `IMPAIRMENTS` of a place, line of sight kept.
+function getImpairmentInto(state: CombatState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses): Impairment {
+  if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
+  if (state.board && !seesAcross(state.board, from, at)) return 'total'
+  return seeInto(state, from, at, seesInDimLight(observer))
+}
+
+function getImpairment(state: CombatState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {
+  if (typeof toward === 'string') return IMPAIRMENTS[sense](state, observer.id, toward, observer.senses[sense].range)
+  const from = getPlacedFootprint(state, observer.id)
+  return from && toward.length > 0 ? getImpairmentInto(state, observer, from, [...toward], sense) : 'none'
+}
+
+export type SensoryPenalty = { sense: keyof Senses; penalty: number }
+
+// combat.tex "Targeted actions": "Any actions that use any of the skills
+// listed in sensory penalties require a sense to be used. They always use the
+// best one available" — the least penalised sense of the kind the use calls
+// for ("Active senses: are used to perform any action. Reactive senses can be
+// used for reactions") that takes in what it is aimed at, and its sensory
+// penalty as a positive magnitude. Null where no such sense takes it in.
+export function getSensoryPenalty(state: CombatState, actorId: string, toward: Toward, use: 'active' | 'reactive'): SensoryPenalty | null {
+  const c = state.characters[actorId]
+  if (!c || toward === actorId) return null
+  return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).reduce<SensoryPenalty | null>((best, sense) => {
+    if (!c.senses[sense][use] || !canUse(state, c, sense)) return best
+    const impairment = getImpairment(state, c, toward, sense)
+    if (impairment === 'total') return best
+    const penalty = -sumTerms(getSensoryTermsOf(state, c, toward, sense, impairment))
+    return best && best.penalty <= penalty ? best : { sense, penalty }
+  }, null)
+}
+
+// combat.tex "Afflictions": "Sensory: Strike, Defend, Accuracy, Reflex,
+// Detection, Balance, Climb, Exploration ... and Prestidigitation" —
+// the sensory penalty a test made with the skill takes, as a term. Nothing
+// for a skill outside the list.
+export function getSensoryTerms(state: CombatState, actorId: string, skill: keyof Skills, toward: Toward, use: 'active' | 'reactive'): Term[] {
+  if (!(SkillPenaltyTable.sensory as readonly string[]).includes(skill)) return []
+  const best = getSensoryPenalty(state, actorId, toward, use)
+  return [{ label: best ? `sensory (${best.sense})` : 'sensory', value: -(best?.penalty ?? 0) }]
+}
+
+// The sensory penalties of a test whose DL is written as skills of the actor
+// (spells.tex: "DL: Accuracy"): one for each that is in the list.
+export function getSensoryTermsOfDL(state: CombatState, actorId: string, dl: string, toward: Toward, use: 'active' | 'reactive'): Term[] {
+  return dl.split('+').flatMap((label) => getSensoryTerms(state, actorId, label.trim().toLowerCase() as keyof Skills, toward, use))
+}
+
+// The sensory penalty a test made with the skill takes where the actor
+// stands: the ground underfoot or the face in hand (combat.tex "Balance",
+// "Climbing"). Nothing off the board.
+export function getSensoryTermsHere(state: CombatState, actorId: string, skill: keyof Skills): Term[] {
+  const here = getPlacedFootprint(state, actorId)
+  return here ? getSensoryTerms(state, actorId, skill, here, 'active') : []
+}
+
+export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boolean; impairment: Exclude<Impairment, 'total'>; terms: Term[]; detection: number }
 
 // Every sense of the observer that takes the target in at all, with how
 // impaired it is and what it detects at. Empty for an observer or target not

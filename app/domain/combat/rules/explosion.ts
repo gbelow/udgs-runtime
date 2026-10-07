@@ -15,6 +15,7 @@ import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
 import { findFloorItem } from './floor'
 import { getAction, getReactionsTo } from './log'
+import { getSensoryTerms, getSensoryTermsOfDL } from './detection'
 import { findWeaponRow } from './weaponRow'
 import type { Defense } from './delivery'
 import { getBlockValue } from '../../character/rules/gear'
@@ -332,14 +333,23 @@ function getBurns(state: CombatState, action: BlastShape): Map<string, number> {
 // combat.tex "Explosions": "If the explosion comes from a projectile, the DL
 // of the explosion is equal to the shooting skill." A cast's is what its
 // effects say the target rolls against (the worst of them); a detonation
-// leaves no test at all.
+// leaves no test at all. The producer's skill in it takes the sensory
+// penalty of aiming where it goes off (combat.tex "Targeted actions") when
+// it was aimed at a spot: thrown there or cast there, not set off where it
+// lay by a blow, and never a spray (the table's ruling).
 export function getExplosionDLTerms(state: CombatState, action: ExplosionAction): Term[] {
   const payload = getExplosionPayload(state, action)
   if (!payload) return []
-  if (action.source === 'thrown') return [{ label: 'accuracy', value: getAccuracy(payload.producer) }]
+  const producer = payload.producer.id
+  const at = action.center && !isSpray(getBlastOf(state, action)) ? [action.center] : null
+  if (action.source === 'thrown') {
+    const aimed = action.spawnedBy ? getAction(state, action.spawnedBy)?.kind === 'throw' : false
+    return [{ label: 'accuracy', value: getAccuracy(payload.producer) }, ...(aimed && at ? getSensoryTerms(state, producer, 'accuracy', at, 'active') : [])]
+  }
   if (action.source === 'detonate') return []
-  const DLs = payload.effects.flatMap((e) => (e.resist ? [resolveDL(payload.producer, e.resist.dl, e.resist.roll).value ?? 0] : []))
-  return DLs.length > 0 ? [{ label: 'spell', value: Math.max(...DLs) }] : []
+  const DLs = payload.effects.flatMap((e) => (e.resist ? [{ dl: e.resist.dl, value: resolveDL(payload.producer, e.resist.dl, e.resist.roll).value ?? 0 }] : []))
+  const worst = DLs.reduce<(typeof DLs)[number] | null>((w, d) => (w === null || d.value > w.value ? d : w), null)
+  return worst ? [{ label: 'spell', value: worst.value }, ...(at ? getSensoryTermsOfDL(state, producer, worst.dl, at, 'active') : [])] : []
 }
 
 // Whether anyone can react to it: a thrown or cast explosion is defended

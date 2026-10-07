@@ -28,8 +28,8 @@ import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAtta
 import { getFloorObject, getGroundCell, getGroundDL } from './floorAttack'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
-import { getAction, getOpeningReaction, getReactionsTo, getRootOf } from './log'
-import { getReactionSensePenalty } from './stealth'
+import { getAction, getReactionsTo, getRootOf } from './log'
+import { getSensoryTerms, getSensoryTermsHere } from './detection'
 import { isDefense } from './actionCatalog'
 import { isGuardPlaced } from './protect'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
@@ -255,29 +255,36 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
   const shot = action.kind === 'shoot' ? getShotKind(action.variant) : null
   const grapple = action.kind === 'strike' ? getGrappleStrikeTerm(state, action) : null
   const strike = { label: 'strike', value: getStrike(c) }
+  const skill = action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) }
   return [
-    action.kind === 'strike' ? (grapple && grapple.value > strike.value ? grapple : strike) : { label: 'accuracy', value: getAccuracy(c) },
+    skill,
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
-    ...openedSenseTerms(state, action),
+    ...(skill === grapple ? [] : attackSensoryTerms(state, action, action.kind === 'strike' ? 'strike' : 'accuracy')),
   ]
 }
 
-// combat.tex "Senses": what reacting relies on weighs on the reaction's own
-// test — the sensory penalty of the reactor's sense that takes in whoever
-// they answer (the table's ruling).
-function senseTerm(state: CombatState, reactorId: string, actorId: string | undefined): Term[] {
-  return actorId ? [{ label: 'sense', value: -getReactionSensePenalty(state, reactorId, actorId) }] : []
+// combat.tex "Targeted actions": an attack is made through a sense aimed at
+// what it is aimed at — the attacker's best active one, or, for one a
+// reaction opened (an opportunity attack, a counterattack, a riposte, a
+// prepared attack), the best reactive one, as the reaction it is the test of.
+function attackSensoryTerms(state: CombatState, action: AttackAction, skill: 'strike' | 'accuracy'): Term[] {
+  const ground = action.targetId ? null : getGroundCell(state, action)
+  const toward = action.targetId ?? (ground ? [ground] : null)
+  if (!toward) return []
+  const opener = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  return getSensoryTerms(state, action.actorId, skill, toward, opener?.reactionTo ? 'reactive' : 'active')
 }
 
-// An attack a reaction opened (an opportunity attack, a counterattack) is
-// that reaction's test.
-function openedSenseTerms(state: CombatState, action: AttackAction): Term[] {
-  const opening = getOpeningReaction(state, action) ?? (action.kind === 'strike' ? getOpeningCounter(state, action) : null)
-  return opening?.reactionTo ? senseTerm(state, action.actorId, getAction(state, opening.reactionTo)?.actorId) : []
+// A reaction's sensory penalty: through the reactor's best reactive sense
+// aimed at whoever they answer (combat.tex "Reactive senses can be used for
+// reactions").
+function reactionSensoryTerms(state: CombatState, reaction: Action, skill: 'defend' | 'reflex'): Term[] {
+  const answered = reaction.reactionTo ? getAction(state, reaction.reactionTo)?.actorId : undefined
+  return answered ? getSensoryTerms(state, reaction.actorId, skill, answered, 'reactive') : []
 }
 
 // What the strike's recipe adds (rules/recipes.ts), and for a
@@ -292,11 +299,13 @@ function getAnswerTerms(state: CombatState, strike: StrikeAction): Term[] {
 
 // combat.tex "Avoiding an Explosion": "make a reflex skill test against the
 // DL of the explosion"; "Explosion Block": "an active reflex + shield Cover
-// test" — what a reaction that is a test of its own is rolled with.
+// test" — what a reaction that is a test of its own is rolled with; it is
+// made through a sense aimed at whoever set the explosion off, reacted to
+// before it goes off.
 function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor || (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion')) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : [])]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -306,8 +315,7 @@ function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
 function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  const shooter = reaction.reactionTo ? getAction(state, reaction.reactionTo)?.actorId : undefined
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...senseTerm(state, reactor.id, shooter)]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":
@@ -350,7 +358,7 @@ function getStrikeDefense(state: CombatState, root: StrikeAction): Action | null
 function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...senseTerm(state, reactor.id, root.actorId)]
+  const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'defend')]
   if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
   if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
   return terms
@@ -512,8 +520,8 @@ export function getRootTestTerms(state: CombatState, root: RootAction): RootTest
       return onDegrees(getSwimTestRootTerms(state, root))
     case 'move':
       switch (getMoveTest(state, root)) {
-        case 'climb': return onDegrees({ skill: getClimbTerms(actor), DL: [{ label: 'cliff', value: getClimbDL(state, root) ?? 0 }] })
-        case 'balance': return onDegrees({ skill: getBalanceTerms(actor), DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
+        case 'climb': return onDegrees({ skill: [...getClimbTerms(actor), ...getSensoryTermsHere(state, actor.id, 'climb')], DL: [{ label: 'cliff', value: getClimbDL(state, root) ?? 0 }] })
+        case 'balance': return onDegrees({ skill: [...getBalanceTerms(actor), ...getSensoryTermsHere(state, actor.id, 'balance')], DL: [{ label: 'terrain', value: getBalanceDL(state, root) }] })
       }
     // spells.tex "Telepathic Link": the target's die, against the caster
     case 'spellTest':

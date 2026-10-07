@@ -7,6 +7,7 @@ import { explodes } from '../../weaponProperties'
 import type { BlastAction, CombatState, SlipAction, Tether } from '../types'
 import { getAction } from './log'
 import { getPartner, getTethers, getTethersOf } from './partners'
+import { getSensoryTermsHere } from './detection'
 
 // gear.tex "Net": an object whose exploding rows carry a tether stays in the
 // thrower's hand, tied to what it caught by its rope — it is not thrown away.
@@ -57,5 +58,5 @@ export function findSlipTether(state: CombatState, root: SlipAction): Tether | u
 export function getSlipTerms(state: CombatState, root: SlipAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   const tether = findSlipTether(state, root)
-  return actor && tether ? { skill: getPrestidigitationTerms(actor), DL: [{ label: 'net', value: tether.dl }] } : null
+  return actor && tether ? { skill: [...getPrestidigitationTerms(actor), ...getSensoryTermsHere(state, actor.id, 'prestidigitation')], DL: [{ label: 'net', value: tether.dl }] } : null
 }

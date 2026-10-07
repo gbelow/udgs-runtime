@@ -9,7 +9,7 @@ import { canAfford } from '../../character/rules/cost'
 import { isDead } from '../../character/rules/afflictions'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { getSpellEffects, produceEffects } from '../../character/rules/production'
-import { getTargetDeliveries, isAreaSpell, isInSpellReach } from './cast'
+import { getAimedDeliveries, getTargetDeliveries, isAreaSpell, isInSpellReach } from './cast'
 import { isAreaEffect } from './explosion'
 import { getDistanceBetween } from './board'
 import { getArc, getPartner } from './partners'
@@ -118,11 +118,11 @@ export function getBrokenArcs(state: CombatState): BrokenArc[] {
   }))
 }
 
-// What a shot at the bound target delivers. A spray delivers nothing here;
-// its explosion lays the ground.
+// What a shot at the bound target delivers, aimed again each time. A spray
+// delivers nothing here; its explosion lays the ground.
 export function getFireAgainFacts(state: CombatState, root: FireAgainAction): Deliveries {
   const caster = state.characters[root.actorId]
   if (!caster || !isSpellKey(root.key) || !root.targetId || !state.characters[root.targetId] || isAreaSpell(root.key)) return {}
-  const theirs = getTargetDeliveries(caster, root.key, root.itemId, root.size)
+  const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, root.size, 'active')
   return theirs.length > 0 ? { [root.targetId]: theirs } : {}
 }

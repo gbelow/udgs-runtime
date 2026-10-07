@@ -20,7 +20,6 @@ export const SkillPenaltyTable = {
     "balance",
     "climb",
     "explore",
-    "stealth",
     "prestidigitation",
   ],
   "mental":[

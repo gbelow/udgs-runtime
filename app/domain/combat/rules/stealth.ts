@@ -4,7 +4,7 @@ import { isMuffled } from '../../item/rules/items'
 import { coordKey } from '../geometry'
 import { getPlacedFootprint } from './board'
 import { isDead } from '../../character/rules/afflictions'
-import { getSensePenalty, getSenseReaches, type SenseReach } from './detection'
+import { getSenseReaches, type SenseReach } from './detection'
 import { getTurnHolder } from './turn'
 import { getMoveDestination } from './waypoint'
 import { getDegree } from './test'
@@ -110,16 +110,4 @@ export function notices(state: CombatState, observerId: string, targetId: string
 // their reactors" — everyone living who does not detect them as it begins.
 export function getHiddenFrom(state: CombatState, id: string): string[] {
   return Object.entries(state.characters).filter(([other, c]) => other !== id && !isDead(c) && !isDetectedOffTurn(state, other, id)).map(([other]) => other)
-}
-
-// The sensory penalty of reacting to the actor through the least penalised
-// reactive sense of the reactor that takes them in, as a positive magnitude
-// (combat.tex "Senses": "Sensory penalty -3, by default", and what
-// afflictions add; the table's ruling: it weighs on the reaction's own test). Zero for one
-// with no such sense, whom nothing else lets react.
-export function getReactionSensePenalty(state: CombatState, reactorId: string, actorId: string): number {
-  const reactor = state.characters[reactorId]
-  if (!reactor) return 0
-  const penalties = getSenseReaches(state, reactorId, actorId).filter((r) => r.reactive).map((r) => getSensePenalty(state, reactor, r.sense))
-  return penalties.length === 0 ? 0 : Math.min(...penalties)
 }
