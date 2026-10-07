@@ -189,11 +189,13 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {view.targets.length > 0 || view.noTargets ? (
+      {view.targets.length > 0 || view.hidden.length > 0 || view.noTargets ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>target</SectionLabel>
           {view.targets.map((t) =>
             <Button key={t.id} size='xs' {...toggle(t.selected)} onClick={() => target(t.id)}>{t.name}</Button>)}
+          {view.hidden.map((t) =>
+            <Button key={t.id} size='xs' disabled title='not detected'>{t.name}</Button>)}
           {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
         </div>
       ) : null}
@@ -244,6 +246,7 @@ export function ActionPanel(){
             )
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
+          {view.unnoticed.length > 0 ? <span className='text-xs text-muted'>did not notice: {view.unnoticed.join(', ')}</span> : null}
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
           {view.stepPending ? <span className='text-xs text-muted'>pick where {view.stepPending} steps on the board</span> : null}
           {view.die || view.compare || open.area ? <Test open={open} /> : null}

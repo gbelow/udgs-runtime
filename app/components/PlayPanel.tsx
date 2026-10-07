@@ -388,7 +388,7 @@ function AfflictionsPannel(){
 // rolling cunning at once.
 function TurnControl(){
   const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, toggleBreakage } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, breakage, breakageBar } = useTurnControls()
+  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, breakage, breakageBar, stealth } = useTurnControls()
 
   return(
     <div className='flex flex-col gap-0.5'>
@@ -425,6 +425,7 @@ function TurnControl(){
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
       {result ? <span className='text-xs text-muted'>{result}</span> : null}
+      {stealth ? <span className='text-xs text-muted'>{stealth}</span> : null}
     </div>
   )
 }

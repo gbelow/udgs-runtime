@@ -5,7 +5,8 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { getUnnoticing } from '../rules/reactions'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -287,8 +288,13 @@ export type ActionPanelView = {
   locations: LocationOption[]
   items: ItemAim[]
   targets: { id: string; name: string; selected: boolean }[]
+  // who could be aimed at but has not been detected (combat.tex "Stealth in combat")
+  hidden: { id: string; name: string }[]
   // why the target list is empty, when it is
   noTargets: string | null
+  // at `react`: whoever the action would have triggered but who has not
+  // noticed its actor, by name
+  unnoticed: string[]
   // at `commit`: whether the declaration can be locked
   canCommit: boolean
   // whether the open action is closed by a die or by paying, and at `react`
@@ -335,7 +341,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], noTargets: null, canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -376,6 +382,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
   const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
   const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
   const declaredTargets = getDeclaredTargets(state, open)
+  const hiddenTargets = getDeclaredHiddenTargets(state, open)
   const floorTargets = getDeclaredFloorTargets(state, open)
   const floorStruck = isAttackAction(open) ? getFloorObject(state, open) : null
   // the aim is offered once the attack has a target it may be aimed at
@@ -447,6 +454,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     prepared: getPreparedRows(state),
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
+    unnoticed: step === 'react' && isRootAction(open) ? getUnnoticing(state, open).map((id) => getFightName(state, id)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
           .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
@@ -472,7 +480,8 @@ function buildActionPanel(state: CombatState): ActionPanelView {
       ...declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
       ...floorTargets.map((f) => ({ id: f.item.id, name: getItemLabel(f.item), selected: f.item.id === floorStruck?.item.id })),
     ],
-    noTargets: step === 'target' && declaredTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
+    hidden: hiddenTargets.map((id) => ({ id, name: getFightName(state, id) })),
+    noTargets: step === 'target' && declaredTargets.length === 0 && hiddenTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
     canCommit: step === 'commit' && getPayableCost(state, open) !== null,

@@ -4,6 +4,7 @@ import { getFightName } from '../rules/fighters'
 import { getBreakageBar } from '../rules/breakage'
 import { getCompelledSurge } from '../rules/stress'
 import { getSurgeOptions, SurgeOption } from '../../character/lenses/surge'
+import { getStealthScore, getStealthTurn } from '../rules/stealth'
 
 // The turn buttons as the character sees them: whose turn it is, who asked
 // to contest it, whether they agree to end the round, and why each button is
@@ -24,6 +25,9 @@ export type TurnControls = {
   // cannot be switched now
   breakage: boolean
   breakageBar: string | null
+  // combat.tex "Actions in stealth": whom the holder began the turn hidden
+  // from, and their stealth as the turn has left it; '' when hidden from nobody
+  stealth: string
 }
 
 export function getTurnControls(state: CombatState, id: string): TurnControls {
@@ -41,7 +45,19 @@ export function getTurnControls(state: CombatState, id: string): TurnControls {
     agreed: hasAgreedToEnd(state, id),
     breakage: state.breakage,
     breakageBar: getBreakageBar(state),
+    stealth: getStealthLine(state),
   }
+}
+
+// The turn's stealth, as one line: whom its holder is hidden from, their
+// score less the turn's noise, and less again to an ear when they are noisy.
+function getStealthLine(state: CombatState): string {
+  const turn = getStealthTurn(state)
+  const score = turn ? getStealthScore(state, turn.id) : null
+  if (!turn || score === null || turn.hiddenFrom.length === 0) return ''
+  const names = turn.hiddenFrom.map((id) => getFightName(state, id)).join(', ')
+  const heard = turn.heardAP > 0 ? `, ${score - turn.AP - turn.heardAP} to an ear` : ''
+  return `${getFightName(state, turn.id)} began the turn hidden from ${names} · stealth ${score - turn.AP}${heard}`
 }
 
 // The contest rolled for this turn, as one line: each roll, then who took

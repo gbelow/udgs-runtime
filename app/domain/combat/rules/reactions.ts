@@ -70,12 +70,24 @@ function retargetsOf(c: Character, at: number | null, against?: string): Trigger
 // opportunity from any of its targets" — who answer it each on their own
 // strike, never on another's (no Protect either).
 export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
+  return getDrawnTriggers(state, root).filter((t) => canReactTo(state, root, t))
+}
+
+// Whoever the action would trigger but who has not noticed its actor
+// (combat.tex "Actions in stealth"), each once.
+export function getUnnoticing(state: CombatState, root: RootAction): string[] {
+  const triggers = getDrawnTriggers(state, root)
+  const noticing = new Set(triggers.filter((t) => canReactTo(state, root, t)).map((t) => t.characterId))
+  return [...new Set(triggers.map((t) => t.characterId))].filter((id) => !noticing.has(id))
+}
+
+function getDrawnTriggers(state: CombatState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null
   const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
   const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(root).filter((id) => id !== root.targetId) : []
-  return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId) && canReactTo(state, root, t))
+  return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId))
 }
 
 // combat.tex "Actions in stealth": "The stealthy character cannot be reacted

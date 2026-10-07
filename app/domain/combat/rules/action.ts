@@ -561,10 +561,19 @@ export function isAlongOffered(state: CombatState, open: GrappleAction): boolean
 // once it is locked. An attack reaches whoever its row reaches, so it is
 // aimed only once a row is picked.
 export function getDeclaredTargets(state: CombatState, open: RootAction | null): string[] {
-  if (open?.step !== 'define') return []
+  return isAimingOpen(state, open) ? getTargetIds(state, open) : []
+}
+
+// Who the open declaration could be aimed at but its actor has not detected
+// (combat.tex "Stealth in combat").
+export function getDeclaredHiddenTargets(state: CombatState, open: RootAction | null): string[] {
+  return isAimingOpen(state, open) ? getAimableIds(state, open).filter((id) => !notices(state, open.actorId, id)) : []
+}
+
+function isAimingOpen(state: CombatState, open: RootAction | null): open is RootAction {
+  if (open?.step !== 'define') return false
   const actor = state.characters[open.actorId]
-  if (isAttackAction(open) && (!actor || getAttackVariant(actor, open) === null)) return []
-  return getTargetIds(state, open)
+  return !(isAttackAction(open) && (!actor || getAttackVariant(actor, open) === null))
 }
 
 // The items on the floor the open strike or shot can be aimed at, once it is
