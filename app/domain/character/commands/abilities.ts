@@ -2,7 +2,6 @@ import { CampaignCharacter, Character } from "../../types"
 import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnAbility } from "../rules/abilities"
-import { getAbilities, isRacialAbility } from "../rules/race"
 import { effectsOn, isAbilityActive, lingers } from "../rules/effects"
 import { applyEffects } from "./effects"
 import { canAfford } from "../rules/cost"
@@ -17,11 +16,9 @@ export function learnAbility(key: AbilityKey): (c: Character) => Character {
 }
 
 // Forgetting takes every ability that depended on the one removed with it, so
-// a character never holds a stage without the one it requires. The race's
-// abilities are not forgotten.
+// a character never holds a stage without the one it requires.
 export function forgetAbility(key: string): (c: Character) => Character {
   return (c: Character) => {
-    if (isRacialAbility(c, key)) return c
     const removed = new Set<string>([key])
     let grew = true
     while (grew) {
@@ -48,7 +45,7 @@ export function forgetAbility(key: string): (c: Character) => Character {
 // `active`. Only a learned toggle on a campaign character has a switch.
 export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
-    if (!isCampaignCharacter(c) || !getAbilities(c).includes(key)) return c
+    if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
     if (ABILITIES[key].activation !== 'toggle') return c
     if (isAbilityActive(c, key)) {
       return { ...c, active: c.active.filter((e) => !(e.kind === 'ability' && e.key === key)) }
@@ -72,7 +69,7 @@ export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {
 // table resolves.
 export function useAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
-    if (!isCampaignCharacter(c) || !getAbilities(c).includes(key)) return c
+    if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
     const ability = ABILITIES[key]
     if (ability.activation !== 'active') return c
     if (!canAfford(c, ability.cost) || getSurgeBar(c)) return c

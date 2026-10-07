@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { toast } from "sonner";
-import { getBasicCharList, getCharacterList, JsonObject } from "../actions";
+import { getBasicCharList, getCharacterList, getRaceList, JsonObject } from "../actions";
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
@@ -23,6 +23,8 @@ export interface AppState {
   updateBaseCharacterList: () => void
   playerCharacterList: {id: string, name: string}[]
   updatePlayerCharacterList: () => void
+  raceList: JsonObject
+  updateRaceList: () => void
   pendingItem: PendingItem | null
   setPendingItem: (pendingItem: PendingItem | null) => void
 }
@@ -32,6 +34,7 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     selectedGameTab: 'edit',
     baseCharacterList: initialState.baseCharacterList || {},
     playerCharacterList: initialState.playerCharacterList || [],
+    raceList: initialState.raceList || {},
     
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
     pendingItem: null,
@@ -41,6 +44,12 @@ export const createAppStore = (initialState: Partial<AppState>) =>
       const res = await getBasicCharList()
       if (!res.ok) { toast.error(res.error); return }
       set(s=> ({...s, baseCharacterList: res.data}) )
+    },
+
+    updateRaceList: async () => {
+      const res = await getRaceList()
+      if (!res.ok) { toast.error(res.error); return }
+      set(s=> ({...s, raceList: res.data}) )
     },
 
     updatePlayerCharacterList: async () => {

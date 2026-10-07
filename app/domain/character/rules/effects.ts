@@ -2,7 +2,6 @@ import { Ability, Buff, BuffTarget, Character, Cost, Effect, Trigger } from '../
 import { ABILITIES, AbilityKey, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
-import { getAbilities } from './race'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
   return effect.type === 'buff'
@@ -12,12 +11,11 @@ function isCost(effect: Effect): effect is Extract<Effect, { type: 'cost' }> {
   return effect.type === 'cost'
 }
 
-// The abilities the character has — the race's and the learned ones — that
-// still resolve in the catalog. A character saved
+// The learned abilities that still resolve in the catalog. A character saved
 // before a rename can carry a retired key, so an unknown one is skipped rather
 // than thrown on, the same way afflictions are read.
 export function getLearnedAbilities(character: Character): Ability[] {
-  return getAbilities(character)
+  return character.abilities
     .filter(isAbilityKey)
     .map((key) => ABILITIES[key])
 }
@@ -33,7 +31,7 @@ export function getActiveAbilityKeys(character: Character): AbilityKey[] {
     .filter((entry) => entry?.kind === 'ability')
     .map((entry) => entry.key)
     .filter((key): key is AbilityKey =>
-      isAbilityKey(key) && getAbilities(character).includes(key) && ABILITIES[key].activation !== 'passive')
+      isAbilityKey(key) && character.abilities.includes(key) && ABILITIES[key].activation !== 'passive')
 }
 
 // Whether a fired ability has anything left to do after its instant price:

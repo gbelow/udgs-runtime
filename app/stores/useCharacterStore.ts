@@ -1,7 +1,7 @@
 // stores/useCharacterStore.ts
 import { create } from 'zustand'
 import { Character } from '../domain/types'
-import { makeCharacter } from '../domain/factories'
+import { makeCharacter, makeNewCharacter } from '../domain/factories'
 
 
 // The edit tab is a character *creator*: there is always something to edit, so
@@ -21,7 +21,7 @@ type CharacterStore = {
 }
 
 export const useCharacterStore = create<CharacterStore>((set, get) => ({ 
-  character: makeCharacter(null),
+  character: makeNewCharacter(),
 
   loadCharacter: (rawCharacter) => {
     const character = makeCharacter(rawCharacter)
@@ -42,7 +42,7 @@ export const useCharacterStore = create<CharacterStore>((set, get) => ({
 
   removeCharacter: () =>
     set(() => {
-      return { character: makeCharacter(null) }
+      return { character: makeNewCharacter() }
     }),
 
 }))

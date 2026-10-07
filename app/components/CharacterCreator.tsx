@@ -9,6 +9,8 @@ import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { Button, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
 import { MovementPanel } from './MovementPanel';
+import { RaceCreator } from './RaceCreator';
+import { useIsMakingRace } from '../hooks/useRace';
 import { SensesPanel } from './SensesPanel';
 import { Characteristics, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
@@ -73,26 +75,35 @@ function ResetAllSkillsButton(){
   return <Button variant='ghost' size='xs' onClick={() => resetAllSkills()}>reset all skills</Button>
 }
 
+// creating.tex "Character Creation": the race first, then the character.
+// While the race is being made only the race is made; afterwards what it set
+// is shown but no longer changed.
 export function CharacterCreator() {
+  const makingRace = useIsMakingRace()
+  const header = (
+    <div className='flex flex-row flex-wrap items-center gap-2'>
+      <TextItem keyName={'name'} mode='normal'/>
+      <SaveBaseCharacterButton />
+    </div>
+  )
+  if (makingRace) return <RaceCreator header={header} />
+
   return (
     <div className='grid grid-cols-1 md:grid-cols-12 w-full gap-4 py-3 text-left'>
       <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
-        <div className='flex flex-row flex-wrap items-center gap-2'>
-          <TextItem keyName={'name'} mode='normal'/>
-          <SaveBaseCharacterButton />
-        </div>
+        {header}
 
-        <div className='flex flex-row flex-wrap gap-6'>
+        <CreatureSummary />
+        <fieldset disabled className='flex flex-row flex-wrap gap-6'>
           <MovementPanel />
           <SensesPanel />
-        </div>
+        </fieldset>
 
         <div className='flex flex-row gap-3'>
           <div className='flex flex-col gap-1'>
             <SectionLabel>Attributes</SectionLabel>
             <Tiles>
               {ATTRIBUTES.map((s) => <StatDial key={s} stat={s} title={s} />)}
-              <NumberDial stat={'size'} title={'size'} />
             </Tiles>
           </div>
             <div className='flex flex-col gap-1'>
@@ -255,8 +266,21 @@ function LimitStressPicker(){
 }
 
 function NumberDial ({stat, title}:{stat: 'size' | 'TGH', title: string}){
-  const [value, setValue] = useActiveCharacterDataLens(stat)
-  return <StatTile label={title} value={value} onChange={setValue} />
+  const [value] = useActiveCharacterDataLens(stat)
+  return <StatTile label={title} value={value} />
+}
+
+// What the race set, shown and no longer changed.
+function CreatureSummary(){
+  return(
+    <div className='flex flex-row flex-wrap items-center gap-x-3 gap-y-1'>
+      <SectionLabel>Creature</SectionLabel>
+      <Tiles>
+        <NumberDial stat={'size'} title={'size'} />
+        <NumberDial stat={'TGH'} title={'TGH'} />
+      </Tiles>
+    </div>
+  )
 }
 
 const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes', mode: 'normal' | 'large'}) => {

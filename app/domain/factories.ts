@@ -1,5 +1,5 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema, CharacterRaceSchema, RaceSchema, RACE_BONUS_KEYS, type CharacterRace, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { isBaseCharacter } from './utils'
@@ -58,18 +58,18 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...emptyCharacter.stance,
       ...parsedCharacter.stance,
     },
-    race: parsedCharacter.race ? readRace(parsedCharacter.race) : null,
+    raceDraft: parsedCharacter.raceDraft ? readRaceTraits(parsedCharacter.raceDraft) : null,
     ...reconcileGrip(uniqueParts(parsedCharacter.body ? readBody(parsedCharacter.body) : emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
   }
 }
 
 // A race's traits, field by field: what is not of the right kind is the
 // default, a bonus only to an attribute or a talent and only a number.
-function readRace(raw: unknown): CharacterRace {
+function readRaceTraits(raw: unknown): RaceDraft {
   const traits = RaceTraitsIngestSchema.safeParse(raw)
   const data = traits.success ? traits.data : {}
   const bonuses = knownNumbers(data.bonuses, Object.fromEntries(RACE_BONUS_KEYS.map((key) => [key, 0])) as Record<RaceBonusKey, number>)
-  return CharacterRaceSchema.parse({ ...data, bonuses, abilities: data.abilities?.filter((a) => typeof a === 'string') ?? [] })
+  return RaceDraftSchema.parse({ ...data, bonuses, abilities: data.abilities?.filter((a) => typeof a === 'string') ?? [] })
 }
 
 const RaceTraitsIngestSchema = z.object({
@@ -78,14 +78,19 @@ const RaceTraitsIngestSchema = z.object({
   playable: z.boolean().catch(true),
   bonuses: z.unknown(),
   abilities: z.array(z.unknown()).catch([]),
-  committed: z.boolean().catch(false),
 }).partial()
 
 // A race file, read as lossily as a character: what it sets of the creature
 // is read the way a character's is, its traits field by field. The body is
-// bare, and the race is never committed.
+// bare.
 export function makeRace(raw: unknown): Race {
-  return getRaceOf({ ...makeCharacter(raw), race: readRace(raw) }) ?? RaceSchema.parse({})
+  return getRaceOf({ ...makeCharacter(raw), raceDraft: readRaceTraits(raw) }) ?? RaceSchema.parse({})
+}
+
+// A character just begun: at its race, the first step of making it
+// (creating.tex "Character Creation").
+export function makeNewCharacter(raw: unknown = {}, tags?: string[]): BaseCharacter {
+  return { ...makeCharacter(raw, tags), raceDraft: RaceDraftSchema.parse({}) }
 }
 
 // A part is read over the humanoid's row for its kind, so what it does not
@@ -206,7 +211,7 @@ const CharacterIngestValues = {
 
   abilities: z.array(z.string()).optional(),
   spells: z.record(z.string(), z.any()).optional(),
-  race: z.unknown().optional(),
+  raceDraft: z.unknown().optional(),
 
   notes: z.string().optional(), 
 }

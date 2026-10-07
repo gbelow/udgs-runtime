@@ -1,5 +1,4 @@
 import { requirementsLabel } from '../rules/requirements'
-import { getAbilities, isRacialAbility } from '../rules/race'
 import type { Character, Cost } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
@@ -43,7 +42,6 @@ export type AbilityUseView = {
 }
 
 function learningPrice(c: Character, key: AbilityKey): string {
-  if (isRacialAbility(c, key)) return 'race'
   const { karma } = ABILITIES[key]
   if (karma) return `${karma} Karma`
   const xp = getAbilityXPCost(key)(c)
@@ -88,7 +86,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       active: false,
       use: null,
     }
-    const learned = getAbilities(c).includes(key)
+    const learned = c.abilities.includes(key)
     const stage: AbilityStageView = {
       key,
       name: ability.name,

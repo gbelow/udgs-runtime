@@ -34,8 +34,8 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
   { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
   { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },
-  { label: 'a race that is not an object', raw: { race: 'human' } },
-  { label: 'a malformed race', raw: { race: { name: 3, bonuses: { STR: 'lots', bogus: 2 }, abilities: [1, 'fur'], committed: 'yes' } } },
+  { label: 'a race draft that is not an object', raw: { raceDraft: 'human' } },
+  { label: 'a malformed race draft', raw: { raceDraft: { name: 3, bonuses: { STR: 'lots', bogus: 2 }, abilities: [1, 'fur'] } } },
   { label: 'a malformed part wound', raw: { body: [{ location: 'hand', wounds: [{ tier: 'high' }] }] } },
 ]
 
@@ -47,7 +47,7 @@ const populated = () =>
     TGH: 2,
     notes: 'kept',
     abilities: ['sprinter-1', 'synesthesia-1'],
-    race: { name: 'Surbit', bonuses: { AGI: 2, DEX: 1 }, abilities: ['fur'], committed: true },
+    raceDraft: { name: 'Surbit', bonuses: { AGI: 2, DEX: 1 }, abilities: ['fur'] },
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: 'dagger-1' }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '' }],

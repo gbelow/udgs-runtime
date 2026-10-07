@@ -4,18 +4,15 @@ import { getBurdenPenalty } from "../../item/rules/containers"
 import { getShieldBurden } from "../../item/rules/hands"
 import { getArmor } from "./armor"
 import { Term, sumTerms } from "./terms"
-import { getRaceBonus } from "./race"
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
 // does not affect TGH. It affects all other usages of attributes." The penalty
 // therefore lives on the three attributes rather than on a list of skills, and
 // everything derived from them inherits it. The stated exception reads
-// `getSTRBase` below instead. creating.tex "Races": the race's bonus is
-// added over what was bought, and is part of the attribute everywhere.
+// `getSTRBase` below instead.
 export function getSTRTerms(c: Character): Term[] {
   return [
-    { label: 'base', value: c.trainables.STR.value },
-    { label: 'race', value: getRaceBonus(c, 'STR') },
+    { label: 'base', value: getSTRBase(c) },
     { label: 'injury', value: -getInjuryPenalty(c) },
   ]
 }
@@ -26,7 +23,6 @@ export function getSTR(c: Character): number {
 export function getAGITerms(c: Character): Term[] {
   return [
     { label: 'base', value: c.trainables.AGI.value },
-    { label: 'race', value: getRaceBonus(c, 'AGI') },
     { label: 'gear', value: -getGearPenalties(c) },
     { label: 'injury', value: -getInjuryPenalty(c) },
   ]
@@ -38,7 +34,6 @@ export function getAGI(c: Character): number {
 export function getSTATerms(c: Character): Term[] {
   return [
     { label: 'base', value: c.trainables.STA.value },
-    { label: 'race', value: getRaceBonus(c, 'STA') },
     { label: 'gear', value: -getGearPenalties(c) },
     { label: 'injury', value: -getInjuryPenalty(c) },
   ]
@@ -54,10 +49,10 @@ export function getSTA(c: Character): number {
 // the affliction set, which includes an over-burden `lame`, so reading the
 // penalized STR here would close a loop.
 export function getSTRBase(c: Character): number {
-  return c.trainables.STR.value + getRaceBonus(c, 'STR')
+  return c.trainables.STR.value
 }
 export function getAGIBase(c: Character): number {
-  return c.trainables.AGI.value + getRaceBonus(c, 'AGI') - getGearPenalties(c)
+  return c.trainables.AGI.value - getGearPenalties(c)
 }
 
 // combat.tex "Rest": the Rest action recovers STA by an amount equal to STA/4
@@ -68,11 +63,10 @@ export function getSTARegen(c: Character): number {
   return Math.floor(getSTA(c) / 4)
 }
 
-// creating.tex "Races": "bonuses to attributes and talents"
-export const getCON = (c: Character) => c.trainables.CON.value + getRaceBonus(c, 'CON')
-export const getINT = (c: Character) => c.trainables.INT.value + getRaceBonus(c, 'INT')
-export const getSPI = (c: Character) => c.trainables.SPI.value + getRaceBonus(c, 'SPI')
-export const getDEX = (c: Character) => c.trainables.DEX.value + getRaceBonus(c, 'DEX')
+export const getCON = (c: Character) => c.trainables.CON.value
+export const getINT = (c: Character) => c.trainables.INT.value
+export const getSPI = (c: Character) => c.trainables.SPI.value
+export const getDEX = (c: Character) => c.trainables.DEX.value
 
 export const getMelee = (c: Character) => c.trainables.melee.value
 export const getRanged = (c: Character) => c.trainables.ranged.value

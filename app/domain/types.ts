@@ -1259,8 +1259,8 @@ export type TerrainBrush = z.infer<typeof TerrainBrushSchema>
 
 // creating.tex "Races": what a race sets of a creature — its size and how it
 // sits on the grid, its toughness, senses, base movement, natural armor and
-// body. Chosen only while the race is being made; a character carries its
-// own copy, since the body changes in play.
+// body. Chosen only while the race is being made; picking a race copies them
+// onto the character, whose own they then are.
 const RaceBodyValues = {
   size: z.number().default(3),
   // creating.tex "Size and Space Occupation": how the cells the size grants
@@ -1281,9 +1281,8 @@ export const RaceBonusKeySchema = z.enum(RACE_BONUS_KEYS)
 export type RaceBonusKey = z.infer<typeof RaceBonusKeySchema>
 
 // creating.tex "Races": "Each playable race comes with its own bonuses to
-// attributes and talents" — added over what the character buys ("Add the
-// attribute bonuses after step 4") — and its abilities ("Has the Fur
-// ability"), which cost nothing. A race nobody plays (a monster's, an
+// attributes and talents" ("Add the attribute bonuses after step 4") and its
+// abilities ("Has the Fur ability"). A race nobody plays (a monster's, an
 // animal's) is not offered to players.
 const RaceTraits = {
   name: str.default(''),
@@ -1296,11 +1295,11 @@ const RaceTraits = {
 export const RaceSchema = z.object({ ...RaceTraits, ...RaceBodyValues }).strip()
 export type Race = z.infer<typeof RaceSchema>
 
-// The race as a character carries it: its traits, and whether it is
-// committed — once it is, what the race set is no longer the character's to
-// change.
-export const CharacterRaceSchema = z.object({ ...RaceTraits, committed: z.boolean().default(false) }).strip()
-export type CharacterRace = z.infer<typeof CharacterRaceSchema>
+// A race being made: its traits, kept on the character only while the race
+// is the first step of making it. Committing writes them into the character
+// and forgets the race.
+export const RaceDraftSchema = z.object(RaceTraits).strip()
+export type RaceDraft = z.infer<typeof RaceDraftSchema>
 
 const CharacterValues = {
   id: z.string().default(() => crypto.randomUUID()),
@@ -1327,9 +1326,10 @@ const CharacterValues = {
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog
   spells: z.record(z.string(), LearnedSpellSchema).default({}), // keyed into the spell catalog
 
-  // creating.tex "Races": the race the character was made from, as it was
-  // copied on; null for one made without a race
-  race: CharacterRaceSchema.nullable().default(null),
+  // creating.tex "Character Creation", "Step 2: Race": the race being made
+  // while the character is in its first step; null once it is committed,
+  // and for every character made before races
+  raceDraft: RaceDraftSchema.nullable().default(null),
 
   // creating.tex "Limit Stress Actions": chosen once, null while unchosen
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),

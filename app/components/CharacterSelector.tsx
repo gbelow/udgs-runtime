@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { upsertBaseCharacter, deleteBaseCharacter, getCharacter, deleteCharacter, JsonObject } from '../actions';
 import { useCharacterLibrary, useLoadCharacter } from '../hooks/useCharacterLibrary';
 import { useGameTab } from '../hooks/useGameTab';
-import { makeCharacter } from '../domain/factories';
+import { makeCharacter, makeNewCharacter } from '../domain/factories';
 import { groupByTags, TreeNode } from '../domain/character/grouping';
 import { BaseCharacter, Character } from '../domain/types';
 import { ListButton } from './ui';
@@ -114,7 +114,7 @@ export function CharacterSelector(){
     // in, so the new character lands in that folder.
     const name = window.prompt('Character name')?.trim()
     if (!name) return
-    const res = await upsertBaseCharacter(makeCharacter({ name }, tags))
+    const res = await upsertBaseCharacter(makeNewCharacter({ name }, tags))
     if(!res.ok){ toast.error(res.error); return }
     updateBaseCharacterList()
   }
