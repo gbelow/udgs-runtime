@@ -35,6 +35,12 @@ export function makeSensePenaltyLens(senseName: keyof Senses): Lens<Character, n
   return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "penalty">("penalty"));
 }
 
+// combat.tex "Smell": "Range of smell is 0, by default" — in metres, null
+// for a sense that reaches as far as it is triggered.
+export function makeSenseRangeLens(senseName: keyof Senses): Lens<Character, number | null> {
+  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "range">("range"));
+}
+
 export function makeSenseHasSenseLens(senseName: keyof Senses): Lens<Character, boolean> {
   return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "hasSense">("hasSense"));
 }

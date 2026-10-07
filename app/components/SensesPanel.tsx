@@ -1,7 +1,7 @@
 'use client'
 
 import { NumberInput, SectionLabel } from './ui';
-import { useSenseFlag, useSenseNumber } from '../hooks/useSenseLens';
+import { useSenseFlag, useSenseNumber, useSenseRange } from '../hooks/useSenseLens';
 import type { Senses } from '../domain/types';
 
 const SENSES: (keyof Senses)[] = ['vision', 'hearing', 'smell', 'touch', 'synesthesia']
@@ -16,20 +16,28 @@ function Value({ sense, field }: { sense: keyof Senses, field: 'bonus' | 'penalt
   return <NumberInput className='w-14 py-0.5 text-sm' aria-label={`${sense} ${field}`} value={value} onChange={(e) => setValue(parseInt(e.target.value) || 0)} />
 }
 
+// Blank for a sense with no range: it reaches as far as it is triggered.
+function Range({ sense }: { sense: keyof Senses }) {
+  const [value, setValue] = useSenseRange(sense)
+  return <NumberInput className='w-14 py-0.5 text-sm' aria-label={`${sense} range`} min={0} placeholder='∞' value={value ?? ''}
+    onChange={(e) => setValue(e.target.value === '' ? null : Math.max(0, parseInt(e.target.value) || 0))} />
+}
+
 // combat.tex "Senses": which senses the character has, which detect actively
-// and which react, the sensory penalty of relying on each and the bonus each
-// adds to awareness.
+// and which react, the sensory penalty of relying on each the bonus each
+// adds to awareness and how far each reaches.
 export function SensesPanel() {
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Senses</SectionLabel>
-      <div className='grid grid-cols-[auto_repeat(5,minmax(0,1fr))] sm:grid-cols-[auto_repeat(3,2.5rem)_repeat(2,minmax(0,4rem))] gap-x-2 gap-y-1 items-center w-fit'>
+      <div className='grid grid-cols-[auto_repeat(6,minmax(0,1fr))] sm:grid-cols-[auto_repeat(3,2.5rem)_repeat(3,minmax(0,4rem))] gap-x-2 gap-y-1 items-center w-fit'>
         <span />
         <SectionLabel className='text-center'>has</SectionLabel>
         <SectionLabel className='text-center'>active</SectionLabel>
         <SectionLabel className='text-center'>reactive</SectionLabel>
         <SectionLabel className='text-center'>penalty</SectionLabel>
         <SectionLabel className='text-center'>bonus</SectionLabel>
+        <SectionLabel className='text-center'>metres</SectionLabel>
         {SENSES.map((s) => (
           <div key={s} className='contents'>
             <span className='text-xs text-muted'>{s}</span>
@@ -38,6 +46,7 @@ export function SensesPanel() {
             <Flag sense={s} field='reactive' />
             <Value sense={s} field='penalty' />
             <Value sense={s} field='bonus' />
+            <Range sense={s} />
           </div>
         ))}
       </div>

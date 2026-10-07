@@ -12,6 +12,16 @@ export function useSenseNumber(senseName: keyof Senses, field: 'bonus' | 'penalt
   return [value, setValue] as const;
 }
 
+export function useSenseRange(senseName: keyof Senses) {
+  const lens = senseLenses[senseName].range;
+  const update = useActiveCharacterUpdate();
+  const value = useActiveCharacterSelector((c: Character) => lens.get(c)) ?? null;
+  const setValue = (newValue: number | null) => {
+    update((c) => lens.set(c, newValue));
+  };
+  return [value, setValue] as const;
+}
+
 export function useSenseFlag(senseName: keyof Senses, field: 'hasSense' | 'active' | 'reactive') {
   const lens = senseLenses[senseName][field];
   const update = useActiveCharacterUpdate();

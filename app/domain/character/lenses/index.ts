@@ -6,7 +6,7 @@ import { getSize } from "../rules/size";
 import { getTGH } from "../rules/misc";
 import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
 import { makeMovementCostLens, makeMovementLens } from "./movement";
-import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSensePenaltyLens, makeSenseRangePenaltyLens, makeSenseReactiveLens } from "./senses";
+import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSensePenaltyLens, makeSenseRangeLens, makeSenseRangePenaltyLens, makeSenseReactiveLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
 import { skillTermGetters } from "../rules/skills";
 import { Term, sumTerms, termsDigest, termsView, TermsView } from "../rules/terms";
@@ -86,6 +86,7 @@ export const senseLenses: Record<keyof Senses, {
   rangePenalty: Lens<Character, number>
   bonus: Lens<Character, number>
   penalty: Lens<Character, number>
+  range: Lens<Character, number | null>
   active: Lens<Character, boolean>
   reactive: Lens<Character, boolean>
   hasSense: Lens<Character, boolean>
@@ -94,6 +95,7 @@ export const senseLenses: Record<keyof Senses, {
     rangePenalty: makeSenseRangePenaltyLens("vision"),
     bonus: makeSenseBonusLens("vision"),
     penalty: makeSensePenaltyLens("vision"),
+    range: makeSenseRangeLens("vision"),
     active: makeSenseActiveLens("vision"),
     reactive: makeSenseReactiveLens("vision"),
     hasSense: makeSenseHasSenseLens("vision"),
@@ -102,6 +104,7 @@ export const senseLenses: Record<keyof Senses, {
     rangePenalty: makeSenseRangePenaltyLens("hearing"),
     bonus: makeSenseBonusLens("hearing"),
     penalty: makeSensePenaltyLens("hearing"),
+    range: makeSenseRangeLens("hearing"),
     active: makeSenseActiveLens("hearing"),
     reactive: makeSenseReactiveLens("hearing"),
     hasSense: makeSenseHasSenseLens("hearing"),
@@ -110,6 +113,7 @@ export const senseLenses: Record<keyof Senses, {
     rangePenalty: makeSenseRangePenaltyLens("smell"),
     bonus: makeSenseBonusLens("smell"),
     penalty: makeSensePenaltyLens("smell"),
+    range: makeSenseRangeLens("smell"),
     active: makeSenseActiveLens("smell"),
     reactive: makeSenseReactiveLens("smell"),
     hasSense: makeSenseHasSenseLens("smell"),
@@ -118,6 +122,7 @@ export const senseLenses: Record<keyof Senses, {
     rangePenalty: makeSenseRangePenaltyLens("touch"),
     bonus: makeSenseBonusLens("touch"),
     penalty: makeSensePenaltyLens("touch"),
+    range: makeSenseRangeLens("touch"),
     active: makeSenseActiveLens("touch"),
     reactive: makeSenseReactiveLens("touch"),
     hasSense: makeSenseHasSenseLens("touch"),
@@ -126,6 +131,7 @@ export const senseLenses: Record<keyof Senses, {
     rangePenalty: makeSenseRangePenaltyLens("synesthesia"),
     bonus: makeSenseBonusLens("synesthesia"),
     penalty: makeSensePenaltyLens("synesthesia"),
+    range: makeSenseRangeLens("synesthesia"),
     active: makeSenseActiveLens("synesthesia"),
     reactive: makeSenseReactiveLens("synesthesia"),
     hasSense: makeSenseHasSenseLens("synesthesia"),

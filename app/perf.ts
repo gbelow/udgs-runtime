@@ -37,6 +37,7 @@ function buildEntries(): ProjectionEntry[] {
     list.push({ name: `sense.${k}.rangePenalty`, get: (c) => s.rangePenalty.get(c), set: (c, v) => s.rangePenalty.set(c, v as number) });
     list.push({ name: `sense.${k}.bonus`, get: (c) => s.bonus.get(c), set: (c, v) => s.bonus.set(c, v as number) });
     list.push({ name: `sense.${k}.penalty`, get: (c) => s.penalty.get(c), set: (c, v) => s.penalty.set(c, v as number) });
+    list.push({ name: `sense.${k}.range`, get: (c) => s.range.get(c), set: (c, v) => s.range.set(c, v as number | null) });
     list.push({ name: `sense.${k}.reactive`, get: (c) => s.reactive.get(c), set: (c, v) => s.reactive.set(c, v as boolean) });
     list.push({ name: `sense.${k}.active`, get: (c) => s.active.get(c), set: (c, v) => s.active.set(c, v as boolean) });
     list.push({ name: `sense.${k}.hasSense`, get: (c) => s.hasSense.get(c), set: (c, v) => s.hasSense.set(c, v as boolean) });
