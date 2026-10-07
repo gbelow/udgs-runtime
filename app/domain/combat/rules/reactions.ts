@@ -82,7 +82,7 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
 // against, unless their stealth value grazes or misses against the reactor's
 // detection."
 function canReactTo(state: CombatState, root: RootAction, trigger: Trigger): boolean {
-  return notices(state, trigger.characterId, root.actorId, root)
+  return notices(state, trigger.characterId, root.actorId, root, trigger.at)
 }
 
 function getKindTriggers(state: CombatState, root: RootAction): Trigger[] {

@@ -578,8 +578,10 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
 // so that a throw has someone to hit, a net someone to catch, a shot someone
-// to join, and a walk may end in the water or on the rock.
-function playCrowd(seed: number) {
+// to join, and a walk may end in the water or on the rock. With `walls`,
+// those cells are painted as walls too, so that some begin out of the
+// others' sight and stealth has someone to hide.
+function playCrowd(seed: number, walls: [number, number][] = []) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng))
@@ -589,6 +591,7 @@ function playCrowd(seed: number) {
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
   h.paint('raise', [[-3, 1], [-3, 2]], 2)
   h.paint('grip', [[-3, 1], [-3, 2]])
+  if (walls.length) h.paint('wall', walls)
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
     h.select(name)
     h.cell(q, r)
@@ -598,7 +601,7 @@ function playCrowd(seed: number) {
 }
 
 describe('a crowd on rough ground', () => {
-  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', playCrowd)
+  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed))
 
   // A reaction took the AP a committed opportunity attack still had to pay
   // its follow-up with, and the throw waited on that follow-up for good.
@@ -608,4 +611,10 @@ describe('a crowd on rough ground', () => {
   // comparison forbade moving the block; a helper's assist turned it into one
   // costing 4, and the drag waited for good.
   it('never lets a help leave the push unpayable (seed 24)', () => playCrowd(24))
+})
+
+const COVER: [number, number][] = [[-1, 0], [-1, -1], [1, -1], [2, 0]]
+
+describe('a crowd behind cover', () => {
+  it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed, COVER))
 })

@@ -137,7 +137,8 @@ click to what stands afterwards. It is admitted, under these terms.
   a spell, a target clicked, a landing clicked) so that an action gets as far as being rolled.
   Two more kinds of session play exchanges: a duel of two characters (brawlers, archers, a
   spearman, a trained warden with spear and shield, a mage, a bomber, a netter) and a crowd of
-  seven on ground with a pond and a cliff painted on it. In an exchange one declares something
+  seven on ground with a pond and a cliff painted on it, once in the open and once with walls
+  between them, so that some begin out of the others' sight and stealth has someone to hide. In an exchange one declares something
   leaning to a grapple, a push, a shot, a throw or a spell, the others are answered with whatever
   defences are offered, and the roll runs on to its end, aiming what it opens. A walk, swim, climb
   or jump is its own play, and so is an ambush: someone prepares a reaction and someone else is sent

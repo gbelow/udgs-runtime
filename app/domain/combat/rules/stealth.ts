@@ -73,25 +73,23 @@ function isNoticedInTurn(state: CombatState, turn: StealthTurn, observerId: stri
   return getSenseReaches(state, observerId, turn.id).some((r) => r.reactive && isFound(score - penalty(r), r.detection))
 }
 
-// The fight with a move's mover standing where it ends, so that whoever it
-// walks into the view of may see them there.
-function atDestination(state: CombatState, move: Action | null): CombatState | null {
-  if (move?.kind !== 'move' || !state.board) return null
-  const end = getMoveDestination(state, move, move.path)
-  return end && { ...state, board: { ...state.board, placements: { ...state.board.placements, [move.actorId]: end } } }
+// The fight with a move's mover standing at step `at` of its path, where a
+// reaction to it fires; null for no step.
+function atStep(state: CombatState, move: Action | null, at: number | null): CombatState | null {
+  if (move?.kind !== 'move' || !state.board || !at) return null
+  const there = getMoveDestination(state, move, move.path.slice(0, at))
+  return there && { ...state, board: { ...state.board, placements: { ...state.board.placements, [move.actorId]: there } } }
 }
 
 // Whether the observer has the target: to aim at them, or to answer
-// `pending`, an action of theirs not yet landed — a move where it starts or
-// where it ends.
-export function notices(state: CombatState, observerId: string, targetId: string, pending: Action | null = null): boolean {
+// `pending`, an action of theirs not yet landed — a move as it stands at
+// step `at`, where the reaction fires.
+export function notices(state: CombatState, observerId: string, targetId: string, pending: Action | null = null, at: number | null = null): boolean {
   if (observerId === targetId) return true
   const turn = getStealthTurn(state)
   if (turn?.id !== targetId) return isDetectedOffTurn(state, observerId, targetId)
   const live = pending && pending.step !== 'done' ? pending : null
-  const noise = live?.noise ?? { AP: 0, heardAP: 0 }
-  const moved = atDestination(state, live)
-  return isNoticedInTurn(state, turn, observerId, noise) || (moved !== null && isNoticedInTurn(moved, turn, observerId, noise))
+  return isNoticedInTurn(atStep(state, live, at) ?? state, turn, observerId, live?.noise ?? { AP: 0, heardAP: 0 })
 }
 
 // combat.tex "Actions in stealth": "A character can only use the stealth
