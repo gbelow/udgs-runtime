@@ -279,26 +279,36 @@ export function getAffected(state: CombatState, action: BlastShape): { id: strin
 // What reaches each character in the area: every effect whose area they
 // stand in, at that zone's degree, made by whoever set it off (spells.tex
 // "Casting spells"; gear.tex "Explosion": "applies the weapon's damage ...
-// and any other effects"). What goes to the ground is not here. Damage that
-// partial cover stands in the way of carries it, absorbed as a shield's
-// block absorbs an explosion (combat.tex "Cover", "Explosion Block").
+// and any other effects"). What goes to the ground is not here. Damage to
+// one who avoided it with a hit or better carries the partial cover in its
+// way, absorbed as a shield's block absorbs an explosion (combat.tex "Partial
+// Cover", "Explosion Block").
 export function getExplosionFacts(state: CombatState, action: BlastShape, explosionId: string | null = null): Deliveries {
   const producer = state.characters[action.actorId]
   if (!producer || action.paintOnly) return {}
   const facts: Deliveries = {}
   for (const id of Object.keys(state.characters)) {
     const blocked = explosionId ? getExplosionBlock(state, explosionId, id) : null
+    const sheltered = explosionId !== null && hasAvoided(state, explosionId, id)
     const deliveries = action.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
       const zone = getZoneOf(state, action, id, e.area)
       if (!zone) return []
       const delivery = { ...produceSpellEffect(producer, e), degree: zone.degree, test: null }
       if (delivery.effect.type !== 'damage') return [delivery]
-      return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, cover: toDamageCover(zone.cover), explosion: true } } }]
+      return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, cover: sheltered ? toDamageCover(zone.cover) : null, explosion: true } } }]
     })
     if (deliveries.length > 0) facts[id] = deliveries
   }
   return facts
+}
+
+// combat.tex "Partial Cover": "On hits and crits from avoiding explosion" the
+// cover acts as full cover — whether the character avoided the explosion
+// with a hit or better.
+function hasAvoided(state: CombatState, explosionId: string, id: string): boolean {
+  const degree = getReactionsTo(state, explosionId).find((r) => r.actorId === id && r.kind === 'avoidExplosion')?.roll?.degree
+  return degree === 'hit' || degree === 'critical'
 }
 
 // combat.tex "Explosion Block": "If successful or critical, the explosion

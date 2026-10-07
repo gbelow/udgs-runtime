@@ -78,12 +78,13 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   ground nothing breaks, which absorbs everything), or nothing. Shots, throws and attacks at the
   floor need a line of fire (`hasLineOfFire`, `isAimableCell` given `firesAcross`); casting,
   detection and light need sight. Total cover from a blast's origin (`getBlastOrigin`: its centre,
-  or the attacker for a spray) keeps a character out of it. Partial cover rides on the delivered
-  damage (`Damage.cover`): a shot's is absorbed on a graze or a miss as a shield would, an
-  explosion's (`Damage.explosion`) at every zone after the zone's scaling, as an Explosion Block
-  is, and a block meets what the cover let past (`getShares`); and it gives +3 to the reactor's reflexes
-  (`partialCoverTerms`). A guard made with a body shield may take `cover`: when it lands,
-  `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
+  or the attacker for a spray) keeps a character out of it. Partial cover gives +3 to every reflex
+  reaction, and absorbs only for those who evade or avoid: it rides on the delivered damage
+  (`Damage.cover`) of a shot met by the target's evasion, absorbed on a graze or a miss as a shield
+  would, and of an explosion whose avoider made a hit or better, absorbed at every zone after the
+  zone's scaling (`Damage.explosion`). A guard or an explosion block works as it does without
+  cover (combat.tex "Partial Cover"). The +3 is `partialCoverTerms`. A guard made with a body
+  shield may take `cover`: when it lands, `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
   rounds until its owner lands any action but a careful move. `isBehindBodyShield` reads it, while
   the shield is still in hand, against anything on the shooter's side of them: they can be neither
   seen nor shot from there.

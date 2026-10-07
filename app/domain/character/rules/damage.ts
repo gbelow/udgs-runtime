@@ -48,25 +48,23 @@ function getBlockShare(facts: Damage, degree: Degree, measured: number): number 
   return getAbsorbedShare(measured, getBlockValue(facts, degree))
 }
 
-// combat.tex "Cover": the share of the measured damage partial cover in the
-// blow's way lets past — "absorbs damage as if it were a shield in the case
-// of grazes and misses", at its RES, and cover nothing breaks absorbs
-// everything; an explosion's at every zone (combat.tex "Explosion Block").
-// Null when nothing is in the way or the blow went past it.
+// combat.tex "Partial Cover": the share of the measured damage the cover in
+// the blow's way lets past, at its RES, cover nothing breaks absorbing
+// everything — a shot's "On misses and grazes on evasion", an explosion's at
+// every zone once its avoider made a hit or better (combat.tex "Explosion
+// Block"). Null when nothing is in the way or the blow went past it.
 function getCoverShare(facts: Damage, degree: Degree, measured: number): number | null {
   const cover = facts.cover
   if (!cover || (!facts.explosion && degree !== 'graze' && degree !== 'miss')) return null
   return getAbsorbedShare(measured, cover.RES ?? Infinity)
 }
 
-// What stands in the blow's way, in the order it meets it: the cover's share
-// of the measured damage, and the block's of what the cover let past.
-type Shares = { cover: number | null; block: number | null; pastCover: number }
+// What stands in the blow's way: cover, for one who evaded it, or a block —
+// never both, as each comes of a reaction of its own.
+type Shares = { cover: number | null; block: number | null }
 
 function getShares(facts: Damage, degree: Degree, measured: number): Shares {
-  const cover = getCoverShare(facts, degree, measured)
-  const pastCover = Math.floor(measured * (cover ?? 1))
-  return { cover, block: getBlockShare(facts, degree, pastCover), pastCover }
+  return { cover: getCoverShare(facts, degree, measured), block: getBlockShare(facts, degree, measured) }
 }
 
 // What the block that met the blow absorbs at the degree: its value, "A miss
@@ -130,14 +128,12 @@ function afterDefense(facts: Damage, degree: Degree, damage: number, blockShare:
   return getUndefendedDamage(damage, degree)
 }
 
-// combat.tex "Cover": partial cover meets a shot first, as a shield would,
-// standing for the degree's own share, and whatever block there is meets what
-// it lets past; an explosion's damage it absorbs once the zone and any block
-// are done with it.
+// combat.tex "Partial Cover": cover acting as full cover stands for a shot's
+// degree, as a shield would; an explosion's damage it absorbs once the zone
+// has scaled it.
 function afterCover(facts: Damage, degree: Degree, damage: number, shares: Shares): number {
   if (shares.cover === null) return afterDefense(facts, degree, damage, shares.block)
-  if (facts.explosion) return Math.floor(afterDefense(facts, degree, damage, shares.block) * shares.cover)
-  return Math.floor(damage * shares.cover * (shares.block ?? 1))
+  return Math.floor((facts.explosion ? getUndefendedDamage(damage, degree) : damage) * shares.cover)
 }
 
 // The kinds dealt through the burning counter.
@@ -251,15 +247,15 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
 // targets in a sequence still left once it is past this one. A block that
 // met it absorbs first and the body second (the table's ruling), the body at
 // its T2 damage — "For a character, the value equals to T2 damage", the
-// measured kind's armor value and twice TGH; cover in the way absorbs before
-// either. A blow that never touched them (a miss with nothing in its way)
+// measured kind's armor value and twice TGH; cover in the way absorbs as a
+// block does. A blow that never touched them (a miss with nothing in its way)
 // passes on whole; one an intercept stopped passes nothing on.
 export function getPassedShare(facts: Damage, degree: Degree, target: Character): number {
   const { measured } = getArriving(facts, target)
   if (!measured || isIntercepted(facts, degree, target)) return 0
   const { cover, block } = getShares(facts, degree, measured.value)
   if (degree === 'miss' && block === null && cover === null && facts.defense !== 'intercept') return 1
-  const share = (cover ?? 1) * (block ?? 1)
+  const share = cover ?? block ?? 1
   return share * getAbsorbedShare(Math.floor(measured.value * share), getTierThreshold(measured.against, getTGH(target), 2))
 }
 
@@ -357,7 +353,7 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
     steps.push(step(`cover ${coverRES === null ? 'nothing breaks' : `RES ${coverRES}`} against ${measured.value} damage lets ${share(shares.cover)} of it past`, 'combat.tex "Cover", "Damage absorption"'))
   }
   if (measured && shares.block !== null) {
-    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${shares.pastCover} damage lets ${share(shares.block)} of it past`, 'combat.tex "Damage absorption"'))
+    steps.push(step(`${facts.defense} value ${getBlockValue(facts, degree)} against ${measured.value} damage lets ${share(shares.block)} of it past`, 'combat.tex "Damage absorption"'))
   } else if (facts.defense === 'intercept' && (degree === 'graze' || degree === 'miss')) {
     steps.push(step('the intercept did not stop the blow: it comes through whole', 'combat.tex "Intercept"'))
   } else if (!measured || shares.cover === null || facts.explosion) {

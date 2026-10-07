@@ -152,12 +152,13 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
 }
 
-// combat.tex "Cover": the partial cover between a shot's shooter and its
-// target as they stand, which "absorbs damage as if it were a shield in the
-// case of grazes and misses"; null for a strike, or nothing in the way.
+// combat.tex "Partial Cover": the partial cover between a shot's shooter and
+// its target as they stand — "On misses and grazes on evasion, the cover acts
+// as full cover", so only for a target who evades the shot; "Guard ... work[s]
+// normally". Null for a strike, or nothing in the way.
 function getShotCover(state: CombatState, root: AttackAction): Damage['cover'] {
   const from = getPlacedFootprint(state, root.actorId)
-  if (root.kind !== 'shoot' || !root.targetId || !from) return null
+  if (root.kind !== 'shoot' || !root.targetId || !from || getDefendingReaction(state, root)?.kind !== 'evasion') return null
   return toDamageCover(getCover(state, from, root.targetId))
 }
 
