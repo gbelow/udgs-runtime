@@ -662,6 +662,15 @@ export const DamageSchema = z.object({
   // the most the object blocked with absorbs, its RES; null with no block
   blockCap: num.nullable().default(null),
   shield: z.boolean().default(false),
+  // combat.tex "Cover": partial cover between the blow and its target, which
+  // "absorbs damage as if it were a shield in the case of grazes and
+  // misses" — its RES, null for cover nothing breaks, which absorbs
+  // everything. Null with nothing in the way.
+  cover: z.object({ RES: num.nullable().default(null) }).strip().nullable().default(null),
+  // combat.tex "Explosions": the blow is an explosion's, whose degree is the
+  // zone it scaled the damage by; cover absorbs at every zone once the zone
+  // has, as a shield's block does (combat.tex "Explosion Block")
+  explosion: z.boolean().default(false),
   bypass: z.boolean().default(false),
   bust: z.boolean().default(false),
   smash: z.boolean().default(false),

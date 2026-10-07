@@ -18,6 +18,7 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
+import { getCover, getPlacedFootprint, toDamageCover } from './board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 
@@ -143,12 +144,21 @@ export function getAttackFacts(state: CombatState, root: AttackAction): Delivery
   const physical: DamageComponent[] = [{ kind: 'blunt', value: Math.floor(variant.blunt * share) }, { kind: 'cut', value: Math.floor(variant.cut * share) }]
   const charge = link ? [] : (getRowCharge(attacker, row)?.charge?.effects ?? []).filter((e) => e.area === null)
   const chargeDamage = charge.flatMap((e) => (e.type === 'damage' ? e.effect.damage : []))
-  const base = getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root))
+  const base = { ...getRowDamage(attacker, row, [...physical, ...chargeDamage], { location: root.location, part: root.part }, getDefense(state, root)), cover: getShotCover(state, root) }
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
   return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
+}
+
+// combat.tex "Cover": the partial cover between a shot's shooter and its
+// target as they stand, which "absorbs damage as if it were a shield in the
+// case of grazes and misses"; null for a strike, or nothing in the way.
+function getShotCover(state: CombatState, root: AttackAction): Damage['cover'] {
+  const from = getPlacedFootprint(state, root.actorId)
+  if (root.kind !== 'shoot' || !root.targetId || !from) return null
+  return toDamageCover(getCover(state, from, root.targetId))
 }
 
 // spells.tex "Charged", Taser: "discharges on the first object it comes into

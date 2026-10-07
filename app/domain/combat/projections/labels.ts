@@ -36,8 +36,10 @@ function getDraftLabel(state: CombatState, actorId: string, option: ActionOption
   const draft = option.draft
   switch (draft.kind) {
     case 'block':
-    case 'guard':
-      return withWeapon(state, actorId, draft, draft.preparedId ? `prepared ${ACTIONS[draft.kind].label}` : ACTIONS[draft.kind].label)
+    case 'guard': {
+      const label = draft.preparedId ? `prepared ${ACTIONS[draft.kind].label}` : ACTIONS[draft.kind].label
+      return withWeapon(state, actorId, draft, draft.kind === 'guard' && draft.cover ? `${label}, taking cover` : label)
+    }
     case 'blockExplosion':
       return withWeapon(state, actorId, draft, ACTIONS[draft.kind].label)
     case 'intercept':

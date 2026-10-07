@@ -9,7 +9,7 @@ import { Term } from '../../character/rules/terms'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { explodes } from '../../weaponProperties'
 import { DIRECTIONS, add, angleBetween, angularGap, coordKey, disk, distance, ring, sameCell, setDistance, toPlane } from '../geometry'
-import { getAimableCells, getPlacedFootprint } from './board'
+import { getAimableCells, getCover, getPlacedFootprint, seesAcross, toDamageCover, type Cover } from './board'
 import { getItemWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { findReadyObject } from './fighters'
@@ -239,12 +239,25 @@ export function getExplosionZones(state: CombatState, action: BlastShape): ZoneC
 
 // combat.tex "Explosions": "If a creature occupies multiple spaces, apply
 // the strongest effect." The degree the character's footprint takes from
-// one area where it stands now, or null outside it.
-function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Area): Degree | null {
+// one area where it stands now, and the cover between it and where the area
+// goes off; null outside it, or behind total cover from there (combat.tex
+// "Cover": "A character can protect themselves against projectiles and
+// explosion attacks").
+function getZoneOf(state: CombatState, action: BlastShape, id: string, area: Area): { degree: Degree; cover: Cover | null } | null {
   const footprint = getPlacedFootprint(state, id)
   if (!footprint) return null
   const zones = new Map(getAreaZones(state, action, area).map((z) => [coordKey(z.cell), z.degree]))
-  return worstOf(footprint.map((cell) => zones.get(coordKey(cell)) ?? null))
+  const degree = worstOf(footprint.map((cell) => zones.get(coordKey(cell)) ?? null))
+  if (!degree) return null
+  const origin = getBlastOrigin(state, action, area.shape === 'spray')
+  const cover = origin ? getCover(state, origin, id) : null
+  return cover?.kind === 'total' ? null : { degree, cover }
+}
+
+// combat.tex "Cover": where the area goes off, which cover is reckoned from —
+// the centre of a disk, the attacker for a spray.
+export function getBlastOrigin(state: CombatState, action: Pick<BlastShape, 'actorId' | 'center'>, spray: boolean): Coord[] | null {
+  return spray ? getPlacedFootprint(state, action.actorId) : action.center ? [action.center] : null
 }
 
 // Everyone the explosion may reach as declared, the attacker included when
@@ -258,7 +271,7 @@ export function getThreatenedIds(state: CombatState, action: BlastShape): string
 // board stands.
 export function getAffected(state: CombatState, action: BlastShape): { id: string; degree: Degree }[] {
   return Object.keys(state.characters).flatMap((id) => {
-    const degree = worstOf(getExplosionAreas(action).map((area) => getZoneOf(state, action, id, area)))
+    const degree = worstOf(getExplosionAreas(action).map((area) => getZoneOf(state, action, id, area)?.degree ?? null))
     return degree ? [{ id, degree }] : []
   })
 }
@@ -266,7 +279,9 @@ export function getAffected(state: CombatState, action: BlastShape): { id: strin
 // What reaches each character in the area: every effect whose area they
 // stand in, at that zone's degree, made by whoever set it off (spells.tex
 // "Casting spells"; gear.tex "Explosion": "applies the weapon's damage ...
-// and any other effects"). What goes to the ground is not here.
+// and any other effects"). What goes to the ground is not here. Damage that
+// partial cover stands in the way of carries it, absorbed as a shield's
+// block absorbs an explosion (combat.tex "Cover", "Explosion Block").
 export function getExplosionFacts(state: CombatState, action: BlastShape, explosionId: string | null = null): Deliveries {
   const producer = state.characters[action.actorId]
   if (!producer || action.paintOnly) return {}
@@ -275,10 +290,11 @@ export function getExplosionFacts(state: CombatState, action: BlastShape, explos
     const blocked = explosionId ? getExplosionBlock(state, explosionId, id) : null
     const deliveries = action.effects.flatMap((e): Delivery[] => {
       if (!e.area || e.type === 'terrain') return []
-      const degree = getZoneOf(state, action, id, e.area)
-      if (!degree) return []
-      const delivery = { ...produceSpellEffect(producer, e), degree, test: null }
-      return [blocked && delivery.effect.type === 'damage' ? { ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked } } } : delivery]
+      const zone = getZoneOf(state, action, id, e.area)
+      if (!zone) return []
+      const delivery = { ...produceSpellEffect(producer, e), degree: zone.degree, test: null }
+      if (delivery.effect.type !== 'damage') return [delivery]
+      return [{ ...delivery, effect: { ...delivery.effect, effect: { ...delivery.effect.effect, ...blocked, cover: toDamageCover(zone.cover), explosion: true } } }]
     })
     if (deliveries.length > 0) facts[id] = deliveries
   }
@@ -377,7 +393,7 @@ function getCentersOf(state: CombatState, action: ExplosionAction, payload: Payl
     const floored = findFloorItem(state, action.itemId)
     return floored?.cell ? [floored.cell] : []
   }
-  return getAimableCells(state, action.actorId, Math.min(...payload.effects.map((e) => e.range ?? 1)))
+  return getAimableCells(state, action.actorId, Math.min(...payload.effects.map((e) => e.range ?? 1)), seesAcross)
 }
 
 // Whether the area is still its actor's to point, and can be pointed

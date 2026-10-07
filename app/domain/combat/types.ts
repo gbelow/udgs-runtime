@@ -138,8 +138,9 @@ export const HazardLayerSchema = HazardSchema.extend({
 export type HazardLayer = z.infer<typeof HazardLayerSchema>
 
 // combat.tex "Positioning and Visibility": what a cell does to what crosses
-// it. A blocking cell is cover and, unless transparent, breaks vision;
-// difficult terrain asks for a Balance test (combat.tex "Balance"); the
+// it. A blocking cell is cover and, unless transparent, breaks vision; a
+// cell of partial cover does not break vision but stands in the way of what
+// is shot or blown across it (combat.tex "Cover"); difficult terrain asks for a Balance test (combat.tex "Balance"); the
 // visibility is what the terrain grants whoever stands in it; a suffocating
 // cell is gas the map was drawn with (combat.tex "Gas": "anyone that is
 // inside a suffocating gas is suffocating"). What actions leave on it comes
@@ -147,6 +148,11 @@ export type HazardLayer = z.infer<typeof HazardLayerSchema>
 export const TerrainCellSchema = z.object({
   blocking: z.boolean().default(false),
   transparent: z.boolean().default(false),
+  partialCover: z.boolean().default(false),
+  // combat.tex "Damage absorption": "The absorption value is RES of the
+  // target if that is an object" — what the cover in the cell absorbs; null
+  // is ground nothing breaks, which absorbs everything
+  RES: num.nullable().default(null),
   difficult: z.boolean().default(false),
   liquid: z.boolean().default(false),
   // metres of water below the surface, which is the cell's elevation
@@ -628,9 +634,11 @@ export const InterceptActionSchema = z.object({ ...ActionBase, kind: z.literal('
 // unless the evader declared they `stay` where they are (abilities.tex
 // "Precise Reflexes": "uses reflexes without moving"). A guard names the
 // DEF row it is made with, and may be made by the target or by someone
-// adjacent standing nearer the shooter.
+// adjacent standing nearer the shooter. One made with a body shield may
+// `cover`: once it lands, its guard stays in total cover behind the shield
+// (combat.tex "Cover").
 export const EvasionActionSchema = z.object({ ...ActionBase, kind: z.literal('evasion'), stay: z.boolean().default(false) }).strip()
-export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef, ...PreparedGuard }).strip()
+export const GuardActionSchema = z.object({ ...ActionBase, kind: z.literal('guard'), ...WeaponRowRef, ...PreparedGuard, cover: z.boolean().default(false) }).strip()
 
 // combat.tex "Avoiding an Explosion": the reaction to an explosion, a reflex
 // test of the reactor's own against the explosion's DL. The die is on the
@@ -1159,6 +1167,9 @@ export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchem
 // per AP spent", and `heardAP` that again for each source of noise they make
 // ("Hearing: Terrain noise and gear noise"), which only an ear hears.
 export const StealthTurnSchema = z.object({ turn: num, id: str, hiddenFrom: z.array(str).default([]), AP: num.default(0), heardAP: num.default(0) })
+
+export const BodyCoverSchema = z.object({ weaponKey: str, toward: CoordSchema }).strip()
+export type BodyCover = z.infer<typeof BodyCoverSchema>
 export type StealthTurn = z.infer<typeof StealthTurnSchema>
 
 // The round's held test of a character, by kind (`HeldRollSchema`). A call
@@ -1267,6 +1278,11 @@ export const CombatStateSchema = z.object({
   // who held it, whom they began it undetected by, and the AP their actions in
   // it have spent, all of it and what an ear hears more of (`StealthTurnSchema`)
   stealthTurns: z.array(StealthTurnSchema).default([]),
+  // combat.tex "Cover": who has taken total cover behind a body shield after
+  // a guard, by id — the shield, and the cell of the shot they guarded,
+  // which the shield faces; kept, across rounds, until they land any action
+  // but careful movement
+  bodyCover: z.record(str, BodyCoverSchema).default({}),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Morale", "Pressure": the table's judgment of how the fight

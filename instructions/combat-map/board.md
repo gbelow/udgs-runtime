@@ -8,7 +8,8 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
   rotation order), `distance`, `setDistance`, `line`, `disk`, `ring`, `rotate`, `walkOut`,
   plane conversion for drawing and cones. One cell is one metre.
 - `rules/board.ts` — footprints and occupancy by size, distance between characters, reach
-  and shot range, line of sight, high ground, flankers, melee threateners.
+  and shot range, line of sight and line of fire, cover (see `mechanics.md` "Cover"), high
+  ground, flankers, melee threateners.
 - `rules/ground.ts` — where a footprint may cross and where it may come to rest.
 - `rules/hazard.ts` — fire and gas left on the ground. A blast paints
   a `HazardLayer` onto each cell it covers (`TerrainCell.layers`). The layer holds the fire

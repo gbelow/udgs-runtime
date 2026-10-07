@@ -71,6 +71,22 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   (`isGuardingShot`, per shooter). A joined shot triggers only the opportunity attacks its
   shooter draws. The evader's flee follows the lead's roll; their move is lost if any shot
   interrupted them (`getShotGroup`).
+- **Cover** (`rules/board.ts`) — sight and fire are two lines: `seesAcross` is cut only by an
+  opaque blocking cell, `firesAcross` by any blocking cell, glass included, and `getCoverAcross`
+  finds partial cover on the most open line of fire, met at the sturdiest cell on it.
+  `getCover` answers for a character from a set of cells: total, partial with its RES (null is
+  ground nothing breaks, which absorbs everything), or nothing. Shots, throws and attacks at the
+  floor need a line of fire (`hasLineOfFire`, `isAimableCell` given `firesAcross`); casting,
+  detection and light need sight. Total cover from a blast's origin (`getBlastOrigin`: its centre,
+  or the attacker for a spray) keeps a character out of it. Partial cover rides on the delivered
+  damage (`Damage.cover`): a shot's is absorbed on a graze or a miss as a shield would, an
+  explosion's (`Damage.explosion`) at every zone after the zone's scaling, as an Explosion Block
+  is, and a block meets what the cover let past (`getShares`); and it gives +3 to the reactor's reflexes
+  (`partialCoverTerms`). A guard made with a body shield may take `cover`: when it lands,
+  `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
+  rounds until its owner lands any action but a careful move. `isBehindBodyShield` reads it, while
+  the shield is still in hand, against anything on the shooter's side of them: they can be neither
+  seen nor shot from there.
 - **Sweeps** (`rules/sweep.ts`) — a sweeping variation (`isSweepVariant`, the normal or any
   heavy attack plus the sweep's AP) is a chain of strikes, one per target, each rolled and
   defended on its own. The first is declared with a `sweepDirection` — on a strike, or on the

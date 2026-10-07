@@ -17,8 +17,8 @@ import { nextRound } from '../domain/combat/commands/nextRound'
 import { rollHeld } from '../domain/combat/commands/heldTest'
 import { getHeldRows } from '../domain/combat/projections/heldTests'
 import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { SurgeKindSchema } from '../domain/types'
-import { archer, bomber, brawler, mage, netter, spearman, torchbearer, trained, warden } from '../domain/bot/fixtures'
+import { SurgeKindSchema, type Character } from '../domain/types'
+import { archer, bomber, brawler, mage, netter, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
 
@@ -541,12 +541,44 @@ function rescue(h: Harness, pick: Picker) {
   playOut(h, pick)
 }
 
+// Someone shoots at whoever holds a body shield, who guards and takes cover
+// behind it when they may; then the exchanges go on around them.
+const holdsBodyShield = (c: Character) => defRows(c).some((row) => row.weapon.shield?.body)
+
+function shelter(h: Harness, pick: Picker) {
+  const characters = Object.values(h.state().characters)
+  const bearers = characters.filter(holdsBodyShield).map((c) => c.id)
+  const shooters = characters.filter((c) => !bearers.includes(c.id)).map((c) => c.id)
+  if (!bearers.length || !shooters.length) return
+  startTurnOf(h, pick, shooters)
+  if (!ownOptions(h, h.active()!).some((o) => o.draft.kind === 'shoot')) return
+  h.declare({ kind: 'shoot' })
+  const panel = getActionPanel(h.state())
+  if (panel.attacks.length) { const row = pick(panel.attacks); h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })) }
+  const ammo = getActionPanel(h.state()).ammo
+  if (ammo.length) h.press(amendAction({ ammoId: pick(ammo).itemId }))
+  const bearer = h.view().tokens.find((t) => t.targetable && bearers.includes(t.id))
+  if (bearer) h.click({ on: 'token', id: bearer.id })
+  h.commit()
+  if (getOpenAction(h.state())?.step === 'define') { h.press(cancelAction()); return }
+  const covers = answersOffered(h).filter((o) => o.draft.kind === 'guard' && o.draft.cover)
+  if (covers.length) { const o = pick(covers); h.press(declareReaction(o.id, o.draft, h.newId)) }
+  playOut(h, pick)
+}
+
+// The shelter is played only where someone holds a body shield, so that the
+// sessions without one, and the seeds pinned from them, play as they did.
+function shelterPlay(h: Harness): Play[] {
+  return Object.values(h.state().characters).some(holdsBodyShield) ? [{ name: 'shelter', weight: 4, run: shelter }] : []
+}
+
 const DUELS = [
   { name: 'two brawlers', a: brawler, b: brawler, apart: 1 },
   { name: 'two archers', a: archer, b: archer, apart: 3 },
   { name: 'a brawler and an archer', a: brawler, b: archer, apart: 2 },
   { name: 'a spearman and an archer', a: spearman, b: archer, apart: 1 },
   { name: 'a warden and a trained archer', a: warden, b: (id: string) => trained(archer(id)), apart: 3 },
+  { name: 'a tower warden and a trained archer', a: towerWarden, b: (id: string) => trained(archer(id)), apart: 3 },
   { name: 'a warden and a trained brawler', a: warden, b: (id: string) => trained(brawler(id)), apart: 1 },
   { name: 'two wardens', a: warden, b: warden, apart: 1 },
   { name: 'a mage and a warden', a: mage, b: warden, apart: 2 },
@@ -567,7 +599,7 @@ function playDuel(duel: (typeof DUELS)[number], seed: number) {
   h.select('Bob')
   h.cell(duel.apart, 0)
   h.select('Ann')
-  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }], pick)
+  session(h, seed, 120, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 4, run: travel }, { name: 'ambush', weight: 4, run: ambush }, ...shelterPlay(h)], pick)
 }
 
 describe('two characters grappling, pushing, shooting and defending', () => {
@@ -585,12 +617,13 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // to join, and a walk may end in the water or on the rock. With `walls`,
 // those cells are painted as walls too, with fog, dim and dark ground beside
 // them and a torch in one hand, so that some begin out of the others' sight
-// and stealth has someone to hide.
+// and stealth has someone to hide; with panes of glass and partial cover, one
+// of it breakable, and the warden's shield a body shield to take cover behind.
 function playCrowd(seed: number, walls: [number, number][] = []) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng))
-  h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
+  h.bring(walls.length ? towerWarden('Ann') : warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
@@ -601,13 +634,16 @@ function playCrowd(seed: number, walls: [number, number][] = []) {
     h.paint('fog', [[-2, -1], [-3, 0]])
     h.paint('dim', [[1, 1], [2, 1]])
     h.paint('dark', [[0, 2], [1, 2], [2, 2], [-1, 2], [-4, 2], [-4, 3]])
+    h.paint('glass', [[1, -2], [-1, -2]])
+    h.paint('cover', [[-2, 0], [2, 1], [3, 1]])
+    h.paint('flimsier', [[2, 1]])
   }
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
     h.select(name)
     h.cell(q, r)
   }
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }], pick)
+  session(h, seed, 160, [...duelPlays(), { name: 'exchange', weight: 12, run: exchange }, { name: 'travel', weight: 6, run: travel }, { name: 'ambush', weight: 4, run: ambush }, { name: 'rescue', weight: 4, run: rescue }, ...shelterPlay(h)], pick)
 }
 
 describe('a crowd on rough ground', () => {

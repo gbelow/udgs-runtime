@@ -2,8 +2,8 @@ import type { Bind, CombatState, Coord, Degree, LightLevel, Placement } from '..
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
-import { getFootprint, getOccupancy } from '../rules/board'
+import { angleBetween, coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
+import { getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
 import { getPendingGuardStep } from '../rules/protect'
@@ -26,7 +26,7 @@ import { getCellLight } from '../rules/light'
 // it covers, and the plane coordinates of all of it — pointy-top hexes of
 // unit spacing, so the panel only has to translate and scale.
 
-export type CellTerrain = 'open' | 'wall' | 'water' | 'rough'
+export type CellTerrain = 'open' | 'wall' | 'glass' | 'cover' | 'water' | 'rough'
 
 export type BoardCellView = {
   key: string
@@ -34,6 +34,9 @@ export type BoardCellView = {
   x: number
   y: number
   terrain: CellTerrain
+  // combat.tex "Damage absorption": how sturdy the wall or cover in the cell
+  // is, its RES or unbreakable; null for ground with neither
+  strength: string | null
   elevation: number
   elevationLabel: string
   // what is left on the ground here (combat.tex "Fire", "Gas"): the burn of
@@ -88,6 +91,9 @@ export type BoardTokenView = {
   isInTurn: boolean
   role: Role | null
   targetable: boolean
+  // combat.tex "Cover": in total cover behind a body shield, which faces
+  // this way, in degrees; null out of it
+  shieldAngle: number | null
 }
 
 // Something lying on a cell, drawn over whoever stands there, and whether a
@@ -237,7 +243,8 @@ function buildBoardView(state: CombatState): BoardView {
       cell,
       x,
       y,
-      terrain: terrain?.blocking ? 'wall' : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
+      terrain: terrain?.blocking ? (terrain.transparent ? 'glass' : 'wall') : terrain?.partialCover ? 'cover' : terrain?.liquid ? 'water' : terrain?.difficult ? 'rough' : 'open',
+      strength: terrain?.blocking || terrain?.partialCover ? (terrain.RES === null ? 'unbreakable' : `RES ${terrain.RES}`) : null,
       elevation: terrain?.elevation ?? 0,
       elevationLabel: elevationLabel(terrain?.elevation ?? 0),
       fire: hazard.fire,
@@ -267,6 +274,8 @@ function buildBoardView(state: CombatState): BoardView {
     if (!c) return []
     const footprint = getFootprint(c, placement).map((cell) => ({ key: coordKey(cell), ...toPlane(cell) }))
     const anchor = toPlane(placement.cell)
+    const toward = getBodyCoverToward(state, id)
+    const facing = toward ? angleBetween(anchor, toPlane(toward)) : null
     return [{
       id,
       name: getFightName(state, id),
@@ -280,6 +289,7 @@ function buildBoardView(state: CombatState): BoardView {
       isInTurn: id === state.inTurnCharacter,
       role: open ? getRole(state, open, id) : null,
       targetable: targets.has(id),
+      shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
     }]
   })
 

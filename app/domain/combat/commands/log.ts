@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, CombatState, RootAction, WithdrawalReason } from '../types'
-import { getLiveReactionsTo, getOpenAction } from '../rules/log'
+import { getAction, getLiveReactionsTo, getOpenAction } from '../rules/log'
 import { findTrigger } from '../rules/reactions'
 import { reduceBoard, reduceCharacter, reduceFloor, reduceBinds, type Phase } from './reduce'
 import { isVoided } from '../rules/opportunity'
@@ -41,7 +41,23 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
     turnsTaken: stamped.reduce(noteTurn, state.turnsTaken),
     stealthTurns: entering.reduce((turns, a) => noteNoise(state, turns, a), state.stealthTurns),
     prepared: [...state.prepared, ...entering.flatMap((a) => (a.kind === 'prepare' ? [a.id] : []))],
+    bodyCover: entering.reduce((cover, a) => noteCover(state, stamped, cover, a), state.bodyCover),
   }
+}
+
+// combat.tex "Cover": a guard that takes cover behind a body shield leaves
+// its guard behind it, the shield facing where the guarded shot came from;
+// "The cover is canceled if the character performs any action other than
+// careful movement". Nothing is noted on a fight without a board, where no
+// shot comes from anywhere.
+function noteCover(state: CombatState, declared: Action[], cover: CombatState['bodyCover'], action: Action): CombatState['bodyCover'] {
+  const { [action.actorId]: _left, ...rest } = cover
+  if (action.kind === 'guard' && action.cover) {
+    const shot = declared.find((a) => a.id === action.reactionTo) ?? (action.reactionTo ? getAction(state, action.reactionTo) : null)
+    const toward = shot ? state.board?.placements[shot.actorId]?.cell : undefined
+    return toward ? { ...rest, [action.actorId]: { weaponKey: action.weaponKey, toward } } : rest
+  }
+  return !cover[action.actorId] || (action.kind === 'move' && action.movement === 'careful') ? cover : rest
 }
 
 // combat.tex "Actions in stealth": "a cumulative penalty is added to the

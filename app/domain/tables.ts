@@ -103,6 +103,11 @@ export const CLIMB_GRAZE_AP = 5
 export const CLIMB_RISKY_AP = 1
 export const CLIMB_EASY_DL = 5
 
+// combat.tex "Damage absorption": the RES ground nothing breaks is given
+// when it is first made breakable, a wooden shield's and a half (gear.tex
+// "Shields"), the table's call.
+export const COVER_START_RES = 30
+
 // combat.tex "Climbing": an interrupted climber makes "a climbing test with a
 // -3 penalty to avoid falling on a miss"; "climbing with only one hand, claw or
 // other climbing equipment incurs a -3 penalty. Climbing without any gives a

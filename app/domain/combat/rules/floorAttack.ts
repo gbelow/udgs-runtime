@@ -2,7 +2,7 @@ import type { Item } from '../../types'
 import type { Term } from '../../character/rules/terms'
 import type { AttackAction, Coord, CombatState, ExplosionAction, FloorItem } from '../types'
 import { setDistance } from '../geometry'
-import { getAimableCells, getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board'
+import { firesAcross, getAimableCells, getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board'
 import { getObjectPart } from './equipment'
 import { getImpactExplosion } from './explosion'
 import { findFloorItem } from './floor'
@@ -54,12 +54,12 @@ function isWorthHitting(state: CombatState, attack: AttackAction, found: FloorIt
   return !found.item.broken && (isBreakable(state, found.item) || getAttackExplosion(state, attack, found) !== null)
 }
 
-// Within the row's reach of the actor — a strike's, or a shot's carry, in
-// sight; any item on a fight without a board, where the floor is one pile.
+// Within the row's reach of the actor — a strike's, or a shot's carry, with
+// no blocking cell in the way; any item on a fight without a board, where the floor is one pile.
 function isInFloorReach(state: CombatState, attack: AttackAction, found: FloorItem): boolean {
   const footprint = getPlacedFootprint(state, attack.actorId)
   if (!state.board || !footprint || found.cell === null) return true
-  if (attack.kind === 'shoot') return isAimableCell(state.board, footprint, getShotReachOf(state, attack) ?? Infinity, found.cell)
+  if (attack.kind === 'shoot') return isAimableCell(state.board, footprint, getShotReachOf(state, attack) ?? Infinity, found.cell, firesAcross)
   const reach = getStrikeReach(state, attack)
   return reach === null || setDistance(footprint, [found.cell]) <= reach
 }
@@ -81,5 +81,5 @@ export function getFloorTargets(state: CombatState, attack: AttackAction): Floor
 export function getCellTargets(state: CombatState, attack: AttackAction): Coord[] {
   if (!mayAimAtGround(attack) || getBurnOf(state, attack) <= 0) return []
   const reach = attack.kind === 'shoot' ? getShotReachOf(state, attack) : getStrikeReach(state, attack)
-  return reach === null ? [] : getAimableCells(state, attack.actorId, reach).filter((cell) => hasUnlitFuel(state, cell))
+  return reach === null ? [] : getAimableCells(state, attack.actorId, reach, firesAcross).filter((cell) => hasUnlitFuel(state, cell))
 }

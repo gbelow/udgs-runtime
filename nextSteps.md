@@ -9,18 +9,12 @@
 - interface, learning mode
 - add training formulas - talent for proficiencies, skills, attributes, spells, abilities
 
-## add senses
-- list senses and bonus
-- decide interface
-- stealth test
-
 ## weapons/armor
 - add customization options to weapons
 - add customization options to armors
 
 # terrain
 - items on the ground, containers in terrain
-- environmental effects
 
 ## add abilities 
 - finish melee combat abilities
@@ -30,11 +24,9 @@
 - add tex generator from catalogue
 
 ## cunning
-- preparing actions
 - analyse - wait until multiplayer. allow seeing character without controlling
 
 # movement
-- balance tests - write in book that the test is sticky per round, redone when fallen
 - jumping over things - 
 - layering in UI for height.
 
@@ -95,8 +87,6 @@
 
 ## issues
 defending net with weapon binds weapon.
-
-wound healing is undefined - possession healing neither
 retweak morale based spells
 
 GM tools, manual inserts
@@ -108,10 +98,16 @@ show morale test inside the actions panel.
 check if morale is forcing surge usage.
 UI to select limit stress action.
 
+combat surprise - team sides - combat start button
+characters sharing same space
+characters as cover
+breaking cells
+
+rudimentary sleep, eat, 1 ET cycle, drink, wound healing, injury healing. no exploration events yet
+races
 
 # left for combat
 - environmental effects - storm, avalanche
-- stealth/senses
 - abilities and spells
 - analyse to find items
 - riding

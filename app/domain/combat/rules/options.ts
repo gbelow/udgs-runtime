@@ -202,10 +202,13 @@ function listAnswers(state: CombatState, answerer: CampaignCharacter, open: Root
             return answer(draft, lessRepurposed(state, c.id, open.id, own), reason ?? seizedReason(state, guard))
           })
         })
+      // combat.tex "Cover": a guard with a body shield may take total cover
+      // behind it
       case 'guard':
-        return guardRows(state, c, open).map((row) => {
+        return guardRows(state, c, open).flatMap((row) => {
           const draft = { kind, weaponKey: row.wielded.key, attack: row.atk.name }
-          return answer(draft, cost, gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id })))
+          const reason = gate ?? seizedReason(state, makeAction(kind, { ...draft, id: '', actorId: c.id, reactionTo: open.id }))
+          return [draft, ...(row.weapon.shield?.body ? [{ ...draft, cover: true }] : [])].map((d) => answer(d, cost, reason))
         })
       // combat.tex "Explosion Block": only with a shield
       case 'blockExplosion':

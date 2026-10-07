@@ -28,6 +28,8 @@ export function getRowDamage(wielder: Character, row: WeaponRow, damage: DamageC
     properties: row.atk.properties,
     ...aim,
     ...defense,
+    cover: null,
+    explosion: false,
     bypass: false,
     bust: false,
     smash: false,

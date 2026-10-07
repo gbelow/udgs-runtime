@@ -1,10 +1,10 @@
-import type { Character, MeleeRange, Weapon, WeaponAttack } from '../../types'
-import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction } from '../types'
+import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../types'
+import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../types'
 import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
 import { getSize } from '../../character/rules/size'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance } from '../geometry'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from '../geometry'
 import { findRowVariant, findWeaponRow } from './weaponRow'
 
 // The board rules read the spatial facts of a fight off `state.board`.
@@ -142,40 +142,125 @@ export function isInReach(state: CombatState, action: StrikeAction, targetId: st
 // combat.tex "Cover": "A character has cover if the shortest path from the
 // origin of the ... projectile to a destination passes through a space
 // containing a blocking object. Cover blocks vision unless it is
-// transparent." Whether some cell of one set sees some cell of the other: a
-// straight line between them crossing no opaque blocking cell.
+// transparent." The ground a straight line between two cells crosses, the
+// ends left out.
+function crossed(board: Board, a: Coord, b: Coord): (TerrainCell | undefined)[] {
+  return line(a, b).slice(1, -1).map((cell) => board.terrain[coordKey(cell)])
+}
+
+// Whether some cell of one set sees some cell of the other: a line between
+// them crossing no opaque blocking cell.
 export function seesAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): boolean {
-  const opaque = (cell: Coord) => {
-    const terrain = board.terrain[coordKey(cell)]
-    return !!terrain?.blocking && !terrain.transparent
+  return from.some((a) => to.some((b) => !crossed(board, a, b).some((t) => t?.blocking && !t.transparent)))
+}
+
+// Whether what is shot or thrown from some cell of one set can reach some cell
+// of the other: a line between them crossing no blocking cell, transparent or
+// not — glass is seen through and stops the projectile all the same.
+export function firesAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): boolean {
+  return from.some((a) => to.some((b) => !crossed(board, a, b).some((t) => t?.blocking)))
+}
+
+// combat.tex "Cover": what stands in the way of something shot or blown at a
+// target — total cover, which nothing gets past, or partial cover, which
+// absorbs at its RES (null: nothing breaks it).
+export type Cover = { kind: 'total' } | { kind: 'partial'; RES: number | null }
+
+// What the ground puts between some cell of one set and the other, along the
+// most open line of fire between them: a line that crosses partial cover is
+// met by the sturdiest cell of it on the way. Null when some line crosses
+// nothing.
+export function getCoverAcross(board: Board, from: readonly Coord[], to: readonly Coord[]): Cover | null {
+  let weakest: number | null = null
+  for (const a of from) {
+    for (const b of to) {
+      const cells = crossed(board, a, b)
+      if (cells.some((t) => t?.blocking)) continue
+      const RES = Math.max(-Infinity, ...cells.map((t) => (t?.partialCover ? t.RES ?? Infinity : -Infinity)))
+      if (RES === -Infinity) return null
+      weakest = Math.min(weakest ?? Infinity, RES)
+    }
   }
-  return from.some((a) => to.some((b) => !line(a, b).slice(1, -1).some(opaque)))
+  return weakest === null ? { kind: 'total' } : { kind: 'partial', RES: Number.isFinite(weakest) ? weakest : null }
+}
+
+// The partial cover a blow carries to its target (`Damage.cover`).
+export function toDamageCover(cover: Cover | null): Damage['cover'] {
+  return cover?.kind === 'partial' ? { RES: cover.RES } : null
 }
 
 // Whether something can be aimed at the cell from the footprint: within
-// `reach` of some cell of it, off blocking ground, and seen from it
+// `reach` of some cell of it, off blocking ground, and with a line to it that
+// `across` lets through — sight, or for what is thrown or shot there, fire
 // (combat.tex "Cover").
-export function isAimableCell(board: Board, footprint: readonly Coord[], reach: number, cell: Coord): boolean {
-  return setDistance([cell], footprint) <= reach && !board.terrain[coordKey(cell)]?.blocking && seesAcross(board, footprint, [cell])
+export type Across = typeof seesAcross
+
+export function isAimableCell(board: Board, footprint: readonly Coord[], reach: number, cell: Coord, across: Across): boolean {
+  return setDistance([cell], footprint) <= reach && !board.terrain[coordKey(cell)]?.blocking && across(board, footprint, [cell])
 }
 
 // Every cell around the actor something can be aimed at within `reach`.
-export function getAimableCells(state: CombatState, actorId: string, reach: number): Coord[] {
+export function getAimableCells(state: CombatState, actorId: string, reach: number, across: Across): Coord[] {
   const board = state.board
   const from = board?.placements[actorId]
   const footprint = getPlacedFootprint(state, actorId)
   if (!board || !from || !footprint) return []
-  return disk(from.cell, reach).filter((cell) => isAimableCell(board, footprint, reach, cell))
+  return disk(from.cell, reach).filter((cell) => isAimableCell(board, footprint, reach, cell, across))
+}
+
+// combat.tex "Cover": "When using a body shield, it is possible to take total
+// cover behind the shield after using guard." The shield faces the shot
+// that was guarded, so it covers its bearer from whatever lies on that side
+// of them, for as long as they hold it. A footprint level with them, or
+// behind, is not covered from.
+export function isBehindBodyShield(state: CombatState, id: string, from: readonly Coord[]): boolean {
+  const toward = getBodyCoverToward(state, id)
+  const footprint = getPlacedFootprint(state, id)
+  if (!toward || !footprint || from.length === 0) return false
+  const at = centroid(footprint)
+  const source = centroid(from)
+  if (Math.hypot(source.x - at.x, source.y - at.y) < 1e-9) return false
+  return angularGap(angleBetween(at, toPlane(toward)), angleBetween(at, source)) < Math.PI / 2 - 1e-9
+}
+
+// The cell the body shield the character has taken cover behind faces, while
+// they still hold it; null when they are in no such cover.
+export function getBodyCoverToward(state: CombatState, id: string): Coord | null {
+  const cover = state.bodyCover[id]
+  const c = state.characters[id]
+  if (!cover || !c) return null
+  return getWieldedWeapons(c).some((w) => w.key === cover.weaponKey && w.weapon.shield?.body) ? cover.toward : null
+}
+
+// What stands between the cells something is shot or blown from and the
+// character: a body shield they are behind, or the ground. Null on a fight
+// without a board, or with nothing in the way.
+export function getCover(state: CombatState, from: readonly Coord[], targetId: string): Cover | null {
+  const board = state.board
+  const footprint = getPlacedFootprint(state, targetId)
+  if (!board || !footprint) return null
+  return isBehindBodyShield(state, targetId, from) ? { kind: 'total' } : getCoverAcross(board, from, footprint)
 }
 
 // Whether some cell of one character's footprint sees some cell of the
-// other's. True on a fight without a board.
+// other's, and the other is not behind a body shield from there (combat.tex
+// "Cover": total cover "blocks vision"). True on a fight without a board.
 export function hasLineOfSight(state: CombatState, a: string, b: string): boolean {
   const board = state.board
   const fa = getPlacedFootprint(state, a)
   const fb = getPlacedFootprint(state, b)
   if (!board || !fa || !fb) return true
-  return seesAcross(board, fa, fb)
+  return seesAcross(board, fa, fb) && !isBehindBodyShield(state, b, fa)
+}
+
+// Whether what one character shoots can reach the other: they are not in
+// total cover from them. True on a fight without a board.
+export function hasLineOfFire(state: CombatState, a: string, b: string): boolean {
+  const board = state.board
+  const fa = getPlacedFootprint(state, a)
+  const fb = getPlacedFootprint(state, b)
+  if (!board || !fa || !fb) return true
+  return firesAcross(board, fa, fb) && !isBehindBodyShield(state, b, fa)
 }
 
 // The metres the shot as declared carries: the variation's reach for this
@@ -208,12 +293,12 @@ export function isGuardingCells(state: CombatState, shooterId: string, cells: Co
 }
 
 // Whether the shot can land on the target from where its actor stands: the
-// target within the shot's reach and in sight.
+// target within the shot's reach and out of total cover from them.
 export function isInShotRange(state: CombatState, action: ShootAction, targetId: string): boolean {
   const distance = getDistanceBetween(state, action.actorId, targetId)
   if (distance === null) return true
   const reach = getShotReachOf(state, action)
-  return (reach === null || distance <= reach) && hasLineOfSight(state, action.actorId, targetId)
+  return (reach === null || distance <= reach) && hasLineOfFire(state, action.actorId, targetId)
 }
 
 // ---------------------------------------------------------------------------

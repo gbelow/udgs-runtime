@@ -6,7 +6,7 @@ import { getSize } from '../../character/rules/size'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { SHOTS, THROW_ITEM_RANGE } from '../../tables'
 import { getAttackKind } from '../../weaponProperties'
-import { getAimableCells, getPlacedFootprint, isAimableCell } from './board'
+import { firesAcross, getAimableCells, getPlacedFootprint, isAimableCell } from './board'
 import { findRowVariant, isRowUsable } from './weaponRow'
 import { getReachableFloor, takeOne } from './floor'
 import { isTying } from './tether'
@@ -57,13 +57,13 @@ function getThrowReach(c: Character, itemId: string): number {
 // Every cell the item can be thrown to, and whether one is.
 export function getThrowCells(state: CombatState, actorId: string, itemId: string): Coord[] {
   const thrower = state.characters[actorId]
-  return thrower ? getAimableCells(state, actorId, getThrowReach(thrower, itemId)) : []
+  return thrower ? getAimableCells(state, actorId, getThrowReach(thrower, itemId), firesAcross) : []
 }
 
 export function isThrowCell(state: CombatState, actorId: string, itemId: string, cell: Coord): boolean {
   const thrower = state.characters[actorId]
   const footprint = getPlacedFootprint(state, actorId)
-  return !!state.board && !!thrower && !!footprint && isAimableCell(state.board, footprint, getThrowReach(thrower, itemId), cell)
+  return !!state.board && !!thrower && !!footprint && isAimableCell(state.board, footprint, getThrowReach(thrower, itemId), cell, firesAcross)
 }
 
 // What lands where it was aimed: one of the stack, carrying the charge,

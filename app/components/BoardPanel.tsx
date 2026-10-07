@@ -17,6 +17,10 @@ const MODE_LABEL = {
 
 const BRUSH_LABEL: Record<TerrainBrush, string> = {
   wall: 'wall',
+  glass: 'glass',
+  cover: 'partial cover',
+  sturdier: 'RES +5',
+  flimsier: 'RES −5',
   water: 'water',
   rough: 'rough',
   soft: 'soft',
@@ -120,13 +124,26 @@ function LinkRow(){
 const TERRAIN_FILL = {
   open: 'fill-surface',
   wall: 'fill-line',
+  glass: 'fill-accent/25',
+  cover: 'fill-muted/35',
   water: 'fill-accent/10',
   rough: 'fill-muted/20',
+} as const
+
+const TERRAIN_LABEL = {
+  open: null,
+  wall: 'wall',
+  glass: 'glass',
+  cover: 'partial cover',
+  water: 'water',
+  rough: 'rough',
 } as const
 
 const TERRAIN_GLYPH = {
   open: '',
   wall: '',
+  glass: '◇',
+  cover: '▤',
   water: '≈',
   rough: '∴',
 } as const
@@ -154,7 +171,8 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
   const title = [
     cell.key,
-    cell.terrain !== 'open' ? cell.terrain : null,
+    TERRAIN_LABEL[cell.terrain],
+    cell.strength,
     cell.elevation ? `${cell.elevation} m` : null,
     cell.fire > 0 ? `fire ${cell.fire}` : null,
     cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
@@ -186,12 +204,13 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
   const ring = token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
   return (
     <g className='cursor-pointer' onClick={onClick}>
-      <title>{`${token.name}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}`}</title>
+      <title>{`${token.name}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       <g transform={`translate(${token.x} ${token.y})`}>
         <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>
+        {token.shieldAngle !== null ? <rect x={0.72} y={-0.45} width={0.16} height={0.9} rx={0.05} transform={`rotate(${token.shieldAngle})`} className='fill-accent pointer-events-none' /> : null}
         {token.depth > 0 ? <text y={-0.8} textAnchor='middle' className='fill-accent pointer-events-none' fontSize={0.35}>{`↓${token.depth}`}</text> : null}
       </g>
     </g>
