@@ -85,6 +85,7 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
         case 'bare': return { ...current, climbDL: null }
         case 'dim': return { ...current, visibility: current.visibility === 'bad' ? 'good' as const : 'bad' as const }
         case 'fog': return { ...current, visibility: current.visibility === 'zero' ? 'good' as const : 'zero' as const }
+        case 'dark': return { ...current, dark: !current.dark }
         case 'louder': return { ...current, noise: current.noise + 1 }
         case 'quieter': return { ...current, noise: Math.max(0, current.noise - 1) }
         case 'clear': return null

@@ -19,6 +19,7 @@ import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
 import { perState } from './perState'
 import { getCellFuels, getCellHazard } from '../rules/hazard'
+import { isUnlit } from '../rules/light'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -44,6 +45,9 @@ export type BoardCellView = {
   // and the noise its ground makes per AP (combat.tex "Actions in stealth")
   visibility: Visibility | null
   noise: number
+  // combat.tex "Darkness and light": dark ground, and whether a light
+  // reaches it
+  light: 'dark' | 'lit' | null
   occupants: string[]
   // what the open move could reach here, if this cell is in its reach
   reachable: { steps: number; cost: ActionCost } | null
@@ -237,6 +241,7 @@ function buildBoardView(state: CombatState): BoardView {
       suffocating: hazard.suffocating,
       visibility: hazard.visibility === 'good' ? null : hazard.visibility,
       noise: terrain?.noise ?? 0,
+      light: terrain?.dark ? (isUnlit(state, cell) ? 'dark' : 'lit') : null,
       occupants: occupancy[key] ?? [],
       reachable: there ? { steps: there.steps, cost: there.cost } : null,
       pathStep: pathByKey.get(key) ?? null,

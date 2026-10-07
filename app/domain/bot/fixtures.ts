@@ -46,6 +46,11 @@ export function brawler(id: string): CampaignCharacter {
   return holdItem(gauntlet)(fighter(id))
 }
 
+// A brawler with a lit torch in the other hand (gear.tex "Torch").
+export function torchbearer(id: string): CampaignCharacter {
+  return holdItem(getCatalogItem('Torch')!)(brawler(id))
+}
+
 // The abilities that open a defence the bare fighter has no answer with: the
 // counterattack, the reflexes, the jump and the defender's guard.
 export function trained(c: CampaignCharacter): CampaignCharacter {

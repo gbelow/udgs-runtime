@@ -165,6 +165,13 @@ export function isMuffled(c: Character): boolean {
   return getCarriedItems(c).some((item) => item.muffles)
 }
 
+// gear.tex "Torch": the light radius of what the character holds in hand,
+// null for one holding no light.
+export function getHeldLight(c: Character): number | null {
+  const lights = c.held.flatMap((item) => (item.light === null ? [] : [item.light]))
+  return lights.length === 0 ? null : Math.max(...lights)
+}
+
 function getContents(container: Container): Item[] {
   return Object.values(container.slots).flatMap((slot) => slot.items)
 }

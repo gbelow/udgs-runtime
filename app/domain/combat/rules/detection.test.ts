@@ -81,6 +81,33 @@ describe('what an observer senses of a target', () => {
     expect(visionOf(hidden)).toBe('partial')
   })
 
+  // combat.tex "Darkness and light": "Anyone in the light radius is visible
+  // and anyone out is not"; gear.tex "Torch": "Gives 5m light radius when lit".
+  describe('in the dark', () => {
+    const dark = { '3,0': TerrainCellSchema.parse({ dark: true }) }
+    const torch = ItemSchema.parse({ name: 'Torch', light: 5 })
+    const holding = (state: CombatState, id: 'o' | 't') => ({ ...state, characters: { ...state.characters, [id]: { ...state.characters[id], held: [torch] } } })
+    const unlit = fight({ cell: origin, orientation: 0 }, { q: 3, r: 0 }, dark)
+
+    it('does not see a target no light reaches', () => {
+      expect(visionOf(unlit)).toBe('total')
+    })
+
+    it('sees a target by the light of a torch, whoever holds it', () => {
+      expect(visionOf(holding(unlit, 't'))).toBe('none')
+      expect(visionOf(holding(unlit, 'o'))).toBe('none')
+    })
+
+    it('sees a target by a torch lying on the floor near them', () => {
+      expect(visionOf({ ...unlit, floor: [{ item: torch, cell: { q: 4, r: 0 } }] })).toBe('none')
+    })
+
+    it('does not see a target the torch is too far from', () => {
+      const far = fight({ cell: origin, orientation: 0 }, { q: 6, r: 0 }, { '6,0': TerrainCellSchema.parse({ dark: true }) })
+      expect(visionOf(holding(far, 'o'))).toBe('total')
+    })
+  })
+
   it('reaches as it does on open ground when the fight has no board', () => {
     const placed = fight({ cell: origin, orientation: 0 }, { q: 1, r: 0 })
     expect(sensesReaching({ ...placed, board: null })).toEqual(sensesReaching(placed))

@@ -164,8 +164,8 @@ export const REACH: Record<MeleeRange, number> = {
 export const BAD_VISIBILITY_PENALTY = -2
 
 // combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
-// inside of it to 1m by default".
-export const FOG_VISION_RADIUS = 1
+// inside of it to 2m by default".
+export const FOG_VISION_RADIUS = 2
 
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.

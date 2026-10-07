@@ -12,6 +12,7 @@ import { getDistanceBetween, hasLineOfSight } from './board'
 import { getHazardOf } from './hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './waypoint'
+import { isInDarkness } from './light'
 import { getAction } from './log'
 
 // combat.tex "Detection": what an observer's senses take in of a target, and
@@ -67,13 +68,14 @@ const byRange: Impair = (state, o, t, range) => {
 // compile until it says. None detects outright, partial needs a detection
 // test against the stealth value, total takes nothing in.
 const IMPAIRMENTS: Record<keyof Senses, Impair> = {
-  // combat.tex "Vision": "requires light and line of sight" (everything is
-  // lit); "Cover": out of line of sight is total impairment; "Visibility": bad
+  // combat.tex "Vision": "requires light and line of sight"; "Cover": out of
+  // line of sight is total impairment; "Darkness and light": "Anyone in the
+  // light radius is visible and anyone out is not"; "Visibility": bad
   // visibility is partial, none is nothing to target; "Fog and smoke": whoever
   // stands in it sees no further than its radius, and others inside within it
   // are in bad visibility
   vision: (state, o, t) => {
-    if (!hasLineOfSight(state, o, t)) return 'total'
+    if (!hasLineOfSight(state, o, t) || isInDarkness(state, t)) return 'total'
     const distance = getDistanceBetween(state, o, t)
     const near = distance === null || distance <= FOG_VISION_RADIUS
     const inFog = getHazardOf(state, o).visibility === 'zero'

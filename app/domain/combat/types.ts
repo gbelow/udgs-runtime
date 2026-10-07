@@ -167,6 +167,9 @@ export const TerrainCellSchema = z.object({
   // combat.tex "Actions in stealth": "Hearing: Terrain noise" — what each AP
   // spent on it adds again to an ear, as a positive magnitude
   noise: num.default(0),
+  // combat.tex "Darkness and light": ground with no light of its own, seen
+  // only where a light source reaches it
+  dark: z.boolean().default(false),
   layers: z.array(HazardLayerSchema).default([]),
 }).strip()
 export type TerrainCell = z.infer<typeof TerrainCellSchema>

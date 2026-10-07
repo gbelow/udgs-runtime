@@ -336,6 +336,10 @@ export const ItemSchema = z.object({
   camouflage: num.nullable().default(null),
   // gear.tex "Muffled Boots": "Denies noise penalties from terrain"
   muffles: z.boolean().default(false),
+  // gear.tex "Torch": "Gives 5m light radius when lit" — the radius in
+  // metres, lit while held or lying on the floor (the table's ruling); null
+  // for an item that gives no light
+  light: num.nullable().default(null),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),

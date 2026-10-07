@@ -31,6 +31,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
   bare: 'no grip',
   dim: 'dim',
   fog: 'fog',
+  dark: 'dark',
   louder: 'noise +1',
   quieter: 'noise −1',
   clear: 'clear',
@@ -139,7 +140,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     : cell.fire > 0 ? 'fill-injury-2/30'
     : cell.fuels.length > 0 ? 'fill-accent/15'
     : cell.suffocating ? 'fill-fg/25'
-    : cell.visibility === 'zero' ? 'fill-fg/35'
+    : cell.visibility === 'zero' || cell.light === 'dark' ? 'fill-fg/35'
     : cell.visibility === 'bad' ? 'fill-fg/15'
     : TERRAIN_FILL[cell.terrain]
   const stroke = cell.isDestination || cell.isJumpTo || cell.isCenter ? 'stroke-accent' : 'stroke-line'
@@ -151,6 +152,7 @@ function Cell({ cell, hex, onClick }: { cell: BoardCellView, hex: string, onClic
     cell.fuels.length > 0 ? `coated in ${cell.fuels.join(' and ')}` : null,
     cell.suffocating ? 'suffocating gas' : null,
     cell.visibility === 'zero' ? 'no visibility' : cell.visibility === 'bad' ? 'bad visibility' : null,
+    cell.light === 'dark' ? 'dark' : cell.light === 'lit' ? 'dark, lit' : null,
     cell.noise > 0 ? `noise ${cell.noise}` : null,
     cell.reachable ? `${cell.reachable.steps} cells · ${cell.reachable.cost.AP} AP${cell.reachable.cost.STA ? ` ${cell.reachable.cost.STA} STA` : ''}` : null,
     cell.jump ? 'evasive jump' : null,

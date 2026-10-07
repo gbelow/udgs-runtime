@@ -18,7 +18,7 @@ import { rollHeld } from '../domain/combat/commands/heldTest'
 import { getHeldRows } from '../domain/combat/projections/heldTests'
 import { GRAPPLE_MANEUVERS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema } from '../domain/types'
-import { archer, bomber, brawler, mage, netter, spearman, trained, warden } from '../domain/bot/fixtures'
+import { archer, bomber, brawler, mage, netter, spearman, torchbearer, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
 
@@ -579,13 +579,14 @@ describe('two characters grappling, pushing, shooting and defending', () => {
 // Seven of them crowded onto ground with a pond and a cliff painted on it,
 // so that a throw has someone to hit, a net someone to catch, a shot someone
 // to join, and a walk may end in the water or on the rock. With `walls`,
-// those cells are painted as walls too, with fog and dim ground beside them,
-// so that some begin out of the others' sight and stealth has someone to hide.
+// those cells are painted as walls too, with fog, dim and dark ground beside
+// them and a torch in one hand, so that some begin out of the others' sight
+// and stealth has someone to hide.
 function playCrowd(seed: number, walls: [number, number][] = []) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng))
-  h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), brawler('Gus'))
+  h.bring(warden('Ann'), bomber('Bob'), netter('Cy'), mage('Dee'), archer('Eve'), archer('Fay'), walls.length ? torchbearer('Gus') : brawler('Gus'))
   h.createBoard(5)
   h.paint('water', [[3, -1], [3, 0], [4, -2], [4, -1]])
   h.paint('deepen', [[3, -1], [3, 0], [4, -2], [4, -1]], 2)
@@ -595,6 +596,7 @@ function playCrowd(seed: number, walls: [number, number][] = []) {
     h.paint('wall', walls)
     h.paint('fog', [[-2, -1], [-3, 0]])
     h.paint('dim', [[1, 1], [2, 1]])
+    h.paint('dark', [[0, 2], [1, 2], [2, 2], [-1, 2], [-4, 2], [-4, 3]])
   }
   for (const [name, q, r] of [['Ann', 0, 0], ['Bob', 1, 0], ['Cy', 0, 1], ['Dee', -1, 1], ['Eve', 0, -1], ['Fay', 2, -1], ['Gus', -2, 1]] as const) {
     h.select(name)
