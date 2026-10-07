@@ -9,7 +9,6 @@ import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 import { getStealthTerms } from '../../character/rules/skills'
-import { isSeenByActiveSense } from './detection'
 import { getDegree } from './test'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
@@ -46,12 +45,12 @@ const HELD_DEFS: Record<CalledKind, HeldDef> = {
     modes: () => ['normal'],
     versus: true,
   },
-  // combat.tex "Stealth in combat": "The stealth value is rolled in the
-  // beginning of the round for each character in stealth individually. This is
-  // only done for characters that started their round undetectable to any
-  // opponent active senses."
+  // combat.tex "Stealth in combat": "The stealth value is rolled for each
+  // character individually, when needed. Only one test per round is made" —
+  // rolled for everyone as the round begins, which is when the table's tool
+  // rolls it (the table's ruling).
   stealth: {
-    called: (state, id) => !isSeenByActiveSense(state, id),
+    called: () => true,
     skill: getStealthTerms,
     DL: () => 0,
     modes: () => ['normal'],
@@ -86,7 +85,7 @@ export function getHeldCalled(state: CombatState): HeldTest[] {
   return CALLED_TESTS.flatMap((kind) =>
     Object.keys(state.characters)
       .filter((id) => isHeldCalled(state, id, kind))
-      .map((id) => ({ id, kind, roll: null, spent: 0 })),
+      .map((id) => ({ id, kind, roll: null })),
   )
 }
 

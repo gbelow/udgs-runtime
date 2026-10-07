@@ -27,6 +27,14 @@ export function makeSenseActiveLens(senseName: keyof Senses): Lens<Character, bo
   return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "active">("active"));
 }
 
+export function makeSenseReactiveLens(senseName: keyof Senses): Lens<Character, boolean> {
+  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "reactive">("reactive"));
+}
+
+export function makeSensePenaltyLens(senseName: keyof Senses): Lens<Character, number> {
+  return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "penalty">("penalty"));
+}
+
 export function makeSenseHasSenseLens(senseName: keyof Senses): Lens<Character, boolean> {
   return composeLens(makeSenseEntryLens(senseName), makePropLens<Sense, "hasSense">("hasSense"));
 }

@@ -97,14 +97,14 @@ describe('lens inversion — senses', () => {
   const senses = Object.keys(senseLenses) as (keyof Senses)[]
 
   it.each(senses)('the numeric lenses of "%s" round-trip', (sense) => {
-    for (const field of ['rangePenalty', 'bonus'] as const) {
+    for (const field of ['rangePenalty', 'penalty', 'bonus'] as const) {
       const lens = senseLenses[sense][field]
       expect(lens.get(lens.set(subject(), TARGET))).toBe(TARGET)
     }
   })
 
   it.each(senses)('the boolean lenses of "%s" round-trip both ways', (sense) => {
-    for (const field of ['active', 'hasSense'] as const) {
+    for (const field of ['active', 'reactive', 'hasSense'] as const) {
       const lens = senseLenses[sense][field]
       for (const value of [true, false]) {
         expect(lens.get(lens.set(subject(), value))).toBe(value)

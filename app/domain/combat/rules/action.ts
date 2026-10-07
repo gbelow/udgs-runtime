@@ -1,4 +1,4 @@
-import { getNotice } from './stealth'
+import { notices } from './stealth'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, CombatState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
@@ -604,10 +604,10 @@ export function needsTarget(action: Action): boolean {
 // declaration has since put out of reach (a change of location on the high
 // ground, a change from snipe to quick shot) drops off this list and has to
 // be aimed at again. A sweep meets nobody fallen, and nobody twice
-// (combat.tex "Sweeping Attack"). Nobody can be aimed at who is in stealth and
-// not detected by the actor (combat.tex "Stealth in combat").
+// (combat.tex "Sweeping Attack"). Nobody can be aimed at whom the actor has
+// not detected (combat.tex "Stealth in combat").
 export function getTargetIds(state: CombatState, root: RootAction): string[] {
-  return getAimableIds(state, root).filter((id) => getNotice(state, root.actorId, id) === 'detected')
+  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id))
 }
 
 function getAimableIds(state: CombatState, root: RootAction): string[] {

@@ -1,61 +1,113 @@
-import type { Action, CombatState } from '../types'
-import { STEALTH_MELEE_PENALTY, STEALTH_MOVEMENT_PENALTY, STEALTH_RANGED_PENALTY } from '../../tables'
-import { getSenseReaches } from './detection'
-import { getPartners } from './partners'
+import type { Character } from '../../types'
+import type { Action, CombatState, StealthTurn } from '../types'
+import { getArmor } from '../../character/rules/armor'
+import { isDead } from '../../character/rules/afflictions'
+import { getSenseReaches, type SenseReach } from './detection'
+import { getTurnHolder } from './turn'
+import { getMoveDestination } from './waypoint'
 import { getDegree } from './test'
 
-// combat.tex "Stealth in combat": a character who began the round out of sight
-// of every opponent's active senses makes one stealth test, and its score,
-// less what they do afterwards, is the number every opponent's detection is
-// held against.
+// combat.tex "Stealth in combat". Every character's stealth value is rolled
+// once a round and held to its end. Outside their own turn a character is
+// found by the board: an active sense that takes them in unimpaired detects
+// them outright, one partly impaired tests its detection against the value,
+// and one totally impaired takes in nothing. In their own turn they may use
+// the value against whoever they began it undetected by, less what they have
+// done in the turn, and only reactions ask.
 
-// What a landed action takes off the stealth value (combat.tex "Stealth
-// penalties"). Spellcasting "is naturally undetectable" (combat.tex
-// "Guidelines on playing stealth"), so a cast takes nothing.
-export function getStealthPenalty(action: Action): number {
-  switch (action.kind) {
-    case 'move':
-      return STEALTH_MOVEMENT_PENALTY[action.movement]
-    case 'strike':
-      return STEALTH_MELEE_PENALTY
-    case 'shoot':
-    case 'throw':
-      return STEALTH_RANGED_PENALTY
-    default:
-      return 0
-  }
+export type Noise = { AP: number; heardAP: number }
+
+// combat.tex "Actions in stealth": "Careful movement and crawling add no
+// penalty. All the other actions add -1 per AP spent", and "Hearing: Terrain
+// noise and gear noise" add again per AP to an ear (gear.tex "Noisy":
+// "penalizing stealth by -1 per AP during actions when worn"). Terrain makes
+// no noise yet.
+export function getNoise(c: Character, action: Action, AP: number): Noise {
+  const quiet = action.kind === 'move' && (action.movement === 'careful' || action.movement === 'crawl')
+  const counted = quiet ? 0 : AP
+  const sources = getArmor(c).properties.includes('noisy') ? 1 : 0
+  return { AP: counted, heardAP: counted * sources }
 }
 
-// The stealth value of a character in stealth: their test this round, less the
-// penalty of everything they have done since it; null for one who made none.
-export function getStealthValue(state: CombatState, id: string): number | null {
-  const test = state.heldTests.find((t) => t.id === id && t.kind === 'stealth')
-  return test?.roll ? test.roll.score + test.spent : null
+// The round's stealth score of a character; null for one not tested.
+export function getStealthScore(state: CombatState, id: string): number | null {
+  return state.heldTests.find((t) => t.id === id && t.kind === 'stealth')?.roll?.score ?? null
 }
 
-// combat.tex "Stealth in combat": "Enemies cannot target the character unless
-// their detection is higher than the stealth value (a miss in stealth), and
-// cannot react to them if their detection is not 4 points lower, at most (a
-// graze in stealth)." A character not in stealth is detected.
-export type Notice = 'detected' | 'sensed' | 'unnoticed'
-
-// combat.tex "Attacking from stealth": "Being attacked automatically causes
-// detection through touch after the attack, which means that a second attack
-// can always be reacted to."
-function hasBeenStruckBy(state: CombatState, observerId: string, targetId: string): boolean {
-  return state.struck.some((s) => s.id === observerId && s.by === targetId)
+// The turn being taken, as stealth keeps it.
+export function getStealthTurn(state: CombatState): StealthTurn | null {
+  const holder = getTurnHolder(state)
+  return state.stealthTurns.find((t) => t.turn === state.turn && t.id === holder) ?? null
 }
 
-// What the observer makes of the target: by the best sense that reaches it,
-// against the stealth value less what `event` takes off it, if it is an action
-// of the target's yet to land. A grapple partner is touching them, which "is
-// immediately detected".
-export function getNotice(state: CombatState, observerId: string, targetId: string, event: Action | null = null): Notice {
-  const value = getStealthValue(state, targetId)
-  if (value === null || getPartners(state, observerId).includes(targetId)) return 'detected'
-  const pending = event && event.step !== 'done' ? getStealthPenalty(event) : 0
-  const detections = getSenseReaches(state, observerId, targetId).map((r) => r.detection)
-  const degree = detections.length === 0 ? 'hit' : getDegree(value + pending, Math.max(...detections))
-  const noticed: Notice = degree === 'miss' ? 'detected' : degree === 'graze' ? 'sensed' : 'unnoticed'
-  return noticed === 'unnoticed' && hasBeenStruckBy(state, observerId, targetId) ? 'sensed' : noticed
+// combat.tex "Sensory impairment": whether the score fails against a
+// detection — "unless their stealth value grazes or misses against the
+// reactor's detection".
+function isFound(score: number, detection: number): boolean {
+  const degree = getDegree(score, detection)
+  return degree === 'graze' || degree === 'miss'
+}
+
+// combat.tex "Active senses in combat": outside the target's own turn, an
+// unimpaired active sense detects them; a partly impaired one tests. A
+// character with no stealth score this round (one who joined after it began)
+// is not hiding.
+function isDetectedOffTurn(state: CombatState, observerId: string, targetId: string): boolean {
+  const score = getStealthScore(state, targetId)
+  if (score === null) return true
+  const active = getSenseReaches(state, observerId, targetId).filter((r) => r.active)
+  if (active.some((r) => r.impairment === 'none')) return true
+  return active.some((r) => isFound(score, r.detection))
+}
+
+// combat.tex "Actions in stealth": in their own turn the holder is noticed by
+// anyone they did not begin it undetected by, and by anyone else whose best
+// reactive sense ("Detection uses the best sense available at the time of the
+// reaction") finds their score less what the turn has spent and what
+// `pending`, their action not yet landed, will: every AP counted, and to an
+// ear the noise again.
+function isNoticedInTurn(state: CombatState, turn: StealthTurn, observerId: string, pending: Noise): boolean {
+  const score = getStealthScore(state, turn.id)
+  if (score === null || !turn.hiddenFrom.includes(observerId)) return true
+  const penalty = (r: SenseReach) => turn.AP + pending.AP + (r.sense === 'hearing' ? turn.heardAP + pending.heardAP : 0)
+  return getSenseReaches(state, observerId, turn.id).some((r) => r.reactive && isFound(score - penalty(r), r.detection))
+}
+
+// The fight with a move's mover standing where it ends, so that whoever it
+// walks into the view of may see them there.
+function atDestination(state: CombatState, move: Action | null): CombatState | null {
+  if (move?.kind !== 'move' || !state.board) return null
+  const end = getMoveDestination(state, move, move.path)
+  return end && { ...state, board: { ...state.board, placements: { ...state.board.placements, [move.actorId]: end } } }
+}
+
+// Whether the observer has the target: to aim at them, or to answer
+// `pending`, an action of theirs not yet landed — a move where it starts or
+// where it ends.
+export function notices(state: CombatState, observerId: string, targetId: string, pending: Action | null = null): boolean {
+  if (observerId === targetId) return true
+  const turn = getStealthTurn(state)
+  if (turn?.id !== targetId) return isDetectedOffTurn(state, observerId, targetId)
+  const live = pending && pending.step !== 'done' ? pending : null
+  const noise = live?.noise ?? { AP: 0, heardAP: 0 }
+  const moved = atDestination(state, live)
+  return isNoticedInTurn(state, turn, observerId, noise) || (moved !== null && isNoticedInTurn(moved, turn, observerId, noise))
+}
+
+// combat.tex "Actions in stealth": "A character can only use the stealth
+// value during its turn if it started undetected to the active senses of
+// their reactors" — everyone living who does not detect them as it begins.
+export function getHiddenFrom(state: CombatState, id: string): string[] {
+  return Object.entries(state.characters).filter(([other, c]) => other !== id && !isDead(c) && !isDetectedOffTurn(state, other, id)).map(([other]) => other)
+}
+
+// The sensory penalty of reacting to the actor through the least penalised
+// reactive sense of the reactor that takes them in, as a positive magnitude
+// (combat.tex "Senses": "Sensory penalty -3, by default"; the table's ruling:
+// it weighs on the reaction's own test, not on the detection). Zero for one
+// with no such sense, whom nothing else lets react.
+export function getReactionSensePenalty(state: CombatState, reactorId: string, actorId: string): number {
+  const reactor = state.characters[reactorId]
+  const penalties = getSenseReaches(state, reactorId, actorId).filter((r) => r.reactive).map((r) => reactor?.senses[r.sense].penalty ?? 0)
+  return penalties.length === 0 ? 0 : Math.min(...penalties)
 }

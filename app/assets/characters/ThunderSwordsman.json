@@ -273,7 +273,7 @@
     },
     "smell": {
       "name": "Smell",
-      "active": false,
+      "active": true,
       "rangePenalty": 5,
       "bonus": 0,
       "hasSense": true

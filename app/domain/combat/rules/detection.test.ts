@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { CombatStateSchema, PlacementSchema, TerrainCellSchema, type Board, type CombatState, type Coord, type Direction } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
-import { DIRECTIONS, ROTATIONS, add, turn } from '../geometry'
+import { DIRECTIONS, ROTATIONS, add } from '../geometry'
 import { getSenseReaches } from './detection'
 
 function fighter(id: string): CampaignCharacter {
@@ -24,35 +24,45 @@ function fight(observerAt: { cell: Coord; orientation: Direction }, targetCell: 
 }
 
 const sensesReaching = (state: CombatState) => getSenseReaches(state, 'o', 't').map((r) => r.sense)
+const visionOf = (state: CombatState) => getSenseReaches(state, 'o', 't').find((r) => r.sense === 'vision')?.impairment ?? 'total'
 const origin = { q: 0, r: 0 }
 
 describe('what an observer senses of a target', () => {
-  // combat.tex "Vision": the field of vision is "the arc defined by the
-  // directions of 3 adjacent hexes around a character".
-  it.each(ROTATIONS)('sees the facing and the two hexes beside it, facing %i', (facing) => {
+  // combat.tex "Vision": "Vision requires light and line of sight" — no
+  // field of vision, so whichever way the observer faces.
+  it.each(ROTATIONS)('sees every hex around it, facing %i', (facing) => {
     const seen = ROTATIONS.filter((d) => sensesReaching(fight({ cell: origin, orientation: facing }, add(origin, DIRECTIONS[d]))).includes('vision'))
-    expect(seen.sort()).toEqual([turn(facing, -1), facing, turn(facing, 1)].sort())
+    expect(seen).toEqual([...ROTATIONS])
   })
 
-  // combat.tex "Hearing": "omnidirectional".
+  // combat.tex "Hearing": "triggered by a sound event", from anywhere.
   it.each(ROTATIONS)('hears every hex around it, facing %i', (facing) => {
     const heard = ROTATIONS.filter((d) => sensesReaching(fight({ cell: origin, orientation: facing }, add(origin, DIRECTIONS[d]))).includes('hearing'))
     expect(heard).toEqual([...ROTATIONS])
   })
 
-  // combat.tex "Cover": "Cover blocks vision unless it is transparent".
+  // combat.tex "Cover": "If a character is not within the line of sight of a
+  // detector, they are considered at total impairment to vision."
   it('does not see past a wall, though it hears past it', () => {
     const wall = { '1,0': TerrainCellSchema.parse({ blocking: true }) }
-    const state = fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }, wall)
-    expect(sensesReaching(state)).toEqual(['hearing'])
+    expect(sensesReaching(fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }, wall))).toEqual(['hearing'])
     expect(sensesReaching(fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }))).toContain('vision')
   })
 
-  // combat.tex "Visibility": "Zero visibility means that the target is
-  // untargetable through vision."
-  it('does not see a target standing in zero visibility', () => {
-    const smoke = { '2,0': TerrainCellSchema.parse({ visibility: 'zero' }) }
-    expect(sensesReaching(fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }, smoke))).not.toContain('vision')
+  // combat.tex "Fog and smoke": opaque gas "makes them zero visibility to
+  // those outside. Anyone inside the fog is in bad visibility to others
+  // inside the 1m radius."
+  it('does not see into fog from outside it, and sees partly within it close by', () => {
+    const smoke = { '1,0': TerrainCellSchema.parse({ visibility: 'zero' }), '0,0': TerrainCellSchema.parse({ visibility: 'zero' }) }
+    expect(visionOf(fight({ cell: { q: -1, r: 0 }, orientation: 0 }, { q: 1, r: 0 }, smoke))).toBe('total')
+    expect(visionOf(fight({ cell: origin, orientation: 0 }, { q: 1, r: 0 }, smoke))).toBe('partial')
+  })
+
+  // combat.tex "Visibility": "Bad visibility means that those that rely on
+  // vision get partial impairment".
+  it('sees a target in bad visibility only partly', () => {
+    const dim = { '2,0': TerrainCellSchema.parse({ visibility: 'bad' }) }
+    expect(visionOf(fight({ cell: origin, orientation: 0 }, { q: 2, r: 0 }, dim))).toBe('partial')
   })
 
   it('reaches as it does on open ground when the fight has no board', () => {

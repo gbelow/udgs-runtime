@@ -19,6 +19,7 @@ import { getHold, getUpkeepAims } from '../rules/fireAgain'
 import { makeAction } from '../factories'
 import { cure } from '../../character/commands/addAffliction'
 import { appendActions } from './log'
+import { rollHeld } from './heldTest'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -59,8 +60,13 @@ function endRound(state: CombatState, c: CampaignCharacter, dice: Dice): Campaig
 export function nextRound(dice: Dice, newId: () => string): (state: CombatState) => CombatState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], struck: [], stress: [] }
-    const called = { ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }
+    const next = { ...state, characters, round: state.round + 1, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], stress: [] }
+    const called = rollStealth({ ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }, dice)
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }
+}
+
+// The stealth tests the round calls, rolled as it begins (the table's ruling).
+function rollStealth(state: CombatState, dice: Dice): CombatState {
+  return state.heldTests.filter((t) => t.kind === 'stealth').reduce((s, t) => rollHeld(t.id, 'stealth', 'normal', dice)(s), state)
 }

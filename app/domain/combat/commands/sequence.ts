@@ -24,7 +24,7 @@ import { getFeinted } from '../rules/feint'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 import { getResults } from './results'
-import { revealIfSeen } from './stealth'
+import { getHiddenFrom } from '../rules/stealth'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -79,7 +79,15 @@ function forceSurge(state: CombatState, feint: FeintAction): CombatState {
 // is numbered `turn` — a fresh one unless it is one resumed.
 export function beginTurn(state: CombatState, id: string, { fleeing = false, turn = null }: { fleeing?: boolean; turn?: number | null } = {}): CombatState {
   const begun = turn === null ? state.turnsBegun + 1 : state.turnsBegun
-  return revealIfSeen({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }, id)
+  return noteHiddenFrom({ ...state, inTurnCharacter: id, fleeing, turn: turn ?? begun, turnsBegun: begun, contenders: [], lastContest: null }, id)
+}
+
+// combat.tex "Actions in stealth": whom the holder begins the turn
+// undetected by, noted once for the turn; a turn resumed keeps what it began
+// with.
+function noteHiddenFrom(state: CombatState, id: string): CombatState {
+  if (state.stealthTurns.some((t) => t.turn === state.turn && t.id === id)) return state
+  return { ...state, stealthTurns: [...state.stealthTurns, { turn: state.turn, id, hiddenFrom: getHiddenFrom(state, id), AP: 0, heardAP: 0 }] }
 }
 
 // combat.tex "Flee": "This reaction interrupts the opponents turn, which is

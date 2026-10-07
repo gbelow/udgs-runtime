@@ -1,5 +1,5 @@
 import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, SHOT_RANGES } from './lists'
-import type { AfflictionKey, Fuel, MeleeRange, MoveKind, MovementKind, Shape, WeaponProperty } from './types'
+import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -164,26 +164,8 @@ export const REACH: Record<MeleeRange, number> = {
 export const BAD_VISIBILITY_PENALTY = -2
 
 // combat.tex "Fog and smoke": "Opaque gases reduce vision radius of anyone
-// inside of it to 2m by default".
-export const FOG_VISION_RADIUS = 2
-
-// combat.tex "Stealth in combat", "Stealth penalties": what each landed action
-// takes off the stealth value until the next test. The tiers name careful
-// movement and crawling, normal movement, and running and jumping; the book
-// says nothing of the rest.
-export const STEALTH_MOVEMENT_PENALTY: Record<MoveKind, number> = {
-  careful: 0,
-  crawl: 0,
-  basic: -2,
-  run: -4,
-  jump: -4,
-  climb: 0,
-  swim: 0,
-  stand: 0,
-  prone: 0,
-}
-export const STEALTH_RANGED_PENALTY = -2
-export const STEALTH_MELEE_PENALTY = -4
+// inside of it to 1m by default".
+export const FOG_VISION_RADIUS = 1
 
 // combat.tex "Damage Tiers": the IL and bleed each tier inflicts; the
 // threshold column is armor + tier x TGH and is computed where it is needed.

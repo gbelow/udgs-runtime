@@ -1,37 +1,26 @@
-import type { Senses } from '../../types'
+import type { Character, Senses } from '../../types'
 import type { Action, Board, CombatState, Coord, Direction } from '../types'
 import { BAD_VISIBILITY_PENALTY, FOG_VISION_RADIUS } from '../../tables'
 import { getDetectionTerms } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
 import { getSenseBonus } from '../../character/lenses/senses'
-import { isDead } from '../../character/rules/afflictions'
-import { DIRECTIONS, angleBetween, angularGap, directionTo, sameCell, toPlane } from '../geometry'
-import { getDistanceBetween, getPlacedFootprint, hasLineOfSight } from './board'
+import { hasAffliction } from '../../character/rules/afflictions'
+import { directionTo, sameCell } from '../geometry'
+import { getDistanceBetween, hasLineOfSight } from './board'
 import { getHazardOf } from './hazard'
 import { getPartners } from './partners'
 import { getMoveOrigin } from './waypoint'
 import { getAction } from './log'
 
-// combat.tex "Detection": what an observer's senses reach of a target, and
-// how well. Nothing here compares against a stealth value; it answers which
-// senses can take in the target at all and what detection each brings.
+// combat.tex "Detection": what an observer's senses take in of a target, and
+// how well. Nothing here compares against a stealth value; it answers how
+// impaired each sense is and what detection each brings.
 // Like every board rule, a fight without a board reaches everything.
 
-// combat.tex "Vision": "The field of vision covers 180 degrees, which is
-// defined in the grid as within the arc defined by the directions of 3 adjacent
-// hexes around a character" — the facing and the two next to it, so every cell
-// up to a quarter turn from the facing, the edge included. A cell of the
-// observer's footprint that the target shares sees it.
-function isInFieldOfVision(state: CombatState, observerId: string, targetId: string): boolean {
-  const placement = state.board?.placements[observerId]
-  const from = getPlacedFootprint(state, observerId)
-  const to = getPlacedFootprint(state, targetId)
-  if (!placement || !from || !to) return true
-  const heading = angleBetween({ x: 0, y: 0 }, toPlane(DIRECTIONS[placement.orientation]))
-  return from.some((a) => to.some((b) => sameCell(a, b) || angularGap(heading, angleBetween(toPlane(a), toPlane(b))) <= Math.PI / 2 + 1e-9))
-}
-
 const TARGETED_KINDS: readonly Action['kind'][] = ['strike', 'shoot', 'grapple', 'feint', 'cast']
+
+// combat.tex dropped facing from vision; a one-cell token still turns the
+// way it acted, for the board to draw.
 
 // The cell a landed action leaves its actor looking at: where a throw went,
 // whoever a reaction answers, whoever an attack, grapple, feint or cast
@@ -58,60 +47,86 @@ export function getActionHeading(state: CombatState, action: Action, board: Boar
   return there && !sameCell(here, there) ? directionTo(here, there) : null
 }
 
-type Reaches =(state: CombatState, observerId: string, targetId: string) => boolean
+export type Impairment = 'none' | 'partial' | 'total'
 
-// Whether a sense takes the target in from where each stands, one entry per
-// sense so that a new sense does not compile until it says.
-const REACHES: Record<keyof Senses, Reaches> = {
-  // combat.tex "Vision": "gets blocked by cover and requires light" (everything
-  // is lit); combat.tex "Visibility": zero visibility "is untargetable through
-  // vision"; combat.tex "Fog and smoke": whoever stands in it sees no further than 2m
+type Impair = (state: CombatState, observerId: string, targetId: string, range: number | null) => Impairment
+
+// A sense that reaches as far as its range: null for no limit, 0 for what it
+// touches, a grapple partner.
+const byRange: Impair = (state, o, t, range) => {
+  if (range === null) return 'none'
+  if (range === 0) return getPartners(state, o).includes(t) ? 'none' : 'total'
+  const distance = getDistanceBetween(state, o, t)
+  return distance === null || distance <= range ? 'none' : 'total'
+}
+
+// combat.tex "Sensory impairment": how much of the target a sense takes in
+// from where each stands, one entry per sense so that a new sense does not
+// compile until it says. None detects outright, partial needs a detection
+// test against the stealth value, total takes nothing in.
+const IMPAIRMENTS: Record<keyof Senses, Impair> = {
+  // combat.tex "Vision": "requires light and line of sight" (everything is
+  // lit); "Cover": out of line of sight is total impairment; "Visibility": bad
+  // visibility is partial, none is nothing to target; "Fog and smoke": whoever
+  // stands in it sees no further than its radius, and others inside within it
+  // are in bad visibility
   vision: (state, o, t) => {
+    if (!hasLineOfSight(state, o, t)) return 'total'
     const distance = getDistanceBetween(state, o, t)
-    const blinded = getHazardOf(state, o).visibility === 'zero' && distance !== null && distance > FOG_VISION_RADIUS
-    return !blinded && hasLineOfSight(state, o, t) && isInFieldOfVision(state, o, t) && getHazardOf(state, t).visibility !== 'zero'
+    const near = distance === null || distance <= FOG_VISION_RADIUS
+    const inFog = getHazardOf(state, o).visibility === 'zero'
+    const there = getHazardOf(state, t).visibility
+    if (there === 'zero') return inFog && near ? 'partial' : 'total'
+    if (inFog && !near) return 'total'
+    return there === 'bad' ? 'partial' : 'none'
   },
-  // combat.tex "Hearing": "omnidirectional"
-  hearing: () => true,
-  // combat.tex "Smell": "requires a smell trail to trigger the sense"; nothing leaves one yet
-  smell: () => false,
-  // combat.tex "Touch": "Anything that touches a character is immediately detected"
-  touch: (state, o, t) => getPartners(state, o).includes(t),
-  // abilities.tex: the sense reaches as far as its ability's radius, which nothing models yet
-  synesthesia: () => false,
+  // combat.tex "Hearing": "triggered by a sound event"; nothing on the board
+  // muffles one yet
+  hearing: () => 'none',
+  // combat.tex "Smell": "Range of smell is 0, by default"
+  smell: byRange,
+  // combat.tex "Touch": "an active and reactive sense with 0m range"
+  touch: byRange,
+  synesthesia: byRange,
 }
 
-// combat.tex "Stealth in combat", "Staying in stealth": whether some living
-// opponent has an active sense that takes the character in, which is what
-// keeps them from being undetectable.
-export function isSeenByActiveSense(state: CombatState, id: string): boolean {
-  return Object.entries(state.characters).some(([other, c]) => other !== id && !isDead(c) && getSenseReaches(state, other, id).some((r) => r.active))
+// combat.tex "Afflictions": "Blind: ... Cannot use vision", "Deaf: ... Cannot
+// use hearing".
+function canUse(c: Character, sense: keyof Senses): boolean {
+  if (!c.senses[sense].hasSense) return false
+  if (sense === 'vision') return !hasAffliction(c, 'blind')
+  if (sense === 'hearing') return !hasAffliction(c, 'deaf')
+  return true
 }
 
-export type SenseReach = { sense: keyof Senses; active: boolean; terms: Term[]; detection: number }
+export type SenseReach = { sense: keyof Senses; active: boolean; reactive: boolean; impairment: Exclude<Impairment, 'total'>; terms: Term[]; detection: number }
 
-// The terms of the observer's detection through one sense against the target:
-// the skill, the sense's own bonus and, for vision, the penalty of a target in
-// bad visibility. Combat keeps no distance bands.
-export function getDetectionTermsThrough(state: CombatState, observerId: string, targetId: string, sense: keyof Senses): Term[] {
-  const observer = state.characters[observerId]
-  if (!observer) return []
+// combat.tex "Detection": "A character adds the value of their best available
+// sense to awareness in detection tests. Any sensory penalties to a sense are
+// added too": the skill, the sense's own bonus and, for vision partly
+// impaired, the bad visibility it is impaired by. The sense's own penalty is
+// not among them: it weighs on what is done relying on it (the table's
+// ruling). Combat keeps no distance bands.
+function getDetectionTermsThrough(observer: Character, sense: keyof Senses, impairment: Impairment): Term[] {
   return [
     ...getDetectionTerms(observer),
     { label: sense, value: getSenseBonus(observer, sense) },
-    { label: 'visibility', value: sense === 'vision' && getHazardOf(state, targetId).visibility === 'bad' ? BAD_VISIBILITY_PENALTY : 0 },
+    { label: 'visibility', value: sense === 'vision' && impairment === 'partial' ? BAD_VISIBILITY_PENALTY : 0 },
   ]
 }
 
-// Every sense of the observer that reaches the target, with what it detects
-// at. Empty for an observer or target not in the fight, and for oneself.
+// Every sense of the observer that takes the target in at all, with how
+// impaired it is and what it detects at. Empty for an observer or target not
+// in the fight, and for oneself.
 export function getSenseReaches(state: CombatState, observerId: string, targetId: string): SenseReach[] {
   const observer = state.characters[observerId]
   if (!observer || !state.characters[targetId] || observerId === targetId) return []
-  return (Object.keys(REACHES) as (keyof Senses)[])
-    .filter((sense) => observer.senses[sense].hasSense && REACHES[sense](state, observerId, targetId))
-    .map((sense) => {
-      const terms = getDetectionTermsThrough(state, observerId, targetId, sense)
-      return { sense, active: observer.senses[sense].active, terms, detection: sumTerms(terms) }
-    })
+  return (Object.keys(IMPAIRMENTS) as (keyof Senses)[]).flatMap((sense) => {
+    if (!canUse(observer, sense)) return []
+    const { active, reactive, range } = observer.senses[sense]
+    const impairment = IMPAIRMENTS[sense](state, observerId, targetId, range)
+    if (impairment === 'total') return []
+    const terms = getDetectionTermsThrough(observer, sense, impairment)
+    return [{ sense, active, reactive, impairment, terms, detection: sumTerms(terms) }]
+  })
 }

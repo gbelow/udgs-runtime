@@ -102,8 +102,9 @@ else walks them: up (`getAncestry`, `getOrigin`, `getRootOf`, `getOpeningReactio
 (`getDescendants`, `getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
 opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
 remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`, with
-the stealth each landed action has `spent`; `turnsTaken`: the turns something was committed
-in and who rested in each; `prepared`: the preparations landed; `struck`: who attacked whom;
+every character's stealth roll, made as the round begins; `turnsTaken`: the turns something was committed
+in and who rested in each; `prepared`: the preparations landed; `stealthTurns`: for each turn, whom its
+holder began it undetected by and the AP their actions in it have spent, loud and to an ear;
 all but the tests themselves written by `setActions` as actions land), or stamped on the action that needs it (a move's `held`, a sweep link's
 `swept`), never found by scanning the record.
 
@@ -257,7 +258,6 @@ app/domain/combat/
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
-│   ├── stealth.ts      revealIfSeen: a character in stealth whom an active sense reaches at the start or end of their turn loses their stealth test
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
 │   ├── heldTest.ts     held tests: rollHeld answers a round's call; holdRoll writes a roll down and lets its effect work; holdThrown makes the die of a held test thrown as an action's (a swim test, a climb, a balance test) the round's (called by applyPhase at the roll); dropFallenBalance (at the resolve)
@@ -325,8 +325,8 @@ app/domain/combat/
 │   ├── floorAttack.ts  a strike or a shot aimed at an item on the floor or a space of the ground: its DL, what it can be aimed at, the explosion it sets off, where it lands
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
-│   ├── detection.ts    senses: which of an observer's senses reach a target (facing arc, sight, zero visibility, touch in a grapple), and what each detects at; `getActionHeading`, the way a landed action leaves its actor facing (written by `reduceBoard`)
-│   ├── stealth.ts      the stealth value (the round's held test less what the actor's landed actions have `spent`), what each landed action takes off it, and what an observer makes of a target in stealth (`getNotice`, with the event's own penalty and the touch a struck character has of their attacker); `getTargetIds` closes who is not `detected`, `getTriggers` drops who has not noticed the actor
+│   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, blind and deaf), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
+│   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item
 │

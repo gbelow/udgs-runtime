@@ -228,6 +228,9 @@ const ActionBase = {
   // the round it was declared in, stamped with the turn
   round: num.nullable().default(null),
   cost: ActionCostSchema.nullable().default(null),
+  // combat.tex "Actions in stealth": what the action, as it was committed,
+  // will take off its actor's stealth value (rules/stealth.ts `getNoise`)
+  noise: z.object({ AP: num, heardAP: num }).strip().nullable().default(null),
   // the lines `cost` is the sum of, written with it
   costTerms: z.array(CostTermSchema).default([]),
   // the surge its actor made to take the action, paid when it is declared and
@@ -1123,10 +1126,17 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+// combat.tex "Actions in stealth": what a turn's holder may use their stealth
+// value against. `hiddenFrom` is everyone the holder began the turn
+// undetected by; `AP` what their actions in the turn have spent that "add -1
+// per AP spent", and `heardAP` that again for each source of noise they make
+// ("Hearing: Terrain noise and gear noise"), which only an ear hears.
+export const StealthTurnSchema = z.object({ turn: num, id: str, hiddenFrom: z.array(str).default([]), AP: num.default(0), heardAP: num.default(0) })
+export type StealthTurn = z.infer<typeof StealthTurnSchema>
+
 // The round's held test of a character, by kind (`HeldRollSchema`). A call
-// with no roll is a test owed. `spent` is what the character's actions landed
-// since the call have taken off the score (combat.tex "Stealth penalties").
-export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null), spent: z.number().default(0) })
+// with no roll is a test owed.
+export const HeldTestSchema = z.object({ id: z.string(), kind: z.enum(HELD_TESTS), roll: HeldRollSchema.nullable().default(null) })
 export type HeldTest = z.infer<typeof HeldTestSchema>
 
 // combat.tex "Social actions": what a character said to another in the round
@@ -1226,9 +1236,10 @@ export const CombatStateSchema = z.object({
   // The preparations landed in the round, by id, lapsing at its end
   // (combat.tex "Preparing a reaction")
   prepared: z.array(str).default([]),
-  // combat.tex "Attacking from stealth": who has been attacked in the round,
-  // and by whom
-  struck: z.array(z.object({ id: str, by: str })).default([]),
+  // combat.tex "Actions in stealth": each turn of the round, by its number,
+  // who held it, whom they began it undetected by, and the AP their actions in
+  // it have spent, all of it and what an ear hears more of (`StealthTurnSchema`)
+  stealthTurns: z.array(StealthTurnSchema).default([]),
   // combat.tex "Social actions": the intimidations, taunts and rallies said
   pressure: z.array(PressureSchema).default([]),
   // combat.tex "Surrender": who has flagged themselves surrendered

@@ -502,22 +502,39 @@ export type AfflictionKey = keyof typeof AFFLICTIONS
 export const AfflictionKeySchema =
   z.enum(Object.keys(AFFLICTIONS) as [AfflictionKey, ...AfflictionKey[]])
 
-export const SenseSchema = z.object({
-  name: z.string().default(''),
-  rangePenalty: z.number().default(5),
-  bonus: z.number().default(0),
-  active: z.boolean().default(true),
-  hasSense: z.boolean().default(true),
-}).strip()
+// combat.tex "Senses": an active sense is used to act, a reactive one to
+// react; `penalty` is the sensory penalty of relying on it, a positive
+// magnitude like an affliction's; `range` is how far it reaches in metres,
+// null for as far as it can take anything in. `rangePenalty` is the distance
+// band penalty (combat.tex "Distance bands").
+type SenseDefaults = { name: string; rangePenalty: number; active: boolean; reactive: boolean; penalty: number; range: number | null; hasSense: boolean }
+
+function makeSenseSchema(d: SenseDefaults) {
+  return z.object({
+    name: z.string().default(d.name),
+    rangePenalty: z.number().default(d.rangePenalty),
+    bonus: z.number().default(0),
+    active: z.boolean().default(d.active),
+    reactive: z.boolean().default(d.reactive),
+    penalty: z.number().default(d.penalty),
+    range: z.number().nullable().default(d.range),
+    hasSense: z.boolean().default(d.hasSense),
+  }).strip()
+}
+
+export const SenseSchema = makeSenseSchema({ name: '', rangePenalty: 5, active: true, reactive: true, penalty: 0, range: null, hasSense: true })
 
 export type Sense = z.infer<typeof SenseSchema>
 
+// combat.tex "Vision", "Hearing", "Smell", "Touch": each sense's defaults.
+const senseEntry = (d: SenseDefaults) => makeSenseSchema(d).prefault({})
+
 export const SensesSchema = z.object({
-  vision: SenseSchema.default({ name: 'Vision', active: true, rangePenalty: 3, bonus: 0, hasSense: true }),
-  hearing: SenseSchema.default({ name: 'Hearing', active: false, rangePenalty: 5, bonus: 0, hasSense: true }),
-  smell: SenseSchema.default({ name: 'Smell', active: false, rangePenalty: 5, bonus: 0, hasSense: true }),
-  touch: SenseSchema.default({ name: 'Touch', active: true, rangePenalty: 100, bonus: 0, hasSense: true }),
-  synesthesia: SenseSchema.default({ name: 'Synesthesia', active: true, rangePenalty: 100, bonus: 0, hasSense: false }),
+  vision: senseEntry({ name: 'Vision', rangePenalty: 3, active: true, reactive: true, penalty: 0, range: null, hasSense: true }),
+  hearing: senseEntry({ name: 'Hearing', rangePenalty: 5, active: false, reactive: true, penalty: 3, range: null, hasSense: true }),
+  smell: senseEntry({ name: 'Smell', rangePenalty: 5, active: true, reactive: false, penalty: 5, range: 0, hasSense: true }),
+  touch: senseEntry({ name: 'Touch', rangePenalty: 100, active: true, reactive: true, penalty: 3, range: 0, hasSense: true }),
+  synesthesia: senseEntry({ name: 'Synesthesia', rangePenalty: 100, active: true, reactive: true, penalty: 0, range: 0, hasSense: false }),
 }).strip()
 
 export type Senses = z.infer<typeof SensesSchema>

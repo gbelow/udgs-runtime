@@ -6,7 +6,7 @@ import { getSize } from "../rules/size";
 import { getTGH } from "../rules/misc";
 import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
 import { makeMovementCostLens, makeMovementLens } from "./movement";
-import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSenseRangePenaltyLens } from "./senses";
+import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSensePenaltyLens, makeSenseRangePenaltyLens, makeSenseReactiveLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
 import { skillTermGetters } from "../rules/skills";
 import { Term, sumTerms, termsDigest, termsView, TermsView } from "../rules/terms";
@@ -85,37 +85,49 @@ export const movementCostLenses: Record<keyof Movement, Record<'AP' | 'STA', Len
 export const senseLenses: Record<keyof Senses, {
   rangePenalty: Lens<Character, number>
   bonus: Lens<Character, number>
+  penalty: Lens<Character, number>
   active: Lens<Character, boolean>
+  reactive: Lens<Character, boolean>
   hasSense: Lens<Character, boolean>
 }> = {
   vision: {
     rangePenalty: makeSenseRangePenaltyLens("vision"),
     bonus: makeSenseBonusLens("vision"),
+    penalty: makeSensePenaltyLens("vision"),
     active: makeSenseActiveLens("vision"),
+    reactive: makeSenseReactiveLens("vision"),
     hasSense: makeSenseHasSenseLens("vision"),
   },
   hearing: {
     rangePenalty: makeSenseRangePenaltyLens("hearing"),
     bonus: makeSenseBonusLens("hearing"),
+    penalty: makeSensePenaltyLens("hearing"),
     active: makeSenseActiveLens("hearing"),
+    reactive: makeSenseReactiveLens("hearing"),
     hasSense: makeSenseHasSenseLens("hearing"),
   },
   smell: {
     rangePenalty: makeSenseRangePenaltyLens("smell"),
     bonus: makeSenseBonusLens("smell"),
+    penalty: makeSensePenaltyLens("smell"),
     active: makeSenseActiveLens("smell"),
+    reactive: makeSenseReactiveLens("smell"),
     hasSense: makeSenseHasSenseLens("smell"),
   },
   touch: {
     rangePenalty: makeSenseRangePenaltyLens("touch"),
     bonus: makeSenseBonusLens("touch"),
+    penalty: makeSensePenaltyLens("touch"),
     active: makeSenseActiveLens("touch"),
+    reactive: makeSenseReactiveLens("touch"),
     hasSense: makeSenseHasSenseLens("touch"),
   },
   synesthesia: {
     rangePenalty: makeSenseRangePenaltyLens("synesthesia"),
     bonus: makeSenseBonusLens("synesthesia"),
+    penalty: makeSensePenaltyLens("synesthesia"),
     active: makeSenseActiveLens("synesthesia"),
+    reactive: makeSenseReactiveLens("synesthesia"),
     hasSense: makeSenseHasSenseLens("synesthesia"),
   },
 }

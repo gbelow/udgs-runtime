@@ -28,7 +28,8 @@ import { EQUIPMENT_ATTACK_PENALTY, isFloorAttack, isObjectOnTarget, isObjectAtta
 import { getFloorObject, getGroundCell, getGroundDL } from './floorAttack'
 import { getGrappleStrikeTerm, getManeuverDLTerms, isSeizedUse } from './grapple'
 import { findRowVariant, findWeaponRow, getRowAmmo, getRowVariants, getWeaponRows, isRowLoadable, isRowUsable, type WeaponRow } from './weaponRow'
-import { getReactionsTo, getRootOf } from './log'
+import { getAction, getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { getReactionSensePenalty } from './stealth'
 import { isDefense } from './actionCatalog'
 import { isGuardPlaced } from './protect'
 import { isDefensePlaced, isPreparedCancelled } from './prepared'
@@ -261,7 +262,22 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
+    ...openedSenseTerms(state, action),
   ]
+}
+
+// combat.tex "Senses": what reacting relies on weighs on the reaction's own
+// test — the sensory penalty of the reactor's sense that takes in whoever
+// they answer (the table's ruling).
+function senseTerm(state: CombatState, reactorId: string, actorId: string | undefined): Term[] {
+  return actorId ? [{ label: 'sense', value: -getReactionSensePenalty(state, reactorId, actorId) }] : []
+}
+
+// An attack a reaction opened (an opportunity attack, a counterattack) is
+// that reaction's test.
+function openedSenseTerms(state: CombatState, action: AttackAction): Term[] {
+  const opening = getOpeningReaction(state, action) ?? (action.kind === 'strike' ? getOpeningCounter(state, action) : null)
+  return opening?.reactionTo ? senseTerm(state, action.actorId, getAction(state, opening.reactionTo)?.actorId) : []
 }
 
 // What the strike's recipe adds (rules/recipes.ts), and for a
@@ -290,7 +306,8 @@ function getReactionTestTerms(state: CombatState, reaction: Action): Term[] {
 function shotDefenseTerms(state: CombatState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction)]
+  const shooter = reaction.reactionTo ? getAction(state, reaction.reactionTo)?.actorId : undefined
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...senseTerm(state, reactor.id, shooter)]
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":
@@ -333,7 +350,7 @@ function getStrikeDefense(state: CombatState, root: StrikeAction): Action | null
 function strikeDefenseTerms(state: CombatState, root: StrikeAction, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction)]
+  const terms: Term[] = [{ label: 'defend', value: getDefend(reactor) }, ...coverTerms(reactor, reaction), ...senseTerm(state, reactor.id, root.actorId)]
   if (reaction.kind === 'evasiveJump') terms.push({ label: 'jump', value: Math.floor(getAGI(reactor) / 2) })
   if (isHighGround(state, root.actorId, reactor.id)) terms.push({ label: 'high ground', value: 2 })
   return terms

@@ -4,6 +4,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
+import { getNoise } from '../rules/stealth'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
@@ -96,8 +97,9 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     const actor = state.characters[open.actorId]
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && !isTargetAimed(state, open)) return state
-    if (!getPayableCost(state, open)) return state
-    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), step: 'react' }])
+    const cost = getPayableCost(state, open)
+    if (!cost) return state
+    const locked = replaceActions(state, [{ ...withCommitFacts(state, actor, open, dice), noise: getNoise(actor, open, cost.AP), step: 'react' }])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
   }
 }
