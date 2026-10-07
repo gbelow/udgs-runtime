@@ -568,7 +568,7 @@ function newEvents(before: CombatState, after: CombatState, lastKey: string): { 
 function status(state: CombatState, side: Side): string {
   const id = IDS[side]
   const c = state.characters[id]
-  const hurt = c.injuries.wounds.map((w) => `${w.key} (${w.part})`)
+  const hurt = c.injuries.wounds.map((w) => `${w.name} (${w.part})`)
   const afflictions = getAfflictions(c)
   const held = c.held.map((i) => i.name).join(' + ') || 'bare hands'
   return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}${c.resources.surgeAP > 0 ? ` (+${c.resources.surgeAP} surge AP, spendable only on what the surge allows)` : ''}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`

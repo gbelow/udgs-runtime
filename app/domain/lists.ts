@@ -153,9 +153,25 @@ export const MATERIALS = ['metal', 'rock', 'wood', 'bone', 'flesh', 'fiber', 'li
 
 export const ATTACK_TYPES = ['melee', 'ranged'] as const
 
-// combat.tex "Localized damage": the places a humanoid can be aimed at, in the
-// book's order; what aiming at each does is in `tables.ts` LOCATIONS.
-export const HIT_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
+// combat.tex "Localized damage": the kinds of place a body part can be — the
+// humanoid's four, in the book's order ("Each type of creature may have places
+// that can specifically be aimed at"), and `other` for whatever else a
+// creature has. The kind is what the rest of the rules read a part as (a hand
+// grips, legs hold it up); what aiming at it does is on the part itself, with
+// the humanoid's in `tables.ts` PART_PRESETS.
+export const HUMANOID_LOCATIONS = ['chest', 'hand', 'leg', 'head'] as const
+export const HIT_LOCATIONS = [...HUMANOID_LOCATIONS, 'other'] as const
+
+// What a body part does beyond its wounds, a flag at a time.
+// combat.tex "Head": "Getting stunned in the head causes unconsciousness";
+// "Hand": "Hands have no armor unless the character is wearing gauntlets";
+// "Head": "Bypass at the head hits flesh, which ignores all armor" — unless a
+// closed visor is down (gear.tex "Closed helmet").
+export const PART_FLAGS = ['stunUnconscious', 'bareWithoutGauntlets', 'bypassToFlesh'] as const
+
+// combat.tex "Wounds": what a wound does to the part it is on — puts it out
+// of use until healed, cuts it off, or kills.
+export const WOUND_EFFECTS = ['disable', 'sever', 'kill'] as const
 
 // combat.tex "Success Overflow" and the hand switch of "Localized damage":
 // what HOP can buy, in the book's order; prices and gates are in `tables.ts`.

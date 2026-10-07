@@ -1,4 +1,4 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, SHOT_RANGES } from './lists'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS } from './lists'
 import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
@@ -220,24 +220,43 @@ export const STUN_TIER = 3
 // character size by up to 10m"
 export const THROW_ITEM_RANGE = 10
 
-// combat.tex "Wounds" table. A wound is carried in the injuries until
-// healed: `heal` is the IL wound to heal it away, `consequence` the table's
-// own words for what it does, `tier` the lowest tier at the location that
-// causes it. Shocked alone needs the blunt type and a smash. An amputation
-// ("no heal") is not carried: the part it takes is lost. A wound puts its
-// part out of use, so a hand's or a leg's consequence is read off the body
-// (body.ts); `affliction` is only what reaches past the part.
-export const WOUNDS = {
-  brokenHand:    { name: 'broken hand',    location: 'hand',  tier: 2, heal: 10,   consequence: 'useless hand', affliction: null,       amputation: false, smash: false },
-  amputatedHand: { name: 'amputated hand', location: 'hand',  tier: 4, heal: null, consequence: 'loses hand',   affliction: null,       amputation: true,  smash: false },
-  brokenLeg:     { name: 'broken leg',     location: 'leg',   tier: 3, heal: 20,   consequence: 'lame',         affliction: null,       amputation: false, smash: false },
-  amputatedLeg:  { name: 'amputated leg',  location: 'leg',   tier: 5, heal: null, consequence: 'loses leg',    affliction: null,       amputation: true,  smash: false },
-  shocked:       { name: 'shocked',        location: 'chest', tier: 3, heal: 5,    consequence: 'immobile',     affliction: 'immobile', amputation: false, smash: true },
-} as const satisfies Record<string, { name: string; location: (typeof HIT_LOCATIONS)[number]; tier: number; heal: number | null; consequence: string; affliction: AfflictionKey | null; amputation: boolean; smash: boolean }>
-export type WoundKey = keyof typeof WOUNDS
-// combat.tex "Head": "Getting stunned in the head causes unconsciousness";
-// "Tier 4 damage causes instant death".
-export const HEAD = { death: 4 } as const
+// combat.tex "Wounds" table, as the wounds a part can take: `tier` the
+// lowest tier at the part that causes it, `heal` the IL wound to heal it
+// away, `consequence` the table's own words for what it does. A `disable`
+// wound is carried in the injuries and puts its part out of use (a hand's or
+// a leg's consequence is read off the body, body.ts); `affliction` is only
+// what reaches past the part. A `sever` wound ("no heal") is not carried: the
+// part it takes is lost. `smash` wounds are measured on the blunt tier and
+// need a smash (Shocked). combat.tex "Head": "Tier 4 damage causes instant
+// death" is the head's `kill`.
+type PartWoundPreset = { name: string; tier: number; smash: boolean; effect: (typeof WOUND_EFFECTS)[number]; heal: number; affliction: AfflictionKey | null; consequence: string }
+
+const wound = (w: Partial<PartWoundPreset> & Pick<PartWoundPreset, 'name' | 'tier' | 'consequence'>): PartWoundPreset =>
+  ({ smash: false, effect: 'disable', heal: 0, affliction: null, ...w })
+
+// combat.tex "Localized damage", the humanoid's places: the penalty to the
+// attack test for aiming there, stored as a positive magnitude; the highest
+// injury tier the body takes from a hit there (`null` when the book sets no
+// cap); what the part does (`PART_FLAGS`); and the wounds it takes. A body
+// part of each kind starts from its row; `other` is a place the book does
+// not describe, starting from nothing.
+export const PART_PRESETS = {
+  chest: { aimPenalty: 0, maxTier: null, flags: [], wounds: [
+    wound({ name: 'shocked', tier: 3, smash: true, heal: 5, affliction: 'immobile', consequence: 'immobile' }),
+  ] },
+  hand: { aimPenalty: 10, maxTier: 2, flags: ['bareWithoutGauntlets'], wounds: [
+    wound({ name: 'broken hand', tier: 2, heal: 10, consequence: 'useless hand' }),
+    wound({ name: 'amputated hand', tier: 4, effect: 'sever', consequence: 'loses hand' }),
+  ] },
+  leg: { aimPenalty: 0, maxTier: 3, flags: [], wounds: [
+    wound({ name: 'broken leg', tier: 3, heal: 20, consequence: 'lame' }),
+    wound({ name: 'amputated leg', tier: 5, effect: 'sever', consequence: 'loses leg' }),
+  ] },
+  head: { aimPenalty: 5, maxTier: null, flags: ['stunUnconscious', 'bypassToFlesh'], wounds: [
+    wound({ name: 'death', tier: 4, effect: 'kill', consequence: 'instant death' }),
+  ] },
+  other: { aimPenalty: 0, maxTier: null, flags: [], wounds: [] },
+} as const satisfies Record<(typeof HIT_LOCATIONS)[number], { aimPenalty: number; maxTier: number | null; flags: readonly (typeof PART_FLAGS)[number][]; wounds: readonly PartWoundPreset[] }>
 
 // combat.tex "Afflictions". Penalties are stored as positive magnitudes and
 // negated where they are consumed, matching the gear catalogs.
@@ -529,17 +548,6 @@ export const SHOT_RANGE_METRES: Record<(typeof SHOT_RANGES)[number], number> = {
 // weapons that "require training to be used effectively" — the Archer
 // ability. Crossbows and arbalests are not among them.
 export const BOWS = ['Short Bow', 'Long Bow', 'Heavy Bow'] as const
-
-// combat.tex "Localized damage", the humanoid locations: the penalty to the
-// attack test for aiming there, stored as a positive magnitude, and the
-// highest injury tier the body takes from a hit there (`null` when the book
-// sets no cap). Chest is the default when nothing is declared.
-export const LOCATIONS = {
-  chest: { penalty: 0, maxTier: null },
-  hand:  { penalty: 10, maxTier: 2 },
-  leg:   { penalty: 0, maxTier: 3 },
-  head:  { penalty: 5, maxTier: null },
-} as const satisfies Record<(typeof HIT_LOCATIONS)[number], { penalty: number; maxTier: number | null }>
 
 // combat.tex "What cuts?": "There are 4 levels of material hardness. The first
 // is for liquids. The second is for fabrics, flesh, and similar materials. The

@@ -1,6 +1,5 @@
 import type { CampaignCharacter, Item } from '../../types'
 import type { Change, CombatState } from '../types'
-import { WOUNDS } from '../../tables'
 import { getFightName } from './fighters'
 
 // What a step changed in the fight: every number a character carries, every
@@ -37,7 +36,7 @@ function getCharacterChanges(id: string, was: CampaignCharacter, now: CampaignCh
   const values = COUNTERS.flatMap(({ what, read }): Change[] => (read(was) === read(now) ? [] : [{ kind: 'value', phase, id, what, from: read(was), to: read(now) }]))
   const gain = (what: 'wound' | 'affliction' | 'part' | 'surge', names: { name: string; gained: boolean }[]): Change[] => names.map(({ name, gained }) => ({ kind: 'gain', phase, id, what, name, gained }))
 
-  const woundName = (c: CampaignCharacter, w: { key: keyof typeof WOUNDS; part: string }) => `${WOUNDS[w.key].name} (${c.body.find((p) => p.id === w.part)?.name ?? w.part})`
+  const woundName = (c: CampaignCharacter, w: { name: string; part: string }) => `${w.name} (${c.body.find((p) => p.id === w.part)?.name ?? w.part})`
   const hadWounds = new Set(was.injuries.wounds.map((w) => woundName(was, w)))
   const hasWounds = new Set(now.injuries.wounds.map((w) => woundName(now, w)))
   const hadAfflictions = new Set(was.afflictions)

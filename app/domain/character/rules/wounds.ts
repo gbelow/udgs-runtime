@@ -1,5 +1,4 @@
-import type { AfflictionKey, CampaignCharacter, Character, Wound } from '../../types'
-import { WOUNDS } from '../../tables'
+import type { AfflictionKey, CampaignCharacter, Character, PartWound, Wound } from '../../types'
 import { isCampaignCharacter } from '../../utils'
 
 // combat.tex "Bleed": "For every STA spent ... the character receives +1 to
@@ -16,11 +15,16 @@ export function getWounds(c: Character): Wound[] {
   return isCampaignCharacter(c) ? c.injuries.wounds : []
 }
 
+// The wound of its part a carried wound is, as the part describes it.
+export function getPartWound(c: Character, wound: Pick<Wound, 'name' | 'part'>): PartWound | null {
+  return c.body.find((p) => p.id === wound.part)?.wounds.find((w) => w.name === wound.name) ?? null
+}
+
 // What the wounds do past the part they took: each one's affliction, for as
 // long as it is carried.
 export function getWoundAfflictions(c: Character): AfflictionKey[] {
-  return getWounds(c).flatMap(({ key }) => {
-    const { affliction } = WOUNDS[key]
+  return getWounds(c).flatMap((w) => {
+    const affliction = getPartWound(c, w)?.affliction
     return affliction ? [affliction] : []
   })
 }

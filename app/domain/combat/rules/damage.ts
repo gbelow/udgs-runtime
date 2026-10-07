@@ -4,6 +4,7 @@ import { getBlowTrample } from './trample'
 import { HOP_PURCHASES } from '../../lists'
 import { HOP_EFFECTS } from '../../tables'
 import { getArmor, isVisorClosed } from '../../character/rules/armor'
+import { getAimedPlace } from '../../character/rules/body'
 import { Outcome, getOutcome } from '../../character/rules/damage'
 import { getBlockValue, getBracedBonus, getHookBonus, getSliceBonus } from '../../character/rules/gear'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
@@ -269,6 +270,7 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
   const properties = getRowProperties(attacker, row, root.kind === 'shoot' ? root.ammoId : '')
   const armor = getArmor(target)
   const { defense, shield } = getDefense(state, root)
+  const aimed = getAimedPlace(target, root)
 
   return HOP_PURCHASES.map((purchase) => {
     const { property } = HOP_EFFECTS[purchase]
@@ -294,8 +296,8 @@ export function getHOPOptions(state: CombatState, root: AttackAction): HOPOption
     if (purchase === 'hook' && !isHookChance(state, root)) return closed('not an action or a runner moving away')
     if ((purchase === 'bypass' && (root.spent.assassinate ?? 0) > 0) || (purchase === 'assassinate' && (root.spent.bypass ?? 0) > 0)) return closed('already bypassing')
     // gear.tex "Closed helmet": "armor bypass is impossible in the head",
-    // while the visor is down
-    if ((purchase === 'bypass' || purchase === 'assassinate') && root.location === 'head' && isVisorClosed(target)) return closed('closed helmet')
+    // while the visor is down — the part a bypass would reach flesh at
+    if ((purchase === 'bypass' || purchase === 'assassinate') && aimed.flags.includes('bypassToFlesh') && isVisorClosed(target)) return closed('closed helmet')
     // combat.tex "Armor Bypass": "can only be done against rigid armor".
     if ((purchase === 'bypass' || purchase === 'assassinate') && !armor.properties.includes('rigid')) return closed('armor is not rigid')
     // combat.tex "Penetrating": cutting "against objects with the same hardness".

@@ -10,7 +10,7 @@ import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, need
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
-import { EXTEND, LOCATIONS } from '../../tables'
+import { EXTEND, PART_PRESETS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHOPOptions, getHOPRemaining } from '../rules/damage'
@@ -41,7 +41,7 @@ import { canThrowItem, getThrowables } from '../rules/throw'
 import { getPendingGuardStep } from '../rules/protect'
 import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
 import { isSweepVariant } from '../../character/rules/gear'
-import { GRAPPLE_MANEUVERS, HIT_LOCATIONS } from '../../lists'
+import { GRAPPLE_MANEUVERS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from './perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
@@ -54,12 +54,12 @@ export type ItemAim = { id: string; name: string; penalty: number; selected: boo
 
 // combat.tex "Localized damage", as a picker: each place the attack can be
 // aimed at and what aiming there costs the attack test — the target's own
-// parts still there, or, with no target yet, the kinds of place.
+// parts still there, or, with no target yet, the humanoid's kinds of place.
 function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null; object?: string }): LocationOption[] {
   const places = target
-    ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name }))
-    : HIT_LOCATIONS.map((location) => ({ location, part: null, name: location }))
-  return places.map((p) => ({ ...p, penalty: LOCATIONS[p.location].penalty, selected: !aim.object && p.location === aim.location && p.part === aim.part }))
+    ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name, penalty: part.aimPenalty }))
+    : HUMANOID_LOCATIONS.map((location) => ({ location, part: null, name: location, penalty: PART_PRESETS[location].aimPenalty }))
+  return places.map((p) => ({ ...p, selected: !aim.object && p.location === aim.location && p.part === aim.part }))
 }
 
 // Everyone with a reaction to the open action, each with their options —

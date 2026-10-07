@@ -1,7 +1,6 @@
 import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery } from '../../types'
 import { breaksOn } from '../rules/breakage'
 import { breakItem } from '../../item/commands/items'
-import { WOUNDS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
 import { Outcome, getOutcome } from '../rules/damage'
@@ -11,6 +10,7 @@ import type { Dice } from '../../combat/dice'
 import { payCost, spendAP } from './cost'
 import { inflict } from './addAffliction'
 import { woundPart } from './wounds'
+import { getPartWound } from '../rules/wounds'
 import { loseConcentration } from './spells'
 
 // The one place a delivered effect changes a character. A delivery whose
@@ -112,8 +112,8 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
   return (c: CampaignCharacter) => {
     const { wound } = outcome
     const injuryLevel = c.injuries.injuryLevel + outcome.IL
-    const wounded = wound ? WOUNDS[wound.key].affliction ?? null : null
-    const hurt = (outcome.interruption !== 'none' ? loseConcentration : (x: CampaignCharacter) => x)(wound ? woundPart(wound.key, wound.part.id)(c) : c)
+    const wounded = wound ? getPartWound(c, { name: wound.name, part: wound.part.id })?.affliction ?? null : null
+    const hurt = (outcome.interruption !== 'none' ? loseConcentration : (x: CampaignCharacter) => x)(wound ? woundPart(wound.name, wound.part.id)(c) : c)
     return inflict(outcome.afflictions.filter((a) => a !== wounded))({
       ...hurt,
       injuries: {

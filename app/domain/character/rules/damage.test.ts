@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeCampaignCharacter } from '../../factories'
 import { DamageSchema, ItemSchema, type CampaignCharacter, type Damage, type Degree } from '../../types'
-import { HIT_LOCATIONS } from '../../lists'
-import { LOCATIONS, injuryMap } from '../../tables'
+import { injuryMap } from '../../tables'
 import { getOutcome } from './damage'
 
 const target = makeCampaignCharacter({})
@@ -17,24 +16,25 @@ function blow({ blunt = 0, cut = 0, degree = 'hit', ...overrides }: Blow, target
 
 const damages = Array.from({ length: 60 }, (_, i) => i * 3)
 
+const parts = target.body.map((part) => [part.name, part] as const)
+
 describe('localized damage', () => {
   // combat.tex "Localized damage": "Maximum injury tier applied to the body is
   // 2" for the hand and 3 for the leg — whatever the blow, the body takes no
-  // more IL than that tier's row.
-  it.each(HIT_LOCATIONS)('caps what the body takes from a hit to the %s', (location) => {
-    const cap = LOCATIONS[location].maxTier
+  // more IL than the tier its part caps it at.
+  it.each(parts)('caps what the body takes from a hit to the %s', (_, part) => {
     for (const blunt of damages) {
-      const outcome = blow({ blunt, location }, target)
-      if (cap !== null) expect(outcome.IL).toBeLessThanOrEqual(injuryMap[`T${cap}`].IL)
+      const outcome = blow({ blunt, location: part.location, part: part.id }, target)
+      if (part.maxTier !== null) expect(outcome.IL).toBeLessThanOrEqual(injuryMap[`T${part.maxTier}`].IL)
       else if (outcome.tier !== null) expect(outcome.IL).toBe(injuryMap[`T${outcome.tier}`].IL)
     }
   })
 
   // gear.tex "Piercing": "cannot amputate".
-  it.each(HIT_LOCATIONS)('a piercing blow to the %s never amputates', (location) => {
+  it.each(parts)('a piercing blow to the %s never amputates', (_, part) => {
     for (const cut of damages) {
-      const outcome = blow({ cut, location, properties: ['piercing'] }, target)
-      expect(outcome.wound?.name.startsWith('amputated') ?? false).toBe(false)
+      const outcome = blow({ cut, location: part.location, part: part.id, properties: ['piercing'] }, target)
+      expect(outcome.wound !== null && outcome.wound.heal === null).toBe(false)
     }
   })
 })

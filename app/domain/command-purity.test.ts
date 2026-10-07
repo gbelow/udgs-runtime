@@ -20,7 +20,7 @@ import { makeCampaignCharacter } from './factories'
 import { produceEffects } from './character/rules/production'
 import { SPELLS } from './spells'
 import { severPart } from './character/commands/wounds'
-import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema } from './types'
+import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
@@ -127,8 +127,11 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   resistCurse: (c) => characterCommands.resistCurse('sleep', () => 20)({ ...c, active: [...c.active, { kind: 'curse', key: 'sleep', DL: 5 }] }),
   deliver: characterCommands.deliver({ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }),
   deliverAll: characterCommands.deliverAll([{ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }]),
-  healWound: (c) => characterCommands.healWound(0, 3)({ ...c, injuries: { ...c.injuries, wounds: [{ key: 'brokenLeg', part: 'legL', IL: 20 }] } }),
+  healWound: (c) => characterCommands.healWound(0, 3)({ ...c, injuries: { ...c.injuries, wounds: [{ name: 'broken leg', part: 'legL', IL: 20 }] } }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
+  applyRace: characterCommands.applyRace(RaceSchema.parse({ name: 'Surbit', size: 2, bonuses: { AGI: 2 }, abilities: ['fur'] })),
+  editRace: (c) => characterCommands.editRace({ bonuses: { STR: 1 } })(characterCommands.applyRace(RaceSchema.parse({}))(c)),
+  commitRace: (c) => characterCommands.commitRace(characterCommands.applyRace(RaceSchema.parse({}))(c)),
 }
 
 const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {

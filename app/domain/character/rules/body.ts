@@ -1,6 +1,31 @@
-import type { AfflictionKey, BodyPart, Character, Item } from '../../types'
+import type { AfflictionKey, BodyPart, Character, HitLocation, Item, PartFlag, PartWound } from '../../types'
 import { ItemSchema } from '../../types'
+import { PART_PRESETS } from '../../tables'
 import { isPartWounded } from './wounds'
+
+// combat.tex "Localized damage": a place a blow is aimed at or lands on —
+// the part, with what aiming there costs, the cap on the tier the body takes,
+// what the part does and the wounds it takes. With no part of the kind left
+// the place is the kind as the humanoid's row describes it, with nothing
+// there to wound.
+export type Place = { part: BodyPart | null; aimPenalty: number; maxTier: number | null; flags: readonly PartFlag[]; wounds: readonly PartWound[] }
+
+export function getPlace(part: BodyPart | null, location: HitLocation): Place {
+  if (part) return { part, aimPenalty: part.aimPenalty, maxTier: part.maxTier, flags: part.flags, wounds: part.wounds }
+  const { aimPenalty, maxTier, flags } = PART_PRESETS[location]
+  return { part: null, aimPenalty, maxTier, flags, wounds: [] }
+}
+
+// The part an aim names: the one it picked while still there, else the
+// first of the kind still there.
+export function getAimedPart(target: Character | undefined, aim: { location: HitLocation; part: string | null }): BodyPart | null {
+  const there = target?.body.filter((part) => part.location === aim.location && !part.lost) ?? []
+  return there.find((part) => part.id === aim.part) ?? there[0] ?? null
+}
+
+export function getAimedPlace(target: Character | undefined, aim: { location: HitLocation; part: string | null }): Place {
+  return getPlace(getAimedPart(target, aim), aim.location)
+}
 
 // The parts there to be used: not cut off, and not put out of use by a wound
 // (combat.tex "Wounds").

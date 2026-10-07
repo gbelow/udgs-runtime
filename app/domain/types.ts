@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES } from './lists'
-import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, SHOTS, ShotKind, WOUNDS, WoundKey } from './tables'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
 const str = z.string()
@@ -409,16 +409,38 @@ export interface Container {
 export const HitLocationSchema = z.enum(HIT_LOCATIONS)
 export type HitLocation = z.infer<typeof HitLocationSchema>
 
+export const PartFlagSchema = z.enum(PART_FLAGS)
+export type PartFlag = z.infer<typeof PartFlagSchema>
+
+export const WoundEffectSchema = z.enum(WOUND_EFFECTS)
+export type WoundEffect = z.infer<typeof WoundEffectSchema>
+
+// combat.tex "Wounds": a wound the part can take, and at which tier of
+// damage there it takes it — the table's row, authored per part so each
+// creature's places take their own (see `PART_PRESETS`).
+export const PartWoundSchema = z.object({
+  name: str.default(''),
+  tier: num.int().min(0).default(0),
+  smash: z.boolean().default(false),
+  effect: WoundEffectSchema.default('disable'),
+  heal: num.default(0),
+  affliction: z.lazy(() => AfflictionKeySchema).nullable().default(null),
+  consequence: str.default(''),
+}).strip()
+
+export type PartWound = z.infer<typeof PartWoundSchema>
+
 // combat.tex "Localized damage": "Each type of creature may have places that
 // can specifically be aimed at" — the body is those places, each a part with
 // a stable id that wounds and grips point at. `location` is the kind of place
-// it is, the row of the location and wound tables that applies to it. A part
-// that grips holds the stack `itemId` names in `held`, '' when free; two
-// parts naming the same stack are a two-handed grip (gear.tex "Small/One/Two
-// hands"). Its natural weapon is the weapons.json entry it attacks with while
-// empty (gear.tex "Unarmed": the hands of a humanoid); a paw or a jaw has one
-// but takes no gear. A `lost` part was cut off: the slot keeps its shape for
-// whatever puts it back.
+// it is, what the rest of the rules read it as; what aiming at it does — the
+// penalty, the cap on the tier the body takes, its flags and the wounds it
+// takes — is the part's own. A part that grips holds the stack `itemId` names
+// in `held`, '' when free; two parts naming the same stack are a two-handed
+// grip (gear.tex "Small/One/Two hands"). Its natural weapon is the
+// weapons.json entry it attacks with while empty (gear.tex "Unarmed": the
+// hands of a humanoid); a paw or a jaw has one but takes no gear. A `lost`
+// part was cut off: the slot keeps its shape for whatever puts it back.
 export const BodyPartSchema = z.object({
   id: z.string().default(() => crypto.randomUUID()),
   name: str.default(''),
@@ -429,10 +451,21 @@ export const BodyPartSchema = z.object({
   climbs: z.boolean().optional(),
   itemId: str.default(''),
   naturalWeapon: str.default(''),
+  aimPenalty: num.default(0),
+  maxTier: num.nullable().default(null),
+  flags: z.array(PartFlagSchema).default([]),
+  wounds: z.array(PartWoundSchema).default([]),
   lost: z.boolean().default(false),
 }).strip()
 
 export type BodyPart = z.infer<typeof BodyPartSchema>
+
+// A part of the kind as the humanoid's row describes it; what is given
+// over it is kept.
+export function presetPart(location: HitLocation, part: z.input<typeof BodyPartSchema> = {}): BodyPart {
+  const { aimPenalty, maxTier, flags, wounds } = PART_PRESETS[location]
+  return BodyPartSchema.parse({ location, aimPenalty, maxTier, flags: [...flags], wounds: wounds.map((w) => ({ ...w })), ...part })
+}
 
 const HUMANOID_BODY: z.input<typeof BodyPartSchema>[] = [
   { id: 'chest', name: 'chest', location: 'chest' },
@@ -443,6 +476,12 @@ const HUMANOID_BODY: z.input<typeof BodyPartSchema>[] = [
   { id: 'legR', name: 'right leg', location: 'leg' },
 ]
 
+// Every creature has a chest: the place a blow lands when none other is
+// named. A body without one is given the humanoid's.
+export const BodySchema = z.array(BodyPartSchema)
+  .default(() => HUMANOID_BODY.map((part) => presetPart(part.location ?? 'chest', part)))
+  .transform((body) => (body.some((part) => part.location === 'chest') ? body : [presetPart('chest', { id: 'chest', name: 'chest' }), ...body]))
+
 // How many legs short — lost or wounded — leave the creature lame, and how
 // many leave it unable to stand; authored per creature, as a body is.
 export const StanceSchema = z.object({
@@ -452,14 +491,13 @@ export const StanceSchema = z.object({
 
 export type Stance = z.infer<typeof StanceSchema>
 
-export const WoundKeySchema = z.enum(Object.keys(WOUNDS) as [WoundKey, ...WoundKey[]])
-
 // combat.tex "Wounds": a wound carried until it is healed, on the part it
-// took. `IL` is the healing it still needs — its "IL wound", "tracked
-// separately from the main IL" — which starts at the table's value unless
-// what caused it says otherwise; healed to none, it is gone.
+// took, named by the part's own wound it is. `IL` is the healing it still
+// needs — its "IL wound", "tracked separately from the main IL" — which
+// starts at the wound's value unless what caused it says otherwise; healed
+// to none, it is gone.
 export const WoundSchema = z.object({
-  key: WoundKeySchema,
+  name: str,
   part: str,
   IL: num.default(0),
 }).strip()
@@ -701,7 +739,8 @@ export const OutcomeSchema = z.object({
   IL: num.default(0),
   bleed: num.default(0),
   // combat.tex "Wounds": the wound the tier causes, and the part it takes
-  wound: z.object({ key: WoundKeySchema, name: str, heal: num.nullable(), part: z.object({ id: str, name: str }) }).nullable().default(null),
+  // (`heal` null: it takes the part off)
+  wound: z.object({ name: str, heal: num.nullable(), part: z.object({ id: str, name: str }) }).nullable().default(null),
   afflictions: z.array(AfflictionKeySchema).default([]),
   // combat.tex "Interruption", "Stun": what cuts the target's action short,
   // and the AP a stun takes on top
@@ -1218,12 +1257,11 @@ export type MoveKind = z.infer<typeof MoveKindSchema>
 export const TerrainBrushSchema = z.enum(TERRAIN_BRUSHES)
 export type TerrainBrush = z.infer<typeof TerrainBrushSchema>
 
-const CharacterValues = {
-  id: z.string().default(() => crypto.randomUUID()),
-  name: z.string().default(''),
-
-  trainables: TrainablesSchema.partial().default({}).transform(v => TrainablesSchema.parse(v)),
-  knowledges: KnowledgesSchema,
+// creating.tex "Races": what a race sets of a creature — its size and how it
+// sits on the grid, its toughness, senses, base movement, natural armor and
+// body. Chosen only while the race is being made; a character carries its
+// own copy, since the body changes in play.
+const RaceBodyValues = {
   size: z.number().default(3),
   // creating.tex "Size and Space Occupation": how the cells the size grants
   // are laid out on the grid
@@ -1231,6 +1269,46 @@ const CharacterValues = {
   TGH: z.number().default(0),
   senses: SensesSchema.partial().default({}).transform(v => SensesSchema.parse(v)),
   movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),
+  // what the creature is under anything it wears — skin, fur, hide; the rows
+  // of the gear.tex "Armors" table with no bulk, which are not items
+  armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
+  body: BodySchema,
+  stance: StanceSchema.partial().default({}).transform(v => StanceSchema.parse(v)),
+}
+
+export const RACE_BONUS_KEYS = [...AttributesSchema.keyof().options, ...TalentsSchema.keyof().options] as const
+export const RaceBonusKeySchema = z.enum(RACE_BONUS_KEYS)
+export type RaceBonusKey = z.infer<typeof RaceBonusKeySchema>
+
+// creating.tex "Races": "Each playable race comes with its own bonuses to
+// attributes and talents" — added over what the character buys ("Add the
+// attribute bonuses after step 4") — and its abilities ("Has the Fur
+// ability"), which cost nothing. A race nobody plays (a monster's, an
+// animal's) is not offered to players.
+const RaceTraits = {
+  name: str.default(''),
+  description: str.default(''),
+  playable: z.boolean().default(true),
+  bonuses: z.partialRecord(RaceBonusKeySchema, num).default({}),
+  abilities: z.array(str).default([]),
+}
+
+export const RaceSchema = z.object({ ...RaceTraits, ...RaceBodyValues }).strip()
+export type Race = z.infer<typeof RaceSchema>
+
+// The race as a character carries it: its traits, and whether it is
+// committed — once it is, what the race set is no longer the character's to
+// change.
+export const CharacterRaceSchema = z.object({ ...RaceTraits, committed: z.boolean().default(false) }).strip()
+export type CharacterRace = z.infer<typeof CharacterRaceSchema>
+
+const CharacterValues = {
+  id: z.string().default(() => crypto.randomUUID()),
+  name: z.string().default(''),
+
+  trainables: TrainablesSchema.partial().default({}).transform(v => TrainablesSchema.parse(v)),
+  knowledges: KnowledgesSchema,
+  ...RaceBodyValues,
   
   hasGauntlets: z.number().default(0),
   hasHelm: z.number().default(0),
@@ -1238,13 +1316,8 @@ const CharacterValues = {
   // guard against a bypass at the head hold only while it is down
   visorOpen: z.boolean().default(false),
   
-  // what the creature is under anything it wears — skin, fur, hide; the rows
-  // of the gear.tex "Armors" table with no bulk, which are not items
-  armor: ArmorSchema.partial().default({}).transform(v => ArmorSchema.parse(v)),
   // the armor item being worn over it, if any (gear.tex "Donning and Doffing armor")
   worn: ItemSchema.nullable().default(null),
-  body: z.array(BodyPartSchema).default(() => HUMANOID_BODY.map((part) => BodyPartSchema.parse(part))),
-  stance: StanceSchema.partial().default({}).transform(v => StanceSchema.parse(v)),
   held: z.array(ItemSchema).default([]),
   // gear.tex "Shields": a shield carries its own strap and is slid to the
   // back rather than stored in a container; one back, one shield
@@ -1253,6 +1326,10 @@ const CharacterValues = {
 
   abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog
   spells: z.record(z.string(), LearnedSpellSchema).default({}), // keyed into the spell catalog
+
+  // creating.tex "Races": the race the character was made from, as it was
+  // copied on; null for one made without a race
+  race: CharacterRaceSchema.nullable().default(null),
 
   // creating.tex "Limit Stress Actions": chosen once, null while unchosen
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),

@@ -1,6 +1,7 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema, CharacterRaceSchema, RaceSchema, RACE_BONUS_KEYS, type CharacterRace, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
+import { getRaceOf } from './character/rules/race'
 import { isBaseCharacter } from './utils'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
@@ -57,8 +58,45 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...emptyCharacter.stance,
       ...parsedCharacter.stance,
     },
-    ...reconcileGrip(uniqueParts(parsedCharacter.body ?? emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
+    race: parsedCharacter.race ? readRace(parsedCharacter.race) : null,
+    ...reconcileGrip(uniqueParts(parsedCharacter.body ? readBody(parsedCharacter.body) : emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
   }
+}
+
+// A race's traits, field by field: what is not of the right kind is the
+// default, a bonus only to an attribute or a talent and only a number.
+function readRace(raw: unknown): CharacterRace {
+  const traits = RaceTraitsIngestSchema.safeParse(raw)
+  const data = traits.success ? traits.data : {}
+  const bonuses = knownNumbers(data.bonuses, Object.fromEntries(RACE_BONUS_KEYS.map((key) => [key, 0])) as Record<RaceBonusKey, number>)
+  return CharacterRaceSchema.parse({ ...data, bonuses, abilities: data.abilities?.filter((a) => typeof a === 'string') ?? [] })
+}
+
+const RaceTraitsIngestSchema = z.object({
+  name: z.string().catch(''),
+  description: z.string().catch(''),
+  playable: z.boolean().catch(true),
+  bonuses: z.unknown(),
+  abilities: z.array(z.unknown()).catch([]),
+  committed: z.boolean().catch(false),
+}).partial()
+
+// A race file, read as lossily as a character: what it sets of the creature
+// is read the way a character's is, its traits field by field. The body is
+// bare, and the race is never committed.
+export function makeRace(raw: unknown): Race {
+  return getRaceOf({ ...makeCharacter(raw), race: readRace(raw) }) ?? RaceSchema.parse({})
+}
+
+// A part is read over the humanoid's row for its kind, so what it does not
+// say — its wounds, its penalty, its flags — is the book's; a part that does
+// not parse is dropped, and a body left without a chest is given one.
+function readBody(raw: Record<string, unknown>[]): BodyPart[] {
+  return BodySchema.parse(raw.flatMap((entry) => {
+    const kind = HitLocationSchema.safeParse(entry.location)
+    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry })
+    return part.success ? [part.data] : []
+  }))
 }
 
 // Wounds and grips point at a part by its id, so two parts sharing one would
@@ -131,14 +169,15 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
   }
 }
 
-// A wound is on a part: one whose part the body does not have, or has lost,
+// A wound is on a part and is one of the wounds that part takes: one whose
+// part the body does not have, or has lost, or that the part does not take,
 // is on nothing and is read as healed.
 function readWounds(raw: unknown, body: BodyPart[]): Wound[] {
-  const whole = new Set(body.filter((part) => !part.lost).map((part) => part.id))
   if (!Array.isArray(raw)) return []
   return raw.flatMap((entry) => {
     const wound = WoundSchema.safeParse(entry)
-    return wound.success && whole.has(wound.data.part) ? [wound.data] : []
+    const part = wound.success ? body.find((p) => p.id === wound.data.part && !p.lost) : undefined
+    return wound.success && part?.wounds.some((w) => w.name === wound.data.name) ? [wound.data] : []
   })
 }
 
@@ -159,7 +198,7 @@ const CharacterIngestValues = {
 
   armor: ArmorSchema.optional(),
   worn: ItemSchema.nullable().optional(),
-  body: z.array(BodyPartSchema).optional(),
+  body: z.array(z.record(z.string(), z.unknown())).optional(),
   stance: StanceSchema.partial().optional(),
   held: z.array(ItemSchema).optional(),
   onBack: ItemSchema.nullable().optional(),
@@ -167,6 +206,7 @@ const CharacterIngestValues = {
 
   abilities: z.array(z.string()).optional(),
   spells: z.record(z.string(), z.any()).optional(),
+  race: z.unknown().optional(),
 
   notes: z.string().optional(), 
 }

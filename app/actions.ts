@@ -1,6 +1,7 @@
 "use server"
 
-import { Character } from './domain/types';
+import { Character, Race } from './domain/types';
+import { makeRace } from './domain/factories';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
@@ -50,12 +51,16 @@ const BASE_CHARACTER_DIR = path.join(process.cwd(), "app/assets/characters");
 // rather than rewritten: the name stored inside the file and the name on disk
 // have to stay the same string for the flat layout to keep its identity.
 function resolveBaseCharacterFile(name: string): string | null {
+  return resolveNamedFile(BASE_CHARACTER_DIR, name);
+}
+
+function resolveNamedFile(dir: string, name: string): string | null {
   if (!name || name === "." || name === "..") return null;
   if (/[\/\0]/.test(name)) return null;
   if (name !== path.basename(name)) return null;
 
-  const filePath = path.resolve(BASE_CHARACTER_DIR, `${name}.json`);
-  return path.dirname(filePath) === BASE_CHARACTER_DIR ? filePath : null;
+  const filePath = path.resolve(dir, `${name}.json`);
+  return path.dirname(filePath) === dir ? filePath : null;
 }
 
 export async function getBasicCharList(): Promise<ActionResult<JsonObject>> {
@@ -112,6 +117,50 @@ export async function deleteBaseCharacter(name: string): Promise<ActionResult> {
   }
 }
 
+
+// Races are dev-authored presets, laid out like base characters: <name>.json
+// directly under app/assets/races, the name being the identity on disk.
+const RACE_DIR = path.join(process.cwd(), "app/assets/races");
+
+export async function getRaceList(): Promise<ActionResult<JsonObject>> {
+  try {
+    await fs.mkdir(RACE_DIR, { recursive: true });
+    return { ok: true, data: await loadJsonFromFolder(RACE_DIR) };
+  } catch (err) {
+    console.error('Error loading races:', err);
+    return { ok: false, error: 'Failed to load races.' };
+  }
+}
+
+export async function upsertRace(data: Race): Promise<ActionResult> {
+  const race = makeRace(data);
+  if (!race.name.trim()) return { ok: false, error: 'Races need a name.' };
+  const filePath = resolveNamedFile(RACE_DIR, race.name);
+  if (!filePath) return { ok: false, error: 'Race names must be a plain file name.' };
+
+  try {
+    await fs.mkdir(RACE_DIR, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(race, null, 2) + "\n", "utf-8");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error writing race:', err);
+    return { ok: false, error: 'Failed to save race.' };
+  }
+}
+
+export async function deleteRace(name: string): Promise<ActionResult> {
+  const filePath = resolveNamedFile(RACE_DIR, name);
+  if (!filePath) return { ok: false, error: 'Race names must be a plain file name.' };
+
+  try {
+    await fs.unlink(filePath);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Race file not found.' };
+    console.error('Error deleting race:', err);
+    return { ok: false, error: 'Failed to delete race.' };
+  }
+}
 
 // The player-character index is a Redis hash of id -> name. Every write to it is
 // a single atomic field op, so two saves arriving together cannot each write back

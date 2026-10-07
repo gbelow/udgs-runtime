@@ -1,11 +1,12 @@
-import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Outcome, OutcomeStep } from '../../types'
-import { HEAD, LOCATIONS, MAX_TIER, STUN_AP, STUN_TIER, WOUNDS, WoundKey, injuryMap } from '../../tables'
+import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Outcome, OutcomeStep, PartWound } from '../../types'
+import { MAX_TIER, STUN_AP, STUN_TIER, injuryMap } from '../../tables'
 import { getArmor, isVisorClosed } from './armor'
 import { getTGH } from './misc'
 import { getForce } from './skills'
 import { getHardness } from '../../item/rules/items'
 import { getNaturalWeapon, getWieldedWeapons } from '../../item/rules/hands'
 import { isPartWounded } from './wounds'
+import { getPlace, type Place } from './body'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 
@@ -140,11 +141,13 @@ function arrivedOf(measured: { type: DamageKind; damage: number }[], kind: Damag
 // combat.tex "Hand": "Hands have no armor unless the character is wearing
 // gauntlets"; "Head": "Armor bypass at the head hits flesh, which ignores all
 // armor" — unless a closed helmet's visor is down (gear.tex "Closed helmet":
-// "armor bypass is impossible in the head").
+// "armor bypass is impossible in the head"). Each is a flag of the part the
+// blow lands on.
 export function isArmorBare(target: Character, facts: Damage): boolean {
   if (facts.bare) return true
-  if (facts.location === 'hand' && !target.hasGauntlets) return true
-  return facts.location === 'head' && facts.bypass && !isVisorClosed(target)
+  const { flags } = struckPlace(facts, target)
+  if (flags.includes('bareWithoutGauntlets') && !target.hasGauntlets) return true
+  return flags.includes('bypassToFlesh') && facts.bypass && !isVisorClosed(target)
 }
 
 // Bare flesh is the armor schema's own default.
@@ -200,7 +203,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   const best = measured.reduce<(typeof measured)[number] | null>((b, m) => (b === null || m.damage - m.armor > b.damage - b.armor ? m : b), null)
   if (!best || best.tier === null) return { ...NOTHING, ...(best ? { type: best.type, damage: best.damage, armor: best.armor } : {}), tiers, burning, arrived }
 
-  const cap = LOCATIONS[facts.location].maxTier
+  const cap = struckPlace(facts, target).maxTier
   const bodyTier = cap === null ? best.tier : Math.min(best.tier, cap)
   const row = injuryMap[`T${bodyTier}`]
   // gear.tex "Piercing": "half the amount of IL damage per tier to body and
@@ -256,12 +259,27 @@ function woundedPart(facts: Damage, target: Character): BodyPart | null {
   return aimed ?? defending ?? there.find((part) => !isPartWounded(target, part.id)) ?? there[0] ?? null
 }
 
+function struckPlace(facts: Damage, target: Character): Place {
+  return getPlace(woundedPart(facts, target), facts.location)
+}
+
+// combat.tex "Wounds": the worst of the part's wounds the tier reaches —
+// the highest, the later of two at one tier. A smash wound (Shocked) is
+// measured on the blunt tier and needs the smash; gear.tex "Piercing":
+// "cannot amputate".
+function reachedWound(place: Place, facts: Damage, tier: number, bluntTier: number, piercing: boolean): PartWound | null {
+  return place.wounds
+    .filter((w) => (w.smash ? facts.smash && bluntTier >= w.tier : tier >= w.tier))
+    .filter((w) => !(piercing && w.effect === 'sever'))
+    .reduce<PartWound | null>((worst, w) => (worst === null || w.tier >= worst.tier ? w : worst), null)
+}
+
 // combat.tex "Additional effects", "Localized damage", "Wounds": what the
 // tier does beyond IL. Interruption on T1+ blunt; stun on T3+ blunt, or when
 // smash upgrades the interruption (combat.tex "Electric damage": "It causes
-// interruptions and stuns" the same way); the location's wound at its tier,
-// the worst one the tier reaches (Shocked is measured on the blunt tier and
-// needs a smash); the head knocks out on a stun and kills at T4. A stun's AP
+// interruptions and stuns" the same way); the worst wound of the part the
+// tier reaches, which may take the part off or kill; a part flagged so
+// knocks out on a stun (the head). A stun's AP
 // comes off whatever the target has, on top of what the reaction cost.
 // combat.tex "Corrosive": "Tiers 0 to I of damage leaves the target
 // corroding at that tier of damage" — and past T1, still at that (the table's ruling).
@@ -274,21 +292,14 @@ function effectsOf(facts: Damage, target: Character, tier: number, tiers: Outcom
   if (tiers.corrosive === 0) afflictions.add('corroding0')
   if ((tiers.corrosive ?? -1) >= 1) afflictions.add('corroding1')
 
-  const reached = (Object.keys(WOUNDS) as WoundKey[])
-    .map((key) => ({ key, ...WOUNDS[key] }))
-    .filter((w) => w.location === facts.location)
-    .filter((w) => (w.smash ? facts.smash && bluntTier >= w.tier : tier >= w.tier))
-    .filter((w) => !(piercing && w.amputation))
-  const part = woundedPart(facts, target)
-  const worst = part ? reached[reached.length - 1] : undefined
-  const wound: Outcome['wound'] = worst && part
-    ? { key: worst.key, name: worst.name, heal: worst.heal, part: { id: part.id, name: part.name } }
+  const place = struckPlace(facts, target)
+  const worst = reachedWound(place, facts, tier, bluntTier, piercing)
+  const wound: Outcome['wound'] = worst && place.part && worst.effect !== 'kill'
+    ? { name: worst.name, heal: worst.effect === 'sever' ? null : worst.heal, part: { id: place.part.id, name: place.part.name } }
     : null
-  if (worst?.affliction) afflictions.add(worst.affliction)
-  if (facts.location === 'head') {
-    if (stunned) afflictions.add('unconscious')
-    if (tier >= HEAD.death) dead = true
-  }
+  if (worst?.effect === 'kill') dead = true
+  else if (worst?.affliction) afflictions.add(worst.affliction)
+  if (stunned && place.flags.includes('stunUnconscious')) afflictions.add('unconscious')
 
   return {
     wound,
@@ -354,7 +365,7 @@ export function explainOutcome(facts: Damage, degree: Degree, target: Character)
   if (outcome.interruption === 'stunned') steps.push(step(`${facts.smash ? 'smash upgrades the interruption' : 'a tier 3+ blunt or electric injury'} to a stun: ${outcome.apLoss} AP are lost as well`, 'combat.tex "Stun"'))
   if (outcome.wound) steps.push(step(`${outcome.wound.name} on the ${outcome.wound.part.name}${outcome.wound.heal === null ? ', which does not heal' : `, healed at ${outcome.wound.heal} IL`}`, 'combat.tex "Wounds"'))
   for (const a of outcome.afflictions) steps.push(step(`now ${a}`, a === 'unconscious' ? 'combat.tex "Localized damage"' : 'combat.tex "Afflictions"'))
-  if (outcome.dead) steps.push(step('tier 4 at the head is instant death', 'combat.tex "Localized damage"'))
+  if (outcome.dead) steps.push(step(`tier ${outcome.tier} at the ${struckPlace(facts, target).part?.name ?? facts.location} is instant death`, 'combat.tex "Localized damage"'))
   return steps
 }
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { makeCharacter, makeCampaignCharacter } from './factories'
+import { makeCharacter, makeCampaignCharacter, makeRace } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
 import { getSTA } from './character/rules/characteristics'
-import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema } from './types'
+import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, RaceSchema } from './types'
 import armorsCatalog from '../assets/armors.json'
 
 // Ingestion is the domain's only door to the outside — saved JSON files, Redis
@@ -34,6 +34,9 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
   { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
   { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },
+  { label: 'a race that is not an object', raw: { race: 'human' } },
+  { label: 'a malformed race', raw: { race: { name: 3, bonuses: { STR: 'lots', bogus: 2 }, abilities: [1, 'fur'], committed: 'yes' } } },
+  { label: 'a malformed part wound', raw: { body: [{ location: 'hand', wounds: [{ tier: 'high' }] }] } },
 ]
 
 const populated = () =>
@@ -44,6 +47,7 @@ const populated = () =>
     TGH: 2,
     notes: 'kept',
     abilities: ['sprinter-1', 'synesthesia-1'],
+    race: { name: 'Surbit', bonuses: { AGI: 2, DEX: 1 }, abilities: ['fur'], committed: true },
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: 'dagger-1' }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '' }],
@@ -161,5 +165,21 @@ describe('a character survives its storage format', () => {
     const [item] = c.containers.belt.slots.quick.items
     expect(item.id).toBeTruthy()
     expect(item.amount).toBe(5)
+  })
+})
+
+// Races are stored as JSON files beside the characters and read the same way.
+describe('a race survives its storage format', () => {
+  for (const { label, raw } of HOSTILE) {
+    it(`${label} yields a valid race`, () => {
+      const race = makeRace(raw)
+      expect(RaceSchema.parse(race)).toEqual(race)
+      expect(makeRace(race)).toEqual(race)
+    })
+  }
+
+  it('round-trips a populated race through JSON', () => {
+    const race = makeRace({ name: 'Surbit', playable: true, size: 2, bonuses: { STR: 1, AGI: 2 }, abilities: ['fur', 'claws'], body: [{ id: 'tail', name: 'tail', location: 'other', aimPenalty: 5 }] })
+    expect(makeRace(JSON.parse(JSON.stringify(race)))).toEqual(race)
   })
 })

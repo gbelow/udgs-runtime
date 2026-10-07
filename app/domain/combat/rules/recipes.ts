@@ -9,6 +9,7 @@ import { getAction, getReactionsTo, getRootOf } from './log'
 import { getDefaultAim, getFreeAttackOptions } from './attack'
 import { isInReach } from './board'
 import { getHookedMotion } from './damage'
+import { getAbilities } from '../../character/rules/race'
 import { getDisarmOptions } from './grapple'
 
 // Actions as data. A recipe (RecipeSchema) says when a fighter may make an
@@ -77,7 +78,7 @@ function getAbilityEntry(key: AbilityKey, i: number): RecipeEntry | null {
 
 // The recipes of the abilities the fighter knows.
 function getLearnedRecipes(c: Character): RecipeEntry[] {
-  return c.abilities.filter(isAbilityKey).flatMap((key) => ABILITIES[key].recipes.flatMap((_, i) => getAbilityEntry(key, i) ?? []))
+  return getAbilities(c).filter(isAbilityKey).flatMap((key) => ABILITIES[key].recipes.flatMap((_, i) => getAbilityEntry(key, i) ?? []))
 }
 
 // What a condition a recipe names asks of the fight: the strike the opener
@@ -169,7 +170,8 @@ export function getRecipeOf(state: CombatState, action: Action): RecipeEntry | n
   if (!id) return null
   if (isRuleRecipeId(id)) return { id, ...RULE_RECIPES[id] }
   const [key, i] = id.split('.')
-  return isAbilityKey(key) && state.characters[action.actorId]?.abilities.includes(key) ? getAbilityEntry(key, Number(i)) : null
+  const actor = state.characters[action.actorId]
+  return isAbilityKey(key) && actor && getAbilities(actor).includes(key) ? getAbilityEntry(key, Number(i)) : null
 }
 
 function getRecipeContext(state: CombatState, action: Action): RecipeContext | null {

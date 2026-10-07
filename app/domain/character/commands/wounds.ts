@@ -1,25 +1,29 @@
 import type { CampaignCharacter } from '../../types'
-import { WOUNDS, WoundKey } from '../../tables'
+import { getPartWound } from '../rules/wounds'
 
 // combat.tex "Wounds": the wound joins what the character carries, needing
-// the table's IL wound unless what caused it asks for more or less. The
-// same wound again on a part that already carries it adds nothing. An
-// amputation ("no heal") is not carried: the part is lost.
-export function woundPart(key: WoundKey, partId: string, IL: number | null = null): (c: CampaignCharacter) => CampaignCharacter {
+// the part's IL wound for it unless what caused it asks for more or less.
+// The same wound again on a part that already carries it adds nothing. An
+// amputation ("no heal") is not carried: the part is lost. A wound that
+// kills is the death the damage brings, not something carried; one the part
+// does not take does nothing.
+export function woundPart(name: string, partId: string, IL: number | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const { heal, amputation } = WOUNDS[key]
-    if (amputation || heal === null) return severPart(partId)(c)
-    if (c.injuries.wounds.some((w) => w.key === key && w.part === partId)) return c
-    return { ...c, injuries: { ...c.injuries, wounds: [...c.injuries.wounds, { key, part: partId, IL: IL ?? heal }] } }
+    const wound = getPartWound(c, { name, part: partId })
+    if (!wound || wound.effect === 'kill') return c
+    if (wound.effect === 'sever') return severPart(partId)(c)
+    if (c.injuries.wounds.some((w) => w.name === name && w.part === partId)) return c
+    return { ...c, injuries: { ...c.injuries, wounds: [...c.injuries.wounds, { name, part: partId, IL: IL ?? wound.heal }] } }
   }
 }
 
 // A part cut off: its slot stays, lost; what it held is let go of unless
-// another hand still has it; the wounds it carried go with it.
+// another hand still has it; the wounds it carried go with it. Every
+// creature has a chest, so the chest is never cut off.
 export function severPart(partId: string): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const part = c.body.find((p) => p.id === partId)
-    if (!part || part.lost) return c
+    if (!part || part.lost || part.location === 'chest') return c
     const body = c.body.map((p) => (p.id === partId ? { ...p, lost: true, itemId: '' } : p))
     const stillHeld = !part.itemId || body.some((p) => p.itemId === part.itemId)
     return {

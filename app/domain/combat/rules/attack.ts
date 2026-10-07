@@ -3,7 +3,8 @@ import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, CombatState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { setDistance } from '../geometry'
-import { CLIMB_REDO_PENALTY, LOCATIONS, QUICKEN_DL, EXTEND } from '../../tables'
+import { CLIMB_REDO_PENALTY, QUICKEN_DL, EXTEND } from '../../tables'
+import { getAimedPlace } from '../../character/rules/body'
 import { SPELLS, isSpellKey } from '../../spells'
 import { AttackVariant, getDistancePenalty, getShotDistanceRate, getShotKind, needsFocus, needsReload } from '../../character/rules/gear'
 import { getAccuracy, getBalanceTerms, getClimbTerms, getDefend, getGrapple, getReflex, getSD, getStrike } from '../../character/rules/skills'
@@ -269,7 +270,7 @@ function getAttackTerms(state: CombatState, action: AttackAction): Term[] {
     { label: action.variant || 'variant', value: -(variant?.penalty ?? 0) },
     ...(shot ? [{ label: 'abilities', value: getBuffBonus(c, `hit:${shot}`) }] : []),
     ...(shot && action.kind === 'shoot' ? [{ label: 'distance', value: -getDistancePenalty(getShotDistanceRate(shot, c), getShotDistance(state, action) ?? 0) }] : []),
-    ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -LOCATIONS[action.location].penalty }]),
+    ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -getAimedPlace(action.targetId ? state.characters[action.targetId] : undefined, action).aimPenalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
     ...(skill === grapple ? [] : attackSensoryTerms(state, action, action.kind === 'strike' ? 'strike' : 'accuracy')),
   ]

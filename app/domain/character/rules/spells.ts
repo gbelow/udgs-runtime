@@ -16,6 +16,7 @@ import { ABILITIES, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
 import { isAbilityActive, isSpellActive } from './effects'
 import { holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
+import { getAbilities } from './race'
 
 // spells.tex "Learning spells".
 
@@ -221,7 +222,7 @@ function holdsGear(ready: Item[], c: Character, key: SpellKey, alt: Requirement)
 // A passive ability is in effect for as long as it is learned; a toggle
 // while switched on.
 function isInEffect(c: Character, key: string): boolean {
-  if (!isAbilityKey(key) || !c.abilities.includes(key)) return false
+  if (!isAbilityKey(key) || !getAbilities(c).includes(key)) return false
   return ABILITIES[key].activation === 'passive' || isAbilityActive(c, key)
 }
 
