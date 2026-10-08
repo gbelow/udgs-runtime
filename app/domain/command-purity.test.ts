@@ -17,6 +17,7 @@ import * as socialModule from './combat/commands/social'
 import * as rosterModule from './campaign/commands/roster'
 import * as campaignExplorationModule from './campaign/commands/exploration'
 import * as fightModule from './campaign/commands/fight'
+import * as clockModule from './campaign/commands/clock'
 import { CampaignStateSchema, type Table } from './campaign/types'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
@@ -33,7 +34,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule }
+const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule, ...clockModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -284,12 +285,12 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
   setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
-  explore: ({ campaign }) => campaignCommands.explore('a', 'travel')(campaign),
-  shortRest: ({ campaign }) => campaignCommands.shortRest('a', 0)(campaign),
-  sleep: ({ campaign }) => campaignCommands.sleep('a', 0)(campaign),
+  setPlan: ({ campaign }) => campaignCommands.setPlan('a', 'rest')(campaign),
+  setExposure: ({ campaign }) => campaignCommands.setExposure(3)(campaign),
   eat: ({ campaign }) => campaignCommands.eat('a', 3)(campaign),
   drink: ({ campaign }) => campaignCommands.drink('a')(campaign),
-  passET: ({ campaign }) => campaignCommands.passET(campaign),
+  passET: (t) => campaignCommands.passET(() => 0)({ ...t, fight: { ...t.fight, characters: {} }, campaign: { ...t.campaign, plans: { a: 'rest', b: 'travel' } } }),
+  advanceClock: ({ campaign }) => campaignCommands.advanceClock(2 * 24 * 60 * 60)(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
   returnFromFight: (t) => campaignCommands.returnFromFight(() => 'issued')(t),
 }

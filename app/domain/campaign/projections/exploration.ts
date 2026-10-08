@@ -1,25 +1,38 @@
-import { EXPLORATION_ACTIONS, type ExplorationAction } from '../../lists'
-import type { CampaignState } from '../types'
-import { getExplorationBar, getRestBar, getRestHealing, getSleptExhaustion, getWear } from '../rules/exploration'
+import { EXPLORATION_ACTIONS } from '../../lists'
+import type { CampaignState, ETPlan, ExhaustionRoll } from '../types'
+import { canRestHeal, getExhaustionTest, getExplorationBar, getRestHealing, getRestRecovery, getWear } from '../rules/exploration'
+
+// What a plan would do to the character over the ET, as changes to IL and
+// exhaustion; `idle` is set on a rest that has no healing left today.
+export type PlanOption = { plan: ETPlan | null; IL: number; exhaustion: number; idle: boolean }
 
 export type ExplorationPanel = {
   bar: string | null
-  restBar: string | null
-  actions: { action: ExplorationAction; IL: number; exhaustion: number }[]
-  sleep: { heal: number; exhaustion: number }
+  plan: ETPlan | null
+  options: PlanOption[]
+  // the DL of the Will test the ET will open with, if exhaustion calls for one
+  willDL: number | null
+  lastRoll: ExhaustionRoll | null
   potion: number
 }
 
-// survival.tex "Rest, Exhaustion and Healing", "Wear" — what each ET button
-// would do to the character on this ground, and why it is closed.
-export function getExplorationPanel(state: CampaignState, id: string, exposure: number): ExplorationPanel {
+// survival.tex "Exhaustion", "Rest", "Wear" — what each plan for the coming
+// ET would do to the character on the party's ground, and why none can be
+// made.
+export function getExplorationPanel(state: CampaignState, id: string): ExplorationPanel {
   const c = state.characters[id]
-  if (!c) return { bar: 'no such character', restBar: 'no such character', actions: [], sleep: { heal: 0, exhaustion: 0 }, potion: 0 }
+  if (!c) return { bar: 'no such character', plan: null, options: [], willDL: null, lastRoll: null, potion: 0 }
+  const idle: PlanOption = { plan: null, IL: 0, exhaustion: 1, idle: true }
+  const healing = getRestHealing(c, state.exposure)
+  const rest: PlanOption = canRestHeal(state, id)
+    ? { plan: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(state.exposure), c.resources.exhaustion), idle: false }
+    : { ...idle, plan: 'rest' }
   return {
     bar: getExplorationBar(state, id),
-    restBar: getRestBar(state, id, exposure),
-    actions: EXPLORATION_ACTIONS.map((action) => ({ action, ...getWear(c, action) })),
-    sleep: { heal: Math.min(Math.max(0, getRestHealing(c, exposure)), c.injuries.injuryLevel), exhaustion: getSleptExhaustion(c, exposure) },
+    plan: state.plans[id] ?? null,
+    options: [...EXPLORATION_ACTIONS.map((action): PlanOption => ({ plan: action, IL: getWear(c, action), exhaustion: 1, idle: false })), rest, idle],
+    willDL: getExhaustionTest(c)?.DL ?? null,
+    lastRoll: state.exhaustionRolls[id] ?? null,
     potion: c.injuries.potion,
   }
 }

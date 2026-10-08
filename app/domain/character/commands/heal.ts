@@ -6,19 +6,33 @@ import { CampaignCharacter } from "../../types"
 const HUNGER_LIMIT = 30
 const THIRST_LIMIT = 15
 
+// survival.tex "Hunger": "Every hunger point that would be above 30
+// increases IL by +1 instead".
+export function gainHunger(amount: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c) => {
+    const hunger = Math.min(HUNGER_LIMIT, c.resources.hunger + amount)
+    const over = c.resources.hunger + amount - hunger
+    return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + over }, resources: { ...c.resources, hunger } }
+  }
+}
+
+export function gainThirst(amount: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c) => ({ ...c, resources: { ...c.resources, thirst: Math.min(THIRST_LIMIT, c.resources.thirst + amount) } })
+}
+
 export function heal( amount: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const potionDiscount = Math.min(c.injuries.potion, amount)
-    // survival.tex "Healing": "Healing is not possible if hunger values are
-    // at their maximum value" — thirst caps the same way at its own limit.
-    // "Healing Potions: ... do not affect the hunger and thirst values", so
-    // banked potion still heals past the cap; only the part that would push
-    // hunger or thirst further is what the cap refuses.
+    // survival.tex "Healing": "It is not possible to heal if hunger or thirst
+    // are at maximum value". "Healing Potions: Healing through potions does
+    // not increase hunger and thirst", so banked potion still heals past the
+    // cap; only the part that would push hunger or thirst further is what the
+    // cap refuses.
     const capped = c.resources.hunger >= HUNGER_LIMIT || c.resources.thirst >= THIRST_LIMIT
     const healed = capped ? potionDiscount : amount
-    const newHunger = c.resources.hunger + healed - potionDiscount
-    const newThirst = c.resources.thirst + healed - potionDiscount
-    return {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel - healed, potion: c.injuries.potion - potionDiscount}, resources: {...c.resources, hunger:  newHunger, thirst: newThirst}}
+    const cost = healed - potionDiscount
+    const healedChar = {...c, injuries: {...c.injuries, injuryLevel: c.injuries.injuryLevel - healed, potion: c.injuries.potion - potionDiscount}}
+    return gainThirst(cost)(gainHunger(cost)(healedChar))
   }
 }
 

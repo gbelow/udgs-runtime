@@ -6,11 +6,15 @@ export function addToRoster(char: CampaignCharacter, newId: () => string): Campa
   return (state) => ({ ...state, characters: withInstance(char, state.characters, newId) })
 }
 
+// survival.tex "Rest": "If rest is interrupted, it gets cancelled and the
+// interrupting event happens instead" — whoever leaves the roster leaves
+// their plan for the ET behind.
 export function removeFromRoster(id: string): CampaignUpdater {
   return (state) => {
     if (!state.characters[id]) return state
     const { [id]: _gone, ...characters } = state.characters
-    return { ...state, characters, activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId }
+    const { [id]: _plan, ...plans } = state.plans
+    return { ...state, characters, plans, activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId }
   }
 }
 

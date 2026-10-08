@@ -5,6 +5,7 @@ import { resetCombat } from '../../combat/commands/resetCombat'
 import { getFightSeconds } from '../rules/clock'
 import { getReturnBar } from '../rules/fight'
 import { addToRoster, removeFromRoster } from './roster'
+import { advanceClock } from './clock'
 
 // Takes these characters off the roster and into the fight.
 export function sendToFight(ids: string[], newId: () => string): TableUpdater {
@@ -24,6 +25,6 @@ export function returnFromFight(newId: () => string): TableUpdater {
     const { campaign, fight } = table
     const left = Object.values(fight.characters).map((c) => (fight.round > 0 ? leaveFight(c) : c))
     const back = left.reduce((state, c) => addToRoster(c, newId)(state), campaign)
-    return { campaign: { ...back, clock: back.clock + getFightSeconds(fight.round) }, fight: resetCombat(fight) }
+    return { campaign: advanceClock(back.clock + getFightSeconds(fight.round))(back), fight: resetCombat(fight) }
   }
 }
