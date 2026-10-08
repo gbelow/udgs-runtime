@@ -47,7 +47,6 @@ const populated = () =>
     TGH: 2,
     notes: 'kept',
     abilities: ['sprinter-1', 'synesthesia-1'],
-    raceDraft: { name: 'Surbit', bonuses: { AGI: 2, DEX: 1 }, abilities: ['fur'] },
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: 'dagger-1' }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '' }],

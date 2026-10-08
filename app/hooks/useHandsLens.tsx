@@ -5,7 +5,7 @@ import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import type { Character, CharacterUpdater } from "../domain/types";
 import type { Updater } from "../domain/combat/types";
-import { useAppStore } from "../stores/useAppStore";
+import { isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { dropToFloor, throwOffShieldToFloor } from "../domain/combat/commands/floor";
 import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
@@ -42,7 +42,7 @@ export function useHandsLens() {
   // in a fight what is let go of lands on the floor; on the sheet it is gone
   const letGo = (toFloor: (characterId: string) => Updater, gone: CharacterUpdater) => {
     const combat = useCombatStore.getState();
-    if (tab !== "edit" && combat.activeCharacterId) combat.updateCombatState(toFloor(combat.activeCharacterId));
+    if (isFightTab(tab) && combat.activeCharacterId) combat.updateCombatState(toFloor(combat.activeCharacterId));
     else update(gone);
   };
 

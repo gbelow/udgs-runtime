@@ -9,8 +9,8 @@ import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { Button, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
 import { MovementPanel } from './MovementPanel';
-import { RaceCreator } from './RaceCreator';
-import { useIsMakingRace } from '../hooks/useRace';
+import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
+import { useStartFromRace } from '../hooks/useRace';
 import { SensesPanel } from './SensesPanel';
 import { Characteristics, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
@@ -18,9 +18,10 @@ import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
 import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
 import { useTextLens } from '../hooks/useTextLens';
+import { useTagLens } from '../hooks/useTagLens';
+import type { TagLevel } from '../domain/character/lenses/tags';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
-import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists';
@@ -70,34 +71,50 @@ function DeleteCharacterButton(){
   )
 }
 
+// creating.tex "Races": a saved race's creature, bonuses and abilities, put
+// on the character.
+function StartFromRace(){
+  const { races, start } = useStartFromRace()
+  const [picking, setPicking] = useState(false)
+  if (!picking) return <Button onClick={() => setPicking(true)}>start from race</Button>
+  return(
+    <>
+      <select aria-label='start from race' className={`${inputClass} bg-surface text-sm`} value=''
+        onChange={(e) => { if (e.target.value) { start(e.target.value); setPicking(false) } }}>
+        <option value=''>— race —</option>
+        {races.map((name) => <option key={name} value={name}>{name}</option>)}
+      </select>
+      <Button variant='ghost' onClick={() => setPicking(false)}>cancel</Button>
+    </>
+  )
+}
+
 function ResetAllSkillsButton(){
   const { resetAllSkills } = useCharacterCommands()
   return <Button variant='ghost' size='xs' onClick={() => resetAllSkills()}>reset all skills</Button>
 }
 
-// creating.tex "Character Creation": the race first, then the character.
-// While the race is being made only the race is made; afterwards what it set
-// is shown but no longer changed.
+// Free creation: every value of the character is changed freely, and a saved
+// race can be started from as a preset of the creature.
 export function CharacterCreator() {
-  const makingRace = useIsMakingRace()
-  const header = (
-    <div className='flex flex-row flex-wrap items-center gap-2'>
-      <TextItem keyName={'name'} mode='normal'/>
-      <SaveBaseCharacterButton />
-    </div>
-  )
-  if (makingRace) return <RaceCreator header={header} />
-
   return (
     <div className='grid grid-cols-1 md:grid-cols-12 w-full gap-4 py-3 text-left'>
       <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
-        {header}
+        <div className='flex flex-row flex-wrap items-center gap-2'>
+          <TextItem keyName={'name'} mode='normal'/>
+          <SaveBaseCharacterButton />
+          <StartFromRace />
+        </div>
+        <div className='flex flex-row flex-wrap items-center gap-2'>
+          <TagItem level='type' />
+          <TagItem level='category' />
+        </div>
 
-        <CreatureSummary />
-        <fieldset disabled className='flex flex-row flex-wrap gap-6'>
+        <Creature />
+        <div className='flex flex-row flex-wrap gap-6'>
           <MovementPanel />
           <SensesPanel />
-        </fieldset>
+        </div>
 
         <div className='flex flex-row gap-3'>
           <div className='flex flex-col gap-1'>
@@ -148,11 +165,13 @@ export function CharacterCreator() {
       </div>
       <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
         <ArmorPanel/>
+        <NaturalArmor />
         <HandsPanel />
         <WeaponPanel />
         <ContainerPanel />
         <AbilityPanel />
         <SpellPanel />
+        <BodyEditor />
       </div>
     </div>
   )
@@ -265,22 +284,10 @@ function LimitStressPicker(){
   )
 }
 
-function NumberDial ({stat, title}:{stat: 'size' | 'TGH', title: string}){
-  const [value] = useActiveCharacterDataLens(stat)
-  return <StatTile label={title} value={value} />
-}
-
-// What the race set, shown and no longer changed.
-function CreatureSummary(){
-  return(
-    <div className='flex flex-row flex-wrap items-center gap-x-3 gap-y-1'>
-      <SectionLabel>Creature</SectionLabel>
-      <Tiles>
-        <NumberDial stat={'size'} title={'size'} />
-        <NumberDial stat={'TGH'} title={'TGH'} />
-      </Tiles>
-    </div>
-  )
+// Where the character is listed in the sidebar.
+function TagItem({ level }: { level: TagLevel }){
+  const [value, setValue] = useTagLens(level)
+  return <TextInput className='w-40' aria-label={level} placeholder={level} value={value} onChange={(e) => setValue(e.target.value)} />
 }
 
 const TextItem = ({keyName, mode}:{keyName: 'name' | 'notes', mode: 'normal' | 'large'}) => {

@@ -6,14 +6,18 @@ type RaceBody = { body: BodyPart[]; stance: Stance; armor: Armor; shape: Shape }
 
 const pickBody = (c: Character): RaceBody => ({ body: c.body, stance: c.stance, armor: c.armor, shape: c.shape });
 
-// The race's side of the creature while the race is being made: its body,
-// stance, natural armor and grid shape.
+// The race's side of the creature: its body, stance, natural armor and grid
+// shape, as the editors read it.
+export function useBodyView() {
+  return useActiveCharacterDerived(pickBody, JSON.stringify);
+}
+
+// The commands that change it. They subscribe to nothing, so a row given its
+// part by its parent does not re-render on every edit of the character.
 export function useBodyEditor() {
   const update = useActiveCharacterUpdate();
-  const view = useActiveCharacterDerived(pickBody, JSON.stringify);
 
   return {
-    view,
     addPart: (location: HitLocation) => update(addBodyPart(location)),
     removePart: (id: string) => update(removeBodyPart(id)),
     editPart: (id: string, edit: BodyPartEdit) => update(editBodyPart(id, edit)),

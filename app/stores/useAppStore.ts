@@ -5,7 +5,13 @@ import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 
-export type GameTabs = 'edit' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'edit' | 'race' | 'play' | 'break' | 'catalog'
+
+// Whether the tab's character is one in the fight rather than one being made
+// (a character on the edit tab, a race on the race tab).
+export function isFightTab(tab: GameTabs): boolean {
+  return tab !== 'edit' && tab !== 'race'
+}
 
 // The item waiting for a destination to be clicked: a catalog entry picked in
 // the sidebar, at the size it is to be stamped at, a stack in the hands being

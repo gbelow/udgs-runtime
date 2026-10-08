@@ -1,13 +1,9 @@
 import { ArmorSchema, PartWoundSchema, StanceSchema, presetPart, type Armor, type BodyPart, type Character, type HitLocation, type PartWound, type Shape, type Stance } from '../../types'
 import { isCampaignCharacter } from '../../utils'
-import { isMakingRace } from '../rules/race'
 
-// The race's side of a creature, edited while the race is being made: its
-// body, stance, natural armor and grid shape. Once the race is committed none
-// of it is the character's to change.
-function whileRaceOpen(edit: (c: Character) => Character): (c: Character) => Character {
-  return (c: Character) => (isMakingRace(c) ? edit(c) : c)
-}
+// The race's side of a creature: its body, stance, natural armor and grid
+// shape. A race sets them, and in free creation the character changes them
+// freely.
 
 // A new body changes what is held and what is wounded: a stack no gripping
 // part still holds is let go of, and a wound on a part that is gone, or that
@@ -29,14 +25,14 @@ function keepsChest(body: BodyPart[]): boolean {
 
 // A part of the kind, as the humanoid's row describes it.
 export function addBodyPart(location: HitLocation): (c: Character) => Character {
-  return whileRaceOpen((c) => withBody(c, [...c.body, presetPart(location, { name: location })]))
+  return (c: Character) => withBody(c, [...c.body, presetPart(location, { name: location })])
 }
 
 export function removeBodyPart(partId: string): (c: Character) => Character {
-  return whileRaceOpen((c) => {
+  return (c: Character) => {
     const body = c.body.filter((part) => part.id !== partId)
     return body.length === c.body.length || !keepsChest(body) ? c : withBody(c, body)
-  })
+  }
 }
 
 // What a part is and does; its id, what it holds and whether it is lost are
@@ -44,18 +40,18 @@ export function removeBodyPart(partId: string): (c: Character) => Character {
 export type BodyPartEdit = Partial<Pick<BodyPart, 'name' | 'location' | 'grip' | 'climbs' | 'naturalWeapon' | 'aimPenalty' | 'maxTier' | 'flags'>>
 
 export function editBodyPart(partId: string, edit: BodyPartEdit): (c: Character) => Character {
-  return whileRaceOpen((c) => {
+  return (c: Character) => {
     if (!c.body.some((part) => part.id === partId)) return c
     const body = c.body.map((part) => (part.id === partId ? { ...part, ...edit } : part))
     return keepsChest(body) ? withBody(c, body) : c
-  })
+  }
 }
 
 function editWounds(partId: string, change: (wounds: PartWound[]) => PartWound[]): (c: Character) => Character {
-  return whileRaceOpen((c) => {
+  return (c: Character) => {
     if (!c.body.some((part) => part.id === partId)) return c
     return withBody(c, c.body.map((part) => (part.id === partId ? { ...part, wounds: change(part.wounds) } : part)))
-  })
+  }
 }
 
 export function addPartWound(partId: string): (c: Character) => Character {
@@ -71,15 +67,15 @@ export function removePartWound(partId: string, index: number): (c: Character) =
 }
 
 export function editStance(edit: Partial<Stance>): (c: Character) => Character {
-  return whileRaceOpen((c) => ({ ...c, stance: StanceSchema.parse({ ...c.stance, ...edit }) }))
+  return (c: Character) => ({ ...c, stance: StanceSchema.parse({ ...c.stance, ...edit }) })
 }
 
 // What the creature is under anything it wears (gear.tex "Armors": skin,
 // fur, hide).
 export function editNaturalArmor(edit: Partial<Armor>): (c: Character) => Character {
-  return whileRaceOpen((c) => ({ ...c, armor: ArmorSchema.parse({ ...c.armor, ...edit }) }))
+  return (c: Character) => ({ ...c, armor: ArmorSchema.parse({ ...c.armor, ...edit }) })
 }
 
 export function setShape(shape: Shape): (c: Character) => Character {
-  return whileRaceOpen((c) => ({ ...c, shape }))
+  return (c: Character) => ({ ...c, shape })
 }

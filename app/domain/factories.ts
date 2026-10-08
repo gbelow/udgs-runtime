@@ -58,7 +58,6 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...emptyCharacter.stance,
       ...parsedCharacter.stance,
     },
-    raceDraft: parsedCharacter.raceDraft ? readRaceTraits(parsedCharacter.raceDraft) : null,
     ...reconcileGrip(uniqueParts(parsedCharacter.body ? readBody(parsedCharacter.body) : emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
   }
 }
@@ -84,13 +83,15 @@ const RaceTraitsIngestSchema = z.object({
 // is read the way a character's is, its traits field by field. The body is
 // bare.
 export function makeRace(raw: unknown): Race {
-  return getRaceOf({ ...makeCharacter(raw), raceDraft: readRaceTraits(raw) }) ?? RaceSchema.parse({})
+  return getRaceOf(makeRaceHolder(raw)) ?? RaceSchema.parse({})
 }
 
-// A character just begun: at its race, the first step of making it
-// (creating.tex "Character Creation").
-export function makeNewCharacter(raw: unknown = {}, tags?: string[]): BaseCharacter {
-  return { ...makeCharacter(raw, tags), raceDraft: RaceDraftSchema.parse({}) }
+// A race file read as the character that holds it while it is edited: what it
+// sets of the creature on the character, its traits as the race being made.
+// This is the only character that carries race traits; makeCharacter never
+// does.
+export function makeRaceHolder(raw: unknown = {}): BaseCharacter {
+  return { ...makeCharacter(raw), raceDraft: readRaceTraits(raw) }
 }
 
 // A part is read over the humanoid's row for its kind, so what it does not
@@ -211,7 +212,6 @@ const CharacterIngestValues = {
 
   abilities: z.array(z.string()).optional(),
   spells: z.record(z.string(), z.any()).optional(),
-  raceDraft: z.unknown().optional(),
 
   notes: z.string().optional(), 
 }

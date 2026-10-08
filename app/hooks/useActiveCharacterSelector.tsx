@@ -1,8 +1,9 @@
 import { CampaignCharacter, Character } from "../domain/types";
 import type { CombatState } from "../domain/combat/types";
-import { GameTabs, useAppStore } from "../stores/useAppStore";
+import { GameTabs, isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useRaceStore } from "../stores/useRaceStore";
 import { updateInventory } from "../domain/combat/commands/characters";
 
 type CharacterUpdater = (c: Character) => Character;
@@ -14,14 +15,16 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // what stops a one-field mutation from re-rendering every subscriber: only
 // changed outputs trigger a render.
 //
-// Both stores are subscribed unconditionally (no conditional hook calls), but
-// only the one that owns the active tab runs `sel` — the idle store's selector
-// short-circuits to a constant null, so it allocates nothing and forces no
+// The edit tab's character, the race tab's race being made, and the fight's
+// active character each live in their own store. All three are subscribed
+// unconditionally (no conditional hook calls), but only the one that owns the
+// active tab runs `sel` — an idle store's selector short-circuits to a
+// constant null, so it allocates nothing and forces no
 // render. `sel` therefore runs exactly once per render, against exactly one
 // character, which is what lets a caller pass a useShallow-wrapped selector for
 // non-primitive results: a single wrapper holds one memo cache, and only one
 // store ever drives it. `sel` is handed the fight the character is in too —
-// null on the edit tab, where there is none.
+// null on the edit and race tabs, where there is none.
 export function useActiveCharacterSelector<T>(
   sel: (c: Character, fight: CombatState | null) => T,
 ): T | null {
@@ -29,14 +32,17 @@ export function useActiveCharacterSelector<T>(
   const editVal = useCharacterStore((s) =>
     tab === "edit" ? sel(s.character, null) : null,
   );
+  const raceVal = useRaceStore((s) =>
+    tab === "race" ? sel(s.race, null) : null,
+  );
   const combatVal = useCombatStore((s) => {
-    if (tab === "edit") return null;
+    if (!isFightTab(tab)) return null;
     const id = s.activeCharacterId;
     if (!id) return null;
     const c = s.characters[id];
     return c ? sel(c, s) : null;
   });
-  return tab === "edit" ? editVal : combatVal;
+  return tab === "edit" ? editVal : tab === "race" ? raceVal : combatVal;
 }
 
 // Non-reactive snapshot of the active character. In an event handler this is
@@ -48,6 +54,7 @@ export function useActiveCharacterSelector<T>(
 // (freshly-allocated shapes), which gate on the derived value itself.
 export function readActiveCharacter(tab: GameTabs): Character | null {
   if (tab === "edit") return useCharacterStore.getState().character;
+  if (tab === "race") return useRaceStore.getState().race;
   const s = useCombatStore.getState();
   const id = s.activeCharacterId;
   return id ? (s.characters[id] ?? null) : null;
@@ -76,11 +83,13 @@ export function useActiveInventoryUpdate() {
 function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCharacter | undefined) {
   const tab = useAppStore((s) => s.selectedGameTab);
   const updateCharacter = useCharacterStore((s) => s.updateCharacter);
+  const updateRace = useRaceStore((s) => s.updateRace);
 
   function update(updater: CharacterUpdater): Character | undefined;
   function update(updater: CampaignUpdater): CampaignCharacter | undefined;
   function update(updater: CharacterUpdater | CampaignUpdater) {
     if (tab === "edit") return updateCharacter(updater as CharacterUpdater);
+    if (tab === "race") return updateRace(updater as CharacterUpdater);
     return updateCombatActive(updater as CampaignUpdater);
   }
   return update;
@@ -101,5 +110,5 @@ export function useActiveCharacterDerived<T>(
   const tab = useAppStore((s) => s.selectedGameTab);
   useActiveCharacterSelector((c, fight) => digest(compute(c, fight)));
   const c = readActiveCharacter(tab);
-  return c ? compute(c, tab === "edit" ? null : useCombatStore.getState()) : null;
+  return c ? compute(c, isFightTab(tab) ? useCombatStore.getState() : null) : null;
 }

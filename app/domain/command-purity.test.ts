@@ -24,7 +24,7 @@ import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceDraftSchema
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
-// A character still at its race, for the commands that make one.
+// A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
@@ -132,20 +132,19 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   deliverAll: characterCommands.deliverAll([{ effect: { name: '', trigger: 'instant', type: 'damage', effect: DamageSchema.parse({ damage: [{ kind: 'blunt', value: 30 }] }) }, degree: 'hit', test: null, when: null, then: [], locks: null }]),
   healWound: (c) => characterCommands.healWound(0, 3)({ ...c, injuries: { ...c.injuries, wounds: [{ name: 'broken leg', part: 'legL', IL: 20 }] } }),
   expireUsedAbilities: (c) => characterCommands.expireUsedAbilities(characterCommands.useAbility('tackle')(c) as CampaignCharacter),
-  applyRace: (c) => characterCommands.applyRace(RaceSchema.parse({ name: 'Surbit', size: 2, bonuses: { AGI: 2 }, abilities: ['fur'] }))(drafting(c)),
+  applyRace: (c) => characterCommands.applyRace(RaceSchema.parse({ name: 'Surbit', size: 2, bonuses: { AGI: 2 }, abilities: ['fur'] }))(c),
   editRace: (c) => characterCommands.editRace({ bonuses: { STR: 1 } })(drafting(c)),
-  commitRace: (c) => characterCommands.commitRace(characterCommands.applyRace(RaceSchema.parse({ bonuses: { STR: 1 }, abilities: ['fur'] }))(drafting(c))),
   addRaceAbility: (c) => characterCommands.addRaceAbility('fur')(drafting(c)),
   removeRaceAbility: (c) => characterCommands.removeRaceAbility('fur')(characterCommands.addRaceAbility('fur')(drafting(c))),
-  addBodyPart: (c) => characterCommands.addBodyPart('other')(drafting(c)),
-  removeBodyPart: (c) => characterCommands.removeBodyPart('legL')(drafting(c)),
-  editBodyPart: (c) => characterCommands.editBodyPart('handL', { grip: false, flags: ['stunUnconscious'] })(drafting(c)),
-  addPartWound: (c) => characterCommands.addPartWound('head')(drafting(c)),
-  editPartWound: (c) => characterCommands.editPartWound('handL', 0, { tier: 3 })(drafting(c)),
-  removePartWound: (c) => characterCommands.removePartWound('handL', 0)(drafting(c)),
-  editStance: (c) => characterCommands.editStance({ lameAt: 2 })(drafting(c)),
-  editNaturalArmor: (c) => characterCommands.editNaturalArmor({ INS: 2 })(drafting(c)),
-  setShape: (c) => characterCommands.setShape('line')(drafting(c)),
+  addBodyPart: (c) => characterCommands.addBodyPart('other')(c),
+  removeBodyPart: (c) => characterCommands.removeBodyPart('legL')(c),
+  editBodyPart: (c) => characterCommands.editBodyPart('handL', { grip: false, flags: ['stunUnconscious'] })(c),
+  addPartWound: (c) => characterCommands.addPartWound('head')(c),
+  editPartWound: (c) => characterCommands.editPartWound('handL', 0, { tier: 3 })(c),
+  removePartWound: (c) => characterCommands.removePartWound('handL', 0)(c),
+  editStance: (c) => characterCommands.editStance({ lameAt: 2 })(c),
+  editNaturalArmor: (c) => characterCommands.editNaturalArmor({ INS: 2 })(c),
+  setShape: (c) => characterCommands.setShape('line')(c),
 }
 
 const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
