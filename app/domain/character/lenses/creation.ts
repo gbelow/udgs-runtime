@@ -1,6 +1,6 @@
 import { ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isFamilyKey } from '../../abilities'
 import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, type Trainables } from '../../types'
-import { knowledges_list } from '../../lists'
+import { knowledges_list, type LimitStressAction } from '../../lists'
 import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
@@ -16,6 +16,9 @@ export type CreationStageRow = { family: FamilyKey; name: string; value: number;
 // with its next price, and what keeps the character from being made.
 export type CreationPanelView = {
   race: string | null
+  limitStress: LimitStressAction | null
+  temperament: string
+  worldview: string
   priorities: { focus: Focus; priority: Priority }[]
   pools: { pool: CreationPool; budget: number; spent: number; over: boolean }[]
   gold: number
@@ -44,6 +47,9 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
   const stagePrice = (family: FamilyKey): CreationPrice => (family in raises ? (raises[family] ?? { pool: null, amount: 0 }) : null)
   return {
     race: d.race?.name ?? null,
+    limitStress: d.character.limitStress,
+    temperament: d.character.trainables.conviction1.name,
+    worldview: d.character.trainables.conviction2.name,
     priorities: FOCI.map((focus) => ({ focus, priority: d.priorities[focus] })),
     pools: CREATION_POOLS.map((pool) => ({ pool, ...balances[pool], over: balances[pool].spent > balances[pool].budget })),
     gold: getCreationGold(d),

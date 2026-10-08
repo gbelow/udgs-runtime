@@ -2,12 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { makeCreationDraft } from '../../factories'
 import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
 import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
-import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationPriority, setCreationRace } from '../commands/creation'
+import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationPriority, setCreationRace } from '../commands/creation'
 import { getCreatedCharacter, getCreationBalances, getCreationBuild, getCreationPool, getCreationProblems } from './creation'
 import { getKnowledgeRaisePrice, getTrainableRaisePrice } from './learning'
 import { knowledges_list } from '../../lists'
 
 const TRAINABLE_KEYS = Object.keys(TrainablesSchema.shape) as (keyof Trainables)[]
+
+// A draft with the choices the book requires made, so only its budget can
+// stand in its way.
+const chosen = (): CreationDraft =>
+  setCreationLimitStress('coward')(setCreationConviction('conviction2', 'Stoicism')(setCreationConviction('conviction1', 'Fatalism')(makeCreationDraft())))
 
 const spent = (d: CreationDraft): number => Object.values(getCreationBalances(d)).reduce((sum, b) => sum + b.spent, 0)
 
@@ -78,11 +83,20 @@ describe('karma at creation', () => {
   const raiseDEX = buyCreationLevel('DEX', 1)
 
   it('cannot pay for a talent without a flaw', () => {
-    expect(getCreationProblems(raiseDEX(makeCreationDraft()))).not.toEqual([])
+    expect(getCreationProblems(raiseDEX(chosen()))).not.toEqual([])
   })
 
   it('is funded by flaws', () => {
-    const flawed = buyCreationStage('glutton', 1)(buyCreationStage('alcoholic', 1)(makeCreationDraft()))
+    const flawed = buyCreationStage('glutton', 1)(buyCreationStage('alcoholic', 1)(chosen()))
     expect(getCreationProblems(raiseDEX(flawed))).toEqual([])
+  })
+})
+
+// creating.tex "Limit Stress Actions" and "Convictions": every character
+// chooses a limit stress action, a temperament and a worldview.
+describe('the choices the book requires', () => {
+  it('keep a character from being made until they are made', () => {
+    expect(getCreationProblems(makeCreationDraft())).toHaveLength(3)
+    expect(getCreationProblems(chosen())).toEqual([])
   })
 })

@@ -1,5 +1,6 @@
 import { FOCI, TalentsSchema, type CreationDraft, type Focus, type Priority, type Race, type Trainables } from '../../types'
 import { FamilyKey } from '../../abilities'
+import type { LimitStressAction } from '../../lists'
 import { makeCreationStart } from '../../factories'
 import { isBaseCharacter } from '../../utils'
 import { getCreationAbilityRaises, getCreationRaise } from '../rules/creation'
@@ -31,6 +32,22 @@ export function setCreationPriority(focus: Focus, priority: Priority): (d: Creat
 // A count set, and dropped once nothing is bought.
 const counted = (record: Partial<Record<string, number>>, key: string, count: number): Record<string, number> =>
   Object.fromEntries(Object.entries({ ...record, [key]: count }).filter((entry): entry is [string, number] => (entry[1] ?? 0) > 0))
+
+// creating.tex "Limit Stress Actions": "Each character must choose a limit
+// stress action."
+export function setCreationLimitStress(action: LimitStressAction | null): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => ({ ...d, character: { ...d.character, limitStress: action } })
+}
+
+// creating.tex "Convictions": "A character must adopt one worldview conviction
+// and one temperament conviction during character creation", named on the
+// proficiency each is trained as.
+export function setCreationConviction(slot: 'conviction1' | 'conviction2', name: string): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => {
+    const { trainables } = d.character
+    return { ...d, character: { ...d.character, trainables: { ...trainables, [slot]: { ...trainables[slot], name } } } }
+  }
+}
 
 // A level of a trainable bought or given back. A level is bought only where
 // one can be; a pool may be overspent, since a priority changed later can

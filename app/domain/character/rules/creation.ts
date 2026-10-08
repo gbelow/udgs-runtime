@@ -1,5 +1,6 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
 import { CREATION_PRIORITIES } from '../../tables'
+import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../../lists'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, TalentsSchema, Trainables } from '../../types'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
@@ -203,8 +204,12 @@ function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: Cr
   return { key: row, pool, amount: spend(raised) - spend(d) }
 }
 
+const isConviction = (options: Record<string, { name: string }>, name: string): boolean => Object.values(options).some((o) => o.name === name)
+
 // What stands between the draft and a character: a pool spent past its
-// budget, or a stage bought whose requirements the build no longer meets.
+// budget, a stage bought whose requirements the build no longer meets, or a
+// choice the book requires not made — the limit stress action ("Limit Stress
+// Actions") and the two convictions ("Convictions").
 export function getCreationProblems(d: CreationDraft): string[] {
   const balances = getCreationBalances(d)
   const build = getCreationBuild(d)
@@ -213,5 +218,11 @@ export function getCreationProblems(d: CreationDraft): string[] {
     .flatMap((family) => boughtStages(d, family))
     .filter((key) => !meetsAbilityRequirements(key)(build))
     .map((key) => `${ABILITIES[key].name}: requirements not met`)
-  return [...over, ...unmet]
+  const { limitStress, trainables } = d.character
+  const unchosen = [
+    ...(limitStress ? [] : ['choose a limit stress action']),
+    ...(isConviction(TEMPERAMENT_CONVICTIONS, trainables.conviction1.name) ? [] : ['choose a temperament']),
+    ...(isConviction(WORLDVIEW_CONVICTIONS, trainables.conviction2.name) ? [] : ['choose a worldview']),
+  ]
+  return [...over, ...unmet, ...unchosen]
 }

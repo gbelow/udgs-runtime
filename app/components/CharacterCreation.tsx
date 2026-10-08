@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button, Panel, Row, SectionLabel, selectClass } from './ui'
 import { useCreation } from '../hooks/useCreation'
 import { PRIORITIES } from '../domain/types'
+import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
 import type { CreationPrice, CreationRow } from '../domain/character/lenses/creation'
 
 // creating.tex "Character Creation": the race, the priorities and what is
@@ -16,6 +17,7 @@ export function CharacterCreation() {
       <div className='md:col-span-4 flex flex-col gap-3'>
         <CreationHeader />
         <Priorities />
+        <Choices />
         <Pools />
         <Problems />
       </div>
@@ -59,6 +61,31 @@ function Priorities() {
         </div>
       ))}
     </Panel>
+  )
+}
+
+// The choices the book requires of every character: its convictions and its
+// limit stress action.
+function Choices() {
+  const { view, chooseConviction, chooseLimitStress } = useCreation()
+  return (
+    <Panel title='Spirit'>
+      <ChoiceSelect label='temperament' value={view.temperament} options={Object.values(TEMPERAMENT_CONVICTIONS).map((c) => c.name)} onChange={(name) => chooseConviction('conviction1', name)} />
+      <ChoiceSelect label='worldview' value={view.worldview} options={Object.values(WORLDVIEW_CONVICTIONS).map((c) => c.name)} onChange={(name) => chooseConviction('conviction2', name)} />
+      <ChoiceSelect label='limit stress' value={view.limitStress ?? ''} options={[...LIMIT_STRESS_ACTIONS]} onChange={(action) => chooseLimitStress((action || null) as LimitStressAction | null)} />
+    </Panel>
+  )
+}
+
+function ChoiceSelect({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <div className='flex flex-row items-center gap-2'>
+      <span className='w-24 text-xs'>{label}</span>
+      <select aria-label={label} className={selectClass} value={options.includes(value) ? value : ''} onChange={(e) => onChange(e.target.value)}>
+        <option value=''>—</option>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </div>
   )
 }
 
