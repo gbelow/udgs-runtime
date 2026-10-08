@@ -4,6 +4,7 @@ import { ABILITY_SECTIONS, knowledges_list, type LimitStressAction } from '../..
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
 import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import type { Term } from '../rules/terms'
+import { groupBy, type Group } from '../../utils'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
 import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
@@ -22,7 +23,6 @@ export type CreationRaceView = { name: string; bonuses: Term[]; abilities: strin
 // level held, the stages the race gives (locked) and those bought on top, and
 // the price of its next stage (null when it cannot be bought now).
 export type CreationAbilityEntry = { family: FamilyKey; view: AbilityFamilyView; level: number; racial: number; bought: number; next: CreationPrice }
-export type CreationCatalogSection = { section: string; entries: CreationAbilityEntry[] }
 
 // One spell as the creation tab shows it: its catalog entry, the method it
 // was chosen by (null while not chosen), whether it was claimed free or can
@@ -36,7 +36,6 @@ export type CreationSpellEntry = {
   prices: Partial<Record<SpellMethod, CreationPrice>>
   locked: string
 }
-export type CreationSpellSection = { section: string; entries: CreationSpellEntry[] }
 
 // creating.tex "Character Creation" as the creation tab shows it: the
 // priorities, each pool against its budget, the gold, what can be bought
@@ -53,10 +52,10 @@ export type CreationPanelView = {
   groups: { label: string; rows: CreationRow[] }[]
   knowledges: CreationKnowledgeRow[]
   abilities: CreationAbilityEntry[] // the families held, racial or bought
-  abilityCatalog: CreationCatalogSection[] // the sections offered, in the book's order
+  abilityCatalog: Group<CreationAbilityEntry>[] // the sections offered, in the book's order
   spells: CreationSpellEntry[] // the spells chosen
   freeSpells: { total: number; left: number } // abilities.tex "Magic Theory"
-  spellCatalog: CreationSpellSection[] // by school, in the catalog's order
+  spellCatalog: Group<CreationSpellEntry>[] // by school, in the catalog's order
   problems: string[]
 }
 
@@ -117,7 +116,6 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
       locked: open ? '' : [...new Set(SpellMethodSchema.options.map((method) => row.blocked[method]))].join(' · '),
     }
   })
-  const schools = [...new Set(spellEntries.map((entry) => entry.row.section))]
   return {
     name: d.character.name,
     race: getRaceView(d),
@@ -146,11 +144,11 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     })),
     abilities: entries.filter((entry) => entry.level > 0),
     abilityCatalog: ABILITY_SECTIONS.filter(offered)
-      .map((section) => ({ section, entries: entries.filter((entry) => entry.view.section === section) }))
-      .filter(({ entries }) => entries.length),
+      .map((label) => ({ label, rows: entries.filter((entry) => entry.view.section === label) }))
+      .filter(({ rows }) => rows.length),
     spells: spellEntries.filter((entry) => entry.method !== null),
     freeSpells: getCreationFreeSpells(d, build),
-    spellCatalog: schools.map((section) => ({ section, entries: spellEntries.filter((entry) => entry.row.section === section) })),
+    spellCatalog: groupBy(spellEntries, (entry) => entry.row.section),
     problems: getCreationProblems(d),
   }
 }

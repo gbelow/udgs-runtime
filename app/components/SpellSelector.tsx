@@ -1,6 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
-import { Button, SectionLabel, TextInput } from './ui'
+import { Button, CatalogList } from './ui'
+import { groupBy } from '../domain/utils'
 import { useSpellLens } from '../hooks/useSpellLens'
 import type { SpellCatalogRow } from '../domain/character/lenses/spells'
 import { SpellMethodSchema } from '../domain/types'
@@ -11,50 +12,31 @@ import { SpellMethodSchema } from '../domain/types'
 // decides the skill it is cast with.
 export function SpellSelector(){
   const { catalog, learn } = useSpellLens()
-  const [filter, setFilter] = useState('')
-  const [open, setOpen] = useState<string | null>(null)
-
-  const needle = filter.trim().toLowerCase()
-  const visible = needle ? catalog.filter((row) => row.name.toLowerCase().includes(needle)) : catalog
-  const sections = visible.reduce<Record<string, SpellCatalogRow[]>>((acc, row) => {
-    (acc[row.section] ??= []).push(row)
-    return acc
-  }, {})
-
   return(
-    <div className='flex flex-col w-full gap-1'>
-      <TextInput className='w-full' placeholder='filter' aria-label='spell filter' value={filter} onChange={(e) => setFilter(e.target.value)} />
-      {
-        Object.entries(sections).map(([section, rows]) => (
-          <div key={section} className='flex flex-col'>
-            <SectionLabel className='px-1 pt-2'>{section}</SectionLabel>
-            {rows.map((row) => (
-              <SpellCatalogEntry key={row.key} row={row} open={open === row.key} onToggle={() => setOpen(open === row.key ? null : row.key)} action={
-                row.learned ?
-                <span className='text-xs text-muted px-1'>learned</span> :
-                SpellMethodSchema.options.map((method) => (
-                  <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
-                    title={row.blocked[method] || `learn ${method}`} disabled={row.blocked[method] !== ''}
-                    onClick={() => learn(row.key, method)}>{method[0]}</Button>
-                ))
-              } />
-            ))}
-          </div>
+    <CatalogList label='spell' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.name} render={(row) => (
+      <SpellCatalogEntry key={row.key} row={row} action={
+        row.learned ?
+        <span className='text-xs text-muted px-1'>learned</span> :
+        SpellMethodSchema.options.map((method) => (
+          <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
+            title={row.blocked[method] || `learn ${method}`} disabled={row.blocked[method] !== ''}
+            onClick={() => learn(row.key, method)}>{method[0]}</Button>
         ))
-      }
-    </div>
+      } />
+    )} />
   )
 }
 
 // One spell of the catalog: its name, knowledge and DL, what `action` offers
 // beside it, and a click that unfolds the book's entry.
-export function SpellCatalogEntry({ row, open, onToggle, action }: { row: SpellCatalogRow; open: boolean; onToggle: () => void; action: ReactNode }) {
+export function SpellCatalogEntry({ row, action }: { row: SpellCatalogRow; action: ReactNode }) {
+  const [open, setOpen] = useState(false)
   return (
     <div className='flex flex-col'>
       <div className='flex flex-row items-center'>
         <button type='button' aria-label={`${row.name} details`}
           className='text-left px-1 rounded text-sm grow cursor-pointer hover:bg-raised'
-          onClick={onToggle}>
+          onClick={() => setOpen(!open)}>
           {row.name}
           <span className='text-xs text-muted'> · {row.knowledge} · DL {row.DL ?? '?'}</span>
         </button>

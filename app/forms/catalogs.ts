@@ -19,7 +19,7 @@ export type CatalogSpec = {
   data: Record<string, unknown>
   keyOf: (entry: Record<string, unknown>) => string // where a new entry is filed; an existing one keeps its key
   nameOf: (entry: Record<string, unknown>) => string
-  groupOf: (entry: Record<string, unknown>) => string
+  groupOf?: (entry: Record<string, unknown>) => string // the category it is browsed under; none for a catalog without
 }
 
 const text = (entry: Record<string, unknown>, field: string) => String(entry[field] ?? '')
@@ -36,11 +36,11 @@ export const CATALOGS = {
   // gear is keyed by name: items point at their weapon or armor by it
   weapons: {
     label: 'Weapons', file: 'weapons.json', schema: WeaponSchema, data: weapons,
-    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: () => '',
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
   },
   armors: {
     label: 'Armors', file: 'armors.json', schema: ArmorSchema, data: armors,
-    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: () => '',
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
   },
   ammo: {
     label: 'Ammunition', file: 'ammo.json', schema: AmmoSchema, data: ammo,

@@ -76,6 +76,48 @@ export function SectionLabel({ children, className = '' }: { children: ReactNode
   return <span className={`text-[10px] uppercase tracking-wider text-muted ${className}`}>{children}</span>
 }
 
+// A catalog browsed by category: the headers listed, one category open at a
+// time and every one closed at start. A name typed in the filter narrows each
+// category to its matches and opens all those left. A group with a null
+// label is shown without a header, for a catalog with no categories.
+export function CatalogList<T>({ label, groups, nameOf, render, beside, children }: {
+  label: string, groups: { label: string | null, rows: T[] }[], nameOf: (row: T) => string, render: (row: T) => ReactNode,
+  beside?: ReactNode, children?: ReactNode,
+}){
+  const [filter, setFilter] = useState('')
+  const [open, setOpen] = useState<string | null>(null)
+  const needle = filter.trim().toLowerCase()
+  const shown = needle
+    ? groups.map((g) => ({ ...g, rows: g.rows.filter((row) => nameOf(row).toLowerCase().includes(needle)) })).filter((g) => g.rows.length)
+    : groups
+  return (
+    <div className='flex flex-col w-full gap-1'>
+      <div className='flex flex-row gap-1 items-center'>
+        <TextInput className='w-full' placeholder='filter' aria-label={`${label} filter`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+        {beside}
+      </div>
+      {children}
+      <div className='flex flex-col'>
+        {shown.map((g) => {
+          if (g.label === null) return <div key='' className='flex flex-col'>{g.rows.map(render)}</div>
+          const name = g.label || 'other'
+          const unfolded = needle !== '' || open === name
+          return (
+            <div key={name} className='flex flex-col'>
+              <button type='button' aria-expanded={unfolded} aria-label={`${name} category`}
+                className='text-left px-1 py-0.5 rounded cursor-pointer hover:bg-raised'
+                onClick={() => setOpen(open === name ? null : name)}>
+                <SectionLabel><span className='inline-block w-3'>{unfolded ? '▾' : '▸'}</span>{name} · {g.rows.length}</SectionLabel>
+              </button>
+              {unfolded ? <div className='ml-3 pl-1 border-l border-line flex flex-col pb-1'>{g.rows.map(render)}</div> : null}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // A titled card. `meta` sits after the title in muted text; `actions` are
 // pushed to the right edge.
 export function Panel({ title, meta, actions, children, className = '', pending = false }: {

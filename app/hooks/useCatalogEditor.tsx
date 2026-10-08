@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { deleteCatalogEntry, saveCatalogEntry } from '../actions'
 import { CATALOGS, CatalogName, CatalogSpec } from '../forms/catalogs'
 import { emptyValue } from '../forms/schemaFields'
+import { groupBy } from '../domain/utils'
 
 export type CatalogDraft = { key: string; value: Record<string, unknown>; fresh: boolean }
 export type CatalogRow = { key: string; name: string; group: string }
@@ -17,8 +18,9 @@ export function useCatalogEditor(catalog: CatalogName) {
 
   const rows: CatalogRow[] = Object.entries(spec.data).map(([key, entry]) => {
     const record = entry as Record<string, unknown>
-    return { key, name: spec.nameOf(record), group: spec.groupOf(record) }
+    return { key, name: spec.nameOf(record), group: spec.groupOf?.(record) ?? '' }
   })
+  const groups: { label: string | null; rows: CatalogRow[] }[] = spec.groupOf ? groupBy(rows, (row) => row.group) : [{ label: null, rows }]
 
   const open = (key: string) => {
     const entry = spec.data[key]
@@ -51,5 +53,5 @@ export function useCatalogEditor(catalog: CatalogName) {
     setDraft(null)
   }
 
-  return { label: spec.label, rows, draft, open, create, edit, save, remove } as const
+  return { label: spec.label, groups, draft, open, create, edit, save, remove } as const
 }
