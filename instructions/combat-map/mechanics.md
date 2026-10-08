@@ -84,7 +84,7 @@ Detail for `instructions/combat-map.md`: the rules-bearing features layered on t
   (`Damage.wall`, in `getArriving`), before the degree or a block meets what is left (combat.tex
   "Cover"). A guard made with a body
   shield may take `cover`: when it lands, `setActions` writes `state.bodyCover` (the shield, and the shooter's cell it faces), kept across
-  rounds until its owner lands any action but a careful move. `isBehindBodyShield` reads it, while
+  rounds until its owner lands any action or reaction but a careful move. `isBehindBodyShield` reads it, while
   the shield is still in hand, against anything on the shooter's side of them: they can be neither
   seen nor shot from there.
 - **Sweeps** (`rules/sweep.ts`) — a sweeping variation (`isSweepVariant`, the normal or any

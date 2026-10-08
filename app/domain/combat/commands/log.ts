@@ -48,8 +48,8 @@ export function setActions(state: CombatState, declared: Action[], pushed: strin
 // combat.tex "Cover": a guard that takes cover behind a body shield leaves
 // its guard behind it, the shield facing where the guarded shot came from;
 // "The cover is canceled if the character performs any action other than
-// careful movement". Nothing is noted on a fight without a board, where no
-// shot comes from anywhere.
+// careful movement" — a reaction as much as an action. Nothing is noted on a
+// fight without a board, where no shot comes from anywhere.
 function noteCover(state: CombatState, declared: Action[], cover: CombatState['bodyCover'], action: Action): CombatState['bodyCover'] {
   const { [action.actorId]: _left, ...rest } = cover
   if (action.kind === 'guard' && action.cover) {

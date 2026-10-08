@@ -4,10 +4,7 @@
 
 ## XP tracking
 - spells - intuitive requires XP track
-- add half learned abilities - XP track
-- trainable as wrapper - abilities and spells
 - interface, learning mode
-- add training formulas - talent for proficiencies, skills, attributes, spells, abilities
 
 ## weapons/armor
 - add customization options to weapons
@@ -101,10 +98,10 @@ UI to select limit stress action.
 combat surprise - team sides - combat start button
 characters sharing same space
 characters as cover
+cover on prepared guards
 breaking cells
 
 rudimentary sleep, eat, 1 ET cycle, drink, wound healing, injury healing. no exploration events yet
-races
 
 # left for combat
 - environmental effects - storm, avalanche
@@ -118,3 +115,10 @@ races
 - rough terrain tests
 - senses
 - 
+
+
+Where I went beyond or changed the plan
+- Not built:
+  - the Crossbow and Shield ability, because combat has no reload action yet;
+  - cover on prepared guards;
+  - characters as cover
