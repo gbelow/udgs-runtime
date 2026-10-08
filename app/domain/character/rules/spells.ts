@@ -1,4 +1,4 @@
-import { CampaignCharacter, Character, Charge, ChargeTrigger, Item, Requirement, Spell, SpellMethod } from '../../types'
+import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Spell, SpellMethod, SpellMethodSchema } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
@@ -12,10 +12,10 @@ import { getActionCost, type ActionCost } from './actionCosts'
 import { getCarriedItems, getItemScale, hasAmmo, isGear, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
 import { isCampaignCharacter } from '../../utils'
-import { ABILITIES, hasAbility, isAbilityKey } from '../../abilities'
+import { ABILITIES, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { mayCastWhileConcentrating } from './concentration'
 import { isAbilityActive, isSpellActive } from './effects'
-import { holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
+import { getUnmetRequirements, holdsRequirement, requirementLabel, requirementsLabel } from './requirements'
 
 // spells.tex "Learning spells".
 
@@ -58,22 +58,53 @@ export function getMiracleSkill(c: Character, key: SpellKey): number {
   return getMiracle(c) - 3 * shortfall
 }
 
-// "It is not possible to learn spells with knowledge requirements above 3
-// this way." The wizard and cleric routes are opened by their abilities
-// (abilities.tex "Magic Theory", "Cleric"), and every route by what the
-// spell is learned from (spells.tex "Requirements"). Everything else the
-// book asks of learning (XP, the grimoire test, the deity's list) is the
-// table's.
-export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character) => boolean {
+// Why each method refuses a spell, in words a player can act on; '' where it
+// does not. "It is not possible to learn spells with knowledge requirements
+// above 3 this way" caps the intuitive route; the wizard and cleric routes
+// are opened by their abilities (abilities.tex "Magic Theory", "Cleric"),
+// and every route by what the spell is learned from (spells.tex
+// "Requirements"). Everything else the book asks of learning (XP, the
+// grimoire test, the deity's list) is the table's.
+const METHOD_GRANT: Record<SpellMethod, Grant | null> = { intuitive: null, wizard: 'wizardSpells', cleric: 'clericSpells' }
+
+const GRANTED_BY = Object.values(ABILITIES).reduce((names, a) => {
+  for (const g of a.grants) names.set(g, names.has(g) ? `${names.get(g)} or ${a.name}` : a.name)
+  return names
+}, new Map<Grant, string>())
+
+export function getSpellLearnBlocks(key: SpellKey): (c: Character) => Record<SpellMethod, string> {
   return (c: Character) => {
-    if (key in c.spells) return false
-    if (!SPELLS[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))) return false
-    switch (method) {
-      case 'intuitive': return requirementLevel(SPELLS[key]) <= 3
-      case 'wizard': return hasGrant(c, 'wizardSpells')
-      case 'cleric': return hasGrant(c, 'clericSpells')
+    const unmet = key in c.spells ? [] : getUnmetRequirements(c, SPELLS[key].requirements)
+    const block = (method: SpellMethod): string => {
+      if (key in c.spells) return 'learned'
+      if (unmet.length) return `needs ${unmet.join(' · ')}`
+      const grant = METHOD_GRANT[method]
+      if (!grant) return requirementLevel(SPELLS[key]) <= 3 ? '' : 'knowledge above 3'
+      return hasGrant(c, grant) ? '' : `needs ${GRANTED_BY.get(grant) ?? grant}`
     }
+    return Object.fromEntries(SpellMethodSchema.options.map((method) => [method, block(method)])) as Record<SpellMethod, string>
   }
+}
+
+export function canLearnSpell(key: SpellKey, method: SpellMethod): (c: Character) => boolean {
+  return (c: Character) => getSpellLearnBlocks(key)(c)[method] === ''
+}
+
+// abilities.tex "Magic Theory": "Learns two spells for which the character
+// has knowledge" — every knowledge the spell names, at its level. The count
+// is what the abilities learned give.
+export function hasSpellKnowledge(c: Character, key: SpellKey): boolean {
+  return SPELLS[key].knowledge.every((k) => getKnowledge(k.name)(c) >= k.level)
+}
+
+export function getFreeSpellCount(c: Character): number {
+  return getLearnedAbilityKeys(c).reduce((sum, key) => sum + ABILITIES[key].freeSpells, 0)
+}
+
+// A spell that can be taken as one of those: learnable as a wizard, with the
+// knowledge for it.
+export function canClaimFreeSpell(key: SpellKey): (c: Character) => boolean {
+  return (c: Character) => canLearnSpell(key, 'wizard')(c) && hasSpellKnowledge(c, key)
 }
 
 // spells.tex "Casting spells": the DL a cast is rolled against, raised by

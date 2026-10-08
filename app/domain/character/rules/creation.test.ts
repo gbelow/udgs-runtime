@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { makeCreationDraft } from '../../factories'
 import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
 import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
-import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationPriority, setCreationRace } from '../commands/creation'
-import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems } from './creation'
+import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
+import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems, getCreationSpellRaises } from './creation'
 import { ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
-import { getKnowledgeRaisePrice, getTrainableRaisePrice } from './learning'
+import { SPELL_LEARN_XP, getKnowledgeRaisePrice, getTrainableRaisePrice } from './learning'
+import { SPELLS, SPELL_KEYS, type SpellKey } from '../../spells'
 import { knowledges_list } from '../../lists'
 
 const TRAINABLE_KEYS = Object.keys(TrainablesSchema.shape) as (keyof Trainables)[]
@@ -98,6 +99,50 @@ describe('changing race', () => {
     expect(charged(giving)).toEqual([])
     expect(getAbilityLevel(getCreationBuild(giving), family)).toBe(1)
     expect(setCreationRace(null)(giving)).toEqual(bought)
+  })
+})
+
+// The user's ruling: a spell costs the 6 XP of spells.tex "Learning spells"
+// by any method, from the INT XP; given back, it is refunded.
+describe('a spell chosen at creation', () => {
+  const raises = getCreationSpellRaises(chosen())
+  const offered = (Object.keys(raises) as SpellKey[]).filter((key) => raises[key]?.intuitive)
+
+  it.each(offered)('"%s" costs 6 INT XP and is refunded', (key) => {
+    const d = chosen()
+    const learned = setCreationSpell(key, 'intuitive')(d)
+    expect(getCreationBalances(learned).INT.spent - getCreationBalances(d).INT.spent).toBe(SPELL_LEARN_XP)
+    expect(key in getCreatedCharacter(learned).spells).toBe(true)
+    expect(setCreationSpell(key, null)(learned)).toEqual(d)
+  })
+})
+
+// abilities.tex "Magic Theory": "Learns two spells for which the character
+// has knowledge" — two, free, and only where every knowledge the spell names
+// is held at its level.
+describe('the spells Magic Theory teaches', () => {
+  const theorist = (): CreationDraft => {
+    let d = buyCreationKnowledge('linguistics', 1)(buyCreationKnowledge('linguistics', 1)(chosen()))
+    for (let i = 0; i < 3; i++) d = buyCreationKnowledge('alchemy', 1)(buyCreationKnowledge('animancy', 1)(d))
+    return buyCreationStage('magic-theory', 1)(buyCreationStage('literacy', 1)(d))
+  }
+
+  it('are two, cost nothing and need their knowledge', () => {
+    let d = theorist()
+    const charges = getCreationCharges(d)
+    const claimed: SpellKey[] = []
+    for (const key of SPELL_KEYS) {
+      const next = claimCreationSpell(key)(d)
+      if (next === d) continue
+      claimed.push(key)
+      d = next
+    }
+    expect(claimed).toHaveLength(2)
+    expect(getCreationCharges(d)).toEqual(charges)
+    for (const key of claimed) {
+      expect(getCreatedCharacter(d).spells[key]?.method).toBe('wizard')
+      for (const k of SPELLS[key].knowledge) expect(getCreatedCharacter(d).knowledges[k.name]?.value ?? 0).toBeGreaterThanOrEqual(k.level)
+    }
   })
 })
 

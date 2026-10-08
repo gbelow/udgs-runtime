@@ -1,11 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, SectionLabel, TextInput } from './ui'
 import { useSpellLens } from '../hooks/useSpellLens'
 import type { SpellCatalogRow } from '../domain/character/lenses/spells'
-import type { SpellMethod } from '../domain/types'
+import { SpellMethodSchema } from '../domain/types'
 
-const METHODS: SpellMethod[] = ['intuitive', 'wizard', 'cleric']
 
 // Browse the catalog one spell per row, grouped by school. A click unfolds
 // the book's entry; the buttons learn it by one of the three methods, which
@@ -30,40 +29,48 @@ export function SpellSelector(){
           <div key={section} className='flex flex-col'>
             <SectionLabel className='px-1 pt-2'>{section}</SectionLabel>
             {rows.map((row) => (
-              <div key={row.key} className='flex flex-col'>
-                <div className='flex flex-row items-center'>
-                  <button type='button' aria-label={`${row.name} details`}
-                    className='text-left px-1 rounded text-sm grow cursor-pointer hover:bg-raised'
-                    onClick={() => setOpen(open === row.key ? null : row.key)}>
-                    {row.name}
-                    <span className='text-xs text-muted'> · {row.knowledge} · DL {row.DL ?? '?'}</span>
-                  </button>
-                  {
-                    row.learned ?
-                    <span className='text-xs text-muted px-1'>learned</span> :
-                    METHODS.map((method) => (
-                      <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
-                        title={row.unmet ? `needs ${row.unmet}` : `learn ${method}`} disabled={!row.learnable[method]}
-                        onClick={() => learn(row.key, method)}>{method[0]}</Button>
-                    ))
-                  }
-                </div>
-                {
-                  open === row.key ?
-                  <div className='flex flex-col gap-1 px-2 pb-1 text-xs'>
-                    <span><span className='text-muted'>cost</span> {row.costText} · <span className='text-muted'>{row.type}</span></span>
-                    {row.requirements ? <span><span className='text-muted'>requires</span> {row.requirements}</span> : null}
-                    {row.unmet ? <span className='text-bad'>missing {row.unmet}</span> : null}
-                    {row.castRequirements ? <span><span className='text-muted'>cast with</span> {row.castRequirements}</span> : null}
-                    <span>{row.description}</span>
-                    {row.enhance ? <span><span className='text-muted'>enhance</span> {row.enhance}</span> : null}
-                  </div>
-                  : null
-                }
-              </div>
+              <SpellCatalogEntry key={row.key} row={row} open={open === row.key} onToggle={() => setOpen(open === row.key ? null : row.key)} action={
+                row.learned ?
+                <span className='text-xs text-muted px-1'>learned</span> :
+                SpellMethodSchema.options.map((method) => (
+                  <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
+                    title={row.blocked[method] || `learn ${method}`} disabled={row.blocked[method] !== ''}
+                    onClick={() => learn(row.key, method)}>{method[0]}</Button>
+                ))
+              } />
             ))}
           </div>
         ))
+      }
+    </div>
+  )
+}
+
+// One spell of the catalog: its name, knowledge and DL, what `action` offers
+// beside it, and a click that unfolds the book's entry.
+export function SpellCatalogEntry({ row, open, onToggle, action }: { row: SpellCatalogRow; open: boolean; onToggle: () => void; action: ReactNode }) {
+  return (
+    <div className='flex flex-col'>
+      <div className='flex flex-row items-center'>
+        <button type='button' aria-label={`${row.name} details`}
+          className='text-left px-1 rounded text-sm grow cursor-pointer hover:bg-raised'
+          onClick={onToggle}>
+          {row.name}
+          <span className='text-xs text-muted'> · {row.knowledge} · DL {row.DL ?? '?'}</span>
+        </button>
+        {action}
+      </div>
+      {
+        open ?
+        <div className='flex flex-col gap-1 px-2 pb-1 text-xs'>
+          <span><span className='text-muted'>cost</span> {row.costText} · <span className='text-muted'>{row.type}</span></span>
+          {row.requirements ? <span><span className='text-muted'>requires</span> {row.requirements}</span> : null}
+          {row.unmet ? <span className='text-bad'>missing {row.unmet}</span> : null}
+          {row.castRequirements ? <span><span className='text-muted'>cast with</span> {row.castRequirements}</span> : null}
+          <span>{row.description}</span>
+          {row.enhance ? <span><span className='text-muted'>enhance</span> {row.enhance}</span> : null}
+        </div>
+        : null
       }
     </div>
   )

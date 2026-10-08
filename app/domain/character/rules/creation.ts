@@ -1,10 +1,12 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
 import { CREATION_PRIORITIES } from '../../tables'
-import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, TalentsSchema, Trainables } from '../../types'
+import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
+import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
 import { getConvictionSlot } from './requirements'
-import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
+import { canClaimFreeSpell, canLearnSpell, getFreeSpellCount } from './spells'
+import { PROFICIENCY_TALENTS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
 import { getSM } from './size'
 import { getRacedCharacter } from './race'
 import { sumTerms, type Term } from './terms'
@@ -94,7 +96,11 @@ export function getCreationBuild(d: CreationDraft): Character {
   for (const [family, level] of Object.entries(d.abilities)) {
     if (isFamilyKey(family) && level > getAbilityLevel(c, family)) abilities[family] = heldAbility(family, level)
   }
-  return { ...c, trainables, knowledges, abilities }
+  const spells = { ...c.spells }
+  for (const [key, { method }] of Object.entries(d.spells)) {
+    if (!(key in spells)) spells[key] = { method, practice: 0 }
+  }
+  return { ...c, trainables, knowledges, abilities, spells }
 }
 
 // The character made: the build with the race's attribute bonuses on top.
@@ -158,6 +164,18 @@ function getStageCharge(key: AbilityKey, build: Character): CreationCharge | nul
   return null
 }
 
+// A spell chosen costs 6 XP by any route (the user's ruling): from the INT
+// XP, a cleric's from the SPI XP ("using devotion XP", creating.tex "Deities
+// and Devotion"). A spell claimed free, or one the character starts with,
+// costs nothing.
+const spellCharge = (key: string, method: SpellMethod): CreationCharge =>
+  ({ key: `spell:${key}`, pool: method === 'cleric' ? 'SPI' : 'INT', amount: SPELL_LEARN_XP })
+
+function getSpellCharge(d: CreationDraft, key: string): CreationCharge | null {
+  const chosen = d.spells[key]
+  return !chosen || chosen.free || key in d.character.spells ? null : spellCharge(key, chosen.method)
+}
+
 const boughtStages = (d: CreationDraft, family: FamilyKey): AbilityKey[] =>
   getFamilyStages(family).slice(getRacialLevel(d, family), d.abilities[family] ?? 0)
 
@@ -169,6 +187,7 @@ export function getCreationCharges(d: CreationDraft): CreationCharge[] {
     getAttributesCharge(d, build),
     ...Object.keys(d.knowledges).map((name) => getKnowledgeCharge(d, build, name)),
     ...families.flatMap((family) => boughtStages(d, family).map((key) => getStageCharge(key, build))),
+    ...Object.keys(d.spells).map((key) => getSpellCharge(d, key)),
   ].filter((charge): charge is CreationCharge => charge !== null)
 }
 
@@ -222,6 +241,39 @@ export function getCreationAbilityRaises(d: CreationDraft): Partial<Record<Famil
   return raises
 }
 
+// The spells that can be chosen, each with the methods it can be learned by
+// and the price by each: every spell not yet held whose requirements the
+// build meets by that method (spells.tex "Learning spells").
+export type CreationSpellRaises = Partial<Record<SpellKey, Partial<Record<SpellMethod, CreationCharge>>>>
+export function getCreationSpellRaises(d: CreationDraft, build = getCreationBuild(d)): CreationSpellRaises {
+  const raises: CreationSpellRaises = {}
+  for (const key of SPELL_KEYS) {
+    const methods = SpellMethodSchema.options.filter((method) => canLearnSpell(key, method)(build))
+    if (methods.length) raises[key] = Object.fromEntries(methods.map((method) => [method, spellCharge(key, method)]))
+  }
+  return raises
+}
+
+// abilities.tex "Magic Theory": the spells the abilities bought let be taken
+// free, and those not yet claimed.
+export function getCreationFreeSpells(d: CreationDraft, build = getCreationBuild(d)): { total: number; left: number } {
+  const total = getFreeSpellCount(build)
+  return { total, left: total - Object.values(d.spells).filter((s) => s.free).length }
+}
+
+// Whether a spell can be claimed as one of them now.
+export function canClaimCreationSpell(d: CreationDraft, key: SpellKey, build = getCreationBuild(d)): boolean {
+  return getCreationFreeSpells(d, build).left > 0 && canClaimFreeSpell(key)(build)
+}
+
+// Whether the build, the spell taken out of it, could still learn a spell
+// as it was chosen.
+function canKeepSpell(build: Character, key: SpellKey, { method, free }: CreationDraft['spells'][string]): boolean {
+  const { [key]: _chosen, ...spells } = build.spells
+  const without = { ...build, spells }
+  return free ? canClaimFreeSpell(key)(without) : canLearnSpell(key, method)(without)
+}
+
 // What a purchase adds to the spend of its row: the attributes are one row,
 // since a point's price turns on the others.
 function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: CreationPool): CreationCharge {
@@ -241,11 +293,17 @@ export function getCreationProblems(d: CreationDraft): string[] {
     .flatMap((family) => boughtStages(d, family))
     .filter((key) => !meetsAbilityRequirements(key)(build))
     .map((key) => `${ABILITIES[key].name}: requirements not met`)
+  const unlearnable = Object.entries(d.spells).flatMap(([key, chosen]) =>
+    isSpellKey(key) && !(key in d.character.spells) && !canKeepSpell(build, key, chosen)
+      ? [`${SPELLS[key].name}: cannot be learned ${chosen.free ? 'free' : `as ${chosen.method}`}`]
+      : [])
+  const { total, left } = getCreationFreeSpells(d, build)
+  const overclaimed = left < 0 ? [`free spells: ${total - left} claimed of ${total}`] : []
   const { limitStress, trainables } = d.character
   const unchosen = [
     ...(limitStress ? [] : ['choose a limit stress action']),
     ...(getConvictionSlot(trainables.conviction1.name) === 'conviction1' ? [] : ['choose a temperament']),
     ...(getConvictionSlot(trainables.conviction2.name) === 'conviction2' ? [] : ['choose a worldview']),
   ]
-  return [...over, ...unmet, ...unchosen]
+  return [...over, ...unmet, ...unlearnable, ...overclaimed, ...unchosen]
 }

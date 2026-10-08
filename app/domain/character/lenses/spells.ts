@@ -3,7 +3,7 @@ import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
 import { getSpellEffects, produceEffects } from '../rules/production'
-import { ResolvedTest, canLearnSpell, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
+import { ResolvedTest, getSpellLearnBlocks, getCastSize, getCastingDL, getMiracleSkill, getSpellSkill, resolveDL, resolveTest } from '../rules/spells'
 import { isSpellActive } from '../rules/effects'
 
 function knowledgeLabel(spell: Spell): string {
@@ -24,7 +24,7 @@ export type SpellCatalogRow = {
   description: string
   enhance: string
   learned: boolean
-  learnable: Record<SpellMethod, boolean>
+  blocked: Record<SpellMethod, string> // why each method is refused, '' where it is not
 }
 
 export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
@@ -44,11 +44,7 @@ export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
       description: spell.description,
       enhance: spell.enhance,
       learned: key in c.spells,
-      learnable: {
-        intuitive: canLearnSpell(key, 'intuitive')(c),
-        wizard: canLearnSpell(key, 'wizard')(c),
-        cleric: canLearnSpell(key, 'cleric')(c),
-      },
+      blocked: getSpellLearnBlocks(key)(c),
     }
   })
 }

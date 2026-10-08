@@ -1009,6 +1009,7 @@ const AbilityStageValues = {
   effect: z.array(EffectSchema).default([]), // this stage's delta over the one before
   recipes: z.array(RecipeSchema).default([]), // the actions this stage gives in a fight
   grants: z.array(GrantSchema).default([]), // the capabilities this stage gives while learned
+  freeSpells: num.default(0), // spells learned with the stage, at no cost, among those the character has the knowledge for
 }
 
 export const AbilityStageSchema = z.object(AbilityStageValues).strip()
@@ -1384,6 +1385,9 @@ export const CreationDraftSchema = z.object({
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
   knowledges: z.record(z.string(), num).default({}), // the levels bought, by name
   abilities: z.record(z.string(), num).default({}), // by ability family: the level bought up to, the race's stages free
+  // the spells chosen, by key: the method each is learned by, and whether it
+  // was claimed free from an ability (Magic Theory)
+  spells: z.record(z.string(), z.object({ method: SpellMethodSchema, free: z.boolean().default(false) })).default({}),
 }).strip()
 export type CreationDraft = z.infer<typeof CreationDraftSchema>
 

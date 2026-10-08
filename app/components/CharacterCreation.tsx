@@ -4,9 +4,10 @@ import { useState, type ReactNode } from 'react'
 import { Button, Panel, Row, SectionLabel, TextInput, selectClass } from './ui'
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
-import { PRIORITIES } from '../domain/types'
+import { SpellCatalogEntry } from './SpellSelector'
+import { PRIORITIES, SpellMethodSchema } from '../domain/types'
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
-import type { CreationAbilityEntry, CreationPrice, CreationRow } from '../domain/character/lenses/creation'
+import type { CreationAbilityEntry, CreationPrice, CreationRow, CreationSpellEntry } from '../domain/character/lenses/creation'
 import type { Term } from '../domain/character/rules/terms'
 
 // creating.tex "Character Creation": the race, the priorities and what is
@@ -30,6 +31,7 @@ export function CharacterCreation() {
       </div>
       <div className='md:col-span-4 flex flex-col gap-3'>
         <Abilities />
+        <Magic />
       </div>
     </div>
   )
@@ -201,7 +203,7 @@ function Abilities() {
           {group.entries.map((entry) => row(entry, `catalog:${entry.family}`,
             entry.level > 0 ? <span className='text-xs text-good px-1'>{entry.bought > 0 ? 'taken' : 'racial'}</span>
             : entry.next ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
-            : <LockedLabel row={entry.view} />))}
+            : <LockedLabel reason={entry.view.blocked} />))}
         </div>
       ) : null}
       {view.abilities.length ? <SectionLabel className='pt-2'>Learned</SectionLabel> : null}
@@ -211,6 +213,58 @@ function Abilities() {
           <Button size='xs' aria-label={`give back ${entry.view.family}`} disabled={entry.bought === 0} onClick={() => buyStage(entry.family, -1)}>−</Button>
           <Button size='xs' aria-label={`raise ${entry.view.family}`} disabled={entry.next === null} onClick={() => buyStage(entry.family, 1)}>+</Button>
           <span className='w-14 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>
+        </span>
+      )))}
+    </div>
+  )
+}
+
+// spells.tex "Learning spells": a school chosen, its spells listed to unfold
+// and learn by a method open to the character, and the spells chosen below.
+function Magic() {
+  const { view, chooseSpell, claimSpell } = useCreation()
+  const [picked, setPicked] = useState('')
+  const [open, setOpen] = useState<string | null>(null)
+  const school = view.spellCatalog.find((s) => s.section === picked)
+  const row = (entry: CreationSpellEntry, key: string, action: ReactNode) => (
+    <SpellCatalogEntry key={key} row={entry.row} open={open === key} onToggle={() => setOpen(open === key ? null : key)} action={action} />
+  )
+  return (
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Magic</SectionLabel>
+      {view.freeSpells.total ? (
+        <span className={`text-xs ${view.freeSpells.left < 0 ? 'text-bad' : 'text-muted'}`}>
+          free spells to claim: {view.freeSpells.left} of {view.freeSpells.total} · a spell you have the knowledge for, learned as a wizard
+        </span>
+      ) : null}
+      <select aria-label='magic school' className={selectClass} value={school?.section ?? ''} onChange={(e) => setPicked(e.target.value)}>
+        <option value=''>— school —</option>
+        {view.spellCatalog.map((s) => <option key={s.section} value={s.section}>{s.section}</option>)}
+      </select>
+      {school ? (
+        <div className='flex flex-col rounded border border-line p-1'>
+          {school.entries.map((entry) => row(entry, `catalog:${entry.row.key}`,
+            entry.method ? <span className='text-xs text-good px-1'>{entry.method}{entry.free ? ' · free' : ''}</span>
+            : entry.locked ? <LockedLabel reason={entry.locked} />
+            : (
+              <span className='flex flex-row gap-1'>
+                {entry.claimable ? (
+                  <Button size='xs' variant='good' aria-label={`claim ${entry.row.name} free`} title='claim as a free spell, learned as a wizard'
+                    onClick={() => claimSpell(entry.row.key)}>★ free</Button>
+                ) : null}
+                {SpellMethodSchema.options.map((method) => entry.prices[method] ? (
+                  <Button size='xs' variant='good' key={method} aria-label={`learn ${entry.row.name} ${method}`} title={`learn ${method} · ${priceLabel(entry.prices[method] ?? null)}`}
+                    onClick={() => chooseSpell(entry.row.key, method)}>{method[0]}</Button>
+                ) : null)}
+              </span>
+            )))}
+        </div>
+      ) : null}
+      {view.spells.length ? <SectionLabel className='pt-2'>Learned</SectionLabel> : null}
+      {view.spells.map((entry) => row(entry, `held:${entry.row.key}`, (
+        <span className='flex flex-row items-center gap-1'>
+          <span className='text-xs text-muted'>{entry.method}{entry.free ? ' · free' : ''}</span>
+          <Button size='xs' aria-label={`give back ${entry.row.name}`} onClick={() => chooseSpell(entry.row.key, null)}>−</Button>
         </span>
       )))}
     </div>

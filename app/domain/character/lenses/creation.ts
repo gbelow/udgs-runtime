@@ -1,10 +1,11 @@
 import { ABILITIES, ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isAbilityKey } from '../../abilities'
-import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, type Trainables } from '../../types'
+import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, SpellMethodSchema, type SpellMethod, type Trainables } from '../../types'
 import { ABILITY_SECTIONS, knowledges_list, type LimitStressAction } from '../../lists'
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
+import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import type { Term } from '../rules/terms'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
-import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
+import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
 // book lists at no cost; null when it cannot be bought.
@@ -23,6 +24,20 @@ export type CreationRaceView = { name: string; bonuses: Term[]; abilities: strin
 export type CreationAbilityEntry = { family: FamilyKey; view: AbilityFamilyView; level: number; racial: number; bought: number; next: CreationPrice }
 export type CreationCatalogSection = { section: string; entries: CreationAbilityEntry[] }
 
+// One spell as the creation tab shows it: its catalog entry, the method it
+// was chosen by (null while not chosen), whether it was claimed free or can
+// be now, its price by each method it can be learned by now, and why it
+// cannot be taken at all ('' when it can).
+export type CreationSpellEntry = {
+  row: SpellCatalogRow
+  method: SpellMethod | null
+  free: boolean
+  claimable: boolean
+  prices: Partial<Record<SpellMethod, CreationPrice>>
+  locked: string
+}
+export type CreationSpellSection = { section: string; entries: CreationSpellEntry[] }
+
 // creating.tex "Character Creation" as the creation tab shows it: the
 // priorities, each pool against its budget, the gold, what can be bought
 // with its next price, and what keeps the character from being made.
@@ -39,6 +54,9 @@ export type CreationPanelView = {
   knowledges: CreationKnowledgeRow[]
   abilities: CreationAbilityEntry[] // the families held, racial or bought
   abilityCatalog: CreationCatalogSection[] // the sections offered, in the book's order
+  spells: CreationSpellEntry[] // the spells chosen
+  freeSpells: { total: number; left: number } // abilities.tex "Magic Theory"
+  spellCatalog: CreationSpellSection[] // by school, in the catalog's order
   problems: string[]
 }
 
@@ -83,6 +101,23 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
       const family = FAMILY_BY_NAME.get(view.family)!
       return { family, view, level: getAbilityLevel(created, family), racial: getRacialLevel(d, family), bought: getBoughtStageCount(d, family), next: stagePrice(family) }
     })
+  const build = getCreationBuild(d)
+  const spellRaises = getCreationSpellRaises(d, build)
+  const spellEntries: CreationSpellEntry[] = getSpellCatalogRows(created).map((row) => {
+    const chosen = d.spells[row.key]
+    const claimable = canClaimCreationSpell(d, row.key, build)
+    const prices = spellRaises[row.key] ?? {}
+    const open = chosen || claimable || Object.keys(prices).length
+    return {
+      row,
+      method: chosen?.method ?? null,
+      free: chosen?.free ?? false,
+      claimable,
+      prices,
+      locked: open ? '' : [...new Set(SpellMethodSchema.options.map((method) => row.blocked[method]))].join(' · '),
+    }
+  })
+  const schools = [...new Set(spellEntries.map((entry) => entry.row.section))]
   return {
     name: d.character.name,
     race: getRaceView(d),
@@ -113,6 +148,9 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     abilityCatalog: ABILITY_SECTIONS.filter(offered)
       .map((section) => ({ section, entries: entries.filter((entry) => entry.view.section === section) }))
       .filter(({ entries }) => entries.length),
+    spells: spellEntries.filter((entry) => entry.method !== null),
+    freeSpells: getCreationFreeSpells(d, build),
+    spellCatalog: schools.map((section) => ({ section, entries: spellEntries.filter((entry) => entry.row.section === section) })),
     problems: getCreationProblems(d),
   }
 }

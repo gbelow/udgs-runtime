@@ -1,7 +1,9 @@
-import { FOCI, type CreationDraft, type Focus, type Priority, type Race, type Trainables } from '../../types'
+import { FOCI, type CreationDraft, type Focus, type Priority, type Race, type SpellMethod, type Trainables } from '../../types'
 import { FamilyKey } from '../../abilities'
+import type { SpellKey } from '../../spells'
 import type { LimitStressAction } from '../../lists'
-import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getRacialLevel } from '../rules/creation'
+import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell } from '../rules/creation'
+import { canLearnSpell } from '../rules/spells'
 
 // creating.tex "Character Creation", Step 1: the race the character is made
 // from, or none. Only the race changes; it is put on the character when its
@@ -73,4 +75,20 @@ export function buyCreationStage(family: FamilyKey, change: 1 | -1): (d: Creatio
     const level = racial + bought + change
     return { ...d, abilities: counted(d.abilities, family, level > racial ? level : 0) }
   }
+}
+
+// A spell chosen by a method it can be learned by, or given back (null),
+// paid or claimed free.
+export function setCreationSpell(key: SpellKey, method: SpellMethod | null): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => {
+    const { [key]: _chosen, ...spells } = d.spells
+    if (method === null) return key in d.spells ? { ...d, spells } : d
+    if (!canLearnSpell(key, method)(getCreationBuild({ ...d, spells }))) return d
+    return { ...d, spells: { ...spells, [key]: { method, free: false } } }
+  }
+}
+
+// abilities.tex "Magic Theory": a spell claimed as one of the free ones.
+export function claimCreationSpell(key: SpellKey): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => (canClaimCreationSpell(d, key) ? { ...d, spells: { ...d.spells, [key]: { method: 'wizard', free: true } } } : d)
 }

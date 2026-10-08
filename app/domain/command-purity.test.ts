@@ -195,6 +195,8 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   buyCreationLevel: creationCommands.buyCreationLevel('strike', 1),
   buyCreationKnowledge: creationCommands.buyCreationKnowledge('medicine', 1),
   buyCreationStage: creationCommands.buyCreationStage('sprinter', -1),
+  setCreationSpell: creationCommands.setCreationSpell('detonate-explosive', 'intuitive'),
+  claimCreationSpell: creationCommands.claimCreationSpell('detonate-explosive'),
 }
 
 const NOT_UPDATERS = new Set<string>()

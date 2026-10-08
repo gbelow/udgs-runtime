@@ -52,6 +52,10 @@ export const MAX_ATTRIBUTE = 20
 // creating.tex "Changing attributes": one point moved between attributes.
 export const ATTRIBUTE_SWAP_XP = 2
 
+// spells.tex "Learning spells": "Doing it this way costs 6 XP" — the price of
+// the intuitive route, which creation charges for a spell by any route.
+export const SPELL_LEARN_XP = 6
+
 // creating.tex "Improving proficiencies": "If the talent is lower than the
 // level one wants to reach, this value is multiplied by 2^x". Abilities are
 // priced the same way at their training level (abilities.tex "Cost").

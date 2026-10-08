@@ -31,7 +31,7 @@ export function AbilitySelector(){
                 row.next ?
                 <Button size='xs' variant='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>
                 : row.complete ? <span className='text-xs text-muted px-1'>learned</span>
-                : <LockedLabel row={row} />
+                : <LockedLabel reason={row.blocked} />
               } />
             ))}
           </div>
@@ -76,9 +76,9 @@ export function AbilityFamilyRow({ row, open, onToggle, action, dimmed = false }
 }
 
 // A family whose next stage cannot be learned, with what it lacks on hover.
-export function LockedLabel({ row }: { row: AbilityFamilyView }){
+export function LockedLabel({ reason }: { reason: string }){
   return (
-    <Tooltip text={row.blocked.length ? `needs ${row.blocked.join(' · ')}` : ''}>
+    <Tooltip text={reason}>
       <span className='text-xs text-muted px-1'>locked</span>
     </Tooltip>
   )

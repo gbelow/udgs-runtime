@@ -42,7 +42,8 @@
         "description": "The character can eat 2x the normal amount per day.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -72,7 +73,8 @@
         "description": "Receives -1 burden penalty. When Hunger reaches 30, the character loses this ability and their hunger resets to 15. Requires eating a lot.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -113,7 +115,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -139,7 +142,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -180,7 +184,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -208,7 +213,8 @@
         "recipes": [],
         "grants": [
           "climbLeap"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -245,7 +251,8 @@
         "recipes": [],
         "grants": [
           "safeClimb"
-        ]
+        ],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -267,7 +274,8 @@
         "recipes": [],
         "grants": [
           "riskyClimb"
-        ]
+        ],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -289,7 +297,8 @@
         "recipes": [],
         "grants": [
           "climbUpright"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -324,7 +333,8 @@
         "description": "Balance tests can be performed safely.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -344,7 +354,8 @@
         "description": "The character is capable of jumping on hits on their balance check.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -366,7 +377,8 @@
         "recipes": [],
         "grants": [
           "softLanding"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -401,7 +413,8 @@
         "description": "Can perform safe swimming tests.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -421,7 +434,8 @@
         "description": "Learns to double swimming speed during movement surge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -441,7 +455,8 @@
         "description": "Swimming speed increases to 0.5m.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -471,7 +486,8 @@
         "description": "Learns to give commands to walk and run for mounts capable of understanding the command.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -486,7 +502,8 @@
         "description": "The rider can utilize the mount's jumping, standing, swimming, and climbing movements if it is capable of understanding the commands.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -501,7 +518,8 @@
         "description": "The rider can utilize the flight of their mount while riding.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -550,7 +568,8 @@
         "description": "Reduces the penalty for ranged attacks while riding by 1. Allows sharing AP for movement and shooting. The shot may come from any position that the attacker has been. Triggers opportunity attacks from all positions.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 4,
@@ -584,7 +603,8 @@
         "description": "Reduces the penalty for ranged attacks while riding by 2. Allows sharing AP for movement and shooting. The shot may come from any position that the attacker has been. Triggers opportunity attacks from all positions.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -624,7 +644,8 @@
         "description": "The range of thrown weapons is increased by 50%.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -649,7 +670,8 @@
         "description": "The range of thrown weapons is increased by 100%.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -681,7 +703,8 @@
         "recipes": [],
         "grants": [
           "bowTraining"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -732,7 +755,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -768,7 +792,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -814,7 +839,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -865,7 +891,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -901,7 +928,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -937,7 +965,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -967,7 +996,8 @@
         "description": "Allows the character to be in cover with a body shield while reloading a crossbow or arbalest.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -997,7 +1027,8 @@
         "description": "Can move at careful movement speed while performing ranged attacks (except snipe), reutilizing the AP cost. It is considered that the attack came from any position that the attacker has been. Opportunity attacks are triggered at all positions along the path.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1037,7 +1068,8 @@
         "description": "Provides a strength bonus of +1 to meet the strength requirement of bows.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -1062,7 +1094,8 @@
         "description": "Provides a strength bonus of +2 to meet the strength requirement of bows.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1102,7 +1135,8 @@
         "description": "Allows for a quick shot at any visible target in range as a reaction to any action of the target that triggers an opportunity attack and the shooter has perceived.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1134,7 +1168,8 @@
         "recipes": [],
         "grants": [
           "stillReflex"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -1175,7 +1210,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -1201,7 +1237,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1231,7 +1268,8 @@
         "description": "Spends 1 extra STA to jump backward and perform a quick shot or throw, avoiding opportunity attacks if the jump takes them out of range.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1261,7 +1299,8 @@
         "description": "Gains +2 to SD or reflex for the rest of the turn after using movement surge. Also works for approaching in skirmishes.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1291,7 +1330,8 @@
         "description": "Increases the RES of bladed weapons, by 5xDM.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1321,7 +1361,8 @@
         "description": "You can take a -2 penalty on grapple tests in exchange for reducing the STA cost by 1.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1351,7 +1392,8 @@
         "description": "You can initiate a grapple without cost whenever you intercept an attack in melee range and the attack misses. The character must have the grapple property on any of their equipped weapons. Hands only count if they are free.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1381,7 +1423,8 @@
         "description": "Grants attacks for grappling that cost 4AP+1STA and inflict wounds directly. Spending 5 HOP after a hit allows choosing one special effect: Suffocate the enemy, break an arm, and break a leg. Hits can immobilize both characters if the attacker so chooses.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1416,7 +1459,8 @@
             "hit": -2
           }
         ],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1446,7 +1490,8 @@
         "description": "When there are two allies within melee range of the same enemy, the enemy's attacks against one ally trigger opportunity attacks from the other, provided they have this ability. The opportunity attack occurs after what triggered it. Sweeping attacks do not trigger this, since it is made in an area.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1478,7 +1523,8 @@
         "recipes": [],
         "grants": [
           "protectStep"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -1510,7 +1556,8 @@
         "recipes": [],
         "grants": [
           "advancingIntercept"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -1542,7 +1589,8 @@
         "recipes": [],
         "grants": [
           "fullCircleSweep"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -1572,7 +1620,8 @@
         "description": "Learns to perform one attack with the APs from a movement surge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1602,7 +1651,8 @@
         "description": "Learns to initiate a grapple and perform a trample or knockdown in the same action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1642,7 +1692,8 @@
         "description": "Reduces the penalty from being mounted for braced attack by 1.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -1667,7 +1718,8 @@
         "description": "Reduces the penalty from being mounted for braced attack by 2.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1697,7 +1749,8 @@
         "description": "The character can spend 1 STA to perform an evasive jump and stand up in the same action, but takes -3 to defend while doing so.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1738,7 +1791,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -1764,7 +1818,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1794,7 +1849,8 @@
         "description": "Allows you to jump for 1 STA while using an attack as an action and attack from the final position. This movement triggers opportunity attacks and braced attacks normally.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1824,7 +1880,8 @@
         "description": "Gains +2 to block if holding a shield and adjacent to another character with a shield.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1854,7 +1911,8 @@
         "description": "Reduces the AP cost of using braced attack as a reaction by 1 AP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1884,7 +1942,8 @@
         "description": "Learns to use evade with 1 AP, but takes -3 to defend in doing so. If the opponent grazes or misses, an opportunity attack is triggered.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1939,7 +1998,8 @@
             "drawsOpportunity": false
           }
         ],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -1974,7 +2034,8 @@
         "description": "Can use adaptation XP as any type of XP considering the character's talent +1. When doing this, the XP also increases the progress of Adaptation.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2030,7 +2091,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2065,7 +2127,8 @@
         "description": "Can spend 2 AP as a reaction to another character's limit action to give them orders, substituting the target's limit action on a hit or crit in a persuasion vs morale DL that caused the limit action. ★ This cannot be used to stop magical effects.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2100,7 +2163,8 @@
         "description": "Any time you crit in any action against someone in combat or when they miss in one, you can mock them at the same time for 1 extra AP, which works as provocation and gets +2 to the provocation test.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2135,7 +2199,8 @@
         "description": "Whenever an opponent uses suggestion or command and get a miss, they lose 2 AP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2170,7 +2235,8 @@
         "description": "Gets +1 to all tests against characters affected by any mind altering status effects. ★ Also increases the DL of any spells used against such characters.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2205,7 +2271,8 @@
         "description": "Prepared actions gain +1 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2225,7 +2292,8 @@
         "description": "Prepared actions gain +2 on the test of the prepared action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2260,7 +2328,8 @@
         "description": "Can learn with conviction XP everything in the section on Cunning. When doing so, the XP also increases the progress of Stoicism.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2295,7 +2364,8 @@
         "description": "Receives +1 to cast any prepared spells.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2315,7 +2385,8 @@
         "description": "Receives +2 to cast any prepared spells.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2350,7 +2421,8 @@
         "description": "Gains +1 to all skill tests when the character is the first to take their turn in a round.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2385,7 +2457,8 @@
         "description": "Whenever you win a cunning test to act before another character, you gain +1 in all skill tests against that character.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2420,7 +2493,8 @@
         "description": "Receives +1 AP for each crit in the prepared action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2455,7 +2529,8 @@
         "description": "Active will tests can be made with 2 AP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2501,7 +2576,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2532,7 +2608,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2567,7 +2644,8 @@
         "description": "The character ignores the effect of tiredness.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2587,7 +2665,8 @@
         "description": "Ignores the effect of exhaustion.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2622,7 +2701,8 @@
         "description": "The character gains +1 to all skills in any turn when the morale test has a DL equal or higher than 3.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2657,7 +2737,8 @@
         "description": "The character has no limit action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2692,7 +2773,8 @@
         "description": "The mental penalty of rage is removed. Every time the character uses combat surge while enraged, intimidation uses the character's ferocity level instead of charisma.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2727,7 +2809,8 @@
         "description": "Learns to enter a rage voluntarily with a will test DL 3. If the character is afraid, the DL is the same as what caused their fear.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2762,7 +2845,8 @@
         "description": "The character cannot be interrupted by receiving tier 2 injuries while in rage.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2782,7 +2866,8 @@
         "description": "They are also not interrupted by receiving tier 3 injuries. Does not fall unconscious from IL.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2817,7 +2902,8 @@
         "description": "The character ignores the effect of exhaustion and sickness during rage.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2852,7 +2938,8 @@
         "description": "The character learns spiritual strike and martial spirit. Uses will instead of animancy against the opponent.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2887,7 +2974,8 @@
         "description": "When they realize that an ally within 10m has been attacked, they can make a protection surge. This is just a reaction surge that allows running to reposition immediately to assist the ally. It works like a compulsion, which interrupts the attacker's turn momentarily. The character's actions must necessarily heal the ally or be reactions.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2922,7 +3010,8 @@
         "description": "Gains +1 to defend and reflex when making the protection surge to protect someone else. ★ Also gains +1 in sorcery for any healing action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -2942,7 +3031,8 @@
         "description": "Gains +2 to defend and reflex when making the protection surge to protect someone else. ★ Also gains +2 in sorcery for any healing action.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -2977,7 +3067,8 @@
         "description": "Using protection surge automatically makes a rally.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3012,7 +3103,8 @@
         "description": "Gain 1 AP extra when they use protection surge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3032,7 +3124,8 @@
         "description": "Gain 2 AP extra when they use protection surge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3067,7 +3160,8 @@
         "description": "The character has +1 to will in any test that forces them to deny a vice.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3087,7 +3181,8 @@
         "description": "The character has +2 to will in any test that forces them to deny a vice.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3107,7 +3202,8 @@
         "description": "The character has +3 to will in any test that forces them to deny a vice.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3142,7 +3238,8 @@
         "description": "The mental penalty for being intoxicated decreases by 1|2.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3162,7 +3259,8 @@
         "description": "The character ignores the effect of tired and exhausted when intoxicated.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3197,7 +3295,8 @@
         "description": "Gains +1 to the persuasion test if they have the vice \"center of attention.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3217,7 +3316,8 @@
         "description": "Gains +2 to the persuasion test if they have the vice \"center of attention.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3252,7 +3352,8 @@
         "description": "Receives +1 for prestidigitation if they have the vice \"Kleptomaniac.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3272,7 +3373,8 @@
         "description": "Receives +2 for prestidigitation if they have the vice \"Kleptomaniac.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3307,7 +3409,8 @@
         "description": "Receives +1 for seduction tests if they have the vice \"Nymphomaniac.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3327,7 +3430,8 @@
         "description": "Receives +2 for seduction tests if they have the vice \"Nymphomaniac.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3362,7 +3466,8 @@
         "description": "Receives +1 for taunting if they have the limit action of \"Abusive.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3382,7 +3487,8 @@
         "description": "Receives +2 for taunting if they have the limit action of \"Abusive.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3417,7 +3523,8 @@
         "description": "Receives +1 for persuasion tests if they have the limit action of \"Traitor.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -3437,7 +3544,8 @@
         "description": "Receives +2 for persuasion tests if they have the limit action of \"Traitor.\"",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3472,7 +3580,8 @@
         "description": "Gains +2 bonus to celebrate.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3507,7 +3616,8 @@
         "description": "Also rallies their team when they taunt an enemy.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3542,7 +3652,8 @@
         "description": "Gains the ability to roll exploded die twice and pick the most extreme option.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3577,7 +3688,8 @@
         "description": "+1 XP for each book read. Learning a spell from the grimoire counts as a book.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3612,7 +3724,8 @@
         "description": "Whenever they are about to kill a creature considered intelligent, they must grant it the right to a trial. If it truly agrees to follow the moral code, the character is prohibited from killing it, mutilating it, putting it in life-threatening situations, or allowing others to do so. Gains 2 XP each time they spare someone or a group of people.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3647,7 +3760,8 @@
         "description": "Whenever they make a relevant promise and manage to fulfill it, they gain at least 1 XP. They can earn more for larger promises.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3682,7 +3796,8 @@
         "description": "Whenever the character or someone on their team is lying, make a Will test DL 5. If they succeed or crit, they must rectify the lie (this does not mean they are obliged to expose the truth). If they do not lie, regardless of passing the test, they gain 1 XP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3717,7 +3832,8 @@
         "description": "Gains the ability to make any test safely and preferring numbers closer to 6 instead of 5 if the test is in line to complete a promise.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3752,7 +3868,8 @@
         "description": "Gains +2 in social actions whenever judging surrendered opponents. ★ Also gains +2 to mind altering spells against them.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3787,7 +3904,8 @@
         "description": "Rally adds the full +Charisma to the next morale test of the team.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3822,7 +3940,8 @@
         "description": "When the character is trying to fulfill a promise and receives a wound, they can immediately perform an action surge, even if they have no STA.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3859,7 +3978,8 @@
         "recipes": [],
         "grants": [
           "clericSpells"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -3894,7 +4014,8 @@
         "description": "Allows asking a deity for a deal.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3929,7 +4050,8 @@
         "description": "Gains the deity's divine intervention.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3964,7 +4086,8 @@
         "description": "A state that can use all the deity's abilities and spells with the deity's skill level. This works like a possession. The character is incapable of acting against the deity's principles and may have its actions vetoed by the GM.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -3989,7 +4112,8 @@
         "description": "Penalty of -3 for morale tests if not intoxicated, bonus of +1 if intoxicated. Gains 1/2/3 Hedonism XP for entering combat while Intoxicated I/II/III, respectively.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4014,7 +4138,8 @@
         "description": "+1 Hedonism XP for each time successfully distracting or provoking someone and -1 if failing.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4039,7 +4164,8 @@
         "description": "May be compelled to steal something. Must make a will test with a difficulty of 5 to avoid being compelled. Loses 1 XP if not stealing and gains 1 Hedonism XP if attempting to steal.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4064,7 +4190,8 @@
         "description": "Receives -3 to resist seduction tests. Gains 1 Hedonism XP each time they successfully seduce someone, but loses 1 XP whenever they fail.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4089,7 +4216,8 @@
         "description": "Receives -3 mental if suffering any distress from hunger.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4114,7 +4242,8 @@
         "description": "Receives -3 on any test to resist becoming angry or to calm down when already furious.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4139,7 +4268,8 @@
         "description": "Choose the object of the phobia. Has a morale penalty when in the presence of the phobia's object. Gains 1 Ferocity XP if incapacitating the target of fear.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4164,7 +4294,8 @@
         "description": "Receives -5 for morale tests when in high places, with a risk of falling.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4189,7 +4320,8 @@
         "description": "Receives -2 to health when trying to rest, but gains +2 to detection while unconscious.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4224,7 +4356,8 @@
         "description": "Character is capable of learning a language. Use 2x linguistics in any activity that increases specific language level.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4259,7 +4392,8 @@
         "description": "If there is a translation DL, use the lowest language level.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4294,7 +4428,8 @@
         "description": "Learns to read and write. The higher the level, the faster and better quality the reading is. Can be used to learn skills and knowledges through books, but counts as learning alone.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4329,7 +4464,8 @@
         "description": "Codifies text with a cypher of DL vs 2x linguistics knowledge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4364,7 +4500,8 @@
         "description": "Attempts to decipher unknown languages. Arbitrary DL vs 2x linguistics knowledge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4399,7 +4536,8 @@
         "description": "Attempts to copy calligraphy and forge a written document. Skill use is Linguistics + Prestidigitation level (without proficiency).",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4434,7 +4572,8 @@
         "description": "Attempts to identify an unknown language. DL vs 2x linguistics knowledge. Also may identify dialect and origin of the speaker.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4469,7 +4608,8 @@
         "description": "Tries to stop bleeding through a tourniquet or pressure on self or other. Make a medicine test against a DL equal to 2x bleeding. On a hit or crit, prevents bleeding that turn completely. Reduces bleeding by 0/0/1/2.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4504,7 +4644,8 @@
         "description": "Requires a focus surge. Tries to stop bleeding through burning the area. Causes 10 fire damage that ignores armor and reduces bleeding by 2.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4548,7 +4689,8 @@
         "description": "In one ET, make a medicine test DL 3 to allow a wound to heal with rest. It heals 0/1/2/2 per sleep. A crit does not spend the ET. The test only needs to be done once per wound. The patient is considered to be resting or sleeping.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4592,7 +4734,8 @@
         "description": "In one ET, make a medicine test to prevent infection. It lowers the DL of the infection test by 2. One test can be used for the whole team and can be retried, but spends resources per character per attempt. The patient is considered to be resting or sleeping.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4627,7 +4770,8 @@
         "description": "Make a medicine test of an arbitrary DL to diagnose a disease or poisoning. On a hit or crit, the character knows what the disease and treatment are.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4662,7 +4806,8 @@
         "description": "Make a medicine test of an arbitrary DL to find the cause of death. Spends 1/2/1/0 ET to find out and fails on a miss. A graze lets the player choose if they spend an extra ET to succeed or just fail.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4697,7 +4842,8 @@
         "description": "Required for making human chimerism, implants and prosthetics.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4727,7 +4873,8 @@
         "description": "Allows the character to attempt to pick locks and set or disarm traps using prestidigitation. Uses Mechanics knowledge as enabler.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4762,7 +4909,8 @@
         "description": "Set up traps using 2x Mechanics as skill against the trap DL to be set. Crits improve trap stealth.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4797,7 +4945,8 @@
         "description": "Learns to craft mechanisms.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4832,7 +4981,8 @@
         "description": "Learns to craft bombs, acids, and other useful chemical devices.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4867,7 +5017,8 @@
         "description": "Allows the character to craft, repairs and maintain weapons and armor and tools.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4902,7 +5053,8 @@
         "description": "Allows the use of Navigation knowledge + awareness as an exploration skill during travel unless the place requires specific knowledge. Far away, uninhabited or secluded places require specific knowledge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4937,7 +5089,8 @@
         "description": "Character always knows which direction is which while outdoors. They also know it indoors unless they were brought in unconscious.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -4972,7 +5125,8 @@
         "description": "Uses Navigation knowledge + awareness as skill to learn specific locations.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5007,7 +5161,8 @@
         "description": "Allows using 2x Navigation to learn about places through maps.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -5027,7 +5182,8 @@
         "description": "Allows professional map-making.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5062,7 +5218,8 @@
         "description": "Allows the use of Survival knowledge + awareness as an exploration skill during search exploration action unless the place requires specific knowledge. Far away, uninhabited or secluded places require specific knowledge.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5097,7 +5254,8 @@
         "description": "Allows producing improvised items.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5132,7 +5290,8 @@
         "description": "When tracking someone, make an awareness + survival test against the terrain's DL for tracking. Adjust the DL based on how old the trail is, how many creatures there were, and their size and what they were carrying. A crit or hit means that the quarry was found if it is in the same node, or which direction they went to if not.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5181,7 +5340,8 @@
         "description": "Recognizes smells on a success if the scent is familiar. Increases food searching and tracking by +3 and allows tracking by smell, which may have a completely different DL to regular tracking.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5216,7 +5376,8 @@
         "description": "Learns how to teach pets to understand commands to choose targets, tell pets to stop, and use special abilities. The test to tame is 2x Animal Handling vs the animal's DL to be tamed. The tamed animal is automatically bonded with whoever tamed them. This can also be used to teach commands.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5251,7 +5412,8 @@
         "description": "Commands a pet with which there is a bond. More intelligent pets learn and understand more complex commands.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5286,7 +5448,8 @@
         "description": "Learns how to use social actions on animals. Use Animal Handling instead of charisma.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5321,7 +5484,8 @@
         "description": "This is used during rest. Use 2x Animal Handling to analyze animals to identify their weak points for localized damage and to know their special abilities.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5356,7 +5520,8 @@
         "description": "Learns how to use any medicine ability in animals.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5391,7 +5556,8 @@
         "description": "Animal Handling can be used to search for animals using awareness + animal handling as a skill.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5421,7 +5587,8 @@
         "description": "Prepares an action for an ally that can understand the command. The ally is not forced to follow the command.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5451,7 +5618,8 @@
         "description": "If the character is the first to take their turn in a round in combat, they get back up to 1 AP that were unspent in the previous round.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 4,
@@ -5466,7 +5634,8 @@
         "description": "If the character is the first to take their turn in a round in combat, they get back up to 2 AP that were unspent in the previous round.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 4,
@@ -5481,7 +5650,8 @@
         "description": "If the character is the first to take their turn in a round in combat, they get back up to 3 AP that were unspent in the previous round.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5511,7 +5681,8 @@
         "description": "The first time a prepared action is performed, it costs 1 AP less.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5541,7 +5712,8 @@
         "description": "Can perform a defend, or reflex action even without sufficient AP, but must spend +1 STA over the normal cost of the action to do so. Cannot end up with less than -2 AP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5571,7 +5743,8 @@
         "description": "After feinting a character successfully, gains +1 in every reaction against them.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5608,12 +5781,13 @@
             }
           ]
         ],
-        "description": "Allows learning and casting spells like a wizard. The descriptions are in the sorcery chapter.",
+        "description": "Allows learning and casting spells like a wizard. Learns two spells for which the character has knowledge. The descriptions are in the sorcery chapter.",
         "effect": [],
         "recipes": [],
         "grants": [
           "wizardSpells"
-        ]
+        ],
+        "freeSpells": 2
       }
     ]
   },
@@ -5643,7 +5817,8 @@
         "description": "Allows the caster to use careful movement while concentrating, repurposing the same action points used for the spell.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -5658,7 +5833,8 @@
         "description": "The character can defend actively while concentrating, with AP costs paid separately.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -5673,7 +5849,8 @@
         "description": "When interrupted, instead of losing the spell, redo the spellcasting test with a penalty of -3 and choose the worst result between the original and this one.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5713,7 +5890,8 @@
         "description": "Gains +5 to resist cold exposure while intoxicated.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5743,7 +5921,8 @@
         "description": "Learns to cast spells into grenades while throwing them, using the higher cost of AP between the throw and the spell.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5783,7 +5962,8 @@
         "description": "Taser costs 1 AP.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5826,7 +6006,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -5854,7 +6035,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 6,
@@ -5882,7 +6064,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5922,7 +6105,8 @@
         "description": "Uses synesthesia as an active sense. Does not receive any distance penalties and does not receive any penalty for using a closed helmet while synesthesia is active against characters within its range.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -5962,7 +6146,8 @@
         "description": "Learns to cast spiritual strike along with melee attacks without increasing the cost of AP, but with the STA cost added in.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6002,7 +6187,8 @@
         "description": "Learns to cast spiritual strike as a reaction against anyone within synesthesia range.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6042,7 +6228,8 @@
         "description": "Learns to identify spells cast by anyone within the area of synesthesia before they are cast, as long as they know the spell.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6082,7 +6269,8 @@
         "description": "During a possession, can regenerate 1 STA per ET.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6131,7 +6319,8 @@
         "description": "Can permanently possess a body. The XP cost of the ability is for possessing a body, where x represents the difficulty of possessing the body.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6171,7 +6360,8 @@
         "description": "Allows a spirit to possess the character's body. Can utilize all skill and proficiency bonuses of the spirit. Every time the spirit and the player disagree on an action or the player wants to expel the spirit from the body, a will test must be made. Whoever succeeds or crits will do things their way.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6201,7 +6391,8 @@
         "description": "Allows asking yes or no questions to any creature with 3 INT or more. The questions must be simple enough for the creature to understand.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6254,7 +6445,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6294,7 +6486,8 @@
         "description": "Allows reading the surface flow of thoughts in a telepathically connected mind, enabling the perception of images and hearing words they think and memories they recall. Gains +5 insight against anyone under the telepathic link.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6334,7 +6527,8 @@
         "description": "Adds Biomancy to health when resting.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6374,7 +6568,8 @@
         "description": "Trade 2 IL for 1 STA.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6414,7 +6609,8 @@
         "description": "Reduces bleed by 1 in self.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6449,7 +6645,8 @@
         "description": "Shamanism acts as an enabler for conversations with spirits.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6484,7 +6681,8 @@
         "description": "Use Shamanism as an enabler to find encounters with spirits.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6519,7 +6717,8 @@
         "description": "A humanoid character increases one size class and loses 3 STR and 1 AGI.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6561,7 +6760,8 @@
         "description": "A humanoid character decreases one size class and gains 3 STR and 1 AGI.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6603,7 +6803,8 @@
         "description": "Allows the use of melee weapons from a larger size category, but attacks cost +1 AP and have STR-3 in every move done with the weapon. The hands also count as a weapon of larger size, but don't get the AP cost increase.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6649,7 +6850,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6680,7 +6882,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6711,7 +6914,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6757,7 +6961,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6788,7 +6993,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6819,7 +7025,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6865,7 +7072,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6896,7 +7104,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -6927,7 +7136,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6962,7 +7172,8 @@
         "description": "This ability can be used to gain +1 on persuasion attempts and +3 on seduction attempts against seductible characters.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -6987,7 +7198,8 @@
         "description": "Gets -1 on persuasion social actions and -3 on seduction attempts. Can be taken at creation for 4 extra karma.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7012,7 +7224,8 @@
         "description": "The character has an internal reservoir that functions like a potion that heals 10 IL. The reservoir is filled by regular healing while they are resting and uninjured or when drinking a potion.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7065,7 +7278,8 @@
         "description": "The body performs sleeps after the character dies. If the character goes back to the living range of IL, they come back to life.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7107,7 +7321,8 @@
         "description": "Exhaustion is divided by 3 in a long rest.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7142,7 +7357,8 @@
         "description": "Learns to perform multiple sleeps per day. Infection only happens once per day.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7177,7 +7393,8 @@
         "description": "The character gains awareness and control over their pheromones, increasing the difficulty of any social test by +2 for anyone within 6m.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7212,7 +7429,8 @@
         "description": "Gains the ability to meditate for 4 hours a day to gain +2 Devotion for the day. The bonus applies automatically if in a sacred place. The character must meditate every day; otherwise, they will become ill within 24 hours. The entity worshiped by the cleric has +10 on the DL of compulsions against the elf's will.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7247,7 +7465,8 @@
         "description": "Becomes Furry, granting +3 on tests to resist exposure to cold and gives a natural armor of 2xDM INS.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7282,7 +7501,8 @@
         "description": "Scales: Makes the skin resemble that of a crocodile. Gives a natural armor of +4xDM RES.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7309,7 +7529,8 @@
         "recipes": [],
         "grants": [
           "clawGrip"
-        ]
+        ],
+        "freeSpells": 0
       }
     ]
   },
@@ -7334,7 +7555,8 @@
         "description": "Can rest with half the STA regeneration under water and does not lose STA due to suffocation under water.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7380,7 +7602,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       },
       {
         "XPcost": 0,
@@ -7411,7 +7634,8 @@
           }
         ],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7436,7 +7660,8 @@
         "description": "Modifies the nose to become very sensitive and can transform it into a snout. Removes the -5 penalty to smell.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7461,7 +7686,8 @@
         "description": "Modifies the eyes to be able to see infrared light, allowing aiming at heat sources even through fog or in complete darkness.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7486,7 +7712,8 @@
         "description": "Modifies the eyes to be able to see well at night, but not absolute darkness.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   },
@@ -7511,7 +7738,8 @@
         "description": "Modifies the ears to pick up a wide range of frequencies and become more sensitive. Turns ears into an active sense, but take -2 sensory penalty when doing so.",
         "effect": [],
         "recipes": [],
-        "grants": []
+        "grants": [],
+        "freeSpells": 0
       }
     ]
   }
