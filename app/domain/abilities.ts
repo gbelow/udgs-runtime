@@ -60,7 +60,7 @@ export function getFamilyStages(family: FamilyKey): AbilityKey[] {
   return FAMILY_STAGES[family]
 }
 
-function isFamilyKey(key: string): key is FamilyKey {
+export function isFamilyKey(key: string): key is FamilyKey {
   return key in ABILITY_FAMILIES
 }
 

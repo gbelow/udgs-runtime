@@ -1361,6 +1361,31 @@ export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>
 
 export type Character = BaseCharacter | CampaignCharacter
 
+// creating.tex "Character Creation", Step 2: the five foci, each given its own
+// priority from A to E.
+export const FOCI = ['CON', 'SPI', 'INT', 'DEX', 'wealth'] as const
+export const FocusSchema = z.enum(FOCI)
+export type Focus = z.infer<typeof FocusSchema>
+export const PRIORITIES = ['A', 'B', 'C', 'D', 'E'] as const
+export const PrioritySchema = z.enum(PRIORITIES)
+export type Priority = z.infer<typeof PrioritySchema>
+
+export const TrainableKeySchema = z.enum(Object.keys(TrainablesSchema.shape) as [keyof Trainables, ...(keyof Trainables)[]])
+
+// A character being made by the book's steps. `character` is where it starts:
+// attributes at 8, and the race's creature, talents and abilities. What is
+// bought is kept as levels on top of that start, never as XP spent, so its
+// price always follows the talents the character has at the moment.
+export const CreationDraftSchema = z.object({
+  character: BaseCharacterSchema,
+  race: RaceSchema.nullable().default(null),
+  priorities: z.record(FocusSchema, PrioritySchema).default({ CON: 'A', SPI: 'B', INT: 'C', DEX: 'D', wealth: 'E' }),
+  trainables: z.partialRecord(TrainableKeySchema, num).default({}),
+  knowledges: z.record(z.string(), num).default({}), // the levels bought, by name
+  abilities: z.record(z.string(), num).default({}), // by ability family: the stages bought
+}).strip()
+export type CreationDraft = z.infer<typeof CreationDraftSchema>
+
 export type CharacterUpdater = (c: Character) => Character
 export type CampaignCharacterUpdater = (c: Character) => CampaignCharacter
 

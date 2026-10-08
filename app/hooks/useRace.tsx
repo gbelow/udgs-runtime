@@ -13,7 +13,7 @@ import { useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 const NATURAL_WEAPONS = getNaturalWeaponOptions();
 
 // The saved races, by name.
-function useRaceNames(): { raceList: Record<string, unknown>; races: string[] } {
+export function useRaceNames(): { raceList: Record<string, unknown>; races: string[] } {
   const raceList = useAppStore((s) => s.raceList);
   const races = useMemo(() => Object.keys(raceList).sort(), [raceList]);
   return { raceList, races };

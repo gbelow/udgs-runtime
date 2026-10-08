@@ -1,5 +1,5 @@
 import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS } from './lists'
-import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Shape, WeaponProperty } from './types'
+import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Priority, Shape, WeaponProperty } from './types'
 import type { Coord } from './combat/types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -563,3 +563,17 @@ export const MATERIAL_HARDNESS: Record<(typeof MATERIALS)[number], number> = {
   fiber: 2,
   liquid: 1,
 }
+
+// creating.tex "Character Creation", Steps 3–7: what each priority gives a
+// talent focus (its talent and XP to spend) and the wealth focus (gold).
+export const CREATION_PRIORITIES: Record<Priority, { talent: number; XP: number; gold: number }> = {
+  A: { talent: 2, XP: 60, gold: 100 },
+  B: { talent: 1, XP: 42, gold: 60 },
+  C: { talent: 1, XP: 30, gold: 30 },
+  D: { talent: 0, XP: 24, gold: 10 },
+  E: { talent: 0, XP: 16, gold: 5 },
+}
+
+// creating.tex "Character Creation", Step 4: "Characters start with 8 in all
+// attributes".
+export const CREATION_ATTRIBUTE = 8

@@ -7,8 +7,11 @@ import { LearningPrice, getTalentMultiplier } from './learning'
 // ability unless the requirements are met" and each is acquired once. Every
 // listed item is needed and any alternative within an item satisfies it.
 export function canLearnAbility(key: AbilityKey): (c: Character) => boolean {
+  return (c: Character) => !hasAbility(c, key) && meetsAbilityRequirements(key)(c)
+}
+
+export function meetsAbilityRequirements(key: AbilityKey): (c: Character) => boolean {
   return (c: Character) =>
-    !hasAbility(c, key) &&
     ABILITIES[key].requires.every((req) => hasAbility(c, req)) &&
     ABILITIES[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))
 }

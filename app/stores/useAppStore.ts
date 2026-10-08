@@ -5,12 +5,13 @@ import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 
-export type GameTabs = 'edit' | 'race' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'play' | 'break' | 'catalog'
 
 // Whether the tab's character is one in the fight rather than one being made
-// (a character on the edit tab, a race on the race tab).
+// (a character on the edit tab, a race on the race tab, a draft on the
+// creation tab).
 export function isFightTab(tab: GameTabs): boolean {
-  return tab !== 'edit' && tab !== 'race'
+  return tab !== 'edit' && tab !== 'race' && tab !== 'create'
 }
 
 // The item waiting for a destination to be clicked: a catalog entry picked in

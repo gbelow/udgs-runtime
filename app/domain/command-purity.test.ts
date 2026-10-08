@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as characterCommands from './character/commands'
 import * as itemCommands from './item/commands'
+import * as creationCommands from './character/commands/creation'
 import * as nextRoundModule from './combat/commands/nextRound'
 import * as resetCombatModule from './combat/commands/resetCombat'
 import * as turnModule from './combat/commands/turn'
@@ -16,12 +17,12 @@ import * as socialModule from './combat/commands/social'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
-import { makeCampaignCharacter } from './factories'
+import { makeCampaignCharacter, makeCreationDraft } from './factories'
 import { produceEffects } from './character/rules/production'
 import { SPELLS } from './spells'
 import { severPart } from './character/commands/wounds'
 import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceDraftSchema, RaceSchema, TrainableSchema } from './types'
-import type { CampaignCharacter, Character } from './types'
+import type { CampaignCharacter, Character, CreationDraft } from './types'
 import armorsCatalog from '../assets/armors.json'
 
 // A character holding a race being made, for the commands that make one.
@@ -176,6 +177,20 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   slingShield: (c) => itemCommands.slingShield(shieldItem.id)(itemCommands.holdItem(shieldItem)(c)),
   unslingShield: (c) => itemCommands.unslingShield()({ ...c, onBack: shieldItem }),
   throwOffShield: (c) => itemCommands.throwOffShield()({ ...c, onBack: shieldItem }),
+}
+
+// A character being made, with a race, a stage and a level bought.
+function creationSubject(): CreationDraft {
+  const raced = creationCommands.setCreationRace(RaceSchema.parse({ name: 'Furred', bonuses: { STR: 1, DEX: 1 }, abilities: ['fur'] }))(makeCreationDraft())
+  return { ...raced, trainables: { strike: 2, STR: 1 }, abilities: { sprinter: 1 } }
+}
+
+const creationCases: Record<string, (d: CreationDraft) => unknown> = {
+  setCreationRace: creationCommands.setCreationRace(null),
+  setCreationPriority: creationCommands.setCreationPriority('DEX', 'A'),
+  buyCreationLevel: creationCommands.buyCreationLevel('strike', 1),
+  buyCreationKnowledge: creationCommands.buyCreationKnowledge('medicine', 1),
+  buyCreationStage: creationCommands.buyCreationStage('sprinter', -1),
 }
 
 const NOT_UPDATERS = new Set<string>()
@@ -366,6 +381,13 @@ describe('commands are pure updaters', () => {
     expect(subject).toEqual(pristine)
   })
 
+  it.each(Object.entries(creationCases))('%s leaves its draft alone', (_name, run) => {
+    const subject = creationSubject()
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
+
   it.each(Object.entries(combatCases))('%s leaves its combat state alone', (_name, run) => {
     const subject = combatSubject()
     const pristine = structuredClone(subject)
@@ -382,6 +404,7 @@ describe('every command is covered', () => {
     ['character', characterCommands, characterCases],
     ['item', itemCommands, itemCases],
     ['combat', combatCommands, combatCases],
+    ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {
     const uncovered = Object.entries(module)
       .filter(([name, value]) => typeof value === 'function' && !(name in cases) && !NOT_UPDATERS.has(name))

@@ -1,9 +1,10 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { isBaseCharacter } from './utils'
 import { heldAbility } from './abilities'
+import { CREATION_ATTRIBUTE } from './tables'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
 // never by the incoming data: an ingested trainable supplies a value, not an
@@ -152,6 +153,17 @@ export function makeCharacter(raw: unknown, tags?: string[]): BaseCharacter {
   if(isBaseCharacter(merged)) return merged
 
   return emptyCharacter
+}
+
+// creating.tex "Character Creation", Step 4: a character being made starts
+// with 8 in every attribute. It keeps the id and name of the one it replaces.
+export function makeCreationStart(from: { id?: string; name?: string } = {}): BaseCharacter {
+  const attribute = { value: CREATION_ATTRIBUTE }
+  return makeCharacter({ ...from, trainables: { STR: attribute, AGI: attribute, STA: attribute } })
+}
+
+export function makeCreationDraft(): CreationDraft {
+  return CreationDraftSchema.parse({ character: makeCreationStart() })
 }
 
 export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
