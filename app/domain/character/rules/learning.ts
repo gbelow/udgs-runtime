@@ -84,7 +84,23 @@ export function getAttributeXPCost(target: number, average: number, CON: number,
   return Math.floor(target / 2) * (1 + Math.max(0, Math.ceil(excess)))
 }
 
-const talentOf = (c: Character, talent: TalentKey): number => c.trainables[talent].value
+// The XP for raising the attributes from `from` to `to`, a point at a time:
+// the price of a point turns on the average it leaves, so the points are
+// priced in a fixed order — always the lowest attribute next, as raising them
+// evenly would.
+export function getAttributeRaisesXPCost(from: number[], to: number[], CON: number, SM: number): number {
+  const values = [...from]
+  let amount = 0
+  for (;;) {
+    let next = -1
+    values.forEach((v, i) => { if (v < to[i] && (next < 0 || v < values[next])) next = i })
+    if (next < 0) return amount
+    values[next]++
+    amount += getAttributeXPCost(values[next], values.reduce((a, b) => a + b, 0) / values.length, CON, SM)
+  }
+}
+
+const talentOf =(c: Character, talent: TalentKey): number => c.trainables[talent].value
 
 // The price of the next level of a skill, or null when the book does not
 // let the skill be trained on its own.

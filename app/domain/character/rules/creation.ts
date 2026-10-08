@@ -4,7 +4,7 @@ import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../../lists'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, TalentsSchema, Trainables } from '../../types'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
-import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
+import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
 import { getSM } from './size'
 
 // creating.tex "Character Creation": XP from each talent focus, and karma,
@@ -99,25 +99,12 @@ function getKnowledgeCharge(d: CreationDraft, build: Character, name: string): C
   return { key: `knowledge:${name}`, pool: 'INT', amount: sumLevels(from, count, (level) => getSkillXPCost(level, build.trainables.INT.value)) }
 }
 
-// creating.tex "Improving attributes", bought from 8: the price of a point
-// turns on the average it leaves, so the points are priced in a fixed order —
-// always the lowest attribute next, as raising them evenly would.
+// creating.tex "Improving attributes", bought from 8.
 function getAttributesCharge(d: CreationDraft, build: Character): CreationCharge | null {
-  const values = ATTRIBUTE_KEYS.map((key) => d.character.trainables[key].value)
-  const left = ATTRIBUTE_KEYS.map((key) => boughtOf(d, key))
-  if (left.every((n) => n <= 0)) return null
-  const CON = build.trainables.CON.value
-  const SM = getSM(build)
-  let amount = 0
-  for (;;) {
-    let next = -1
-    left.forEach((n, i) => { if (n > 0 && (next < 0 || values[i] < values[next])) next = i })
-    if (next < 0) break
-    values[next]++
-    left[next]--
-    amount += getAttributeXPCost(values[next], (values[0] + values[1] + values[2]) / 3, CON, SM)
-  }
-  return { key: 'attributes', pool: 'CON', amount }
+  const from = ATTRIBUTE_KEYS.map((key) => d.character.trainables[key].value)
+  const to = ATTRIBUTE_KEYS.map((key, i) => from[i] + Math.max(0, boughtOf(d, key)))
+  if (to.every((v, i) => v === from[i])) return null
+  return { key: 'attributes', pool: 'CON', amount: getAttributeRaisesXPCost(from, to, build.trainables.CON.value, getSM(build)) }
 }
 
 // The stages bought of a family, each in its own price: karma (a flaw's
