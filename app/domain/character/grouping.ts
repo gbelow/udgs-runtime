@@ -3,7 +3,9 @@ import { BaseCharacter } from '../types'
 // Categorization is a *derived* view, not stored structure: the sidebar tree is
 // built fresh from each character's `tags`. The first tag is the top-level
 // group, the second the sub-group, and so on — arbitrarily deep. A character
-// with no tags lands in the UNTAGGED bucket. This is the read-side analogue of
+// with no tags lands in the UNTAGGED bucket. Tags are matched without regard
+// to case or surrounding space, so "Animals" and "animals" are one group,
+// shown as the first character by name spells it. This is the read-side analogue of
 // the lens pattern: pure, deterministic, no React.
 
 export const UNTAGGED = 'untagged'
@@ -25,19 +27,21 @@ const byName = (a: BaseCharacter, b: BaseCharacter) => collator.compare(a.name, 
 export function groupByTags(characters: BaseCharacter[]): TreeNode[] {
   const root = createBucket()
 
-  for (const character of characters) {
-    const tags = character.tags?.length ? character.tags : [UNTAGGED]
+  for (const character of [...characters].sort(byName)) {
+    const tags = character.tags?.length ? character.tags.map((tag) => tag.trim()) : [UNTAGGED]
     insert(root, tags, character)
   }
 
   return finalize(root, [])
 }
 
-type Bucket = { groups: Map<string, Bucket>; characters: BaseCharacter[] }
+type Bucket = { label: string; groups: Map<string, Bucket>; characters: BaseCharacter[] }
 
-function createBucket(): Bucket {
-  return { groups: new Map(), characters: [] }
+function createBucket(label = ''): Bucket {
+  return { label, groups: new Map(), characters: [] }
 }
+
+const tagKey = (tag: string) => tag.toLowerCase()
 
 function insert(bucket: Bucket, tags: string[], character: BaseCharacter): void {
   const [head, ...rest] = tags
@@ -45,10 +49,10 @@ function insert(bucket: Bucket, tags: string[], character: BaseCharacter): void 
     bucket.characters.push(character)
     return
   }
-  let child = bucket.groups.get(head)
+  let child = bucket.groups.get(tagKey(head))
   if (!child) {
-    child = createBucket()
-    bucket.groups.set(head, child)
+    child = createBucket(head)
+    bucket.groups.set(tagKey(head), child)
   }
   insert(child, rest, character)
 }
@@ -56,11 +60,11 @@ function insert(bucket: Bucket, tags: string[], character: BaseCharacter): void 
 function finalize(bucket: Bucket, path: string[]): TreeNode[] {
   const nodes: TreeNode[] = []
 
-  for (const [label, child] of bucket.groups) {
-    const tags = [...path, label]
+  for (const child of bucket.groups.values()) {
+    const tags = [...path, child.label]
     nodes.push({
       type: 'group',
-      label,
+      label: child.label,
       tags,
       children: finalize(child, tags),
     })
