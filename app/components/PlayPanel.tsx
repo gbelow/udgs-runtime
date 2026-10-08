@@ -10,7 +10,7 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useExploration, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';import { ROLL_MODES } from '../domain/combat/dice';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -47,10 +47,10 @@ const MIND: (keyof Skills)[] = ['cunning', 'explore', 'will', 'persuasion', 'dec
 
 export function PlayPanel(){
 
-  const { nextRound, resetCombat, killCharacter } = useCombatCommands()
+  const { nextRound, resetCombat, endCombat, killCharacter } = useCombatCommands()
   const { savePlayerCharacter} = useGameCommands()
   const { isCharacterDead } = useInjuryLens()
-  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction, nextRoundBar } = useCombatState()
+  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction, nextRoundBar, endCombatBar } = useCombatState()
   const { notes, fightName } = useActiveCharacterData()
 
   const [dice10, setDice10] = useState(1)
@@ -62,6 +62,7 @@ export function PlayPanel(){
         <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
         <CharacterList />
         <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
+        {round > 0 ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? undefined} onClick={endCombat}>end combat</Button> : null}
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       <MoralePanel />
@@ -110,6 +111,8 @@ export function PlayPanel(){
               </div>
             </div>
 
+            {round === 0 ? <ExplorationSection /> : null}
+
             <div className='flex flex-col gap-1'>
               <SectionLabel>Movement</SectionLabel>
               <Tiles>{MOVES.map((m) => <SimpleMove key={m.name} moveName={m.name} title={m.title} />)}</Tiles>
@@ -151,6 +154,36 @@ export function PlayPanel(){
         </div>
         : null
       }
+    </div>
+  )
+}
+
+// survival.tex "Rest, Exhaustion and Healing" — the ET buttons, out of combat.
+function ExplorationSection(){
+
+  const [exposure, setExposure] = useState(0)
+  const [nutrition, setNutrition] = useState(3)
+  const { bar, restBar, actions, sleep: slept, potion } = useExploration(exposure)
+  const { explore, shortRest, sleep, eat, drink } = useCombatCommands()
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Exploration turn</SectionLabel>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        <span className='text-xs text-muted'>exposure</span>
+        <NumberInput className='w-12' aria-label='exposure' value={exposure} onChange={(e) => setExposure(parseInt(e.target.value) || 0)} />
+        {actions.map((a) => (
+          <Button key={a.action} aria-label={a.action} disabled={bar !== null} title={bar ?? `+${a.IL} IL, +${a.exhaustion} exhaustion`} onClick={() => explore(a.action)}>{a.action}</Button>
+        ))}
+        <Button aria-label='shortRest' disabled={restBar !== null} title={restBar ?? `-1 exhaustion${potion > 0 ? `, potion heals up to ${potion} IL` : ''}`} onClick={() => shortRest(exposure)}>short rest</Button>
+        <Button aria-label='sleep' disabled={restBar !== null} title={restBar ?? `heals ${slept.heal} IL${potion > 0 ? ` and up to ${potion} more from the potion` : ''}, exhaustion becomes ${slept.exhaustion}`} onClick={() => sleep(exposure)}>sleep</Button>
+      </div>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        <span className='text-xs text-muted'>portion</span>
+        <NumberInput className='w-12' aria-label='nutrition' value={nutrition} onChange={(e) => setNutrition(parseInt(e.target.value) || 0)} />
+        <Button aria-label='eat' disabled={bar !== null} title={bar ?? undefined} onClick={() => eat(nutrition)}>eat</Button>
+        <Button aria-label='drink' disabled={bar !== null} title={bar ?? undefined} onClick={drink}>drink water</Button>
+      </div>
     </div>
   )
 }

@@ -111,10 +111,12 @@ export function hasAgreedToEnd(state: CombatState, id: string): boolean {
 }
 
 // Why the round cannot be passed now, or null: a turn under way has to be
-// ended first, the table's ruling, and everyone has to agree.
+// ended first, the table's ruling, and everyone has to agree. Before the
+// first round there is no round to end, so the fight starts at once.
 export function getNextRoundBar(state: CombatState): string | null {
   const busy = getFightBusy(state)
   if (busy) return busy
+  if (state.round === 0) return null
   const owed = getStressRoundBar(state)
   if (owed) return owed
   const waiting = Object.keys(state.characters).filter((id) => !hasAgreedToEnd(state, id))

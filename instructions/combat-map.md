@@ -265,6 +265,7 @@ app/domain/combat/
 │   ├── social.ts       say: intimidate, taunt, rally or an abusive's insult for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free), negotiate (5 AP only), defaultToCoward
 │   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.stress`; tanatosis and a martyr who can pay make theirs at once), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
 │   ├── resetCombat.ts
+│   ├── exploration.ts  the ET buttons out of combat (explore, shortRest, sleep, eat, drink) and endCombat: the fight over with its characters kept, bleed x3, burning once, fight-long potions and lights gone
 │
 ├── rules/                           what the book says about a state
 │   ├── actionCatalog.ts ACTIONS (with each kind's `rule`), isReaction/isRootAction/isDefense
@@ -310,6 +311,7 @@ app/domain/combat/
 │   ├── boardMode.ts    getBoardMode (what the open action wants of a click), getFloorPicker
 │   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched, fuel catching fire
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
+│   ├── exploration.ts  survival.tex wear, rest healing and slept exhaustion; why an ET or the end of the fight is closed
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
@@ -333,7 +335,7 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts
+    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts, exploration.ts
     └── perState.ts     memoize once per state object
 ```
 

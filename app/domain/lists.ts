@@ -217,6 +217,11 @@ export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const
 // the rest of the fight.
 export const POTIONS = ['darkseeing'] as const
 
+// survival.tex "Exploration": "Exploration Action: are Traveling, Searching,
+// Preparing"
+export const EXPLORATION_ACTIONS = ['travel', 'search', 'prepare'] as const
+export type ExplorationAction = (typeof EXPLORATION_ACTIONS)[number]
+
 // The tests a character makes once for a round and scores against every DL
 // the round puts to them, in the order the rulebook introduces them.
 export const HELD_TESTS = ['swim', 'climb', 'balance', 'stealth'] as const

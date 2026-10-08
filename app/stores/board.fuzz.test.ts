@@ -14,6 +14,8 @@ import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHO
 import { dropToFloor } from '../domain/combat/commands/floor'
 import { endTurn, surge } from '../domain/combat/commands/turn'
 import { nextRound } from '../domain/combat/commands/nextRound'
+import { drink, eat, endCombat, explore, shortRest, sleep } from '../domain/combat/commands/exploration'
+import { EXPLORATION_ACTIONS } from '../domain/lists'
 import { rollHeld } from '../domain/combat/commands/heldTest'
 import { getHeldRows } from '../domain/combat/projections/heldTests'
 import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
@@ -227,6 +229,15 @@ function plays(): Play[] {
     progress('cancel', () => cancelAction()),
     progress('end turn', () => endTurn),
     progress('next round', (h) => nextRound(h.dice, h.newId)),
+    progress('end the fight', () => endCombat),
+    {
+      name: 'spend an exploration turn',
+      run: (h, pick) => {
+        const id = pick(Object.keys(h.state().characters))
+        const exposure = pick([0, 3, 20])
+        h.press(pick([explore(id, pick(EXPLORATION_ACTIONS)), shortRest(id, exposure), sleep(id, exposure), eat(id, pick([1, 5])), drink(id)]))
+      },
+    },
   ]
 }
 

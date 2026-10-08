@@ -14,6 +14,7 @@ import * as floorModule from './combat/commands/floor'
 import * as charactersModule from './combat/commands/characters'
 import * as moraleModule from './combat/commands/morale'
 import * as socialModule from './combat/commands/social'
+import * as explorationModule from './combat/commands/exploration'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
@@ -28,7 +29,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule, ...explorationModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -213,6 +214,12 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   surrender: (s) => combatCommands.surrender('a')(deepFreeze(cleared(s))),
   unsurrender: (s) => combatCommands.unsurrender('a')(deepFreeze({ ...cleared(s), surrendered: ['a'] })),
   resetCombat: combatCommands.resetCombat,
+  endCombat: (s) => combatCommands.endCombat(deepFreeze(cleared(s))),
+  explore: (s) => combatCommands.explore('a', 'travel')(deepFreeze({ ...cleared(s), round: 0 })),
+  shortRest: (s) => combatCommands.shortRest('a', 0)(deepFreeze({ ...cleared(s), round: 0 })),
+  sleep: (s) => combatCommands.sleep('a', 0)(deepFreeze({ ...cleared(s), round: 0 })),
+  eat: (s) => combatCommands.eat('a', 3)(deepFreeze({ ...cleared(s), round: 0 })),
+  drink: (s) => combatCommands.drink('a')(deepFreeze({ ...cleared(s), round: 0 })),
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
