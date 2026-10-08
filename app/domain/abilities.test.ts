@@ -7,6 +7,7 @@ import { CombatStateSchema } from './combat/types'
 import { getDrain, getUpkeep } from './character/rules/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
 import { AbilityFamilySchema } from './types'
+import { getConvictionSlot } from './character/rules/requirements'
 import catalog from '../assets/abilities.json'
 import type { CampaignCharacter, Character, Requirement } from './types'
 
@@ -53,6 +54,7 @@ function chain(key: AbilityKey): AbilityKey[] {
 }
 
 const ENFORCED: Requirement['kind'][] = ['ability', 'spell', 'attribute']
+const enforced = (req: Requirement): boolean => ENFORCED.includes(req.kind) || (req.kind === 'trainable' && getConvictionSlot(req.name) !== null)
 
 // A value on the far side of an attribute threshold: past it when `meet`,
 // short of it otherwise.
@@ -63,8 +65,9 @@ function attributeValue(req: Requirement, meet: boolean): number {
   return meet ? req.level + (strict ? step : 0) : req.level - (strict ? 0 : step)
 }
 
-// Grants or withholds one requirement item on a character; nothing the
-// domain cannot read (trainables, gear, conditions) is touched.
+// Grants or withholds one requirement item on a character: a conviction is
+// adopted at the level asked for, or given up; nothing else the domain cannot
+// read (other trainables, gear, conditions) is touched.
 function grant(c: Character, req: Requirement, meet: boolean): Character {
   const present = meet !== req.not
   switch (req.kind) {
@@ -81,6 +84,12 @@ function grant(c: Character, req: Requirement, meet: boolean): Character {
     case 'attribute': {
       const name = req.name as 'STR' | 'AGI' | 'STA'
       return { ...c, trainables: { ...c.trainables, [name]: { ...c.trainables[name], value: attributeValue(req, present) } } }
+    }
+    case 'trainable': {
+      const slot = getConvictionSlot(req.name)
+      if (!slot) return c
+      const held = present ? { name: req.name, value: attributeValue(req, true) } : { name: '' }
+      return { ...c, trainables: { ...c.trainables, [slot]: { ...c.trainables[slot], ...held } } }
     }
     default:
       return c
@@ -110,7 +119,7 @@ describe('learning abilities', () => {
     ...ABILITIES[key].requires.map((req): [AbilityKey, string, Requirement[]] =>
       [key, `ability ${req}`, [{ kind: 'ability', name: req, level: 0, op: '>=', not: false }]]),
     ...ABILITIES[key].requirements
-      .filter((item) => item.every((alt) => ENFORCED.includes(alt.kind)))
+      .filter((item) => item.every(enforced))
       .map((item): [AbilityKey, string, Requirement[]] =>
         [key, item.map((alt) => `${alt.not ? 'not ' : ''}${alt.kind} ${alt.name}`).join(' or '), item]),
   ])

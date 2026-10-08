@@ -1,11 +1,12 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
 import { CREATION_PRIORITIES } from '../../tables'
-import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../../lists'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, TalentsSchema, Trainables } from '../../types'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
+import { getConvictionSlot } from './requirements'
 import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
 import { getSM } from './size'
+import { sumTerms, type Term } from './terms'
 
 // creating.tex "Character Creation": XP from each talent focus, and karma,
 // which starts at nothing and is only gained by taking flaws.
@@ -35,6 +36,18 @@ const boughtOf = (d: CreationDraft, key: keyof Trainables): number => d.trainabl
 // The talent a priority gives its focus (Steps 4–7).
 const priorityTalent = (d: CreationDraft, key: keyof Trainables): number => (isTalent(key) ? CREATION_PRIORITIES[d.priorities[key]].talent : 0)
 
+// Where a talent's level comes from: the start the race gives (Step 1), its
+// focus's priority (Steps 4–7) and the levels bought with karma. Empty for
+// anything but a talent.
+export function getCreationTalentTerms(d: CreationDraft, key: keyof Trainables): Term[] {
+  if (!isTalent(key)) return []
+  return [
+    { label: `priority ${d.priorities[key]}`, value: priorityTalent(d, key) },
+    { label: d.race?.name || 'race', value: d.character.trainables[key].value },
+    { label: 'karma', value: boughtOf(d, key) },
+  ]
+}
+
 // The character as bought: the start, the talents its priorities give, and
 // every level and stage bought on top. The race's attribute bonuses are not
 // in it — they come last (Step 1, "after step 4").
@@ -42,8 +55,9 @@ export function getCreationBuild(d: CreationDraft): Character {
   const c = d.character
   const trainables = { ...c.trainables }
   for (const key of Object.keys(trainables) as (keyof Trainables)[]) {
-    const raise = priorityTalent(d, key) + boughtOf(d, key)
-    if (raise) trainables[key] = { ...trainables[key], value: trainables[key].value + raise }
+    const terms = getCreationTalentTerms(d, key)
+    const value = terms.length ? sumTerms(terms) : trainables[key].value + boughtOf(d, key)
+    if (value !== trainables[key].value) trainables[key] = { ...trainables[key], value }
   }
   const knowledges = { ...c.knowledges }
   for (const [name, levels] of Object.entries(d.knowledges)) {
@@ -191,8 +205,6 @@ function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: Cr
   return { key: row, pool, amount: spend(raised) - spend(d) }
 }
 
-const isConviction = (options: Record<string, { name: string }>, name: string): boolean => Object.values(options).some((o) => o.name === name)
-
 // What stands between the draft and a character: a pool spent past its
 // budget, a stage bought whose requirements the build no longer meets, or a
 // choice the book requires not made — the limit stress action ("Limit Stress
@@ -208,8 +220,8 @@ export function getCreationProblems(d: CreationDraft): string[] {
   const { limitStress, trainables } = d.character
   const unchosen = [
     ...(limitStress ? [] : ['choose a limit stress action']),
-    ...(isConviction(TEMPERAMENT_CONVICTIONS, trainables.conviction1.name) ? [] : ['choose a temperament']),
-    ...(isConviction(WORLDVIEW_CONVICTIONS, trainables.conviction2.name) ? [] : ['choose a worldview']),
+    ...(getConvictionSlot(trainables.conviction1.name) === 'conviction1' ? [] : ['choose a temperament']),
+    ...(getConvictionSlot(trainables.conviction2.name) === 'conviction2' ? [] : ['choose a worldview']),
   ]
   return [...over, ...unmet, ...unchosen]
 }

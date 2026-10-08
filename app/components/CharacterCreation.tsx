@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, Panel, Row, SectionLabel, selectClass } from './ui'
+import { Button, Panel, Row, SectionLabel, TextInput, selectClass } from './ui'
 import { useCreation } from '../hooks/useCreation'
+import { AbilityFamilyRow } from './AbilitySelector'
 import { PRIORITIES } from '../domain/types'
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
 import type { CreationPrice, CreationRow } from '../domain/character/lenses/creation'
+import type { Term } from '../domain/character/rules/terms'
 
 // creating.tex "Character Creation": the race, the priorities and what is
 // bought from each pool. Everything can be changed in any order; the
@@ -16,6 +18,7 @@ export function CharacterCreation() {
     <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3 text-left text-sm'>
       <div className='md:col-span-4 flex flex-col gap-3'>
         <CreationHeader />
+        <RacePreset />
         <Priorities />
         <Choices />
         <Pools />
@@ -33,16 +36,38 @@ export function CharacterCreation() {
 }
 
 function CreationHeader() {
-  const { view, races, chooseRace, finish, restart } = useCreation()
+  const { view, races, rename, chooseRace, finish, restart } = useCreation()
   return (
     <div className='flex flex-row flex-wrap items-center gap-2'>
-      <select aria-label='race' className={selectClass} value={view.race ?? ''} onChange={(e) => chooseRace(e.target.value)}>
+      <TextInput aria-label='character name' placeholder='name' className='grow text-sm' value={view.name} onChange={(e) => rename(e.target.value)} />
+      <select aria-label='race' className={selectClass} value={view.race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
         <option value=''>— race —</option>
         {races.map((name) => <option key={name} value={name}>{name}</option>)}
       </select>
       <Button variant='primary' disabled={view.problems.length > 0} onClick={finish}>create</Button>
       <Button variant='ghost' onClick={restart}>start over</Button>
     </div>
+  )
+}
+
+const signed = (value: number): string => (value < 0 ? `${value}` : `+${value}`)
+
+// Step 1: the race the character was started from, kept in sight with what it
+// gave.
+function RacePreset() {
+  const { view } = useCreation()
+  const race = view.race
+  return (
+    <Panel title='Race' meta={race ? race.name : 'none'}>
+      {race ? (
+        <>
+          <div className='flex flex-row flex-wrap gap-2 text-xs'>
+            {race.bonuses.length ? race.bonuses.map((b) => <span key={b.label} className='font-mono'>{b.label} {signed(b.value)}</span>) : <span className='text-muted'>no bonuses</span>}
+          </div>
+          {race.abilities.length ? <span className='text-xs text-muted'>{race.abilities.join(', ')}</span> : null}
+        </>
+      ) : <span className='text-xs text-muted'>no race chosen</span>}
+    </Panel>
   )
 }
 
@@ -118,10 +143,13 @@ const priceLabel = (price: CreationPrice): string =>
 
 // One thing that can be bought: its level now, − to give a level back, + to
 // buy the next at the price shown.
-function BuyRow({ name, value, bought, next, onBuy }: { name: string; value: number; bought: number; next: CreationPrice; onBuy: (change: 1 | -1) => void }) {
+function BuyRow({ name, value, bought, next, terms = [], onBuy }: { name: string; value: number; bought: number; next: CreationPrice; terms?: Term[]; onBuy: (change: 1 | -1) => void }) {
   return (
     <Row dimmed={bought === 0}>
-      <span className='w-32'>{name}</span>
+      <span className='w-32'>
+        {name}
+        {terms.length ? <span className='block text-[10px] text-muted'>{terms.map((t) => `${t.label} ${t.value}`).join(' + ')}</span> : null}
+      </span>
       <span className='w-6 text-center font-mono'>{value}</span>
       <Button size='xs' disabled={bought === 0} onClick={() => onBuy(-1)}>−</Button>
       <Button size='xs' disabled={next === null} onClick={() => onBuy(1)}>+</Button>
@@ -150,25 +178,32 @@ function Knowledges() {
   )
 }
 
+// abilities.tex: the catalog of one category, browsed with every family's
+// stages and what they do; a family that can be bought now is added from it.
 function Abilities() {
   const { view, buyStage } = useCreation()
   const [picked, setPicked] = useState('')
-  const add = () => {
-    const option = view.abilityOptions.find((o) => o.family === picked)
-    if (option) buyStage(option.family, 1)
-    setPicked('')
-  }
+  const [open, setOpen] = useState<string | null>(null)
+  const group = view.abilityCatalog.find((g) => g.section === picked)
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Abilities</SectionLabel>
-      <div className='flex flex-row gap-2 items-center'>
-        <select aria-label='ability' className={selectClass} value={picked} onChange={(e) => setPicked(e.target.value)}>
-          <option value=''>— ability —</option>
-          {view.abilityOptions.map((o) => <option key={o.family} value={o.family}>{o.name} ({priceLabel(o.next)})</option>)}
-        </select>
-        <Button size='xs' disabled={!picked} onClick={add}>add</Button>
-      </div>
       {view.abilities.map((row) => <BuyRow key={row.family} {...row} onBuy={(change) => buyStage(row.family, change)} />)}
+      <select aria-label='ability category' className={selectClass} value={group?.section ?? ''} onChange={(e) => setPicked(e.target.value)}>
+        <option value=''>— category —</option>
+        {view.abilityCatalog.map((g) => <option key={g.section} value={g.section}>{g.section}</option>)}
+      </select>
+      {group ? (
+        <div className='flex flex-col rounded border border-line p-1'>
+          {group.entries.map((entry) => (
+            <AbilityFamilyRow key={entry.family} row={entry.view} dimmed={!entry.addable && !entry.taken}
+              open={open === entry.family} onToggle={() => setOpen(open === entry.family ? null : entry.family)} action={
+                entry.addable ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
+                : <span className={`text-xs px-1 ${entry.taken ? 'text-good' : 'text-muted'}`}>{entry.taken ? 'taken' : 'locked'}</span>
+              } />
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

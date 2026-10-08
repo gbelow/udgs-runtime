@@ -1,15 +1,25 @@
-import { useMemo } from "react";
-import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationPriority, setCreationRace } from "../domain/character/commands/creation";
+import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace } from "../domain/character/commands/creation";
 import { getCreationPanel, type CreationPanelView } from "../domain/character/lenses/creation";
 import { getCreatedCharacter } from "../domain/character/rules/creation";
 import { makeRace } from "../domain/factories";
 import type { FamilyKey } from "../domain/abilities";
 import type { LimitStressAction } from "../domain/lists";
-import type { Focus, Priority, Trainables } from "../domain/types";
+import type { CreationDraft, Focus, Priority, Trainables } from "../domain/types";
 import { useCreationStore } from "../stores/useCreationStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useGameTab } from "./useGameTab";
 import { useRaceNames } from "./useRace";
+
+// Every part of the tab calls the hook, so the view is built once per draft
+// and shared rather than once per caller.
+const panels = new WeakMap<CreationDraft, CreationPanelView>();
+function panelOf(draft: CreationDraft): CreationPanelView {
+  const cached = panels.get(draft);
+  if (cached) return cached;
+  const view = getCreationPanel(draft);
+  panels.set(draft, view);
+  return view;
+}
 
 // creating.tex "Character Creation": the creation tab — the race, the
 // priorities and what is bought, until the character fits its budgets and is
@@ -22,9 +32,10 @@ export function useCreation() {
   const { setTab } = useGameTab();
   const { raceList, races } = useRaceNames();
 
-  const view: CreationPanelView = useMemo(() => getCreationPanel(draft), [draft]);
+  const view = panelOf(draft);
 
   const chooseRace = (name: string) => update(setCreationRace(name in raceList ? makeRace(raceList[name]) : null));
+  const rename = (name: string) => update(setCreationName(name));
   const setPriority = (focus: Focus, priority: Priority) => update(setCreationPriority(focus, priority));
   const chooseLimitStress = (action: LimitStressAction | null) => update(setCreationLimitStress(action));
   const chooseConviction = (slot: 'conviction1' | 'conviction2', name: string) => update(setCreationConviction(slot, name));
@@ -39,5 +50,5 @@ export function useCreation() {
     setTab('edit');
   };
 
-  return { view, races, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, buyKnowledge, buyStage, finish, restart: newDraft } as const;
+  return { view, races, rename, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, buyKnowledge, buyStage, finish, restart: newDraft } as const;
 }

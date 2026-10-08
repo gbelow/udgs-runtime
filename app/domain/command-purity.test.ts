@@ -188,6 +188,7 @@ function creationSubject(): CreationDraft {
 
 const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   setCreationRace: creationCommands.setCreationRace(null),
+  setCreationName: creationCommands.setCreationName('Ann'),
   setCreationPriority: creationCommands.setCreationPriority('DEX', 'A'),
   setCreationLimitStress: creationCommands.setCreationLimitStress('coward'),
   setCreationConviction: creationCommands.setCreationConviction('conviction1', 'Fatalism'),

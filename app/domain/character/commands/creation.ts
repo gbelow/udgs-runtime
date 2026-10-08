@@ -9,15 +9,22 @@ import { applyRace } from './race'
 // creating.tex "Character Creation", Step 1: the race the character is made
 // from, or none. Its talent bonuses count from the start, so every price is
 // worked out with them; its attribute bonuses wait for the end ("Add the
-// attribute bonuses after step 4").
+// attribute bonuses after step 4"). Only what the race sets is replaced: the
+// name and the choices made so far stay, as does everything bought.
 export function setCreationRace(race: Race | null): (d: CreationDraft) => CreationDraft {
   return (d: CreationDraft) => {
-    const blank = makeCreationStart({ id: d.character.id, name: d.character.name })
+    const { id, name, limitStress, trainables: { conviction1, conviction2 } } = d.character
+    const start = makeCreationStart({ id, name })
+    const blank = { ...start, limitStress, trainables: { ...start.trainables, conviction1, conviction2 } }
     if (!race) return { ...d, race: null, character: blank }
     const bonuses = Object.fromEntries(Object.entries(race.bonuses).filter(([key]) => key in TalentsSchema.shape))
     const raced = applyRace({ ...race, bonuses })(blank)
     return { ...d, race, character: isBaseCharacter(raced) ? raced : blank }
   }
+}
+
+export function setCreationName(name: string): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => ({ ...d, character: { ...d.character, name } })
 }
 
 // Step 2: a focus given a priority; the focus that held it takes the one given
