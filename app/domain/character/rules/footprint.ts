@@ -1,4 +1,4 @@
-import type { Character, Coord } from '../../types'
+import type { BodyPart, Character, Coord } from '../../types'
 import type { FootprintPreset } from '../../lists'
 import { FOOTPRINT_CELLS, PRESET_CELLS } from '../../tables'
 import { DIRECTIONS, add, coordKey, sameCell } from '../../combat/geometry'
@@ -16,6 +16,18 @@ export const isAnchor = (cell: Coord): boolean => sameCell(cell, ANCHOR)
 
 export function inFootprint(footprint: readonly Coord[], cell: Coord): boolean {
   return footprint.some((c) => sameCell(c, cell))
+}
+
+// A part spread over the whole body is held by any footprint; one pinned to a
+// cell only by a footprint covering it.
+export function holdsPart(footprint: readonly Coord[], part: BodyPart): boolean {
+  return part.cell === null || inFootprint(footprint, part.cell)
+}
+
+// The body on a new footprint: a part pinned to a cell it no longer covers
+// sits on the anchor.
+export function settleParts(footprint: readonly Coord[], body: BodyPart[]): BodyPart[] {
+  return body.map((part) => (holdsPart(footprint, part) ? part : { ...part, cell: ANCHOR }))
 }
 
 // The preset's cells at the count the creature's size gives.

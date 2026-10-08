@@ -3,7 +3,7 @@ import { makeCharacter, makeCampaignCharacter, makeRace } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
 import { getSTA } from './character/rules/characteristics'
 import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, RaceSchema } from './types'
-import { inFootprint, isSoundFootprint } from './character/rules/footprint'
+import { holdsPart, isSoundFootprint } from './character/rules/footprint'
 import armorsCatalog from '../assets/armors.json'
 
 // Ingestion is the domain's only door to the outside — saved JSON files, Redis
@@ -115,7 +115,7 @@ describe('ingestion is total', () => {
     it(`${label} yields a footprint in one piece around the anchor, holding every part`, () => {
       for (const c of [makeCharacter(raw), makeCampaignCharacter(raw)]) {
         expect(isSoundFootprint(c.footprint)).toBe(true)
-        expect(c.body.every((part) => inFootprint(c.footprint, part.cell))).toBe(true)
+        expect(c.body.every((part) => holdsPart(c.footprint, part))).toBe(true)
       }
     })
   }

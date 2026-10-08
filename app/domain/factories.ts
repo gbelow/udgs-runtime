@@ -2,7 +2,7 @@ import z from 'zod'
 import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
-import { ANCHOR, getPresetFootprint, inFootprint, isSoundFootprint } from './character/rules/footprint'
+import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
 import { isBaseCharacter } from './utils'
 import { heldAbility } from './abilities'
 import { CREATION_ATTRIBUTE } from './tables'
@@ -86,8 +86,7 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
 function settleFootprint<C extends BaseCharacter | CampaignCharacter>(c: C, raw: unknown): C {
   const read = z.array(CoordSchema).safeParse(raw)
   const footprint = read.success && isSoundFootprint(read.data) ? read.data : getPresetFootprint(c, 'blob')
-  const body = c.body.map((part) => (inFootprint(footprint, part.cell) ? part : { ...part, cell: ANCHOR }))
-  return { ...c, footprint, body }
+  return { ...c, footprint, body: settleParts(footprint, c.body) }
 }
 
 // A race's traits, field by field: what is not of the right kind is the
@@ -124,13 +123,13 @@ export function makeRaceHolder(raw: unknown = {}): BaseCharacter {
 
 // A part is read over the humanoid's row for its kind, so what it does not
 // say — its wounds, its penalty, its flags — is the book's; a cell that does
-// not parse is the anchor, a part that does not parse is dropped, and a body
+// not parse spreads it over the whole body, a part that does not parse is dropped, and a body
 // left without a chest is given one.
 function readBody(raw: Record<string, unknown>[]): BodyPart[] {
   return BodySchema.parse(raw.flatMap((entry) => {
     const kind = HitLocationSchema.safeParse(entry.location)
     const cell = CoordSchema.safeParse(entry.cell)
-    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, cell: cell.success ? cell.data : undefined })
+    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, cell: cell.success ? cell.data : null })
     return part.success ? [part.data] : []
   }))
 }

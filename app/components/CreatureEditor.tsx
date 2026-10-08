@@ -37,7 +37,8 @@ export function Creature() {
 
 // creating.tex "Size and Space Occupation": the cells the creature covers,
 // drawn facing right. A click on a cell adds it or takes it off; with a part
-// picked, a click on a covered cell puts the part there.
+// picked, a click on a covered cell pins the part there, and "whole body"
+// spreads it over every cell.
 function Footprint() {
   const view = useFootprintEditor()
   const { toggleCell, setPreset, placePart } = useBodyEditor()
@@ -67,12 +68,14 @@ function Footprint() {
           <span className='text-muted'>reset to</span>
           {FOOTPRINT_PRESETS.map((preset) => <Button key={preset} size='xs' onClick={() => setPreset(preset)}>{preset}</Button>)}
         </div>
+        <div className='text-muted'>whole body: {view.spread.map((p) => p.name).join(', ') || 'nothing'}</div>
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <span className='text-muted'>place</span>
           {view.parts.map((p) => (
-            <Button key={p.id} size='xs' variant='ghost' active={placing === p.id} aria-pressed={placing === p.id} title={`${p.name} at ${p.cell}`}
+            <Button key={p.id} size='xs' variant='ghost' active={placing === p.id} aria-pressed={placing === p.id} title={`${p.name} at ${p.cell ?? 'the whole body'}`}
               onClick={() => setPlacing(placing === p.id ? null : p.id)}>{p.name}</Button>
           ))}
+          {placing ? <Button size='xs' onClick={() => { placePart(placing, null); setPlacing(null) }}>whole body</Button> : null}
         </div>
       </div>
     </div>

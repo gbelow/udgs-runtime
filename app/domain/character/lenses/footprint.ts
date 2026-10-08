@@ -19,14 +19,16 @@ export type FootprintEditorCell = {
 // creating.tex "Size and Space Occupation", as the creature editor draws it:
 // the cells the footprint covers and the ones beside them it could grow
 // into, each with the parts that sit in it, and the cell count the size
-// gives beside the count drawn.
+// gives beside the count drawn. A part spread over the whole body sits in
+// no one cell and is listed apart.
 export type FootprintEditorView = {
   viewBox: string
   hex: string
   cells: FootprintEditorCell[]
   suggested: number
   count: number
-  parts: { id: string; name: string; cell: string }[]
+  parts: { id: string; name: string; cell: string | null }[]
+  spread: { id: string; name: string }[]
 }
 
 export function getFootprintEditor(c: Character): FootprintEditorView {
@@ -43,7 +45,7 @@ export function getFootprintEditor(c: Character): FootprintEditorView {
       covered,
       anchor: isAnchor(cell),
       toggles: !isAnchor(cell) && isSoundFootprint(toggled),
-      parts: c.body.filter((part) => sameCell(part.cell, cell)).map((part) => ({ id: part.id, name: part.name })),
+      parts: c.body.filter((part) => part.cell !== null && sameCell(part.cell, cell)).map((part) => ({ id: part.id, name: part.name })),
     }
   })
   return {
@@ -52,6 +54,7 @@ export function getFootprintEditor(c: Character): FootprintEditorView {
     cells,
     suggested: FOOTPRINT_CELLS[getSize(c) - 1],
     count: footprint.length,
-    parts: c.body.map((part) => ({ id: part.id, name: part.name, cell: coordKey(part.cell) })),
+    parts: c.body.map((part) => ({ id: part.id, name: part.name, cell: part.cell && coordKey(part.cell) })),
+    spread: c.body.filter((part) => part.cell === null).map((part) => ({ id: part.id, name: part.name })),
   }
 }

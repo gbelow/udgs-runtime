@@ -35,6 +35,6 @@ export function useBodyEditor() {
     editArmor: (edit: Partial<Armor>) => update(editNaturalArmor(edit)),
     toggleCell: (cell: Coord) => update(toggleFootprintCell(cell)),
     setPreset: (preset: FootprintPreset) => update(setFootprintPreset(preset)),
-    placePart: (id: string, cell: Coord) => update(editBodyPart(id, { cell })),
+    placePart: (id: string, cell: Coord | null) => update(editBodyPart(id, { cell })),
   } as const;
 }

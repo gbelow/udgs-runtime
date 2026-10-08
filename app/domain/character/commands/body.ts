@@ -2,7 +2,7 @@ import { ArmorSchema, PartWoundSchema, StanceSchema, presetPart, type Armor, typ
 import type { FootprintPreset } from '../../lists'
 import { isCampaignCharacter } from '../../utils'
 import { sameCell } from '../../combat/geometry'
-import { ANCHOR, getPresetFootprint, inFootprint, isAnchor, isSoundFootprint } from '../rules/footprint'
+import { getPresetFootprint, inFootprint, isAnchor, isSoundFootprint, settleParts } from '../rules/footprint'
 
 // The race's side of a creature: its body, stance, natural armor and
 // footprint. A race sets them, and in free creation the character changes them
@@ -38,7 +38,8 @@ export function removeBodyPart(partId: string): (c: Character) => Character {
   }
 }
 
-// What a part is and does, and the cell of the footprint it sits in; its id,
+// What a part is and does, and the cell of the footprint it sits in (none
+// for the whole body); its id,
 // what it holds and whether it is lost are not edited here.
 export type BodyPartEdit = Partial<Pick<BodyPart, 'name' | 'location' | 'grip' | 'climbs' | 'naturalWeapon' | 'aimPenalty' | 'maxTier' | 'flags' | 'cell'>>
 
@@ -84,7 +85,7 @@ export function editNaturalArmor(edit: Partial<Armor>): (c: Character) => Charac
 // no longer covers moves to the anchor.
 function withFootprint(c: Character, footprint: Coord[]): Character {
   if (!isSoundFootprint(footprint)) return c
-  const body = c.body.map((part) => (inFootprint(footprint, part.cell) ? part : { ...part, cell: ANCHOR }))
+  const body = settleParts(footprint, c.body)
   return { ...c, footprint, body }
 }
 

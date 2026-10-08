@@ -447,7 +447,8 @@ export type PartWound = z.infer<typeof PartWoundSchema>
 // weapons.json entry it attacks with while empty (gear.tex "Unarmed": the
 // hands of a humanoid); a paw or a jaw has one but takes no gear. A `lost`
 // part was cut off: the slot keeps its shape for whatever puts it back.
-// `cell` is the cell of the creature's footprint the part sits in.
+// `cell` is the cell of the creature's footprint the part sits in; a part
+// with none is spread over every cell the creature covers.
 export const BodyPartSchema = z.object({
   id: z.string().default(() => crypto.randomUUID()),
   name: str.default(''),
@@ -463,7 +464,7 @@ export const BodyPartSchema = z.object({
   flags: z.array(PartFlagSchema).default([]),
   wounds: z.array(PartWoundSchema).default([]),
   lost: z.boolean().default(false),
-  cell: CoordSchema.default({ q: 0, r: 0 }),
+  cell: CoordSchema.nullable().default(null),
 }).strip()
 
 export type BodyPart = z.infer<typeof BodyPartSchema>
