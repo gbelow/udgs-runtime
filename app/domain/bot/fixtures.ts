@@ -58,6 +58,14 @@ export function brawler(id: string): CampaignCharacter {
   return holdItem(gauntlet)(fighter(id))
 }
 
+// A brawler of size 4 whose three cells bend behind its head, a footprint no
+// preset gives, to be turned and walked.
+export function serpent(id: string): CampaignCharacter {
+  const base = makeCampaignCharacter({ name: id, size: 4, footprint: [{ q: 0, r: 0 }, { q: -1, r: 0 }, { q: -1, r: 1 }] })
+  const gauntlet = ItemSchema.parse({ name: 'Gauntlet', type: 'weapon', refId: 'Gauntlet', bulk: 1 })
+  return holdItem(gauntlet)({ ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } })
+}
+
 // A brawler with a lit torch in the other hand (gear.tex "Torch").
 export function torchbearer(id: string): CampaignCharacter {
   return holdItem(getCatalogItem('Torch')!)(brawler(id))

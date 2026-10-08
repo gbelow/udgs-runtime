@@ -231,9 +231,10 @@ export const HELD_TESTS = ['swim', 'climb', 'balance', 'stealth'] as const
 export const CALLED_TESTS = ['swim', 'stealth'] as const satisfies readonly (typeof HELD_TESTS)[number][]
 
 // creating.tex "Size and Space Occupation": "Other creatures may have
-// different shapes." The shapes a footprint can take; the cells each one
-// covers at each size are in `tables.ts`.
-export const SHAPES = ['blob', 'line'] as const
+// different shapes." The shapes a footprint can be started from; the cells
+// each one covers at each size are in `tables.ts`.
+export const FOOTPRINT_PRESETS = ['blob', 'line'] as const
+export type FootprintPreset = (typeof FOOTPRINT_PRESETS)[number]
 
 // gear.tex "Short, Long I/II": the reaches of a melee attack. Anything else
 // in a Range column is a ranged attack, and combat.tex "Throw"/"Shoot" split

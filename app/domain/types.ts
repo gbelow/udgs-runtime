@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, SHAPES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -405,6 +405,13 @@ export interface Container {
   bulk: number
 }
 
+// A hex cell in axial coordinates; one cell is one metre (combat.tex
+// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
+// "Movement" moves in whole spaces). The geometry that reads these is in
+// `combat/geometry.ts`.
+export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
+export type Coord = z.infer<typeof CoordSchema>
+
 export const HitLocationSchema = z.enum(HIT_LOCATIONS)
 export type HitLocation = z.infer<typeof HitLocationSchema>
 
@@ -440,6 +447,7 @@ export type PartWound = z.infer<typeof PartWoundSchema>
 // weapons.json entry it attacks with while empty (gear.tex "Unarmed": the
 // hands of a humanoid); a paw or a jaw has one but takes no gear. A `lost`
 // part was cut off: the slot keeps its shape for whatever puts it back.
+// `cell` is the cell of the creature's footprint the part sits in.
 export const BodyPartSchema = z.object({
   id: z.string().default(() => crypto.randomUUID()),
   name: str.default(''),
@@ -455,6 +463,7 @@ export const BodyPartSchema = z.object({
   flags: z.array(PartFlagSchema).default([]),
   wounds: z.array(PartWoundSchema).default([]),
   lost: z.boolean().default(false),
+  cell: CoordSchema.default({ q: 0, r: 0 }),
 }).strip()
 
 export type BodyPart = z.infer<typeof BodyPartSchema>
@@ -1241,9 +1250,6 @@ export const CampaignValuesSchema = z.object({
 
 export type CampaignValues = z.infer<typeof CampaignValuesSchema>
 
-export const ShapeSchema = z.enum(SHAPES)
-export type Shape = z.infer<typeof ShapeSchema>
-
 export const MovementKindSchema = z.enum(MOVEMENT_KINDS)
 export type MovementKind = z.infer<typeof MovementKindSchema>
 
@@ -1263,9 +1269,10 @@ export type TerrainBrush = z.infer<typeof TerrainBrushSchema>
 // onto the character, whose own they then are.
 const RaceBodyValues = {
   size: z.number().default(3),
-  // creating.tex "Size and Space Occupation": how the cells the size grants
-  // are laid out on the grid
-  shape: ShapeSchema.default('blob'),
+  // creating.tex "Size and Space Occupation": the cells the creature covers,
+  // as offsets from the cell it is placed by, facing direction 0; that cell
+  // is always one of them
+  footprint: z.array(CoordSchema).default(() => [{ q: 0, r: 0 }]),
   TGH: z.number().default(0),
   senses: SensesSchema.partial().default({}).transform(v => SensesSchema.parse(v)),
   movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),

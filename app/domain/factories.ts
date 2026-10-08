@@ -1,7 +1,8 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, CoordSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, CreationDraftSchema, type CreationDraft, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
+import { ANCHOR, getPresetFootprint, inFootprint, isSoundFootprint } from './character/rules/footprint'
 import { isBaseCharacter } from './utils'
 import { heldAbility } from './abilities'
 import { CREATION_ATTRIBUTE } from './tables'
@@ -53,9 +54,10 @@ function addBaseValues(emptyCharacter: BaseCharacter, parsedCharacter: Character
 function addBaseValues(emptyCharacter: CampaignCharacter, parsedCharacter: CampaignCharacterIngestType): CampaignCharacter
 function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parsedCharacter: CharacterIngestType | CampaignCharacterIngestType){
 
-  return {
+  return settleFootprint({
     ...emptyCharacter,
     ...parsedCharacter,
+    footprint: emptyCharacter.footprint,
     
     // deep merge the important nested objects
     trainables: mergeTrainables(emptyCharacter.trainables, parsedCharacter.trainables),
@@ -75,7 +77,17 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
       ...parsedCharacter.stance,
     },
     ...reconcileGrip(uniqueParts(parsedCharacter.body ? readBody(parsedCharacter.body) : emptyCharacter.body), parsedCharacter.held ?? emptyCharacter.held),
-  }
+  }, parsedCharacter.footprint)
+}
+
+// A footprint that is not one piece of whole cells around the anchor is read
+// as the blob of the creature's size, and a part on a cell the footprint does
+// not cover sits on the anchor.
+function settleFootprint<C extends BaseCharacter | CampaignCharacter>(c: C, raw: unknown): C {
+  const read = z.array(CoordSchema).safeParse(raw)
+  const footprint = read.success && isSoundFootprint(read.data) ? read.data : getPresetFootprint(c, 'blob')
+  const body = c.body.map((part) => (inFootprint(footprint, part.cell) ? part : { ...part, cell: ANCHOR }))
+  return { ...c, footprint, body }
 }
 
 // A race's traits, field by field: what is not of the right kind is the
@@ -111,12 +123,14 @@ export function makeRaceHolder(raw: unknown = {}): BaseCharacter {
 }
 
 // A part is read over the humanoid's row for its kind, so what it does not
-// say — its wounds, its penalty, its flags — is the book's; a part that does
-// not parse is dropped, and a body left without a chest is given one.
+// say — its wounds, its penalty, its flags — is the book's; a cell that does
+// not parse is the anchor, a part that does not parse is dropped, and a body
+// left without a chest is given one.
 function readBody(raw: Record<string, unknown>[]): BodyPart[] {
   return BodySchema.parse(raw.flatMap((entry) => {
     const kind = HitLocationSchema.safeParse(entry.location)
-    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry })
+    const cell = CoordSchema.safeParse(entry.cell)
+    const part = BodyPartSchema.safeParse({ ...presetPart(kind.success ? kind.data : 'chest'), ...entry, cell: cell.success ? cell.data : undefined })
     return part.success ? [part.data] : []
   }))
 }
@@ -221,7 +235,7 @@ const CharacterIngestValues = {
   trainables: z.record(z.string(), z.any()).optional(),
   knowledges: z.record(z.string(), z.any()).optional(),
   size: z.number().optional(),
-  shape: ShapeSchema.optional(),
+  footprint: z.unknown().optional(),
   TGH: z.number().optional(),
   movement: z.record(z.string(), z.unknown()).optional(),
 

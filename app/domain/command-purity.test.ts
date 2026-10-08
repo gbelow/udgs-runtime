@@ -158,7 +158,8 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   removePartWound: (c) => characterCommands.removePartWound('handL', 0)(c),
   editStance: (c) => characterCommands.editStance({ lameAt: 2 })(c),
   editNaturalArmor: (c) => characterCommands.editNaturalArmor({ INS: 2 })(c),
-  setShape: (c) => characterCommands.setShape('line')(c),
+  toggleFootprintCell: (c) => characterCommands.toggleFootprintCell({ q: 1, r: 0 })(c),
+  setFootprintPreset: (c) => characterCommands.setFootprintPreset('line')(c),
 }
 
 const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {

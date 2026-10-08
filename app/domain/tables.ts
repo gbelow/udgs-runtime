@@ -1,6 +1,5 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS } from './lists'
-import type { AfflictionKey, Fuel, MeleeRange, MovementKind, Priority, Shape, WeaponProperty } from './types'
-import type { Coord } from './combat/types'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type FootprintPreset } from './lists'
+import type { AfflictionKey, Coord, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -58,11 +57,11 @@ export const VMArr = [0.1, 0.33, 1, 3.33, 10, 33.3, 100]
 export const FOOTPRINT_CELLS = [1, 1, 1, 1, 3, 3, 7] as const
 export type FootprintCells = (typeof FOOTPRINT_CELLS)[number]
 
-// The cells each shape covers at each count, as offsets from the anchor
-// cell in orientation 0 (facing `geometry.ts` direction 0); the placement's
-// orientation turns them. The 3-cell blob is the book's token "in the middle
-// of 3"; a line is a creature that is long rather than wide.
-export const FOOTPRINTS: Record<Shape, Record<FootprintCells, readonly Coord[]>> = {
+// Footprints to start a creature's from, at each count, as offsets from the
+// anchor cell in orientation 0 (facing `geometry.ts` direction 0); the
+// placement's orientation turns them. The 3-cell blob is the book's token "in
+// the middle of 3"; a line is a creature that is long rather than wide.
+export const PRESET_CELLS: Record<FootprintPreset, Record<FootprintCells, readonly Coord[]>> = {
   blob: {
     1: [{ q: 0, r: 0 }],
     3: [{ q: 0, r: 0 }, { q: 1, r: 0 }, { q: 0, r: 1 }],

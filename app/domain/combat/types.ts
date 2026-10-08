@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -105,12 +105,7 @@ export type CostTerm = z.infer<typeof CostTermSchema>
 // ---------------------------------------------------------------------------
 // The board
 
-// A hex cell in axial coordinates; one cell is one metre (combat.tex
-// "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
-// "Movement" moves in whole spaces). The geometry that reads these is in
-// `geometry.ts`.
-export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
-export type Coord = z.infer<typeof CoordSchema>
+export { CoordSchema, type Coord }
 
 // One of the six hex directions, which are also the six rotations; the
 // order is `geometry.ts`'s DIRECTIONS.

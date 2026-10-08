@@ -1,7 +1,6 @@
 import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../types'
 import type { Board, CombatState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../types'
-import { FOOTPRINTS, FOOTPRINT_CELLS, REACH, RMArr } from '../../tables'
-import { getSize } from '../../character/rules/size'
+import { REACH, RMArr } from '../../tables'
 import { isMeleeRange } from '../../weaponProperties'
 import { getWieldedWeapons } from '../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from '../geometry'
@@ -16,17 +15,11 @@ import { findRowVariant, findWeaponRow } from './weaponRow'
 // ---------------------------------------------------------------------------
 // Footprints
 
-// creating.tex "Size and Space Occupation": the cells a character covers
-// around its anchor, before it is placed: its shape at its size's cell count,
-// in orientation 0.
-function getShapeCells(c: Character): readonly Coord[] {
-  return FOOTPRINTS[c.shape][FOOTPRINT_CELLS[getSize(c) - 1]]
-}
-
-// The cells a placed character covers on the board: its shape turned to the
-// placement's orientation and moved to its anchor.
+// creating.tex "Size and Space Occupation": the cells a placed character
+// covers on the board: its footprint turned to the placement's orientation
+// and moved to its anchor.
 export function getFootprint(c: Character, placement: Placement): Coord[] {
-  return getShapeCells(c).map((offset) => add(placement.cell, rotate(offset, placement.orientation)))
+  return c.footprint.map((offset) => add(placement.cell, rotate(offset, placement.orientation)))
 }
 
 // Who stands on each cell, keyed like the terrain. A cell shared by two

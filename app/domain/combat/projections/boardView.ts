@@ -2,7 +2,7 @@ import type { Bind, CombatState, Coord, Degree, LightLevel, Placement } from '..
 import type { Fuel, Visibility } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import type { ActionCost } from '../../character/rules/actionCosts'
-import { angleBetween, coordKey, disk, parseCoordKey, sameCell, toPlane } from '../geometry'
+import { HEX_POINTS, angleBetween, coordKey, disk, frameHexes, parseCoordKey, sameCell, toPlane } from '../geometry'
 import { getBodyCoverToward, getFootprint, getOccupancy } from '../rules/board'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { findOpenRoot, getOpenAction, getReactionsTo } from '../rules/log'
@@ -164,11 +164,6 @@ export type BoardView = {
 
 const EMPTY: BoardView = { present: false, radius: 0, viewBox: '0 0 1 1', hex: '', light: 'bright', cells: [], tokens: [], floor: [], binds: [], ghosts: [], picker: null, unplaced: [], mode: 'locked', move: null }
 
-const HEX = Array.from({ length: 6 }, (_, i) => {
-  const angle = (Math.PI / 180) * (60 * i - 30)
-  return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
-}).join(' ')
-
 function buildBoardView(state: CombatState): BoardView {
   const board = state.board
   if (!board) return { ...EMPTY, unplaced: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })) }
@@ -315,20 +310,13 @@ function buildBoardView(state: CombatState): BoardView {
     return [{ key: `${g.kind}:${a}~${b}`, kind: g.kind, ...rimToRim(toPlane(pa.cell), toPlane(pb.cell)), forward: holds(g, a), back: holds(g, b), title }]
   })
 
-  const xs = cells.map((c) => c.x)
-  const ys = cells.map((c) => c.y)
-  const minX = Math.min(...xs) - 1
-  const minY = Math.min(...ys) - 1
-  const width = Math.max(...xs) + 1 - minX
-  const height = Math.max(...ys) + 1 - minY
-
   const mover = move ? board.placements[move.actorId] : undefined
   return {
     present: true,
     radius: board.radius,
     light: board.light,
-    viewBox: `${minX.toFixed(3)} ${minY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`,
-    hex: HEX,
+    viewBox: frameHexes(cells),
+    hex: HEX_POINTS,
     cells,
     tokens,
     floor,

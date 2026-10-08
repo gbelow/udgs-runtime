@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { Button, NumberInput, Panel, Row, SectionLabel, StatTile, TextInput, Tiles, inputClass, selectClass } from './ui'
 import { useNaturalWeapons } from '../hooks/useRace'
-import { useBodyEditor, useBodyView } from '../hooks/useBodyEditor'
+import { useBodyEditor, useBodyView, useFootprintEditor } from '../hooks/useBodyEditor'
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens'
-import { AfflictionKeySchema, type AfflictionKey, type BodyPart, type HitLocation, type Material, type PartFlag, type Shape, type WoundEffect } from '../domain/types'
-import { HIT_LOCATIONS, MATERIALS, PART_FLAGS, SHAPES, WOUND_EFFECTS } from '../domain/lists'
+import { AfflictionKeySchema, type AfflictionKey, type BodyPart, type HitLocation, type Material, type PartFlag, type WoundEffect } from '../domain/types'
+import { FOOTPRINT_PRESETS, HIT_LOCATIONS, MATERIALS, PART_FLAGS, WOUND_EFFECTS } from '../domain/lists'
 
 // What a race sets on a creature, edited the same way while the race is being
 // made and, in free creation, on the character afterwards.
@@ -17,7 +17,7 @@ function DataDial({ stat }: { stat: 'size' | 'TGH' }) {
 
 export function Creature() {
   const view = useBodyView()
-  const { setShape, editStance } = useBodyEditor()
+  const { editStance } = useBodyEditor()
   if (!view) return null
   return (
     <div className='flex flex-col gap-1'>
@@ -29,12 +29,51 @@ export function Creature() {
           <StatTile label='lame at' title='legs short before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} />
           <StatTile label='down at' title='legs short before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} />
         </Tiles>
-        <label className='flex flex-col gap-px text-[10px] text-muted'>
-          shape
-          <select aria-label='shape' className={selectClass} value={view.shape} onChange={(e) => setShape(e.target.value as Shape)}>
-            {SHAPES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </label>
+      </div>
+      <Footprint />
+    </div>
+  )
+}
+
+// creating.tex "Size and Space Occupation": the cells the creature covers,
+// drawn facing right. A click on a cell adds it or takes it off; with a part
+// picked, a click on a covered cell puts the part there.
+function Footprint() {
+  const view = useFootprintEditor()
+  const { toggleCell, setPreset, placePart } = useBodyEditor()
+  const [placing, setPlacing] = useState<string | null>(null)
+  if (!view) return null
+  return (
+    <div className='flex flex-row flex-wrap gap-3 items-start'>
+      <svg viewBox={view.viewBox} className='w-48 select-none' role='img' aria-label='footprint'>
+        {view.cells.map((cell) => {
+          const clickable = placing ? cell.covered : cell.toggles
+          const onClick = placing ? () => { placePart(placing, cell.cell); setPlacing(null) } : () => toggleCell(cell.cell)
+          return (
+            <g key={cell.key} transform={`translate(${cell.x} ${cell.y})`} className={clickable ? 'cursor-pointer' : undefined} onClick={clickable ? onClick : undefined}>
+              <title>{[cell.anchor ? 'anchor' : null, ...cell.parts.map((p) => p.name)].filter((s) => s !== null).join(' · ') || cell.key}</title>
+              <polygon points={view.hex} strokeWidth={cell.anchor ? 0.12 : 0.06}
+                className={`${cell.covered ? 'fill-accent/25' : 'fill-transparent'} ${cell.anchor ? 'stroke-accent' : 'stroke-line'} ${clickable ? 'hover:stroke-fg' : ''}`} />
+              {cell.parts.map((p, i) => (
+                <text key={p.id} y={(i - (cell.parts.length - 1) / 2) * 0.38} textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.3}>{p.name}</text>
+              ))}
+            </g>
+          )
+        })}
+      </svg>
+      <div className='flex flex-col gap-1 text-xs'>
+        <div className='text-muted'>faces → · size suggests {view.suggested} {view.suggested === 1 ? 'cell' : 'cells'} · has {view.count}</div>
+        <div className='flex flex-row gap-1 items-center'>
+          <span className='text-muted'>reset to</span>
+          {FOOTPRINT_PRESETS.map((preset) => <Button key={preset} size='xs' onClick={() => setPreset(preset)}>{preset}</Button>)}
+        </div>
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <span className='text-muted'>place</span>
+          {view.parts.map((p) => (
+            <Button key={p.id} size='xs' variant='ghost' active={placing === p.id} aria-pressed={placing === p.id} title={`${p.name} at ${p.cell}`}
+              onClick={() => setPlacing(placing === p.id ? null : p.id)}>{p.name}</Button>
+          ))}
+        </div>
       </div>
     </div>
   )

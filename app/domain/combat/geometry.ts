@@ -172,6 +172,23 @@ export function toPlane(c: Coord): { x: number; y: number } {
   return { x: Math.sqrt(3) * (c.q + c.r / 2), y: 1.5 * c.r }
 }
 
+// The corners of a unit hex about its centre, as SVG polygon points.
+export const HEX_POINTS = Array.from({ length: 6 }, (_, i) => {
+  const angle = (Math.PI / 180) * (60 * i - 30)
+  return `${(Math.cos(angle)).toFixed(4)},${(Math.sin(angle)).toFixed(4)}`
+}).join(' ')
+
+// The SVG viewBox that frames hexes centred on the points, with a margin.
+export function frameHexes(points: readonly { x: number; y: number }[]): string {
+  const xs = points.map((p) => p.x)
+  const ys = points.map((p) => p.y)
+  const minX = Math.min(...xs) - 1
+  const minY = Math.min(...ys) - 1
+  const width = Math.max(...xs) + 1 - minX
+  const height = Math.max(...ys) + 1 - minY
+  return `${minX.toFixed(3)} ${minY.toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`
+}
+
 export function centroid(cells: readonly Coord[]): { x: number; y: number } {
   const points = cells.map(toPlane)
   return {

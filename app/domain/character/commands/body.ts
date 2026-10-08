@@ -1,8 +1,11 @@
-import { ArmorSchema, PartWoundSchema, StanceSchema, presetPart, type Armor, type BodyPart, type Character, type HitLocation, type PartWound, type Shape, type Stance } from '../../types'
+import { ArmorSchema, PartWoundSchema, StanceSchema, presetPart, type Armor, type BodyPart, type Character, type Coord, type HitLocation, type PartWound, type Stance } from '../../types'
+import type { FootprintPreset } from '../../lists'
 import { isCampaignCharacter } from '../../utils'
+import { sameCell } from '../../combat/geometry'
+import { ANCHOR, getPresetFootprint, inFootprint, isAnchor, isSoundFootprint } from '../rules/footprint'
 
-// The race's side of a creature: its body, stance, natural armor and grid
-// shape. A race sets them, and in free creation the character changes them
+// The race's side of a creature: its body, stance, natural armor and
+// footprint. A race sets them, and in free creation the character changes them
 // freely.
 
 // A new body changes what is held and what is wounded: a stack no gripping
@@ -35,13 +38,14 @@ export function removeBodyPart(partId: string): (c: Character) => Character {
   }
 }
 
-// What a part is and does; its id, what it holds and whether it is lost are
-// not edited here.
-export type BodyPartEdit = Partial<Pick<BodyPart, 'name' | 'location' | 'grip' | 'climbs' | 'naturalWeapon' | 'aimPenalty' | 'maxTier' | 'flags'>>
+// What a part is and does, and the cell of the footprint it sits in; its id,
+// what it holds and whether it is lost are not edited here.
+export type BodyPartEdit = Partial<Pick<BodyPart, 'name' | 'location' | 'grip' | 'climbs' | 'naturalWeapon' | 'aimPenalty' | 'maxTier' | 'flags' | 'cell'>>
 
 export function editBodyPart(partId: string, edit: BodyPartEdit): (c: Character) => Character {
   return (c: Character) => {
     if (!c.body.some((part) => part.id === partId)) return c
+    if (edit.cell && !inFootprint(c.footprint, edit.cell)) return c
     const body = c.body.map((part) => (part.id === partId ? { ...part, ...edit } : part))
     return keepsChest(body) ? withBody(c, body) : c
   }
@@ -76,6 +80,24 @@ export function editNaturalArmor(edit: Partial<Armor>): (c: Character) => Charac
   return (c: Character) => ({ ...c, armor: ArmorSchema.parse({ ...c.armor, ...edit }) })
 }
 
-export function setShape(shape: Shape): (c: Character) => Character {
-  return (c: Character) => ({ ...c, shape })
+// A new footprint, if it is one piece around the anchor; a part on a cell it
+// no longer covers moves to the anchor.
+function withFootprint(c: Character, footprint: Coord[]): Character {
+  if (!isSoundFootprint(footprint)) return c
+  const body = c.body.map((part) => (inFootprint(footprint, part.cell) ? part : { ...part, cell: ANCHOR }))
+  return { ...c, footprint, body }
+}
+
+// A cell the footprint covers is taken off it, one it does not is added; the
+// anchor stays, and so does any cell the rest hangs from.
+export function toggleFootprintCell(cell: Coord): (c: Character) => Character {
+  return (c: Character) => {
+    if (isAnchor(cell)) return c
+    return withFootprint(c, inFootprint(c.footprint, cell) ? c.footprint.filter((f) => !sameCell(f, cell)) : [...c.footprint, cell])
+  }
+}
+
+// The preset's cells at the creature's size.
+export function setFootprintPreset(preset: FootprintPreset): (c: Character) => Character {
+  return (c: Character) => withFootprint(c, getPresetFootprint(c, preset))
 }

@@ -1,15 +1,22 @@
-import { addBodyPart, addPartWound, editBodyPart, editNaturalArmor, editPartWound, editStance, removeBodyPart, removePartWound, setShape, type BodyPartEdit } from "../domain/character/commands";
-import type { Armor, BodyPart, Character, HitLocation, PartWound, Shape, Stance } from "../domain/types";
+import { addBodyPart, addPartWound, editBodyPart, editNaturalArmor, editPartWound, editStance, removeBodyPart, removePartWound, setFootprintPreset, toggleFootprintCell, type BodyPartEdit } from "../domain/character/commands";
+import { getFootprintEditor } from "../domain/character/lenses/footprint";
+import type { FootprintPreset } from "../domain/lists";
+import type { Armor, BodyPart, Character, Coord, HitLocation, PartWound, Stance } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
-type RaceBody = { body: BodyPart[]; stance: Stance; armor: Armor; shape: Shape }
+type RaceBody = { body: BodyPart[]; stance: Stance; armor: Armor }
 
-const pickBody = (c: Character): RaceBody => ({ body: c.body, stance: c.stance, armor: c.armor, shape: c.shape });
+const pickBody = (c: Character): RaceBody => ({ body: c.body, stance: c.stance, armor: c.armor });
 
-// The race's side of the creature: its body, stance, natural armor and grid
-// shape, as the editors read it.
+// The race's side of the creature: its body, stance and natural armor, as the
+// editors read it.
 export function useBodyView() {
   return useActiveCharacterDerived(pickBody, JSON.stringify);
+}
+
+// The footprint as its editor draws it.
+export function useFootprintEditor() {
+  return useActiveCharacterDerived(getFootprintEditor, JSON.stringify);
 }
 
 // The commands that change it. They subscribe to nothing, so a row given its
@@ -26,6 +33,8 @@ export function useBodyEditor() {
     removeWound: (id: string, index: number) => update(removePartWound(id, index)),
     editStance: (edit: Partial<Stance>) => update(editStance(edit)),
     editArmor: (edit: Partial<Armor>) => update(editNaturalArmor(edit)),
-    setShape: (shape: Shape) => update(setShape(shape)),
+    toggleCell: (cell: Coord) => update(toggleFootprintCell(cell)),
+    setPreset: (preset: FootprintPreset) => update(setFootprintPreset(preset)),
+    placePart: (id: string, cell: Coord) => update(editBodyPart(id, { cell })),
   } as const;
 }

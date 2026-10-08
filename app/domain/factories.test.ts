@@ -3,6 +3,7 @@ import { makeCharacter, makeCampaignCharacter, makeRace } from './factories'
 import { isBaseCharacter, isCampaignCharacter } from './utils'
 import { getSTA } from './character/rules/characteristics'
 import { BaseCharacterSchema, CampaignCharacterSchema, ContainerSchema, ItemSchema, RaceSchema } from './types'
+import { inFootprint, isSoundFootprint } from './character/rules/footprint'
 import armorsCatalog from '../assets/armors.json'
 
 // Ingestion is the domain's only door to the outside — saved JSON files, Redis
@@ -39,6 +40,12 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a malformed part wound', raw: { body: [{ location: 'hand', wounds: [{ tier: 'high' }] }] } },
   { label: 'abilities saved as a list', raw: { abilities: ['sprinter-1'] } },
   { label: 'a malformed ability', raw: { abilities: { sprinter: 'yes', tail: { value: 'two' } } } },
+  { label: 'a footprint that is not a list', raw: { footprint: 'three' } },
+  { label: 'a footprint in two pieces', raw: { size: 5, footprint: [{ q: 0, r: 0 }, { q: 2, r: 0 }] } },
+  { label: 'a footprint without its anchor', raw: { footprint: [{ q: 1, r: 0 }] } },
+  { label: 'a footprint of half cells', raw: { footprint: [{ q: 0, r: 0 }, { q: 0.5, r: 0 }] } },
+  { label: 'a part on a cell the footprint does not cover', raw: { footprint: [{ q: 0, r: 0 }, { q: 1, r: 0 }], body: [{ location: 'head', cell: { q: 3, r: 3 } }] } },
+  { label: 'a malformed part cell', raw: { body: [{ location: 'head', cell: 'front' }] } },
 ]
 
 const populated = () =>
@@ -103,6 +110,13 @@ describe('ingestion is total', () => {
       const c = makeCampaignCharacter(raw)
       expect(isCampaignCharacter(c)).toBe(true)
       expect(CampaignCharacterSchema.parse(c)).toEqual(c)
+    })
+
+    it(`${label} yields a footprint in one piece around the anchor, holding every part`, () => {
+      for (const c of [makeCharacter(raw), makeCampaignCharacter(raw)]) {
+        expect(isSoundFootprint(c.footprint)).toBe(true)
+        expect(c.body.every((part) => inFootprint(c.footprint, part.cell))).toBe(true)
+      }
     })
   }
 })
