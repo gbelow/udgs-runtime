@@ -4,7 +4,7 @@ import { CombatStateSchema, type HitLocation, type ActionDraft, type ActionKind,
 import { rollD10, seededRng, type Dice } from '../app/domain/combat/dice'
 import { buildFighter } from './lib/fighters'
 import type { CampaignCharacter } from '../app/domain/types'
-import { addCharacterToCombat } from '../app/domain/combat/factories'
+import { addInstance } from '../app/domain/instances'
 import { setDistance } from '../app/domain/combat/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
@@ -101,7 +101,7 @@ function create(specA: string, specB: string, seed: number, distance: number, ma
   const placements: Record<string, [number, number]> = {}
   for (const side of SIDES) {
     const spec = side === 'A' ? specA : specB
-    const added = addCharacterToCombat(buildFighter(IDS[side], spec, side), Object.fromEntries(characters.map((c) => [c.id, c])), env.newId)
+    const added = addInstance(buildFighter(IDS[side], spec, side), Object.fromEntries(characters.map((c) => [c.id, c])), env.newId)
     characters.push(added)
     placements[added.id] = [side === 'A' ? 0 : distance, 0]
   }

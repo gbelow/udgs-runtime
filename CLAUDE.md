@@ -33,6 +33,8 @@ Pure, synchronous, deterministic, zero React dependencies. Each part of the doma
 
 A file that mixes a rule with its view is split, not filed under whichever half is bigger.
 
+`domain/campaign/` sits above the fight: the roster of everyone in play who is not in a fight, the clock they share (seconds; rounds, ETs and days are rules over it), and the ET loop. A character is on the roster or in the fight, never both — `sendToFight` / `returnFromFight` move them across and carry the fight's rounds onto the clock. Modes (chase, exploration, downtime) are meant to hang off this layer and talk to it only through elapsed time and the characters they hand back.
+
 `domain/bot/` is a player, not a part of the rules: pure functions that read a `CombatState` through the combat rules and answer with the same commands a person presses (`stepBot`, `playBot`). It decides nothing the book decides — what it may do is whatever `getAvailableActions` shows open — and a hook or server action drives it.
 
 Before working in `combat/`, read `instructions/combat-map.md`: the action pipeline, the stack and its sequencing, and a map of every file. It points to detail files under `instructions/combat-map/` (mechanics, landing, board); read only the one the change touches.

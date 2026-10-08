@@ -14,7 +14,10 @@ import * as floorModule from './combat/commands/floor'
 import * as charactersModule from './combat/commands/characters'
 import * as moraleModule from './combat/commands/morale'
 import * as socialModule from './combat/commands/social'
-import * as explorationModule from './combat/commands/exploration'
+import * as rosterModule from './campaign/commands/roster'
+import * as campaignExplorationModule from './campaign/commands/exploration'
+import * as fightModule from './campaign/commands/fight'
+import { CampaignStateSchema, type Table } from './campaign/types'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
@@ -29,7 +32,8 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule, ...explorationModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
+const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -96,6 +100,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   heal: characterCommands.heal(4),
   updateIL: characterCommands.updateIL(0),
   bleed: characterCommands.bleed(2),
+  leaveFight: characterCommands.leaveFight,
   updateSTA: characterCommands.updateSTA(1),
   addAffliction: characterCommands.addAffliction('blind'),
   inflict: characterCommands.inflict(['prone']),
@@ -217,12 +222,6 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   surrender: (s) => combatCommands.surrender('a')(deepFreeze(cleared(s))),
   unsurrender: (s) => combatCommands.unsurrender('a')(deepFreeze({ ...cleared(s), surrendered: ['a'] })),
   resetCombat: combatCommands.resetCombat,
-  endCombat: (s) => combatCommands.endCombat(deepFreeze(cleared(s))),
-  explore: (s) => combatCommands.explore('a', 'travel')(deepFreeze({ ...cleared(s), round: 0 })),
-  shortRest: (s) => combatCommands.shortRest('a', 0)(deepFreeze({ ...cleared(s), round: 0 })),
-  sleep: (s) => combatCommands.sleep('a', 0)(deepFreeze({ ...cleared(s), round: 0 })),
-  eat: (s) => combatCommands.eat('a', 3)(deepFreeze({ ...cleared(s), round: 0 })),
-  drink: (s) => combatCommands.drink('a')(deepFreeze({ ...cleared(s), round: 0 })),
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),
   endTurn: (s) => combatCommands.endTurn(deepFreeze(cleared(s))),
@@ -275,6 +274,23 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
   updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
+}
+
+// The campaign's subject is a table: `a` and `b` on the roster, and the
+// combat subject's fight beside it, its strike cleared.
+const campaignCases: Record<string, (t: Table) => unknown> = {
+  addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued')(campaign),
+  removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
+  updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
+  setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
+  explore: ({ campaign }) => campaignCommands.explore('a', 'travel')(campaign),
+  shortRest: ({ campaign }) => campaignCommands.shortRest('a', 0)(campaign),
+  sleep: ({ campaign }) => campaignCommands.sleep('a', 0)(campaign),
+  eat: ({ campaign }) => campaignCommands.eat('a', 3)(campaign),
+  drink: ({ campaign }) => campaignCommands.drink('a')(campaign),
+  passET: ({ campaign }) => campaignCommands.passET(campaign),
+  sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
+  returnFromFight: (t) => campaignCommands.returnFromFight(() => 'issued')(t),
 }
 
 // `a` and `b` holding each other, nothing open.
@@ -406,6 +422,14 @@ describe('commands are pure updaters', () => {
     run(deepFreeze(subject))
     expect(subject).toEqual(pristine)
   })
+
+  it.each(Object.entries(campaignCases))('%s leaves its campaign and fight alone', (_name, run) => {
+    const fight = cleared(combatSubject())
+    const subject = { campaign: CampaignStateSchema.parse({ characters: fight.characters, activeCharacterId: 'a', clock: 100 }), fight }
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
 })
 
 // The point of keying the cases by export name: a command added to one of the
@@ -416,6 +440,7 @@ describe('every command is covered', () => {
     ['character', characterCommands, characterCases],
     ['item', itemCommands, itemCases],
     ['combat', combatCommands, combatCases],
+    ['campaign', campaignCommands, campaignCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {
     const uncovered = Object.entries(module)

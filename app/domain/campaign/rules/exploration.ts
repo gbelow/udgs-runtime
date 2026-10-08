@@ -1,10 +1,9 @@
 import type { CampaignCharacter } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CombatState } from '../types'
+import type { CampaignState } from '../types'
 import { getSTA } from '../../character/rules/characteristics'
 import { getHealth } from '../../character/rules/skills'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getOpenAction } from './log'
 
 // survival.tex "Wear": "The standard wear is 1 IL + 1 exhaustion per ET";
 // "STA < 10 = +1 IL per ET. STA < 8 = +2 IL per ET, STA < 6 = +3 IL and so
@@ -30,26 +29,18 @@ export function getSleptExhaustion(c: CampaignCharacter, exposure: number): numb
   return Math.floor((c.resources.exhaustion + exposure) / 2)
 }
 
-// Why the character cannot spend an exploration turn now: the ET loop runs
-// outside a fight.
-export function getExplorationBar(state: CombatState, id: string): string | null {
+// Why the character cannot spend an exploration turn now. The ET loop runs
+// on the roster; whoever is in a fight is not on it.
+export function getExplorationBar(state: CampaignState, id: string): string | null {
   const c = state.characters[id]
-  if (!c) return 'no such character'
-  if (state.round > 0) return 'a fight is running'
+  if (!c) return 'not with the party'
   if (isDead(c)) return 'dead'
   return null
 }
 
 // Why the character cannot rest or sleep on this ground.
-export function getRestBar(state: CombatState, id: string, exposure: number): string | null {
+export function getRestBar(state: CampaignState, id: string, exposure: number): string | null {
   const bar = getExplorationBar(state, id)
   if (bar) return bar
   return getRestHealing(state.characters[id], exposure) < 0 ? 'too exposed to rest' : null
-}
-
-// Why the fight cannot be ended now: there must be one, and nothing being
-// played out in it.
-export function getEndCombatBar(state: CombatState): string | null {
-  if (state.round === 0) return 'no fight is running'
-  return getOpenAction(state) ? 'an action is being played out' : null
 }

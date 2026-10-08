@@ -7,9 +7,10 @@ import { findFloorItem } from './floor'
 // Who in the fight is who: the active character, the name each goes by,
 // who holds an item.
 
-// Read-side: which character is active is a pure function of combat state.
-// The domain owns this so combat commands never need to import CombatStore.
-export function getActiveCharacter(state: CombatState): CampaignCharacter | null {
+// Read-side: which character is active is a pure function of the state that
+// holds it, a fight or the party. The domain owns this so commands never need
+// to import a store.
+export function getActiveCharacter(state: Pick<CombatState, 'characters' | 'activeCharacterId'>): CampaignCharacter | null {
   if (!state.activeCharacterId) return null
   return state.characters[state.activeCharacterId] ?? null
 }

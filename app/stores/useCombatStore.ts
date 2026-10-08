@@ -4,7 +4,7 @@ import { CampaignCharacter } from '../domain/types'
 import { CombatState, CombatStateSchema } from '../domain/combat/types'
 import { getActiveCharacter } from '../domain/combat/rules/fighters'
 import { makeCampaignCharacter } from '../domain/factories'
-import { addCharacterToCombat } from '../domain/combat/factories'
+import { withInstance } from '../domain/instances'
 import { removeFromCombat, updateCharacter } from '../domain/combat/commands/characters'
 
 // The data half of the store is the domain's CombatState — the store adds only
@@ -35,14 +35,7 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   loadCharacter: (rawCharacter) =>
     set((s) => {
-      const campaignCharacter = makeCampaignCharacter( rawCharacter)
-      const added = addCharacterToCombat(campaignCharacter, s.characters, () => crypto.randomUUID())
-      return({
-        characters: {
-          ...s.characters,
-          [added.id]: added
-        }
-      })
+      return { characters: withInstance(makeCampaignCharacter(rawCharacter), s.characters, () => crypto.randomUUID()) }
     }),
 
   setActiveCharacter: (id) => {

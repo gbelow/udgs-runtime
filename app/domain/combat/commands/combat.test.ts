@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { nextRound } from './nextRound'
 import { startTurn } from './turn'
-import { endCombat } from './exploration'
-import { getNextRoundBar } from '../rules/turn'
 import { CombatStateSchema, type CombatState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter, SurgeKind } from '../../types'
@@ -71,13 +69,3 @@ describe('startTurn', () => {
   })
 })
 
-describe('starting a fight', () => {
-  // "start combat" waited for everyone to agree to end a round that had not
-  // begun, so characters with STA for a surge could never start a fight —
-  // nor start the next one after ending the last.
-  it('is open before the first round, and again once a fight is ended', () => {
-    const state = combat([fighter('a', { resources: { STA: 10 } as CampaignCharacter['resources'] }), fighter('b')])
-    expect(getNextRoundBar(state)).toBeNull()
-    expect(getNextRoundBar(endCombat(nextRound(() => 0, () => 'issued')(state)))).toBeNull()
-  })
-})

@@ -1,4 +1,4 @@
-import { addCharacterToCombat } from '../app/domain/combat/factories'
+import { addInstance } from '../app/domain/instances'
 import { board } from '../app/domain/bot/fixtures'
 import { estimateAttacks, rankAttacks, type AttackEstimate, type BreakEstimate, type DefenseEstimate } from '../app/domain/bot/estimate'
 import { buildFighter } from './lib/fighters'
@@ -62,8 +62,8 @@ function main(): void {
 
   let n = 0
   const newId = () => `s${++n}`
-  const attacker = addCharacterToCombat(buildFighter('a', specA, 'attacker'), {}, newId)
-  const defender = addCharacterToCombat(buildFighter('b', specB, 'defender'), { a: attacker }, newId)
+  const attacker = addInstance(buildFighter('a', specA, 'attacker'), {}, newId)
+  const defender = addInstance(buildFighter('b', specB, 'defender'), { a: attacker }, newId)
   const state = board({ a: [0, 0], b: [distance, 0] }, attacker, defender)
 
   const ranked = rankAttacks(estimateAttacks(state, 'a', 'b', { aim, staWeight }))

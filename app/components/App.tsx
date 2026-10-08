@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useGameTab } from '../hooks/useGameTab';
 import { PlayPanel } from './PlayPanel';
+import { PartyPanel } from './PartyPanel';
 import { CharacterCreator } from './CharacterCreator';
 import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
@@ -13,6 +14,7 @@ const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
   { tab: 'edit', label: 'Character', mobile: true },
   { tab: 'race', label: 'Races', mobile: false },
+  { tab: 'party', label: 'Party', mobile: false },
   { tab: 'play', label: 'Run', mobile: false },
   { tab: 'break', label: 'Break Me', mobile: false },
   { tab: 'catalog', label: 'Catalog', mobile: false },
@@ -89,6 +91,8 @@ export function App(){
         {
           selectedGameTab == 'edit' ?
             <CharacterCreator /> :
+            selectedGameTab == 'party' ?
+            <PartyPanel/> :
             selectedGameTab == 'play' ?
             <PlayPanel/> :
             selectedGameTab == 'break' ?

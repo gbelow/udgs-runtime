@@ -3,8 +3,6 @@ import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as begi
 import type { SurgeKind } from "../domain/types"
 import { resetCombat as resetGame} from "../domain/combat/commands/resetCombat"
 import { toggleBreakage as switchBreakage } from "../domain/combat/commands/breakage"
-import { endCombat as leaveCombat, explore as exploreFor, shortRest as shortRestFor, sleep as sleepFor, eat as eatFor, drink as drinkFor } from "../domain/combat/commands/exploration"
-import type { ExplorationAction } from "../domain/lists"
 import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/combat/commands/morale"
 import { rollHeld as testHeld } from "../domain/combat/commands/heldTest"
 import type { CalledKind } from "../domain/combat/rules/heldTest"
@@ -101,21 +99,9 @@ export function useCombatCommands() {
     updateCombatState(resetGame)
   }
 
-  const endCombat = () => {
-    updateCombatState(leaveCombat)
-  }
-
-  // survival.tex "Rest, Exhaustion and Healing": the ET buttons act for the
-  // active character; the commands refuse while a fight runs.
-  const explore = (action: ExplorationAction) => asActive((id) => exploreFor(id, action))()
-  const shortRest = (exposure: number) => asActive((id) => shortRestFor(id, exposure))()
-  const sleep = (exposure: number) => asActive((id) => sleepFor(id, exposure))()
-  const eat = (nutrition: number) => asActive((id) => eatFor(id, nutrition))()
-  const drink = asActive(drinkFor)
-
   const toggleBreakage = () => {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, endCombat, explore, shortRest, sleep, eat, drink, toggleBreakage }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage }
 }

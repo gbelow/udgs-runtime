@@ -5,13 +5,25 @@ import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'party' | 'play' | 'break' | 'catalog'
 
-// Whether the tab's character is one in the fight rather than one being made
-// (a character on the edit tab, a race on the race tab, a draft on the
-// creation tab).
+// The store that holds each tab's active character: the one being edited, the
+// race being made, the party's, the fight's — or none, for a tab whose
+// character is not a sheet.
+export type TabOwner = 'character' | 'race' | 'campaign' | 'combat' | null
+
+export const TAB_OWNER: Record<GameTabs, TabOwner> = {
+  create: null,
+  edit: 'character',
+  race: 'race',
+  party: 'campaign',
+  play: 'combat',
+  break: 'combat',
+  catalog: 'combat',
+}
+
 export function isFightTab(tab: GameTabs): boolean {
-  return tab !== 'edit' && tab !== 'race' && tab !== 'create'
+  return TAB_OWNER[tab] === 'combat'
 }
 
 // The item waiting for a destination to be clicked: a catalog entry picked in

@@ -2,6 +2,7 @@ import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
 
 // The saved-character lists and their refreshers. Each field is selected
 // separately so a list refresh does not re-render subscribers of the other.
@@ -15,15 +16,18 @@ export function useCharacterLibrary() {
 }
 
 // Loading a character means different things per tab — the editor replaces the
-// one being edited, a fight gains another combatant — so the routing lives here
+// one being edited, the party gains a member, a fight gains another combatant
+// (who joins the party when the fight ends) — so the routing lives here
 // rather than in the component that owns the click.
 export function useLoadCharacter() {
   const tab = useAppStore((s) => s.selectedGameTab);
   const loadForEdit = useCharacterStore((s) => s.loadCharacter);
   const addToCombat = useCombatStore((s) => s.loadCharacter);
+  const addToParty = useCampaignStore((s) => s.loadCharacter);
 
   return (character: Character) => {
     if (tab === "edit") loadForEdit(character);
+    if (tab === "party") addToParty(character);
     if (tab === "play") addToCombat(character);
   };
 }

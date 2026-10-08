@@ -1,5 +1,5 @@
 import { EXPLORATION_ACTIONS, type ExplorationAction } from '../../lists'
-import type { CombatState } from '../types'
+import type { CampaignState } from '../types'
 import { getExplorationBar, getRestBar, getRestHealing, getSleptExhaustion, getWear } from '../rules/exploration'
 
 export type ExplorationPanel = {
@@ -12,7 +12,7 @@ export type ExplorationPanel = {
 
 // survival.tex "Rest, Exhaustion and Healing", "Wear" — what each ET button
 // would do to the character on this ground, and why it is closed.
-export function getExplorationPanel(state: CombatState, id: string, exposure: number): ExplorationPanel {
+export function getExplorationPanel(state: CampaignState, id: string, exposure: number): ExplorationPanel {
   const c = state.characters[id]
   if (!c) return { bar: 'no such character', restBar: 'no such character', actions: [], sleep: { heal: 0, exhaustion: 0 }, potion: 0 }
   return {

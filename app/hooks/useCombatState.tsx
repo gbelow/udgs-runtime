@@ -6,8 +6,7 @@ import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/combat/p
 import { getNextRoundBar } from "../domain/combat/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
-import { getExplorationPanel, type ExplorationPanel } from "../domain/combat/projections/exploration";
-import { getEndCombatBar } from "../domain/combat/rules/exploration";
+import { getReturnBar } from "../domain/campaign/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useShallow } from "zustand/shallow";
 
@@ -20,9 +19,9 @@ export function useCombatState() {
   // in it until it resolves.
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
   const nextRoundBar = useCombatStore(getNextRoundBar);
-  const endCombatBar = useCombatStore(getEndCombatBar);
+  const returnBar = useCombatStore(getReturnBar);
 
-  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, endCombatBar } as const;
+  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar } as const;
 }
 
 export function useCombatRoster(): {
@@ -92,15 +91,4 @@ export function useSocial(): SocialPanel {
   useCombatStore((s) => (s.activeCharacterId ? JSON.stringify(getSocialPanel(s, s.activeCharacterId)) : ''));
   const s = useCombatStore.getState();
   return s.activeCharacterId ? getSocialPanel(s, s.activeCharacterId) : NO_SOCIAL;
-}
-
-const NO_EXPLORATION: ExplorationPanel = { bar: NO_ONE, restBar: NO_ONE, actions: [], sleep: { heal: 0, exhaustion: 0 }, potion: 0 }
-
-// survival.tex "Rest, Exhaustion and Healing" — the ET buttons for the active
-// character on ground of this exposure, gated on a digest since the panel is
-// freshly allocated.
-export function useExploration(exposure: number): ExplorationPanel {
-  useCombatStore((s) => (s.activeCharacterId ? JSON.stringify(getExplorationPanel(s, s.activeCharacterId, exposure)) : ''));
-  const s = useCombatStore.getState();
-  return s.activeCharacterId ? getExplorationPanel(s, s.activeCharacterId, exposure) : NO_EXPLORATION;
 }
