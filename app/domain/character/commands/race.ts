@@ -1,6 +1,8 @@
 import { RACE_BONUS_KEYS, type Character, type Race, type RaceDraft } from '../../types'
 import { getBarePart, withRaceDraft } from '../rules/race'
 import { withBody } from './body'
+import { grantAbility } from './abilities'
+import { isAbilityKey } from '../../abilities'
 
 // creating.tex "Races", free creation: a saved race started from as a preset.
 // What it sets of the creature — size, grid shape, toughness, senses, base
@@ -18,8 +20,8 @@ export function applyRace(race: Race): (c: Character) => Character {
       const bonus = bonuses[key] ?? 0
       if (bonus) trainables[key] = { ...trainables[key], value: trainables[key].value + bonus }
     }
-    const abilities = [...c.abilities, ...race.abilities.filter((key) => !c.abilities.includes(key))]
-    return withBody({ ...c, size, shape, TGH, senses, movement, armor, stance, trainables, abilities }, body)
+    const granted = race.abilities.filter(isAbilityKey).reduce((acc, key) => grantAbility(key)(acc), c)
+    return withBody({ ...granted, size, shape, TGH, senses, movement, armor, stance, trainables }, body)
   }
 }
 

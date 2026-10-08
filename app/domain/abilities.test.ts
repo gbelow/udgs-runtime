@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { ABILITIES, ABILITY_KEYS, AbilityKey } from './abilities'
+import { ABILITIES, ABILITY_KEYS, AbilityKey, getLearnedAbilityKeys, hasAbility } from './abilities'
 import { SPELL_KEYS } from './spells'
-import { applyTrigger, forgetAbility, learnAbility, toggleAbility, useAbility } from './character/commands'
+import { applyTrigger, forgetAbility, grantAbility, learnAbility, toggleAbility, useAbility } from './character/commands'
 import { nextRound } from './combat/commands/nextRound'
 import { CombatStateSchema } from './combat/types'
 import { getDrain, getUpkeep } from './character/rules/effects'
@@ -43,9 +43,7 @@ describe('ability catalog — stages', () => {
 })
 
 function holdsRequirements(c: Character): boolean {
-  return c.abilities.every((key) =>
-    ABILITIES[key as AbilityKey].requires.every((req) => c.abilities.includes(req)),
-  )
+  return getLearnedAbilityKeys(c).every((key) => ABILITIES[key].requires.every((req) => hasAbility(c, req)))
 }
 
 // The chain of stages up to and including `key`, in learning order.
@@ -72,8 +70,8 @@ function grant(c: Character, req: Requirement, meet: boolean): Character {
   switch (req.kind) {
     case 'ability':
       return present
-        ? { ...c, abilities: [...new Set([...c.abilities, ...chain(req.name as AbilityKey)])] }
-        : { ...c, abilities: c.abilities.filter((a) => a !== req.name) }
+        ? chain(req.name as AbilityKey).reduce((acc, key) => grantAbility(key)(acc), c)
+        : forgetAbility(req.name)(c)
     case 'spell': {
       const spells = { ...c.spells }
       if (present) spells[req.name] = { method: 'intuitive', practice: 0 }
@@ -102,7 +100,7 @@ function ready(key: AbilityKey): Character {
 describe('learning abilities', () => {
   it.each(ABILITY_KEYS)('"%s" is learnable once its requirements are met, and only once', (key) => {
     const once = learnAbility(key)(ready(key))
-    expect(once.abilities).toContain(key)
+    expect(hasAbility(once, key)).toBe(true)
     expect(learnAbility(key)(once)).toBe(once)
   })
 
@@ -127,7 +125,7 @@ describe('learning abilities', () => {
     expect(holdsRequirements(full)).toBe(true)
     for (const link of chain(key)) {
       const after = forgetAbility(link)(full)
-      expect(after.abilities).not.toContain(link)
+      expect(hasAbility(after, link)).toBe(false)
       expect(holdsRequirements(after)).toBe(true)
     }
   })

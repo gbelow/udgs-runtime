@@ -1,5 +1,5 @@
 import { CampaignCharacter, Character } from "../../types"
-import { ABILITIES, AbilityKey, isAbilityKey } from "../../abilities"
+import { ABILITIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getLearnedAbilityKeys, hasAbility, heldAbility, isAbilityKey } from "../../abilities"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnAbility } from "../rules/abilities"
 import { effectsOn, isAbilityActive, lingers } from "../rules/effects"
@@ -8,36 +8,56 @@ import { canAfford } from "../rules/cost"
 import { getSurgeBar } from "../rules/surge"
 import { payCost } from "./cost"
 
-export function learnAbility(key: AbilityKey): (c: Character) => Character {
-  return (c: Character) => {
-    if (!canLearnAbility(key)(c)) return c
-    return { ...c, abilities: [...c.abilities, key] }
+// A family set to a level; the training toward the next starts over. Level 0
+// with nothing trained is no ability at all.
+function withAbilityLevel<C extends Character>(c: C, family: FamilyKey, level: number): C {
+  if (level <= 0) {
+    const { [family]: _gone, ...abilities } = c.abilities
+    return { ...c, abilities }
+  }
+  return { ...c, abilities: { ...c.abilities, [family]: heldAbility(family, level) } }
+}
+
+// A stage given outright, with no requirement or price asked — a race's
+// abilities, a fixture's. The stages below it come with it.
+export function grantAbility(key: AbilityKey): <C extends Character>(c: C) => C {
+  return <C extends Character>(c: C) => {
+    return hasAbility(c, key) ? c : withAbilityLevel(c, ABILITY_FAMILY_OF[key], ABILITIES[key].stage)
   }
 }
 
+export function learnAbility(key: AbilityKey): (c: Character) => Character {
+  return (c: Character) => (canLearnAbility(key)(c) ? grantAbility(key)(c) : c)
+}
+
 // Forgetting takes every ability that depended on the one removed with it, so
-// a character never holds a stage without the one it requires.
+// a character never holds a stage without the one it requires. A family drops
+// to the level below the lowest of its stages removed.
 export function forgetAbility(key: string): (c: Character) => Character {
   return (c: Character) => {
+    if (!hasAbility(c, key)) return c
+    const learned = getLearnedAbilityKeys(c)
     const removed = new Set<string>([key])
     let grew = true
     while (grew) {
       grew = false
-      for (const learned of c.abilities) {
-        if (removed.has(learned) || !isAbilityKey(learned)) continue
-        if (ABILITIES[learned].requires.some((req) => removed.has(req))) {
-          removed.add(learned)
+      for (const stage of learned) {
+        if (removed.has(stage)) continue
+        if (ABILITIES[stage].requires.some((req) => removed.has(req))) {
+          removed.add(stage)
           grew = true
         }
       }
     }
-    if (!c.abilities.some((a) => removed.has(a))) return c
-    const abilities = c.abilities.filter((a) => !removed.has(a))
+    const forgotten = learned.filter((stage) => removed.has(stage)).reduce((acc, stage) => {
+      const family = ABILITY_FAMILY_OF[stage]
+      return withAbilityLevel(acc, family, Math.min(getAbilityLevel(acc, family), ABILITIES[stage].stage - 1))
+    }, c)
     // a forgotten toggle cannot stay switched on
-    if (isCampaignCharacter(c)) {
-      return { ...c, abilities, active: c.active.filter((e) => !(e.kind === 'ability' && removed.has(e.key))) }
+    if (isCampaignCharacter(forgotten)) {
+      return { ...forgotten, active: forgotten.active.filter((e) => !(e.kind === 'ability' && removed.has(e.key))) }
     }
-    return { ...c, abilities }
+    return forgotten
   }
 }
 
@@ -45,7 +65,7 @@ export function forgetAbility(key: string): (c: Character) => Character {
 // `active`. Only a learned toggle on a campaign character has a switch.
 export function toggleAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
-    if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
+    if (!isCampaignCharacter(c) || !hasAbility(c, key)) return c
     if (ABILITIES[key].activation !== 'toggle') return c
     if (isAbilityActive(c, key)) {
       return { ...c, active: c.active.filter((e) => !(e.kind === 'ability' && e.key === key)) }
@@ -69,7 +89,7 @@ export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {
 // table resolves.
 export function useAbility(key: AbilityKey): (c: Character) => Character {
   return (c: Character) => {
-    if (!isCampaignCharacter(c) || !c.abilities.includes(key)) return c
+    if (!isCampaignCharacter(c) || !hasAbility(c, key)) return c
     const ability = ABILITIES[key]
     if (ability.activation !== 'active') return c
     if (!canAfford(c, ability.cost) || getSurgeBar(c)) return c

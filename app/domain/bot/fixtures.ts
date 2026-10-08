@@ -5,6 +5,7 @@ import { holdItem, regripItem } from '../item/commands/hands'
 import { addItemToContainer } from '../item/commands/items'
 import { putOnFromCatalog } from '../item/commands/containers'
 import { getCatalogItem } from '../item/rules/items'
+import { grantAbility } from '../character/commands/abilities'
 
 // Fighters and boards for the bots' test and simulator to play with.
 
@@ -65,7 +66,7 @@ export function torchbearer(id: string): CampaignCharacter {
 // The abilities that open a defence the bare fighter has no answer with: the
 // counterattack, the reflexes, the jump and the defender's guard.
 export function trained(c: CampaignCharacter): CampaignCharacter {
-  return { ...c, abilities: [...c.abilities, 'counterattack', 'precise-reflexes', 'precise-evasion', 'archer-s-reflexes', 'jumper', 'defender'] }
+  return (['counterattack', 'precise-reflexes', 'precise-evasion', 'archer-s-reflexes', 'jumper-1', 'defender'] as const).reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), c)
 }
 
 // A spear in one hand and a shield in the other, trained: every defence is

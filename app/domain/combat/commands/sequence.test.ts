@@ -20,6 +20,8 @@ import { getStartTurnBar } from '../rules/turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 import { archer } from '../../bot/fixtures'
+import { grantAbility } from '../../character/commands/abilities'
+import type { AbilityKey } from '../../abilities'
 import { getTethers } from '../rules/partners'
 import { getSpellOptions } from '../rules/cast'
 
@@ -27,17 +29,17 @@ import { getSpellOptions } from '../rules/cast'
 const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: CombatState) =>
   declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
 
-function fighter(id: string, abilities: string[] = []): CampaignCharacter {
-  const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, abilities, resources: { ...base.resources, AP: 12, STA: 6 } }
+function fighter(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
+  const base = abilities.reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), makeCampaignCharacter({ name: id }))
+  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
-function wielder(id: string, weapon: string, abilities: string[] = []): CampaignCharacter {
+function wielder(id: string, weapon: string, abilities: AbilityKey[] = []): CampaignCharacter {
   const item = ItemSchema.parse({ name: weapon, type: 'weapon', refId: weapon, bulk: 3 })
   return regripItem(item.id, 2)(holdItem(item)(fighter(id, abilities)))
 }
 
-function spearman(id: string, abilities: string[] = []): CampaignCharacter {
+function spearman(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
   return wielder(id, 'Short Spear', abilities)
 }
 
@@ -591,7 +593,7 @@ describe('a hook attack', () => {
 // rulings: anyone may; a strike has to beat every defense, as a shot its
 // guards; Defender and Defensive Advance are steps taken with the defense.
 describe('protecting the target of a strike', () => {
-  function shielded(id: string, abilities: string[] = []): CampaignCharacter {
+  function shielded(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
     return holdItem(shield)(fighter(id, abilities))
   }

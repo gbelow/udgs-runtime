@@ -1,5 +1,5 @@
 import { Character, Requirement } from '../../types'
-import { ABILITIES, AbilityKey } from '../../abilities'
+import { ABILITIES, AbilityKey, hasAbility } from '../../abilities'
 import { SPELLS, SpellKey } from '../../spells'
 import { getAGI, getSTA, getSTR } from './characteristics'
 
@@ -13,7 +13,7 @@ const ATTRIBUTE = { STR: getSTR, AGI: getAGI, STA: getSTA } as const
 // check, where the spell they serve is known.
 export function holdsRequirement(c: Character, req: Requirement): boolean {
   switch (req.kind) {
-    case 'ability': return c.abilities.includes(req.name) !== req.not
+    case 'ability': return hasAbility(c, req.name) !== req.not
     case 'spell': return (req.name in c.spells) !== req.not
     case 'attribute': return compare(ATTRIBUTE[req.name as keyof typeof ATTRIBUTE]?.(c) ?? 0, req.op, req.level) !== req.not
     case 'trainable':

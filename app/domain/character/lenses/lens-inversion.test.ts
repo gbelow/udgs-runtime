@@ -17,7 +17,7 @@ function subject() {
   return makeCharacter({
     size: 3,
     TGH: 0,
-    abilities: ['sprinter-1', 'keen-eyes-1', 'tail-1'],
+    abilities: { sprinter: { value: 1 }, 'keen-eyes': { value: 1 }, tail: { value: 1 } },
     trainables: {
       STR: { value: 12 }, AGI: { value: 11 }, STA: { value: 13 },
       CON: { value: 4 }, INT: { value: 3 }, SPI: { value: 2 }, DEX: { value: 5 },

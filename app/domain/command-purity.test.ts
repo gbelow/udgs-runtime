@@ -20,7 +20,7 @@ import { makeCampaignCharacter } from './factories'
 import { produceEffects } from './character/rules/production'
 import { SPELLS } from './spells'
 import { severPart } from './character/commands/wounds'
-import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceDraftSchema, RaceSchema } from './types'
+import { ArmorSchema, ContainerSchema, DamageSchema, ItemSchema, RaceDraftSchema, RaceSchema, TrainableSchema } from './types'
 import type { CampaignCharacter, Character } from './types'
 import armorsCatalog from '../assets/armors.json'
 
@@ -54,6 +54,9 @@ const coin = ItemSchema.parse({ name: 'Coin', bulk: 0, amount: 2 })
 const gambeson = () => ItemSchema.parse({ name: 'Gambeson', type: 'armor', refId: 'Gambeson', bulk: 2 })
 const packedGambeson = gambeson()
 
+// An ability family held at a level, with XP toward the next.
+const held = (name: string, value: number, XP = 0) => TrainableSchema.parse({ name, type: 'ability', value, XP })
+
 function characterSubject(): CampaignCharacter {
   const base = makeCampaignCharacter({})
   const withKnowledge = characterCommands.addKnowledge('medicine')(base) as CampaignCharacter
@@ -64,7 +67,7 @@ function characterSubject(): CampaignCharacter {
     body: base.body.map((part) => (part.id === 'handL' ? { ...part, itemId: daggerItem.id } : part)),
     held: [daggerItem],
     containers: { belt: ContainerSchema.parse({ name: 'Belt', kind: 'belt', slots: { quick: { numSlots: 4, slotBulk: 2, items: [coin, packedGambeson] } } }) },
-    abilities: ['sprinter-1', 'synesthesia-1', 'tackle'],
+    abilities: { sprinter: held('sprinter', 1), synesthesia: held('synesthesia', 1), tackle: held('tackle', 1), jumper: held('jumper', 0, 2) },
     spells: { sleep: { method: 'intuitive', practice: 1 }, darken: { method: 'intuitive', practice: 0 } },
     usedSurge: 'focus',
     afflictions: ['prone'],
@@ -114,6 +117,10 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   addKnowledge: characterCommands.addKnowledge('navigation'),
   setLimitStress: characterCommands.setLimitStress('coward'),
   removeKnowledge: characterCommands.removeKnowledge('medicine'),
+  addTrainingXP: characterCommands.addTrainingXP('strike', 4),
+  addKnowledgeXP: characterCommands.addKnowledgeXP('medicine', 4),
+  addAbilityXP: characterCommands.addAbilityXP('jumper', 4),
+  grantAbility: characterCommands.grantAbility('keen-eyes-2'),
   learnAbility: characterCommands.learnAbility('sprinter-2'),
   forgetAbility: characterCommands.forgetAbility('sprinter-1'),
   toggleAbility: characterCommands.toggleAbility('synesthesia-1'),

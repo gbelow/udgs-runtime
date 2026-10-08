@@ -37,6 +37,8 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a race draft that is not an object', raw: { raceDraft: 'human' } },
   { label: 'a malformed race draft', raw: { raceDraft: { name: 3, bonuses: { STR: 'lots', bogus: 2 }, abilities: [1, 'fur'] } } },
   { label: 'a malformed part wound', raw: { body: [{ location: 'hand', wounds: [{ tier: 'high' }] }] } },
+  { label: 'abilities saved as a list', raw: { abilities: ['sprinter-1'] } },
+  { label: 'a malformed ability', raw: { abilities: { sprinter: 'yes', tail: { value: 'two' } } } },
 ]
 
 const populated = () =>
@@ -46,7 +48,7 @@ const populated = () =>
     size: 4,
     TGH: 2,
     notes: 'kept',
-    abilities: ['sprinter-1', 'synesthesia-1'],
+    abilities: { sprinter: { value: 1 }, synesthesia: { value: 1, XP: 3 } },
     trainables: { STR: { value: 15 }, strike: { value: 4 } },
     armor: (armorsCatalog as Record<string, unknown>).Hauberk,
     body: [{ id: 'left', name: 'left', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: 'dagger-1' }, { id: 'right', name: 'right', location: 'hand', naturalWeapon: 'Unarmed', grip: true, itemId: '' }],
@@ -77,6 +79,15 @@ describe('ingestion is total', () => {
     const c = makeCampaignCharacter({})
     expect(c.resources.STA).toBe(getSTA(c))
     expect(c.resources.AP).toBe(8)
+  })
+
+  // Abilities were saved as a list of stage keys before they became family
+  // trainables; that field is lost, not the character around it.
+  it('drops abilities saved as a list and keeps the rest', () => {
+    const c = makeCharacter({ name: 'Ana', abilities: ['sprinter-1'], trainables: { STR: { value: 15 } } })
+    expect(c.abilities).toEqual({})
+    expect(c.name).toBe('Ana')
+    expect(c.trainables.STR.value).toBe(15)
   })
 
   for (const { label, raw, unvalidated } of HOSTILE) {

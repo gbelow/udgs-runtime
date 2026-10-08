@@ -1,4 +1,4 @@
-import { Attributes, Character, Proficiencies, Skills, Talents } from '../../types'
+import { Attributes, Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, Talents, TalentsSchema, Trainables } from '../../types'
 import { getSM } from './size'
 
 export type TalentKey = keyof Talents
@@ -75,13 +75,13 @@ export function getTalentKarmaCost(level: number): number {
   return 4 + 4 * level
 }
 
-// creating.tex "Improving attributes": the target value divided by 2, doubled
-// once the average of the three attributes exceeds 10+CON-SM and raised by
-// another +100% for every point beyond. The average is the one the raise
-// would leave.
+// creating.tex "Improving attributes": the target value divided by 2, rounded
+// down, doubled once the average of the three attributes exceeds 10+CON-SM
+// and raised by another +100% for every point beyond. The average is the one
+// the raise would leave.
 export function getAttributeXPCost(target: number, average: number, CON: number, SM: number): number {
   const excess = average - (10 + CON - SM)
-  return (target / 2) * (1 + Math.max(0, Math.ceil(excess)))
+  return Math.floor(target / 2) * (1 + Math.max(0, Math.ceil(excess)))
 }
 
 const talentOf = (c: Character, talent: TalentKey): number => c.trainables[talent].value
@@ -128,6 +128,13 @@ export function getAttributeRaisePrice(key: keyof Attributes): (c: Character) =>
     const average = (STR.value + AGI.value + STA.value + 1) / 3
     return { currency: 'XP', amount: getAttributeXPCost(target, average, talentOf(c, 'CON'), getSM(c)) }
   }
+}
+
+export function getTrainableRaisePrice(key: keyof Trainables): (c: Character) => LearningPrice | null {
+  if (key in SkillsSchema.shape) return getSkillRaisePrice(key as keyof Skills)
+  if (key in ProficienciesSchema.shape) return getProficiencyRaisePrice(key as keyof Proficiencies)
+  if (key in TalentsSchema.shape) return getTalentRaisePrice(key as TalentKey)
+  return getAttributeRaisePrice(key as keyof Attributes)
 }
 
 // creating.tex "Changing attributes": a point out of one attribute into

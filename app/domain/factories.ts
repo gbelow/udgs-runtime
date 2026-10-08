@@ -1,8 +1,9 @@
 import z from 'zod'
-import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, type RaceDraft, type Race, type RaceBonusKey } from './types'
+import { ArmorSchema, CampaignCharacter, CampaignCharacterSchema, BaseCharacterSchema, ContainerSchema, BaseCharacter, SurgeKindSchema, Trainables, BodyPartSchema, BodySchema, HitLocationSchema, presetPart, StanceSchema, ItemSchema, BodyPart, Item, Wound, WoundSchema, LearnedSpell, LearnedSpellSchema, Trainable, ShapeSchema, MovementSchema, RaceDraftSchema, RaceSchema, RACE_BONUS_KEYS, type RaceDraft, type Race, type RaceBonusKey } from './types'
 import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { isBaseCharacter } from './utils'
+import { heldAbility } from './abilities'
 
 // A trainable's `name` and `type` are authored by the schema group it belongs to,
 // never by the incoming data: an ingested trainable supplies a value, not an
@@ -34,6 +35,19 @@ function mergeSpells(incoming: Record<string, unknown> | undefined): Record<stri
   )
 }
 
+// An ability held is a trainable of its family: what is not an object is
+// dropped, and a level or XP that is not a number reads as 0.
+function mergeAbilities(incoming: Record<string, unknown> | undefined): Record<string, Trainable> {
+  if (!incoming) return {}
+  return Object.fromEntries(
+    Object.entries(incoming)
+      .filter((entry): entry is [string, Record<string, unknown>] => entry[1] !== null && typeof entry[1] === 'object')
+      .map(([key, raw]) => [key, { ...heldAbility(key, finite(raw.value)), XP: finite(raw.XP) }]),
+  )
+}
+
+const finite = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0)
+
 function addBaseValues(emptyCharacter: BaseCharacter, parsedCharacter: CharacterIngestType): BaseCharacter
 function addBaseValues(emptyCharacter: CampaignCharacter, parsedCharacter: CampaignCharacterIngestType): CampaignCharacter
 function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parsedCharacter: CharacterIngestType | CampaignCharacterIngestType){
@@ -54,6 +68,7 @@ function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parse
     },
     containers: parsedCharacter.containers ?? emptyCharacter.containers,
     spells: mergeSpells(parsedCharacter.spells),
+    abilities: mergeAbilities(parsedCharacter.abilities),
     stance: {
       ...emptyCharacter.stance,
       ...parsedCharacter.stance,
@@ -210,7 +225,7 @@ const CharacterIngestValues = {
   onBack: ItemSchema.nullable().optional(),
   containers: z.record(z.string(), ContainerSchema).optional(),
 
-  abilities: z.array(z.string()).optional(),
+  abilities: z.record(z.string(), z.unknown()).optional().catch(undefined),
   spells: z.record(z.string(), z.any()).optional(),
 
   notes: z.string().optional(), 

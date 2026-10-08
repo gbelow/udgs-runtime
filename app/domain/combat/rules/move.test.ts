@@ -11,7 +11,7 @@ describe('a partial block of a whole-block movement costs the block', () => {
   const runners = [
     makeCampaignCharacter({}),
     makeCampaignCharacter({ movement: { run: 2, jump: 1 } }),
-    makeCampaignCharacter({ abilities: ['sprinter-1'] }),
+    makeCampaignCharacter({ abilities: { sprinter: { value: 1 } } }),
   ]
 
   it.each(runners.map((c, i) => [i, c] as const))('runner %i', (_i, c) => {

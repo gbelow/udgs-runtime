@@ -1,6 +1,6 @@
 import { requirementsLabel } from '../rules/requirements'
 import type { Character, Cost } from '../../types'
-import { ABILITIES, ABILITY_KEYS, AbilityKey } from '../../abilities'
+import { ABILITIES, ABILITY_KEYS, AbilityKey, hasAbility } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
 import { canLearnAbility, getAbilityXPCost } from '../rules/abilities'
 import { canAfford } from '../rules/cost'
@@ -86,7 +86,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       active: false,
       use: null,
     }
-    const learned = c.abilities.includes(key)
+    const learned = hasAbility(c, key)
     const stage: AbilityStageView = {
       key,
       name: ability.name,

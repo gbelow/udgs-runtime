@@ -36,21 +36,20 @@ export const ArmorSchema = z.object({
 
 export type Armor = z.infer<typeof ArmorSchema>
 
-export const TrainableTypeSchema = z.enum(['skill', 'attribute', 'talent', 'proficiency', 'knowledge'])
+export const TrainableTypeSchema = z.enum(['skill', 'attribute', 'talent', 'proficiency', 'knowledge', 'ability'])
 export type TrainableType = z.infer<typeof TrainableTypeSchema>
 
 export const TrainableSchema = z.object({
   value: z.number().default(0),
   name: z.string().default(''),
   XP: z.number().default(0),
-  talent: z.string().default(''),
   type: TrainableTypeSchema.default('skill'),
 }).strip()
 export type Trainable = z.infer<typeof TrainableSchema>
 
 // small helper so the group schemas aren't a wall of repeated defaults
 const trainable = (type: TrainableType, value = 0, name: string) =>
-  TrainableSchema.default({ value, name, XP: 0, talent: '', type })
+  TrainableSchema.default({ value, name, XP: 0, type })
 
 // ── groups (each is a subset type on its own) ───────────
 export const SkillsSchema = z.object({
@@ -1323,7 +1322,7 @@ const CharacterValues = {
   onBack: ItemSchema.nullable().default(null),
   containers: z.record(z.string(), ContainerSchema).default({}),
 
-  abilities: z.array(str).default([]), // learned ability names, keyed into the abilities catalog
+  abilities: z.record(z.string(), TrainableSchema).default({}), // by ability family: the level is the stages learned, XP the training toward the next
   spells: z.record(z.string(), LearnedSpellSchema).default({}), // keyed into the spell catalog
 
   // creating.tex "Character Creation", "Step 2: Race": the race being made

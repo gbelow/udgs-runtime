@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Ability, AbilityFamily, AbilityFamilySchema, AbilitySchema } from './types'
+import { Ability, AbilityFamily, AbilityFamilySchema, AbilitySchema, Character, Trainable, TrainableSchema } from './types'
 import catalog from '../assets/abilities.json'
 
 // abilities.tex — the ability catalog, kept in app/assets/abilities.json one
@@ -12,7 +12,7 @@ import catalog from '../assets/abilities.json'
 // reads how it works, and nothing in the domain moves for it yet.
 const ROMAN = ['I', 'II', 'III', 'IV', 'V']
 
-type FamilyKey = keyof typeof catalog
+export type FamilyKey = keyof typeof catalog
 export type AbilityKey = FamilyKey | `${FamilyKey}-${1 | 2 | 3 | 4 | 5}`
 
 export const ABILITY_FAMILIES: Record<FamilyKey, AbilityFamily> = z.record(z.string(), AbilityFamilySchema).parse(catalog) as Record<FamilyKey, AbilityFamily>
@@ -45,4 +45,43 @@ export const ABILITY_KEYS = Object.keys(ABILITIES) as AbilityKey[]
 
 export function isAbilityKey(key: string): key is AbilityKey {
   return key in ABILITIES
+}
+
+// The stages of a family in order, and the family a stage belongs to.
+const FAMILY_STAGES = Object.fromEntries(
+  (Object.keys(ABILITY_FAMILIES) as FamilyKey[]).map((family) => [family, expand(family, ABILITY_FAMILIES[family]).map(([key]) => key)]),
+) as Record<FamilyKey, AbilityKey[]>
+
+export const ABILITY_FAMILY_OF = Object.fromEntries(
+  (Object.keys(FAMILY_STAGES) as FamilyKey[]).flatMap((family) => FAMILY_STAGES[family].map((key) => [key, family])),
+) as Record<AbilityKey, FamilyKey>
+
+export function getFamilyStages(family: FamilyKey): AbilityKey[] {
+  return FAMILY_STAGES[family]
+}
+
+function isFamilyKey(key: string): key is FamilyKey {
+  return key in ABILITY_FAMILIES
+}
+
+// abilities.tex "Acquiring abilities": an ability is held as a trainable of
+// its family, its level the stages learned. At level 0 it is being trained
+// and none of it is learned yet.
+export function getAbilityLevel(c: Character, family: FamilyKey): number {
+  return c.abilities[family]?.value ?? 0
+}
+
+// A family held at a level, with nothing trained yet toward the next.
+export function heldAbility(family: string, value = 0): Trainable {
+  return TrainableSchema.parse({ name: family, type: 'ability', value })
+}
+
+export function hasAbility(c: Character, key: string): boolean {
+  return isAbilityKey(key) && getAbilityLevel(c, ABILITY_FAMILY_OF[key]) >= ABILITIES[key].stage
+}
+
+// Every stage learned. A family saved before a rename is skipped rather than
+// thrown on.
+export function getLearnedAbilityKeys(c: Character): AbilityKey[] {
+  return Object.keys(c.abilities).filter(isFamilyKey).flatMap((family) => FAMILY_STAGES[family].slice(0, getAbilityLevel(c, family)))
 }
