@@ -1,4 +1,4 @@
-import type { Action, CombatState, StealthTurn } from '../types'
+import type { Action, CombatState, Degree, Detection, DetectionTest, StealthTurn } from '../types'
 import { getArmor } from '../../character/rules/armor'
 import { isMuffled } from '../../item/rules/items'
 import { coordKey } from '../geometry'
@@ -56,21 +56,37 @@ export function getStealthTurn(state: CombatState): StealthTurn | null {
 // combat.tex "Sensory impairment": whether the score fails against a
 // detection — "unless their stealth value grazes or misses against the
 // reactor's detection".
-function isFound(score: number, detection: number): boolean {
-  const degree = getDegree(score, detection)
+function isFound(degree: Degree): boolean {
   return degree === 'graze' || degree === 'miss'
+}
+
+// Whether the observer has the hider, and the detection test that decided
+// it; a null test is one decided without a roll against the stealth value.
+export type Detected = Omit<Detection, 'observerId' | 'hiderId'>
+
+const SENSED: Detected = { found: true, test: null }
+
+// The test each sense makes of the score, less `penalty` for what it takes
+// in of the turn: found by any that finds, and explained by it, or by the one
+// that came closest when none does. Nothing to test with finds nothing.
+function testScore(score: number, reaches: SenseReach[], penalty: (r: SenseReach) => number): Detected {
+  const tests = reaches.map((r): DetectionTest => ({ score, penalty: penalty(r), sense: r.sense, detection: r.detection, terms: r.terms, degree: getDegree(score - penalty(r), r.detection) }))
+  const finding = tests.find((t) => isFound(t.degree))
+  if (finding) return { found: true, test: finding }
+  const closest = tests.reduce<DetectionTest | null>((best, t) => (best && best.detection + best.penalty >= t.detection + t.penalty ? best : t), null)
+  return { found: false, test: closest }
 }
 
 // combat.tex "Active senses in combat": outside the target's own turn, an
 // unimpaired active sense detects them; a partly impaired one tests. A
 // character with no stealth score this round (one who joined after it began)
 // is not hiding.
-function isDetectedOffTurn(state: CombatState, observerId: string, targetId: string): boolean {
+function detectOffTurn(state: CombatState, observerId: string, targetId: string): Detected {
   const score = getStealthScore(state, targetId)
-  if (score === null) return true
+  if (score === null) return SENSED
   const active = getSenseReaches(state, observerId, targetId).filter((r) => r.active)
-  if (active.some((r) => r.impairment === 'none')) return true
-  return active.some((r) => isFound(score, r.detection))
+  if (active.some((r) => r.impairment === 'none')) return SENSED
+  return testScore(score, active, () => 0)
 }
 
 // combat.tex "Actions in stealth": in their own turn the holder is noticed by
@@ -79,11 +95,11 @@ function isDetectedOffTurn(state: CombatState, observerId: string, targetId: str
 // reaction") finds their score less what the turn has spent and what
 // `pending`, their action not yet landed, will: every AP counted, and to an
 // ear the noise again.
-function isNoticedInTurn(state: CombatState, turn: StealthTurn, observerId: string, pending: Noise): boolean {
+function detectInTurn(state: CombatState, turn: StealthTurn, observerId: string, pending: Noise): Detected {
   const score = getStealthScore(state, turn.id)
-  if (score === null || !turn.hiddenFrom.includes(observerId)) return true
+  if (score === null || !turn.hiddenFrom.includes(observerId)) return SENSED
   const penalty = (r: SenseReach) => turn.AP + pending.AP + (r.sense === 'hearing' ? turn.heardAP + pending.heardAP : 0)
-  return getSenseReaches(state, observerId, turn.id).some((r) => r.reactive && isFound(score - penalty(r), r.detection))
+  return testScore(score, getSenseReaches(state, observerId, turn.id).filter((r) => r.reactive), penalty)
 }
 
 // The fight with a move's mover standing at step `at` of its path, where a
@@ -98,16 +114,21 @@ function atStep(state: CombatState, move: Action | null, at: number | null): Com
 // `pending`, an action of theirs not yet landed — a move as it stands at
 // step `at`, where the reaction fires.
 export function notices(state: CombatState, observerId: string, targetId: string, pending: Action | null = null, at: number | null = null): boolean {
-  if (observerId === targetId) return true
+  return detect(state, observerId, targetId, pending, at).found
+}
+
+// What `notices` answers, with the detection test that decided it.
+export function detect(state: CombatState, observerId: string, targetId: string, pending: Action | null = null, at: number | null = null): Detected {
+  if (observerId === targetId) return SENSED
   const turn = getStealthTurn(state)
-  if (turn?.id !== targetId) return isDetectedOffTurn(state, observerId, targetId)
+  if (turn?.id !== targetId) return detectOffTurn(state, observerId, targetId)
   const live = pending && pending.step !== 'done' ? pending : null
-  return isNoticedInTurn(atStep(state, live, at) ?? state, turn, observerId, live?.noise ?? { AP: 0, heardAP: 0 })
+  return detectInTurn(atStep(state, live, at) ?? state, turn, observerId, live?.noise ?? { AP: 0, heardAP: 0 })
 }
 
 // combat.tex "Actions in stealth": "A character can only use the stealth
 // value during its turn if it started undetected to the active senses of
 // their reactors" — everyone living who does not detect them as it begins.
 export function getHiddenFrom(state: CombatState, id: string): string[] {
-  return Object.entries(state.characters).filter(([other, c]) => other !== id && !isDead(c) && !isDetectedOffTurn(state, other, id)).map(([other]) => other)
+  return Object.entries(state.characters).filter(([other, c]) => other !== id && !isDead(c) && !detectOffTurn(state, other, id).found).map(([other]) => other)
 }

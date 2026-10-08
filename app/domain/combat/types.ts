@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, DegreeSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { CampaignCharacterSchema, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -41,6 +41,30 @@ export const HeldRollSchema = z.object({
   skillTerms: z.array(TermSchema).default([]),
 })
 export type HeldRoll = z.infer<typeof HeldRollSchema>
+
+// combat.tex "Stealth in combat": a detection test as it was made — the
+// hider's stealth value, less what their own turn had spent where it was
+// theirs, scored against the observer's detection through the sense that
+// decided it.
+export const DetectionTestSchema = z.object({
+  score: num,
+  penalty: num,
+  sense: SensesSchema.keyof(),
+  detection: num,
+  terms: z.array(TermSchema).default([]),
+  degree: DegreeSchema,
+}).strip()
+export type DetectionTest = z.infer<typeof DetectionTestSchema>
+
+// Whether the observer had the hider, and the test it took; a null test is
+// one decided without a roll against the stealth value.
+export const DetectionSchema = z.object({
+  observerId: str,
+  hiderId: str,
+  found: z.boolean(),
+  test: DetectionTestSchema.nullable().default(null),
+}).strip()
+export type Detection = z.infer<typeof DetectionSchema>
 
 // What an action produced for each character it reached, keyed by id: the
 // deliveries that character's own effect processor lands.
@@ -247,9 +271,14 @@ const ActionBase = {
   // combat.tex "Actions in stealth": what the action, as it was committed,
   // will take off its actor's stealth value (rules/stealth.ts `getNoise`)
   noise: z.object({ AP: num, heardAP: num }).strip().nullable().default(null),
-  // combat.tex "Actions in stealth": whoever the action, as it was committed,
-  // would have let answer it but who did not notice its actor, by id
-  unnoticed: z.array(str).default([]),
+  // combat.tex "Stealth in combat": as the action was committed, the
+  // detection tests its actor made of its target and the ones made of its
+  // actor by whoever it would have let answer it, and who of those could not
+  // sense its actor at all; a detection without a test that found is not kept
+  detections: z.array(DetectionSchema).default([]),
+  // combat.tex "Actions in stealth": whom its actor began the turn undetected
+  // by, for one committed in its actor's own turn; null for any other
+  hiddenFrom: z.array(str).nullable().default(null),
   // the lines `cost` is the sum of, written with it
   costTerms: z.array(CostTermSchema).default([]),
   // the surge its actor made to take the action, paid when it is declared and

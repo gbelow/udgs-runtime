@@ -1,5 +1,6 @@
-import type { Action, ActionRoll, Change, CombatState, CostTerm, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
+import type { Action, ActionRoll, Change, CombatState, CostTerm, Detection, JournalEntry, MoveAction, MoveFacts, MoveStop } from '../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
+import type { Term } from '../../character/rules/terms'
 import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
 import { ACTIONS } from '../rules/actionCatalog'
@@ -25,6 +26,11 @@ export type ReactionLine = {
   changes: string[]
 }
 
+export type DetectionLine = {
+  text: string
+  terms: Term[]
+}
+
 // Something committed or offered that left play without landing, and why.
 export type WithdrawnLine = {
   text: string
@@ -41,8 +47,11 @@ export type EpisodeEntry = ActionReport & {
   changes: string[]
   // how it came to be played, when not on its actor's own initiative
   cause: string | null
-  // who it would have let answer but who did not notice its actor, by name
-  unnoticed: string[]
+  // whom its actor began their turn undetected by, for one taken in that turn
+  hiddenFrom: string | null
+  // the detection tests made as it was committed, and who could not sense its
+  // actor at all, a line each with the terms the detection was added up from
+  detections: DetectionLine[]
   // why it came to less than it was declared as, when it did
   fate: string | null
   reactions: ReactionLine[]
@@ -60,7 +69,7 @@ export function getLastEpisode(state: CombatState): EpisodeEntry[] | null {
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), unnoticed: a.unnoticed.map((id) => getFightName(state, id)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -100,6 +109,22 @@ function describeWithdrawal(state: CombatState, { action, reason }: JournalEntry
     case 'forgone': return `${actor} did not take ${what}: they took another follow-up of the same action`
     case 'noLongerTriggered': return `${actor}'s ${what} no longer applied once the action it answered changed`
   }
+}
+
+function describeHiddenFrom(state: CombatState, action: Action): string | null {
+  if (!action.hiddenFrom) return null
+  const names = action.hiddenFrom.map((id) => getFightName(state, id))
+  return `${getFightName(state, action.actorId)} began the turn hidden from ${names.length > 0 ? names.join(', ') : 'nobody'}`
+}
+
+// combat.tex "Stealth in combat": the hider's stealth value, less what their
+// turn had spent, against the observer's detection.
+function describeDetection(state: CombatState, { observerId, hiderId, found, test }: Detection): DetectionLine {
+  const observer = getFightName(state, observerId)
+  const hider = getFightName(state, hiderId)
+  if (!test) return { text: `${observer} could not sense ${hider}`, terms: [] }
+  const score = test.penalty ? `stealth ${test.score} − ${test.penalty} for the turn = ${test.score - test.penalty}` : `stealth ${test.score}`
+  return { text: `${observer} ${found ? 'noticed' : 'did not notice'} ${hider}: ${score} vs ${test.sense} detection ${test.detection} · ${test.degree}`, terms: test.terms }
 }
 
 function getReactionLines(state: CombatState, root: Action): ReactionLine[] {

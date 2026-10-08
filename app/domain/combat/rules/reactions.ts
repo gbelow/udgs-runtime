@@ -1,5 +1,5 @@
 import type { Character } from '../../types'
-import type { ActionKind, CastAction, ReactionKind, CombatState, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
+import type { ActionKind, CastAction, ReactionKind, CombatState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getAdjacentIds, getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
@@ -21,7 +21,7 @@ import { getProtectors } from './protect'
 import { FLEE_PERIMETER } from './flee'
 import { isInTurn } from './turn'
 import { getSweepTargets, isSweep, isSweepLink } from './sweep'
-import { notices } from './stealth'
+import { detect, type Detected } from './stealth'
 
 // combat.tex "Reactions": "actions that can be performed on another
 // character's turn but must be triggered by something." What an action,
@@ -73,12 +73,16 @@ export function getTriggers(state: CombatState, root: RootAction): Trigger[] {
   return getDrawnTriggers(state, root).filter((t) => canReactTo(state, root, t))
 }
 
-// Whoever the action would trigger but who has not noticed its actor
-// (combat.tex "Actions in stealth"), each once.
-export function getUnnoticing(state: CombatState, root: RootAction): string[] {
+// What whoever the action would trigger made of its actor (combat.tex
+// "Actions in stealth"), each once and by a trigger they noticed it through
+// if any: every detection test, and who could not sense its actor at all.
+export function getReactorDetections(state: CombatState, root: RootAction): Detection[] {
   const triggers = getDrawnTriggers(state, root)
-  const noticing = new Set(triggers.filter((t) => canReactTo(state, root, t)).map((t) => t.characterId))
-  return [...new Set(triggers.map((t) => t.characterId))].filter((id) => !noticing.has(id))
+  return [...new Set(triggers.map((t) => t.characterId))].flatMap((id) => {
+    const made = triggers.filter((t) => t.characterId === id).map((t) => detectAnswerer(state, root, t))
+    const decided = made.find((d) => d.found) ?? made[0]
+    return decided.test || !decided.found ? [{ observerId: id, hiderId: root.actorId, ...decided }] : []
+  })
 }
 
 function getDrawnTriggers(state: CombatState, root: RootAction): Trigger[] {
@@ -96,8 +100,12 @@ function getDrawnTriggers(state: CombatState, root: RootAction): Trigger[] {
 // A trample's answers are noticed where the path comes into the one who
 // answers.
 function canReactTo(state: CombatState, root: RootAction, trigger: Trigger): boolean {
+  return detectAnswerer(state, root, trigger).found
+}
+
+function detectAnswerer(state: CombatState, root: RootAction, trigger: Trigger): Detected {
   const at = trigger.at ?? (root.kind === 'move' ? getEnteringStep(state, root, trigger.characterId) : null)
-  return notices(state, trigger.characterId, root.actorId, root, at)
+  return detect(state, trigger.characterId, root.actorId, root, at)
 }
 
 // The step of the move's path (counted from 1) that first comes into the

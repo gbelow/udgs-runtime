@@ -574,14 +574,18 @@ function Report({ episode, edits }: { episode: EpisodeEntry[], edits: string[] }
 function ReportEntry({ entry }: { entry: EpisodeEntry }){
   return (
     <div className='flex flex-col gap-1'>
+      {entry.hiddenFrom ? <span className='text-xs text-muted'>{entry.hiddenFrom}</span> : null}
+      {entry.detections.map((d, i) => (
+        <span key={i} className='text-xs text-muted'>
+          {d.text}{d.terms.length > 0 ? ` (${d.terms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')})` : ''}
+        </span>
+      ))}
       <div className='flex flex-row flex-wrap gap-x-3 items-baseline'>
         <span className='text-sm'>{entry.actor} · {entry.label}</span>
         <span className='text-xs text-muted opacity-60'>{entry.rule}</span>
         <Cost cost={entry.cost} />
         <RollSummary roll={entry.roll} />
-        {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}
-        {entry.unnoticed.length > 0 ? <span className='text-xs text-muted'>not noticed by {entry.unnoticed.join(', ')}</span> : null}
-      </div>
+        {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}      </div>
       <Breakdown terms={entry.costTerms} roll={entry.roll} surged={entry.surged} changes={entry.changes} />
       {entry.reactions.map((r, i) => (
         <div key={i} className='flex flex-col pl-3'>

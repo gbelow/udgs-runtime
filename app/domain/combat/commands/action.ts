@@ -4,8 +4,8 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
 import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
-import { getNoise } from '../rules/stealth'
-import { getUnnoticing } from '../rules/reactions'
+import { detect, getNoise, getStealthTurn } from '../rules/stealth'
+import { getReactorDetections } from '../rules/reactions'
 import { findOption, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
@@ -101,9 +101,20 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     const cost = getPayableCost(state, open)
     if (!cost) return state
     const committed: RootAction = { ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, cost.AP), step: 'react' }
-    const locked = replaceActions(state, [{ ...committed, unnoticed: getUnnoticing(state, committed) }])
+    const locked = replaceActions(state, [withStealthFacts(state, committed)])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
   }
+}
+
+// combat.tex "Stealth in combat": what the root writes down of who had whom
+// as it is committed — the test its actor made of its target, the ones made
+// of its actor by whoever it would let answer, and, in its actor's own turn,
+// whom they began it undetected by.
+function withStealthFacts(state: CombatState, root: RootAction): RootAction {
+  const aimed = root.targetId ? detect(state, root.actorId, root.targetId) : null
+  const ofTarget = root.targetId && aimed?.test ? [{ observerId: root.actorId, hiderId: root.targetId, ...aimed }] : []
+  const turn = getStealthTurn(state)
+  return { ...root, detections: [...ofTarget, ...getReactorDetections(state, root)], hiddenFrom: turn?.id === root.actorId ? turn.hiddenFrom : null }
 }
 
 // What the root writes down as it is committed, fixed from here on whatever

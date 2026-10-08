@@ -457,7 +457,7 @@ function buildActionPanel(state: CombatState): ActionPanelView {
     prepared: getPreparedRows(state),
     options: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
-    unnoticed: step === 'react' ? open.unnoticed.map((id) => getFightName(state, id)) : [],
+    unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
           .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
