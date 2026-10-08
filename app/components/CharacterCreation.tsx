@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, Panel, Row, SectionLabel, TextInput, selectClass } from './ui'
 import { useCreation } from '../hooks/useCreation'
-import { AbilityFamilyRow } from './AbilitySelector'
+import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
 import { PRIORITIES } from '../domain/types'
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
-import type { CreationPrice, CreationRow } from '../domain/character/lenses/creation'
+import type { CreationAbilityEntry, CreationPrice, CreationRow } from '../domain/character/lenses/creation'
 import type { Term } from '../domain/character/rules/terms'
 
 // creating.tex "Character Creation": the race, the priorities and what is
@@ -179,31 +179,40 @@ function Knowledges() {
 }
 
 // abilities.tex: the catalog of one category, browsed with every family's
-// stages and what they do; a family that can be bought now is added from it.
+// stages and what they do, a family that can be bought now added from it;
+// under it the families held, the race's stages locked.
 function Abilities() {
   const { view, buyStage } = useCreation()
   const [picked, setPicked] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const group = view.abilityCatalog.find((g) => g.section === picked)
+  const row = (entry: CreationAbilityEntry, key: string, action: ReactNode) => (
+    <AbilityFamilyRow key={key} row={entry.view} open={open === key} onToggle={() => setOpen(open === key ? null : key)} action={action} />
+  )
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>Abilities</SectionLabel>
-      {view.abilities.map((row) => <BuyRow key={row.family} {...row} onBuy={(change) => buyStage(row.family, change)} />)}
       <select aria-label='ability category' className={selectClass} value={group?.section ?? ''} onChange={(e) => setPicked(e.target.value)}>
         <option value=''>— category —</option>
         {view.abilityCatalog.map((g) => <option key={g.section} value={g.section}>{g.section}</option>)}
       </select>
       {group ? (
         <div className='flex flex-col rounded border border-line p-1'>
-          {group.entries.map((entry) => (
-            <AbilityFamilyRow key={entry.family} row={entry.view} dimmed={!entry.addable && !entry.taken}
-              open={open === entry.family} onToggle={() => setOpen(open === entry.family ? null : entry.family)} action={
-                entry.addable ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
-                : <span className={`text-xs px-1 ${entry.taken ? 'text-good' : 'text-muted'}`}>{entry.taken ? 'taken' : 'locked'}</span>
-              } />
-          ))}
+          {group.entries.map((entry) => row(entry, `catalog:${entry.family}`,
+            entry.level > 0 ? <span className='text-xs text-good px-1'>{entry.bought > 0 ? 'taken' : 'racial'}</span>
+            : entry.next ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
+            : <LockedLabel row={entry.view} />))}
         </div>
       ) : null}
+      {view.abilities.length ? <SectionLabel className='pt-2'>Learned</SectionLabel> : null}
+      {view.abilities.map((entry) => row(entry, `held:${entry.family}`, (
+        <span className='flex flex-row items-center gap-1'>
+          {entry.racial > 0 ? <span className='text-xs text-muted' title='given by the race'>🔒 racial</span> : null}
+          <Button size='xs' aria-label={`give back ${entry.view.family}`} disabled={entry.bought === 0} onClick={() => buyStage(entry.family, -1)}>−</Button>
+          <Button size='xs' aria-label={`raise ${entry.view.family}`} disabled={entry.next === null} onClick={() => buyStage(entry.family, 1)}>+</Button>
+          <span className='w-14 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>
+        </span>
+      )))}
     </div>
   )
 }

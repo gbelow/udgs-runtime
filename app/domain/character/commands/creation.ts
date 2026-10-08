@@ -1,26 +1,14 @@
-import { FOCI, TalentsSchema, type CreationDraft, type Focus, type Priority, type Race, type Trainables } from '../../types'
+import { FOCI, type CreationDraft, type Focus, type Priority, type Race, type Trainables } from '../../types'
 import { FamilyKey } from '../../abilities'
 import type { LimitStressAction } from '../../lists'
-import { makeCreationStart } from '../../factories'
-import { isBaseCharacter } from '../../utils'
-import { getCreationAbilityRaises, getCreationRaise } from '../rules/creation'
-import { applyRace } from './race'
+import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getRacialLevel } from '../rules/creation'
 
 // creating.tex "Character Creation", Step 1: the race the character is made
-// from, or none. Its talent bonuses count from the start, so every price is
-// worked out with them; its attribute bonuses wait for the end ("Add the
-// attribute bonuses after step 4"). Only what the race sets is replaced: the
-// name and the choices made so far stay, as does everything bought.
+// from, or none. Only the race changes; it is put on the character when its
+// prices are worked out (getCreationStart), so the name, the choices and
+// everything bought stay.
 export function setCreationRace(race: Race | null): (d: CreationDraft) => CreationDraft {
-  return (d: CreationDraft) => {
-    const { id, name, limitStress, trainables: { conviction1, conviction2 } } = d.character
-    const start = makeCreationStart({ id, name })
-    const blank = { ...start, limitStress, trainables: { ...start.trainables, conviction1, conviction2 } }
-    if (!race) return { ...d, race: null, character: blank }
-    const bonuses = Object.fromEntries(Object.entries(race.bonuses).filter(([key]) => key in TalentsSchema.shape))
-    const raced = applyRace({ ...race, bonuses })(blank)
-    return { ...d, race, character: isBaseCharacter(raced) ? raced : blank }
-  }
+  return (d: CreationDraft) => ({ ...d, race })
 }
 
 export function setCreationName(name: string): (d: CreationDraft) => CreationDraft {
@@ -76,10 +64,13 @@ export function buyCreationKnowledge(name: string, change: 1 | -1): (d: Creation
 }
 
 // The next stage of an ability family bought, or the last bought given back.
+// The draft keeps the level bought up to, counted from the race's.
 export function buyCreationStage(family: FamilyKey, change: 1 | -1): (d: CreationDraft) => CreationDraft {
   return (d: CreationDraft) => {
-    const count = (d.abilities[family] ?? 0) + change
-    if (count < 0 || (change > 0 && !(family in getCreationAbilityRaises(d)))) return d
-    return { ...d, abilities: counted(d.abilities, family, count) }
+    const racial = getRacialLevel(d, family)
+    const bought = getBoughtStageCount(d, family)
+    if (bought + change < 0 || (change > 0 && !(family in getCreationAbilityRaises(d)))) return d
+    const level = racial + bought + change
+    return { ...d, abilities: counted(d.abilities, family, level > racial ? level : 0) }
   }
 }

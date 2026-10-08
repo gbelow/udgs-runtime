@@ -1373,16 +1373,17 @@ export type Priority = z.infer<typeof PrioritySchema>
 export const TrainableKeySchema = z.enum(Object.keys(TrainablesSchema.shape) as [keyof Trainables, ...(keyof Trainables)[]])
 
 // A character being made by the book's steps. `character` is where it starts:
-// attributes at 8, and the race's creature, talents and abilities. What is
-// bought is kept as levels on top of that start, never as XP spent, so its
-// price always follows the talents the character has at the moment.
+// attributes at 8 and the choices made; the race is kept apart and put on it
+// when prices are worked out. What is bought is kept as levels on top of that
+// start, never as XP spent, so its price always follows the talents the
+// character has at the moment.
 export const CreationDraftSchema = z.object({
   character: BaseCharacterSchema,
   race: RaceSchema.nullable().default(null),
   priorities: z.record(FocusSchema, PrioritySchema).default({ CON: 'A', SPI: 'B', INT: 'C', DEX: 'D', wealth: 'E' }),
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
   knowledges: z.record(z.string(), num).default({}), // the levels bought, by name
-  abilities: z.record(z.string(), num).default({}), // by ability family: the stages bought
+  abilities: z.record(z.string(), num).default({}), // by ability family: the level bought up to, the race's stages free
 }).strip()
 export type CreationDraft = z.infer<typeof CreationDraftSchema>
 

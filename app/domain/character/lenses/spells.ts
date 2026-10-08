@@ -1,4 +1,4 @@
-import { requirementsLabel } from '../rules/requirements'
+import { getUnmetRequirements, requirementsLabel } from '../rules/requirements'
 import { DEGREES, type Area, type Character, type Spell, type SpellMethod } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey } from '../../spells'
 import { HIT_MARGIN } from '../../tables'
@@ -19,6 +19,7 @@ export type SpellCatalogRow = {
   DL: number | null
   costText: string
   requirements: string
+  unmet: string // the requirements the character falls short of, while not learned
   castRequirements: string
   description: string
   enhance: string
@@ -38,6 +39,7 @@ export function getSpellCatalogRows(c: Character): SpellCatalogRow[] {
       DL: spell.DL,
       costText: spell.costText,
       requirements: requirementsLabel(spell.requirements),
+      unmet: key in c.spells ? '' : getUnmetRequirements(c, spell.requirements).join(' · '),
       castRequirements: requirementsLabel(spell.castRequirements),
       description: spell.description,
       enhance: spell.enhance,

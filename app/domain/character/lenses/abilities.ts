@@ -2,7 +2,7 @@ import { requirementsLabel } from '../rules/requirements'
 import type { Character, Cost } from '../../types'
 import { ABILITIES, ABILITY_KEYS, AbilityKey, hasAbility } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
-import { canLearnAbility, getAbilityXPCost } from '../rules/abilities'
+import { canLearnAbility, getAbilityXPCost, getUnmetAbilityRequirements } from '../rules/abilities'
 import { canAfford } from '../rules/cost'
 import { getSurgeBar } from '../rules/surge'
 import { getDrain, isAbilityActive } from '../rules/effects'
@@ -16,6 +16,7 @@ export type AbilityStageView = {
   description: string
   price: string // "12 XP", "4 Karma", "" for a free stage
   requirements: string // "Archer, Riding I · Medicine 1", in the book's words
+  unmet: string[] // the requirements the character falls short of, while not learned
 }
 
 // One row per family, its stages in order, so the sidebar can show "Sprinter"
@@ -28,6 +29,7 @@ export type AbilityFamilyView = {
   next: AbilityStageView | null // the stage a click would learn, if any
   top: AbilityStageView | null // the highest learned stage — the one a click would forget
   complete: boolean // every stage learned; otherwise a null `next` means the next stage is locked
+  blocked: string[] // why the next stage is locked: what it requires that the character lacks
   progress: string // "2/3" for a multi-stage family, "" otherwise
   toggle: AbilityStageView | null // the learned stage that carries the family's switch, if any
   active: boolean // whether that switch is on
@@ -81,6 +83,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       next: null,
       top: null,
       complete: false,
+      blocked: [],
       progress: '',
       toggle: null,
       active: false,
@@ -96,6 +99,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       description: ability.description,
       price: learningPrice(c, key),
       requirements: requirementsLabel(ability.requirements),
+      unmet: learned ? [] : getUnmetAbilityRequirements(key)(c),
     }
     row.stages.push(stage)
     families.set(ability.family, row)
@@ -105,6 +109,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
     row.next = row.stages.find((s) => s.learnable) ?? null
     row.top = row.stages.filter((s) => s.learned).at(-1) ?? null
     row.complete = row.stages.every((s) => s.learned)
+    if (!row.next) row.blocked = row.stages.find((s) => !s.learned)?.unmet ?? []
     // Switches and triggers only exist in play — a base character has no
     // resources to spend and nothing to hold switched on.
     if (isCampaignCharacter(c)) {

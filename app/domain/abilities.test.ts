@@ -7,7 +7,8 @@ import { CombatStateSchema } from './combat/types'
 import { getDrain, getUpkeep } from './character/rules/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
 import { AbilityFamilySchema } from './types'
-import { getConvictionSlot } from './character/rules/requirements'
+import { getRequiredTrainable } from './character/rules/requirements'
+import { emptyKnowledge } from './character/rules/knowledge'
 import catalog from '../assets/abilities.json'
 import type { CampaignCharacter, Character, Requirement } from './types'
 
@@ -54,7 +55,7 @@ function chain(key: AbilityKey): AbilityKey[] {
 }
 
 const ENFORCED: Requirement['kind'][] = ['ability', 'spell', 'attribute']
-const enforced = (req: Requirement): boolean => ENFORCED.includes(req.kind) || (req.kind === 'trainable' && getConvictionSlot(req.name) !== null)
+const enforced = (req: Requirement): boolean => ENFORCED.includes(req.kind) || (req.kind === 'trainable' && getRequiredTrainable(req.name) !== null)
 
 // A value on the far side of an attribute threshold: past it when `meet`,
 // short of it otherwise.
@@ -65,9 +66,9 @@ function attributeValue(req: Requirement, meet: boolean): number {
   return meet ? req.level + (strict ? step : 0) : req.level - (strict ? 0 : step)
 }
 
-// Grants or withholds one requirement item on a character: a conviction is
-// adopted at the level asked for, or given up; nothing else the domain cannot
-// read (other trainables, gear, conditions) is touched.
+// Grants or withholds one requirement item on a character: a trainable is set
+// to a level either side of the one asked for, a conviction adopted at it or
+// given up; nothing the domain cannot read (gear, conditions) is touched.
 function grant(c: Character, req: Requirement, meet: boolean): Character {
   const present = meet !== req.not
   switch (req.kind) {
@@ -86,10 +87,20 @@ function grant(c: Character, req: Requirement, meet: boolean): Character {
       return { ...c, trainables: { ...c.trainables, [name]: { ...c.trainables[name], value: attributeValue(req, present) } } }
     }
     case 'trainable': {
-      const slot = getConvictionSlot(req.name)
-      if (!slot) return c
-      const held = present ? { name: req.name, value: attributeValue(req, true) } : { name: '' }
-      return { ...c, trainables: { ...c.trainables, [slot]: { ...c.trainables[slot], ...held } } }
+      const held = getRequiredTrainable(req.name)
+      const value = attributeValue(req, present)
+      switch (held?.kind) {
+        case 'conviction': {
+          const slot = { ...c.trainables[held.slot], ...(present ? { name: req.name, value } : { name: '' }) }
+          return { ...c, trainables: { ...c.trainables, [held.slot]: slot } }
+        }
+        case 'knowledge':
+          return { ...c, knowledges: { ...c.knowledges, [held.name]: { ...(c.knowledges[held.name] ?? emptyKnowledge(held.name)), value } } }
+        case 'trainable':
+          return { ...c, trainables: { ...c.trainables, [held.key]: { ...c.trainables[held.key], value } } }
+        default:
+          return c
+      }
     }
     default:
       return c

@@ -3,7 +3,8 @@ import { makeCreationDraft } from '../../factories'
 import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
 import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
 import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationPriority, setCreationRace } from '../commands/creation'
-import { getCreatedCharacter, getCreationBalances, getCreationBuild, getCreationPool, getCreationProblems } from './creation'
+import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems } from './creation'
+import { ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
 import { getKnowledgeRaisePrice, getTrainableRaisePrice } from './learning'
 import { knowledges_list } from '../../lists'
 
@@ -74,6 +75,29 @@ describe('the race at creation', () => {
     const plain = buy(makeCreationDraft())
     const raced = buy(setCreationRace(RaceSchema.parse({ name: 'Strong', bonuses: { STR: 4 } }))(makeCreationDraft()))
     expect(getCreationBalances(raced).CON.spent).toBe(getCreationBalances(plain).CON.spent)
+  })
+})
+
+// The user's ruling: changing race changes only what the race sets and the
+// prices that follow from it; a stage bought that the new race gives is
+// refunded, and charged again if the race is changed back.
+describe('changing race', () => {
+  const families = (Object.keys(ABILITY_FAMILIES) as FamilyKey[]).filter((family) => family in getCreationAbilityRaises(chosen()))
+
+  it('keeps the name, the choices and everything bought', () => {
+    const d = buyCreationStage(families[0], 1)(buyCreationKnowledge('medicine', 1)(buyCreationLevel('strike', 1)(chosen())))
+    const named = { ...d, character: { ...d.character, name: 'Ann' } }
+    const raced = setCreationRace(RaceSchema.parse({ name: 'Strong', bonuses: { CON: 1 } }))(named)
+    expect({ ...raced, race: null }).toEqual(named)
+  })
+
+  it.each(families)('refunds "%s" when the race gives it', (family) => {
+    const bought = buyCreationStage(family, 1)(chosen())
+    const charged = (d: CreationDraft) => getCreationCharges(d).filter((c) => c.key === family)
+    const giving = setCreationRace(RaceSchema.parse({ name: 'Giving', abilities: [getFamilyStages(family)[0]] }))(bought)
+    expect(charged(giving)).toEqual([])
+    expect(getAbilityLevel(getCreationBuild(giving), family)).toBe(1)
+    expect(setCreationRace(null)(giving)).toEqual(bought)
   })
 })
 

@@ -1,6 +1,6 @@
 import { Character, Grant } from '../../types'
 import { ABILITIES, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, getLearnedAbilityKeys, hasAbility } from '../../abilities'
-import { holdsRequirement } from './requirements'
+import { getUnmetRequirements, holdsRequirement } from './requirements'
 import { LearningPrice, getTalentMultiplier } from './learning'
 
 // abilities.tex "Acquiring abilities": "It is not possible to acquire an
@@ -8,6 +8,15 @@ import { LearningPrice, getTalentMultiplier } from './learning'
 // listed item is needed and any alternative within an item satisfies it.
 export function canLearnAbility(key: AbilityKey): (c: Character) => boolean {
   return (c: Character) => !hasAbility(c, key) && meetsAbilityRequirements(key)(c)
+}
+
+// What stands between the character and an ability, in the book's words:
+// the stage before it, and every requirement item it falls short of.
+export function getUnmetAbilityRequirements(key: AbilityKey): (c: Character) => string[] {
+  return (c: Character) => [...new Set([
+    ...ABILITIES[key].requires.filter((req) => !hasAbility(c, req)).map((req) => ABILITIES[req as AbilityKey].name),
+    ...getUnmetRequirements(c, ABILITIES[key].requirements),
+  ])]
 }
 
 export function meetsAbilityRequirements(key: AbilityKey): (c: Character) => boolean {

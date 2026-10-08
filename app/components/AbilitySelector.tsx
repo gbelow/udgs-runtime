@@ -1,6 +1,6 @@
 'use client'
 import { useState, type ReactNode } from 'react'
-import { Button, SectionLabel, TextInput } from './ui'
+import { Button, SectionLabel, TextInput, Tooltip } from './ui'
 import { useAbilityLens } from '../hooks/useAbilityLens'
 import type { AbilityFamilyView } from '../domain/character/lenses/abilities'
 
@@ -30,7 +30,8 @@ export function AbilitySelector(){
               <AbilityFamilyRow key={row.family} row={row} open={open === row.family} onToggle={() => setOpen(open === row.family ? null : row.family)} action={
                 row.next ?
                 <Button size='xs' variant='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>
-                : <span className='text-xs text-muted px-1'>{row.complete ? 'learned' : 'locked'}</span>
+                : row.complete ? <span className='text-xs text-muted px-1'>learned</span>
+                : <LockedLabel row={row} />
               } />
             ))}
           </div>
@@ -64,11 +65,21 @@ export function AbilityFamilyRow({ row, open, onToggle, action, dimmed = false }
               {stage.price ? <span className='text-muted'> {stage.price}</span> : null}
               {stage.requirements ? <span className='text-muted'> · needs {stage.requirements}</span> : null}
               {' — '}{stage.description || 'nothing new at this level'}
+              {stage.unmet.length ? <span className='block text-bad'>missing {stage.unmet.join(' · ')}</span> : null}
             </div>
           ))}
         </div>
         : null
       }
     </div>
+  )
+}
+
+// A family whose next stage cannot be learned, with what it lacks on hover.
+export function LockedLabel({ row }: { row: AbilityFamilyView }){
+  return (
+    <Tooltip text={row.blocked.length ? `needs ${row.blocked.join(' · ')}` : ''}>
+      <span className='text-xs text-muted px-1'>locked</span>
+    </Tooltip>
   )
 }

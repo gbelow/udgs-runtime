@@ -6,6 +6,7 @@ import { emptyKnowledge } from './knowledge'
 import { getConvictionSlot } from './requirements'
 import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
 import { getSM } from './size'
+import { getRacedCharacter } from './race'
 import { sumTerms, type Term } from './terms'
 
 // creating.tex "Character Creation": XP from each talent focus, and karma,
@@ -36,14 +37,39 @@ const boughtOf = (d: CreationDraft, key: keyof Trainables): number => d.trainabl
 // The talent a priority gives its focus (Steps 4–7).
 const priorityTalent = (d: CreationDraft, key: keyof Trainables): number => (isTalent(key) ? CREATION_PRIORITIES[d.priorities[key]].talent : 0)
 
+// creating.tex "Character Creation", Step 1: where the character starts — the
+// draft's own choices with the race on them. The race's talent bonuses count
+// from the start, so every price is worked out with them; its attribute
+// bonuses wait for the end ("Add the attribute bonuses after step 4").
+export function getCreationStart(d: CreationDraft): Character {
+  if (!d.race) return d.character
+  const bonuses = Object.fromEntries(Object.entries(d.race.bonuses).filter(([key]) => isTalent(key as keyof Trainables)))
+  return getRacedCharacter({ ...d.race, bonuses })(d.character)
+}
+
+// The stages of a family the race gives, and the stages bought on top: the
+// draft keeps the level bought up to, so a stage the race comes to give costs
+// nothing.
+export function getRacialLevel(d: CreationDraft, family: FamilyKey): number {
+  return getAbilityLevel(getCreationStart(d), family)
+}
+
+export function getBoughtStageCount(d: CreationDraft, family: FamilyKey): number {
+  return Math.max(0, (d.abilities[family] ?? 0) - getRacialLevel(d, family))
+}
+
 // Where a talent's level comes from: the start the race gives (Step 1), its
 // focus's priority (Steps 4–7) and the levels bought with karma. Empty for
 // anything but a talent.
 export function getCreationTalentTerms(d: CreationDraft, key: keyof Trainables): Term[] {
+  return talentTerms(d, getCreationStart(d), key)
+}
+
+function talentTerms(d: CreationDraft, start: Character, key: keyof Trainables): Term[] {
   if (!isTalent(key)) return []
   return [
     { label: `priority ${d.priorities[key]}`, value: priorityTalent(d, key) },
-    { label: d.race?.name || 'race', value: d.character.trainables[key].value },
+    { label: d.race?.name || 'race', value: start.trainables[key].value },
     { label: 'karma', value: boughtOf(d, key) },
   ]
 }
@@ -52,10 +78,10 @@ export function getCreationTalentTerms(d: CreationDraft, key: keyof Trainables):
 // every level and stage bought on top. The race's attribute bonuses are not
 // in it — they come last (Step 1, "after step 4").
 export function getCreationBuild(d: CreationDraft): Character {
-  const c = d.character
+  const c = getCreationStart(d)
   const trainables = { ...c.trainables }
   for (const key of Object.keys(trainables) as (keyof Trainables)[]) {
-    const terms = getCreationTalentTerms(d, key)
+    const terms = talentTerms(d, c, key)
     const value = terms.length ? sumTerms(terms) : trainables[key].value + boughtOf(d, key)
     if (value !== trainables[key].value) trainables[key] = { ...trainables[key], value }
   }
@@ -65,8 +91,8 @@ export function getCreationBuild(d: CreationDraft): Character {
     if (levels > 0) knowledges[name] = { ...held, value: held.value + levels }
   }
   const abilities = { ...c.abilities }
-  for (const [family, stages] of Object.entries(d.abilities)) {
-    if (isFamilyKey(family) && stages > 0) abilities[family] = heldAbility(family, getAbilityLevel(c, family) + stages)
+  for (const [family, level] of Object.entries(d.abilities)) {
+    if (isFamilyKey(family) && level > getAbilityLevel(c, family)) abilities[family] = heldAbility(family, level)
   }
   return { ...c, trainables, knowledges, abilities }
 }
@@ -96,7 +122,7 @@ function getTrainableCharge(d: CreationDraft, build: Character, key: keyof Train
   const pool = getCreationPool(key)
   const count = boughtOf(d, key)
   if (pool === null || count <= 0) return null
-  const from = d.character.trainables[key].value + priorityTalent(d, key)
+  const from = getCreationStart(d).trainables[key].value + priorityTalent(d, key)
   const talent = pool === 'karma' ? 0 : build.trainables[pool].value
   const price = isTalent(key) ? getTalentKarmaCost
     : key in SkillsSchema.shape ? (level: number) => getSkillXPCost(level, talent)
@@ -132,10 +158,8 @@ function getStageCharge(key: AbilityKey, build: Character): CreationCharge | nul
   return null
 }
 
-const boughtStages = (d: CreationDraft, family: FamilyKey): AbilityKey[] => {
-  const from = getAbilityLevel(d.character, family)
-  return getFamilyStages(family).slice(from, from + (d.abilities[family] ?? 0))
-}
+const boughtStages = (d: CreationDraft, family: FamilyKey): AbilityKey[] =>
+  getFamilyStages(family).slice(getRacialLevel(d, family), d.abilities[family] ?? 0)
 
 export function getCreationCharges(d: CreationDraft): CreationCharge[] {
   const build = getCreationBuild(d)

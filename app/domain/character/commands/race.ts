@@ -1,27 +1,14 @@
-import { RACE_BONUS_KEYS, type Character, type Race, type RaceDraft } from '../../types'
-import { getBarePart, withRaceDraft } from '../rules/race'
+import { type Character, type Race, type RaceDraft } from '../../types'
+import { getRacedCharacter, withRaceDraft } from '../rules/race'
 import { withBody } from './body'
-import { grantAbility } from './abilities'
-import { isAbilityKey } from '../../abilities'
 
-// creating.tex "Races", free creation: a saved race started from as a preset.
-// What it sets of the creature — size, grid shape, toughness, senses, base
-// movement, natural armor, body and stance — replaces the character's; its
-// bonuses join the attributes and talents and its abilities join the ones the
-// character has. Nothing of the race is remembered afterwards. A part of the
-// new body keeps what the part with its id held; the rest is settled as any
-// new body is.
+// creating.tex "Races", free creation: a saved race started from as a preset,
+// its traits put on the character (getRacedCharacter). Nothing of the race is
+// remembered afterwards; the new body is settled as any new body is.
 export function applyRace(race: Race): (c: Character) => Character {
   return (c: Character) => {
-    const { bonuses, size, shape, TGH, senses, movement, armor, stance } = race
-    const body = race.body.map((part) => ({ ...getBarePart(part), itemId: c.body.find((p) => p.id === part.id)?.itemId ?? '' }))
-    const trainables = { ...c.trainables }
-    for (const key of RACE_BONUS_KEYS) {
-      const bonus = bonuses[key] ?? 0
-      if (bonus) trainables[key] = { ...trainables[key], value: trainables[key].value + bonus }
-    }
-    const granted = race.abilities.filter(isAbilityKey).reduce((acc, key) => grantAbility(key)(acc), c)
-    return withBody({ ...granted, size, shape, TGH, senses, movement, armor, stance, trainables }, body)
+    const raced = getRacedCharacter(race)(c)
+    return withBody(raced, raced.body)
   }
 }
 

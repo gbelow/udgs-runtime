@@ -1,10 +1,10 @@
-import { ABILITIES, ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isAbilityKey, isFamilyKey } from '../../abilities'
+import { ABILITIES, ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isAbilityKey } from '../../abilities'
 import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, type Trainables } from '../../types'
 import { ABILITY_SECTIONS, knowledges_list, type LimitStressAction } from '../../lists'
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
 import type { Term } from '../rules/terms'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
-import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, type CreationPool } from '../rules/creation'
+import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
 // book lists at no cost; null when it cannot be bought.
@@ -17,13 +17,11 @@ export type CreationKnowledgeRow = { name: string; value: number; bought: number
 // abilities it starts with.
 export type CreationRaceView = { name: string; bonuses: Term[]; abilities: string[] }
 
-// One family of the catalog, as the creation tab browses it: its text and
-// stages, the price of its next stage (null when it cannot be bought now),
-// whether it can be added from the catalog, and whether it is already held.
-export type CreationCatalogEntry = { family: FamilyKey; view: AbilityFamilyView; next: CreationPrice; addable: boolean; taken: boolean }
-export type CreationCatalogSection = { section: string; entries: CreationCatalogEntry[] }
-
-export type CreationStageRow = { family: FamilyKey; name: string; value: number; bought: number; next: CreationPrice }
+// One ability family as the creation tab shows it: its text and stages, the
+// level held, the stages the race gives (locked) and those bought on top, and
+// the price of its next stage (null when it cannot be bought now).
+export type CreationAbilityEntry = { family: FamilyKey; view: AbilityFamilyView; level: number; racial: number; bought: number; next: CreationPrice }
+export type CreationCatalogSection = { section: string; entries: CreationAbilityEntry[] }
 
 // creating.tex "Character Creation" as the creation tab shows it: the
 // priorities, each pool against its budget, the gold, what can be bought
@@ -39,7 +37,7 @@ export type CreationPanelView = {
   gold: number
   groups: { label: string; rows: CreationRow[] }[]
   knowledges: CreationKnowledgeRow[]
-  abilities: CreationStageRow[]
+  abilities: CreationAbilityEntry[] // the families held, racial or bought
   abilityCatalog: CreationCatalogSection[] // the sections offered, in the book's order
   problems: string[]
 }
@@ -83,7 +81,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     .sort((a, b) => a.family.localeCompare(b.family))
     .map((view) => {
       const family = FAMILY_BY_NAME.get(view.family)!
-      return { family, view, next: stagePrice(family), addable: family in raises && !(family in d.abilities), taken: getAbilityLevel(created, family) > 0 }
+      return { family, view, level: getAbilityLevel(created, family), racial: getRacialLevel(d, family), bought: getBoughtStageCount(d, family), next: stagePrice(family) }
     })
   return {
     name: d.character.name,
@@ -111,13 +109,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
       bought: d.knowledges[name] ?? 0,
       next: getCreationKnowledgeRaise(d, name),
     })),
-    abilities: Object.keys(d.abilities).filter(isFamilyKey).map((family) => ({
-      family,
-      name: familyName(family),
-      value: getAbilityLevel(created, family),
-      bought: d.abilities[family] ?? 0,
-      next: stagePrice(family),
-    })),
+    abilities: entries.filter((entry) => entry.level > 0),
     abilityCatalog: ABILITY_SECTIONS.filter(offered)
       .map((section) => ({ section, entries: entries.filter((entry) => entry.view.section === section) }))
       .filter(({ entries }) => entries.length),

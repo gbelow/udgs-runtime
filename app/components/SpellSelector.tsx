@@ -43,7 +43,7 @@ export function SpellSelector(){
                     <span className='text-xs text-muted px-1'>learned</span> :
                     METHODS.map((method) => (
                       <Button size='xs' variant='good' key={method} aria-label={`learn ${row.name} ${method}`}
-                        title={`learn ${method}`} disabled={!row.learnable[method]}
+                        title={row.unmet ? `needs ${row.unmet}` : `learn ${method}`} disabled={!row.learnable[method]}
                         onClick={() => learn(row.key, method)}>{method[0]}</Button>
                     ))
                   }
@@ -53,6 +53,7 @@ export function SpellSelector(){
                   <div className='flex flex-col gap-1 px-2 pb-1 text-xs'>
                     <span><span className='text-muted'>cost</span> {row.costText} · <span className='text-muted'>{row.type}</span></span>
                     {row.requirements ? <span><span className='text-muted'>requires</span> {row.requirements}</span> : null}
+                    {row.unmet ? <span className='text-bad'>missing {row.unmet}</span> : null}
                     {row.castRequirements ? <span><span className='text-muted'>cast with</span> {row.castRequirements}</span> : null}
                     <span>{row.description}</span>
                     {row.enhance ? <span><span className='text-muted'>enhance</span> {row.enhance}</span> : null}
