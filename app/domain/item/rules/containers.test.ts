@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { getStackCapacity, getUsedSlots, getAvailableSlots, canFitItem } from './containers'
 import { addItemToContainer } from '../commands/items'
 import { makeCharacter } from '../../factories'
-import { ContainerKindSchema, ContainerSchema, ItemSchema, SlotKindSchema } from '../../types'
+import { ContainerEntrySchema, ContainerKindSchema, ContainerSchema, ItemSchema, SlotKindSchema } from '../../types'
 import type { Container, Item, SlotKind } from '../../types'
 import containersCatalog from '../../../assets/containers.json'
 
@@ -86,11 +86,12 @@ describe('canFitItem agrees with addItemToContainer', () => {
 })
 
 // The catalog is the transcription of the gear.tex Containers table. Its slot
-// groups are stored empty, so the parse may add nothing and strip nothing.
+// groups are stored empty, so the parse may add nothing but the price of an
+// entry the book prices at nothing, and strip nothing.
 describe('containers.json', () => {
   const entries = Object.entries(containersCatalog as Record<string, unknown>)
 
   it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
-    expect(ContainerSchema.parse(raw), key).toEqual(raw)
+    expect(ContainerEntrySchema.parse(raw), key).toEqual({ price: null, ...(raw as object) })
   })
 })
