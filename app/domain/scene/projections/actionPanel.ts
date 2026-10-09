@@ -23,7 +23,7 @@ import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAre
 import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
 import { getClimbModes, getClimbSteps } from '../rules/board/cliff'
-import { hasGrant } from '../../character/rules/abilities'
+import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'

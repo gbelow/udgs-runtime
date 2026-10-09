@@ -5,7 +5,7 @@ import { getMoveBlockCells } from './move'
 import { canStandAt } from './board/ground'
 import { findWeaponRow } from './weaponRow'
 import { getReactionsTo } from './log'
-import { hasGrant } from '../../character/rules/abilities'
+import { hasGrant } from '../../character/rules/effects'
 import { getSurgeAP } from '../../character/rules/surge'
 import { isMartyrGuard } from './stress'
 

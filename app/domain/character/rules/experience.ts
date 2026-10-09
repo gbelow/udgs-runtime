@@ -1,14 +1,12 @@
 import { ABILITIES, getLearnedAbilityKeys } from '../../abilities'
 import { CREATION_ATTRIBUTE } from '../../tables'
-import { Attributes, AttributesSchema, Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, TalentsSchema } from '../../types'
+import { Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, TalentsSchema } from '../../types'
 import { getAbilityXPCost } from './abilities'
-import { PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost } from './learning'
-import { getSM } from './size'
+import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost } from './learning'
 
 const SKILL_KEYS = Object.keys(SkillsSchema.shape) as (keyof Skills)[]
 const PROFICIENCY_KEYS = Object.keys(ProficienciesSchema.shape) as (keyof Proficiencies)[]
 const TALENT_KEYS = Object.keys(TalentsSchema.shape) as TalentKey[]
-const ATTRIBUTE_KEYS = Object.keys(AttributesSchema.shape) as (keyof Attributes)[]
 
 const sum = (values: number[]): number => values.reduce((total, n) => total + n, 0)
 
@@ -71,7 +69,7 @@ export function getAttributesXP(c: Character): number {
   const to = ATTRIBUTE_KEYS.map((key) => c.trainables[key].value)
   const from = to.map(() => CREATION_ATTRIBUTE)
   const banked = ATTRIBUTE_KEYS.map((key) => c.trainables[key].XP)
-  return getAttributeRaisesXPCost(from, to, c.trainables.CON.value, getSM(c)) + sum(banked)
+  return getAttributeRaisesXPCost(from, to, getAttributeBalance(c)) + sum(banked)
 }
 
 export function getTotalXP(c: Character): number {

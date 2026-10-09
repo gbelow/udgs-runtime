@@ -7,8 +7,7 @@ import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
 import { getConvictionSlot } from './requirements'
 import { canClaimFreeSpell, canLearnSpell, getFreeSpellCount } from './spells'
-import { PROFICIENCY_TALENTS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
-import { getSM } from './size'
+import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
 import { getRacedCharacter } from './race'
 import { sumTerms, type Term } from './terms'
 
@@ -17,7 +16,6 @@ import { sumTerms, type Term } from './terms'
 export type CreationPool = TalentKey | 'karma'
 export const CREATION_POOLS: CreationPool[] = ['CON', 'SPI', 'INT', 'DEX', 'karma']
 
-const ATTRIBUTE_KEYS = Object.keys(AttributesSchema.shape) as (keyof Trainables)[]
 const TRAINABLE_KEYS = [...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape), ...Object.keys(TalentsSchema.shape)] as (keyof Trainables)[]
 
 const FAMILY_KEYS = Object.keys(ABILITY_FAMILIES) as FamilyKey[]
@@ -156,7 +154,7 @@ function getAttributesCharge(d: CreationDraft, build: Character): CreationCharge
   const from = ATTRIBUTE_KEYS.map((key) => d.character.trainables[key].value)
   const to = ATTRIBUTE_KEYS.map((key, i) => from[i] + Math.max(0, boughtOf(d, key)))
   if (to.every((v, i) => v === from[i])) return null
-  return { key: 'attributes', pool: 'CON', amount: getAttributeRaisesXPCost(from, to, build.trainables.CON.value, getSM(build)) }
+  return { key: 'attributes', pool: 'CON', amount: getAttributeRaisesXPCost(from, to, getAttributeBalance(build)) }
 }
 
 // The stages bought of a family, each in its own price: karma (a flaw's
@@ -225,7 +223,7 @@ export function getCreationRaise(d: CreationDraft, key: keyof Trainables): Creat
   const pool = getCreationPool(key)
   if (pool === null || getTrainableRaisePrice(key)(getCreatedCharacter(d)) === null) return null
   const raised = { ...d, trainables: { ...d.trainables, [key]: boughtOf(d, key) + 1 } }
-  return rowRaise(d, raised, ATTRIBUTE_KEYS.includes(key) ? 'attributes' : key, pool)
+  return rowRaise(d, raised, key in AttributesSchema.shape ? 'attributes' : key, pool)
 }
 
 // What one more level of a knowledge costs, from the INT XP.

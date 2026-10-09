@@ -51,11 +51,13 @@ export function makeInvertingSetter<T extends Character>(
 }
 
 
+type CreatureNumber = 'size' | 'height' | 'TGH'
+
 export function makeInvertingLens<T extends Character> (
-  propertyName: 'size' | 'TGH',
+  propertyName: CreatureNumber,
   getter: (c: T) => number,
   setter?: (c: T, value: number) => T): Lens<T, number> {
-  const baseLens = makePropLens<T, 'size' | 'TGH'>(propertyName);
+  const baseLens = makePropLens<T, CreatureNumber>(propertyName);
   return {
     get: getter,
     set: setter ?? makeInvertingSetter(getter, baseLens.get, baseLens.set)

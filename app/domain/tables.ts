@@ -115,10 +115,6 @@ export const CLIMB_REDO_PENALTY = 3
 export const CLIMB_ONE_HAND_PENALTY = 3
 export const CLIMB_NO_HAND_PENALTY = 8
 
-// combat.tex "Climbing": "Any character starts a climb at their own height"; creating.tex "Reach Multiplier (RM)":
-// "For human shaped ones and by default, height is equal to 2m xRM".
-export const CLIMB_HEIGHT = 2
-
 // combat.tex "Choosing Fall DL": "As a common exception to the rule, DLs for
 // 1m can be considered trivial at -5, then 0 for 2m", else "1 per meter until
 // a maximum of 15"; "Fall damage": "2x fall height x DM^2 ... Maximum height

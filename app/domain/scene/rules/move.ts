@@ -13,7 +13,7 @@ import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell,
 import { getFootprint, getPlacedFootprint, placeAt } from './board/board'
 import { isTetherKept } from './bind'
 import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './board/cliff'
-import { hasGrant } from '../../character/rules/abilities'
+import { hasGrant } from '../../character/rules/effects'
 import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './board/ground'
 import { getMoveOrigin, getStepPlacements, touchesGround } from './board/waypoint'
 import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'

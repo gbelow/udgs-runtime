@@ -12,6 +12,7 @@
     "infrared-vision"
   ],
   "size": 3,
+  "height": 2,
   "TGH": 0,
   "senses": {
     "vision": {

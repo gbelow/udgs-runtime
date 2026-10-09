@@ -1,9 +1,10 @@
-import { Character, Characteristics } from "../../types"
+import { Attributes, Character, Characteristics } from "../../types"
 import { getInjuryPenalty } from "./afflictions"
 import { getBurdenPenalty } from "../../item/rules/containers"
 import { getShieldBurden } from "../../item/rules/hands"
 import { getArmor } from "./armor"
 import { Term, sumTerms } from "./terms"
+import { getAttributeBonus } from "./effects"
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
 // does not affect TGH. It affects all other usages of attributes." The penalty
@@ -22,7 +23,7 @@ export function getSTR(c: Character): number {
 
 export function getAGITerms(c: Character): Term[] {
   return [
-    { label: 'base', value: c.trainables.AGI.value },
+    { label: 'base', value: getAttributeHeld(c, 'AGI') },
     { label: 'gear', value: -getGearPenalties(c) },
     { label: 'injury', value: -getInjuryPenalty(c) },
   ]
@@ -33,7 +34,7 @@ export function getAGI(c: Character): number {
 
 export function getSTATerms(c: Character): Term[] {
   return [
-    { label: 'base', value: c.trainables.STA.value },
+    { label: 'base', value: getAttributeHeld(c, 'STA') },
     { label: 'gear', value: -getGearPenalties(c) },
     { label: 'injury', value: -getInjuryPenalty(c) },
   ]
@@ -42,17 +43,19 @@ export function getSTA(c: Character): number {
   return sumTerms(getSTATerms(c))
 }
 
-// The attribute values with the injury penalty left out. TGH is the
-// rulebook's stated exception to it; `getAGIBase` has no reader since the
-// book dropped movement from the exception. Burden reads
+// An attribute as the character has it: what was trained, and what their
+// abilities add or take.
+export function getAttributeHeld(c: Character, key: keyof Attributes): number {
+  return c.trainables[key].value + getAttributeBonus(c, key)
+}
+
+// The STR with the injury penalty left out. TGH is the rulebook's stated
+// exception to it. Burden reads
 // `getSTRBase` for a second reason: the injury threshold is itself derived from
 // the affliction set, which includes an over-burden `lame`, so reading the
 // penalized STR here would close a loop.
 export function getSTRBase(c: Character): number {
-  return c.trainables.STR.value
-}
-export function getAGIBase(c: Character): number {
-  return c.trainables.AGI.value - getGearPenalties(c)
+  return getAttributeHeld(c, 'STR')
 }
 
 // combat.tex "Rest": the Rest action recovers STA by an amount equal to STA/4

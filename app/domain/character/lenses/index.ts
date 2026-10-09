@@ -140,6 +140,7 @@ export const senseLenses: Record<keyof Senses, {
 
 export const miscLenses = {
   size: makeInvertingLens("size", getSize),
+  height: makeInvertingLens("height", (c) => c.height),
   TGH: makeInvertingLens("TGH", getTGH),
 }
 

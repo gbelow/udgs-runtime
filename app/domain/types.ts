@@ -637,7 +637,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // getter behind each group is what actually reads the bonus (skills add it as
 // a term, movement and senses add it to the stored value, surges to AP,
 // `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
-// penalty a way of shooting takes per 10m and `hit:` its test).
+// penalty a way of shooting takes per 10m and `hit:` its test, `attribute:`
+// the attribute on top of its training and `body:size` the creature's size).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -651,6 +652,8 @@ export const BUFF_TARGETS = [
   ...prefixed('sta', Object.keys(ACTION_COSTS) as ActionKind[]),
   ...prefixed('distance', Object.keys(SHOTS) as ShotKind[]),
   ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
+  ...prefixed('attribute', Object.keys(AttributesSchema.shape) as (keyof Attributes)[]),
+  ...prefixed('body', ['size'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -1019,7 +1022,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks
@@ -1280,7 +1283,7 @@ export const TerrainBrushSchema = z.enum(TERRAIN_BRUSHES)
 export type TerrainBrush = z.infer<typeof TerrainBrushSchema>
 
 // creating.tex "Races": what a race sets of a creature — its size and how it
-// sits on the grid, its toughness, senses, base movement, natural armor and
+// sits on the grid, its height, its toughness, senses, base movement, natural armor and
 // body. Chosen only while the race is being made; picking a race copies them
 // onto the character, whose own they then are.
 const RaceBodyValues = {
@@ -1289,6 +1292,9 @@ const RaceBodyValues = {
   // as offsets from the cell it is placed by, facing direction 0; that cell
   // is always one of them
   footprint: z.array(CoordSchema).default(() => [{ q: 0, r: 0 }]),
+  // creating.tex "Reach Multiplier (RM)": the creature's height in whole
+  // metres, 2 for a humanoid of the common sizes
+  height: num.int().nonnegative().default(2),
   TGH: z.number().default(0),
   senses: SensesSchema.partial().default({}).transform(v => SensesSchema.parse(v)),
   movement: MovementSchema.partial().default({}).transform(v => MovementSchema.parse(v)),

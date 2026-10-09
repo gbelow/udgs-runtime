@@ -5,7 +5,7 @@ import { BOWS, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
-import { hasGrant } from "./abilities";
+import { hasGrant } from "./effects"
 import { isCampaignCharacter } from "../../utils";
 
 // gear.tex "Size Scaling": "Wielding a weapon that is larger than appropriate

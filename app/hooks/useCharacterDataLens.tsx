@@ -2,7 +2,7 @@ import { miscLenses } from "../domain/character/lenses";
 import { Character } from "../domain/types";
 import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
-export function useActiveCharacterDataLens(prop: 'size' | 'TGH') {
+export function useActiveCharacterDataLens(prop: keyof typeof miscLenses) {
   const lens = miscLenses[prop];
   const update = useActiveCharacterUpdate();
 

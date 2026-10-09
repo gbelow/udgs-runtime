@@ -235,6 +235,7 @@ const CharacterIngestValues = {
   knowledges: z.record(z.string(), z.any()).optional(),
   size: z.number().optional(),
   footprint: z.unknown().optional(),
+  height: z.number().int().nonnegative().optional().catch(undefined),
   TGH: z.number().optional(),
   movement: z.record(z.string(), z.unknown()).optional(),
 

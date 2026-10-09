@@ -1,5 +1,5 @@
-import { Character, Grant } from '../../types'
-import { ABILITIES, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, getLearnedAbilityKeys, hasAbility } from '../../abilities'
+import { Character } from '../../types'
+import { ABILITIES, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, hasAbility } from '../../abilities'
 import { getUnmetRequirements, holdsRequirement } from './requirements'
 import { LearningPrice, getTalentMultiplier } from './learning'
 
@@ -23,13 +23,6 @@ export function meetsAbilityRequirements(key: AbilityKey): (c: Character) => boo
   return (c: Character) =>
     ABILITIES[key].requires.every((req) => hasAbility(c, req)) &&
     ABILITIES[key].requirements.every((item) => item.some((alt) => holdsRequirement(c, alt)))
-}
-
-// Whether a learned ability gives the character the capability, whatever
-// its activation: a grant is what learning it allows, not what using it
-// does.
-export function hasGrant(character: Character, grant: Grant): boolean {
-  return getLearnedAbilityKeys(character).some((key) => ABILITIES[key].grants.includes(grant))
 }
 
 // abilities.tex "Cost": the listed price at its training level, priced by

@@ -1,8 +1,8 @@
 import type { Character, MoveKind } from '../../../types'
 import type { SceneState, Coord, Degree, HeldRoll, MoveAction, MoveFacts, MoveFall, Placement } from '../../types'
-import { CLIMB_HEIGHT, FALL } from '../../../tables'
-import { hasGrant } from '../../../character/rules/abilities'
-import { getRM } from '../../../character/rules/size'
+import { FALL } from '../../../tables'
+import { hasGrant } from '../../../character/rules/effects'
+import { getHeight, getRM } from '../../../character/rules/size'
 import { getClimbTerms } from '../../../character/rules/skills'
 import type { RollMode } from '../../../play/dice'
 import { coordKey, sameCell } from './geometry'
@@ -41,12 +41,11 @@ export function getPathElevations(state: SceneState, action: MoveAction, path: C
   return from && ground ? [ground.elevation(from.cell), ...path.map((cell) => ground.elevation(cell))] : null
 }
 
-// combat.tex "Climbing": "Any character starts a climb at their own height"
-// (creating.tex "Reach Multiplier (RM)"); abilities.tex "Jumper II": the jump
-// spent to start the climb gains "+1m xRM to the starting distance".
+// combat.tex "Climbing": "Any character starts a climb at their own height";
+// abilities.tex "Jumper II": the jump spent to start the climb gains "+1m xRM
+// to the starting distance".
 export function getClimbStart(c: Character, leap: boolean): number {
-  const RM = getRM(c)
-  return CLIMB_HEIGHT * RM + (leap && hasGrant(c, 'climbLeap') ? RM : 0)
+  return getHeight(c) + (leap && hasGrant(c, 'climbLeap') ? getRM(c) : 0)
 }
 
 // combat.tex "Climbing": a climb is on one face — the step from the cell the

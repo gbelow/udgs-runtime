@@ -2,12 +2,11 @@ import { AfflictionKey, Character, Skills } from '../../types'
 import { getSM } from './size'
 import { skill } from './helpers'
 import { getAfflictionPenalty, hasAffliction } from './afflictions'
-import { getBuffBonus } from './effects'
+import { getBuffBonus, hasGrant } from './effects'
 import { getAGI, getMelee, getRanged, getAwareness, getSTR, getCharisma, getSPI, getDEX, getCON, getConviction1, getConviction2 } from './characteristics'
 import { Term, sumTerms } from './terms'
 import { isVisorClosed } from './armor'
 import { canClimbWith, getWorkingParts } from './body'
-import { hasGrant } from './abilities'
 import { CLIMB_NO_HAND_PENALTY, CLIMB_ONE_HAND_PENALTY } from '../../tables'
 
 export { sumTerms }

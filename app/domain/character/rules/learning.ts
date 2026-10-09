@@ -1,5 +1,6 @@
-import { Attributes, Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, Talents, TalentsSchema, Trainables } from '../../types'
+import { Attributes, AttributesSchema, Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, Talents, TalentsSchema, Trainables } from '../../types'
 import { getSM } from './size'
+import { getAttributeBonus } from './effects'
 
 export type TalentKey = keyof Talents
 export type LearningPrice = { currency: 'XP' | 'karma'; amount: number }
@@ -79,12 +80,23 @@ export function getTalentKarmaCost(level: number): number {
   return 4 + 4 * level
 }
 
+export const ATTRIBUTE_KEYS = Object.keys(AttributesSchema.shape) as (keyof Attributes)[]
+
+// creating.tex "Improving attributes": the average the three attributes may
+// reach before raising them costs more, 10+CON-SM. The average is of the
+// attributes the character has, so what their abilities add to or take from
+// the trained values moves the point the trained average is held to.
+export function getAttributeBalance(c: Character): number {
+  const added = ATTRIBUTE_KEYS.reduce((sum, key) => sum + getAttributeBonus(c, key), 0)
+  return 10 + c.trainables.CON.value - getSM(c) - added / ATTRIBUTE_KEYS.length
+}
+
 // creating.tex "Improving attributes": the target value divided by 2, rounded
-// down, doubled once the average of the three attributes exceeds 10+CON-SM
+// down, doubled once the average of the three attributes exceeds the balance
 // and raised by another +100% for every point beyond. The average is the one
 // the raise would leave.
-export function getAttributeXPCost(target: number, average: number, CON: number, SM: number): number {
-  const excess = average - (10 + CON - SM)
+export function getAttributeXPCost(target: number, average: number, balance: number): number {
+  const excess = average - balance
   return Math.floor(target / 2) * (1 + Math.max(0, Math.ceil(excess)))
 }
 
@@ -92,7 +104,7 @@ export function getAttributeXPCost(target: number, average: number, CON: number,
 // the price of a point turns on the average it leaves, so the points are
 // priced in a fixed order — always the lowest attribute next, as raising them
 // evenly would.
-export function getAttributeRaisesXPCost(from: number[], to: number[], CON: number, SM: number): number {
+export function getAttributeRaisesXPCost(from: number[], to: number[], balance: number): number {
   const values = [...from]
   let amount = 0
   for (;;) {
@@ -100,7 +112,7 @@ export function getAttributeRaisesXPCost(from: number[], to: number[], CON: numb
     values.forEach((v, i) => { if (v < to[i] && (next < 0 || v < values[next])) next = i })
     if (next < 0) return amount
     values[next]++
-    amount += getAttributeXPCost(values[next], values.reduce((a, b) => a + b, 0) / values.length, CON, SM)
+    amount += getAttributeXPCost(values[next], values.reduce((a, b) => a + b, 0) / values.length, balance)
   }
 }
 
@@ -146,7 +158,7 @@ export function getAttributeRaisePrice(key: keyof Attributes): (c: Character) =>
     const target = c.trainables[key].value + 1
     if (target > MAX_ATTRIBUTE) return null
     const average = (STR.value + AGI.value + STA.value + 1) / 3
-    return { currency: 'XP', amount: getAttributeXPCost(target, average, talentOf(c, 'CON'), getSM(c)) }
+    return { currency: 'XP', amount: getAttributeXPCost(target, average, getAttributeBalance(c)) }
   }
 }
 

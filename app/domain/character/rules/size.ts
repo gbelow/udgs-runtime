@@ -1,7 +1,13 @@
 import { Armor, Character, Weapon } from '../../types'
 import { dmgArr, FALL_DM2, RMArr, SMArr, VMArr } from '../../tables'
+import { getBuffBonus, hasGrant } from './effects'
 
-export const getSize = (c: Character) => c.size > 6 ? 7 : c.size < 2 ? 1 : c.size
+// The creature's size, with what its abilities change of it (abilities.tex
+// "Grow!", "Shrink!").
+export const getSize = (c: Character) => {
+  const size = c.size + getBuffBonus(c, 'body:size')
+  return size > 6 ? 7 : size < 2 ? 1 : size
+}
 
 // creating.tex "Size": a row of the size table, read at any size — the
 // sizes run 1 to 7, and a size beyond them reads the nearest end.
@@ -26,6 +32,13 @@ export const getDM = (c: Character): number => getDMAt(getSize(c))
 export const getFallDM2 = (c: Character): number => atSize(FALL_DM2, getSize(c))
 
 export const getRM = (c: Character): number => getRMAt(getSize(c))
+
+// creating.tex "Reach Multiplier (RM)": the creature's height in metres, set
+// by its race and not read off its size. An ability that changes the size
+// says what it does to the height: a humanoid's resizing gives it a
+// humanoid's height at the new size, "2m xRM".
+export const getHeight = (c: Character): number =>
+  hasGrant(c, 'humanoidHeight') ? Math.round(2 * getRM(c)) : c.height
 
 // creating.tex "Size": the largest size the table has.
 export const MAX_SIZE = dmgArr.length

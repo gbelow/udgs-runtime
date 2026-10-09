@@ -1,4 +1,4 @@
-import { Ability, Buff, BuffTarget, Character, Cost, Effect, Trigger } from '../../types'
+import { Ability, Attributes, Buff, BuffTarget, Character, Cost, Effect, Grant, Trigger } from '../../types'
 import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
@@ -14,6 +14,13 @@ function isCost(effect: Effect): effect is Extract<Effect, { type: 'cost' }> {
 // The learned abilities that still resolve in the catalog.
 export function getLearnedAbilities(character: Character): Ability[] {
   return getLearnedAbilityKeys(character).map((key) => ABILITIES[key])
+}
+
+// Whether a learned ability gives the character the capability, whatever
+// its activation: a grant is what learning it allows, not what using it
+// does.
+export function hasGrant(character: Character, grant: Grant): boolean {
+  return getLearnedAbilityKeys(character).some((key) => ABILITIES[key].grants.includes(grant))
 }
 
 // The abilities in effect: every `active` entry of kind ability whose key is
@@ -90,9 +97,14 @@ export function getBuffsForTarget(character: Character, target: BuffTarget): Buf
 // Only `+` buffs are summed: a `*` or `set` cannot be expressed as one term of
 // a breakdown, and no ability uses one yet.
 export function getBuffBonus(character: Character, target: BuffTarget): number {
-  return getBuffsForTarget(character, target)
-    .filter((b) => b.operation === '+')
-    .reduce((sum, b) => sum + b.value, 0)
+  return collectBuffs(character)
+    .reduce((sum, b) => b.target === target && b.operation === '+' ? sum + b.value : sum, 0)
+}
+
+// What the character's abilities add to or take from an attribute
+// (abilities.tex "Grow!": "loses 3 STR and 1 AGI").
+export function getAttributeBonus(character: Character, key: keyof Attributes): number {
+  return getBuffBonus(character, `attribute:${key}`)
 }
 
 function sumCosts(costs: Cost[]): Cost {

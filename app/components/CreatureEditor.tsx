@@ -10,7 +10,7 @@ import { FOOTPRINT_PRESETS, HIT_LOCATIONS, MATERIALS, PART_FLAGS, WOUND_EFFECTS 
 
 // What a race sets on a creature, edited the same way while the race is being
 // made and, in free creation, on the character afterwards.
-function DataDial({ stat }: { stat: 'size' | 'TGH' }) {
+function DataDial({ stat }: { stat: Parameters<typeof useActiveCharacterDataLens>[0] }) {
   const [value, setValue] = useActiveCharacterDataLens(stat)
   return <StatTile label={stat} value={value} onChange={setValue} />
 }
@@ -25,6 +25,7 @@ export function Creature() {
       <div className='flex flex-row flex-wrap gap-3 items-end'>
         <Tiles>
           <DataDial stat='size' />
+          <DataDial stat='height' />
           <DataDial stat='TGH' />
           <StatTile label='lame at' title='legs short before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} />
           <StatTile label='down at' title='legs short before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} />

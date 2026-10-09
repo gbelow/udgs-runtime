@@ -6715,9 +6715,42 @@
           ]
         ],
         "description": "A humanoid character increases one size class and loses 3 STR and 1 AGI.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "body:size",
+              "operation": "+",
+              "value": 1
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "attribute:STR",
+              "operation": "+",
+              "value": -3
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "attribute:AGI",
+              "operation": "+",
+              "value": -1
+            }
+          }
+        ],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "humanoidHeight"
+        ],
         "freeSpells": 0
       }
     ]
@@ -6758,9 +6791,42 @@
           ]
         ],
         "description": "A humanoid character decreases one size class and gains 3 STR and 1 AGI.",
-        "effect": [],
+        "effect": [
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "body:size",
+              "operation": "+",
+              "value": -1
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "attribute:STR",
+              "operation": "+",
+              "value": 3
+            }
+          },
+          {
+            "name": "",
+            "trigger": "instant",
+            "type": "buff",
+            "effect": {
+              "target": "attribute:AGI",
+              "operation": "+",
+              "value": 1
+            }
+          }
+        ],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "humanoidHeight"
+        ],
         "freeSpells": 0
       }
     ]
