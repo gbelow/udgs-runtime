@@ -6,7 +6,7 @@ import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/pr
 import { getNextRoundBar } from "../domain/scene/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
-import { getReturnBar } from "../domain/campaign/rules/fight";
+import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useShallow } from "zustand/shallow";
 

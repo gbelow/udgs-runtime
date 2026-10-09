@@ -1,7 +1,8 @@
 // stores/useCampaignStore.ts
 import { create } from 'zustand'
 import { CampaignCharacter } from '../domain/types'
-import { CampaignState, CampaignStateSchema, CampaignUpdater, TableUpdater } from '../domain/campaign/types'
+import { CampaignState, CampaignStateSchema, CampaignUpdater } from '../domain/campaign/types'
+import type { TableUpdater } from '../domain/scene/types'
 import { ExplorationState, ExplorationStateSchema, ExplorationUpdater } from '../domain/exploration/types'
 import { makeCampaignCharacter } from '../domain/factories'
 import { addToRoster, updateRosterCharacter, setRosterActive } from '../domain/campaign/commands/roster'

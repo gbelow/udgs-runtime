@@ -1,5 +1,5 @@
-import type { SceneState } from '../../scene/types'
-import { getOpenAction } from '../../scene/rules/log'
+import type { SceneState } from '../types'
+import { getOpenAction } from './log'
 
 // Why the fight cannot give its characters back to the party now.
 export function getReturnBar(fight: SceneState): string | null {

@@ -8,7 +8,7 @@ import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setP
 import { setDayETs } from "../domain/campaign/commands/clock";
 import { useMapNames } from "./useMap";
 import { removeFromRoster } from "../domain/campaign/commands/roster";
-import { returnFromFight, sendToFight } from "../domain/campaign/commands/fight";
+import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";

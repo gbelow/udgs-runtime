@@ -93,7 +93,7 @@ const eslintConfig = [
     rules: {
       "import/no-restricted-paths": ["error", {
         zones: [
-          { target: "./app/domain/campaign", from: "./app/domain/exploration", message: "The campaign knows no mode: exploration reads and moves the campaign, never the other way round." },
+          { target: "./app/domain/campaign", from: ["./app/domain/exploration", "./app/domain/scene", "./app/domain/bot"], message: "The campaign knows no mode: a mode reads and moves the campaign, never the other way round. Handing characters to a scene and back is the scene's command." },
           { target: "./app/domain/exploration", from: "./app/domain/scene", message: "Exploration and the scene meet only through the campaign (check-out and check-in). Shared play rules belong in app/domain/play." },
           { target: "./app/domain/scene", from: "./app/domain/exploration", message: "The scene and exploration meet only through the campaign." },
           { target: "./app/domain/play", from: ["./app/domain/scene", "./app/domain/campaign", "./app/domain/exploration", "./app/domain/bot"], message: "The skill test and the dice are shared by every part of play and import none of them." },

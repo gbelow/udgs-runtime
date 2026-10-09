@@ -4,6 +4,7 @@ import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGH
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from '../play/dice'
+import type { CampaignState } from '../campaign/types'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
 export type { Degree, HitLocation, Interruption } from '../types'
@@ -1374,3 +1375,10 @@ export type SceneState = z.infer<typeof SceneStateSchema>
 
 // What every combat command is: a pure update of the fight.
 export type Updater = (state: SceneState) => SceneState
+
+// The campaign and the fight run beside it. A character is in one or the
+// other, never both: a fight takes its characters off the roster and gives
+// them back when it is over.
+export type Table = { campaign: CampaignState; fight: SceneState }
+
+export type TableUpdater = (table: Table) => Table

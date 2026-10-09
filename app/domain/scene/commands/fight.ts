@@ -1,11 +1,12 @@
-import type { CampaignState, TableUpdater } from '../types'
+import type { CampaignState } from '../../campaign/types'
+import type { TableUpdater } from '../types'
 import { withInstance } from '../../instances'
 import { leaveFight } from '../../character/commands/leaveFight'
-import { resetCombat } from '../../scene/commands/resetCombat'
+import { resetCombat } from './resetCombat'
 import { getReturnBar } from '../rules/fight'
-import { addToRoster, checkOut } from './roster'
-import { dropEmptyParties } from './parties'
-import { passETs } from './clock'
+import { addToRoster, checkOut } from '../../campaign/commands/roster'
+import { dropEmptyParties } from '../../campaign/commands/parties'
+import { passETs } from '../../campaign/commands/clock'
 
 // Takes these characters off the roster and into the fight.
 export function sendToFight(ids: string[], newId: () => string): TableUpdater {

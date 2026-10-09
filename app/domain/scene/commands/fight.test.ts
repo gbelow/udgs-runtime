@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { returnFromFight, sendToFight } from './fight'
-import { nextRound } from '../../scene/commands/nextRound'
-import { getNextRoundBar } from '../../scene/rules/turn'
-import { SceneStateSchema } from '../../scene/types'
-import { CampaignStateSchema, type Table } from '../types'
+import { nextRound } from './nextRound'
+import { getNextRoundBar } from '../rules/turn'
+import { SceneStateSchema, type Table } from '../types'
+import { CampaignStateSchema } from '../../campaign/types'
 import { makeCampaignCharacter } from '../../factories'
 
 describe('starting a fight', () => {
