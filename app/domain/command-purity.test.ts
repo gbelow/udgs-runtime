@@ -19,7 +19,8 @@ import * as campaignExplorationModule from './campaign/commands/exploration'
 import * as fightModule from './campaign/commands/fight'
 import * as clockModule from './campaign/commands/clock'
 import * as partiesModule from './campaign/commands/parties'
-import { CampaignStateSchema, type Table } from './campaign/types'
+import * as mapModule from './campaign/commands/map'
+import { CampaignStateSchema, CrawlMapSchema, type CrawlMap, type Table } from './campaign/types'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
@@ -294,7 +295,11 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   joinParty: ({ campaign }) => campaignCommands.joinParty('c', () => 'q')(campaign),
   mergeParties: ({ campaign }) => campaignCommands.mergeParties('p', 'q')(campaignCommands.addParty('q')(campaign)),
   setPartyExposure: ({ campaign }) => campaignCommands.setPartyExposure('p', 3)(campaign),
-  setPartyLight: ({ campaign }) => campaignCommands.setPartyLight('p', 'dark')(campaign),
+  setPartyLit: ({ campaign }) => campaignCommands.setPartyLit('p', true)(campaign),
+  setPartyNode: ({ campaign }) => campaignCommands.setPartyNode('p', 'n2')(campaign),
+  loadMap: ({ campaign }) => campaignCommands.loadMap({ name: 'other' })(campaign),
+  unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
+  setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
   addGroup: ({ campaign }) => campaignCommands.addGroup('p', 'fire', () => 'h')(campaign),
   removeGroup: ({ campaign }) => campaignCommands.removeGroup('p', 'g')(campaign),
   setGroup: ({ campaign }) => campaignCommands.setGroup('p', 'g', { DL: 5 })(campaign),
@@ -400,6 +405,36 @@ function declaredPush(s: CombatState): CombatState {
   return aimed
 }
 
+// Two nodes of one terrain joined by a path, an event on each.
+function mapSubject(): CrawlMap {
+  const event = { name: 'wolves', types: ['encounter'], DL: 5, outcomes: { hit: 'avoided' } }
+  return CrawlMapSchema.parse({
+    name: 'm',
+    terrains: { t: { name: 'forest', tags: ['wood'] } },
+    nodes: { n1: { name: 'A', terrain: 't', events: { e: event } }, n2: { name: 'B', terrain: 't' } },
+    connections: { c: { a: 'n1', b: 'n2', DL: 5, events: { e: event } } },
+  })
+}
+
+const mapCases: Record<string, (m: CrawlMap) => unknown> = {
+  setMapName: (m) => mapModule.setMapName('n')(m),
+  addTerrain: (m) => mapModule.addTerrain(() => 'u')(m),
+  setTerrain: (m) => mapModule.setTerrain('t', { exposure: 3 })(m),
+  removeTerrain: (m) => mapModule.removeTerrain('t')(m),
+  addNode: (m) => mapModule.addNode(() => 'n3')(m),
+  setNode: (m) => mapModule.setNode('n1', { name: 'C' })(m),
+  removeNode: (m) => mapModule.removeNode('n1')(m),
+  addConnection: (m) => mapModule.addConnection('n2', 'n1', () => 'd')(m),
+  setConnection: (m) => mapModule.setConnection('c', { DL: 9 })(m),
+  removeConnection: (m) => mapModule.removeConnection('c')(m),
+  addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, () => 'f')(m),
+  setEvent: (m) => mapModule.setEvent({ kind: 'node', id: 'n1' }, 'e', { DL: 0 })(m),
+  removeEvent: (m) => mapModule.removeEvent({ kind: 'node', id: 'n1' }, 'e')(m),
+  toggleTerrainTag: (m) => mapModule.toggleTerrainTag('t', 'cold')(m),
+  toggleEventType: (m) => mapModule.toggleEventType({ kind: 'node', id: 'n1' }, 'e', 'food')(m),
+  setEnabler: (m) => mapModule.setEnabler({ kind: 'connection', id: 'c' }, 'e', 'survival', 2)(m),
+}
+
 function combatSubject(): CombatState {
   const a = { ...characterSubject(), id: 'a', fightName: 'a' }
   const b = { ...characterSubject(), id: 'b', fightName: 'b' }
@@ -440,12 +475,19 @@ describe('commands are pure updaters', () => {
     expect(subject).toEqual(pristine)
   })
 
+  it.each(Object.entries(mapCases))('%s leaves its map alone', (_name, run) => {
+    const subject = mapSubject()
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
+
   it.each(Object.entries(campaignCases))('%s leaves its campaign and fight alone', (_name, run) => {
     const fight = cleared(combatSubject())
     const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
     const campaign = CampaignStateSchema.parse({
-      characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' },
-      parties: { p: { name: 'Party 1', groups: { g: { kind: 'travel', members: ['b'], roller: 'b' } } } },
+      characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
+      parties: { p: { name: 'Party 1', node: 'n1', groups: { g: { kind: 'travel', members: ['b'], roller: 'b', target: 'c' } } } },
     })
     const subject = { campaign, fight }
     const pristine = structuredClone(subject)
@@ -463,6 +505,7 @@ describe('every command is covered', () => {
     ['item', itemCommands, itemCases],
     ['combat', combatCommands, combatCases],
     ['campaign', campaignCommands, campaignCases],
+    ['map', mapModule, mapCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {
     const uncovered = Object.entries(module)

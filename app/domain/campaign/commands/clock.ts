@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { CampaignState, CampaignUpdater } from '../types'
 import { gainHunger, gainThirst } from '../../character/commands/heal'
-import { getDaysEnded } from '../rules/clock'
+import { ETS_PER_DAY, getDaysEnded } from '../rules/clock'
 
 // survival.tex "Day": "Every end of day, characters get +2 hunger and +2
 // thirst"; "Rest": the day's three healing rests start over.
@@ -20,4 +20,10 @@ function endDays(state: CampaignState, days: number): CampaignState {
 // Moves the clock on to this time, ending every day it passes on the roster.
 export function advanceClock(to: number): CampaignUpdater {
   return (state) => (to <= state.clock ? state : { ...endDays(state, getDaysEnded(state.clock, to)), clock: to })
+}
+
+// survival.tex "Night and Darkness": "The day can have any number of periods
+// of day and night. This depends on the season and the location on the map."
+export function setDayETs(dayETs: number): CampaignUpdater {
+  return (state) => ({ ...state, dayETs: Math.min(ETS_PER_DAY, Math.max(0, Math.round(dayETs))) })
 }

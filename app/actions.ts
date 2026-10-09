@@ -2,6 +2,7 @@
 
 import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
+import { CrawlMapSchema, type CrawlMap } from './domain/campaign/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
@@ -159,6 +160,52 @@ export async function deleteRace(name: string): Promise<ActionResult> {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Race file not found.' };
     console.error('Error deleting race:', err);
     return { ok: false, error: 'Failed to delete race.' };
+  }
+}
+
+// Point crawl maps are authored like races: <name>.json directly under
+// app/assets/maps, the name being the identity on disk.
+const MAP_DIR = path.join(process.cwd(), "app/assets/maps");
+
+export async function getMapList(): Promise<ActionResult<JsonObject>> {
+  try {
+    await fs.mkdir(MAP_DIR, { recursive: true });
+    return { ok: true, data: await loadJsonFromFolder(MAP_DIR) };
+  } catch (err) {
+    console.error('Error loading maps:', err);
+    return { ok: false, error: 'Failed to load maps.' };
+  }
+}
+
+export async function upsertMap(data: CrawlMap): Promise<ActionResult> {
+  const parsed = CrawlMapSchema.safeParse(data);
+  if (!parsed.success) return { ok: false, error: 'Not a map.' };
+  const map = parsed.data;
+  if (!map.name.trim()) return { ok: false, error: 'Maps need a name.' };
+  const filePath = resolveNamedFile(MAP_DIR, map.name);
+  if (!filePath) return { ok: false, error: 'Map names must be a plain file name.' };
+
+  try {
+    await fs.mkdir(MAP_DIR, { recursive: true });
+    await fs.writeFile(filePath, JSON.stringify(map, null, 2) + "\n", "utf-8");
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error writing map:', err);
+    return { ok: false, error: 'Failed to save map.' };
+  }
+}
+
+export async function deleteMap(name: string): Promise<ActionResult> {
+  const filePath = resolveNamedFile(MAP_DIR, name);
+  if (!filePath) return { ok: false, error: 'Map names must be a plain file name.' };
+
+  try {
+    await fs.unlink(filePath);
+    return { ok: true, data: undefined };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { ok: false, error: 'Map file not found.' };
+    console.error('Error deleting map:', err);
+    return { ok: false, error: 'Failed to delete map.' };
   }
 }
 

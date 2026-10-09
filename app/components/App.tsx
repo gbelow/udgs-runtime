@@ -8,12 +8,14 @@ import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
 import { CatalogEditor } from './catalog/CatalogEditor';
 import { RaceCreator } from './RaceCreator';
+import { MapEditor } from './MapEditor';
 import { CharacterCreation } from './CharacterCreation';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
   { tab: 'edit', label: 'Character', mobile: true },
   { tab: 'race', label: 'Races', mobile: false },
+  { tab: 'map', label: 'Map', mobile: false },
   { tab: 'party', label: 'Party', mobile: false },
   { tab: 'play', label: 'Run', mobile: false },
   { tab: 'break', label: 'Break Me', mobile: false },
@@ -50,6 +52,10 @@ export function App(){
       ) : selectedGameTab == 'race' ? (
         <div className="col-span-12 mx-2 text-sm md:text-md">
           <RaceCreator />
+        </div>
+      ) : selectedGameTab == 'map' ? (
+        <div className="col-span-12 mx-2 text-sm md:text-md">
+          <MapEditor />
         </div>
       ) : (
       <>

@@ -10,25 +10,91 @@ export const GROUP_KINDS = ['travel', 'search', 'shelter', 'firewood', 'fire', '
 export const GroupKindSchema = z.enum(GROUP_KINDS)
 export type GroupKind = z.infer<typeof GroupKindSchema>
 
+// survival.tex "Events": the 8 types of events.
+export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
+export const EventTypeSchema = z.enum(EVENT_TYPES)
+export type EventType = z.infer<typeof EventTypeSchema>
+
+// survival.tex "Terrain tags".
+export const TERRAIN_TAGS = ['wood', 'rain', 'cold', 'heat', 'insects', 'threats'] as const
+export const TerrainTagSchema = z.enum(TERRAIN_TAGS)
+export type TerrainTag = z.infer<typeof TerrainTagSchema>
+
+// survival.tex "Events": something on a node or a connection, found on purpose
+// against its DL. Each event resolves itself: the table reads the outcome for
+// the degree the test came to against it. "Knowledge enablers": the knowledge
+// level it needs from someone present.
+export const CrawlEventSchema = z.object({
+  name: z.string().default(''),
+  types: z.array(EventTypeSchema).default([]),
+  DL: z.number().default(0),
+  enabler: z.object({ knowledge: z.string(), level: z.number() }).nullable().default(null),
+  outcomes: z.object({
+    critical: z.string().default(''),
+    hit: z.string().default(''),
+    graze: z.string().default(''),
+    miss: z.string().default(''),
+  }).default({ critical: '', hit: '', graze: '', miss: '' }),
+})
+export type CrawlEvent = z.infer<typeof CrawlEventSchema>
+
+// survival.tex "Terrain": what a node is made of. `knowledge` is the one
+// location knowledge is read from; `wear` is extra IL for every EA in it.
+export const TerrainSchema = z.object({
+  name: z.string().default(''),
+  exposure: z.number().default(0),
+  shelterDL: z.number().default(0),
+  wear: z.number().default(0),
+  knowledge: z.string().default('survival'),
+  tags: z.array(TerrainTagSchema).default([]),
+})
+export type Terrain = z.infer<typeof TerrainSchema>
+
+export const CrawlNodeSchema = z.object({
+  name: z.string().default(''),
+  terrain: z.string().nullable().default(null),
+  events: z.record(z.string(), CrawlEventSchema).default({}),
+})
+export type CrawlNode = z.infer<typeof CrawlNodeSchema>
+
+// survival.tex "Creating the point crawl": a path between two nodes, both
+// ways, with the DL of travelling it and the events met on the way.
+export const ConnectionSchema = z.object({
+  a: z.string(),
+  b: z.string(),
+  DL: z.number().default(0),
+  events: z.record(z.string(), CrawlEventSchema).default({}),
+})
+export type Connection = z.infer<typeof ConnectionSchema>
+
+export const CrawlMapSchema = z.object({
+  name: z.string().default(''),
+  terrains: z.record(z.string(), TerrainSchema).default({}),
+  nodes: z.record(z.string(), CrawlNodeSchema).default({}),
+  connections: z.record(z.string(), ConnectionSchema).default({}),
+})
+export type CrawlMap = z.infer<typeof CrawlMapSchema>
+
+export type MapUpdater = (map: CrawlMap) => CrawlMap
+
+// Where an event is: on a node or on a connection.
+export type EventOwner = { kind: 'node' | 'connection'; id: string }
+
 // "only one character rolls for it": the roller is one of the members. The
-// table enters the DL and, for travel and search, the roller's knowledge of
-// the place; `tool` is an item or spell that lights the fire without a test.
+// table enters the DL where the map gives none; `target` is the connection a
+// travel goes along, `seek` the type of event a search looks for, `tool` an
+// item or spell that lights the fire without a test.
 export const GroupSchema = z.object({
   kind: GroupKindSchema,
   members: z.array(z.string()).default([]),
   roller: z.string().nullable().default(null),
   DL: z.number().default(0),
   mode: z.enum(ROLL_MODES).default('normal'),
-  knowledge: z.number().default(0),
+  target: z.string().nullable().default(null),
+  seek: EventTypeSchema.default('food'),
   tool: z.boolean().default(false),
 })
 export type Group = z.infer<typeof GroupSchema>
-
-// survival.tex "Night and Darkness": daylight, night with a light source or
-// sight in the dark, or night without vision.
-export const LIGHTS = ['day', 'lit', 'dark'] as const
-export const LightSchema = z.enum(LIGHTS)
-export type Light = z.infer<typeof LightSchema>
 
 // survival.tex "Making camp": what has been set up where the party is. A
 // graze on firewood or the fire leaves `progress`, which a group of the same
@@ -45,9 +111,12 @@ export type Camp = z.infer<typeof CampSchema>
 // travels leaves as a party of its own.
 export const PartySchema = z.object({
   name: z.string().default(''),
-  // survival.tex "Exposure": how rough the ground the party is on is
+  // the node of the map the party is on, or none, off the map
+  node: z.string().nullable().default(null),
+  // survival.tex "Exposure": how rough the ground is, entered off the map
   exposure: z.number().default(0),
-  light: LightSchema.default('day'),
+  // survival.tex "Night and Darkness": a light source or sight in the dark
+  lit: z.boolean().default(false),
   camp: CampSchema.default(CampSchema.parse({})),
   groups: z.record(z.string(), GroupSchema).default({}),
 })
@@ -86,6 +155,8 @@ export const GroupResultSchema = z.object({
   members: z.array(z.string()),
   roll: TestRollSchema.nullable(),
   note: z.string().default(''),
+  // the events met, with the outcome for the degree reached against each
+  events: z.array(z.object({ name: z.string(), DL: z.number(), degree: DegreeSchema, outcome: z.string() })).default([]),
 })
 export type GroupResult = z.infer<typeof GroupResultSchema>
 
@@ -96,6 +167,11 @@ export const CampaignStateSchema = z.object({
   activeCharacterId: z.string().nullable().default(null),
   // the game time since the campaign began, in seconds
   clock: z.number().default(0),
+  // survival.tex "Night and Darkness": "The standard is 4 periods of day and
+  // 2 of night"; the ETs of a day that are daylight, night being the rest
+  dayETs: z.number().default(4),
+  // the point crawl the parties are on, if any
+  map: CrawlMapSchema.nullable().default(null),
   parties: z.record(z.string(), PartySchema).default({}),
   // the party each character is in, kept while they are in a fight
   partyOf: z.record(z.string(), z.string()).default({}),

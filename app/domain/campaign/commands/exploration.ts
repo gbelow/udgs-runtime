@@ -1,14 +1,16 @@
 import type { CampaignCharacter } from '../../types'
-import type { Camp, CampaignState, CampaignUpdater, Group, GroupResult, Opening, Party, TableUpdater, TestRoll } from '../types'
+import type { Camp, CampaignState, CampaignUpdater, CrawlEvent, Group, GroupResult, Opening, TableUpdater, TestRoll } from '../types'
 import { CampSchema } from '../types'
-import { moded, type Dice } from '../../combat/dice'
-import { resolveTest } from '../../combat/rules/test'
+import { moded, rollPercent, type Dice } from '../../combat/dice'
+import { getDegree, resolveTest } from '../../combat/rules/test'
 import type { Degree } from '../../combat/types'
 import { heal } from '../../character/commands/heal'
 import {
-  canRestHeal, getExhaustionTest, getExplorationAction, getExplorationBar, getGroupTest, getPartyMembers, getPartyPlayers,
-  getPassBar, getRestExposure, getRestHealing, getRestRecovery, getWear, isAway, isForcedToRest,
+  canRestHeal, getConnectionsFrom, getExhaustionTest, getExplorationAction, getExplorationBar, getGroupTest, getNightDL, getPartyMembers,
+  getPartyPlayers, getPassBar, getPlace, getRestExposure, getRestHealing, getRestRecovery, getWear, hasWood, isAway, isForcedToRest,
+  type Place,
 } from '../rules/exploration'
+import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/crawl'
 import { getNextET } from '../rules/clock'
 import { advanceClock } from './clock'
 import { addParty } from './parties'
@@ -86,36 +88,108 @@ function landTask(group: Group, degree: Degree, camp: Camp): Camp {
   }
 }
 
-// One group's test, made by its roller, and what it leaves the camp. `start`
-// is the camp as the ET found it.
-function goOn(state: CampaignState, party: Party, start: Camp, camp: Camp, group: Group, dice: Dice): { roll: TestRoll | null; note: string; camp: Camp } {
-  if (group.kind === 'fire' && start.firewood <= 0) return { roll: null, note: 'no firewood', camp }
+type Met = GroupResult['events'][number]
+
+// Where a group that went ends the ET: `node` on the map, null off it. A
+// group with no `moves` is where it started.
+type Outcome = { roll: TestRoll | null; note: string; camp: Camp; moves: { node: string | null } | null; events: Met[] }
+
+// survival.tex "Events": each event met resolves itself, by the degree the
+// group's score comes to against it.
+const meeting = (state: CampaignState, present: string[], score: number, night: number) => (event: CrawlEvent): Met => {
+  const DL = getEventDL(state, present, night, event)
+  const degree = getDegree(score, DL)
+  return { name: event.name, DL, degree, outcome: event.outcomes[degree] }
+}
+
+type Path = ReturnType<typeof getConnectionsFrom>[number]
+type Drawn = { path: Path } | { event: CrawlEvent } | null
+
+// survival.tex "Travel": "A crit or hit means that no one got lost";
+// "Grazes and misses": a random event of the node, the path that was
+// looked for among them, and "If the exploration test result is lower than
+// 0, also add paths to other nodes". The group ends where what was drawn
+// is: drawing a path, or an event on it, travels it. "Connection events:
+// happen when traveling from one node to another", each met by the score.
+function travel(state: CampaignState, place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
+  const paths = getConnectionsFrom(state, place.id)
+  const chosen = paths.find((p) => p.id === group.target)
+  if (!chosen) return { roll, note: 'no path', moves: null, events: [] }
+  const along = (path: Path, note: string) => ({ roll, note, moves: { node: path.to }, events: Object.values(path.connection.events).map(meet) })
+  const nameOf = (node: string) => state.map?.nodes[node]?.name ?? node
+  if (won(roll.degree)) return along(chosen, `arrived at ${nameOf(chosen.to)}`)
+  const weighted = (DL: number, item: Drawn) => ({ weight: getEventWeight(DL), item })
+  const drawn = drawWeighted<Drawn>([
+    ...Object.values(place.node.events).map((event) => weighted(event.DL, { event })),
+    weighted(chosen.connection.DL, { path: chosen }),
+    ...Object.values(chosen.connection.events).map((event) => weighted(event.DL, { path: chosen })),
+    ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.connection.DL, { path })) : []),
+    { weight: BLANK_WEIGHT, item: null },
+  ], rollPercent(dice))
+  if (drawn && 'path' in drawn) return along(drawn.path, drawn.path === chosen ? `arrived at ${nameOf(drawn.path.to)}` : `lost, came to ${nameOf(drawn.path.to)}`)
+  if (drawn) return { roll, note: `held up at ${place.node.name}`, moves: null, events: [meet(drawn.event)] }
+  return { roll, note: `lost, still at ${place.node.name}`, moves: null, events: [] }
+}
+
+// survival.tex "Search": "Characters find the easiest event of the type that
+// was searched for and for which their test value was high enough";
+// "Grazes and misses": otherwise a random event of the node. The roll is
+// read against the event met, or, with none, the easiest one looked for.
+function search(place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
+  const events = Object.values(place.node.events)
+  const sought = events.filter((e) => e.types.includes(group.seek)).map(meet).sort((x, y) => x.DL - y.DL)
+  const against = (met: Met | undefined): TestRoll => (met ? { ...roll, DL: met.DL, degree: met.degree } : roll)
+  const found = sought.find((met) => isFound(met.degree))
+  if (found) return { roll: against(found), note: `found ${found.name}`, moves: null, events: [found] }
+  const drawn = drawWeighted<CrawlEvent | null>([
+    ...events.map((event) => ({ weight: getEventWeight(event.DL), item: event })),
+    { weight: BLANK_WEIGHT, item: null },
+  ], rollPercent(dice))
+  if (!drawn) return { roll: against(sought[0]), note: `found no ${group.seek}`, moves: null, events: [] }
+  const met = meet(drawn)
+  return { roll: against(sought[0]), note: `found no ${group.seek}, came upon ${drawn.name}`, moves: null, events: [met] }
+}
+
+// One group's test, made by its roller, and what it leaves the camp and
+// where it takes the group. `start` is the camp as the ET found it.
+function goOn(state: CampaignState, partyId: string, start: Camp, camp: Camp, group: Group, going: string[], dice: Dice): Outcome {
+  const party = state.parties[partyId]
+  const place = getPlace(state, party)
+  const stays = { camp, moves: null, events: [] }
+  if (group.kind === 'firewood' && !hasWood(state, party)) return { ...stays, roll: null, note: 'no wood here' }
+  if (group.kind === 'fire' && start.firewood <= 0) return { ...stays, roll: null, note: 'no firewood' }
   if ((group.kind === 'firewood' || group.kind === 'fire') && start.progress.includes(group.kind)) {
-    return { roll: null, note: 'finished from the last ET', camp: landTask(group, 'hit', camp) }
+    return { ...stays, roll: null, note: 'finished from the last ET', camp: landTask(group, 'hit', camp) }
   }
   // survival.tex "Lighting the fire": "done without a test if some items or
   // spells are present".
-  if (group.kind === 'fire' && group.tool) return { roll: null, note: 'lit with a tool', camp: landTask(group, 'hit', camp) }
-  const roll = toRoll(resolveTest(getGroupTest(state.characters[group.roller ?? ''], group, party), moded(group.mode, dice)))
-  return { roll, note: '', camp: landTask(group, roll.degree, camp) }
+  if (group.kind === 'fire' && group.tool) return { ...stays, roll: null, note: 'lit with a tool', camp: landTask(group, 'hit', camp) }
+  const test = getGroupTest(state, partyId, group)
+  if (!test) return { ...stays, roll: null, note: 'nobody to roll' }
+  const roll = toRoll(resolveTest(test, moded(group.mode, dice)))
+  const meet = meeting(state, going, roll.score, getNightDL(state, party))
+  if (group.kind === 'travel') return { camp, ...(place ? travel(state, place, group, roll, meet, dice) : { roll, note: '', moves: { node: null }, events: [] }) }
+  if (group.kind === 'search' && place) return { camp, ...search(place, group, roll, meet, dice) }
+  return { ...stays, roll, note: '', camp: landTask(group, roll.degree, camp) }
 }
 
 type PartyET = { state: CampaignState; results: GroupResult[] }
 
 // One party's ET. Groups go on their actions, every member of a group that
 // went takes its wear, resters rest, and everyone else is idle: survival.tex
-// "Exhaustion": every ET but a rest adds +1 exhaustion. A group that travelled
-// leaves as a party of its own unless it was the whole party, which leaves
-// its camp behind instead.
+// "Exhaustion": every ET but a rest adds +1 exhaustion. Every group that
+// travelled somewhere leaves as a party of its own, unless it was the whole
+// party, which leaves its camp behind instead.
 function passParty(state: CampaignState, partyId: string, opening: Opening, dice: Dice, newId: () => string): PartyET {
   const party = state.parties[partyId]
   const players = getPartyPlayers(state, partyId)
   const forced = (id: string) => isForcedToRest(opening.rolls[id]?.degree)
   const name = (id: string) => state.characters[id]?.fightName ?? id
+  const terrainWear = getPlace(state, party)?.terrain?.wear ?? 0
   const start = party.camp
   let camp: Camp = { ...start, progress: [] }
   const working: Record<string, Group> = {}
-  const movers: string[] = []
+  const moves: { node: string | null; ids: string[] }[] = []
   const results: GroupResult[] = []
 
   for (const group of Object.values(party.groups)) {
@@ -123,22 +197,22 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
     const forcedIn = members.filter(forced)
     const stayedFor = isAway(group.kind) ? forcedIn.filter((id) => opening.decisions[id] === 'stay') : []
     if (stayedFor.length > 0) {
-      results.push({ party: party.name, kind: group.kind, members: members.map(name), roll: null, note: `stayed with ${stayedFor.map(name).join(', ')}` })
+      results.push({ party: party.name, kind: group.kind, members: members.map(name), roll: null, note: `stayed with ${stayedFor.map(name).join(', ')}`, events: [] })
       continue
     }
     const going = members.filter((id) => !forced(id))
     if (going.length === 0) continue
     for (const id of going) working[id] = group
-    if (group.kind === 'travel') movers.push(...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry'))
-    const outcome = goOn(state, party, start, camp, group, dice)
+    const outcome = goOn(state, partyId, start, camp, group, going, dice)
     camp = outcome.camp
-    results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note })
+    if (outcome.moves) moves.push({ node: outcome.moves.node, ids: [...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry')] })
+    results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events: outcome.events })
   }
 
   // survival.tex "Campfire": a fire burns its firewood, 1 ET of it per ET.
   if (start.fire) camp = { ...camp, firewood: Math.max(0, camp.firewood - 1), fire: camp.firewood > 1 }
 
-  const exposure = getRestExposure(party)
+  const exposure = getRestExposure(state, party)
   let rests = state.rests
   const characters = { ...state.characters }
   for (const id of players) {
@@ -147,17 +221,22 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
     const resting = !group && (forced(id) || state.resting.includes(id)) && canRestHeal({ ...state, rests }, id)
     if (resting) rests = { ...rests, [id]: (rests[id] ?? 0) + 1 }
     characters[id] = resting ? rest(drank, exposure)
-      : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind)))(drank))
+      : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind), terrainWear))(drank))
       : addExhaustion(1)(drank)
   }
 
   const passed: CampaignState = { ...state, characters, rests, parties: { ...state.parties, [partyId]: { ...party, camp } } }
-  if (movers.length === 0) return { state: passed, results }
-  const everyone = getPartyMembers(state, partyId).every((id) => movers.includes(id))
-  if (everyone) return { state: { ...passed, parties: { ...passed.parties, [partyId]: { ...party, camp: CampSchema.parse({}) } } }, results }
-  const newPartyId = newId()
-  const split = addParty(newPartyId, party)(passed)
-  return { state: { ...split, partyOf: { ...split.partyOf, ...Object.fromEntries(movers.map((id) => [id, newPartyId])) } }, results }
+  const members = getPartyMembers(state, partyId)
+  if (moves.length === 1 && members.every((id) => moves[0].ids.includes(id))) {
+    const moved = { ...party, camp: CampSchema.parse({}), node: moves[0].node ?? party.node }
+    return { state: { ...passed, parties: { ...passed.parties, [partyId]: moved } }, results }
+  }
+  const split = moves.reduce((s, move) => {
+    const newPartyId = newId()
+    const added = addParty(newPartyId, { ...party, node: move.node ?? party.node })(s)
+    return { ...added, partyOf: { ...added.partyOf, ...Object.fromEntries(move.ids.map((id) => [id, newPartyId])) } }
+  }, passed)
+  return { state: split, results }
 }
 
 // The ET over: its plans emptied for the next, its tests kept to read.

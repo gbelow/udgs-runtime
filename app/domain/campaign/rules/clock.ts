@@ -6,7 +6,8 @@ const ROUND_SECONDS = 3
 // blocks of 4 hours because it splits a day into 6 parts."
 export const ET_SECONDS = 4 * 60 * 60
 // survival.tex "Day": "By default, a day has 24 hours."
-export const DAY_SECONDS = 6 * ET_SECONDS
+export const ETS_PER_DAY = 6
+export const DAY_SECONDS = ETS_PER_DAY * ET_SECONDS
 
 // The game time a fight took, by the rounds it ran.
 export function getFightSeconds(rounds: number): number {
@@ -21,4 +22,10 @@ export function getNextET(clock: number): number {
 // How many days end as the clock moves from one time to the other.
 export function getDaysEnded(from: number, to: number): number {
   return Math.floor(to / DAY_SECONDS) - Math.floor(from / DAY_SECONDS)
+}
+
+// survival.tex "Night and Darkness": whether the ET the clock is in falls in
+// the night, the day's first `dayETs` ETs being daylight.
+export function isNight(clock: number, dayETs: number): boolean {
+  return Math.floor((clock % DAY_SECONDS) / ET_SECONDS) >= dayETs
 }

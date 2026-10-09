@@ -1,8 +1,10 @@
-import type { CampaignUpdater, Decision, Group, GroupKind, Light } from "../domain/campaign/types";
+import type { CampaignUpdater, Decision, Group, GroupKind } from "../domain/campaign/types";
 import { getClockView, type ClockView } from "../domain/campaign/projections/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/campaign/projections/exploration";
 import { drink as drinkFor, eat as eatFor, passET as passClock } from "../domain/campaign/commands/exploration";
-import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, mergeParties as mergeInto, removeGroup as removeGroupOf, setGroup as setGroupOf, setPartyExposure, setPartyLight, setResting, setRoller as setRollerOf } from "../domain/campaign/commands/parties";
+import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, loadMap as loadMapOf, mergeParties as mergeInto, removeGroup as removeGroupOf, setGroup as setGroupOf, setPartyExposure, setPartyLit, setPartyNode, setResting, setRoller as setRollerOf, unloadMap } from "../domain/campaign/commands/parties";
+import { setDayETs } from "../domain/campaign/commands/clock";
+import { useMapNames } from "./useMap";
 import { removeFromRoster } from "../domain/campaign/commands/roster";
 import { returnFromFight, sendToFight } from "../domain/campaign/commands/fight";
 import { getPassBar } from "../domain/campaign/rules/exploration";
@@ -26,6 +28,7 @@ export function usePassBar(): string | null {
   useCombatStore((s) => s.characters);
   useCampaignStore((s) => s.parties);
   useCampaignStore((s) => s.opening);
+  useCampaignStore((s) => s.map);
   return getPassBar({ campaign: useCampaignStore.getState(), fight: useCombatStore.getState() });
 }
 
@@ -38,6 +41,7 @@ export function useExploration(): ExplorationPanel {
   useCampaignStore((s) => s.resting);
   useCampaignStore((s) => s.rests);
   useCampaignStore((s) => s.exhaustionRolls);
+  useCampaignStore((s) => s.map);
   return getExplorationPanel(useCampaignStore.getState(), c?.id ?? null);
 }
 
@@ -45,6 +49,7 @@ export function usePartyCommands() {
   const updateCampaignState = useCampaignStore((s) => s.updateCampaignState);
   const updateTable = useCampaignStore((s) => s.updateTable);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
+  const { mapList } = useMapNames();
 
   const withActive = (run: (id: string) => void) => {
     const id = useCampaignStore.getState().activeCharacterId;
@@ -62,11 +67,14 @@ export function usePartyCommands() {
     drink: () => asActive(drinkFor),
     leaveParty: () => asActive(removeFromRoster),
     setExposure: (partyId: string, exposure: number) => updateCampaignState(setPartyExposure(partyId, exposure)),
-    setLight: (partyId: string, light: Light) => updateCampaignState(setPartyLight(partyId, light)),
+    setLit: (partyId: string, lit: boolean) => updateCampaignState(setPartyLit(partyId, lit)),
+    setNode: (partyId: string, node: string | null) => updateCampaignState(setPartyNode(partyId, node)),
+    loadMap: (name: string) => updateCampaignState(name in mapList ? loadMapOf(mapList[name]) : unloadMap),
+    setDayETs: (dayETs: number) => updateCampaignState(setDayETs(dayETs)),
     merge: (fromId: string, intoId: string) => updateCampaignState(mergeInto(fromId, intoId)),
     addGroup: (partyId: string, kind: GroupKind) => updateCampaignState(addGroupTo(partyId, kind, newId)),
     removeGroup: (partyId: string, groupId: string) => updateCampaignState(removeGroupOf(partyId, groupId)),
-    setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'knowledge' | 'tool'>>) => updateCampaignState(setGroupOf(partyId, groupId, settings)),
+    setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => updateCampaignState(setGroupOf(partyId, groupId, settings)),
     setRoller: (partyId: string, groupId: string, roller: string) => updateCampaignState(setRollerOf(partyId, groupId, roller)),
     decide: (id: string, decision: Decision) => updateCampaignState(decideFor(id, decision)),
     passET: () => updateTable(passClock(realDice, newId)),

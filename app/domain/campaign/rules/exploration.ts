@@ -1,12 +1,13 @@
 import type { CampaignCharacter } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CampaignState, Group, GroupKind, Party, Table } from '../types'
+import type { CampaignState, Connection, CrawlNode, Group, GroupKind, Party, Table, Terrain } from '../types'
 import type { Degree } from '../../combat/types'
 import type { Test } from '../../combat/rules/test'
 import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getHealth, getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
+import { isNight } from './clock'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
 export function getExplorationAction(kind: GroupKind): ExplorationAction {
@@ -22,11 +23,41 @@ export function isAway(kind: GroupKind): boolean {
 // survival.tex "Wear": "The basic wear is to increase IL by +1"; "STA < 8 =
 // +1 IL per EA. STA < 6 = +2 IL and so on", read off the derived STA (the
 // table's ruling); combat.tex "Lame": "Takes +2 IL for traveling and
-// Searching".
-export function getWear(c: CampaignCharacter, action: ExplorationAction): number {
+// Searching"; "Terrain": "Terrain can have value for extra wear".
+export function getWear(c: CampaignCharacter, action: ExplorationAction, terrain = 0): number {
   const stamina = Math.max(0, Math.floor((9 - getSTA(c)) / 2))
   const lame = action !== 'prepare' && hasAffliction(c, 'lame') ? 2 : 0
-  return 1 + stamina + lame
+  return 1 + stamina + lame + terrain
+}
+
+export type Place = { id: string; node: CrawlNode; terrain: Terrain | null }
+
+// The node of the map the party is on and what it is made of; null off the map.
+export function getPlace(state: CampaignState, party: Party): Place | null {
+  const node = party.node ? state.map?.nodes[party.node] : undefined
+  if (!party.node || !node) return null
+  return { id: party.node, node, terrain: (node.terrain ? state.map?.terrains[node.terrain] : undefined) ?? null }
+}
+
+// survival.tex "Terrain": "Every terrain has a value of exposure"; off the
+// map, the table enters it.
+export function getExposure(state: CampaignState, party: Party): number {
+  const place = getPlace(state, party)
+  return place?.terrain ? place.terrain.exposure : party.exposure
+}
+
+// The paths out of a node, with the node at the other end.
+export function getConnectionsFrom(state: CampaignState, node: string): { id: string; connection: Connection; to: string }[] {
+  return Object.entries(state.map?.connections ?? {})
+    .filter(([, c]) => c.a === node || c.b === node)
+    .map(([id, connection]) => ({ id, connection, to: connection.a === node ? connection.b : connection.a }))
+}
+
+// survival.tex "Terrain tags": "wood: allows looking for firewood"; off the
+// map nothing says otherwise.
+export function hasWood(state: CampaignState, party: Party): boolean {
+  const terrain = getPlace(state, party)?.terrain
+  return !terrain || terrain.tags.includes('wood')
 }
 
 // survival.tex "Rest": "heals IL equal to 1+(health-exposure)/2. Negative
@@ -43,9 +74,11 @@ export function getRestRecovery(exposure: number): number {
 
 // survival.tex "Shelter": "improves the exposure for resting by 1 on a hit
 // and by 2 on a crit"; "Campfire": "reduces exposure to cold and insects by
-// 1", taken as any exposure until terrain carries its tags.
-export function getRestExposure(party: Party): number {
-  return Math.max(0, party.exposure - party.camp.shelter - (party.camp.fire ? 1 : 0))
+// 1", on terrain tagged with either; off the map, on any.
+export function getRestExposure(state: CampaignState, party: Party): number {
+  const terrain = getPlace(state, party)?.terrain
+  const warms = !terrain || terrain.tags.includes('cold') || terrain.tags.includes('insects')
+  return Math.max(0, getExposure(state, party) - party.camp.shelter - (party.camp.fire && warms ? 1 : 0))
 }
 
 // survival.tex "Rest": "Resting only heals 3 times per day. Any further
@@ -78,16 +111,44 @@ export function isForced(state: CampaignState, id: string): boolean {
 // ability to see in the dark, the DL for travel and search is increased by
 // just +5. If the group is without vision, search and travel increases by
 // +10."
-const NIGHT_DL = { day: 0, lit: 5, dark: 10 } as const
+export function getNightDL(state: CampaignState, party: Party): number {
+  return isNight(state.clock, state.dayETs) ? (party.lit ? 5 : 10) : 0
+}
+
+// survival.tex "Exploring and traveling": "the specific knowledge about the
+// location", held by whoever in the party knows the terrain best.
+export function getLocationKnowledge(state: CampaignState, partyId: string): number {
+  const terrain = getPlace(state, state.parties[partyId])?.terrain
+  if (!terrain) return 0
+  return Math.max(0, ...getPartyPlayers(state, partyId).map((id) => getKnowledge(terrain.knowledge)(state.characters[id])))
+}
+
+// The DL the map sets a group's test, before night: the path travelled, the
+// terrain's natural shelter DL for shelter and firewood ("Use natural
+// shelter DL when searching for firewood"), and nothing for a search, which
+// is read against each event. Null where the table enters it.
+export function getMapDL(state: CampaignState, party: Party, group: Group): number | null {
+  const place = getPlace(state, party)
+  if (!place) return null
+  switch (group.kind) {
+    case 'travel': return state.map?.connections[group.target ?? '']?.DL ?? null
+    case 'search': return 0
+    case 'shelter':
+    case 'firewood': return place.terrain?.shelterDL ?? null
+    default: return null
+  }
+}
 
 // survival.tex "Exploration": travel and search test the Exploration skill,
-// "the specific knowledge about the location + the awareness proficiency",
-// the knowledge entered by the table; "Prepare": "The skill used is 2x
-// survival knowledge".
-export function getGroupTest(c: CampaignCharacter, group: Group, party: Party): Test {
+// "the specific knowledge about the location + the awareness proficiency";
+// "Prepare": "The skill used is 2x survival knowledge". Null without a roller.
+export function getGroupTest(state: CampaignState, partyId: string, group: Group): Test | null {
+  const c = group.roller ? state.characters[group.roller] : undefined
+  const party = state.parties[partyId]
+  if (!c || !party) return null
   const away = isAway(group.kind)
-  const skill = away ? group.knowledge + getAwareness(c) : 2 * getKnowledge('survival')(c)
-  return { skill, DL: group.DL + (away ? NIGHT_DL[party.light] : 0), explodes: false, scale: 'degrees' }
+  const skill = away ? getLocationKnowledge(state, partyId) + getAwareness(c) : 2 * getKnowledge('survival')(c)
+  return { skill, DL: (getMapDL(state, party, group) ?? group.DL) + (away ? getNightDL(state, party) : 0), explodes: false, scale: 'degrees' }
 }
 
 // Everyone in the party, on the roster or sent to a fight.
@@ -121,13 +182,19 @@ export function getExplorationBar(state: CampaignState, id: string): string | nu
 }
 
 // Why the group cannot be gone on: "only one character rolls for it", and
-// that one must be with the group and able to.
-function getRollerBar(state: CampaignState, partyId: string, group: Group): string | null {
+// that one must be with the group and able to; on the map, a travel goes
+// along a path out of the node.
+function getGroupBar(state: CampaignState, partyId: string, group: Group): string | null {
   const party = state.parties[partyId]
   const players = getPartyPlayers(state, partyId).filter((id) => group.members.includes(id))
   if (players.length === 0) return null
   if (!group.roller || !players.includes(group.roller)) return `${party.name} ${group.kind} needs a roller`
-  return isForced(state, group.roller) ? `${party.name} ${group.kind} needs another roller` : null
+  if (isForced(state, group.roller)) return `${party.name} ${group.kind} needs another roller`
+  const place = getPlace(state, party)
+  if (group.kind === 'travel' && place && !getConnectionsFrom(state, place.id).some((c) => c.id === group.target)) {
+    return `${party.name} travel needs a destination`
+  }
+  return null
 }
 
 // Why the ET cannot pass now: it passes for everyone, a fight is counted in
@@ -138,7 +205,7 @@ export function getPassBar(table: Table): string | null {
   const state = table.campaign
   for (const [partyId, party] of Object.entries(state.parties)) {
     for (const group of Object.values(party.groups)) {
-      const bar = getRollerBar(state, partyId, group)
+      const bar = getGroupBar(state, partyId, group)
       if (bar) return bar
     }
   }

@@ -1,11 +1,11 @@
 import { createStore } from "zustand/vanilla";
 import { toast } from "sonner";
-import { getBasicCharList, getCharacterList, getRaceList, JsonObject } from "../actions";
+import { getBasicCharList, getCharacterList, getMapList, getRaceList, JsonObject } from "../actions";
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'party' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'play' | 'break' | 'catalog'
 
 // The store that holds each tab's active character: the one being edited, the
 // race being made, the party's, the fight's — or none, for a tab whose
@@ -16,6 +16,7 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   create: null,
   edit: 'character',
   race: 'race',
+  map: null,
   party: 'campaign',
   play: 'combat',
   break: 'combat',
@@ -44,6 +45,8 @@ export interface AppState {
   updatePlayerCharacterList: () => void
   raceList: JsonObject
   updateRaceList: () => void
+  mapList: JsonObject
+  updateMapList: () => void
   pendingItem: PendingItem | null
   setPendingItem: (pendingItem: PendingItem | null) => void
 }
@@ -54,6 +57,7 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     baseCharacterList: initialState.baseCharacterList || {},
     playerCharacterList: initialState.playerCharacterList || [],
     raceList: initialState.raceList || {},
+    mapList: initialState.mapList || {},
     
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
     pendingItem: null,
@@ -69,6 +73,12 @@ export const createAppStore = (initialState: Partial<AppState>) =>
       const res = await getRaceList()
       if (!res.ok) { toast.error(res.error); return }
       set(s=> ({...s, raceList: res.data}) )
+    },
+
+    updateMapList: async () => {
+      const res = await getMapList()
+      if (!res.ok) { toast.error(res.error); return }
+      set(s=> ({...s, mapList: res.data}) )
     },
 
     updatePlayerCharacterList: async () => {
