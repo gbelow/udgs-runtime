@@ -4,7 +4,7 @@ import { getBurdenPenalty } from "../../item/rules/containers"
 import { getShieldBurden } from "../../item/rules/hands"
 import { getArmor } from "./armor"
 import { Term, sumTerms } from "./terms"
-import { getAttributeBonus } from "./effects"
+import { getBuffBonus } from "./effects"
 
 // combat.tex "Afflictions": "Injury (IL): penalties affect STR, AGI, STA. This
 // does not affect TGH. It affects all other usages of attributes." The penalty
@@ -44,9 +44,9 @@ export function getSTA(c: Character): number {
 }
 
 // An attribute as the character has it: what was trained, and what their
-// abilities add or take.
+// abilities add or take (abilities.tex "Grow!": "loses 3 STR and 1 AGI").
 export function getAttributeHeld(c: Character, key: keyof Attributes): number {
-  return c.trainables[key].value + getAttributeBonus(c, key)
+  return c.trainables[key].value + getBuffBonus(c, `attribute:${key}`)
 }
 
 // The STR with the injury penalty left out. TGH is the rulebook's stated

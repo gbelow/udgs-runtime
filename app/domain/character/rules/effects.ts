@@ -1,4 +1,4 @@
-import { Ability, Attributes, Buff, BuffTarget, Character, Cost, Effect, Grant, Trigger } from '../../types'
+import { Ability, Buff, BuffTarget, Character, Cost, Effect, Grant, Trigger } from '../../types'
 import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
@@ -101,11 +101,6 @@ export function getBuffBonus(character: Character, target: BuffTarget): number {
     .reduce((sum, b) => b.target === target && b.operation === '+' ? sum + b.value : sum, 0)
 }
 
-// What the character's abilities add to or take from an attribute
-// (abilities.tex "Grow!": "loses 3 STR and 1 AGI").
-export function getAttributeBonus(character: Character, key: keyof Attributes): number {
-  return getBuffBonus(character, `attribute:${key}`)
-}
 
 function sumCosts(costs: Cost[]): Cost {
   const total: Cost = { AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }
