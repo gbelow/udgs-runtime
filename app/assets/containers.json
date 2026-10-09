@@ -68,7 +68,8 @@
       }
     },
     "burden": 0,
-    "bulk": 1
+    "bulk": 1,
+    "price": 1
   },
   "Bandolier": {
     "name": "Bandolier",

@@ -402,7 +402,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 300
   },
   "Gambeson": {
     "name": "Gambeson",
@@ -683,7 +684,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1000
   },
   "Necrotic Poison": {
     "name": "Necrotic Poison",
@@ -696,7 +698,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 800
   },
   "Soporific Poison": {
     "name": "Soporific Poison",
@@ -709,7 +712,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 600
   },
   "Caltrops": {
     "name": "Caltrops",
@@ -750,7 +754,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Alchemical Torch": {
     "name": "Alchemical Torch",
@@ -1260,7 +1265,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 2
   },
   "Rope": {
     "name": "Rope",
@@ -1273,7 +1279,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Canteen": {
     "name": "Canteen",
