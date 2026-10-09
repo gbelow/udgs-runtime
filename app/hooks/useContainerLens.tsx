@@ -8,7 +8,7 @@ import {
   getBurden,
   getContainerPanels,
 } from "../domain/item/projections/containers";
-import { formatMoney, getPurseLabel } from "../domain/item/projections/money";
+import { formatMoney, getPurseLabel, getStartingWealthView, StartingWealthView } from "../domain/item/projections/money";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -42,6 +42,10 @@ export function useContainerLens() {
   const purse: string =
     useActiveCharacterSelector((c: Character) => getPurseLabel(c)) ?? formatMoney(0);
 
+  // creating.tex "Character Creation", Step 3: what is left to buy gear with.
+  const startingWealth: StartingWealthView | null =
+    useActiveCharacterSelector(useShallow((c: Character) => getStartingWealthView(c))) ?? null;
+
   // Whether the catalog pick could be put straight on; null when there is no
   // pick or it is not a container one puts on.
   const putOnView: MoveView | null =
@@ -57,5 +61,5 @@ export function useContainerLens() {
     update(takeOffContainer(key));
   };
 
-  return { panels, burden, purse, putOnView, putOn, takeOff } as const;
+  return { panels, burden, purse, startingWealth, putOnView, putOn, takeOff } as const;
 }

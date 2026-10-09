@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
@@ -169,6 +170,7 @@ export function CharacterCreator() {
         <HandsPanel />
         <WeaponPanel />
         <ContainerPanel />
+        <TradePanel />
         <AbilityPanel />
         <SpellPanel />
         <BodyEditor />

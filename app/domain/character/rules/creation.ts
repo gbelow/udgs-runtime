@@ -1,5 +1,6 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
-import { CREATION_PRIORITIES } from '../../tables'
+import { COINS, CREATION_PRIORITIES } from '../../tables'
+import { isBaseCharacter } from '../../utils'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
@@ -103,7 +104,11 @@ export function getCreationBuild(d: CreationDraft): Character {
   return { ...c, trainables, knowledges, abilities, spells }
 }
 
-// The character made: the build with the race's attribute bonuses on top.
+// creating.tex "Character Creation", Step 3 gives the wealth focus in gold.
+const GOLD_IN_COPPERS = COINS[0].value
+
+// The character made: the build with the race's attribute bonuses on top,
+// and the wealth focus's gold to buy its gear from.
 export function getCreatedCharacter(d: CreationDraft): Character {
   const build = getCreationBuild(d)
   const trainables = { ...build.trainables }
@@ -111,7 +116,8 @@ export function getCreatedCharacter(d: CreationDraft): Character {
     const bonus = d.race?.bonuses[key as keyof typeof d.race.bonuses] ?? 0
     if (bonus) trainables[key] = { ...trainables[key], value: trainables[key].value + bonus }
   }
-  return { ...build, trainables }
+  const created = { ...build, trainables }
+  return isBaseCharacter(created) ? { ...created, startingWealth: getCreationGold(d) * GOLD_IN_COPPERS } : created
 }
 
 // What one purchase costs: a trainable by its key, the attributes together,

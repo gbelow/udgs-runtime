@@ -565,11 +565,12 @@ export const MATERIAL_HARDNESS: Record<(typeof MATERIALS)[number], number> = {
 
 // story.tex "Wealth and Money": "Ten coppers are worth the same as one
 // silver, and 10 silvers are worth the same as 1 gold." Prices are kept in
-// coppers; these are the coins a sum is written in, largest first.
+// coppers; these are the coins a sum is written in and paid back in, largest
+// first, each with the items catalog entry it is.
 export const COINS = [
-  { name: 'GP', value: 100 },
-  { name: 'SP', value: 10 },
-  { name: 'CP', value: 1 },
+  { name: 'GP', value: 100, item: 'Gold Coin' },
+  { name: 'SP', value: 10, item: 'Silver Coin' },
+  { name: 'CP', value: 1, item: 'Copper Coin' },
 ] as const
 
 // creating.tex "Character Creation", Steps 3–7: what each priority gives a

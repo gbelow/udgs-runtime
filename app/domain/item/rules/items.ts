@@ -171,11 +171,11 @@ export function isGear(item: Item, name: string): boolean {
 }
 
 // Everything the character has on them: what is in their hands, what they
-// wear, and what their containers carry, down through the containers
-// carried in them.
+// wear, the shield on their back, and what their containers carry, down
+// through the containers carried in them.
 export function getCarriedItems(c: Character): Item[] {
   const within = (items: Item[]): Item[] => items.flatMap((item) => [item, ...(item.container ? within(getContents(item.container)) : [])])
-  return within([...c.held, ...(c.worn ? [c.worn] : []), ...Object.values(c.containers).flatMap(getContents)])
+  return within([...c.held, ...(c.worn ? [c.worn] : []), ...(c.onBack ? [c.onBack] : []), ...Object.values(c.containers).flatMap(getContents)])
 }
 
 // combat.tex "Camouflage": the best stealth against vision the character's

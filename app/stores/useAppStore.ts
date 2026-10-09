@@ -4,6 +4,7 @@ import { getBasicCharList, getCharacterList, getMapList, getRaceList, JsonObject
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
+import type { Trade } from "../domain/item/rules/trade";
 
 export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'play' | 'break' | 'catalog'
 
@@ -37,6 +38,9 @@ export type PendingItem =
   | { source: 'worn' }
 
 export interface AppState {
+  // the trade being put together with a merchant, or null while not trading
+  trade: Trade | null
+  setTrade: (trade: Trade | null) => void
   selectedGameTab: GameTabs
   setSelectedGameTab: (mode: GameTabs) => void
   baseCharacterList: JsonObject
@@ -62,6 +66,8 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
     pendingItem: null,
     setPendingItem: (pendingItem) => set({ pendingItem }),
+    trade: null,
+    setTrade: (trade) => set({ trade }),
     
     updateBaseCharacterList: async () => {
       const res = await getBasicCharList()

@@ -1,15 +1,25 @@
 'use client'
 import { useContainerLens } from '../hooks/useContainerLens'
 import { useItemLens } from '../hooks/useItemLens'
+import { useTradeLens } from '../hooks/useTradeLens'
 import type { ContainerSlotView } from '../domain/item/projections/containers'
 import { Button, Panel } from './ui'
 
 export function ContainerPanel(){
-  const { panels, burden, purse, putOnView, putOn, takeOff } = useContainerLens()
+  const { panels, burden, purse, startingWealth, putOnView, putOn, takeOff } = useContainerLens()
   const { pending, clear } = useItemLens()
 
   return(
     <Panel title='Containers' meta={<>{purse} · burden · {burden.label}</>} pending={!!pending}>
+      {
+        startingWealth ?
+        <div className='flex flex-row flex-wrap gap-x-3 text-xs'>
+          <span className='text-muted'>starting wealth {startingWealth.budget}</span>
+          <span className={startingWealth.over ? 'text-bad' : ''}>{startingWealth.left} {startingWealth.over ? 'over' : 'left'}</span>
+          {startingWealth.overSpared ? <span className='text-bad'>coins kept above {startingWealth.spared}</span> : null}
+        </div>
+        : null
+      }
       {
         pending ?
         <div className='flex flex-row flex-wrap gap-2 items-center text-xs text-good'>
@@ -42,7 +52,9 @@ export function ContainerPanel(){
 }
 
 function SlotGroupRow({ containerKey, group }: { containerKey: string, group: ContainerSlotView }){
-  const { place, remove, draw, wear, putOn } = useItemLens()
+  const { pending, place, remove, draw, wear, putOn } = useItemLens()
+  const { trading, isOffered, toggleOffer } = useTradeLens()
+  const buying = trading && pending?.source === 'catalog'
   const dimmed = group.fits === false
 
   return(
@@ -53,7 +65,7 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
       <span className={`w-8 shrink-0 font-mono ${group.available < 0 ? 'text-bad' : ''}`}>{group.used}/{group.numSlots}</span>
       {
         group.fits ?
-        <Button size='xs' variant='good' aria-label={`place in ${containerKey} ${group.slot}`} onClick={() => place(containerKey, group.slot)}>{group.storeCost === null ? '+ place' : `+ store (${group.storeCost} AP)`}</Button>
+        <Button size='xs' variant='good' aria-label={`place in ${containerKey} ${group.slot}`} onClick={() => place(containerKey, group.slot)}>{buying ? '+ cart' : group.storeCost === null ? '+ place' : `+ store (${group.storeCost} AP)`}</Button>
         : null
       }
       <div className='flex flex-row flex-wrap gap-1'>
@@ -63,6 +75,7 @@ function SlotGroupRow({ containerKey, group }: { containerKey: string, group: Co
             {item.drawable ? <button type='button' aria-label={`draw ${item.name}`} title={item.drawCost === null ? 'take in hand' : `take in hand for ${item.drawCost} AP`} className='text-muted hover:text-fg cursor-pointer' onClick={() => draw(containerKey, item.id)}>{item.drawCost === null ? 'draw' : `draw ${item.drawCost}AP`}</button> : null}
             {item.wear ? <button type='button' aria-label={`wear ${item.name}`} disabled={!item.wear.wearable} title={item.wear.wearable ? 'put on' : item.wear.why} className={item.wear.wearable ? 'text-muted hover:text-fg cursor-pointer' : 'text-muted/50 cursor-not-allowed'} onClick={() => wear(containerKey, item.id)}>wear</button> : null}
             {item.putOn ? <button type='button' aria-label={`put on ${item.name}`} disabled={!item.putOn.able} title={item.putOn.able ? (item.putOn.cost === null ? 'put on' : `put on for ${item.putOn.cost} AP`) : item.putOn.why} className={item.putOn.able ? 'text-muted hover:text-fg cursor-pointer' : 'text-muted/50 cursor-not-allowed'} onClick={() => putOn(containerKey, item.id)}>{item.putOn.cost === null ? 'put on' : `put on ${item.putOn.cost}AP`}</button> : null}
+            {trading && item.offerable ? <button type='button' aria-label={`offer ${item.name}`} className={isOffered(item.id) ? 'text-good cursor-pointer' : 'text-muted hover:text-fg cursor-pointer'} onClick={() => toggleOffer(item.id)}>{isOffered(item.id) ? 'offered' : 'offer'}</button> : null}
             {item.amount > 1 ? <button type='button' aria-label={`remove one ${item.name}`} className='text-muted hover:text-fg cursor-pointer' onClick={() => remove(containerKey, item.id, 1)}>−</button> : null}
             <button type='button' aria-label={`remove ${item.name}`} className='text-muted hover:text-bad cursor-pointer' onClick={() => remove(containerKey, item.id)}>×</button>
           </span>

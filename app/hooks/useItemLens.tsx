@@ -48,6 +48,8 @@ export function useItemLens() {
   const pending = useAppStore((s) => s.pendingItem);
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
+  const trading = useAppStore((s) => s.trade);
+  const setTrade = useAppStore((s) => s.setTrade);
   // Gear is picked at the character's own size unless another is asked for.
   const ownSize = useActiveCharacterSelector(getSize) ?? GEAR_SIZE;
   const scale = pending?.source === 'catalog' ? pending.scale : ownSize;
@@ -95,6 +97,12 @@ export function useItemLens() {
       clear();
       return;
     }
+    // while trading, a catalog pick placed is a line of the cart, bought
+    // when the trade is made
+    if (trading) {
+      setTrade({ ...trading, cart: [...trading.cart, { key: pending.key, amount: pending.amount, scale: pending.scale, containerKey, slot }] });
+      return;
+    }
     const item = getCatalogItem(pending.key, pending.amount, pending.scale);
     if (!item) return;
     update(addItemToContainer(containerKey, slot, item));
@@ -116,5 +124,5 @@ export function useItemLens() {
     update(putOnFromContainer(containerKey, itemId));
   };
 
-  return { catalog, pending, pendingItem, amount, scale, select, setAmount, setScale, selectHeld, selectWorn, clear, place, remove, draw, wear, putOn } as const;
+  return { catalog, pending, pendingItem, trading: trading !== null, amount, scale, select, setAmount, setScale, selectHeld, selectWorn, clear, place, remove, draw, wear, putOn } as const;
 }

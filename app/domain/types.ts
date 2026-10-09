@@ -1369,6 +1369,10 @@ export const BaseCharacterSchema = z.object({
   // This is the only categorization mechanism — there are no folders on disk.
   tags: z.array(z.string()).default([]),
   type: z.literal('base').default('base'),
+  // creating.tex "Character Creation", Step 3: the money the wealth focus
+  // gave, in coppers, that the gear the character is made with is bought
+  // from; null for a character not made by the book's steps
+  startingWealth: num.nullable().default(null),
   ...CharacterValues
 }).strip()
 

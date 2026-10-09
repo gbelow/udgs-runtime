@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react'
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
+import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
 import { Characteristics, Movement, Resources, Skills } from '../domain/types';
@@ -115,6 +116,7 @@ export function CharacterSheet({ header, resources, injuryAction, injuryPanels, 
         <HandsPanel />
         {asideMid}
         <ContainerPanel />
+        <TradePanel />
         {asideEnd}
       </div>
     </div>

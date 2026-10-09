@@ -20,6 +20,7 @@ import {
 } from '../rules/containers'
 import { getDrawView } from './hands'
 import { getMoneyValue } from '../rules/money'
+import { isOfferable } from '../rules/trade'
 import { formatMoney } from './money'
 
 export type ContainerItemView = {
@@ -37,6 +38,8 @@ export type ContainerItemView = {
   wear: WearView | null
   // For a container item, the same.
   putOn: MoveView | null
+  // Whether it can be put down in a trade.
+  offerable: boolean
 }
 
 // One slot group as the Containers table prints it: the Quick column names the
@@ -108,6 +111,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
           ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
           wear: c ? getWearView(c, item) : null,
           putOn: c ? getPutOnView(c, slot, item) : null,
+          offerable: isOfferable(item),
         })),
       })),
   }

@@ -191,6 +191,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   slingShield: (c) => itemCommands.slingShield(shieldItem.id)(itemCommands.holdItem(shieldItem)(c)),
   unslingShield: (c) => itemCommands.unslingShield()({ ...c, onBack: shieldItem }),
   throwOffShield: (c) => itemCommands.throwOffShield()({ ...c, onBack: shieldItem }),
+  trade: (c) => itemCommands.trade({ offered: [c.containers.belt.slots.quick.items[0].id], cart: [] })(c),
 }
 
 // A character being made, with a race, a stage and a level bought.
