@@ -1,5 +1,5 @@
 import { skillLenses, skillTermGetters, sumTerms, Term, termsDigest, termsView } from "../domain/character/lenses";
-import { getSituationalAfflictions } from "../domain/combat/rules/situational";
+import { getSituationalAfflictions } from "../domain/scene/rules/situational";
 import { Character, Skills } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 

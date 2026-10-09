@@ -1,17 +1,17 @@
-import type { ActionKind, AttackAction, CombatState, HOPPurchase, RootAction } from '../combat/types'
+import type { ActionKind, AttackAction, SceneState, HOPPurchase, RootAction } from '../scene/types'
 import type { Outcome } from '../types'
 import type { Dice } from '../play/dice'
-import { rollOrPay } from '../combat/commands/action'
-import { spendHOP } from '../combat/commands/choices'
-import { appendActions } from '../combat/commands/log'
-import { getAttackFacts, getHOPOptions } from '../combat/rules/damage'
-import { getBreakOdds, getBreakRisks } from '../combat/rules/breakage'
+import { rollOrPay } from '../scene/commands/action'
+import { spendHOP } from '../scene/commands/choices'
+import { appendActions } from '../scene/commands/log'
+import { getAttackFacts, getHOPOptions } from '../scene/rules/damage'
+import { getBreakOdds, getBreakRisks } from '../scene/rules/breakage'
 import { injuryMap } from '../tables'
-import { getDefaultAim, getFreeAttackOptions } from '../combat/rules/attack'
-import { getPayableCost } from '../combat/rules/action'
-import { getSettled } from '../combat/rules/settle'
-import { getAction, getOpenAction } from '../combat/rules/log'
-import { getOutcomes } from '../combat/projections/outcomes'
+import { getDefaultAim, getFreeAttackOptions } from '../scene/rules/attack'
+import { getPayableCost } from '../scene/rules/action'
+import { getSettled } from '../scene/rules/settle'
+import { getAction, getOpenAction } from '../scene/rules/log'
+import { getOutcomes } from '../scene/projections/outcomes'
 import { getStrikeDefenses } from './defenses'
 import { getStrikes, type Strike } from './weapons'
 
@@ -175,11 +175,11 @@ function rank(o: Outcome | null): number {
 
 const NO_DEFENSE: Defense = { label: 'no defense', kind: 'none', declare: null, cost: { AP: 0, STA: 0 } }
 
-type Defense = { label: string; kind: ActionKind | 'none'; declare: ((state: CombatState, open: RootAction, newId: () => string) => CombatState | null) | null; cost: { AP: number; STA: number } }
+type Defense = { label: string; kind: ActionKind | 'none'; declare: ((state: SceneState, open: RootAction, newId: () => string) => SceneState | null) | null; cost: { AP: number; STA: number } }
 
 type Play = { degree: string; score: number; DL: number; HOP: number; best: Outcome | null; spend: Spend; unspent: Outcome | null; breaks: BreakEstimate[] }
 
-export function estimateAttacks(state: CombatState, attackerId: string, targetId: string, options: EstimateOptions = {}): AttackEstimate[] {
+export function estimateAttacks(state: SceneState, attackerId: string, targetId: string, options: EstimateOptions = {}): AttackEstimate[] {
   const staWeight = options.staWeight ?? 1
   let ids = 0
   const newId = () => `estimate${++ids}`
@@ -187,19 +187,19 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
   if (!target || !state.characters[attackerId]) return []
   const room = Math.max(0, target.injuries.deathThreshold - target.injuries.injuryLevel)
 
-  const outcomeOn = (s: CombatState, open: RootAction): Outcome | null => getOutcomes(s, getSettled(s, open)).find((o) => o.id === targetId)?.outcome ?? null
+  const outcomeOn = (s: SceneState, open: RootAction): Outcome | null => getOutcomes(s, getSettled(s, open)).find((o) => o.id === targetId)?.outcome ?? null
 
-  const aimed = (strike: Strike): CombatState => {
+  const aimed = (strike: Strike): SceneState => {
     const part = options.aim ? target.body.find((p) => p.location === options.aim && !p.lost) : undefined
     const aim = part ? { location: part.location, part: part.id } : getDefaultAim(target)
     return appendActions(strike.state, [{ ...strike.open, targetId, ...aim }])
   }
 
   // every way of spending the overflow of a hit, as states at `post`
-  const spends = (rolled: CombatState): { state: CombatState; spend: Spend }[] => {
+  const spends = (rolled: SceneState): { state: SceneState; spend: Spend }[] => {
     const seen = new Set<string>()
-    const found: { state: CombatState; spend: Spend }[] = []
-    const walk = (s: CombatState, purchases: HOPPurchase[], AP: number, STA: number): void => {
+    const found: { state: SceneState; spend: Spend }[] = []
+    const walk = (s: SceneState, purchases: HOPPurchase[], AP: number, STA: number): void => {
       const now = getOpenAction(s) as AttackAction
       const key = JSON.stringify(now.spent)
       if (seen.has(key) || found.length > 400) return
@@ -217,13 +217,13 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
   }
 
   // the items the blow puts at risk as it lands, the armor left out
-  const breaksOf = (s: CombatState, root: AttackAction): BreakEstimate[] =>
+  const breaksOf = (s: SceneState, root: AttackAction): BreakEstimate[] =>
     getBreakRisks(s, root, getAttackFacts(s, root))
       .filter((risk) => risk.slot === 'defender' || risk.slot === 'attacker')
       .map((risk) => ({ owner: risk.swung ? 'attacker' as const : 'foe' as const, kind: risk.shield ? 'shield' as const : 'weapon' as const, odds: getBreakOdds(risk) }))
       .filter((b) => b.odds > 0)
 
-  const play = (locked: CombatState, openId: string, defense: Defense, dice: Dice): Play | null => {
+  const play = (locked: SceneState, openId: string, defense: Defense, dice: Dice): Play | null => {
     let s = locked
     if (defense.declare) {
       const declared = defense.declare(s, getOpenAction(s) as RootAction, newId)
@@ -253,7 +253,7 @@ export function estimateAttacks(state: CombatState, attackerId: string, targetId
     return { degree: landed.roll?.degree ?? 'miss', score: landed.roll?.score ?? 0, DL: landed.roll?.DL ?? 0, HOP: landed.roll?.HOP ?? 0, best: outcome, spend: { purchases: [], AP: 0, STA: 0 }, unspent: outcome, breaks: breaksOf(s, landed) }
   }
 
-  const estimateDefense = (locked: CombatState, openId: string, defense: Defense): DefenseEstimate | null => {
+  const estimateDefense = (locked: SceneState, openId: string, defense: Defense): DefenseEstimate | null => {
     const flags: boolean[] = []
     if (play(locked, openId, defense, scripted(5, flags)) === null) return null
     const byDie: DieResult[] = []

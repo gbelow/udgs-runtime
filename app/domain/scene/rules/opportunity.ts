@@ -1,0 +1,109 @@
+import type { Action, ActionOf, SceneState, InterruptibleAction, OpportunityAction } from '../types'
+import type { Term } from '../../character/rules/terms'
+import { getActionDef, isRootAction } from './actionCatalog'
+import { getDistanceBetween, getMeleeRange, withPlacements } from './board'
+import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
+import { isBroken } from './interruption'
+import { getMoveFacts, getMoveOverride } from './move'
+import { getMoveWaypoint } from './waypoint'
+import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
+
+// combat.tex "Interruption": "If the character is in the middle of an
+// action that is not movement, it must interrupt itself in order to use a
+// reaction."
+export function isInterruptible(action: Action): action is InterruptibleAction {
+  return isRootAction(action) && getActionDef(action.kind).movement !== true
+}
+
+// The fight as it will stand when the opportunity attack is fought: against
+// a move, with the mover walked one space short of the stretch that fired
+// it; against a push, with everyone it moves one space short too. Reach is
+// judged from there.
+export function getOpportunityState(state: SceneState, reaction: ActionOf<'opportunityAttack' | 'retarget'>): SceneState {
+  const root = getRootOf(state, reaction)
+  if (root?.kind === 'drag' && reaction.at !== null) {
+    const before = reaction.at > 1 ? getGroupSteps(state, root)?.[reaction.at - 2] : getGroupOrigin(state, root)
+    return before ? withPlacements(state, before) : state
+  }
+  if (root?.kind !== 'move' || reaction.at === null) return state
+  const waypoint = getMoveWaypoint(state, root, reaction.at - 1)
+  return waypoint ? withPlacements(state, { [root.actorId]: waypoint }) : state
+}
+
+// Where the root's run of opportunity attacks was brought to a stop, as the
+// step the one stopped stands short of; null while it goes on. A move is
+// stopped by what `getMoveOverride` reads, a push by the comparison or by an
+// attack that stunned the pusher (`getPushStop`). Anything else is never stopped:
+// every attack it drew is fought, even once one has cancelled it (the
+// table's ruling), since there is no later stretch it fails to reach.
+export function getOpportunityStop(state: SceneState, root: Action): number | null {
+  if (root.kind === 'move') return getMoveOverride(state, root)?.step ?? null
+  if (root.kind === 'drag') return getPushStop(state, root)
+  return null
+}
+
+// Whether the root gets as far as the stretch the attack fires on: a move
+// cut short — at a turn, a trample, a fall — never reaches the attacks
+// further along. A catch is fought where the runner already stands, so one
+// on the last step still comes (combat.tex "Catch").
+export function isOpportunityReached(state: SceneState, root: Action, reaction: ActionOf<'opportunityAttack' | 'retarget'>): boolean {
+  if (root.kind !== 'move' || reaction.at === null) return true
+  const catching = reaction.kind === 'opportunityAttack' && reaction.catch && root.movement === 'run' ? 1 : 0
+  return reaction.at - catching <= getMoveFacts(state, root).path.length
+}
+
+// combat.tex "Flanking": a flanker's opportunity attack "can be voided if
+// the target gets out of range" — whether the attacker it answers still
+// stands within the flanker's reach when it comes to be fought.
+export function isFlankInReach(state: SceneState, reaction: ActionOf<'opportunityAttack'>, root: Action): boolean {
+  const reactor = state.characters[reaction.actorId]
+  const distance = getDistanceBetween(state, reaction.actorId, root.actorId)
+  return !!reactor && (distance === null || distance <= getMeleeRange(reactor))
+}
+
+// combat.tex "Interruption": "If the character is in the middle of an
+// action that is not movement, it must interrupt itself in order to use a
+// reaction" - its actor gives it up by answering one of the attacks it drew
+// before its effect with anything but the SD. The attack it was given up
+// for is the first they answered; taking the answer back before that
+// attack's die keeps the action.
+export function getGivenUpFor(state: SceneState, action: InterruptibleAction): OpportunityAction | null {
+  return getDrawnOpportunityAttacks(state, action).find(({ spawned }) =>
+    spawned !== null && getReactionsTo(state, spawned.id).some((r) => r.actorId === action.actorId))?.spawned ?? null
+}
+
+// An action comes to nothing once its actor gives it up (`getGivenUpFor`)
+// or it is broken (`isBroken`).
+export function isCancelled(state: SceneState, action: InterruptibleAction): boolean {
+  return getGivenUpFor(state, action) !== null || isBroken(state, action)
+}
+
+// Whether the action comes to nothing: one given up, or anything broken by
+// an interruption before its effect (`isBroken`).
+export function isVoided(state: SceneState, action: Action): boolean {
+  return isInterruptible(action) ? isCancelled(state, action) : isBroken(state, action)
+}
+
+// The action of the defender's that answering the opportunity attack being
+// fought with anything but the SD gives up (`getGivenUpFor`): theirs, not
+// movement, and not yet given up for another attack. Null when there is
+// none.
+export function getCancellableRoot(state: SceneState, fought: Action, defenderId: string): InterruptibleAction | null {
+  const reaction = getOpeningReaction(state, fought)
+  const root = reaction ? getRootOf(state, reaction) : null
+  if (!root || !isInterruptible(root) || root.actorId !== defenderId) return null
+  const given = getGivenUpFor(state, root)
+  return given === null || given.id === fought.id ? root : null
+}
+
+// combat.tex "Interruption": "The reaction gets -2 to its skill value in
+// the event of an interruption"; "Stand up": "Any reactions done while
+// standing up get -2 penalty to the skill." The penalty on the reactor's
+// answer to the attack being fought, when answering it interrupts an action
+// of their own (`getCancellableRoot`) or comes while they stand up.
+export function getMidActionTerm(state: SceneState, fought: Action, reactorId: string): Term | null {
+  if (getCancellableRoot(state, fought, reactorId)) return { label: 'interrupting', value: -2 }
+  const reaction = getOpeningReaction(state, fought)
+  const root = reaction ? getRootOf(state, reaction) : null
+  return root?.kind === 'move' && root.movement === 'stand' && root.actorId === reactorId ? { label: 'standing up', value: -2 } : null
+}

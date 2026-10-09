@@ -1,11 +1,11 @@
 import type { Dice } from '../domain/play/dice'
 import type { TerrainBrush } from '../domain/types'
-import { CombatStateSchema, type ActionDraft, type CombatState, type LightLevel, type Updater } from '../domain/combat/types'
-import { getBoardView, type BoardView } from '../domain/combat/projections/boardView'
-import { resolveClick, type Click } from '../domain/combat/commands/click'
-import { createBoard, setLight } from '../domain/combat/commands/board'
-import { amendAction, commitAction, declareAction } from '../domain/combat/commands/action'
-import { startTurn } from '../domain/combat/commands/turn'
+import { SceneStateSchema, type ActionDraft, type SceneState, type LightLevel, type Updater } from '../domain/scene/types'
+import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
+import { resolveClick, type Click } from '../domain/scene/commands/click'
+import { createBoard, setLight } from '../domain/scene/commands/board'
+import { amendAction, commitAction, declareAction } from '../domain/scene/commands/action'
+import { startTurn } from '../domain/scene/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
 import type { CampaignCharacter } from '../domain/types'
 import { useCombatStore } from './useCombatStore'
@@ -23,10 +23,10 @@ export type Harness = ReturnType<typeof openHarness>
 
 export function openHarness(dice: Dice = () => 5) {
   const newId = ids()
-  useCombatStore.setState(CombatStateSchema.parse({}))
+  useCombatStore.setState(SceneStateSchema.parse({}))
   let brush: TerrainBrush | null = null
 
-  const state = (): CombatState => useCombatStore.getState()
+  const state = (): SceneState => useCombatStore.getState()
   const press = (command: Updater) => useCombatStore.getState().updateCombatState(command)
   const click = (c: Click) => press(resolveClick(c, { brush, newId }))
 

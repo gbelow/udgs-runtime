@@ -1,15 +1,15 @@
 // stores/useCombatStore.ts
 import { create } from 'zustand'
 import { CampaignCharacter } from '../domain/types'
-import { CombatState, CombatStateSchema } from '../domain/combat/types'
-import { getActiveCharacter } from '../domain/combat/rules/fighters'
+import { SceneState, SceneStateSchema } from '../domain/scene/types'
+import { getActiveCharacter } from '../domain/scene/rules/fighters'
 import { makeCampaignCharacter } from '../domain/factories'
 import { withInstance } from '../domain/instances'
-import { removeFromCombat, updateCharacter } from '../domain/combat/commands/characters'
+import { removeFromCombat, updateCharacter } from '../domain/scene/commands/characters'
 
-// The data half of the store is the domain's CombatState — the store adds only
+// The data half of the store is the domain's SceneState — the store adds only
 // the actions that mutate it. Keeping the two halves separate is what lets the
-// combat commands be pure CombatState updaters with no import from here.
+// combat commands be pure SceneState updaters with no import from here.
 type CombatActions = {
   loadCharacter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
@@ -21,13 +21,13 @@ type CombatActions = {
 
   removeCharacter: (id: string) => void
 
-  updateCombatState: (updater: (state: CombatState) => CombatState) => void
+  updateCombatState: (updater: (state: SceneState) => SceneState) => void
 }
 
-export type CombatStore = CombatState & CombatActions
+export type CombatStore = SceneState & CombatActions
 
 export const useCombatStore = create<CombatStore>((set, get) => ({
-  ...CombatStateSchema.parse({}),
+  ...SceneStateSchema.parse({}),
 
   updateCombatState: (updater) => {
     set( updater)

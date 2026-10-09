@@ -1,0 +1,41 @@
+import { describe, it, expect } from 'vitest'
+import { SceneStateSchema, type SceneState } from '../types'
+import { makeCampaignCharacter } from '../../factories'
+import type { CampaignCharacter } from '../../types'
+import { getActionPanel } from './actionPanel'
+import { commitAction, declareAction as declareOwnAction, resolveAction, rollAction, setTarget } from '../commands/action'
+
+// Each action below is declared in its actor's own turn (play.tex "Combat").
+const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnAction>) => (s: SceneState) =>
+  declareOwnAction(actorId, draft, newId)({ ...s, inTurnCharacter: actorId })
+
+function fighter(id: string): CampaignCharacter {
+  const base = makeCampaignCharacter({ name: id })
+  return { ...base, id, resources: { ...base.resources, AP: 8, STA: 6 } }
+}
+
+function combat(...characters: CampaignCharacter[]): SceneState {
+  return { ...SceneStateSchema.parse({}), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
+}
+
+// The preview shown before "done" is computed by the same function the
+// resolution applies; the target's sheet has to move by exactly what was
+// shown.
+describe('the preview', () => {
+  it('is what the target takes', () => {
+    let n = 0
+    const newId = () => `a${++n}`
+    let s = combat(fighter('atk'), fighter('def'))
+    s = declareAction('atk', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'heavyI' }, newId)(s)
+    s = setTarget('def')(s)
+    s = commitAction(() => 5, newId)(s)
+    s = rollAction(() => 30, newId)(s)
+    const preview = getActionPanel(s).outcomes[0].outcome
+    expect(preview.tier).not.toBeNull()
+
+    const after = resolveAction(newId)(s)
+    expect(after.characters.def.injuries.injuryLevel - s.characters.def.injuries.injuryLevel).toBe(preview.IL)
+    expect(after.characters.def.injuries.bleed - s.characters.def.injuries.bleed).toBe(preview.bleed)
+    expect(s.characters.def.resources.AP - after.characters.def.resources.AP).toBe(preview.apLoss)
+  })
+})

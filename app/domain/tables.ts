@@ -390,7 +390,7 @@ export const GRAZE_SAVE = { AP: 2, bonus: 3 } as const
 export type SpellModification = keyof typeof SPELL_MODIFICATIONS
 
 // combat.tex "Action surge": what an earmarked surge's AP may pay for, each
-// a group of actions (combat/rules/surge.ts) named as the book names it.
+// a group of actions (scene/rules/surge.ts) named as the book names it.
 // "grapple" is "any action within a grapple": everything, for one in one.
 export const SURGE_ALLOWANCES = {
   movement: 'movement',

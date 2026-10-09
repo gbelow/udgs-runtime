@@ -1,0 +1,385 @@
+import type { CampaignCharacter, Delivery, Item, Skills } from '../../types'
+import { findReadyItem } from '../../item/rules/containers'
+import type { ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
+import { isCancelled } from './opportunity'
+import { getAction } from './log'
+import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
+import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
+import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
+import { getHeldItem } from '../../item/rules/hands'
+import { isSpellActive } from '../../character/rules/effects'
+import { getLinkSpell, mayCastWhileConcentrating } from '../../character/rules/concentration'
+import { getLinkDL, getLinkedTargets } from './link'
+import { skillTermGetters } from '../../character/rules/skills'
+import { ActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
+import { Term, sumTerms } from '../../character/rules/terms'
+import { getDistanceBetween, hasLineOfSight } from './board'
+import { resolveTest } from '../../play/test'
+import { resisted } from './test'
+import { isAreaEffect } from './explosion'
+import { getSituationalAfflictions, isSuffocating } from './situational'
+import { getMoraleDL } from './morale'
+import { getSensoryTermsOfDL } from './detection'
+
+// spells.tex "Casting spells": what the cast produces, per character — the
+// caster's own effects to the caster, the target's to the target, nothing
+// from a cast that failed or was cancelled. From here the caster is out of
+// it: each delivery is the one who holds it's to roll. A charged spell
+// produces nothing now: "activates an object that stays charged", and what
+// it does waits in the object until the charge is released. One worked
+// through a link reaches its targets through the tests it opens
+// (sequence.ts `openSpellTests`), not here.
+export function getCastFacts(state: SceneState, root: CastAction): Deliveries {
+  const caster = state.characters[root.actorId]
+  if (!caster || !takesEffect(state, root) || !isSpellKey(root.key)) return {}
+  const spell = SPELLS[root.key]
+  if (spell.type === 'charged') return {}
+  const size = getCastSizeOf(caster, root)
+  const facts: Deliveries = {}
+  const effects = getSpellEffects(caster, root.key, root.itemId)
+  const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
+  if (own.length > 0) facts[root.actorId] = own
+  if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
+    const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
+    const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, size, opener?.reactionTo ? 'reactive' : 'active')
+    if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
+  }
+  return facts
+}
+
+// What the spell's effects on its target come to, as the caster makes them
+// with this gear at this size, each with the test it leaves the target.
+export function getTargetDeliveries(caster: CampaignCharacter, key: SpellKey, itemId: string, size: number): Delivery[] {
+  return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => produceSpellEffect(caster, e, size, key))
+}
+
+// The same, aimed at the target from where the caster stands: a test whose
+// DL is written as the caster's sensory skills ("DL: Accuracy") is set less
+// the sensory penalty of the sense they aim it through (combat.tex
+// "Targeted actions").
+export function getAimedDeliveries(state: SceneState, caster: CampaignCharacter, targetId: string, key: SpellKey, itemId: string, size: number, use: 'active' | 'reactive'): Delivery[] {
+  return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => {
+    const delivery = produceSpellEffect(caster, e, size, key)
+    const sensory = e.resist ? sumTerms(getSensoryTermsOfDL(state, caster.id, e.resist.dl, targetId, use)) : 0
+    return delivery.test && sensory !== 0 ? { ...delivery, test: { ...delivery.test, DL: delivery.test.DL + sensory } } : delivery
+  })
+}
+
+// gear.tex "Electrite": the charges a cast draws from its gear, at the size
+// it ended up cast at (spells.tex "Amplify Spell").
+export function getCastCharges(c: CampaignCharacter, root: CastAction): number {
+  return isSpellKey(root.key) ? drawCharges(SPELLS[root.key].ammo, getCastSize(c, root.key, root.improved.amplify ?? 0, root.itemId), root.chargeRoll) : 0
+}
+
+// Whether the spell is laid on the ground — a spray, an explosion — rather
+// than aimed at someone.
+export function isAreaSpell(key: SpellKey): boolean {
+  return SPELLS[key].effects.some(isAreaEffect)
+}
+
+// Whether the cast does anything: it hit, was not cancelled, and did not
+// fail for want of what its HOP had to buy.
+export function takesEffect(state: SceneState, root: CastAction): boolean {
+  return root.roll?.degree === 'hit' && isSpellKey(root.key) && !isCancelled(state, root) && !isFailedCast(state, root)
+}
+
+// A hit that still does nothing, its costs lost: short of the
+// amplifications its item asks for (spells.tex "Relationship between Size
+// and Sorcery": "it is necessary to amplify the spell to use it").
+export function isFailedCast(state: SceneState, root: CastAction): boolean {
+  const caster = state.characters[root.actorId]
+  return !!caster && root.roll?.degree === 'hit' && isUnderAmplified(caster, root)
+}
+
+export function isUnderAmplified(caster: CampaignCharacter, root: CastAction): boolean {
+  return isSpellKey(root.key) && (root.improved.amplify ?? 0) < getAmplifyBounds(caster, root.key, root.itemId).min
+}
+
+// The size the cast works at, its amplifications bought.
+export function getCastSizeOf(caster: CampaignCharacter, root: CastAction): number {
+  return isSpellKey(root.key) ? getCastSize(caster, root.key, root.improved.amplify ?? 0, root.itemId) : caster.size
+}
+
+// The AP the cast has spent: its price, and the graze save's if bought
+// (spells.tex "Casting spells": "increase spell cost by 2 AP").
+export function getCastSpentAP(root: CastAction): number {
+  return (root.cost?.AP ?? 0) + (root.grazeSaved ? GRAZE_SAVE_COST.AP : 0)
+}
+
+export function getCastTerms(c: CampaignCharacter, action: CastAction): Term[] {
+  return isSpellKey(action.key) ? [{ label: SPELLS[action.key].name, value: getSpellSkill(c, action.key) }] : []
+}
+
+// spells.tex "Casting spells": "In case of a graze in combat, there is the
+// option to increase spell cost by 2 AP to gain +3 once in the test if that
+// will turn the graze into a hit." The die stays as thrown; the roll is
+// read again with the bonus.
+export function getGrazeSavedRoll(roll: ActionRoll): ActionRoll {
+  const skill = [...roll.skillTerms, { label: 'graze save', value: GRAZE_SAVE.bonus }]
+  return resolveTest({ skill: roll.score - roll.die + GRAZE_SAVE.bonus, DL: roll.DL, explodes: false, scale: 'overflow', grazes: true, terms: { skill, DL: roll.DLTerms } }, () => roll.die)
+}
+
+// spells.tex "Casting spells": the price of buying a graze up to a hit.
+export const GRAZE_SAVE_COST: ActionCost = { AP: GRAZE_SAVE.AP, STA: 0 }
+
+export function canSaveGraze(state: SceneState, root: CastAction): boolean {
+  const caster = state.characters[root.actorId]
+  if (!caster || root.step !== 'post' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
+  if (isCancelled(state, root) || !canAfford(caster, GRAZE_SAVE_COST)) return false
+  return getGrazeSavedRoll(root.roll).degree === 'hit'
+}
+
+// The spells the character could declare a cast of: each learned spell,
+// with whether it can be cast on the focus surge or quickened without it
+// (spells.tex "Quicken Spell").
+export type SpellOption = {
+  key: SpellKey
+  DL: number | null
+  quickenedDL: number | null
+  cost: ActionCost
+  castable: boolean
+  quickenable: boolean
+  // why it cannot be cast, when it cannot
+  reason: string | null
+  // whether it aims at someone
+  targeted: boolean
+  // what the table has to judge it is cast under, empty for none
+  conditions: string
+}
+
+// spells.tex "Requirements", "Casting spells": what stands between the
+// caster and the spell, what it is cast with first — the one the caster can
+// do something about from here.
+function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
+  const spell = SPELLS[key]
+  const unmet = getUnmetCastLabel(c, key)
+  if (unmet) return `needs ${unmet}`
+  if (!hasChargeTarget(c, key)) return 'needs a metal weapon at hand'
+  if (!canAfford(c, spell.cost)) return 'cannot pay for it'
+  if (spell.DL === null) return 'no casting DL'
+  if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
+  return canCastSpell(c, key, false) ? null : 'needs a focus surge'
+}
+
+export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellOption[] {
+  const linkDL = getLinkDL(state, c)
+  return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
+    const spell = SPELLS[key]
+    return {
+      key,
+      DL: getCastingDL(spell, false, 0, linkDL),
+      quickenedDL: getCastingDL(spell, true, 0, linkDL),
+      cost: { AP: spell.cost.AP, STA: spell.cost.STA },
+      castable: canCastSpell(c, key, false),
+      quickenable: canCastSpell(c, key, true),
+      reason: reasonAgainst(c, key),
+      targeted: isTargetedSpell(key),
+      conditions: getCastConditions(key),
+    }
+  })
+}
+
+// spells.tex "Requirements": the gear the cast is made with, and the gear
+// at hand it could be made with instead, what is in the hands first — the
+// choice only there is more than one. The same for the object a charged
+// spell goes into when that is not its gear (spells.tex "Taser").
+export type CastGearOption = { itemId: string; name: string; held: boolean }
+export type CastGear = { itemId: string; options: CastGearOption[]; chargeItemId: string; chargeOptions: CastGearOption[] }
+
+// Once committed, the cast keeps what it named then, though it may have
+// spent the gear's last charge since.
+export function getCastGear(c: CampaignCharacter, root: CastAction): CastGear {
+  if (!isSpellKey(root.key) || root.step !== 'define') return { itemId: root.itemId, options: [], chargeItemId: root.chargeItemId, chargeOptions: [] }
+  const items = getCastableGear(c, root.key)
+  const gear = pickSpellGear(items, root.itemId)
+  const targets = SPELLS[root.key].chargeInto === 'metalWeapon' ? getChargeTargets(c, root.key, gear) : []
+  const option = (i: Item): CastGearOption => ({ itemId: i.id, name: i.name, held: !!getHeldItem(c, i.id) })
+  return {
+    itemId: gear?.id ?? '',
+    options: items.length > 1 ? items.map(option) : [],
+    chargeItemId: pickSpellGear(targets, root.chargeItemId)?.id ?? '',
+    chargeOptions: targets.length > 1 ? targets.map(option) : [],
+  }
+}
+
+// spells.tex "Spell Improvements": what the cast's overflow can still buy,
+// each priced in HOP.
+export type ImprovementOption = {
+  name: SpellModification
+  HOP: number
+  text: string
+  times: number
+  available: boolean
+  // how many the cast needs before it takes effect
+  needed: number
+}
+
+export function getCastHOPRemaining(root: CastAction): number {
+  return (root.roll?.HOP ?? 0) - (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).reduce((sum, m) => sum + (root.improved[m] ?? 0) * SPELL_MODIFICATIONS[m].HOP, 0)
+}
+
+// spells.tex "Concentration": nothing left to spend overflow on once the
+// cast is cancelled — it produces nothing regardless of what is bought.
+// spells.tex "Amplify Spell": only a spell with something marked to scale,
+// and no further than its bounds; "Effortless Spell": once, and only if
+// the caster can rest.
+export function getImprovementOptions(state: SceneState, root: CastAction): ImprovementOption[] {
+  const caster = state.characters[root.actorId]
+  if (!caster || !root.roll || root.roll.degree !== 'hit' || !isSpellKey(root.key) || isCancelled(state, root)) return []
+  const remaining = getCastHOPRemaining(root)
+  const amplify = getAmplifyBounds(caster, root.key, root.itemId)
+  return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => {
+    const times = root.improved[name] ?? 0
+    const open = name === 'amplify' ? times < amplify.max && canDrawAmplified(caster, root, times + 1)
+      : name === 'effortless' ? times === 0 && !isSuffocating(state, caster) && canAffordRestWhileCasting(caster, getCastSpentAP(root))
+      : true
+    return {
+      name,
+      HOP: SPELL_MODIFICATIONS[name].HOP,
+      text: SPELL_MODIFICATIONS[name].text,
+      times,
+      available: open && SPELL_MODIFICATIONS[name].HOP <= remaining,
+      needed: name === 'amplify' ? amplify.min : 0,
+    }
+  })
+}
+
+// spells.tex "Amplify Spell": "The amount of material or charges consumed
+// is multiplied by the VM" — one more size only while the gear has the
+// most it could then draw.
+function canDrawAmplified(caster: CampaignCharacter, root: CastAction, amplify: number): boolean {
+  if (!isSpellKey(root.key) || SPELLS[root.key].ammo === 0) return true
+  const gear = findReadyItem(caster, root.itemId)?.item
+  return !!gear && hasChargesFor(gear, SPELLS[root.key].ammo, getCastSize(caster, root.key, amplify, root.itemId))
+}
+
+// Whether the spell as declared aims at someone: it has an effect for one
+// target, and is not cast on an object (spells.tex "Charged": what it does
+// waits in the object, and is aimed when the charge is released).
+export function isTargeted(root: CastAction): boolean {
+  return isSpellKey(root.key) && isTargetedSpell(root.key)
+}
+
+// A linking spell aims at the one it links; a spell cast through a link
+// aims at everyone linked, picked by nobody.
+function isTargetedSpell(key: SpellKey): boolean {
+  const link = getLinkSpell(key)
+  if (link !== null) return link === key
+  return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key].effects).length > 0
+}
+
+// combat.tex "Explosions": a cast that hit with an area to it opens that area
+// as an explosion of the caster's, aimed and played out on its own; a charged
+// spell's area waits in its object.
+export function opensExplosion(state: SceneState, root: CastAction): boolean {
+  if (!takesEffect(state, root) || !isSpellKey(root.key)) return false
+  const spell = SPELLS[root.key]
+  return spell.detonate !== null || (spell.type !== 'charged' && isAreaSpell(root.key))
+}
+
+// Whether every targeted effect of the spell reaches the target from where
+// the caster stands, at the range the cast was extended to (spells.tex
+// "Extend Spell") and the size cast at, in sight; touch reaches an adjacent
+// target. True on a fight without a board.
+export function canAimCast(state: SceneState, root: CastAction, targetId: string): boolean {
+  const caster = state.characters[root.actorId]
+  if (!caster || !isSpellKey(root.key)) return true
+  return isInSpellReach(state, root.actorId, targetId, root.key, root.extend, getCastSizeOf(caster, root))
+}
+
+// Whether every targeted effect of the spell reaches the target from where
+// the caster stands, at this range and size, in sight; touch reaches an
+// adjacent target. True on a fight without a board.
+export function isInSpellReach(state: SceneState, casterId: string, targetId: string, key: SpellKey, extend: number, size: number): boolean {
+  const distance = getDistanceBetween(state, casterId, targetId)
+  if (distance === null) return true
+  return getTargetEffects(SPELLS[key].effects).every((e) => distance <= (getCastRange(e, extend, size) ?? 1)) && hasLineOfSight(state, casterId, targetId)
+}
+
+// spells.tex "Telepathic Link": who the cast of a spell worked through a
+// link puts to the test — the one a linking spell aims at, or everyone the
+// link it is cast through holds ("These spells are made against all
+// targets affected by link simultaneously"). None for a cast that did not
+// hit, was cancelled, or has no test for its targets to make.
+export function getSpellTestTargets(state: SceneState, root: CastAction): string[] {
+  const caster = state.characters[root.actorId]
+  if (!caster || !takesEffect(state, root) || !isSpellKey(root.key) || getSpellTestRoll(root.key) === null) return []
+  const link = getLinkSpell(root.key)
+  if (link === null) return []
+  const targets = link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(state, root.actorId, link)
+  return targets.filter((id) => state.characters[id])
+}
+
+// The skill the spell's targets test with, as the book words the test
+// ("Charisma vs will"); null when it names none the sheet has.
+function getSpellTestRoll(key: SpellKey): keyof Skills | null {
+  const roll = SPELLS[key].test?.roll ?? ''
+  return roll in skillTermGetters ? roll as keyof Skills : null
+}
+
+export function getSpellTestSkillTerms(state: SceneState, action: SpellTestAction): Term[] {
+  const target = action.targetId ? state.characters[action.targetId] : undefined
+  const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
+  return target && roll ? skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)) : []
+}
+
+// The caster's side of the test, term by term: the book's "Charisma" resolved
+// for the caster, and the "morale aggravators" the target is under as the
+// fight stands (combat.tex "Morale").
+export function getSpellTestDLTerms(state: SceneState, action: SpellTestAction): Term[] {
+  const caster = state.characters[action.actorId]
+  const test = isSpellKey(action.key) ? SPELLS[action.key].test : null
+  if (!caster || !test) return []
+  return [
+    ...test.dl.split('+').map((t) => t.trim()).filter(Boolean).map((label) => ({
+      label,
+      value: label === 'morale aggravators' && action.targetId ? getMoraleDL(state, action.targetId) : resolveDL(caster, label, test.roll).value ?? 0,
+    })),
+    ...(action.targetId ? getSensoryTermsOfDL(state, caster.id, test.dl, action.targetId, 'active') : []),
+  ]
+}
+
+// What reaches the target: the outcome their own degree on the test picks,
+// the miss's when they took it without a die, at the size the cast that
+// opened the test was made at. The link itself is the caster's to hold
+// (commands/reduce.ts).
+export function getSpellTestFacts(state: SceneState, action: SpellTestAction): Deliveries {
+  const caster = state.characters[action.actorId]
+  if (!caster || !action.targetId || !isSpellKey(action.key)) return {}
+  if (!action.accepted && !action.roll) return {}
+  const degree = action.accepted || !action.roll ? 'miss' : action.roll.degree
+  const cast = action.spawnedBy ? getAction(state, action.spawnedBy) : null
+  const size = cast?.kind === 'cast' ? getCastSizeOf(caster, cast) : getCastSize(caster, action.key, 0)
+  const theirs = produceOutcome(caster, SPELLS[action.key], degree, size)
+  return theirs.length > 0 ? { [action.targetId]: theirs } : {}
+}
+
+// Whether the target beat the test: a hit or better breaks the link
+// ("The link is broken by hitting on any will test triggered by the
+// caster").
+export function isSpellTestBeaten(action: SpellTestAction): boolean {
+  return !action.accepted && action.roll !== null && resisted(action.roll.degree) === 'miss'
+}
+
+// What a spell test the caster's cast opened does to the links: the caster
+// holds a link to one who did not beat the linking spell's test, and loses
+// one who beat any test the link put them to.
+export type LinkOutcome = { made: Link | null; broken: { casterId: string; targetId: string; key: SpellKey } | null }
+
+export function getLinkOutcome(state: SceneState, root: SpellTestAction): LinkOutcome {
+  const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
+  const caster = state.characters[root.actorId]
+  if (!caster || !root.targetId || link === null || !isSpellActive(caster, link)) return { made: null, broken: null }
+  if (isSpellTestBeaten(root)) return { made: null, broken: { casterId: root.actorId, targetId: root.targetId, key: link } }
+  const exists = getLinkedTargets(state, root.actorId, link).includes(root.targetId)
+  const made: Link | null = link === root.key && !exists ? { kind: 'link', members: [root.actorId, root.targetId], holders: [root.actorId], anchors: {}, key: link } : null
+  return { made, broken: null }
+}
+
+// spells.tex "Telepathic Link": "or with anyone who allows the link" — a
+// willing target takes the test's effects without rolling for it.
+export function canAcceptSpellTest(action: SpellTestAction): boolean {
+  return action.step === 'react' && !action.accepted
+}

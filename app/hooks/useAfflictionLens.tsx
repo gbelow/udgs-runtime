@@ -1,7 +1,7 @@
 import { addAffliction } from "../domain/character/commands";
 import { AfflictionRow, AfflictionSection, getAfflictionBoard, getAfflictionRows } from "../domain/character/lenses/afflictions";
 import { AfflictionKey } from "../domain/types";
-import { getSituationalAfflictions } from "../domain/combat/rules/situational";
+import { getSituationalAfflictions } from "../domain/scene/rules/situational";
 import { useActiveCharacterDerived, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 // The whole affliction board: every key the UI can offer, with whether a

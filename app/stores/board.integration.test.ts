@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { fighter } from '../domain/bot/fixtures'
-import { declareReaction, payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/combat/commands/action'
-import { getAvailableActions } from '../domain/combat/rules/options'
+import { declareReaction, payAction, resolveAction, rollAction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { getAvailableActions } from '../domain/scene/rules/options'
 
 // Click to effect, over the real combat store: what a player does on the
 // board and the panels, and what stands afterwards. Expected values are what

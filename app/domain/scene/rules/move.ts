@@ -1,0 +1,563 @@
+import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
+import type { Action, SceneState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
+import { getMoveHeld } from './heldRoll'
+import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
+import { MOVEMENT_KINDS, POSTURES } from '../../lists'
+import { ActionCost } from '../../character/rules/actionCosts'
+import { canAfford } from '../../character/rules/cost'
+import { hasAffliction } from '../../character/rules/afflictions'
+import { isImmobile } from './situational'
+import { canStand } from '../../character/rules/body'
+import { getJumpMovement, getMovementBlock, getMovementSpeed, getRunningJumpMovement, getStandMovement } from '../../character/rules/movement'
+import { DIRECTIONS, ROTATIONS, coordKey, directionTo, disk, distance, sameCell, setDistance, subtract, walkOut } from '../geometry'
+import { getFootprint, getPlacedFootprint, placeAt } from './board'
+import { isTetherKept } from './bind'
+import { canStepOver, getClimbCells, getClimbDegree, getClimbFinish, getClimbHang, getClimbModes, getClimbPlan, getMoveFall, isClimbable, isClimbRisky, isCliff, isTrivialClimb } from './cliff'
+import { hasGrant } from '../../character/rules/abilities'
+import { canRest, isCrossable, isInLiquid, isWet, readGround, type Ground } from './ground'
+import { getMoveOrigin, getStepPlacements, touchesGround } from './waypoint'
+import { getSwimDegrees, getSwimFinish, isDiveLegal, readWater } from './swim'
+import { getDegree } from '../../play/test'
+import { isCampaignCharacter } from '../../utils'
+import { getMoveTramples } from './trample'
+import { isInGrapple } from './partners'
+import { getInterruptionOf } from './interruption'
+import { isKnockedDownByHook } from './grapple'
+import { findOpenRoot, getDrawnOpportunityAttacks, getReactionsTo } from './log'
+import { getFleeStep } from './flee'
+
+// How a character crosses the board: what each kind of movement costs it,
+// which kinds it may use from where it stands, whether a declared path is
+// one it can walk, and where it could get to.
+
+// ---------------------------------------------------------------------------
+// Price
+
+// How many cells of a movement the given AP buys, whole blocks only.
+export function getMoveBlockCells(c: Character, kind: MovementKind, AP: number): number {
+  const block = getMovementBlock(c, kind)
+  return Math.floor(AP / block.AP) * block.distance
+}
+
+// combat.tex "Movement": "moving only a fraction of a space is impossible",
+// so a move is bought in whole blocks, as many as cover the cells.
+export function getMoveCost(c: Character, kind: MoveKind, cells: number, swum: Degree[] = [], block = isPosture(kind) ? NO_BLOCK : getMovementBlock(c, kind)): ActionCost {
+  if (isPosture(kind)) return getPostureCost(c, kind)
+  if (cells <= 0 || block.distance <= 0) return NO_COST
+  if (kind === 'swim') return getSwimCost(c, cells, swum)
+  const blocks = Math.ceil(cells / block.distance)
+  return { AP: blocks * block.AP, STA: blocks * block.STA }
+}
+
+// combat.tex "Swimming": each metre is swum as the held test came to against
+// its water — perfectly at the swimmer's speed, on a graze or a failure at
+// 1m per 5 AP, a failure costing STA besides. The AP of the metres adds up
+// and is bought in whole blocks, as every move is.
+function getSwimCost(c: Character, cells: number, swum: Degree[]): ActionCost {
+  const block = getMovementBlock(c, 'swim')
+  const metres = Array.from({ length: cells }, (_, i) => swum[i] ?? 'hit')
+  const AP = metres.reduce((total, degree) => total + (degree === 'graze' || degree === 'miss' ? SWIM_STRUGGLE_AP : block.AP / block.distance), 0)
+  return { AP: Math.ceil(AP), STA: metres.filter((degree) => degree === 'miss').length * SWIM_FAILURE_STA }
+}
+
+export function isPosture(kind: MoveKind): kind is Posture {
+  return (POSTURES as readonly string[]).includes(kind)
+}
+
+// combat.tex "Movement Costs and Speeds": "Stand up & 5 -AGI/5 AP +1STA",
+// never less than 1 AP (the table's ruling); going prone is free.
+function getPostureCost(c: Character, posture: Posture): ActionCost {
+  return posture === 'stand' ? { AP: Math.max(1, getStandMovement(c)), STA: c.movement.stand.STA } : NO_COST
+}
+
+// What the move as declared costs its actor, less what the reaction that
+// opened it already paid (combat.tex "Evasion": the reflex's AP "is used to
+// move and does not need to be spent again, but any STA cost must be paid").
+export function getMovePrice(state: SceneState, c: Character, action: MoveAction, cells: number): ActionCost {
+  const plan = action.movement === 'climb' && cells > 0 ? getClimbPlan(state, action) : null
+  const leap = plan?.first && action.leap ? getMoveCost(c, 'jump', 1) : NO_COST
+  // combat.tex "Climbing": a climb no taller than the climber costs the
+  // standing up it is, or the jump that started it
+  if (plan?.trivial) {
+    const price = action.leap ? leap : getPostureCost(c, 'stand')
+    return { AP: Math.max(0, price.AP - action.prepaid), STA: price.STA }
+  }
+  const climbed = action.movement === 'climb' ? getClimbDegree(state, action) : null
+  const moved = plan ? plan.metres : cells
+  const cost = getMoveCost(c, action.movement, moved + Math.abs(action.dive), getSwimDegrees(state, action, cells), getMoveBlock(state, c, action, climbed))
+  return { AP: Math.max(0, cost.AP + leap.AP - action.prepaid), STA: (runsFree(c, action.movement) ? 0 : cost.STA) + leap.STA }
+}
+
+const NO_COST: ActionCost = { AP: 0, STA: 0 }
+const NO_BLOCK: MovementBlock = { AP: 0, STA: 0, distance: 0 }
+
+// combat.tex "Climbing": "On a critical, it does not cost STA. ... On a graze,
+// ... 5 AP +1 STA per meter"; abilities.tex "Climber II": a climb attempted
+// in a risky manner goes at "1m per AP" on a crit. The test is the one
+// standing for the climb (`getClimbDegree`).
+function getMoveBlock(state: SceneState, c: Character, action: MoveAction, climbed: Degree | null): MovementBlock {
+  const kind = action.movement
+  if (isPosture(kind)) return NO_BLOCK
+  const block = getMovementBlock(c, kind)
+  if (kind !== 'climb') return block
+  if (climbed === 'graze') return { ...block, AP: CLIMB_GRAZE_AP }
+  return climbed === 'critical' ? { ...block, STA: 0, AP: isClimbRisky(state, action) ? CLIMB_RISKY_AP : block.AP } : block
+}
+
+// combat.tex "Action surge": "Running costs no STA during a movement surge"
+// — for the rest of the turn it was made in. A character's own move only:
+// a push or a drag is not movement for it.
+function runsFree(c: Character, kind: MoveKind): boolean {
+  return kind === 'run' && isCampaignCharacter(c) && c.runsFree
+}
+
+// ---------------------------------------------------------------------------
+// Which kinds
+
+export type MovementOption = {
+  kind: MoveKind
+  speed: number
+  block: ActionCost
+  available: boolean
+  reason: string | null
+}
+
+// combat.tex "Movement": crawling "is the only usable movement speed while
+// prone", swimming "the only usable movement speed while swimming" — a swimmer
+// may also climb out over a bank higher than the water. A move
+// a reaction opened may name the kinds it grants instead (combat.tex
+// "Avoiding an Explosion": on a critical "the character can run").
+// combat.tex "Lame": "Cannot run, jump or use basic
+// movement". combat.tex "Grappled": "Movement requires pushing or
+// dragging the other participants in the grapple" — a block of push at a
+// time (combat.tex "Push and drag"), though standing up crosses no cells
+// and stays open to them. "Immobile: Cannot move".
+export function getMovementOptions(state: SceneState, c: CampaignCharacter, action?: MoveAction): MovementOption[] {
+  const prone = hasAffliction(c, 'prone')
+  const lame = hasAffliction(c, 'lame')
+  const swimming = isInLiquid(state, c)
+  const waterNear = swimming || isNextToWater(state, c)
+  const cliffNear = isNextToCliff(state, c)
+  const hanging = state.board?.placements[c.id]?.climb != null
+  const granted = action?.movements ?? null
+  const budget = action?.budget ?? null
+  const held = isInGrapple(state, c.id)
+  const immobile = isImmobile(state, c)
+  const moves = MOVEMENT_KINDS.map((kind): MovementOption => {
+    const { AP, STA } = getMovementBlock(c, kind)
+    const gate = immobile ? { available: false, reason: 'immobile' }
+      : held ? { available: false, reason: 'grappled: push or drag instead' }
+      : movementGate(kind, { AP, STA }, hanging, prone, lame, swimming, waterNear, cliffNear, granted, budget)
+    return { kind, speed: getMovementSpeed(c, kind), block: { AP, STA: runsFree(c, kind) ? 0 : STA }, ...gate }
+  })
+  // standing up and going prone, for a move of the character's own: one a
+  // reaction opened is the movement the reaction grants
+  const postures = POSTURES.map((kind): MovementOption => {
+    const reason = immobile ? 'immobile' : hanging ? 'hanging on a face' : granted !== null ? 'not what the reaction allows' : kind === 'stand' ? (!prone ? 'not prone' : canStand(c) ? null : 'no legs to stand on') : prone ? 'already prone' : null
+    return { kind, speed: 0, block: getPostureCost(c, kind), available: reason === null, reason }
+  })
+  return [...moves, ...postures]
+}
+
+function movementGate(kind: MovementKind, block: ActionCost, hanging: boolean, prone: boolean, lame: boolean, swimming: boolean, waterNear: boolean, cliffNear: boolean, granted: MovementKind[] | null, budget: number | null): { available: boolean; reason: string | null } {
+  if (granted !== null && !granted.includes(kind)) return { available: false, reason: 'not what the reaction allows' }
+  if (!withinBudget(block, budget)) return { available: false, reason: 'more AP than the reaction allows' }
+  if (swimming && kind !== 'swim' && kind !== 'climb') return { available: false, reason: 'swimming' }
+  if (!waterNear && kind === 'swim') return { available: false, reason: 'no water within a step' }
+  if (hanging) return kind === 'climb' ? { available: true, reason: null } : { available: false, reason: 'hanging on a face' }
+  if (!cliffNear && kind === 'climb') return { available: false, reason: 'no cliff within a step' }
+  if (prone && !swimming && kind !== 'crawl' && kind !== 'climb') return { available: false, reason: 'prone' }
+  if (lame && isLameBarred(kind)) return { available: false, reason: 'lame' }
+  return { available: true, reason: null }
+}
+
+// Whether some cell the character stands on borders water, so a swim can
+// take them into it.
+function isNextToWater(state: SceneState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  const ground = readGround(state, c.id)
+  return !!placement && !!ground && getFootprint(c, placement).some((cell) => disk(cell, 1).some(ground.liquid))
+}
+
+// Whether some cell the character stands on borders ground a step up or down
+// from it, which a climb can take them over.
+function isNextToCliff(state: SceneState, c: Character): boolean {
+  const placement = state.board?.placements[c.id]
+  const ground = readGround(state, c.id)
+  return !!placement && !!ground && getFootprint(c, placement).some((cell) => disk(cell, 1).some((next) => isCliff(ground.elevation(cell), ground.elevation(next))))
+}
+
+// combat.tex "Lame": "Cannot run, jump or use basic movement"
+export function isLameBarred(kind: MovementKind): boolean {
+  return kind === 'run' || kind === 'jump' || kind === 'basic'
+}
+
+// ---------------------------------------------------------------------------
+// Whether a declared path may be walked
+
+// Whether the move as declared is one its actor can make: every step a
+// neighbour of the last, every footprint along the way off blocking cells
+// and in the water exactly when swimming, and the last one somewhere it may
+// come to rest. The cells a jump only passes over (`touchesGround`) need
+// just be unblocked, but it clears nothing as high as its vertical reach
+// (`getJumpCeiling`). A walk takes no step up or down a cliff (`canStepOver`),
+// and a climb is the way over one.
+export function isPathLegal(state: SceneState, action: MoveAction): boolean {
+  const c = state.characters[action.actorId]
+  const from = getMoveOrigin(state, action)
+  const ground = readGround(state, action.actorId)
+  if (!c || !getMovementOptions(state, c, action).find((o) => o.kind === action.movement)?.available) return false
+  if (isPosture(action.movement)) return action.path.length === 0
+  const diving = action.movement === 'swim' && action.dive !== 0
+  if (!from || !ground || (action.path.length === 0 && !diving)) return false
+  const cells = action.movement === 'climb' ? getClimbCells(state, action) : action.path.length
+  if (action.movement === 'jump' && cells > getMovementSpeed(c, 'jump')) return false
+  if (!withinBudget(getMoveCost(c, action.movement, cells + Math.abs(action.dive), getSwimDegrees(state, action, action.path.length)), action.budget)) return false
+
+  if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1))) return false
+  if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
+  if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c).includes(action.mode))) return false
+
+  const ceiling = getJumpCeiling(c, from)
+  let cursor = from.cell
+  let wet = isWet(getFootprint(c, from), ground)
+  for (const [i, cell] of action.path.entries()) {
+    if (distance(cursor, cell) !== 1) return false
+    const last = i === action.path.length - 1
+    const orientation = last && action.orientation !== null ? action.orientation : from.orientation
+    const footprint = getFootprint(c, { ...from, cell, orientation })
+    if (!canPass(action.movement, footprint, ground, last, ceiling, wet)) return false
+    if (!canStepOver(action.movement, ground.elevation(cursor), ground.elevation(cell))) return false
+    if (!isTetherKept(state, c.id, footprint)) return false
+    if (last && !canRest(state, c, footprint, ground)) return false
+    cursor = cell
+    wet = isWet(footprint, ground)
+  }
+  const end = getFootprint(c, { ...from, cell: cursor, orientation: action.orientation ?? from.orientation })
+  return isDiveLegal(state, action, state.board ? readWater(state.board, end) : null)
+}
+
+// combat.tex "Movement" — "jumping": "A jump has a vertical distance equal
+// to half the horizontal distance", and "Movement cannot be voluntarily
+// interrupted in the middle of a jump", so one jump is one block's distance;
+// it clears ground no higher than that
+// above where it sets out, so a 2m jump goes up a metre.
+function getJumpCeiling(c: Character, from: Placement): number {
+  return from.elevation + getMovementSpeed(c, 'jump') / 2
+}
+
+function clears(footprint: Coord[], ground: Ground, ceiling: number): boolean {
+  return footprint.every((cell) => ground.elevation(cell) <= ceiling)
+}
+
+function canPass(kind: MoveKind, footprint: Coord[], ground: Ground, lands: boolean, ceiling: number, fromWater: boolean): boolean {
+  if (kind === 'jump' && !clears(footprint, ground, ceiling)) return false
+  return touchesGround(kind, lands) ? isCrossable(footprint, ground, kind, fromWater) : !footprint.some(ground.blocked)
+}
+
+function withinBudget(cost: ActionCost, budget: number | null): boolean {
+  return budget === null || cost.AP <= budget
+}
+
+// ---------------------------------------------------------------------------
+// Where the move actually ends
+
+// The way a runner is going after `steps` cells of the path: the way the
+// last of them went, or null before the first and for any movement but a
+// run.
+function getRunHeading(state: SceneState, action: MoveAction, steps: number): number | null {
+  const step = action.movement === 'run' ? getStepPlacements(state, action, steps) : null
+  return step ? directionTo(step.before.cell, step.after.cell) : null
+}
+
+// Whether a displacement keeps within a hex step of the heading: a
+// non-negative combination of the two directions either side of it, which
+// between them span everything up to 60 degrees off.
+function isWithinCone(offset: Coord, heading: number): boolean {
+  const u = DIRECTIONS[(heading + 5) % 6]
+  const v = DIRECTIONS[(heading + 1) % 6]
+  const det = u.q * v.r - u.r * v.q
+  const a = (offset.q * v.r - offset.r * v.q) / det
+  const b = (u.q * offset.r - u.r * offset.q) / det
+  return a >= 0 && b >= 0
+}
+
+// combat.tex "Balance": crossing difficult terrain takes a Balance test, so a
+// move whose path enters a difficult cell is committed by a die — for a
+// jump, only the cell it lands on — unless the mover's test stands from
+// earlier in the round (the table's ruling: the test made on difficult
+// terrain is held for the round, until a fall has the mover test again,
+// `dropFallenBalance`).
+export function needsBalanceTest(state: SceneState, action: MoveAction): boolean {
+  return firstDifficultStep(state, action) !== null && getMoveHeld(state, action, 'balance') === null
+}
+
+// The test a move's die is thrown as: its way over a cliff, or its walk across
+// difficult terrain.
+export function getMoveTest(state: SceneState, action: MoveAction): NonNullable<MoveAction['test']> {
+  if (action.movement === 'climb') return 'climb'
+  return 'balance'
+}
+
+// Every step of the path that comes down on difficult ground, with the DL of
+// the worst difficult cell the mover's footprint covers there. combat.tex
+// "Balance": each is held against the one stored score.
+function getDifficultSteps(state: SceneState, action: MoveAction): { step: number; DL: number }[] {
+  const c = state.characters[action.actorId]
+  const from = getMoveOrigin(state, action)
+  const board = state.board
+  if (!c || !from || !board) return []
+  return action.path.flatMap((cell, at) => {
+    if (!touchesGround(action.movement, at === action.path.length - 1)) return []
+    const DLs = getFootprint(c, { ...from, cell }).map((f) => board.terrain[coordKey(f)]).filter((t) => t?.difficult).map((t) => t.DL)
+    return DLs.length > 0 ? [{ step: at + 1, DL: Math.max(...DLs) }] : []
+  })
+}
+
+function firstDifficultStep(state: SceneState, action: MoveAction): number | null {
+  return getDifficultSteps(state, action)[0]?.step ?? null
+}
+
+// The DL the move's own die is thrown against: that of the first difficult
+// cell the move enters.
+export function getBalanceDL(state: SceneState, action: MoveAction): number {
+  return getDifficultSteps(state, action)[0]?.DL ?? 0
+}
+
+// The step the mover falls at: the first difficult cell whose DL their
+// balance — their own die's score, or the remembered one — does not clear
+// for the way they move.
+function getFallStep(state: SceneState, action: MoveAction): number | null {
+  const score = (action.roll ?? getMoveHeld(state, action, 'balance'))?.score
+  if (score === undefined) return null
+  return getDifficultSteps(state, action).find(({ DL }) => !isSafeOnDifficultTerrain(action.movement, getDegree(score, DL)))?.step ?? null
+}
+
+// combat.tex "Balance" — "Difficult terrain": "On a critical, all movement is
+// inconsequential. On a success, only moving at a normal speed is safe, but
+// not jumping or running. On a graze, moving at a careful speed is safe. On
+// a miss, only crawling is allowed."
+function isSafeOnDifficultTerrain(kind: MoveKind, degree: Degree): boolean {
+  switch (degree) {
+    case 'critical': return true
+    case 'hit': return kind !== 'run' && kind !== 'jump'
+    case 'graze': return kind === 'careful' || kind === 'crawl' || kind === 'swim'
+    case 'miss': return kind === 'crawl'
+  }
+}
+
+// Where an opportunity attack fought against the move took it over, if one
+// has: one space short of the stretch that triggered it, the table's
+// ruling. combat.tex "Interruption": "Movement is cancelled, except running
+// and jumping" — and "running": "The first 2 AP worth of running must be
+// uninterrupted, otherwise, running cannot be started", so a run is
+// cancelled like any move by an interruption inside its first block.
+// combat.tex "Evasive Jump": a mover who jumps away from the
+// attack has made a movement of their own, and it takes over from the one
+// declared, whatever the speed.
+// combat.tex "Hook Attack": a mover the hook's knockdown put down goes no
+// further, running or not. combat.tex "Crash": the higher force of the
+// target blocks passage, and "A draw blocks passage" — a braced blow's or a
+// catch's crash too.
+export function getMoveOverride(state: SceneState, action: MoveAction): { step: number; stop: 'reaction' | 'jump' | 'trample'; by: Action } | null {
+  const mover = state.characters[action.actorId]
+  const starting = action.movement === 'run' && mover ? getMoveBlockCells(mover, 'run', RUN_START_AP) : 0
+  for (const { reaction, spawned: strike } of getDrawnOpportunityAttacks(state, action)) {
+    if (strike?.kind !== 'strike' || strike.step !== 'done') continue
+    const stoppable = (action.movement !== 'run' && action.movement !== 'jump') || reaction.at! - 1 < starting
+    const jumped = getReactionsTo(state, strike.id).some((a) => a.kind === 'evasiveJump' && a.actorId === action.actorId)
+    if (jumped) return { step: reaction.at! - 1, stop: 'jump', by: strike }
+    const interrupted = stoppable && (action.movement !== 'climb' || isTrivialClimb(state, action)) && getInterruptionOf(strike, action.actorId) !== 'none'
+    if (interrupted || isKnockedDownByHook(state, strike, action.actorId)) return { step: reaction.at! - 1, stop: 'reaction', by: strike }
+    if (strike.trample?.result === 'blocked') return { step: reaction.at! - 1, stop: 'trample', by: strike }
+  }
+  return null
+}
+
+// combat.tex "Climbing": "An attack that interrupts the climber will require
+// them to make a climbing test with a -3 penalty to avoid falling on a miss"
+// instead of cancelling the climb — a fresh test for each attack, thrown with
+// the climb (`redos`) — the path step the first of them failed at, or null.
+function getClimbFailedAt(state: SceneState, action: MoveAction): number | null {
+  if (action.movement !== 'climb' || isTrivialClimb(state, action)) return null
+  const failed = getDrawnOpportunityAttacks(state, action).find(({ spawned }, i) =>
+    spawned?.kind === 'strike' && spawned.step === 'done' && getInterruptionOf(spawned, action.actorId) !== 'none' && action.redos[i]?.degree === 'miss')
+  return failed ? failed.reaction.at! - 1 : null
+}
+
+// The path as it will be walked and why it ends where it does: someone
+// fleeing it (combat.tex "Flee": the mover stops where the
+// flee was triggered, and pays only for the steps walked), an opportunity
+// attack that interrupted the mover or that they jumped away from, a target
+// who blocked their passage (combat.tex "Crash"), a fall at the first
+// difficult cell the test did not clear — whichever comes first. The
+// tramples are those on the path as walked, and the fall is the one a jump
+// down or a climb that failed ends in (`getMoveFall`).
+export function getMoveFacts(state: SceneState, action: MoveAction): MoveFacts {
+  if (action.movement === 'climb' && !isTrivialClimb(state, action)) return getClimbFacts(state, action)
+  let path = action.path
+  let stop: MoveFacts['stop'] = 'end'
+  const flee = getFleeStep(state, action)
+  if (flee !== null && flee - 1 < path.length) {
+    path = path.slice(0, flee - 1)
+    stop = 'flee'
+  }
+  const override = getMoveOverride(state, action)
+  if (override !== null && override.step < path.length) {
+    path = path.slice(0, override.step)
+    stop = override.stop
+  }
+  const tramples = getMoveTramples(state, action, path)
+  if (tramples.stop !== null) {
+    path = path.slice(0, tramples.stop)
+    stop = 'trample'
+  }
+  if (stop !== 'end') path = withoutOccupiedEnd(state, action, path)
+  const fallAt = getFallStep(state, action)
+  const fell = fallAt !== null && fallAt <= path.length
+  if (fell) {
+    path = path.slice(0, fallAt)
+    stop = 'fall'
+  }
+  const fall = getMoveFall(state, action, path, false)
+  return { path, stop, fell, fall, finish: getClimbFinish(state, action, fall) ?? getSwimFinish(state, action, path), hang: null, trampled: tramples.trampled.filter((t) => t.at <= path.length + (t.result === 'blocked' ? 1 : 0)) }
+}
+
+// A mover stopped partway may have been let through someone (an evaded crash,
+// a prone body) whose space they now stand in: no two characters share a space,
+// so they are left on the last space before it.
+function withoutOccupiedEnd(state: SceneState, action: MoveAction, path: Coord[]): Coord[] {
+  const mover = state.characters[action.actorId]
+  const from = state.board?.placements[action.actorId]
+  if (!mover || !from) return path
+  const others = Object.keys(state.characters).filter((id) => id !== action.actorId).flatMap((id) => getPlacedFootprint(state, id) ?? [])
+  const blocked = (cell: Coord) => getFootprint(mover, { ...from, cell }).some((f) => others.some((o) => sameCell(f, o)))
+  let end = path.length
+  while (end > 0 && blocked(path[end - 1])) end--
+  return path.slice(0, end)
+}
+
+// combat.tex "Climbing": a climb goes up the face it is on, as far as the metres
+// it declares, or ends in the fall of a test that failed — the climber's, or
+// the one an interrupting attack had them make — and leaves its climber at
+// the top, or hanging part of the way.
+function getClimbFacts(state: SceneState, action: MoveAction): MoveFacts {
+  const plan = getClimbPlan(state, action)
+  const redoFell = getClimbFailedAt(state, action) !== null
+  const fall = getMoveFall(state, action, action.path, redoFell)
+  return {
+    path: plan?.top && fall === null ? action.path : [],
+    stop: redoFell ? 'reaction' : fall ? 'fall' : 'end',
+    fell: false,
+    fall,
+    finish: getClimbFinish(state, action, fall),
+    hang: getClimbHang(state, action, fall),
+    trampled: [],
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Jumping clear
+
+// The move the character is in the middle of, if an opportunity attack has
+// them stood part of the way along one.
+function getMoveUnderway(state: SceneState, id: string): MoveAction | null {
+  return findOpenRoot(state, 'move', (m) => m.actorId === id && m.step === 'post')
+}
+
+// How far along the move underway the character has walked: the step of the
+// path they stand on, or 0 at its origin.
+function getStepsWalked(state: SceneState, action: MoveAction): number {
+  const here = state.board?.placements[action.actorId]?.cell
+  const i = here ? action.path.findIndex((cell) => sameCell(cell, here)) : -1
+  return i + 1
+}
+
+// combat.tex "Movement" — "jumping": "Movement cannot be voluntarily
+// interrupted in the middle of a jump." A character hit part of the way
+// through a jump cannot jump clear of the attack.
+export function isMidJump(state: SceneState, id: string): boolean {
+  return getMoveUnderway(state, id)?.movement === 'jump'
+}
+
+// combat.tex "Evasive Jump": "This can only be used if there is space to
+// jump. The jump must place the character further from the source of the
+// attack and uses the movement speed of jumping backwards" — half the jump
+// ("Movement": "If performed backwards, the horizontal distance is halved"),
+// in whole cells. Every other anchor within that many cells, in any
+// orientation, whose footprint may stand where it lands (creating.tex "Size
+// and Space Occupation", as `canStandAt` reads it) and ends at least one
+// cell further from the attacker than it began. A runner hit mid-run may
+// jump any way, but within a hex step of the way they were going the jump
+// is a forward one out of the run and reaches the running long jump
+// ("Evasive Jump": "at a 60 degree angle of the direction of the run").
+// It lands only on ground its vertical reach clears (`getJumpCeiling`), and
+// not down a cliff, which would be a fall. One hit mid-jump cannot jump at all.
+export function getEvasiveJumpPlacements(state: SceneState, defenderId: string, attackerId: string): Placement[] {
+  const defender = state.characters[defenderId]
+  const from = state.board?.placements[defenderId]
+  const attacker = getPlacedFootprint(state, attackerId)
+  const ground = readGround(state, defenderId)
+  if (!defender || !from || !attacker || !ground || isMidJump(state, defenderId)) return []
+  const underway = getMoveUnderway(state, defenderId)
+  const heading = underway ? getRunHeading(state, underway, getStepsWalked(state, underway)) : null
+  const before = setDistance(getFootprint(defender, from), attacker)
+  const hop = Math.floor(getJumpMovement(defender) / 2)
+  const leap = heading === null ? hop : Math.max(hop, Math.floor(getRunningJumpMovement(defender)))
+  const reaches = (cell: Coord) => distance(cell, from.cell) <= hop || (heading !== null && isWithinCone(subtract(cell, from.cell), heading))
+  const placements: Placement[] = []
+  for (const cell of disk(from.cell, leap)) {
+    if (sameCell(cell, from.cell) || !reaches(cell)) continue
+    if (ground.elevation(from.cell) - ground.elevation(cell) >= FALL.minHeight) continue
+    for (const orientation of ROTATIONS) {
+      const to = { ...placeAt(state.board, from, cell), orientation }
+      const footprint = getFootprint(defender, to)
+      if (!footprint.some(ground.blocked) && clears(footprint, ground, getJumpCeiling(defender, from)) && canRest(state, defender, footprint, ground) && setDistance(footprint, attacker) > before) placements.push(to)
+    }
+  }
+  return placements
+}
+
+export function hasJumpSpace(state: SceneState, defenderId: string, attackerId: string): boolean {
+  if (!state.board?.placements[defenderId] || !state.board.placements[attackerId]) return true
+  return getEvasiveJumpPlacements(state, defenderId, attackerId).length > 0
+}
+
+// ---------------------------------------------------------------------------
+// Reach of a move
+
+export type ReachableCell = { cell: Coord; steps: number; cost: ActionCost; path: Coord[] }
+
+// Every anchor the character can walk to at the move's kind of movement
+// and pay for as they stand, with the shortest path there: a breadth-first
+// walk over cells its footprint (as oriented now) may cross, stopping where
+// the price outruns what it has or the move's cap. Cells it may cross but
+// not rest on are walked through and left out.
+export function getWalkableCells(state: SceneState, action: MoveAction): ReachableCell[] {
+  const { actorId, movement: kind } = action
+  const c = state.characters[actorId]
+  const from = state.board?.placements[actorId]
+  const ground = readGround(state, actorId)
+  if (!c || !from || !ground || isPosture(kind)) return []
+  if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
+
+  // the walk stops where even the best swum path outruns the price; the path
+  // found is then priced as it is swum
+  const best = { ...action, dive: 0, path: [] }
+  const affordable = (steps: number) => {
+    if (kind === 'jump' && steps > getMovementSpeed(c, 'jump')) return false
+    return canAfford(c, getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
+  }
+  const ceiling = getJumpCeiling(c, from)
+  const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : from.cell)
+  const wetBefore = (path: Coord[]) => isWet(getFootprint(c, { ...from, cell: stepFrom(path) }), ground)
+  const enter = (cell: Coord, path: Coord[]) => canPass(kind, getFootprint(c, { ...from, cell }), ground, false, ceiling, wetBefore(path))
+    && canStepOver(kind, ground.elevation(stepFrom(path)), ground.elevation(cell))
+  return walkOut(from.cell, affordable, enter)
+    .filter(({ cell, path }) => {
+      const footprint = getFootprint(c, { ...from, cell })
+      return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
+    })
+    .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, steps), path }))
+    .filter(({ cost }) => canAfford(c, cost))
+}

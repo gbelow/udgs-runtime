@@ -1,4 +1,4 @@
-import type { Board, CombatState } from '../domain/combat/types'
+import type { Board, SceneState } from '../domain/scene/types'
 
 // What crosses between the app and a VTT, in game units. The board is the
 // domain's own: placements keyed by character id, terrain keyed by axial
@@ -17,7 +17,7 @@ export type BoardSnapshot = {
   updatedAt: number
 }
 
-export function toSnapshot(state: CombatState, board: Board): BoardSnapshot {
+export function toSnapshot(state: SceneState, board: Board): BoardSnapshot {
   return {
     version: SNAPSHOT_VERSION,
     board,

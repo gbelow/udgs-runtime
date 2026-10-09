@@ -1,11 +1,11 @@
 import type { CampaignCharacter } from '../types'
-import type { ActionRoll, CombatState } from '../combat/types'
-import { setDistance } from '../combat/geometry'
-import { getRootTest } from '../combat/rules/attack'
-import { getOpenAction } from '../combat/rules/log'
-import { getSettled } from '../combat/rules/settle'
+import type { ActionRoll, SceneState } from '../scene/types'
+import { setDistance } from '../scene/geometry'
+import { getRootTest } from '../scene/rules/attack'
+import { getOpenAction } from '../scene/rules/log'
+import { getSettled } from '../scene/rules/settle'
 import { resolveTest } from '../play/test'
-import { getOutcomes } from '../combat/projections/outcomes'
+import { getOutcomes } from '../scene/projections/outcomes'
 import { answerOpen } from './answer'
 import { getLiveFoes, isMember, isStanding, type Party, type Tuning } from './party'
 import { aimStrike, getStrikes } from './weapons'
@@ -27,7 +27,7 @@ function fraction(c: CampaignCharacter): number {
 // What the attack waiting on its die, locked and answered as it stands, takes
 // from its target on average over the die: the preview the panel shows
 // (rules/settle.ts `getSettled`), once for each degree the die can give.
-export function expectedLoss(state: CombatState, targetId: string): number {
+export function expectedLoss(state: SceneState, targetId: string): number {
   const open = getOpenAction(state)
   const target = state.characters[targetId]
   const test = open && getRootTest(state, open)
@@ -49,9 +49,9 @@ export function expectedLoss(state: CombatState, targetId: string): number {
 // The most one foe could take from the party with a single attack from where
 // it stands. Each attack is first sized as if undefended; the party's answer
 // is weighed for the hardest hitting one against each of its targets.
-function strongestStrike(state: CombatState, party: Party, foeId: string, newId: () => string): number {
+function strongestStrike(state: SceneState, party: Party, foeId: string, newId: () => string): number {
   const foeTurn = { ...state, inTurnCharacter: foeId }
-  const hardest = new Map<string, { locked: CombatState; target: string; loss: number }>()
+  const hardest = new Map<string, { locked: SceneState; target: string; loss: number }>()
   for (const kind of ['strike', 'shoot'] as const) {
     for (const strike of getStrikes(foeTurn, foeId, kind, newId)) {
       for (const target of strike.targets.filter((t) => isMember(party, t) && isStanding(state, t))) {
@@ -66,17 +66,17 @@ function strongestStrike(state: CombatState, party: Party, foeId: string, newId:
   return Math.max(0, ...answered)
 }
 
-function getThreat(state: CombatState, party: Party, newId: () => string): number {
+function getThreat(state: SceneState, party: Party, newId: () => string): number {
   return getLiveFoes(state, party).reduce((sum, foe) => sum + strongestStrike(state, party, foe, newId), 0)
 }
 
-function getGap(state: CombatState, actorId: string, foes: string[]): number {
+function getGap(state: SceneState, actorId: string, foes: string[]): number {
   const from = state.board?.placements[actorId]?.cell
   const there = foes.flatMap((f) => state.board?.placements[f]?.cell ?? [])
   return from && there.length > 0 ? setDistance([from], there) : 0
 }
 
-export function evaluate(state: CombatState, party: Party, actorId: string, tuning: Tuning, newId: () => string): Value {
+export function evaluate(state: SceneState, party: Party, actorId: string, tuning: Tuning, newId: () => string): Value {
   const foes = getLiveFoes(state, party)
   const sum = (ids: readonly string[]) => ids.reduce((total, id) => total + (state.characters[id] ? fraction(state.characters[id]) : 0), 0)
   const wounds = sum(foes) - sum(party.members)

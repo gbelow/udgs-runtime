@@ -1,6 +1,6 @@
 import type { Character, Coord } from '../../types'
 import { FOOTPRINT_CELLS } from '../../tables'
-import { DIRECTIONS, HEX_POINTS, add, coordKey, frameHexes, sameCell, toPlane } from '../../combat/geometry'
+import { DIRECTIONS, HEX_POINTS, add, coordKey, frameHexes, sameCell, toPlane } from '../../scene/geometry'
 import { getSize } from '../rules/size'
 import { inFootprint, isAnchor, isSoundFootprint } from '../rules/footprint'
 

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { returnFromFight, sendToFight } from './fight'
-import { nextRound } from '../../combat/commands/nextRound'
-import { getNextRoundBar } from '../../combat/rules/turn'
-import { CombatStateSchema } from '../../combat/types'
+import { nextRound } from '../../scene/commands/nextRound'
+import { getNextRoundBar } from '../../scene/rules/turn'
+import { SceneStateSchema } from '../../scene/types'
 import { CampaignStateSchema, type Table } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 
@@ -14,7 +14,7 @@ describe('starting a fight', () => {
     const a = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
     const rested = { ...a, resources: { ...a.resources, STA: 10 } }
     const b = { ...makeCampaignCharacter({ name: 'b' }), id: 'b' }
-    const table: Table = { campaign: CampaignStateSchema.parse({ characters: { a: rested, b } }), fight: CombatStateSchema.parse({}) }
+    const table: Table = { campaign: CampaignStateSchema.parse({ characters: { a: rested, b } }), fight: SceneStateSchema.parse({}) }
     const first = sendToFight(['a', 'b'], () => 'issued')(table)
     expect(getNextRoundBar(first.fight)).toBeNull()
     const fought = { ...first, fight: nextRound(() => 0, () => 'issued')(first.fight) }

@@ -1,10 +1,10 @@
-import type { CombatState, Coord } from '../combat/types'
+import type { SceneState, Coord } from '../scene/types'
 import type { Dice } from '../play/dice'
-import { setDistance } from '../combat/geometry'
-import { getAction, getOpenAction } from '../combat/rules/log'
-import type { ReachableCell } from '../combat/rules/move'
-import { getReachableCells } from '../combat/rules/reach'
-import { amendAction, commitAction, declareAction, setTarget } from '../combat/commands/action'
+import { setDistance } from '../scene/geometry'
+import { getAction, getOpenAction } from '../scene/rules/log'
+import type { ReachableCell } from '../scene/rules/move'
+import { getReachableCells } from '../scene/rules/reach'
+import { amendAction, commitAction, declareAction, setTarget } from '../scene/commands/action'
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getLiveFoes, type Party } from './party'
 import { getArmedAttacks } from './weapons'
@@ -15,18 +15,18 @@ import { getArmedAttacks } from './weapons'
 
 export type Candidate = {
   label: string
-  play: (dice: Dice) => CombatState | null
+  play: (dice: Dice) => SceneState | null
 }
 
 // Whether the declared action got past its commit: one refused stays at
 // `define`.
-function isCommitted(state: CombatState, id: string): boolean {
+function isCommitted(state: SceneState, id: string): boolean {
   const action = getAction(state, id)
   return action !== null && action.step !== 'define'
 }
 
 // The most wounded first.
-function byWounds(state: CombatState): (a: string, b: string) => number {
+function byWounds(state: SceneState): (a: string, b: string) => number {
   return (a, b) => getInjuryPenalty(state.characters[b]) - getInjuryPenalty(state.characters[a])
 }
 
@@ -35,7 +35,7 @@ function byWounds(state: CombatState): (a: string, b: string) => number {
 // the options looked at few.
 const VARIANTS_TRIED = 3
 
-export function getAttackCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
+export function getAttackCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const foes = getLiveFoes(state, party)
   const tried = new Map<string, number>()
   return (['strike', 'shoot'] as const).flatMap((kind) => getArmedAttacks(state, id, kind, newId).flatMap((armed) =>
@@ -55,7 +55,7 @@ export function getAttackCandidates(state: CombatState, party: Party, id: string
 
 // For each kind of movement, the walk to the reachable cell nearest a foe, if
 // it is nearer than where the character stands.
-export function getApproachCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
+export function getApproachCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   const origin = state.board?.placements[id]?.cell
   const foes: Coord[] = getLiveFoes(state, party).flatMap((f) => state.board?.placements[f]?.cell ?? [])
   if (!origin || foes.length === 0) return []
@@ -83,6 +83,6 @@ export function getApproachCandidates(state: CombatState, party: Party, id: stri
   })
 }
 
-export function getCandidates(state: CombatState, party: Party, id: string, newId: () => string): Candidate[] {
+export function getCandidates(state: SceneState, party: Party, id: string, newId: () => string): Candidate[] {
   return [...getAttackCandidates(state, party, id, newId), ...getApproachCandidates(state, party, id, newId)]
 }

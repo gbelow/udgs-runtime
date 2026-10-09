@@ -1,9 +1,9 @@
-import type { ActionKind, CombatState, Placement, RootAction } from '../combat/types'
-import { declareReaction } from '../combat/commands/action'
-import { findOption, getAvailableActions } from '../combat/rules/options'
-import { getEvasiveJumpPlacements } from '../combat/rules/move'
-import { getLiveReactionsTo, getOpenAction } from '../combat/rules/log'
-import { getOptionLabel } from '../combat/projections/labels'
+import type { ActionKind, SceneState, Placement, RootAction } from '../scene/types'
+import { declareReaction } from '../scene/commands/action'
+import { findOption, getAvailableActions } from '../scene/rules/options'
+import { getEvasiveJumpPlacements } from '../scene/rules/move'
+import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
+import { getOptionLabel } from '../scene/projections/labels'
 import { declareDefense } from './answer'
 
 // Every answer the target of a committed strike or shot may make to it, read
@@ -19,12 +19,12 @@ export type StrikeDefense = {
   cost: { AP: number; STA: number }
   // where an evasive jump lands
   landing: Placement | null
-  declare: (state: CombatState, open: RootAction, newId: () => string) => CombatState | null
+  declare: (state: SceneState, open: RootAction, newId: () => string) => SceneState | null
 }
 
 const BY_OPTION: readonly ActionKind[] = ['block', 'evade', 'intercept', 'guard', 'evasion']
 
-export function getStrikeDefenses(state: CombatState, targetId: string, attackerId: string): StrikeDefense[] {
+export function getStrikeDefenses(state: SceneState, targetId: string, attackerId: string): StrikeDefense[] {
   if (getOpenAction(state)?.step !== 'react') return []
   const answers: StrikeDefense[] = getAvailableActions(state, targetId)
     .filter((o) => o.available && BY_OPTION.includes(o.draft.kind))

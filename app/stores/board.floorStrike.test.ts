@@ -5,10 +5,10 @@ import { produceEffects } from '../domain/character/rules/production'
 import { SPELLS } from '../domain/spells'
 import { holdItem } from '../domain/item/commands/hands'
 import { ItemSchema } from '../domain/types'
-import { amendAction } from '../domain/combat/commands/action'
-import { dropToFloor } from '../domain/combat/commands/floor'
-import { getActionPanel } from '../domain/combat/projections/actionPanel'
-import { getOpenAction } from '../domain/combat/rules/log'
+import { amendAction } from '../domain/scene/commands/action'
+import { dropToFloor } from '../domain/scene/commands/floor'
+import { getActionPanel } from '../domain/scene/projections/actionPanel'
+import { getOpenAction } from '../domain/scene/rules/log'
 
 // A strike at what lies on the floor, from the click to what stands after.
 // Expected values are what was clicked: the item the strike names, and that

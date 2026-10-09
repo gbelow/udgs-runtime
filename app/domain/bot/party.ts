@@ -1,4 +1,4 @@
-import type { CombatState } from '../combat/types'
+import type { SceneState } from '../scene/types'
 import { isDead } from '../character/rules/afflictions'
 
 // The numbers a bot weighs its options with, all in the same unit: a fraction
@@ -47,13 +47,13 @@ export function findParty(parties: readonly Party[], id: string): Party | undefi
   return parties.find((party) => isMember(party, id))
 }
 
-export function isStanding(state: CombatState, id: string): boolean {
+export function isStanding(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   return !!c && !isDead(c)
 }
 
 // Who the party still fights: not fallen, and not surrendered (combat.tex
 // "Surrender").
-export function getLiveFoes(state: CombatState, party: Party): string[] {
+export function getLiveFoes(state: SceneState, party: Party): string[] {
   return Object.keys(state.characters).filter((id) => !isMember(party, id) && isStanding(state, id) && !state.surrendered.includes(id))
 }

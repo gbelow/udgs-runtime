@@ -24,7 +24,7 @@ A **snapshot** is what either side writes to the mailbox:
 }
 ```
 
-- `board` is chargenfallow's own board (`app/domain/combat/types.ts`): axial
+- `board` is chargenfallow's own board (`app/domain/scene/types.ts`): axial
   hex cells, pointy-top, one cell one metre, terrain keyed by `"q,r"`. The app
   reads it through `makeBoard`, which keeps what it can read and drops the
   rest, so a snapshot can be partial but never breaks the fight.

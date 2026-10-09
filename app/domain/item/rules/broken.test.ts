@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema } from '../../types'
 import { getWeaponPanels } from '../../character/lenses/gear'
-import { getAttackOptions } from '../../combat/rules/attack'
+import { getAttackOptions } from '../../scene/rules/attack'
 import { breakItem, holdItem, repairItem } from '../commands'
 
 // gear.tex "Weapon Breakage": "A broken weapon can no longer be used".

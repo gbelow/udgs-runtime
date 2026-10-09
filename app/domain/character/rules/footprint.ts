@@ -1,7 +1,7 @@
 import type { BodyPart, Character, Coord } from '../../types'
 import type { FootprintPreset } from '../../lists'
 import { FOOTPRINT_CELLS, PRESET_CELLS } from '../../tables'
-import { DIRECTIONS, add, coordKey, sameCell } from '../../combat/geometry'
+import { DIRECTIONS, add, coordKey, sameCell } from '../../scene/geometry'
 import { getSize } from './size'
 
 // creating.tex "Size and Space Occupation": the cells a creature covers, as

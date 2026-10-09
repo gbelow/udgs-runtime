@@ -1,0 +1,552 @@
+import type { Action, ActionRoll, SceneState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
+import { getHeldPotions } from '../../item/rules/items'
+
+import type { Area, Character, Item, MoveKind } from '../../types'
+import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
+import { findHeldItem, getFightName } from '../rules/fighters'
+import { Term, sumTerms } from '../../character/rules/terms'
+import { ActionOption, getAvailableActions } from '../rules/options'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
+import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
+import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { EXTEND, PART_PRESETS } from '../../tables'
+import { SPELLS, isSpellKey } from '../../spells'
+import { ActionCost } from '../../character/rules/actionCosts'
+import { HOPOption, canGrapple, getHOPOptions, getHOPRemaining } from '../rules/damage'
+import { getActionNotes, getOutcomes } from './outcomes'
+import { EpisodeEntry, getEditsSince, getLastEpisode } from './episode'
+import { isVoided } from '../rules/opportunity'
+import { getSettled } from '../rules/settle'
+import type { Outcome } from '../../character/rules/damage'
+import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
+import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move'
+import { getReachableCells } from '../rules/reach'
+import { getClimbModes, getClimbSteps } from '../rules/cliff'
+import { hasGrant } from '../../character/rules/abilities'
+import type { RollMode } from '../../play/dice'
+import { getDiveSteps } from '../rules/swim'
+import { canMoveWhileResting } from '../rules/rest'
+import { isRootAction } from '../rules/actionCatalog'
+import { canGrab, getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
+import { getCutStrike } from '../rules/cut'
+import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
+import { getFloorObject } from '../rules/floorAttack'
+import { getDragSides, getPushMovements, type PushMovementOption } from '../rules/drag'
+import { findGrapple, getGrapples } from '../rules/partners'
+import { getRecipeOf } from '../rules/recipes'
+import { getJoinedShot, isJoinInRange } from '../rules/coordinated'
+import { canPickUp, getReachableFloor } from '../rules/floor'
+import { canThrowItem, getThrowables } from '../rules/throw'
+import { getPendingGuardStep } from '../rules/protect'
+import { getSweepArc, isSweep, isSweepLink, isSweepRowKept } from '../rules/sweep'
+import { isSweepVariant } from '../../character/rules/gear'
+import { GRAPPLE_MANEUVERS, HUMANOID_LOCATIONS } from '../../lists'
+import { perState } from '../../perState'
+import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
+import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
+
+export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
+
+// combat.tex "Attack against equipment", as a picker: each item the target
+// holds that the strike can be aimed at, and what aiming there costs.
+export type ItemAim = { id: string; name: string; penalty: number; selected: boolean }
+
+// combat.tex "Localized damage", as a picker: each place the attack can be
+// aimed at and what aiming there costs the attack test — the target's own
+// parts still there, or, with no target yet, the humanoid's kinds of place.
+function getLocationOptions(target: Character | undefined, aim: { location: HitLocation; part: string | null; object?: string }): LocationOption[] {
+  const places = target
+    ? target.body.filter((part) => !part.lost).map((part) => ({ location: part.location, part: part.id, name: part.name, penalty: part.aimPenalty }))
+    : HUMANOID_LOCATIONS.map((location) => ({ location, part: null, name: location, penalty: PART_PRESETS[location].aimPenalty }))
+  return places.map((p) => ({ ...p, selected: !aim.object && p.location === aim.location && p.part === aim.part }))
+}
+
+// Everyone with a reaction to the open action, each with their options —
+// and, for one who has chosen an opportunity attack, the strike it opens
+// still to be declared: its rows and where it aims.
+// The option lists as the panel shows them: each named for its button.
+export type ActionOptionView = ActionOption & { label: string }
+export type AttackOptionView = AttackOption & { selected: boolean }
+export type HOPOptionView = HOPOption & { label: string }
+export type SpellOptionView = SpellOption & { name: string }
+export type ChargeView = ChargeOption & { name: string; item: string; holder: string }
+
+function labelled(state: SceneState, actorId: string, options: ActionOption[]): ActionOptionView[] {
+  return options.map((o) => ({ ...o, label: getOptionLabel(state, actorId, o) }))
+}
+
+export type ReactorOptions = {
+  id: string
+  name: string
+  options: ActionOptionView[]
+  strike: {
+    options: AttackOption[]
+    locations: LocationOption[]
+    attack: string
+    variant: string
+    location: HitLocation
+    complete: boolean
+    // combat.tex "Catch": declared as a catch, and whether it may be
+    catching: boolean
+    catchable: boolean
+    // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
+    // instead of the strike
+    mode: 'strike' | 'grapple'
+    partner: boolean
+    maneuvers: GrappleManeuver[]
+    maneuver: GrappleManeuver
+    // combat.tex "Coordinated Shots": a joined shot is picked among shooting
+    // rows and loaded from a stack
+    shot: boolean
+    ammo: AmmoOption[]
+    ammoId: string
+    // combat.tex "Sweeping Attack": the way a sweep declared here turns;
+    // null for any other attack
+    sweepDirection: StrikeAction['sweepDirection'] | null
+  } | null
+  // combat.tex "Interruption": the action of theirs the attack answers,
+  // which answering with anything but the SD gives up (`getGivenUpFor`);
+  // null when there is none
+  cancellable: string | null
+}
+
+function getReactors(state: SceneState, open: Action): ReactorOptions[] {
+  return Object.values(state.characters)
+    .filter((c) => canAnswer(open, c.id))
+    .map((c) => {
+      const declared = getReactionsTo(state, open.id).find((r) => r.actorId === c.id)
+      const strike = declared?.kind === 'opportunityAttack' || declared?.kind === 'counterattack' || declared?.kind === 'joinShot'
+        ? {
+            options: declared.kind === 'joinShot'
+              ? getFreeAttackOptions(state, c, 'shoot').filter((o) => isJoinInRange(state, c.id, o, declared.targetId ?? ''))
+              : getFreeAttackOptions(state, c, 'strike').filter((o) => isVariantOpen(state, declared, o.variant) && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }))),
+            shot: declared.kind === 'joinShot',
+            ammo: declared.kind === 'joinShot' ? getAmmoOptions(c, getJoinedShot(declared, '')) : [],
+            ammoId: declared.kind === 'joinShot' ? declared.ammoId : '',
+            locations: getLocationOptions(declared.targetId ? state.characters[declared.targetId] : undefined, declared),
+            attack: declared.attack,
+            variant: declared.variant,
+            location: declared.location,
+            complete: isDeclarationComplete(state, c, declared),
+            catching: declared.kind === 'opportunityAttack' && declared.catch,
+            catchable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? '') && isCatchable(state, declared),
+            mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
+            partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
+            maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
+            maneuver: declared.kind === 'opportunityAttack' ? declared.maneuver : 'immobilize' as const,
+            sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
+          }
+        : null
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id) }
+    })
+    .filter((r) => r.options.length > 0)
+}
+
+// What the open action is called: a strike made under a recipe goes by its
+// name (rules/recipes.ts).
+function getOpenLabel(state: SceneState, open: Action): string {
+  if (open.kind === 'strike') return getRecipeOf(state, open)?.label ?? getActionName(open)
+  return getActionName(open)
+}
+
+// The deliveries a cast will make as it stands, for the panel: who takes
+// what, and the test it leaves them.
+type DeliveryView = { target: string; name: string; kind: string; test: string | null }
+
+function getCastDeliveries(state: SceneState, facts: Deliveries): DeliveryView[] {
+  return Object.entries(facts).flatMap(([id, deliveries]) =>
+    deliveries.map((d) => ({ target: getFightName(state, id), name: d.effect.name, kind: d.effect.type, test: d.test ? `${d.test.roll} vs ${d.test.DL}` : null })))
+}
+
+// The open action as the panel reads it, every field final.
+export type OpenActionView = {
+  id: string
+  label: string
+  actor: string
+  target: string | null
+  targetId: string | null
+  // the declaration a strike or a shot has made so far
+  weapon: string
+  attack: string
+  variant: string
+  location: HitLocation
+  // an explosion's area, whether it is pointed where it goes off yet, and
+  // whether it can still be pointed somewhere else
+  area: { shape: Area['shape']; aimed: boolean; aimable: boolean } | null
+  // where the explosion comes from, and the object it goes off in
+  source: 'thrown' | 'cast' | 'detonate' | null
+  itemId: string
+  // the declaration a cast has made so far
+  spell: string
+  quicken: boolean
+  // spells.tex "Extend Spell": the extensions declared and the DL they add
+  extend: { times: number; DL: number } | null
+  // the gear the cast is made with: the one picked, or else the first at hand
+  castItemId: string
+  // the object a charged spell goes into when that is not its gear
+  chargeItemId: string
+  // the declaration a move has made so far
+  movement: MoveKind
+  path: Coord[]
+  // play.tex "Safe and risky tests": how a climb is thrown, and the ways its
+  // climber may throw it (just the normal one without Climber)
+  mode: RollMode
+  climbModes: RollMode[]
+  // abilities.tex "Jumper II": whether the climb may start with a jump, and
+  // whether it does
+  canLeap: boolean
+  // combat.tex "Climbing": the metres of the face the climb goes, and how many are left of it
+  climbSteps: { metres: number; remaining: number } | null
+  leap: boolean
+  // combat.tex "Swimming": metres deeper (below zero, towards the surface) the
+  // swim ends, and the dive a metre nearer the surface or the floor would be
+  // (null where the water allows no more); null off a swim
+  dive: number
+  diveSteps: { up: number | null; down: number | null } | null
+  // how far the move will actually get and why it stops there
+  walked: { cells: number; stop: MoveStop } | null
+  // opened by a reaction — an opportunity attack, a follow, a riposte —
+  // and whether it is the attack an opportunity attack opens
+  spawned: boolean
+  // the action a prepared reaction is for, which must be performed
+  // (combat.tex "Preparing a reaction"), not passed up
+  required: boolean
+  // a flee being decided: whether it is taken (null for anything else)
+  flee: boolean | null
+  opportunity: boolean
+  // combat.tex "Initiate the Grapple": whether the hit grapples, once rolled
+  // (null where it may not); the maneuver declared and whether a hit is to be
+  // bought by the attacker's own commitment (null where the maneuver has
+  // none); what a push comes to
+  grapples: boolean | null
+  maneuver: GrappleManeuver | null
+  // once a knockdown or an immobilization has hit: whether the attacker
+  // commits themselves along (null: nothing to choose)
+  along: boolean | null
+  push: PushView | null
+  // a disarm's hit: what it can go for, and what it went for
+  disarm: { itemId: string; name: string }[]
+  item: string
+  // the stack a shot is loaded from
+  ammoId: string
+  // a pick up: what lies within reach, and what was picked; a throw: what
+  // can be thrown, from a hand or the floor
+  floor: { itemId: string; name: string; available: boolean }[]
+  // gear.tex "Potions and Medicine": the potions in hand a drink can take
+  potions: { itemId: string; name: string }[]
+  // once rolled or compared: what it does to the grapple
+  grapple: { target: string; text: string }[]
+  cost: ActionCost | null
+  // every reaction declared so far, by whom, and its own test once thrown
+  reactions: { actor: string; label: string; cost: ActionCost | null; roll: ActionRoll | null }[]
+  // the reaction that opened it, with the test that decided what it may
+  // do, and for a move the most AP the reaction lets it spend
+  openedBy: { label: string; roll: ActionRoll | null; budget: number | null } | null
+  // the test as it stands: the attacker's side and the defender's
+  score: { terms: Term[]; total: number }
+  DL: { terms: Term[]; total: number }
+  roll: ActionRoll | null
+  // combat.tex "Sweeping Attack": the way the arc turns and whether it can
+  // still be turned the other way, who it reaches after this target, and
+  // the percentage of the blow left by the time it reaches this one (null
+  // at full)
+  sweep: { direction: StrikeAction['sweepDirection']; turnable: boolean; next: string[]; left: number | null } | null
+}
+
+// combat.tex "Push and drag": the speed the block moves at, and while it is
+// declared the speeds open to the actor; how many cells its way takes; the
+// actor's "2 AP to gain 5 force" — declared, counted, and whether it is
+// theirs to say now; and whether the comparison lets the block move.
+export type PushView = {
+  movement: PushMovement
+  movements: PushMovementOption[]
+  cells: number
+  boost: boolean
+  boosted: boolean
+  canBoost: boolean
+  allowed: boolean
+}
+
+export type ActionPanelView = {
+  step: ActionStep | null
+  open: OpenActionView | null
+  // with nothing open: what the active character can declare
+  options: ActionOptionView[]
+  // at `react`: everyone the open action triggers something in, with their
+  // options; the target's defenses are among them
+  reactors: ReactorOptions[]
+  // at `declare`: the rows and variations an attack can be made with, the
+  // spells a cast can be of, or the charges that can be set off
+  attacks: AttackOptionView[]
+  // while a shot is declared: the arrows or bolts its row can be loaded with
+  ammo: AmmoOption[]
+  spells: SpellOptionView[]
+  // the gear at hand the declared cast can be made with, when there is a choice
+  gear: CastGearOption[]
+  // what the declared charged spell can be charged into, when there is a choice
+  chargeInto: CastGearOption[]
+  charges: ChargeView[]
+  locations: LocationOption[]
+  items: ItemAim[]
+  targets: { id: string; name: string; selected: boolean }[]
+  // who could be aimed at but has not been detected (combat.tex "Stealth in combat")
+  hidden: { id: string; name: string }[]
+  // why the target list is empty, when it is
+  noTargets: string | null
+  // at `react`: whoever the action would have triggered but who has not
+  // noticed its actor, by name
+  unnoticed: string[]
+  // at `commit`: whether the declaration can be locked
+  canCommit: boolean
+  // whether the open action is closed by a die or by paying, and at `react`
+  // whether that close is open
+  die: boolean
+  // a comparison with no die (combat.tex "Push and drag"): both sides shown
+  compare: boolean
+  canRoll: boolean
+  canPay: boolean
+  // a spell's test its target may take without rolling
+  canAccept: boolean
+  // an evasive jump is declared but has not picked its landing yet
+  jumpPending: boolean
+  // combat.tex "Rest": whether the careful move made while resting is still
+  // to be had
+  restMove: boolean
+  // who still has to pick on the board where they step to block or
+  // intercept; null when nobody does
+  stepPending: string | null
+  // at `react`: a reaction has been declared and can be taken back
+  canBack: boolean
+  // for a move being declared: the kinds of movement open to the actor and
+  // every cell the declared kind can reach
+  moves: MovementOption[]
+  reachable: ReachableCell[]
+  // once rolled: what the hit's overflow can buy, and what the action does
+  // to everyone it lands on as they stand
+  hop: { remaining: number; options: HOPOptionView[] }
+  outcomes: { target: string; outcome: Outcome }[]
+  // once a cast is rolled: what its overflow can buy, and what it will
+  // deliver to whom
+  castHOP: { remaining: number; options: ImprovementOption[] }
+  // once a cast is rolled: the price of buying its graze up to a hit, when
+  // that is open
+  grazeSave: { AP: number; STA: number } | null
+  deliveries: DeliveryView[]
+  // what the last action played out came to, with everything it drew
+  episode: EpisodeEntry[] | null
+  // what commands outside any action changed since it landed
+  edits: string[]
+  // while a preparation is declared: what it is made of and what it waits for
+  prepare: PrepareView | null
+  // what everyone has prepared in the round
+  prepared: PreparedRow[]
+}
+
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
+
+// Everything the action panel shows, in one shape off the fight. The active
+// character is who declares; the open action's target is who reacts, so the
+// two never need the roster switched between them.
+function buildActionPanel(state: SceneState): ActionPanelView {
+  const step = getNextStep(state)
+  const open = getOpenAction(state)
+  const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
+  const episode = getLastEpisode(state)
+  const edits = getEditsSince(state)
+
+  if (!open) {
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode, edits, prepared: getPreparedRows(state) }
+  }
+
+  const actor = state.characters[open.actorId]
+  const target = open.targetId ? state.characters[open.targetId] : undefined
+  const reactions = getReactionsTo(state, open.id)
+  const attack = isAttackAction(open) ? open : null
+  // a cut is swung with a row picked as a strike's is
+  const swung = attack ?? (open.kind === 'cut' ? getCutStrike(open) : null)
+  const explosion = open.kind === 'explosion' ? open : null
+  const cast = open.kind === 'cast' ? open : null
+  const gear = cast && actor ? getCastGear(actor, cast) : null
+  const blast = open.kind === 'blast' ? open : null
+  const laid = explosion ? getBlastOf(state, explosion) : blast
+  const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
+  const move = open.kind === 'move' && open.step === 'define' ? open : null
+  const die = needsDie(state, open)
+  const cost = getOwnCost(state, open)
+  // the action as the resolve would settle it now: what a move will walk, what
+  // a rolled action will land
+  const settled = open.step === 'post' || open.kind === 'move' ? getSettled(state, open) : null
+  const facts = settled?.kind === 'move' ? settled.facts : null
+  const grapple = open.kind === 'grapple' ? open : null
+  const drag = open.kind === 'drag' ? open : null
+  const dragTerms = drag ? getDragSides(state, drag) : null
+  const rootTerms = open.kind !== 'move' || die ? getRootTestTerms(state, open) : null
+  const opener = open.spawnedBy ? getAction(state, open.spawnedBy) : null
+  const declaredTargets = getDeclaredTargets(state, open)
+  const hiddenTargets = getDeclaredHiddenTargets(state, open)
+  const floorTargets = getDeclaredFloorTargets(state, open)
+  const floorStruck = isAttackAction(open) ? getFloorObject(state, open) : null
+  // the aim is offered once the attack has a target it may be aimed at
+  const aimable = !!attack && attack.targetId !== null && (attack.step !== 'define' || declaredTargets.includes(attack.targetId))
+
+  return {
+    step,
+    open: {
+      id: open.id,
+      label: getOpenLabel(state, open),
+      actor: getFightName(state, open.actorId),
+      target: target?.fightName ?? (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
+      targetId: open.targetId,
+      weapon: swung?.weaponKey ?? '',
+      attack: swung?.attack ?? '',
+      variant: swung?.variant ?? '',
+      location: attack?.location ?? 'chest',
+      area: area ? { shape: area.shape, aimed: area.shape === 'explosion' ? area.laid.center !== null : area.laid.direction !== null, aimable: isAimable(state, (explosion ?? blast)!) } : null,
+      source: explosion?.source ?? null,
+      itemId: explosion?.itemId ?? '',
+      spell: cast && isSpellKey(cast.key) ? SPELLS[cast.key].name : '',
+      quicken: cast?.quicken ?? false,
+      extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
+      castItemId: gear?.itemId ?? '',
+      chargeItemId: gear?.chargeItemId ?? '',
+      movement: open.kind === 'move' ? open.movement : 'basic',
+      path: open.kind === 'move' ? open.path : [],
+      mode: open.kind === 'move' ? open.mode : 'normal',
+      climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor) : [],
+      climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
+      canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
+      leap: open.kind === 'move' && open.leap,
+      dive: open.kind === 'move' ? open.dive : 0,
+      diveSteps: open.kind === 'move' ? getDiveSteps(state, open) : null,
+      walked: facts && open.kind === 'move' && open.path.length > 0 ? { cells: facts.path.length, stop: facts.stop } : null,
+      spawned: open.spawnedBy !== null,
+      required: isPreparedRequired(state, open),
+      flee: open.kind === 'fleeFollowUp' && open.step === 'define' ? open.flee : null,
+      opportunity: open.kind === 'strike' && open.opportunity,
+      grapples: open.kind === 'strike' && open.step === 'post' && canGrapple(state, open) ? open.grapples : null,
+      maneuver: grapple?.maneuver ?? null,
+      along: grapple && isAlongOffered(state, grapple) ? grapple.along : null,
+      disarm: grapple?.step === 'post' && isManeuverWon(grapple) && grapple.maneuver === 'disarm' && grapple.roll?.degree === 'critical' ? getDisarmOptions(state, grapple).map((itemId) => ({ itemId, name: findHeldItem(state, itemId)?.item.name ?? '' })) : [],
+      item: grapple?.item ?? (open.kind === 'pickUp' || open.kind === 'throw' || open.kind === 'drink' ? open.itemId : ''),
+      ammoId: open.kind === 'shoot' || open.kind === 'reload' ? open.ammoId : '',
+      floor: open.kind === 'pickUp' && open.step === 'define' && actor
+        ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
+        : open.kind === 'throw' && open.step === 'define' && actor
+        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
+        : [],
+      potions: open.kind === 'drink' && open.step === 'define' && actor ? getHeldPotions(actor).map((i) => ({ itemId: i.id, name: i.name })) : [],
+      push: drag ? getPushView(state, drag) : null,
+      grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
+      cost,
+      openedBy: opener && isReactionAction(opener) ? { label: getActionName(opener), roll: opener.roll, budget: open.kind === 'move' ? open.budget : null } : null,
+      reactions: reactions.map((r) => ({
+        actor: getFightName(state, r.actorId),
+        label: getActionName(r),
+        cost: getOwnCost(state, r),
+        roll: r.roll,
+      })),
+      score: breakdown(rootTerms ? rootTerms.skill : dragTerms ? dragTerms.attacker : []),
+      DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
+      roll: open.roll,
+      sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
+    },
+    episode,
+    edits,
+    prepare: open.kind === 'prepare' && open.step === 'define' ? getPrepareView(state, open) : null,
+    prepared: getPreparedRows(state),
+    options: [],
+    reactors: step === 'react' ? getReactors(state, open) : [],
+    unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
+    attacks: swung && open.step === 'define' && actor
+      ? getFreeAttackOptions(state, actor, swung.kind)
+          .filter((o) => open.kind === 'cut' || (isVariantOpen(state, open, o.variant) && (open.kind !== 'strike' || (isSweepRowKept(state, open, o) && !(isFloorAttack(open) && isSweepVariant(o.variant))))))
+          .map((o) => ({ ...o, selected: o.weaponKey === swung.weaponKey && o.attack === swung.attack && o.variant === swung.variant }))
+      : [],
+    ammo: (open.kind === 'shoot' || open.kind === 'reload') && open.step === 'define' && actor ? getAmmoOptions(actor, open) : [],
+    spells: cast && step === 'declare' && actor ? getSpellOptions(state, actor).map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],
+    gear: gear && step === 'declare' ? gear.options : [],
+    chargeInto: gear && step === 'declare' ? gear.chargeOptions : [],
+    charges: explosion?.source === 'detonate' && step !== 'react' && explosion.step === 'define'
+      ? getChargeOptions(state, explosion).map((o) => ({
+          ...o,
+          name: SPELLS[o.key].name,
+          item: findObject(state, o.itemId)?.name ?? '',
+          holder: o.holderId ? getFightName(state, o.holderId) : '',
+        }))
+      : [],
+    locations: aimable && attack ? getLocationOptions(target, attack) : [],
+    items: aimable && attack && target
+      ? getAimableItems(target).map((item) => ({ id: item.id, name: item.name || item.refId, penalty: EQUIPMENT_ATTACK_PENALTY, selected: item.id === attack.object }))
+      : [],
+    targets: [
+      ...declaredTargets.map((id) => ({ id, name: getFightName(state, id), selected: id === open.targetId })),
+      ...floorTargets.map((f) => ({ id: f.item.id, name: getItemLabel(f.item), selected: f.item.id === floorStruck?.item.id })),
+    ],
+    hidden: hiddenTargets.map((id) => ({ id, name: getFightName(state, id) })),
+    noTargets: step === 'target' && declaredTargets.length === 0 && hiddenTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
+      ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
+      : null,
+    canCommit: step === 'commit' && getPayableCost(state, open) !== null,
+    die,
+    compare: drag !== null,
+    canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),
+    canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open),
+    canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
+    restMove: isRootAction(open) && canMoveWhileResting(state, open),
+    jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),
+    stepPending: step === 'react' && open.kind === 'strike' ? stepPendingName(state, open) : null,
+    canBack: step === 'react' && reactions.length > 0,
+    moves: move && actor ? getMovementOptions(state, actor, move) : [],
+    reachable: move ? getReachableCells(state, move) : [],
+    hop: attack && target && attack.step === 'post' && !isVoided(state, attack)
+      ? { remaining: getHOPRemaining(attack, target), options: getHOPOptions(state, attack).map((o) => ({ ...o, label: HOP_LABELS[o.purchase] })) }
+      : { remaining: 0, options: [] },
+    outcomes: open.step === 'post' && settled ? getOutcomes(state, settled).map(({ id, outcome }) => ({ target: getFightName(state, id), outcome })) : [],
+    castHOP: cast && cast.step === 'post' ? { remaining: getCastHOPRemaining(cast), options: getImprovementOptions(state, cast) } : { remaining: 0, options: [] },
+    grazeSave: cast && canSaveGraze(state, cast) ? GRAZE_SAVE_COST : null,
+    deliveries: settled?.kind === 'cast' ? getCastDeliveries(state, settled.facts ?? {}) : [],
+  }
+}
+
+const getItemLabel = (item: Item) => item.name || item.refId
+
+// While the first strike of a sweep is declared, the arc it would reach as
+// everyone stands; once committed, the arc it was swung through.
+function getSweepView(state: SceneState, strike: StrikeAction): NonNullable<OpenActionView['sweep']> {
+  const declared = strike.step === 'define' && !isSweepLink(strike)
+  return {
+    direction: strike.sweepDirection,
+    turnable: declared,
+    next: (declared ? getSweepArc(state, strike) : strike.arc).map((id) => getFightName(state, id)),
+    left: strike.share < 1 ? Math.round(strike.share * 100) : null,
+  }
+}
+
+export const getActionPanel = perState(buildActionPanel)
+
+function breakdown(terms: Term[]): { terms: Term[]; total: number } {
+  return { terms, total: sumTerms(terms) }
+}
+
+export const getActionPanelDigest = perState((state) => JSON.stringify(getActionPanel(state)))
+
+function getPushView(state: SceneState, drag: DragAction): PushView {
+  const sides = getDragSides(state, drag)
+  const actor = state.characters[drag.actorId]
+  return {
+    movement: drag.movement,
+    movements: drag.step === 'define' && actor ? getPushMovements(actor, drag.pull) : [],
+    cells: drag.path.length,
+    boost: drag.boost,
+    boosted: sides.boosted.includes(drag.actorId),
+    canBoost: drag.step === 'define' || drag.step === 'react',
+    allowed: sides.allowed,
+  }
+}
+
+// Who still has to pick where they step to block or intercept the strike.
+function stepPendingName(state: SceneState, open: StrikeAction): string | null {
+  const guard = getPendingGuardStep(state, open)
+  return guard ? getFightName(state, guard.reaction.actorId) : null
+}

@@ -1,22 +1,22 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CombatStateSchema, type HitLocation, type ActionDraft, type ActionKind, type CombatState, type Coord, type RootAction } from '../app/domain/combat/types'
+import { SceneStateSchema, type HitLocation, type ActionDraft, type ActionKind, type SceneState, type Coord, type RootAction } from '../app/domain/scene/types'
 import { rollD10, seededRng, type Dice } from '../app/domain/play/dice'
 import { buildFighter } from './lib/fighters'
 import type { CampaignCharacter } from '../app/domain/types'
 import { addInstance } from '../app/domain/instances'
-import { setDistance } from '../app/domain/combat/geometry'
+import { setDistance } from '../app/domain/scene/geometry'
 import { board } from '../app/domain/bot/fixtures'
 import { getAttackRows } from '../app/domain/bot/weapons'
 import { isWorthTheAP, rankAttacks, WORTH_TIER } from '../app/domain/bot/estimate'
 import { getStanding, type Evaluations } from '../app/domain/bot/evaluation'
 import { makeAftermathReader } from '../app/domain/bot/afterAttack'
 import { readGrabs, type Posture } from '../app/domain/bot/grapplePosture'
-import { isGrappleRowOf } from '../app/domain/combat/rules/grapple'
-import { canGrapple, getHOPOptions, getHOPRemaining } from '../app/domain/combat/rules/damage'
-import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/combat/commands/choices'
-import { getAvailableActions } from '../app/domain/combat/rules/options'
-import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/combat/rules/action'
+import { isGrappleRowOf } from '../app/domain/scene/rules/grapple'
+import { canGrapple, getHOPOptions, getHOPRemaining } from '../app/domain/scene/rules/damage'
+import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/scene/commands/choices'
+import { getAvailableActions } from '../app/domain/scene/rules/options'
+import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/scene/rules/action'
 import { canAfford } from '../app/domain/character/rules/cost'
 import { canSurge, getSurgeAP } from '../app/domain/character/rules/surge'
 import { SURGES } from '../app/domain/tables'
@@ -25,22 +25,22 @@ import { declareDefense } from '../app/domain/bot/answer'
 import { hold } from '../app/domain/bot/engine'
 import { passUp } from '../app/domain/bot/table'
 import { getLiveFoes, isStanding, type Party } from '../app/domain/bot/party'
-import { getEvasiveJumpPlacements } from '../app/domain/combat/rules/move'
-import { getReachableCells } from '../app/domain/combat/rules/reach'
-import { amendAction, commitAction, declareAction, amendReaction, declareReaction, resolveAction, rollOrPay, setTarget } from '../app/domain/combat/commands/action'
-import { endTurn, startTurn, surge, toggleAgreeToEnd } from '../app/domain/combat/commands/turn'
-import { nextRound } from '../app/domain/combat/commands/nextRound'
-import { getAction, getHistory, getLiveReactionsTo, getOpenAction } from '../app/domain/combat/rules/log'
-import { getNextRoundBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd } from '../app/domain/combat/rules/turn'
-import { getCompelledSurge } from '../app/domain/combat/rules/stress'
-import { getMoraleTest } from '../app/domain/combat/rules/morale'
-import { rollMorale } from '../app/domain/combat/commands/morale'
-import { getFightName } from '../app/domain/combat/rules/fighters'
-import { getLastEpisode, type EpisodeEntry } from '../app/domain/combat/projections/episode'
-import type { ActionRoll, CostTerm } from '../app/domain/combat/types'
+import { getEvasiveJumpPlacements } from '../app/domain/scene/rules/move'
+import { getReachableCells } from '../app/domain/scene/rules/reach'
+import { amendAction, commitAction, declareAction, amendReaction, declareReaction, resolveAction, rollOrPay, setTarget } from '../app/domain/scene/commands/action'
+import { endTurn, startTurn, surge, toggleAgreeToEnd } from '../app/domain/scene/commands/turn'
+import { nextRound } from '../app/domain/scene/commands/nextRound'
+import { getAction, getHistory, getLiveReactionsTo, getOpenAction } from '../app/domain/scene/rules/log'
+import { getNextRoundBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd } from '../app/domain/scene/rules/turn'
+import { getCompelledSurge } from '../app/domain/scene/rules/stress'
+import { getMoraleTest } from '../app/domain/scene/rules/morale'
+import { rollMorale } from '../app/domain/scene/commands/morale'
+import { getFightName } from '../app/domain/scene/rules/fighters'
+import { getLastEpisode, type EpisodeEntry } from '../app/domain/scene/projections/episode'
+import type { ActionRoll, CostTerm } from '../app/domain/scene/types'
 import type { ActionCost } from '../app/domain/character/rules/actionCosts'
-import { getActionPanel } from '../app/domain/combat/projections/actionPanel'
-import { HOP_LABELS, getOptionLabel } from '../app/domain/combat/projections/labels'
+import { getActionPanel } from '../app/domain/scene/projections/actionPanel'
+import { HOP_LABELS, getOptionLabel } from '../app/domain/scene/projections/labels'
 import { getAfflictions, getInjuryPenalty, isDead } from '../app/domain/character/rules/afflictions'
 
 // A two-sided fight played by hand, one decision at a time, for an agent or a
@@ -62,7 +62,7 @@ const IDS: Record<Side, string> = { A: 'a', B: 'b' }
 const PARTIES: Party[] = [{ members: ['a'] }, { members: ['b'] }]
 
 type Saved = {
-  state: CombatState
+  state: SceneState
   specs: Record<Side, string>
   seed: number
   draws: number
@@ -80,7 +80,7 @@ const session: { evaluations: Evaluations; ahead: boolean } = { evaluations: {},
 
 type Env = { dice: Dice; newId: () => string; counters: () => { draws: number; ids: number } }
 
-type Choice = { label: string; apply: (env: Env, aim?: string) => CombatState | null; unavailable?: string }
+type Choice = { label: string; apply: (env: Env, aim?: string) => SceneState | null; unavailable?: string }
 type Prompt = { kind: 'prompt'; side: Side; title: string; choices: Choice[]; note?: string }
 type End = { kind: 'end'; text: string }
 
@@ -117,17 +117,17 @@ function partyOf(id: string): Party {
   return PARTIES[SIDES.indexOf(sideOf(id))]
 }
 
-function cellOf(state: CombatState, id: string): Coord | null {
+function cellOf(state: SceneState, id: string): Coord | null {
   return state.board?.placements[id]?.cell ?? null
 }
 
-function gapBetween(state: CombatState, a: string, b: string): number | null {
+function gapBetween(state: SceneState, a: string, b: string): number | null {
   const ca = cellOf(state, a)
   const cb = cellOf(state, b)
   return ca && cb ? setDistance([ca], [cb]) : null
 }
 
-function isCommitted(state: CombatState, id: string): boolean {
+function isCommitted(state: SceneState, id: string): boolean {
   const action = getAction(state, id)
   return action !== null && action.step !== 'define'
 }
@@ -136,15 +136,15 @@ const cost = (c: { AP?: number; STA?: number } | null) => `${c?.AP ?? 0} AP, ${c
 
 // An action declared by `id` and still to be filled in and committed: one just
 // declared in their turn, or a follow-up the rules opened for them.
-type Base = { state: CombatState; open: RootAction; own: boolean }
+type Base = { state: SceneState; open: RootAction; own: boolean }
 
-function begin(state: CombatState, id: string, draft: ActionDraft, env: Env): Base | null {
+function begin(state: SceneState, id: string, draft: ActionDraft, env: Env): Base | null {
   const declared = declareAction(id, draft, env.newId)(state)
   const open = getOpenAction(declared)
   return open && open.kind === draft.kind && open.step === 'define' ? { state: declared, open, own: true } : null
 }
 
-function committing(base: Base, e: Env, amend: (s: CombatState) => CombatState): CombatState | null {
+function committing(base: Base, e: Env, amend: (s: SceneState) => SceneState): SceneState | null {
   const committed = commitAction(e.dice, e.newId)(amend(base.state))
   return isCommitted(committed, base.open.id) ? committed : null
 }
@@ -162,7 +162,7 @@ function grabNote(reading: ReturnType<typeof readGrabs>[number] | undefined): st
   return `; if it hits and you grab: ${side('yours', reading.apart.attacker, reading.held.attacker)}; ${side('theirs', reading.apart.foe, reading.held.foe)}`
 }
 
-function strikeChoices(base: Base, id: string, foes: string[], state: CombatState, shut: string | null): Choice[] {
+function strikeChoices(base: Base, id: string, foes: string[], state: SceneState, shut: string | null): Choice[] {
   const mine = state.characters[id]
   const targets = base.own ? foes : base.open.targetId ? [base.open.targetId] : []
   const estimates = base.own ? new Map(targets.map((f) => [f, getStanding(session.evaluations, state, id, f)])) : new Map<string, ReturnType<typeof getStanding>>()
@@ -191,11 +191,11 @@ function strikeChoices(base: Base, id: string, foes: string[], state: CombatStat
 
 // Where a blow can be aimed on the target of the declared strike, with what each
 // costs to hit.
-function places(state: CombatState): { location: HitLocation; part: string | null; name: string; penalty: number }[] {
+function places(state: SceneState): { location: HitLocation; part: string | null; name: string; penalty: number }[] {
   return getActionPanel(state).locations
 }
 
-function placeOf(state: CombatState, name: string): { location: HitLocation; part: string | null } {
+function placeOf(state: SceneState, name: string): { location: HitLocation; part: string | null } {
   const found = places(state).find((l) => l.name.toLowerCase() === name.toLowerCase())
   if (!found) throw new Error(`No place "${name}" to aim at here. Choose one of: ${places(state).map((l) => l.name).join(', ')}`)
   return { location: found.location, part: found.part }
@@ -203,7 +203,7 @@ function placeOf(state: CombatState, name: string): { location: HitLocation; par
 
 // The places worth walking to from the base, each way of moving, one per
 // distance from the foe.
-function moveChoices(base: Base, id: string, state: CombatState): Choice[] {
+function moveChoices(base: Base, id: string, state: SceneState): Choice[] {
   const origin = cellOf(state, id)
   const foeCells = getLiveFoes(state, partyOf(id)).flatMap((f) => cellOf(state, f) ?? [])
   if (!origin || foeCells.length === 0) return []
@@ -233,7 +233,7 @@ function moveChoices(base: Base, id: string, state: CombatState): Choice[] {
 const UNSUPPORTED = 'the harness cannot declare this by itself (it needs choices it does not offer yet)'
 
 // An action with nothing to pick but a target: declared and committed as it is.
-function plainChoices(base: Base | null, label: string, foes: string[], state: CombatState): Choice[] {
+function plainChoices(base: Base | null, label: string, foes: string[], state: SceneState): Choice[] {
   if (!base) return [{ label, apply: () => null, unavailable: UNSUPPORTED }]
   const targets = needsTarget(base.open) ? foes : [null]
   return targets.map((target): Choice => ({
@@ -242,7 +242,7 @@ function plainChoices(base: Base | null, label: string, foes: string[], state: C
   }))
 }
 
-function aimNote(state: CombatState, id: string, foes: string[], env: Env): string | undefined {
+function aimNote(state: SceneState, id: string, foes: string[], env: Env): string | undefined {
   const foe = foes[0]
   const base = foe ? begin(state, id, { kind: 'strike' }, env) : null
   const row = base ? getAttackRows(state, id, 'strike')[0] : undefined
@@ -255,7 +255,7 @@ function aimNote(state: CombatState, id: string, foes: string[], env: Env): stri
 // What each foe's best attacks would do to this character as things stand, the
 // same estimate as for their own attacks with the roles turned: the character
 // answering as it best can, the foe paying what each attack costs.
-function threatNote(state: CombatState, id: string, foes: string[]): string | undefined {
+function threatNote(state: SceneState, id: string, foes: string[]): string | undefined {
   const lines = foes.flatMap((foe) => rankAttacks(getStanding(session.evaluations, state, foe, id)).slice(0, 3).map((e) => {
     const g = e.guarded
     return `  ${getFightName(state, foe)} with ${e.weapon} ${e.attack} (${e.variant}), ${e.cost.AP} AP ${e.cost.STA} STA: answered by ${g.label} (${g.cost.AP} AP ${g.cost.STA} STA), hit ${(g.pHit * 100).toFixed(0)}%, graze ${(g.pGraze * 100).toFixed(0)}%, expected injury ${e.expectedIL.toFixed(2)}`
@@ -271,7 +271,7 @@ function probeOf(env: Env): Env {
 // What the holder of the turn may do: each thing the rules list as open or
 // closed for them, expanded into what has to be picked before it can be
 // committed, then end the turn or pass for the round.
-function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
+function turnChoices(state: SceneState, id: string, env: Env): Choice[] {
   const foes = getLiveFoes(state, partyOf(id))
   const choices = getAvailableActions(state, id).flatMap((option): Choice[] => {
     const draft = option.draft
@@ -311,7 +311,7 @@ function turnChoices(state: CombatState, id: string, env: Env): Choice[] {
 
 // A follow-up the rules opened for a character: let it go, or take it as they
 // may.
-function followUpChoices(state: CombatState, id: string, open: RootAction): Choice[] {
+function followUpChoices(state: SceneState, id: string, open: RootAction): Choice[] {
   const base: Base = { state, open, own: false }
   const foes = getLiveFoes(state, partyOf(id))
   const decline: Choice = { label: 'DECLINE: let the follow-up go', apply: (e) => passUp(state, open, e.newId) }
@@ -331,7 +331,7 @@ function followUpChoices(state: CombatState, id: string, open: RootAction): Choi
 // What a character may answer a committed action with, as the rules list it:
 // the options open to them and those closed with the reason, an evasive jump
 // to each distance from the actor it can land at.
-function reactionChoices(state: CombatState, id: string, open: RootAction): Choice[] {
+function reactionChoices(state: SceneState, id: string, open: RootAction): Choice[] {
   const from = cellOf(state, open.actorId)
   return getAvailableActions(state, id).flatMap((option): Choice[] => {
     const label = `${getOptionLabel(state, id, option)} - ${cost(option.cost)}`
@@ -364,7 +364,7 @@ function reactionChoices(state: CombatState, id: string, open: RootAction): Choi
   })
 }
 
-function defenseChoices(state: CombatState, id: string, env: Env): Choice[] {
+function defenseChoices(state: SceneState, id: string, env: Env): Choice[] {
   const open = getOpenAction(state)
   if (!open) return []
   const probe = probeOf(env)
@@ -376,7 +376,7 @@ function terms(list: readonly { label: string; value: number }[]): string {
   return list.map((t) => `${t.label} ${t.value >= 0 ? '+' : ''}${t.value}`).join(', ')
 }
 
-function threat(state: CombatState): string {
+function threat(state: SceneState): string {
   const o = getActionPanel(state).open
   if (!o) return ''
   if (o.weapon === '') return `${o.actor}: ${o.label}.`
@@ -384,7 +384,7 @@ function threat(state: CombatState): string {
   return `${o.actor} attacks with ${o.attack} (${o.variant})${place}. The attacker's skill is ${o.score.total} (${terms(o.score.terms)}); add a d10 against a DL of ${o.DL.total} (${terms(o.DL.terms)}) before any defense.`
 }
 
-function over(state: CombatState): End | null {
+function over(state: SceneState): End | null {
   const standing = SIDES.filter((s) => isStanding(state, IDS[s]) && !state.surrendered.includes(IDS[s]))
   if (standing.length === 2) return null
   if (standing.length === 0) return { kind: 'end', text: 'Both sides have fallen.' }
@@ -392,7 +392,7 @@ function over(state: CombatState): End | null {
 }
 
 // Plays what nobody owes a decision on, up to the next decision or the end.
-function advance(initial: CombatState, env: Env, maxRounds: number): { state: CombatState; next: Prompt | End } {
+function advance(initial: SceneState, env: Env, maxRounds: number): { state: SceneState; next: Prompt | End } {
   let state = initial
   for (let i = 0; i < 500; i++) {
     const finished = over(state)
@@ -453,7 +453,7 @@ function advance(initial: CombatState, env: Env, maxRounds: number): { state: Co
   return { state, next: { kind: 'end', text: 'Stuck: too many steps without a decision.' } }
 }
 
-function previewOf(state: CombatState): string {
+function previewOf(state: SceneState): string {
   const lines = getActionPanel(state).outcomes.map(({ target, outcome }) => {
     if (outcome.stopped) return `${target}: intercepted`
     const wound = outcome.wound ? `, WOUND ${outcome.wound.name}` : ''
@@ -465,7 +465,7 @@ function previewOf(state: CombatState): string {
 
 // A hit with overflow left (combat.tex "Success Overflow"): the attacker may
 // buy effects with it before the blow lands, each priced and gated by the rules.
-function hopPrompt(state: CombatState, open: RootAction): Prompt | null {
+function hopPrompt(state: SceneState, open: RootAction): Prompt | null {
   if ((open.kind !== 'strike' && open.kind !== 'shoot') || !open.targetId || !state.characters[open.targetId] || !state.characters[open.actorId]) return null
   const target = state.characters[open.targetId]
   const options = getHOPOptions(state, open)
@@ -492,12 +492,12 @@ function hopPrompt(state: CombatState, open: RootAction): Prompt | null {
   }
 }
 
-function moraleTitle(state: CombatState, id: string): string {
+function moraleTitle(state: SceneState, id: string): string {
   const test = getMoraleTest(state, id)
   return `${getFightName(state, id)} is called to a morale test (will ${test?.skill} against DL ${test?.DL}); a graze leaves them afraid; a miss leaves them afraid and, with a foe near, activates their limit stress action if they have one.`
 }
 
-function moraleChoices(state: CombatState, id: string): Choice[] {
+function moraleChoices(state: SceneState, id: string): Choice[] {
   return (['normal', 'safe', 'risky'] as const).map((mode) => ({
     label: `roll the morale test ${mode === 'normal' ? 'normally' : mode === 'safe' ? 'safely (keep the die closest to 5)' : 'riskily (keep the die farthest from 5)'}`,
     apply: (e) => { const rolled = rollMorale(id, mode, true, e.dice)(state); return rolled === state ? null : rolled },
@@ -506,7 +506,7 @@ function moraleChoices(state: CombatState, id: string): Choice[] {
 
 // The next turn: the side after the one whose action landed last is asked first
 // (play.tex "Combat": "first to ask, first to play"); at the start, the die says.
-function startNextTurn(state: CombatState, env: Env): CombatState | null {
+function startNextTurn(state: SceneState, env: Env): SceneState | null {
   const history = getHistory(state)
   const lastId = history.at(-1)
   const lastActor = lastId ? getAction(state, lastId)?.actorId : undefined
@@ -555,7 +555,7 @@ function renderEntry(entry: EpisodeEntry): string[] {
   return lines
 }
 
-function newEvents(before: CombatState, after: CombatState, lastKey: string): { events: string[]; lastKey: string } {
+function newEvents(before: SceneState, after: SceneState, lastKey: string): { events: string[]; lastKey: string } {
   const morale = after.morale.flatMap((call) => call.roll && !before.morale.some((m) => m.id === call.id && m.roll)
     ? `round ${after.round + 1} | ${getFightName(after, call.id)} | morale test (${call.roll.mode}): d10 ${call.roll.die}, score ${call.roll.score} vs DL ${call.roll.DL}: ${call.roll.degree.toUpperCase()}`
     : [])
@@ -565,7 +565,7 @@ function newEvents(before: CombatState, after: CombatState, lastKey: string): { 
   return { events: [...morale, ...played], lastKey: key }
 }
 
-function status(state: CombatState, side: Side): string {
+function status(state: SceneState, side: Side): string {
   const id = IDS[side]
   const c = state.characters[id]
   const hurt = c.injuries.wounds.map((w) => `${w.name} (${w.part})`)
@@ -597,7 +597,7 @@ function file(game: string): string {
 function load(game: string): Saved {
   if (!existsSync(file(game))) throw new Error(`No game "${game}". Start one with: pnpm duel new <A> <B>`)
   const raw = JSON.parse(readFileSync(file(game), 'utf-8')) as Saved
-  return { ...raw, state: CombatStateSchema.parse(raw.state) }
+  return { ...raw, state: SceneStateSchema.parse(raw.state) }
 }
 
 function save(game: string, saved: Saved): void {

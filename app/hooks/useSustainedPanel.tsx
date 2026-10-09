@@ -1,5 +1,5 @@
 import { releaseSpell } from "../domain/character/commands";
-import { SustainedRow, getSustainedDigest, getSustainedRows } from "../domain/combat/projections/sustained";
+import { SustainedRow, getSustainedDigest, getSustainedRows } from "../domain/scene/projections/sustained";
 import type { SpellKey } from "../domain/spells";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useActiveCharacterUpdate } from "./useActiveCharacterSelector";

@@ -1,6 +1,6 @@
-import type { Action, CombatState } from '../combat/types'
-import { getPayableCost } from '../combat/rules/action'
-import { getLiveReactionsTo, getOpenAction } from '../combat/rules/log'
+import type { Action, SceneState } from '../scene/types'
+import { getPayableCost } from '../scene/rules/action'
+import { getLiveReactionsTo, getOpenAction } from '../scene/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { isMember, type Party, type Tuning } from './party'
 import { expectedLoss } from './value'
@@ -12,15 +12,15 @@ import { expectedLoss } from './value'
 // leaves the attacker the least. Zero for an option that is not an attack on a
 // foe.
 
-function apOf(state: CombatState, action: Action): number {
+function apOf(state: SceneState, action: Action): number {
   return getPayableCost(state, action)?.AP ?? 0
 }
 
-type Answer = { state: CombatState; spent: number; surged: boolean }
+type Answer = { state: SceneState; spent: number; surged: boolean }
 
 // The attack the character has committed on a foe, and every defense its
 // target could still declare against it.
-function getAnswers(state: CombatState, party: Party, actorId: string, newId: () => string): { targetId: string; answers: Answer[] } | null {
+function getAnswers(state: SceneState, party: Party, actorId: string, newId: () => string): { targetId: string; answers: Answer[] } | null {
   const open = getOpenAction(state)
   if (!open || open.actorId !== actorId || open.targetId === null || isMember(party, open.targetId)) return null
   const targetId = open.targetId
@@ -32,7 +32,7 @@ function getAnswers(state: CombatState, party: Party, actorId: string, newId: ()
   return { targetId, answers }
 }
 
-export function getExchange(state: CombatState, party: Party, actorId: string, tuning: Tuning, newId: () => string): number {
+export function getExchange(state: SceneState, party: Party, actorId: string, tuning: Tuning, newId: () => string): number {
   const found = getAnswers(state, party, actorId, newId)
   if (!found) return 0
   const gained = [{ state, spent: 0, surged: false }, ...found.answers].map((a) => tuning.exchange * expectedLoss(a.state, found.targetId) + tuning.drain * a.spent)
@@ -42,6 +42,6 @@ export function getExchange(state: CombatState, party: Party, actorId: string, t
 // Whether the attack the character has just committed on a foe has a target
 // with a defense left to answer it with: any, or only one its own AP pays for
 // when `surges` is false (a defense that takes a reaction surge does not count).
-export function isAnswerable(state: CombatState, party: Party, actorId: string, surges: boolean, newId: () => string): boolean {
+export function isAnswerable(state: SceneState, party: Party, actorId: string, surges: boolean, newId: () => string): boolean {
   return (getAnswers(state, party, actorId, newId)?.answers.filter((a) => surges || !a.surged).length ?? 0) > 0
 }

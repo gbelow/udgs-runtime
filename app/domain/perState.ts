@@ -1,10 +1,10 @@
-import type { CombatState } from './combat/types'
+import type { SceneState } from './scene/types'
 
 // A projection computed once per state object. Every store write replaces the
 // state rather than changing it, so a state already seen is one whose view is
 // already known: the digest a hook gates on and the view it then renders read
 // the same computation.
-export function perState<T, S extends object = CombatState>(project: (state: S) => T): (state: S) => T {
+export function perState<T, S extends object = SceneState>(project: (state: S) => T): (state: S) => T {
   const views = new WeakMap<S, T>()
   return (state) => {
     if (views.has(state)) return views.get(state) as T

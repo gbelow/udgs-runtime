@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { openHarness, type Harness } from './boardHarness'
 import { fighter, spearman, warden } from '../domain/bot/fixtures'
-import { amendAction, cancelAction, declareReaction, payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
-import { getActionPanel } from '../domain/combat/projections/actionPanel'
-import { getOpenAction } from '../domain/combat/rules/log'
-import { getAvailableActions } from '../domain/combat/rules/options'
+import { amendAction, cancelAction, declareReaction, payAction, resolveAction, rollAction, withdrawReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { getActionPanel } from '../domain/scene/projections/actionPanel'
+import { getOpenAction } from '../domain/scene/rules/log'
+import { getAvailableActions } from '../domain/scene/rules/options'
 
 // A strike from declaration to the answers it draws, over the real combat
 // store. Expected values are what was clicked and pressed: who stands as the

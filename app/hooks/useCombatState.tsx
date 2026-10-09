@@ -1,10 +1,10 @@
-import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/combat/projections/roster";
-import { setTarget } from "../domain/combat/commands/action";
-import { getOpenAction } from "../domain/combat/rules/log";
-import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/combat/projections/morale";
-import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/combat/projections/heldTests";
-import { getNextRoundBar } from "../domain/combat/rules/turn";
-import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/combat/projections/turn";
+import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/scene/projections/roster";
+import { setTarget } from "../domain/scene/commands/action";
+import { getOpenAction } from "../domain/scene/rules/log";
+import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/scene/projections/morale";
+import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
+import { getNextRoundBar } from "../domain/scene/rules/turn";
+import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/campaign/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";

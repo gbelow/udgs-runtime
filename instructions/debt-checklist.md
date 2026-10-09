@@ -19,7 +19,7 @@ delete the file once every box is ticked.
   `` `${surge} surge AP left` `` message is built in two files. Apply the gate once, and
   give abilities one `canUseAbility` rule read by both the command and the lens.
 - [ ] **Spell-cast gates listed twice.** `canCastSpell` (`character/rules/spells.ts`)
-  and `reasonAgainst` (`combat/rules/cast.ts`) walk the same gates. Keep the reason
+  and `reasonAgainst` (`scene/rules/cast.ts`) walk the same gates. Keep the reason
   function and derive the boolean from it.
 - [ ] **Hard-coded kind list in `advance`.** `sequence.ts` lands `drag | explosion |
   fleeFollowUp | spellTest` automatically. Move this to an `ACTIONS` flag so a new kind
@@ -44,7 +44,7 @@ delete the file once every box is ticked.
 
 - [ ] Clearing `surgeAP`: `endSurge`, `endTurn` (inline), `nextRound` → one helper.
 - [ ] Next round's AP: `nextRound` and `canAffordRest` → `getNextRoundAP`.
-- [ ] Extend DL `extend * EXTEND.DL`: `character/rules/spells.ts`, `combat/rules/attack.ts`,
+- [ ] Extend DL `extend * EXTEND.DL`: `character/rules/spells.ts`, `scene/rules/attack.ts`,
   `projections/actionPanel.ts` → `getExtendDL`.
 - [ ] Setting the turn fields (`inTurnCharacter`, `contenders`, `lastContest`,
   `turn`): `startTurn`, `rollContest`, `endTurn`, `takeQueuedTurn`,
@@ -72,18 +72,18 @@ delete the file once every box is ticked.
 
 ## Technical debt
 
-- [ ] `instructions/combat-map.md` points to `instructions/action-stack.md` and
+- [ ] `instructions/scene-map.md` points to `instructions/action-stack.md` and
   `instructions/reaction-openers.md`, which do not exist.
-- [ ] `combat/commands/sequence.test.ts` restates table numbers as instances (the
+- [ ] `scene/commands/sequence.test.ts` restates table numbers as instances (the
   `{ AP: 3, STA: 1 }` and `{ AP: 2, STA: 1 }` costs, the riposte discounts, exact
   board cells). These fail the gate in `testing.md`; the ordering scenarios are fine.
 - [ ] `command-purity.test.ts` fakes a base character with `as unknown as Character`;
   build one through `makeCharacter`.
-- [ ] `hasRestMove` (`combat/rules/rest.ts`) finds the rest's move as any move spawned
+- [ ] `hasRestMove` (`scene/rules/rest.ts`) finds the rest's move as any move spawned
   by the root; tag the move instead.
-- [ ] `getCastSizeOf` (`combat/rules/cast.ts`) falls back to the raw `caster.size`
+- [ ] `getCastSizeOf` (`scene/rules/cast.ts`) falls back to the raw `caster.size`
   field rather than `getSize`.
-- [ ] Rest logic spread over `character/rules/rest.ts`, `combat/rules/rest.ts` and
+- [ ] Rest logic spread over `character/rules/rest.ts`, `scene/rules/rest.ts` and
   `canRestWhileCasting` / `getEffortlessCost` in `character/rules/spells.ts`.
 - [ ] Surge code split across layers: options are a character lens and a combat
   projection; starting a surge is a combat command, ending one a character command

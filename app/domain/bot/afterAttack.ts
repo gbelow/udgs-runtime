@@ -1,4 +1,4 @@
-import type { CombatState } from '../combat/types'
+import type { SceneState } from '../scene/types'
 import type { AttackEstimate } from './estimate'
 import { getBestAttack, type Evaluations } from './evaluation'
 
@@ -16,14 +16,14 @@ export type Aftermath = {
   reply: AttackEstimate | null
 }
 
-function paid(state: CombatState, id: string, price: { AP: number; STA: number }): CombatState {
+function paid(state: SceneState, id: string, price: { AP: number; STA: number }): SceneState {
   const c = state.characters[id]
   return { ...state, characters: { ...state.characters, [id]: { ...c, resources: { ...c.resources, AP: Math.max(0, c.resources.AP - price.AP), STA: Math.max(0, c.resources.STA - price.STA) } } } }
 }
 
 // Attacks that leave the same AP and STA on both sides share one answer, so
 // the reader keeps the foe's best attack for each leftover it has seen.
-export function makeAftermathReader(store: Evaluations, state: CombatState, attackerId: string, foeId: string): (attack: AttackEstimate) => Aftermath {
+export function makeAftermathReader(store: Evaluations, state: SceneState, attackerId: string, foeId: string): (attack: AttackEstimate) => Aftermath {
   const seen = new Map<string, Aftermath>()
   return (attack) => {
     const attackerLeft = paid(state, attackerId, attack.cost).characters[attackerId].resources

@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { rollD10, seededRng } from '../play/dice'
-import { getOpenAction } from '../combat/rules/log'
-import { getNextRoundBar } from '../combat/rules/turn'
-import { nextRound } from '../combat/commands/nextRound'
+import { getOpenAction } from '../scene/rules/log'
+import { getNextRoundBar } from '../scene/rules/turn'
+import { nextRound } from '../scene/commands/nextRound'
 import { board, spearman } from './fixtures'
 import { playBot } from './play'
 
-// play.tex "Combat" and instructions/combat-map.md ("An action waits only where
+// play.tex "Combat" and instructions/scene-map.md ("An action waits only where
 // someone owes a decision"): when every character is a bot, no decision is
 // owed to anyone else, so the table is never left stuck.
 describe('two bots', () => {

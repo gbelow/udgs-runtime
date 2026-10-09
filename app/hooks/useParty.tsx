@@ -10,7 +10,7 @@ import { useMapNames } from "./useMap";
 import { removeFromRoster } from "../domain/campaign/commands/roster";
 import { returnFromFight, sendToFight } from "../domain/campaign/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
-import { getActiveCharacter } from "../domain/combat/rules/fighters";
+import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { realDice } from "../components/utils";
 

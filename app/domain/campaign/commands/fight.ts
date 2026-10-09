@@ -1,7 +1,7 @@
 import type { CampaignState, TableUpdater } from '../types'
 import { withInstance } from '../../instances'
 import { leaveFight } from '../../character/commands/leaveFight'
-import { resetCombat } from '../../combat/commands/resetCombat'
+import { resetCombat } from '../../scene/commands/resetCombat'
 import { getFightSeconds } from '../rules/clock'
 import { getReturnBar } from '../rules/fight'
 import { addToRoster, checkOut } from './roster'

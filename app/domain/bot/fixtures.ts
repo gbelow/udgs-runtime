@@ -1,4 +1,4 @@
-import { CombatStateSchema, type CombatState } from '../combat/types'
+import { SceneStateSchema, type SceneState } from '../scene/types'
 import { makeCampaignCharacter } from '../factories'
 import { ItemSchema, type CampaignCharacter } from '../types'
 import { holdItem, regripItem } from '../item/commands/hands'
@@ -106,7 +106,7 @@ export function netter(id: string): CampaignCharacter {
   return regripItem(net.id, 2)(holdItem(net)(fighter(id)))
 }
 
-export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): CombatState {
+export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): SceneState {
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
-  return { ...CombatStateSchema.parse({ board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
+  return { ...SceneStateSchema.parse({ board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
 }

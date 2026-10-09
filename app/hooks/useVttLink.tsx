@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { fetchBoard, publishBoard } from "../actions";
-import { importBoard } from "../domain/combat/commands/board";
-import { getLiveBoard } from "../domain/combat/rules/hazard";
+import { importBoard } from "../domain/scene/commands/board";
+import { getLiveBoard } from "../domain/scene/rules/hazard";
 import { isSnapshot, toSnapshot } from "../vtt/snapshot";
 import { useCombatStore } from "../stores/useCombatStore";
 

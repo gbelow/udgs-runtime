@@ -2,18 +2,18 @@ import { describe, it, expect } from 'vitest'
 import * as characterCommands from './character/commands'
 import * as itemCommands from './item/commands'
 import * as creationCommands from './character/commands/creation'
-import * as nextRoundModule from './combat/commands/nextRound'
-import * as resetCombatModule from './combat/commands/resetCombat'
-import * as turnModule from './combat/commands/turn'
-import * as breakageModule from './combat/commands/breakage'
-import * as actionsModule from './combat/commands/action'
-import * as choicesModule from './combat/commands/choices'
-import * as boardModule from './combat/commands/board'
-import * as bindModule from './combat/commands/bind'
-import * as floorModule from './combat/commands/floor'
-import * as charactersModule from './combat/commands/characters'
-import * as moraleModule from './combat/commands/morale'
-import * as socialModule from './combat/commands/social'
+import * as nextRoundModule from './scene/commands/nextRound'
+import * as resetCombatModule from './scene/commands/resetCombat'
+import * as turnModule from './scene/commands/turn'
+import * as breakageModule from './scene/commands/breakage'
+import * as actionsModule from './scene/commands/action'
+import * as choicesModule from './scene/commands/choices'
+import * as boardModule from './scene/commands/board'
+import * as bindModule from './scene/commands/bind'
+import * as floorModule from './scene/commands/floor'
+import * as charactersModule from './scene/commands/characters'
+import * as moraleModule from './scene/commands/morale'
+import * as socialModule from './scene/commands/social'
 import * as rosterModule from './campaign/commands/roster'
 import * as fightModule from './campaign/commands/fight'
 import * as clockModule from './campaign/commands/clock'
@@ -23,9 +23,9 @@ import { CampaignStateSchema, CrawlMapSchema, type CampaignState, type CrawlMap,
 import * as explorationModule from './exploration/commands/exploration'
 import * as plansModule from './exploration/commands/plans'
 import { ExplorationStateSchema, type Exploring } from './exploration/types'
-import { CombatStateSchema, type CombatState } from './combat/types'
-import { getOpenAction } from './combat/rules/log'
-import { getRootTest } from './combat/rules/attack'
+import { SceneStateSchema, type SceneState } from './scene/types'
+import { getOpenAction } from './scene/rules/log'
+import { getRootTest } from './scene/rules/attack'
 import { makeCampaignCharacter, makeCreationDraft } from './factories'
 import { produceEffects } from './character/rules/production'
 import { SPELLS } from './spells'
@@ -218,7 +218,7 @@ const newId = () => 'issued'
 // The subject holds a strike committed by `a` at `b`, with `b`'s evade in
 // answer, so every phase has something to act on; the commands that need the
 // fight in another phase are run on a frozen state one command along.
-const combatCases: Record<string, (s: CombatState) => unknown> = {
+const combatCases: Record<string, (s: SceneState) => unknown> = {
   nextRound: combatCommands.nextRound(() => 0, () => 'issued'),
   rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
   setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
@@ -323,12 +323,12 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
 }
 
 // `a` and `b` holding each other, nothing open.
-function grappling(s: CombatState): CombatState {
+function grappling(s: SceneState): SceneState {
   return { ...cleared(s), binds: [{ kind: 'grapple', members: ['a', 'b'], holders: ['a', 'b'], immobile: [], anchors: {} }] }
 }
 
 // A knockdown by `a` on `b`, thrown, on a frozen state each step along.
-function rolledManeuver(s: CombatState): CombatState {
+function rolledManeuver(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'grapple', maneuver: 'knockdown' }, newId)(deepFreeze(grappling(s))))
   const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declared))))
   return combatCommands.rollAction(() => 3, newId)(committed)
@@ -336,14 +336,14 @@ function rolledManeuver(s: CombatState): CombatState {
 
 // The subject with its committed strike and the evade struck off, for the
 // commands that need nothing open.
-function cleared(s: CombatState): CombatState {
+function cleared(s: SceneState): SceneState {
   return { ...s, actions: [] }
 }
 
 // The one-cell move committed, followed by `b` from the next cell, and paid
 // for, which opens the follow as a move of `b`'s own, on a frozen state each
 // step along.
-function spawnedFollow(s: CombatState): CombatState {
+function spawnedFollow(s: SceneState): SceneState {
   const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(declaredMove(s))))
   const followed = deepFreeze(combatCommands.declareReaction('b', { kind: 'follow' }, newId)(committed))
   return combatCommands.payAction(newId, () => 5)(followed)
@@ -351,7 +351,7 @@ function spawnedFollow(s: CombatState): CombatState {
 
 // A charged grenade of `a`'s, thrown past the wall, landed with nobody
 // avoiding it and waiting to go off, on a frozen state a few commands along.
-function rolledExplosion(s: CombatState): CombatState {
+function rolledExplosion(s: SceneState): SceneState {
   const charged = { ...grenadeItem, charge: { key: 'shock-explosive', effects: produceEffects(s.characters.a, SPELLS['shock-explosive'].effects) } }
   const armed = deepFreeze({ ...cleared(s), characters: { ...s.characters, a: itemCommands.holdItem(charged)(s.characters.a) } })
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'throw', itemId: charged.id, to: { q: 0, r: 3 } }, newId)(armed))
@@ -360,14 +360,14 @@ function rolledExplosion(s: CombatState): CombatState {
 
 // A cast of `a`'s sleep, rolled high enough to have HOP to spend, on a
 // frozen state a few commands along.
-function rolledCast(s: CombatState): CombatState {
+function rolledCast(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.commitAction(() => 30, newId)(declared)
 }
 
 // A's telepathic link at `b` cast and landed, leaving `b`'s test against it
 // open, on a frozen state each step along.
-function openSpellTest(s: CombatState): CombatState {
+function openSpellTest(s: SceneState): SceneState {
   const learned = { ...cleared(s), characters: { ...s.characters, a: { ...s.characters.a, spells: { ...s.characters.a.spells, 'telepathic-link': { method: 'intuitive' as const, practice: 0 } } } } }
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'telepathic-link' }, newId)(deepFreeze(learned)))
   const committed = deepFreeze(combatCommands.commitAction(() => 5, newId)(deepFreeze(combatCommands.setTarget('b')(declared))))
@@ -375,13 +375,13 @@ function openSpellTest(s: CombatState): CombatState {
 }
 
 // A's rest paid for, waiting to land, on a frozen state each step along.
-function paidRest(s: CombatState): CombatState {
+function paidRest(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'rest' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.commitAction(() => 5, newId)(declared)
 }
 
 // A's cast of sleep rolled to a graze the graze save carries to a hit.
-function grazedCast(s: CombatState): CombatState {
+function grazedCast(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'cast', key: 'sleep' }, newId)(deepFreeze(cleared(s))))
   const test = getRootTest(declared, getOpenAction(declared)!)!
   return combatCommands.commitAction(() => test.DL - test.skill + 3, newId)(declared)
@@ -390,20 +390,20 @@ function grazedCast(s: CombatState): CombatState {
 // The committed strike cancelled and a fresh one declared in its place, on a
 // frozen state a couple of commands along, for the commands that only run
 // before the commit.
-function declaredStrike(s: CombatState): CombatState {
+function declaredStrike(s: SceneState): SceneState {
   return combatCommands.declareAction('a', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(deepFreeze(cleared(s)))
 }
 
 // The strike cancelled and a one-cell move declared in its place, on a
 // frozen state a few commands along.
-function declaredMove(s: CombatState): CombatState {
+function declaredMove(s: SceneState): SceneState {
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'move' }, newId)(deepFreeze(cleared(s))))
   return combatCommands.amendAction({ movement: 'crawl', path: [{ q: 1, r: 0 }] })(declared)
 }
 
 // A push by `a`, grappling `b`, declared and aimed at them — `a` stood up,
 // since the prone "cannot push nor drag".
-function declaredPush(s: CombatState): CombatState {
+function declaredPush(s: SceneState): SceneState {
   const grappled = grappling(s)
   const standing = { ...grappled, characters: { ...grappled.characters, a: { ...grappled.characters.a, afflictions: [] } } }
   const declared = deepFreeze(combatCommands.declareAction('a', { kind: 'drag' }, newId)(deepFreeze(standing)))
@@ -443,13 +443,13 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setEnabler: (m) => mapModule.setEnabler({ kind: 'connection', id: 'c' }, 'e', 'survival', 2)(m),
 }
 
-function combatSubject(): CombatState {
+function combatSubject(): SceneState {
   const a = { ...characterSubject(), id: 'a', fightName: 'a' }
   const b = { ...characterSubject(), id: 'b', fightName: 'b' }
   const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', step: 'react' }
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
-    ...CombatStateSchema.parse({
+    ...SceneStateSchema.parse({
       actions: [strike, evade],
       stack: ['s1'],
       board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 0, r: 1 } } }, terrain: { '2,0': { blocking: true } } },
@@ -461,7 +461,7 @@ function combatSubject(): CombatState {
   }
 }
 
-function campaignSubject(fight: CombatState): CampaignState {
+function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
     characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' }, map: mapSubject(),

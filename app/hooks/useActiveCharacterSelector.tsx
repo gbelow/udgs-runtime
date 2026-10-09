@@ -1,12 +1,12 @@
 import { CampaignCharacter, Character } from "../domain/types";
-import type { CombatState } from "../domain/combat/types";
+import type { SceneState } from "../domain/scene/types";
 import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useRaceStore } from "../stores/useRaceStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
-import { updateInventory } from "../domain/combat/commands/characters";
-import { getActiveCharacter } from "../domain/combat/rules/fighters";
+import { updateInventory } from "../domain/scene/commands/characters";
+import { getActiveCharacter } from "../domain/scene/rules/fighters";
 
 type CharacterUpdater = (c: Character) => Character;
 type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
@@ -28,7 +28,7 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // store ever drives it. `sel` is handed the fight the character is in too —
 // null on the edit, race and party tabs, where there is none.
 export function useActiveCharacterSelector<T>(
-  sel: (c: Character, fight: CombatState | null) => T,
+  sel: (c: Character, fight: SceneState | null) => T,
 ): T | null {
   const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
   const vals = {
@@ -109,7 +109,7 @@ function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCh
 // point — an input list has to be kept in step with the derivation by hand, and
 // silently goes stale the day the derivation grows a dependency.
 export function useActiveCharacterDerived<T>(
-  compute: (c: Character, fight: CombatState | null) => T,
+  compute: (c: Character, fight: SceneState | null) => T,
   digest: (value: T) => string,
 ): T | null {
   const tab = useAppStore((s) => s.selectedGameTab);

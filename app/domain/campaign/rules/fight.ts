@@ -1,8 +1,8 @@
-import type { CombatState } from '../../combat/types'
-import { getOpenAction } from '../../combat/rules/log'
+import type { SceneState } from '../../scene/types'
+import { getOpenAction } from '../../scene/rules/log'
 
 // Why the fight cannot give its characters back to the party now.
-export function getReturnBar(fight: CombatState): string | null {
+export function getReturnBar(fight: SceneState): string | null {
   if (Object.keys(fight.characters).length === 0) return 'nobody is in the fight'
   return getOpenAction(fight) ? 'an action is being played out' : null
 }

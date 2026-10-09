@@ -1,7 +1,7 @@
-import type { CombatState, RootAction } from '../combat/types'
+import type { SceneState, RootAction } from '../scene/types'
 import { rollD10, seededRng, type Dice } from '../play/dice'
-import { getFightName } from '../combat/rules/fighters'
-import { getHistory, getLog } from '../combat/rules/log'
+import { getFightName } from '../scene/rules/fighters'
+import { getHistory, getLog } from '../scene/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'
 import { getCandidates } from './candidates'
 import { hold } from './engine'
@@ -18,7 +18,7 @@ import { evaluate, type Value } from './value'
 // to the first listed, which is to do nothing.
 
 // `waiting` is what taking the option costs besides what comes of it.
-type Option = { label: string; play: (dice: Dice) => CombatState | null; waiting?: number }
+type Option = { label: string; play: (dice: Dice) => SceneState | null; waiting?: number }
 
 function mean(values: Value[]): Value {
   const of = (part: keyof Value) => values.reduce((sum, v) => sum + v[part], 0) / values.length
@@ -48,12 +48,12 @@ function score(parties: readonly Party[], party: Party, actorId: string, option:
 // The dice an option is tried with differ from one decision to the next, and
 // are the same for every option of one: they are made from where the fight
 // stands, so that no run of dice colours every choice alike.
-function getSampleSeed(state: CombatState, actorId: string): number {
+function getSampleSeed(state: SceneState, actorId: string): number {
   const named = [...actorId].reduce((hash, ch) => Math.imul(hash, 31) + ch.charCodeAt(0), 7)
   return (Math.imul(state.round, 1000003) + Math.imul(getLog(state).length, 7919) + Math.imul(getHistory(state).length, 31) + named) >>> 0
 }
 
-function pick(state: CombatState, parties: readonly Party[], party: Party, actorId: string, kind: 'turn' | 'answer', options: Option[], decided: readonly string[], newId: () => string, trace?: Trace): number {
+function pick(state: SceneState, parties: readonly Party[], party: Party, actorId: string, kind: 'turn' | 'answer', options: Option[], decided: readonly string[], newId: () => string, trace?: Trace): number {
   const scored = options.flatMap((option, index) => {
     const value = score(parties, party, actorId, option, decided, newId, getSampleSeed(state, actorId))
     return value ? [{ index, label: option.label, value }] : []
@@ -72,7 +72,7 @@ function pick(state: CombatState, parties: readonly Party[], party: Party, actor
 
 // What the character does with its turn: the state after the option it
 // weighs best, or null to do nothing and keep what AP it has.
-export function chooseTurnAction(state: CombatState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string, trace?: Trace): CombatState | null {
+export function chooseTurnAction(state: SceneState, parties: readonly Party[], party: Party, id: string, dice: Dice, newId: () => string, trace?: Trace): SceneState | null {
   const candidates = getCandidates(state, party, id, newId)
   if (candidates.length === 0) return null
   const options: Option[] = [{ label: 'hold', play: () => hold(state, id), waiting: getTuning(party).patience * (state.round - 1) }, ...candidates]
@@ -81,7 +81,7 @@ export function chooseTurnAction(state: CombatState, parties: readonly Party[], 
 
 // How a member of the party who may defend against the committed action
 // answers it, or null when none does.
-export function chooseAnswer(state: CombatState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): CombatState | null {
+export function chooseAnswer(state: SceneState, parties: readonly Party[], party: Party, open: RootAction, newId: () => string, trace?: Trace): SceneState | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members) {
     const declared = getDefenseOptions(state, id, open).flatMap((o) => {

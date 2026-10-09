@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../types'
-import type { CombatState } from '../combat/types'
-import { setDistance } from '../combat/geometry'
+import type { SceneState } from '../scene/types'
+import { setDistance } from '../scene/geometry'
 import { canAfford } from '../character/rules/cost'
 import { getSTA } from '../character/rules/characteristics'
 import weapons from '../../assets/weapons.json'
@@ -39,7 +39,7 @@ function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'u
   return rest
 }
 
-function gapBetween(state: CombatState, a: string, b: string): number | null {
+function gapBetween(state: SceneState, a: string, b: string): number | null {
   const ca = state.board?.placements[a]?.cell
   const cb = state.board?.placements[b]?.cell
   return ca && cb ? setDistance([ca], [cb]) : null
@@ -52,7 +52,7 @@ function canonical(value: unknown): string {
     : v)
 }
 
-export function getEvaluationKey(state: CombatState, attackerId: string, targetId: string): string {
+export function getEvaluationKey(state: SceneState, attackerId: string, targetId: string): string {
   const pair = [attackerId, targetId]
   return canonical([
     carried(state.characters[attackerId]),
@@ -63,7 +63,7 @@ export function getEvaluationKey(state: CombatState, attackerId: string, targetI
   ])
 }
 
-function rested(state: CombatState, attackerId: string, targetId: string): CombatState {
+function rested(state: SceneState, attackerId: string, targetId: string): SceneState {
   const rest = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { ...c.resources, AP: REST_AP, surgeAP: 0, STA: getSTA(c) } })
   return { ...state, characters: { ...state.characters, [attackerId]: rest(state.characters[attackerId]), [targetId]: rest(state.characters[targetId]) } }
 }
@@ -75,7 +75,7 @@ function slim(e: AttackEstimate): AttackEstimate {
   return { ...e, defenses: answers, guarded: { ...e.guarded, byDie: [] } }
 }
 
-export function evaluate(store: Evaluations, state: CombatState, attackerId: string, targetId: string): AttackEstimate[] {
+export function evaluate(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate[] {
   if (!state.characters[attackerId] || !state.characters[targetId]) return []
   const key = getEvaluationKey(state, attackerId, targetId)
   return (store[key] ??= estimateAttacks(rested(state, attackerId, targetId), attackerId, targetId).map(slim))
@@ -83,7 +83,7 @@ export function evaluate(store: Evaluations, state: CombatState, attackerId: str
 
 // The attacks the attacker can pay for now, each against the answers the
 // target can pay for now.
-export function getStanding(store: Evaluations, state: CombatState, attackerId: string, targetId: string): AttackEstimate[] {
+export function getStanding(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate[] {
   const attacker = state.characters[attackerId]
   const target = state.characters[targetId]
   if (!attacker || !target) return []
@@ -92,6 +92,6 @@ export function getStanding(store: Evaluations, state: CombatState, attackerId: 
     .map((e) => guardedBy(e, e.defenses.filter((d) => d.kind === 'none' || canAfford(target, d.cost))))
 }
 
-export function getBestAttack(store: Evaluations, state: CombatState, attackerId: string, targetId: string): AttackEstimate | null {
+export function getBestAttack(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate | null {
   return rankAttacks(getStanding(store, state, attackerId, targetId))[0] ?? null
 }

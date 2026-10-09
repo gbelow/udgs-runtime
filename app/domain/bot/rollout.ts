@@ -1,7 +1,7 @@
-import type { CombatState } from '../combat/types'
+import type { SceneState } from '../scene/types'
 import type { Dice } from '../play/dice'
-import { getNextRoundBar } from '../combat/rules/turn'
-import { nextRound } from '../combat/commands/nextRound'
+import { getNextRoundBar } from '../scene/rules/turn'
+import { nextRound } from '../scene/commands/nextRound'
 import { stepWith } from './engine'
 import { GREEDY } from './greedy'
 import { getLiveFoes, type Party } from './party'
@@ -13,7 +13,7 @@ import { tableMove } from './table'
 
 const STEPS = 400
 
-export function rollout(state: CombatState, parties: readonly Party[], dice: Dice, newId: () => string, rounds: number): CombatState {
+export function rollout(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string, rounds: number): SceneState {
   const until = state.round + rounds
   let current = state
   for (let i = 0; i < STEPS; i++) {

@@ -1,5 +1,5 @@
 import { realDice } from "../components/utils";
-import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/combat/projections/actionPanel";
+import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import {
   acceptSpellTest,
   amendAction,
@@ -18,7 +18,7 @@ import {
   withdrawLastReaction,
   withdrawReaction,
   withdrawSpawnedAction,
-} from "../domain/combat/commands/action";
+} from "../domain/scene/commands/action";
 import {
   chooseGrapple,
   chooseManeuver,
@@ -28,8 +28,8 @@ import {
   saveGraze,
   spendHOP,
   moveWhileResting,
-} from "../domain/combat/commands/choices";
-import type { ActionDraft, HOPPurchase } from "../domain/combat/types";
+} from "../domain/scene/commands/choices";
+import type { ActionDraft, HOPPurchase } from "../domain/scene/types";
 import type { SpellModification } from "../domain/tables";
 import { useCombatStore } from "../stores/useCombatStore";
 

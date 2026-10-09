@@ -1,8 +1,8 @@
-import type { CombatState, RootAction } from '../combat/types'
+import type { SceneState, RootAction } from '../scene/types'
 import type { Dice } from '../play/dice'
-import { getOpenAction } from '../combat/rules/log'
-import { hasOpenAnswer } from '../combat/rules/options'
-import { commitAction, resolveAction, rollOrPay } from '../combat/commands/action'
+import { getOpenAction } from '../scene/rules/log'
+import { hasOpenAnswer } from '../scene/rules/options'
+import { commitAction, resolveAction, rollOrPay } from '../scene/commands/action'
 import { answerOpen } from './answer'
 import { findParty, type Party } from './party'
 import { passUp, tableMove } from './table'
@@ -11,7 +11,7 @@ import { passUp, tableMove } from './table'
 
 // How the parties answer the committed action: the new state with one
 // declared, or null.
-export type Answerer = (state: CombatState, parties: readonly Party[], open: RootAction, newId: () => string) => CombatState | null
+export type Answerer = (state: SceneState, parties: readonly Party[], open: RootAction, newId: () => string) => SceneState | null
 
 // The cheapest defense, unweighed, from everyone but those named.
 export function reflexAnswer(skip: readonly string[] = []): Answerer {
@@ -24,7 +24,7 @@ export function reflexAnswer(skip: readonly string[] = []): Answerer {
   }
 }
 
-export function stepOpen(state: CombatState, parties: readonly Party[], open: RootAction, dice: Dice, newId: () => string, answer: Answerer): CombatState | null {
+export function stepOpen(state: SceneState, parties: readonly Party[], open: RootAction, dice: Dice, newId: () => string, answer: Answerer): SceneState | null {
   const owner = findParty(parties, open.actorId)
   switch (open.step) {
     case 'define':
@@ -40,7 +40,7 @@ export function stepOpen(state: CombatState, parties: readonly Party[], open: Ro
 
 // What a bot finds still declared and not committed: taken to its commit, or
 // passed up.
-function settleDeclared(state: CombatState, open: RootAction, dice: Dice, newId: () => string): CombatState {
+function settleDeclared(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {
   if (open.spawnedBy) return passUp(state, open, newId)
   const committed = commitAction(dice, newId)(state)
   return committed !== state ? committed : passUp(state, open, newId)
@@ -48,13 +48,13 @@ function settleDeclared(state: CombatState, open: RootAction, dice: Dice, newId:
 
 // Whether anyone no bot controls has an answer open to the committed action:
 // the die waits for them, and for whoever presses it.
-function isAnswerOwed(state: CombatState, parties: readonly Party[]): boolean {
+function isAnswerOwed(state: SceneState, parties: readonly Party[]): boolean {
   return hasOpenAnswer(state, Object.keys(state.characters).filter((id) => !findParty(parties, id)))
 }
 
 // The open action played to its end, everyone answering by reflex bar `skip`,
 // the table pressing what nobody owes. For trying an option out on a copy.
-export function playOut(state: CombatState, parties: readonly Party[], dice: Dice, newId: () => string, skip: readonly string[] = []): CombatState {
+export function playOut(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string, skip: readonly string[] = []): SceneState {
   let current = state
   for (let i = 0; i < 30; i++) {
     const open = getOpenAction(current)

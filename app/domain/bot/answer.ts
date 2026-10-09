@@ -1,8 +1,8 @@
-import type { ActionKind, CombatState, RootAction } from '../combat/types'
-import { isDeclarationComplete } from '../combat/rules/action'
-import { canAnswer, getLiveReactionsTo } from '../combat/rules/log'
-import { getAvailableActions, type ActionOption } from '../combat/rules/options'
-import { declareReaction } from '../combat/commands/action'
+import type { ActionKind, SceneState, RootAction } from '../scene/types'
+import { isDeclarationComplete } from '../scene/rules/action'
+import { canAnswer, getLiveReactionsTo } from '../scene/rules/log'
+import { getAvailableActions, type ActionOption } from '../scene/rules/options'
+import { declareReaction } from '../scene/commands/action'
 import { isMember, type Party } from './party'
 
 // The reactions a bot makes: plain defenses, whose declaration is nothing but
@@ -20,14 +20,14 @@ function byPrice(a: ActionOption, b: ActionOption): number {
 // action is aimed at (combat.tex "Protect") is left to the table. A defense
 // only a reaction surge pays for is made with the surge (combat.tex "Action
 // surge").
-export function getDefenseOptions(state: CombatState, id: string, open: RootAction): ActionOption[] {
+export function getDefenseOptions(state: SceneState, id: string, open: RootAction): ActionOption[] {
   if (open.targetId !== null && open.targetId !== id) return []
   if (!canAnswer(open, id) || getLiveReactionsTo(state, open.id).some((r) => r.actorId === id)) return []
   return getAvailableActions(state, id).filter((o) => o.available && DEFENSES.includes(o.draft.kind)).sort(byPrice)
 }
 
 // The state with the defense declared, if it says all it must.
-export function declareDefense(state: CombatState, id: string, open: RootAction, option: ActionOption, newId: () => string): CombatState | null {
+export function declareDefense(state: SceneState, id: string, open: RootAction, option: ActionOption, newId: () => string): SceneState | null {
   const declared = declareReaction(id, option.draft, newId)(state)
   const reaction = getLiveReactionsTo(declared, open.id).find((r) => r.actorId === id)
   return reaction && isDeclarationComplete(declared, declared.characters[id], reaction) ? declared : null
@@ -37,7 +37,7 @@ export function declareDefense(state: CombatState, id: string, open: RootAction,
 // bar those named, who has a defense to make declares the cheapest. Null when
 // nobody has one. It stands in for the others' answers when an option is
 // played out.
-export function answerOpen(state: CombatState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): CombatState | null {
+export function answerOpen(state: SceneState, party: Party, open: RootAction, newId: () => string, skip: readonly string[] = []): SceneState | null {
   if (isMember(party, open.actorId)) return null
   for (const id of party.members.filter((m) => !skip.includes(m))) {
     for (const option of getDefenseOptions(state, id, open)) {

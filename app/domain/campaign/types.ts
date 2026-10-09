@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema } from '../types'
-import type { CombatState } from '../combat/types'
+import type { SceneState } from '../scene/types'
 
 // survival.tex "Events": the 8 types of events.
 export const EVENT_TYPES = ['place', 'encounter', 'obstacle', 'treasure', 'wear', 'food', 'shelter', 'water'] as const
@@ -147,6 +147,6 @@ export type CampaignUpdater = (state: CampaignState) => CampaignState
 // The campaign and the fight run beside it. A character is in one or the
 // other, never both: a fight takes its characters off the roster and gives
 // them back when it is over.
-export type Table = { campaign: CampaignState; fight: CombatState }
+export type Table = { campaign: CampaignState; fight: SceneState }
 
 export type TableUpdater = (table: Table) => Table

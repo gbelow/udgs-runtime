@@ -1,9 +1,9 @@
-import type { CombatState } from '../combat/types'
+import type { SceneState } from '../scene/types'
 import type { Dice } from '../play/dice'
-import { resolveAction, rollOrPay } from '../combat/commands/action'
-import { chooseGrapple } from '../combat/commands/choices'
-import { isGrappleRowOf } from '../combat/rules/grapple'
-import { getOpenAction } from '../combat/rules/log'
+import { resolveAction, rollOrPay } from '../scene/commands/action'
+import { chooseGrapple } from '../scene/commands/choices'
+import { isGrappleRowOf } from '../scene/rules/grapple'
+import { getOpenAction } from '../scene/rules/log'
 import type { AttackEstimate } from './estimate'
 import { getBestAttack, type Evaluations } from './evaluation'
 import { aimStrike, getStrikes } from './weapons'
@@ -55,7 +55,7 @@ function prospectsOf(best: AttackEstimate | undefined, incoming: AttackEstimate 
   }
 }
 
-function postureOf(store: Evaluations, state: CombatState, attackerId: string, foeId: string): Posture {
+function postureOf(store: Evaluations, state: SceneState, attackerId: string, foeId: string): Posture {
   const byAttacker = getBestAttack(store, state, attackerId, foeId) ?? undefined
   const byFoe = getBestAttack(store, state, foeId, attackerId) ?? undefined
   return { attacker: prospectsOf(byAttacker, byFoe), foe: prospectsOf(byFoe, byAttacker) }
@@ -63,7 +63,7 @@ function postureOf(store: Evaluations, state: CombatState, attackerId: string, f
 
 // The hit, played out from the declared strike: rolled high, the grab chosen or
 // not, and landed. Null where the strike does not offer to grab.
-function playedHit(strikeState: CombatState, grab: boolean, newId: () => string): CombatState | null {
+function playedHit(strikeState: SceneState, grab: boolean, newId: () => string): SceneState | null {
   const rolled = rollOrPay(hitDice(), newId)(strikeState)
   const open = getOpenAction(rolled)
   if (!open || open.kind !== 'strike' || open.step !== 'post') return null
@@ -72,7 +72,7 @@ function playedHit(strikeState: CombatState, grab: boolean, newId: () => string)
   return resolveAction(newId)(chosen)
 }
 
-export function readGrabs(store: Evaluations, state: CombatState, attackerId: string, foeId: string): GrabReading[] {
+export function readGrabs(store: Evaluations, state: SceneState, attackerId: string, foeId: string): GrabReading[] {
   let ids = 0
   const newId = () => `grab${++ids}`
   const attacker = state.characters[attackerId]

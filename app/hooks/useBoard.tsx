@@ -1,8 +1,8 @@
-import type { Coord, LightLevel } from "../domain/combat/types";
+import type { Coord, LightLevel } from "../domain/scene/types";
 import type { TerrainBrush } from "../domain/types";
-import { BoardView, getBoardView, getBoardViewDigest } from "../domain/combat/projections/boardView";
-import { resolveClick } from "../domain/combat/commands/click";
-import { createBoard, setLight } from "../domain/combat/commands/board";
+import { BoardView, getBoardView, getBoardViewDigest } from "../domain/scene/projections/boardView";
+import { resolveClick } from "../domain/scene/commands/click";
+import { createBoard, setLight } from "../domain/scene/commands/board";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,

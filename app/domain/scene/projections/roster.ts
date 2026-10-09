@@ -1,0 +1,58 @@
+import type { SurgeKind } from '../../types'
+import type { Action, SceneState } from '../types'
+import { getDeclaredTargets } from '../rules/action'
+import { getOpenAction, getReactionsTo } from '../rules/log'
+import { getAffected, getBlastOf } from '../rules/explosion'
+import { getFightName } from '../rules/fighters'
+import { perState } from '../../perState'
+
+// Who a character is to an action.
+export type Role = 'actor' | 'target' | 'reactor' | 'none'
+
+export function getRole(state: SceneState, root: Action, characterId: string): Role {
+  if (root.actorId === characterId) return 'actor'
+  if (getReactionsTo(state, root.id).some((r) => r.actorId === characterId)) return 'reactor'
+  if (root.targetId === characterId) return 'target'
+  if (root.kind === 'explosion' && getAffected(state, getBlastOf(state, root)).some((a) => a.id === characterId)) return 'target'
+  if (root.kind === 'blast' && getAffected(state, root).some((a) => a.id === characterId)) return 'target'
+  return 'none'
+}
+
+export type CombatRosterEntry = {
+  id: string
+  name: string
+  isActive: boolean
+  hasSurged: boolean
+  usedSurge: SurgeKind | null
+  surrendered: boolean
+  // the character's part in the open action, if there is one
+  role: Role | null
+  // whether a click on the entry aims the open action at it
+  targetable: boolean
+}
+
+// The fight's roster as the UI reads it: who is in it, who is selected, who has
+// already spent their surge this round and which one (combat.tex "Action
+// surge": one per round, cleared by nextRound).
+function buildCombatRoster(state: SceneState): CombatRosterEntry[] {
+  const open = getOpenAction(state)
+  const targets = new Set(getDeclaredTargets(state, open))
+  return Object.entries(state.characters).map(([id, c]) => ({
+    id,
+    name: getFightName(state, id),
+    isActive: id === state.activeCharacterId,
+    hasSurged: c.usedSurge !== null,
+    usedSurge: c.usedSurge,
+    surrendered: state.surrendered.includes(id),
+    role: open ? getRole(state, open, id) : null,
+    targetable: targets.has(id),
+  }))
+}
+
+export const getCombatRoster = perState(buildCombatRoster)
+
+// Everything the roster displays, as one string. A roster entry is freshly
+// allocated on every call, so it cannot gate its own re-render by identity;
+// gating on this instead means any change the UI can see schedules the render
+// that recomputes it. Same reasoning as the term breakdowns.
+export const getCombatRosterDigest = perState((state) => JSON.stringify(getCombatRoster(state)))

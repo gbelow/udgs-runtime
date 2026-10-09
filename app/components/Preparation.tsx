@@ -1,6 +1,6 @@
 'use client'
-import type { PrepareView } from '../domain/combat/projections/prepare'
-import type { ActionDraft } from '../domain/combat/types'
+import type { PrepareView } from '../domain/scene/projections/prepare'
+import type { ActionDraft } from '../domain/scene/types'
 import { Button, SectionLabel } from './ui'
 
 const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })

@@ -1,14 +1,14 @@
 # Domain layer critique — worklist
 
 Written 2026-10-03 from a read of `app/domain/` (about 20k lines) and a close read of the
-action pipeline (`combat/commands/{action,sequence,reduce,log}.ts`, `rules/settle.ts`).
+action pipeline (`scene/commands/{action,sequence,reduce,log}.ts`, `rules/settle.ts`).
 It is a sample, not an audit: line counts and grep counts are approximate, and each step
 says what to verify before acting on it.
 
 What holds up and should be kept: the domain is pure (dice and ids are injected, no
 `Math.random` or `Date.now`); there are almost no `any` casts and no TODOs; `ACTIONS` and
 `REACTION_OPENERS` are typed so a new kind fails to compile until it is described; commands
-refuse by returning the state unchanged; the documented ideas in `combat-map.md` are mostly
+refuse by returning the state unchanged; the documented ideas in `scene-map.md` are mostly
 true of the code.
 
 The steps are ordered by payoff and by dependency. Each one stands alone unless it says
@@ -59,7 +59,7 @@ flag. `ACTIONS` stays flat data: no hooks, and no write-side code under `rules/`
 3. `commitAction`: an exhaustive `withCommitFacts` in `commands/`.
 4. One exhaustive switch over root kinds returning `{ skill, DL, scale, grazes } | null`;
    `getRootTestTerms`, `getDLTerms`, `getRootTest` and `needsDie` (apart from move) read it.
-   Write in `combat-map.md` that `die` means "committed by a die", not "has a test".
+   Write in `scene-map.md` that `die` means "committed by a die", not "has a test".
 5. Fold `getOwnCost`'s per-kind overrides (move, flee, fireAgain upkeep) into
    `getDeclaredCost` (needs `state`; check its callers). Sweep link and push depend on the
    state of the fight, not the kind, and stay.
@@ -106,7 +106,7 @@ from `commands/` (the existing config covers domain-vs-React and components-vs-d
 
 **Done when.** `pnpm lint` fails if a `rules/` file imports a `commands/` file, and passes.
 
-**Checked.** A grep over `combat/{rules,projections}`, `item/{rules,projections}` and
+**Checked.** A grep over `scene/{rules,projections}`, `item/{rules,projections}` and
 `character/{rules,lenses}` finds exactly one import of a `commands/` file outside tests:
 `options.ts:9`. So the fix is one site, and the lint rule can go in as `error` straight
 away. `eslint.config.mjs` currently has no such rule (its two rules cover domain-vs-React
@@ -130,7 +130,7 @@ scenarios with commands. `pnpm sim` reports byte-identical. `item/commands/hands
 - `item/rules/hands` → `character/rules/{helpers,body,actionCosts}`;
   `character/rules/damage` → `item/rules/hands`
 - `item/commands/hands.ts` → `character/rules/{spells,production,surge,actionCosts}`
-- `character/commands/deliver.ts` → `combat/dice` (type)
+- `character/commands/deliver.ts` → `scene/dice` (type)
 
 **Direction.** Pick one. Either extract the shared primitives (`getSize`, scaling helpers,
 action-cost table, body-part lookup) into a layer both import and neither re-exports, or
@@ -157,7 +157,7 @@ holding two of those layers. They were split, not merged or indirected:
   `gear.ts` is now the attack side alone.
 
 `import/no-cycle` is an `error` for `app/domain/{character,item}/**`. `pnpm sim` reports
-byte-identical. Not covered: `combat/rules` has its own 17-file cycle and `combat/commands`
+byte-identical. Not covered: `scene/rules` has its own 17-file cycle and `scene/commands`
 a 4-file one (`action`, `floor`, `log`, `sequence`, Step 6's ground), so the rule is not yet
 domain-wide.
 
@@ -165,7 +165,7 @@ domain-wide.
 
 ## Step 4 — The reducer decides rules and recomputes from the character at resolve
 
-**Problem.** `combat-map.md` says whatever an action needs is written onto the record at the
+**Problem.** `scene-map.md` says whatever an action needs is written onto the record at the
 transition, "nothing about an action is computed twice", and "what is previewed is what
 lands" (`getSettled`). `reducePart`'s resolve branch does not keep to that.
 
@@ -213,7 +213,7 @@ same rule read at preview.
 `step === 'done'` inside `getInterruptionOf` and `getMoveOverride`. If a future change
 reorders `history` or lands an action without `step: 'done'`, voiding silently changes.
 
-**Direction.** Document both dependencies in `combat-map/landing.md`. Add a regression test
+**Direction.** Document both dependencies in `scene-map/landing.md`. Add a regression test
 only if one breaks. Not worth restructuring the reducers' signatures.
 
 **Not checked.** Cost: `getAction` is a linear `find`, `getDescendantIds` a scan per level,
@@ -228,7 +228,7 @@ quadratic in actions. I did not measure it; check `pnpm sim` timings before cari
 handover: `beginTurn`, `handOverToFleers`, `takeQueuedTurn`, `forceSurge`, and imports
 `closeTurn`, `getTurnHolder`, `canTakeQueuedTurn`. Turn state (`inTurnCharacter`,
 `turn`, `turnsBegun`, `contenders`, `lastContest`, `fleeing`, `fleers`, `turnQueue`,
-`forcedSurge`) is a hand-rolled state machine on `CombatState`, written by `sequence.ts`,
+`forcedSurge`) is a hand-rolled state machine on `SceneState`, written by `sequence.ts`,
 `commands/turn.ts`, `closeTurn.ts`, `stress.ts`, `morale.ts`, `nextRound.ts`.
 
 `advance` ↔ `land` recurse mutually (`land` ends in `advance`, `advance` calls `land`;
@@ -279,7 +279,7 @@ should have worked.
 **Direction.** Keep the "unchanged state" contract, and add the reason on the read side:
 `getCommitBlockers(state)`, `getRollBlockers(state)` as rules the commands call, so the
 refusal and the panel's explanation are one function (the same move you made for
-declarations, idea 8 in `combat-map.md`).
+declarations, idea 8 in `scene-map.md`).
 
 **Done when.** Each early return in `commitAction`, `rollAction`, `payAction` and `payAll`
 is a blocker the panel can show.
@@ -298,7 +298,7 @@ There is also no command log: from a state alone you cannot tell what was presse
 what order, and the number of dice thrown per kind (a percentile die added to a kind) shifts
 every later die, so recorded seeds and sim reports change on any such edit.
 
-**Direction.** Decide which of these you want and write it in `combat-map.md`:
+**Direction.** Decide which of these you want and write it in `scene-map.md`:
 (a) the log is append-only and undo is a separate concept; (b) the log is a working set and
 only `history` is the record. Then make withdraw/cancel/decline follow one path. Whether to
 add a command log is a product question (replays, bug reports); it is not required for the
@@ -310,14 +310,14 @@ rest.
 
 **Problem.**
 
-- `types.ts` (about 1165 lines) and `combat/types.ts` (about 1000) are single files holding
+- `types.ts` (about 1165 lines) and `scene/types.ts` (about 1000) are single files holding
   unrelated schemas (board, binds, hazards, deliveries, every action, morale, stress).
 - `ActionBase` carries four provenance links on every action: `reactionTo`, `spawnedBy`,
   `followUpOf`, `recipe`.
 - About 41 `Record<string, …>` outside tests. Character ids, item ids, cell keys and weapon
   keys are all `string`; `weaponKey` is "an item id or `natural:<name>`", parsed by
   convention.
-- `state.board` is nullable and checked about 52 times in `combat/`; "boardless passes every
+- `state.board` is nullable and checked about 52 times in `scene/`; "boardless passes every
   gate" is a rule each of those has to remember.
 - A few `as unknown as` in `reduce.ts`, `sequence.ts`, `reactions.ts`.
 - `Placement.focus` is documented as "decides nothing yet".
@@ -326,7 +326,7 @@ rest.
 1. Brand `CharacterId`, `ItemId`, `CellKey`, and a `WeaponKey` that parses into
    `{ kind: 'item' | 'natural', … }` at the boundary. testing.md already prefers this to
    tests.
-2. Split `combat/types.ts` by what it describes (board, binds, actions, turn). Pure moves,
+2. Split `scene/types.ts` by what it describes (board, binds, actions, turn). Pure moves,
    no behaviour change, so do it in one commit.
 3. Decide whether the boardless case is a first-class board (a board with no geometry) or a
    second mode. If the former, the 52 checks collapse.
@@ -336,12 +336,12 @@ rest.
 
 ## Step 11 — Layout and leftovers
 
-- `combat/rules/` has 55 flat files. Group the obvious families: bind-like (`grapple`,
+- `scene/rules/` has 55 flat files. Group the obvious families: bind-like (`grapple`,
   `partners`, `bind`, `tether`, `drag`, `cut`); turn-like (`turn`, `flee`, `feint`, `stress`,
   `morale`, `social`, `surge`); spell-like (`cast`, `fireAgain`, `explosion`).
 - `getRES` / `getINS` still use the older formula (known; CLAUDE.md says reconcile on
   revival). Leave, but mark staged-vs-dead consistently, since the same file styles mix.
-- `combat-map.md`'s "Where a change goes → A new action kind" lists the files you currently
+- `scene-map.md`'s "Where a change goes → A new action kind" lists the files you currently
   have to touch. After Step 1 it should shrink; update it then.
 
 ---
@@ -353,7 +353,7 @@ covered by one 1191-line scenario file, `commands/sequence.test.ts`, and there i
 `reduce`/`log`-level test. Under `instructions/testing.md` that is not a gap in itself.
 Two places that file's categories do fit and nothing covers yet:
 
-- **Invariant (author: combat-map idea 5 and 7).** For every kind in `ACTIONS`, a played-out
+- **Invariant (author: scene-map idea 5 and 7).** For every kind in `ACTIONS`, a played-out
   action leaves `stack` empty and `history` containing it exactly once unless declined.
   Loop over the catalog so a new kind inherits it. Needs a scenario builder per kind, so do
   it after Step 1.

@@ -4,10 +4,10 @@ import { getCatalogItem } from "../domain/item/rules/items";
 import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import type { Character, CharacterUpdater } from "../domain/types";
-import type { Updater } from "../domain/combat/types";
+import type { Updater } from "../domain/scene/types";
 import { isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
-import { dropToFloor, throwOffShieldToFloor } from "../domain/combat/commands/floor";
+import { dropToFloor, throwOffShieldToFloor } from "../domain/scene/commands/floor";
 import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 

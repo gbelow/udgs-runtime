@@ -408,7 +408,7 @@ export interface Container {
 // A hex cell in axial coordinates; one cell is one metre (combat.tex
 // "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
 // "Movement" moves in whole spaces). The geometry that reads these is in
-// `combat/geometry.ts`.
+// `scene/geometry.ts`.
 export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
 export type Coord = z.infer<typeof CoordSchema>
 
@@ -938,7 +938,7 @@ export const RequirementSchema = z.object({
 export type Requirement = z.infer<typeof RequirementSchema>
 
 // A follow-up as data: what a landed strike offers someone, read by
-// combat/rules/recipes.ts. Every word a recipe is written in is closed, and
+// scene/rules/recipes.ts. Every word a recipe is written in is closed, and
 // each is read there.
 //
 // `on` is when it fires. `defended`: a defense of `defenses` (any of the four
@@ -981,7 +981,7 @@ export const RecipeOpensSchema = z.discriminatedUnion('kind', [
 // draws opportunity attacks.
 // `contestedReaction`: a strike of its holder's own in answer to a strike
 // aimed at them, its die thrown with the attack's and the higher landing
-// first (combat/rules/counter.ts); `hit` is what it gets.
+// first (scene/rules/counter.ts); `hit` is what it gets.
 export const RecipeSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('followUp'),

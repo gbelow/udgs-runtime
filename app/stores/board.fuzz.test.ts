@@ -1,21 +1,21 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
-import { CombatStateSchema, type ActionDraft, type CombatState } from '../domain/combat/types'
-import { getActionPanel } from '../domain/combat/projections/actionPanel'
-import { getFootprint } from '../domain/combat/rules/board'
-import { defRows } from '../domain/combat/rules/attack'
-import { getAvailableActions } from '../domain/combat/rules/options'
-import { ACTIONS, isReaction } from '../domain/combat/rules/actionCatalog'
-import { getOpenAction } from '../domain/combat/rules/log'
-import { coordKey, distance } from '../domain/combat/geometry'
-import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/combat/commands/action'
-import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/combat/commands/choices'
-import { dropToFloor } from '../domain/combat/commands/floor'
-import { endTurn, surge } from '../domain/combat/commands/turn'
-import { nextRound } from '../domain/combat/commands/nextRound'
-import { rollHeld } from '../domain/combat/commands/heldTest'
-import { getHeldRows } from '../domain/combat/projections/heldTests'
+import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
+import { getActionPanel } from '../domain/scene/projections/actionPanel'
+import { getFootprint } from '../domain/scene/rules/board'
+import { defRows } from '../domain/scene/rules/attack'
+import { getAvailableActions } from '../domain/scene/rules/options'
+import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
+import { getOpenAction } from '../domain/scene/rules/log'
+import { coordKey, distance } from '../domain/scene/geometry'
+import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/scene/commands/choices'
+import { dropToFloor } from '../domain/scene/commands/floor'
+import { endTurn, surge } from '../domain/scene/commands/turn'
+import { nextRound } from '../domain/scene/commands/nextRound'
+import { rollHeld } from '../domain/scene/commands/heldTest'
+import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
@@ -231,13 +231,13 @@ function plays(): Play[] {
 }
 
 // The state as the schema holds it: the store's own actions left out.
-const dataOf = (s: CombatState): CombatState => CombatStateSchema.parse(s)
+const dataOf = (s: SceneState): SceneState => SceneStateSchema.parse(s)
 
 function assertSound(h: Harness, storage: boolean) {
   const s = h.state()
   if (storage) {
     const data = dataOf(s)
-    expect(JSON.stringify(CombatStateSchema.parse(JSON.parse(JSON.stringify(data)))), 'the state survives storage').toBe(JSON.stringify(data))
+    expect(JSON.stringify(SceneStateSchema.parse(JSON.parse(JSON.stringify(data)))), 'the state survives storage').toBe(JSON.stringify(data))
   }
 
   const view = h.view()
