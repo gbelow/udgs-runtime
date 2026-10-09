@@ -7,6 +7,8 @@ export function resetCombat(state: SceneState): SceneState {
     ...state,
     characters: {},
     activeCharacterId: null,
+    parties: {},
+    partyOf: {},
     inTurnCharacter: '',
     forcedSurge: '',
     turn: 0,

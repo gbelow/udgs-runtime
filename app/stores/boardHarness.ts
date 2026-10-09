@@ -9,6 +9,7 @@ import { startTurn } from '../domain/scene/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
 import type { CampaignCharacter } from '../domain/types'
 import { useCombatStore } from './useCombatStore'
+import { useCampaignStore } from './useCampaignStore'
 
 // The board as a player works it, over the real combat store: a click goes
 // through the same `resolveClick` the hook calls and a button press is the
@@ -48,7 +49,7 @@ export function openHarness(dice: Dice = () => 5) {
     active,
 
     // the sidebar: bring a character into the fight, and the board into being
-    bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCombatStore.getState().loadCharacter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
+    bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCampaignStore.getState().loadFighter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
     createBoard: (radius: number) => press(createBoard(radius)),
     light: (level: LightLevel) => press(setLight(level)),
 

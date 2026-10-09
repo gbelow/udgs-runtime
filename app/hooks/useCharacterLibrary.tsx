@@ -1,7 +1,6 @@
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
-import { useCombatStore } from "../stores/useCombatStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 
 // The saved-character lists and their refreshers. Each field is selected
@@ -22,7 +21,7 @@ export function useCharacterLibrary() {
 export function useLoadCharacter() {
   const tab = useAppStore((s) => s.selectedGameTab);
   const loadForEdit = useCharacterStore((s) => s.loadCharacter);
-  const addToCombat = useCombatStore((s) => s.loadCharacter);
+  const addToCombat = useCampaignStore((s) => s.loadFighter);
   const addToParty = useCampaignStore((s) => s.loadCharacter);
 
   return (character: Character) => {

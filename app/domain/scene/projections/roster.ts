@@ -51,8 +51,40 @@ function buildCombatRoster(state: SceneState): CombatRosterEntry[] {
 
 export const getCombatRoster = perState(buildCombatRoster)
 
+export type RosterParty = { id: string; name: string; entries: CombatRosterEntry[] }
+
+// The roster split by party, in the order the parties joined the fight;
+// anyone in none comes last, in a party with no name.
+function buildRosterParties(state: SceneState): RosterParty[] {
+  const roster = getCombatRoster(state)
+  const parties = Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name, entries: roster.filter((e) => state.partyOf[e.id] === id) }))
+  const loose = roster.filter((e) => !state.parties[state.partyOf[e.id]])
+  return loose.length > 0 ? [...parties, { id: '', name: '', entries: loose }] : parties
+}
+
+export const getRosterParties = perState(buildRosterParties)
+
+// The active character's party and the others they could join, and why they
+// cannot change party now.
+export type PartyPicker = { partyId: string; name: string; parties: { id: string; name: string }[]; bar: string | null }
+
+function buildPartyPicker(state: SceneState): PartyPicker | null {
+  const id = state.activeCharacterId
+  if (!id || !state.characters[id]) return null
+  const partyId = state.partyOf[id]
+  return {
+    partyId,
+    name: state.parties[partyId].name,
+    parties: Object.entries(state.parties).map(([pid, p]) => ({ id: pid, name: p.name })),
+    bar: getOpenAction(state) ? 'an action is being played out' : null,
+  }
+}
+
+export const getPartyPicker = perState(buildPartyPicker)
+export const getPartyPickerDigest = perState((state) => JSON.stringify(getPartyPicker(state)))
+
 // Everything the roster displays, as one string. A roster entry is freshly
 // allocated on every call, so it cannot gate its own re-render by identity;
 // gating on this instead means any change the UI can see schedules the render
 // that recomputes it. Same reasoning as the term breakdowns.
-export const getCombatRosterDigest = perState((state) => JSON.stringify(getCombatRoster(state)))
+export const getCombatRosterDigest = perState((state) => JSON.stringify(getRosterParties(state)))

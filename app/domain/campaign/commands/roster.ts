@@ -1,14 +1,29 @@
 import type { CampaignCharacter } from '../../types'
-import type { CampaignUpdater } from '../types'
-import { addInstance } from '../../instances'
-import { dropEmptyParties, joinParty } from './parties'
+import type { CampaignUpdater, Homecoming } from '../types'
+import { addInstance, makeFightName } from '../../instances'
+import { addParty, dropEmptyParties, joinParty, withParty } from './parties'
 
 // The character joins the roster, in the party they were in or another (see
-// `joinParty`).
-export function addToRoster(char: CampaignCharacter, newId: () => string): CampaignUpdater {
+// `joinParty`), under an id nobody at the table has `taken`.
+export function addToRoster(char: CampaignCharacter, newId: () => string, taken: readonly string[]): CampaignUpdater {
   return (state) => {
-    const added = addInstance(char, state.characters, newId)
+    const added = addInstance(char, state.characters, newId, taken)
     return joinParty(added.id, newId)({ ...state, characters: { ...state.characters, [added.id]: added } })
+  }
+}
+
+// The character comes back to the roster from a fight, under the id they left
+// with, into the party the fight left them in — one it made joins the
+// campaign, under its own name unless another party has it. They still sit
+// out the ET they were sent in.
+export function checkIn(char: CampaignCharacter, home: Homecoming): CampaignUpdater {
+  return (state) => {
+    const nameInUse = Object.values(state.parties).some((p) => p.name === home.name)
+    const opened = state.parties[home.partyId]
+      ? withParty(home.partyId, (p) => ({ ...p, name: home.name || p.name }))(state)
+      : addParty(home.partyId, home.from, nameInUse ? undefined : home.name)(state)
+    const back = { ...char, fightName: makeFightName(char, state.characters) }
+    return dropEmptyParties({ ...opened, characters: { ...opened.characters, [char.id]: back }, partyOf: { ...opened.partyOf, [char.id]: home.partyId } })
   }
 }
 

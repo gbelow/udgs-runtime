@@ -1278,9 +1278,19 @@ export type EditEntry = z.infer<typeof EditEntrySchema>
 // the same parse-with-defaults path that ingests characters can rehydrate a
 // saved fight, and every field carries a default so a partial or older payload
 // still lands on a complete SceneState.
+// A party in the fight: one the campaign sent its characters in, under the
+// campaign's id, or one made in the fight.
+export const FightPartySchema = z.object({ name: str.default('') })
+export type FightParty = z.infer<typeof FightPartySchema>
+
 export const SceneStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
+  // the parties the fight's characters are in, by id, in the order they
+  // joined the fight, and the party each character is in; who is in which is
+  // the table's to change until the fight gives them back to the campaign
+  parties: z.record(str, FightPartySchema).default({}),
+  partyOf: z.record(str, str).default({}),
   round: z.number().default(0),
   // play.tex "Combat": whose turn it is, '' for nobody's, and which turn that
   // is (the number the actions declared in it carry) — the turn can be

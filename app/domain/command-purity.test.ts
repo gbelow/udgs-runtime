@@ -12,6 +12,7 @@ import * as boardModule from './scene/commands/board'
 import * as bindModule from './scene/commands/bind'
 import * as floorModule from './scene/commands/floor'
 import * as charactersModule from './scene/commands/characters'
+import * as fightPartiesModule from './scene/commands/parties'
 import * as moraleModule from './scene/commands/morale'
 import * as socialModule from './scene/commands/social'
 import * as rosterModule from './campaign/commands/roster'
@@ -38,7 +39,7 @@ import armorsCatalog from '../assets/armors.json'
 // A character holding a race being made, for the commands that make one.
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
-const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
+const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 
@@ -283,13 +284,28 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   removeFromCombat: (s) => combatCommands.removeFromCombat('b')(deepFreeze(grappling(s))),
   updateCharacter: (s) => combatCommands.updateCharacter('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
+  dropEmptyFightParties: (s) => combatCommands.dropEmptyFightParties(deepFreeze(partied(s))),
+  joinFight: (s) => combatCommands.joinFight(makeCampaignCharacter({ name: 'c' }), 'x', 'X')(s),
+  addToFight: (s) => combatCommands.addToFight(makeCampaignCharacter({ name: 'c' }), newId, [], [])(deepFreeze(partied(s))),
+  moveToParty: (s) => combatCommands.moveToParty('a', 'y')(deepFreeze(partied(s))),
+  splitOff: (s) => combatCommands.splitOff('a', newId)(deepFreeze(partied(s))),
+  renameParty: (s) => combatCommands.renameParty('x', 'Z')(deepFreeze(partied(s))),
+}
+
+// The fight with `a` in party `x` and `b` in party `y`.
+const partied = (s: SceneState): SceneState => ({ ...cleared(s), parties: { x: { name: 'X' }, y: { name: 'Y' } }, partyOf: { a: 'x', b: 'y' } })
+
+// The table with `a` sent from the roster to the fight, in party `p`.
+const away = ({ campaign, fight }: Table): Table => {
+  const { a: _sent, ...characters } = campaign.characters
+  return { campaign: { ...campaign, characters }, fight: { ...fight, parties: { p: { name: 'Party 1' } }, partyOf: { a: 'p' } } }
 }
 
 // The campaign's subject is a table: `a` and `b` on the roster in party
 // `p` on node `n1`, `a` with an exhaustion Will test to make, and the combat
 // subject's fight beside it, its strike cleared.
 const campaignCases: Record<string, (t: Table) => unknown> = {
-  addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued')(campaign),
+  addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued', [])(campaign),
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
   setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
@@ -297,6 +313,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   addParty: ({ campaign }) => campaignCommands.addParty('q')(campaign),
   dropEmptyParties: ({ campaign }) => campaignCommands.dropEmptyParties({ ...campaign, partyOf: {} }),
   joinParty: ({ campaign }) => campaignCommands.joinParty('c', () => 'q')(campaign),
+  withParty: ({ campaign }) => campaignCommands.withParty('p', (p) => ({ ...p, name: 'x' }))(campaign),
   mergeParties: ({ campaign }) => campaignCommands.mergeParties('p', 'q')(campaignCommands.addParty('q')(campaign)),
   setPartyExposure: ({ campaign }) => campaignCommands.setPartyExposure('p', 3)(campaign),
   setPartyLit: ({ campaign }) => campaignCommands.setPartyLit('p', true)(campaign),
@@ -305,8 +322,13 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
   passETs: ({ campaign }) => campaignCommands.passETs(12)(campaign),
-  sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
-  returnFromFight: (t) => campaignCommands.returnFromFight(0, () => 'issued')(t),
+  sendToFight: (t) => campaignCommands.sendToFight(['a'])(t),
+  returnFromFight: (t) => campaignCommands.returnFromFight(0)(t),
+  checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' })(campaign),
+  loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
+  loadOntoRoster: (t) => campaignCommands.loadOntoRoster(characterSubject(), () => 'issued')(t),
+  removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
+  resetFight: (t) => campaignCommands.resetFight(deepFreeze(away(t))),
 }
 
 // Exploration's subject is the campaign's beside what exploration keeps:

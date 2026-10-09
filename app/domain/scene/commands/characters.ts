@@ -3,10 +3,12 @@ import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { isSpendingOutOfTurn } from '../rules/turn'
 import { settleBinds } from './bind'
+import { dropEmptyFightParties } from './parties'
 import { getChanges } from '../rules/changes'
 
-// Takes a character out of the fight: their place on the board goes with
-// them, and so does every grapple they were in and the cover they had taken.
+// Takes a character out of the fight: their place on the board and in their
+// party goes with them, and so does every grapple they were in and the cover
+// they had taken.
 // Refused while an action is open, since it may be theirs or aimed at them.
 export function removeFromCombat(id: string): Updater {
   return (state) => {
@@ -14,7 +16,8 @@ export function removeFromCombat(id: string): Updater {
     const { [id]: leaving, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const { [id]: _cover, ...bodyCover } = state.bodyCover
-    const left = { ...state, characters, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }
+    const { [id]: _party, ...partyOf } = state.partyOf
+    const left = dropEmptyFightParties({ ...state, characters, partyOf, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) })
     return settleBinds(left)
   }
 }

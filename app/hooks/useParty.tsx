@@ -80,8 +80,8 @@ export function usePartyCommands() {
     setRoller: (partyId: string, groupId: string, roller: string) => updateExploration(setRollerOf(partyId, groupId, roller)),
     decide: (id: string, decision: Decision) => updateExploration(decideFor(id, decision)),
     passET: () => updateExploration(passClock(realDice, newId)),
-    sendActiveToFight: () => withActive((id) => updateTable(sendToFight([id], newId))),
-    sendAllToFight: () => updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters), newId)),
-    returnFromFight: (ets: number) => updateTable(returnFromFight(ets, newId)),
+    sendActiveToFight: () => withActive((id) => updateTable(sendToFight([id]))),
+    sendAllToFight: () => updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters))),
+    returnFromFight: (ets: number) => updateTable(returnFromFight(ets)),
   };
 }

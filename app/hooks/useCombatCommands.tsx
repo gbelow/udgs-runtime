@@ -1,7 +1,8 @@
 import { nextRound as passRound } from "../domain/scene/commands/nextRound"
 import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/scene/commands/turn"
 import type { SurgeKind } from "../domain/types"
-import { resetCombat as resetGame} from "../domain/scene/commands/resetCombat"
+import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
+import { moveToParty as moveInto, renameParty as renameFightParty, splitOff as splitFrom } from "../domain/scene/commands/parties"
 import { toggleBreakage as switchBreakage } from "../domain/scene/commands/breakage"
 import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/scene/commands/morale"
 import { rollHeld as testHeld } from "../domain/scene/commands/heldTest"
@@ -11,6 +12,7 @@ import type { SocialAction } from "../domain/tables"
 import type { Updater } from "../domain/scene/types"
 import type { RollMode } from "../domain/play/dice"
 import { useCombatStore } from "../stores/useCombatStore"
+import { useCampaignStore } from "../stores/useCampaignStore"
 import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
@@ -21,12 +23,17 @@ export function useCombatCommands() {
   const tab = useAppStore((s) => s.selectedGameTab)
   // Select just the stable action refs, not the whole combat store, to avoid
   // subscribing to every combat change.
-  const removeCharacter = useCombatStore((s) => s.removeCharacter)
   const updateCombatState = useCombatStore((s) => s.updateCombatState)
+  const updateTable = useCampaignStore((s) => s.updateTable)
+  const newId = () => crypto.randomUUID()
 
   const killCharacter = () => {
     const c = readActiveCharacter(tab)
-    if (c && isCampaignCharacter(c)) removeCharacter(c.id)
+    if (c && isCampaignCharacter(c)) updateTable(removeFromFight(c.id))
+  }
+
+  const renameParty = (partyId: string, name: string) => {
+    updateCombatState(renameFightParty(partyId, name))
   }
 
   // The turn buttons act for the active character; the commands refuse
@@ -90,18 +97,21 @@ export function useCombatCommands() {
     if (id) updateCombatState(insultSocial(id, targets))
   }
 
+  const moveToParty = (partyId: string) => asActive((id) => moveInto(id, partyId))()
+  const splitOff = asActive((id) => splitFrom(id, newId))
+
   const negotiate = asActive(negotiateSocial)
   const defaultToCoward = asActive(defaultToCowardSocial)
   const surrender = asActive(surrenderSocial)
   const unsurrender = asActive(unsurrenderSocial)
 
   const resetCombat = () => {
-    updateCombatState(resetGame)
+    updateTable(resetFight)
   }
 
   const toggleBreakage = () => {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
 }

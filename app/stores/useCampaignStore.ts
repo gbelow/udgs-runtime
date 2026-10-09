@@ -5,7 +5,8 @@ import { CampaignState, CampaignStateSchema, CampaignUpdater } from '../domain/c
 import type { TableUpdater } from '../domain/scene/types'
 import { ExplorationState, ExplorationStateSchema, ExplorationUpdater } from '../domain/exploration/types'
 import { makeCampaignCharacter } from '../domain/factories'
-import { addToRoster, updateRosterCharacter, setRosterActive } from '../domain/campaign/commands/roster'
+import { updateRosterCharacter, setRosterActive } from '../domain/campaign/commands/roster'
+import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 
 // The data half is the domain's CampaignState, as with the combat store: the
@@ -16,6 +17,7 @@ import { useCombatStore } from './useCombatStore'
 // `updateExploration`.
 type CampaignActions = {
   loadCharacter: (rawCharacter: unknown) => void
+  loadFighter: (rawCharacter: unknown) => void
   setActiveCharacter: (id: string) => void
   updateActiveCharacter: (updater: (c: CampaignCharacter) => CampaignCharacter) => CampaignCharacter | undefined
   updateCampaignState: (updater: CampaignUpdater) => void
@@ -44,7 +46,10 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   },
 
   loadCharacter: (rawCharacter) =>
-    set(addToRoster(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID())),
+    get().updateTable(loadOntoRoster(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID())),
+
+  loadFighter: (rawCharacter) =>
+    get().updateTable(loadIntoFight(makeCampaignCharacter(rawCharacter), () => crypto.randomUUID())),
 
   setActiveCharacter: (id) => set(setRosterActive(id)),
 

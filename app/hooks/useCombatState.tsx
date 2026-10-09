@@ -1,4 +1,4 @@
-import { getCombatRoster, getCombatRosterDigest, CombatRosterEntry } from "../domain/scene/projections/roster";
+import { getRosterParties, getCombatRosterDigest, getPartyPicker, getPartyPickerDigest, type CombatRosterEntry, type PartyPicker, type RosterParty } from "../domain/scene/projections/roster";
 import { setTarget } from "../domain/scene/commands/action";
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/scene/projections/morale";
@@ -25,13 +25,13 @@ export function useCombatState() {
 }
 
 export function useCombatRoster(): {
-  roster: CombatRosterEntry[];
+  parties: RosterParty[];
   pick: (entry: CombatRosterEntry) => void;
 } {
   // Gate on a digest of the roster, then build it — the entries are freshly
   // allocated, so they cannot gate themselves by identity.
   useCombatStore(getCombatRosterDigest);
-  const roster = getCombatRoster(useCombatStore.getState());
+  const parties = getRosterParties(useCombatStore.getState());
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const update = useCombatStore((s) => s.updateCombatState);
 
@@ -42,7 +42,14 @@ export function useCombatRoster(): {
     else setActiveCharacter(entry.id);
   };
 
-  return { roster, pick };
+  return { parties, pick };
+}
+
+// The active character's party and the ones they could join, gated on a
+// digest since the picker is freshly allocated.
+export function usePartyPicker(): PartyPicker | null {
+  useCombatStore(getPartyPickerDigest);
+  return getPartyPicker(useCombatStore.getState());
 }
 
 const NO_ONE = 'no active character'

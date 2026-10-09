@@ -1,24 +1,17 @@
 import type { CampaignState, CampaignUpdater, Party } from '../types'
 import { CrawlMapSchema, PartySchema } from '../types'
 import { getPartyMembers } from '../rules/place'
+import { nextPartyName } from '../rules/parties'
 
-const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
+export const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
   (state) => (state.parties[partyId] ? { ...state, parties: { ...state.parties, [partyId]: update(state.parties[partyId]) } } : state)
 
-// A party's name: the first "Party n" no party has.
-function nextPartyName(state: CampaignState): string {
-  const names = new Set(Object.values(state.parties).map((p) => p.name))
-  let n = 1
-  while (names.has(`Party ${n}`)) n++
-  return `Party ${n}`
-}
-
 // A new party in the campaign, with nobody in it yet, where `from` says and
-// seeing by its light.
-export function addParty(partyId: string, from?: Party): CampaignUpdater {
+// seeing by its light, called `name` or the next free party name.
+export function addParty(partyId: string, from?: Party, name?: string): CampaignUpdater {
   return (state) => ({
     ...state,
-    parties: { ...state.parties, [partyId]: PartySchema.parse({ name: nextPartyName(state), exposure: from?.exposure, lit: from?.lit, node: from?.node }) },
+    parties: { ...state.parties, [partyId]: PartySchema.parse({ name: name || nextPartyName(state.parties), exposure: from?.exposure, lit: from?.lit, node: from?.node }) },
   })
 }
 

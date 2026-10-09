@@ -62,8 +62,8 @@ function main(): void {
 
   let n = 0
   const newId = () => `s${++n}`
-  const attacker = addInstance(buildFighter('a', specA, 'attacker'), {}, newId)
-  const defender = addInstance(buildFighter('b', specB, 'defender'), { a: attacker }, newId)
+  const attacker = addInstance(buildFighter('a', specA, 'attacker'), {}, newId, [])
+  const defender = addInstance(buildFighter('b', specB, 'defender'), { a: attacker }, newId, [attacker.id])
   const state = board({ a: [0, 0], b: [distance, 0] }, attacker, defender)
 
   const ranked = rankAttacks(estimateAttacks(state, 'a', 'b', { aim, staWeight }))

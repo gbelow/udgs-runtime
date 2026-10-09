@@ -142,3 +142,8 @@ export const CampaignStateSchema = z.object({
 export type CampaignState = z.infer<typeof CampaignStateSchema>
 
 export type CampaignUpdater = (state: CampaignState) => CampaignState
+
+// Where a character comes back to from a fight: a party of the campaign's, or
+// one the fight made, which joins the campaign where `from` is. Either is
+// called `name` from then on.
+export type Homecoming = { partyId: string; name: string; from?: Party }

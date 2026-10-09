@@ -7,8 +7,8 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { CharacterSheet, SimpleResource } from './CharacterSheet';
 import { makeDieRoll } from './utils';
-import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';
+import { Button, NumberInput, SectionLabel, TextInput, Tooltip, selectClass } from './ui';
+import { useCombatRoster, useCombatState, usePartyPicker, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';
 import { ROLL_MODES } from '../domain/play/dice';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
@@ -54,6 +54,7 @@ export function PlayPanel(){
               <Button aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
               <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
               <SurgeControl />
+              <PartyControl />
             </div>
             <ActionPanel />
           </>}
@@ -295,22 +296,45 @@ function SurgeControl(){
   )
 }
 
-function CharacterList(){
-  const { roster, pick } = useCombatRoster()
+// Who is in which party of the fight: inherited from the campaign, changed by
+// the table before and during the fight, and handed back when it ends.
+function PartyControl(){
+  const picker = usePartyPicker()
+  const { moveToParty, splitOff, renameParty } = useCombatCommands()
+  if (!picker) return null
 
   return(
-    <div className='flex flex-row gap-1.5 grow overflow-x-auto'>
+    <div className='flex gap-1 items-center text-xs'>
+      <select className={selectClass} aria-label='party' value={picker.partyId} disabled={picker.bar !== null} title={picker.bar ?? 'the party this character is in'} onChange={(e) => moveToParty(e.target.value)}>
+        {picker.parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      <TextInput key={picker.partyId} className='w-24 text-xs' aria-label='party name' defaultValue={picker.name} onBlur={(e) => renameParty(picker.partyId, e.target.value.trim())} />
+      <Button size='xs' aria-label='new party' disabled={picker.bar !== null} title={picker.bar ?? 'a new party with only this character in it'} onClick={splitOff}>new party</Button>
+    </div>
+  )
+}
+
+function CharacterList(){
+  const { parties, pick } = useCombatRoster()
+
+  return(
+    <div className='flex flex-row gap-3 grow overflow-x-auto'>
       {
-        roster.map((entry) =>
-          <Button key={entry.id} aria-label={entry.name}
-            variant={entry.targetable ? 'bad' : entry.isActive ? 'primary' : 'default'}
-            className={entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}
-            onClick={() => pick(entry)}>
-            {entry.name}
-            {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
-            {entry.surrendered ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>surrendered</span> : null}
-            {entry.role && entry.role !== 'none' ? <span className='ml-1.5 text-[10px] text-muted'>{entry.role}</span> : null}
-          </Button>
+        parties.map((party) =>
+          <div key={party.id} className='flex flex-row gap-1.5 items-center'>
+            {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
+            {party.entries.map((entry) =>
+              <Button key={entry.id} aria-label={entry.name}
+                variant={entry.targetable ? 'bad' : entry.isActive ? 'primary' : 'default'}
+                className={entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}
+                onClick={() => pick(entry)}>
+                {entry.name}
+                {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
+                {entry.surrendered ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>surrendered</span> : null}
+                {entry.role && entry.role !== 'none' ? <span className='ml-1.5 text-[10px] text-muted'>{entry.role}</span> : null}
+              </Button>
+            )}
+          </div>
         )
       }
     </div>

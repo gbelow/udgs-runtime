@@ -101,7 +101,7 @@ function create(specA: string, specB: string, seed: number, distance: number, ma
   const placements: Record<string, [number, number]> = {}
   for (const side of SIDES) {
     const spec = side === 'A' ? specA : specB
-    const added = addInstance(buildFighter(IDS[side], spec, side), Object.fromEntries(characters.map((c) => [c.id, c])), env.newId)
+    const added = addInstance(buildFighter(IDS[side], spec, side), Object.fromEntries(characters.map((c) => [c.id, c])), env.newId, characters.map((c) => c.id))
     characters.push(added)
     placements[added.id] = [side === 'A' ? 0 : distance, 0]
   }

@@ -254,6 +254,7 @@ app/domain/scene/
 │   ├── click.ts        resolveClick: what a click on a cell, token, floor item or the turn button does
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
+│   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table
 │   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
@@ -262,7 +263,7 @@ app/domain/scene/
 │   ├── swim.ts         sink, sinkInArmor: the swimmer goes deeper, no deeper than the floor
 │   ├── social.ts       say: intimidate, taunt, rally or an abusive's insult for 5 AP, written to `state.pressure`; surrender (flag in `state.surrendered`), unsurrender (free), negotiate (5 AP only), defaultToCoward
 │   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.stress`; tanatosis and a martyr who can pay make theirs at once), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
-│   ├── fight.ts        sendToFight, returnFromFight: characters off the campaign's roster into the scene and back, with the ETs it took
+│   ├── fight.ts        sendToFight, returnFromFight, removeFromFight, resetFight, loadIntoFight, loadOntoRoster: characters off the campaign's roster into the scene and back under the ids they left with, in the parties the scene left them in, with the ETs it took
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
@@ -332,7 +333,7 @@ app/domain/scene/
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test
 │   ├── aim.ts          where the open action waits to be pointed on the board
-│   ├── fight.ts        getReturnBar: why the scene cannot give its characters back now
+│   ├── fight.ts        getReturnBar, isFromRoster, getHomecoming: why the scene cannot give its characters back now, and the party it gives each back to
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters

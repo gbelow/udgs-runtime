@@ -3,6 +3,7 @@ import { memo, Profiler, ProfilerOnRenderCallback, useState } from "react";
 import { PlayPanel } from "./PlayPanel";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
 import { makeCampaignCharacter } from "../domain/factories";
 import { skillLenses } from "../domain/character/lenses";
 import { measureProjection, measureProjectionBatch, ProjectionTiming, projectionEntries, ProjectionEntry } from "../perf";
@@ -47,7 +48,7 @@ export function BreakMe() {
 
   const [numPanels, setNumPanels] = useState(1)
   const [loadCount, setLoadCount] = useState(10)
-  const loadCharacter = useCombatStore((state) => state.loadCharacter)
+  const loadCharacter = useCampaignStore((state) => state.loadFighter)
   const hasActiveCharacter = useCombatStore((s) => !!s.activeCharacterId)
   const baseCharacterList = useAppStore((s) => s.baseCharacterList)
 
