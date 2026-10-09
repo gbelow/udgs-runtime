@@ -17,9 +17,13 @@ function endDays(state: CampaignState, days: number): CampaignState {
   return { ...state, characters }
 }
 
-// Moves the clock on to this time, ending every day it passes on the roster.
-export function advanceClock(to: number): CampaignUpdater {
-  return (state) => (to <= state.clock ? state : { ...endDays(state, getDaysEnded(state.clock, to)), clock: to })
+// Moves the clock on by this many ETs, ending every day it passes on the
+// roster.
+export function passETs(count: number): CampaignUpdater {
+  return (state) => {
+    const to = state.clock + Math.max(0, Math.round(count))
+    return to === state.clock ? state : { ...endDays(state, getDaysEnded(state.clock, to)), clock: to }
+  }
 }
 
 // survival.tex "Night and Darkness": "The day can have any number of periods

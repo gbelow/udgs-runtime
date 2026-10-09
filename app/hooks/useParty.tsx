@@ -82,6 +82,6 @@ export function usePartyCommands() {
     passET: () => updateExploration(passClock(realDice, newId)),
     sendActiveToFight: () => withActive((id) => updateTable(sendToFight([id], newId))),
     sendAllToFight: () => updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters), newId)),
-    returnFromFight: () => updateTable(returnFromFight(newId)),
+    returnFromFight: (ets: number) => updateTable(returnFromFight(ets, newId)),
   };
 }

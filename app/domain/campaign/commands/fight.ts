@@ -2,11 +2,10 @@ import type { CampaignState, TableUpdater } from '../types'
 import { withInstance } from '../../instances'
 import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from '../../scene/commands/resetCombat'
-import { getFightSeconds } from '../rules/clock'
 import { getReturnBar } from '../rules/fight'
 import { addToRoster, checkOut } from './roster'
 import { dropEmptyParties } from './parties'
-import { advanceClock } from './clock'
+import { passETs } from './clock'
 
 // Takes these characters off the roster and into the fight.
 export function sendToFight(ids: string[], newId: () => string): TableUpdater {
@@ -28,13 +27,14 @@ function forgetMissing(state: CampaignState): CampaignState {
 
 // Ends the fight and puts everyone in it back on the roster as the fight left
 // them — whoever joined the fight on its own joins the roster too. A fight
-// that ran rounds leaves its marks on them, and moves the clock on by them.
-export function returnFromFight(newId: () => string): TableUpdater {
+// that ran rounds leaves its marks on them. The clock moves on by the ETs the
+// table says the scene took, if any.
+export function returnFromFight(ets: number, newId: () => string): TableUpdater {
   return (table) => {
     if (getReturnBar(table.fight)) return table
     const { campaign, fight } = table
     const left = Object.values(fight.characters).map((c) => (fight.round > 0 ? leaveFight(c) : c))
     const back = forgetMissing(left.reduce((state, c) => addToRoster(c, newId)(state), campaign))
-    return { campaign: advanceClock(back.clock + getFightSeconds(fight.round))(back), fight: resetCombat(fight) }
+    return { campaign: passETs(ets)(back), fight: resetCombat(fight) }
   }
 }

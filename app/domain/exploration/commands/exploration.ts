@@ -10,9 +10,9 @@ import {
   getPassBar, getRestExposure, getRestHealing, getRestRecovery, getRestsToday, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
-import { getDay, getNextET } from '../../campaign/rules/clock'
+import { getDay } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
-import { advanceClock } from '../../campaign/commands/clock'
+import { passETs } from '../../campaign/commands/clock'
 import { addParty } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 
@@ -280,6 +280,6 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
       return { t: next.t, results: [...acc.results, ...next.results] }
     }, { t: opened, results: [] })
     const closed = closeET(played.t, opening, played.results)
-    return { ...closed, campaign: advanceClock(getNextET(opened.campaign.clock))(closed.campaign) }
+    return { ...closed, campaign: passETs(1)(closed.campaign) }
   }
 }

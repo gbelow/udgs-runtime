@@ -1,13 +1,9 @@
-import { DAY_SECONDS, ET_SECONDS } from '../rules/clock'
+import { ETS_PER_DAY, getDay } from '../rules/clock'
 
-export type ClockView = { day: number; et: number; minutes: number }
+export type ClockView = { day: number; et: number; etsPerDay: number }
 
-// The clock as the table reads it: the day, the ET of that day, both counted
-// from 1, and the minutes already gone in that ET.
+// The clock as the table reads it: the day and the ET of that day, both
+// counted from 1.
 export function getClockView(clock: number): ClockView {
-  return {
-    day: Math.floor(clock / DAY_SECONDS) + 1,
-    et: Math.floor((clock % DAY_SECONDS) / ET_SECONDS) + 1,
-    minutes: Math.floor((clock % ET_SECONDS) / 60),
-  }
+  return { day: getDay(clock) + 1, et: (clock % ETS_PER_DAY) + 1, etsPerDay: ETS_PER_DAY }
 }

@@ -18,7 +18,7 @@ describe('starting a fight', () => {
     const first = sendToFight(['a', 'b'], () => 'issued')(table)
     expect(getNextRoundBar(first.fight)).toBeNull()
     const fought = { ...first, fight: nextRound(() => 0, () => 'issued')(first.fight) }
-    const again = sendToFight(['a', 'b'], () => 'issued')(returnFromFight(() => 'issued')(fought))
+    const again = sendToFight(['a', 'b'], () => 'issued')(returnFromFight(0, () => 'issued')(fought))
     expect(getNextRoundBar(again.fight)).toBeNull()
   })
 })

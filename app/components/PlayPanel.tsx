@@ -28,6 +28,7 @@ export function PlayPanel(){
 
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
+  const [etsTaken, setEtsTaken] = useState(0)
 
   return(
     <div className='flex flex-col text-left'>
@@ -35,7 +36,9 @@ export function PlayPanel(){
         <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
         <CharacterList />
         <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
-        <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={returnFromFight}>{round > 0 ? 'end combat' : 'back to party'}</Button>
+        <span className='text-xs text-muted'>ETs taken</span>
+        <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
+        <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>{round > 0 ? 'end combat' : 'back to party'}</Button>
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
       <MoralePanel />

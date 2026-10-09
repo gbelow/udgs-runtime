@@ -302,9 +302,9 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   loadMap: ({ campaign }) => campaignCommands.loadMap({ name: 'other' })(campaign),
   unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
-  advanceClock: ({ campaign }) => campaignCommands.advanceClock(2 * 24 * 60 * 60)(campaign),
+  passETs: ({ campaign }) => campaignCommands.passETs(12)(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
-  returnFromFight: (t) => campaignCommands.returnFromFight(() => 'issued')(t),
+  returnFromFight: (t) => campaignCommands.returnFromFight(0, () => 'issued')(t),
 }
 
 // Exploration's subject is the campaign's beside what exploration keeps:

@@ -16,7 +16,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 // and the sheet of whoever is picked, with their plan for the coming ET.
 export function PartyPanel(){
 
-  const { day, et, minutes } = useClock()
+  const { day, et, etsPerDay } = useClock()
   const { map, night, dayETs, parties, decisions, results } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
@@ -27,7 +27,7 @@ export function PartyPanel(){
   return(
     <div className='flex flex-col text-left'>
       <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
-        <span className='text-xs text-muted'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/6 · <span className='font-mono text-fg'>{minutes}</span> min · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></span>
+        <span className='text-xs text-muted'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/{etsPerDay} · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></span>
         <span className='text-xs text-muted'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
         <select aria-label='map' className={selectClass} value={map?.name ?? ''} onChange={(e) => loadMap(e.target.value)}>
