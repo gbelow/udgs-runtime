@@ -258,6 +258,7 @@ const CharacterIngestValues = {
 
 export const CharacterIngestSchema = z.object({
   tags: z.array(z.string()).optional(),
+  startingWealth: z.number().nullable().optional(),
   ...CharacterIngestValues
 }).strip()
 

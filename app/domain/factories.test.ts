@@ -170,6 +170,12 @@ describe('a character survives its storage format', () => {
     expect(makeCharacter(JSON.parse(JSON.stringify(c)))).toEqual(c)
   })
 
+  // Loading a created character into the sheet dropped the gold creation
+  // gave it, because ingestion strips what it has no entry for.
+  it('keeps the starting wealth a created character carries', () => {
+    expect(makeCharacter({ startingWealth: 3000 }).startingWealth).toBe(3000)
+  })
+
   it('round-trips a campaign character through JSON', () => {
     const c = makeCampaignCharacter({
       ...populated(),
