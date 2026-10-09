@@ -20,7 +20,8 @@
       }
     },
     "burden": 3,
-    "bulk": 2
+    "bulk": 2,
+    "price": 100
   },
   "Quiver": {
     "name": "Quiver",
@@ -43,7 +44,8 @@
       }
     },
     "burden": 0,
-    "bulk": 2
+    "bulk": 2,
+    "price": 200
   },
   "Coin Pouch": {
     "name": "Coin Pouch",
@@ -89,7 +91,8 @@
       }
     },
     "burden": 3,
-    "bulk": 2
+    "bulk": 2,
+    "price": 300
   },
   "Backpack": {
     "name": "Backpack",
@@ -112,7 +115,8 @@
       }
     },
     "burden": 4,
-    "bulk": 3
+    "bulk": 3,
+    "price": 50
   },
   "Large Backpack": {
     "name": "Large Backpack",
@@ -135,7 +139,8 @@
       }
     },
     "burden": 5,
-    "bulk": 3
+    "bulk": 3,
+    "price": 100
   },
   "Saddle": {
     "name": "Saddle",
@@ -158,7 +163,8 @@
       }
     },
     "burden": 5,
-    "bulk": 4
+    "bulk": 4,
+    "price": 400
   },
   "Sled": {
     "name": "Sled",
@@ -181,7 +187,8 @@
       }
     },
     "burden": 6,
-    "bulk": 5
+    "bulk": 5,
+    "price": 20
   },
   "One-Horse Cart": {
     "name": "One-Horse Cart",
@@ -204,7 +211,8 @@
       }
     },
     "burden": 7,
-    "bulk": 7
+    "bulk": 7,
+    "price": 3000
   },
   "Two-Horse Cart": {
     "name": "Two-Horse Cart",
@@ -227,6 +235,7 @@
       }
     },
     "burden": 7,
-    "bulk": 8
+    "bulk": 8,
+    "price": 6000
   }
 }

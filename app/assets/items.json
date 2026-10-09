@@ -10,7 +10,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1500
   },
   "Dagger": {
     "name": "Dagger",
@@ -23,7 +24,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 300
   },
   "Club": {
     "name": "Club",
@@ -36,7 +38,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Stiletto": {
     "name": "Stiletto",
@@ -49,7 +52,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Whip": {
     "name": "Whip",
@@ -62,7 +66,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Short Sword": {
     "name": "Short Sword",
@@ -75,7 +80,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 800
   },
   "Rapier": {
     "name": "Rapier",
@@ -88,7 +94,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1000
   },
   "Short Spear": {
     "name": "Short Spear",
@@ -101,7 +108,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Mace": {
     "name": "Mace",
@@ -114,7 +122,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Battle Axe": {
     "name": "Battle Axe",
@@ -127,7 +136,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Longsword": {
     "name": "Longsword",
@@ -140,7 +150,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1200
   },
   "Pike": {
     "name": "Pike",
@@ -153,7 +164,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 30
   },
   "Halberd": {
     "name": "Halberd",
@@ -166,7 +178,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1200
   },
   "Warhammer": {
     "name": "Warhammer",
@@ -179,7 +192,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1200
   },
   "Bardiche": {
     "name": "Bardiche",
@@ -192,7 +206,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1000
   },
   "Greatsword": {
     "name": "Greatsword",
@@ -205,7 +220,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1800
   },
   "Net": {
     "name": "Net",
@@ -218,7 +234,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 300
   },
   "Grappling Hook and Rope": {
     "name": "Grappling Hook and Rope",
@@ -231,7 +248,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Grenade": {
     "name": "Grenade",
@@ -244,7 +262,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Short Bow": {
     "name": "Short Bow",
@@ -257,7 +276,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Long Bow": {
     "name": "Long Bow",
@@ -270,7 +290,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 800
   },
   "Heavy Bow": {
     "name": "Heavy Bow",
@@ -283,7 +304,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1000
   },
   "Crossbow": {
     "name": "Crossbow",
@@ -296,7 +318,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 800
   },
   "Arbalest": {
     "name": "Arbalest",
@@ -309,7 +332,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1200
   },
   "Wooden Shield": {
     "name": "Wooden Shield",
@@ -322,7 +346,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Metal Shield": {
     "name": "Metal Shield",
@@ -335,7 +360,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1500
   },
   "Wooden Tower": {
     "name": "Wooden Tower",
@@ -348,7 +374,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Clothing": {
     "name": "Clothing",
@@ -361,7 +388,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Fur Coat": {
     "name": "Fur Coat",
@@ -387,7 +415,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Padded Armor": {
     "name": "Padded Armor",
@@ -400,7 +429,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Chain Shirt": {
     "name": "Chain Shirt",
@@ -413,7 +443,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 2000
   },
   "Hauberk": {
     "name": "Hauberk",
@@ -426,7 +457,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 3000
   },
   "Brigandine": {
     "name": "Brigandine",
@@ -439,7 +471,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5000
   },
   "Half Armor": {
     "name": "Half Armor",
@@ -452,7 +485,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 6000
   },
   "Full Armor": {
     "name": "Full Armor",
@@ -465,7 +499,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10000
   },
   "Reinforced Armor": {
     "name": "Reinforced Armor",
@@ -478,7 +513,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 15000
   },
   "Bodkin Arrow": {
     "name": "Bodkin Arrow",
@@ -491,7 +527,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Broadhead Arrow": {
     "name": "Broadhead Arrow",
@@ -504,7 +541,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Bodkin Bolt": {
     "name": "Bodkin Bolt",
@@ -517,7 +555,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Broadhead Bolt": {
     "name": "Broadhead Bolt",
@@ -530,7 +569,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Alcohol": {
     "name": "Alcohol",
@@ -544,7 +584,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Oil Flask": {
     "name": "Oil Flask",
@@ -558,7 +599,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Pitch Pot": {
     "name": "Pitch Pot",
@@ -571,7 +613,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Smoke Bundle": {
     "name": "Smoke Bundle",
@@ -584,7 +627,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1
   },
   "Torch": {
     "name": "Torch",
@@ -597,7 +641,8 @@
     "camouflage": null,
     "muffles": false,
     "light": 5,
-    "potion": null
+    "potion": null,
+    "price": 1
   },
   "Smoke Grenade": {
     "name": "Smoke Grenade",
@@ -610,7 +655,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Anticoagulant Poison": {
     "name": "Anticoagulant Poison",
@@ -623,7 +669,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Paralytic Poison": {
     "name": "Paralytic Poison",
@@ -675,7 +722,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Tripwire": {
     "name": "Tripwire",
@@ -688,7 +736,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1
   },
   "Rolling Log": {
     "name": "Rolling Log",
@@ -714,7 +763,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1200
   },
   "Superior Alchemical Torch": {
     "name": "Superior Alchemical Torch",
@@ -727,7 +777,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5000
   },
   "Alchemical Prism": {
     "name": "Alchemical Prism",
@@ -740,7 +791,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 15000
   },
   "Electrite": {
     "name": "Electrite",
@@ -761,7 +813,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 3000
   },
   "Superior Electrite": {
     "name": "Superior Electrite",
@@ -782,7 +835,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 40000
   },
   "Magnetite": {
     "name": "Magnetite",
@@ -795,7 +849,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1000
   },
   "Fire Stone": {
     "name": "Fire Stone",
@@ -816,7 +871,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 3000
   },
   "Flamethrower": {
     "name": "Flamethrower",
@@ -837,7 +893,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5000
   },
   "Venomous Frog Corpse": {
     "name": "Venomous Frog Corpse",
@@ -850,7 +907,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Soul Stone": {
     "name": "Soul Stone",
@@ -863,7 +921,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 4000
   },
   "Condenser": {
     "name": "Condenser",
@@ -876,7 +935,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 500
   },
   "Simple Healing": {
     "name": "Simple Healing",
@@ -889,7 +949,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Medium Healing": {
     "name": "Medium Healing",
@@ -902,7 +963,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 600
   },
   "Good Healing": {
     "name": "Good Healing",
@@ -915,7 +977,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1600
   },
   "Darkseeing": {
     "name": "Darkseeing",
@@ -928,7 +991,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": "darkseeing"
+    "potion": "darkseeing",
+    "price": 800
   },
   "Bandages": {
     "name": "Bandages",
@@ -941,7 +1005,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Splint": {
     "name": "Splint",
@@ -954,7 +1019,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Anti-septic": {
     "name": "Anti-septic",
@@ -967,7 +1033,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Antibiotic Poultice": {
     "name": "Antibiotic Poultice",
@@ -980,7 +1047,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 40
   },
   "Cocaine": {
     "name": "Cocaine",
@@ -993,7 +1061,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Morphine": {
     "name": "Morphine",
@@ -1006,7 +1075,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Ayahuasca": {
     "name": "Ayahuasca",
@@ -1019,7 +1089,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Antidote": {
     "name": "Antidote",
@@ -1032,7 +1103,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Copper Coin": {
     "name": "Copper Coin",
@@ -1090,7 +1162,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Small Tent": {
     "name": "Small Tent",
@@ -1103,7 +1176,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Large Tent": {
     "name": "Large Tent",
@@ -1116,7 +1190,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   },
   "Hammock": {
     "name": "Hammock",
@@ -1129,7 +1204,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Bedroll": {
     "name": "Bedroll",
@@ -1142,7 +1218,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 40
   },
   "Oil Lamp": {
     "name": "Oil Lamp",
@@ -1155,7 +1232,8 @@
     "camouflage": null,
     "muffles": false,
     "light": 5,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Flint": {
     "name": "Flint",
@@ -1168,7 +1246,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Firewood": {
     "name": "Firewood",
@@ -1207,7 +1286,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Jug": {
     "name": "Jug",
@@ -1220,7 +1300,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Shovel": {
     "name": "Shovel",
@@ -1233,7 +1314,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Pot": {
     "name": "Pot",
@@ -1246,7 +1328,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 50
   },
   "Vial": {
     "name": "Vial",
@@ -1259,7 +1342,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Chalk": {
     "name": "Chalk",
@@ -1272,7 +1356,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 5
   },
   "Insect Repellant": {
     "name": "Insect Repellant",
@@ -1285,7 +1370,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 10
   },
   "Sharpening Stone": {
     "name": "Sharpening Stone",
@@ -1298,7 +1384,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Fur Cloak": {
     "name": "Fur Cloak",
@@ -1311,7 +1398,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Muffled Boots": {
     "name": "Muffled Boots",
@@ -1324,7 +1412,8 @@
     "muffles": true,
     "light": null,
     "camouflage": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Camouflage": {
     "name": "Camouflage",
@@ -1337,7 +1426,8 @@
     "camouflage": -3,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 20
   },
   "Snow Shoes": {
     "name": "Snow Shoes",
@@ -1350,7 +1440,8 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 100
   },
   "Armor Repair Kit": {
     "name": "Armor Repair Kit",
@@ -1363,6 +1454,7 @@
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 200
   }
 }
