@@ -4,7 +4,7 @@ import { inputClass } from '../ui'
 import { CatalogName } from '../../forms/catalogs'
 import { ABILITY_KEYS } from '../../domain/abilities'
 import { SPELL_KEYS } from '../../domain/spells'
-import { BULK_NAMES, HEAVY_MAX_DEGREE, knowledges_list } from '../../domain/lists'
+import { BULK_NAMES, HEAVY_MAX_DEGREE, MIN_BULK, knowledges_list } from '../../domain/lists'
 import weapons from '../../assets/weapons.json'
 import armors from '../../assets/armors.json'
 import ammo from '../../assets/ammo.json'
@@ -51,12 +51,16 @@ const itemRef = suggesting((parent) => {
 })
 
 // A bulk is stored as a number and picked by name while it has one; past the
-// named steps the list goes on numerically, as far as the book's biggest item.
-const BULK_OPTIONS: readonly string[] = [...BULK_NAMES, ...Array.from({ length: 5 }, (_, i) => String(BULK_NAMES.length + i))]
+// named steps the list goes on numerically, as far as the book's biggest item,
+// and below tiny as far as a coin.
+const BULK_OPTIONS: readonly { bulk: number; name: string }[] = Array.from({ length: BULK_NAMES.length + 5 - MIN_BULK }, (_, i) => {
+  const bulk = MIN_BULK + i
+  return { bulk, name: BULK_NAMES[bulk] ?? `bulk ${bulk}` }
+})
 
 const bulkSelect: Widget = ({ value, onChange }) => (
   <select className={input} value={Number(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))}>
-    {BULK_OPTIONS.map((name, bulk) => <option key={name} value={bulk}>{name}</option>)}
+    {BULK_OPTIONS.map(({ bulk, name }) => <option key={bulk} value={bulk}>{name}</option>)}
   </select>
 )
 

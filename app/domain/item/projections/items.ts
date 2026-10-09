@@ -1,6 +1,7 @@
 import type { ItemType } from '../../types'
 import { ItemSchema } from '../../types'
-import { GEAR_SIZE, getBulkName, getItemCatalog, scaleItem } from '../rules/items'
+import { GEAR_SIZE, getBulkName, getItemCatalog, getItemPrice, scaleItem } from '../rules/items'
+import { formatPrice } from './money'
 
 export type ItemCatalogRow = {
   key: string
@@ -8,15 +9,16 @@ export type ItemCatalogRow = {
   type: ItemType
   bulk: number
   bulkName: string
+  price: string
 }
 
 // The catalog as rows to pick from, grouped the way the book lists them:
 // weapons, armor, then everything else, each in catalog order — at the bulk
-// each would have once stamped at `scale`.
+// each would have once stamped at `scale`, and at the price it would cost.
 export function getItemCatalogRows(scale = GEAR_SIZE): ItemCatalogRow[] {
   return Object.entries(getItemCatalog())
     .map(([key, raw]) => {
       const item = scaleItem(ItemSchema.parse(raw), scale)
-      return { key, name: item.name || key, type: item.type, bulk: item.bulk, bulkName: getBulkName(item.bulk) }
+      return { key, name: item.name || key, type: item.type, bulk: item.bulk, bulkName: getBulkName(item.bulk), price: formatPrice(getItemPrice(item)) }
     })
 }

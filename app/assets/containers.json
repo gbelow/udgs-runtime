@@ -45,6 +45,29 @@
     "burden": 0,
     "bulk": 2
   },
+  "Coin Pouch": {
+    "name": "Coin Pouch",
+    "kind": "pouch",
+    "slots": {
+      "quick": {
+        "numSlots": 0,
+        "slotBulk": 1,
+        "items": []
+      },
+      "medium": {
+        "numSlots": 1,
+        "slotBulk": 1,
+        "items": []
+      },
+      "large": {
+        "numSlots": 0,
+        "slotBulk": 3,
+        "items": []
+      }
+    },
+    "burden": 0,
+    "bulk": 1
+  },
   "Bandolier": {
     "name": "Bandolier",
     "kind": "bandolier",

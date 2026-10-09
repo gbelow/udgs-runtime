@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { equipContainer, putOnFromHands, takeOffContainer } from './containers'
 import { makeCharacter } from '../../factories'
+import { OPENS_IN } from '../rules/containers'
 import { ContainerKindSchema, ContainerSchema, ItemSchema } from '../../types'
 import type { Character, ContainerKind } from '../../types'
 
@@ -55,9 +56,9 @@ describe('equipContainer', () => {
 
 // A container taken off is in the hands with what it carries, so putting it
 // back on from there leaves the character wearing what they wore. A quiver
-// is slung, never put on.
+// or a pouch is opened in a slot, never put on.
 describe('takeOffContainer', () => {
-  it.each(kinds.filter((kind) => kind !== 'quiver'))('is undone by putting the %s back on', (kind) => {
+  it.each(kinds.filter((kind) => !(kind in OPENS_IN)))('is undone by putting the %s back on', (kind) => {
     const stowed = ItemSchema.parse({ name: 'Rope', bulk: 1 })
     const before = { ...makeCharacter(null), containers: { New: { ...container('New', kind), slots: { ...container('New', kind).slots, large: { numSlots: 1, slotBulk: 3, items: [stowed] } } } } }
     const off = takeOffContainer('New')(before)

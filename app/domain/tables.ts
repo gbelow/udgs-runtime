@@ -563,6 +563,15 @@ export const MATERIAL_HARDNESS: Record<(typeof MATERIALS)[number], number> = {
   liquid: 1,
 }
 
+// story.tex "Wealth and Money": "Ten coppers are worth the same as one
+// silver, and 10 silvers are worth the same as 1 gold." Prices are kept in
+// coppers; these are the coins a sum is written in, largest first.
+export const COINS = [
+  { name: 'GP', value: 100 },
+  { name: 'SP', value: 10 },
+  { name: 'CP', value: 1 },
+] as const
+
 // creating.tex "Character Creation", Steps 3–7: what each priority gives a
 // talent focus (its talent and XP to spend) and the wealth focus (gold).
 export const CREATION_PRIORITIES: Record<Priority, { talent: number; XP: number; gold: number }> = {

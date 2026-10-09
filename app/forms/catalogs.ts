@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TerrainSchema } from '../domain/campaign/types'
-import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerSchema, ItemSchema, SpellSchema, WeaponSchema } from '../domain/types'
+import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
 import abilities from '../assets/abilities.json'
 import spells from '../assets/spells.json'
@@ -49,11 +49,11 @@ export const CATALOGS = {
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'kind'),
   },
   items: {
-    label: 'Items', file: 'items.json', schema: ItemSchema, data: items,
+    label: 'Items', file: 'items.json', schema: ItemEntrySchema, data: items,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'type'),
   },
   containers: {
-    label: 'Containers', file: 'containers.json', schema: ContainerSchema, data: containers,
+    label: 'Containers', file: 'containers.json', schema: ContainerEntrySchema, data: containers,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'kind'),
   },
   terrains: {

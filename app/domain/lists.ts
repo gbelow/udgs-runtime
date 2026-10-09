@@ -82,6 +82,10 @@ export const ABILITY_SECTIONS = [
 // bulk; past these "the list goes on numerically".
 export const BULK_NAMES = ['tiny', 'small', 'medium', 'large'] as const
 
+// The smallest bulk a catalog item is made at: a coin, a hundred to a small
+// slot (gear.tex "Coin Pouch").
+export const MIN_BULK = -3
+
 // gear.tex — the sections an item is filed under, in the book's order:
 // "Weapons" (the arrows and bolts among them), "Armors", "Containers and
 // Burden", then the "Tools of War" and "Special Items" subsections. Groups

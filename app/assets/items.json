@@ -1034,18 +1034,50 @@
     "light": null,
     "potion": null
   },
-  "Coin Pouch": {
-    "name": "Coin Pouch",
-    "description": "Holds up to 20 coins.",
+  "Copper Coin": {
+    "name": "Copper Coin",
+    "description": "",
     "type": "utility",
-    "bulk": 1,
+    "bulk": -3,
     "refId": "",
     "charge": null,
     "source": null,
     "camouflage": null,
     "muffles": false,
     "light": null,
-    "potion": null
+    "potion": null,
+    "price": 1,
+    "currency": true
+  },
+  "Silver Coin": {
+    "name": "Silver Coin",
+    "description": "",
+    "type": "utility",
+    "bulk": -3,
+    "refId": "",
+    "charge": null,
+    "source": null,
+    "camouflage": null,
+    "muffles": false,
+    "light": null,
+    "potion": null,
+    "price": 10,
+    "currency": true
+  },
+  "Gold Coin": {
+    "name": "Gold Coin",
+    "description": "",
+    "type": "utility",
+    "bulk": -3,
+    "refId": "",
+    "charge": null,
+    "source": null,
+    "camouflage": null,
+    "muffles": false,
+    "light": null,
+    "potion": null,
+    "price": 100,
+    "currency": true
   },
   "Oilcloth": {
     "name": "Oilcloth",

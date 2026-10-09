@@ -8,6 +8,7 @@ import {
   getBurden,
   getContainerPanels,
 } from "../domain/item/projections/containers";
+import { formatMoney, getPurseLabel } from "../domain/item/projections/money";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
@@ -37,6 +38,10 @@ export function useContainerLens() {
   const burden: BurdenView =
     useActiveCharacterSelector(useShallow((c: Character) => getBurden(c))) ?? NO_BURDEN;
 
+  // story.tex "Wealth and Money": the currency the character carries.
+  const purse: string =
+    useActiveCharacterSelector((c: Character) => getPurseLabel(c)) ?? formatMoney(0);
+
   // Whether the catalog pick could be put straight on; null when there is no
   // pick or it is not a container one puts on.
   const putOnView: MoveView | null =
@@ -52,5 +57,5 @@ export function useContainerLens() {
     update(takeOffContainer(key));
   };
 
-  return { panels, burden, putOnView, putOn, takeOff } as const;
+  return { panels, burden, purse, putOnView, putOn, takeOff } as const;
 }

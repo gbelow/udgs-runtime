@@ -1,7 +1,7 @@
 import { CampaignCharacter, Character, Item, SlotKind } from '../../types'
 import { getItemWeapon } from './items'
 import { canHoldWith } from './hands'
-import { getDisplacedContainer } from './containers'
+import { getDisplacedContainer, OPENS_IN } from './containers'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { isCampaignCharacter } from '../../utils'
 import { hasProperty } from '../../weaponProperties'
@@ -49,10 +49,10 @@ export function isCharged(c: Character): c is CampaignCharacter {
 // slot's draw price (combat.tex "Drawing items in combat"), from the hands
 // nothing. Only a catalog pick on the sheet goes over whatever it displaces,
 // which is how a character is dressed; anywhere else the other comes off
-// first. A quiver is not put on but slung (gear.tex "Quiver"). Null for an
-// item that is not a container one can put on.
+// first. A quiver or a pouch is not put on but opened in a slot (gear.tex
+// "Quiver"). Null for an item that is not a container one can put on.
 export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): MoveView | null {
-  if (!item.container || item.container.kind === 'quiver') return null
+  if (!item.container || item.container.kind in OPENS_IN) return null
   const displaced = getDisplacedContainer(c, item)
   if (displaced && (from !== null || isCharged(c))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }
   if (!isCharged(c)) return { able: true, cost: null, why: '' }

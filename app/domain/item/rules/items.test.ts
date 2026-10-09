@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { getCatalogItem, getItemWeapon, getItemArmor, getItemScale, GEAR_SIZE } from './items'
 import { getItemAmmo } from './ammo'
-import { ArmorSchema, ItemSchema, WeaponSchema } from '../../types'
+import { ArmorSchema, ItemEntrySchema, ItemSchema, WeaponSchema } from '../../types'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
@@ -53,15 +53,16 @@ describe('resolution is total', () => {
 
 // The catalog is the transcription of the gear.tex item lists and the Bulk
 // column of its weapon, shield and armor tables. An entry is a template: `id`,
-// `amount`, `broken` and `loaded` belong to the stack stamped from it, so they are the
-// only fields the parse may add. A template that names a catalog entry must name
+// `amount`, `broken` and `loaded` belong to the stack stamped from it, and an
+// entry the book prints no price for is unpriced and no currency, so they are
+// the only fields the parse may add. A template that names a catalog entry must name
 // one that exists, or every item stamped from it is a dead pointer.
 describe('items.json', () => {
   const entries = Object.entries(itemsCatalog as Record<string, unknown>)
 
   it.each(entries)('%s parses losslessly — nothing stripped, nothing defaulted', (key, raw) => {
-    const { id: _id, ...parsed } = ItemSchema.parse(raw)
-    expect(parsed, key).toEqual({ amount: 1, broken: false, edge: null, fuel: null, loaded: null, ...(raw as object) })
+    const { id: _id, ...parsed } = ItemEntrySchema.parse(raw)
+    expect(parsed, key).toEqual({ amount: 1, broken: false, edge: null, fuel: null, loaded: null, price: null, currency: false, ...(raw as object) })
   })
 
   it.each(entries)('%s stamps a fresh stack each time it is drawn', (key) => {

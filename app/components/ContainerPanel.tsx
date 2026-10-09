@@ -5,11 +5,11 @@ import type { ContainerSlotView } from '../domain/item/projections/containers'
 import { Button, Panel } from './ui'
 
 export function ContainerPanel(){
-  const { panels, burden, putOnView, putOn, takeOff } = useContainerLens()
+  const { panels, burden, purse, putOnView, putOn, takeOff } = useContainerLens()
   const { pending, clear } = useItemLens()
 
   return(
-    <Panel title='Containers' meta={<>burden · {burden.label}</>} pending={!!pending}>
+    <Panel title='Containers' meta={<>{purse} · burden · {burden.label}</>} pending={!!pending}>
       {
         pending ?
         <div className='flex flex-row flex-wrap gap-2 items-center text-xs text-good'>
@@ -29,8 +29,9 @@ export function ContainerPanel(){
             <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs'>
               <span className='text-sm'>{panel.name}</span>
               <span className='text-muted'>{panel.kind} · burden {panel.burden}</span>
+              {panel.money ? <span className='font-mono'>{panel.money}</span> : null}
               {panel.penalty && panel.penalty.value > 0 ? <span className='text-bad font-mono'>−{panel.penalty.value}{panel.penalty.lame ? ' · lame' : ''}</span> : null}
-              {panel.slung ? <span className='ml-auto text-muted'>slung</span> : <Button size='xs' variant='ghost' className='ml-auto' title='into the hands, with what it carries' onClick={() => takeOff(panel.key)}>take off</Button>}
+              {panel.inner ? <span className='ml-auto text-muted'>{panel.inner}</span> : <Button size='xs' variant='ghost' className='ml-auto' title='into the hands, with what it carries' onClick={() => takeOff(panel.key)}>take off</Button>}
             </div>
             {panel.slots.map((group) => <SlotGroupRow key={group.slot} containerKey={panel.key} group={group} />)}
           </div>

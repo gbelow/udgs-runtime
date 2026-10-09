@@ -1,5 +1,5 @@
 import { Character, Container, Edge, Item, SlotGroup, SlotKind } from '../../types'
-import { canFitItem, getContainer, stackInto } from '../rules/containers'
+import { canFitItem, getContainer, mapSlotGroups, stackInto } from '../rules/containers'
 import { getItemWeapon } from '../rules/items'
 import { canSharpen } from '../../weaponProperties'
 
@@ -8,30 +8,21 @@ export function duplicateItem(item: Item, overrides: Partial<Pick<Item, 'amount'
 }
 
 // The character with the open container `key` changed: one they have on, or
-// a quiver slung on one of those.
+// a quiver or pouch opened in one of those.
 function withContainer<C extends Character>(character: C, key: string, change: (container: Container) => Container): C {
   const own = character.containers[key]
   if (own) return { ...character, containers: { ...character.containers, [key]: change(own) } }
-  const sling = (container: Container): Container => ({
-    ...container,
-    slots: {
-      ...container.slots,
-      quick: {
-        ...container.slots.quick,
-        items: container.slots.quick.items.map((item) => (item.id === key && item.container ? { ...item, container: change(item.container) } : item)),
-      },
-    },
-  })
-  return { ...character, containers: Object.fromEntries(Object.entries(character.containers).map(([k, c]) => [k, sling(c)])) }
+  const open = (container: Container): Container => mapSlotGroups(container, (group) => ({
+    ...group,
+    items: group.items.map((item) => (item.id === key && item.container ? { ...item, container: change(item.container) } : item)),
+  }))
+  return { ...character, containers: Object.fromEntries(Object.entries(character.containers).map(([k, c]) => [k, open(c)])) }
 }
 
 // The item `itemId` in the open container `key` changed where it lies.
 export function mapContainerItem(containerKey: string, itemId: string, change: (item: Item) => Item): <C extends Character>(character: C) => C {
   const inGroup = (group: SlotGroup): SlotGroup => ({ ...group, items: group.items.map((i) => (i.id === itemId ? change(i) : i)) })
-  return <C extends Character>(character: C): C => withContainer(character, containerKey, (open) => ({
-    ...open,
-    slots: { quick: inGroup(open.slots.quick), medium: inGroup(open.slots.medium), large: inGroup(open.slots.large) },
-  }))
+  return <C extends Character>(character: C): C => withContainer(character, containerKey, (open) => mapSlotGroups(open, inGroup))
 }
 
 // The item `itemId` changed where it is held, worn or slung on the back.
@@ -97,9 +88,6 @@ export function removeItemFromContainer(containerKey: string, itemId: string, am
         return [{ ...item, amount: item.amount - amount }]
       }),
     })
-    return withContainer(character, containerKey, (open) => {
-      const { quick, medium, large } = open.slots
-      return { ...open, slots: { quick: without(quick), medium: without(medium), large: without(large) } }
-    })
+    return withContainer(character, containerKey, (open) => mapSlotGroups(open, without))
   }
 }

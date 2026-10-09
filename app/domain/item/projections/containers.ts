@@ -1,7 +1,7 @@
 import type { Character, Container, ContainerKind, Item, SlotKind } from '../../types'
 import { SlotKindSchema } from '../../types'
 import { getWearView, WearView } from '../../character/rules/donning'
-import { getBulkName } from '../rules/items'
+import { getBulkName, getContents } from '../rules/items'
 import { MoveView, getPutOnView, getStoreCost, isCharged } from '../rules/costs'
 import { getHeldItem } from '../rules/hands'
 import {
@@ -10,7 +10,8 @@ import {
   getBurdenPenalty,
   getContainerPenalty,
   getOpenContainers,
-  getSlungContainers,
+  getInnerContainers,
+  OPENS_IN,
   getSlotBulk,
   getSlotsNeeded,
   getUsedSlots,
@@ -18,6 +19,8 @@ import {
   isLamingContainer,
 } from '../rules/containers'
 import { getDrawView } from './hands'
+import { getMoneyValue } from '../rules/money'
+import { formatMoney } from './money'
 
 export type ContainerItemView = {
   id: string
@@ -57,11 +60,13 @@ export type ContainerPanelView = {
   key: string
   name: string
   kind: ContainerKind
-  // slung on another container rather than put on: it comes off the way
-  // any item in a slot does
-  slung: boolean
+  // where it is opened when that is a slot of another container rather than
+  // being put on ("slung"); it then comes off the way any item in a slot does
+  inner: string | null
   burden: number
   penalty: { value: number; lame: boolean } | null
+  // the currency lying in its own slots, written in coins; null for none
+  money: string | null
   slots: ContainerSlotView[]
 }
 
@@ -79,9 +84,10 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
     key,
     name: container.name,
     kind: container.kind,
-    slung: c ? key in getSlungContainers(c) : false,
+    inner: c && key in getInnerContainers(c) ? (OPENS_IN[container.kind]?.where ?? null) : null,
     burden: container.burden,
     penalty: c ? { value: getContainerPenalty(c, container), lame: isLamingContainer(c, container) } : null,
+    money: getContainerMoney(container),
     slots: SlotKindSchema.options
       .filter((slot) => container.slots[slot].numSlots > 0)
       .map((slot) => ({
@@ -105,6 +111,11 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
         })),
       })),
   }
+}
+
+function getContainerMoney(container: Container): string | null {
+  const value = getMoneyValue(getContents(container))
+  return value > 0 ? formatMoney(value) : null
 }
 
 // The whole container panel in one shape: every open container, its slot

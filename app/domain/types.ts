@@ -353,10 +353,23 @@ export const ItemSchema = z.object({
 
 export type Item = z.infer<typeof ItemSchema>
 
+// gear.tex's Price columns: what a catalog entry costs made for size 3, in
+// coppers (story.tex "Wealth and Money"); null where the book prints none.
+// Kept on the catalog entry only — an item reads its price off the entry it
+// was stamped from.
+const PriceSchema = num.int().nonnegative().nullable().default(null)
+
+// An entry of the items catalog. `currency` marks a stable currency: anyone
+// takes it at its price, and it counts as the money a character has.
+export const ItemEntrySchema = ItemSchema.extend({
+  price: PriceSchema,
+  currency: z.boolean().default(false),
+})
+
 // gear.tex "Containers": belt, bandolier and backpack are worn one at a time;
 // a saddle rides an animal; vehicles are drawn by one; a quiver is "slung on
-// a belt".
-export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'quiver', 'saddle', 'vehicle'])
+// a belt"; a coin pouch goes in a slot like any small item.
+export const ContainerKindSchema = z.enum(['belt', 'bandolier', 'backpack', 'quiver', 'pouch', 'saddle', 'vehicle'])
 export type ContainerKind = z.infer<typeof ContainerKindSchema>
 
 // gear.tex "Containers": the Quick, Medium and Large columns.
@@ -396,6 +409,8 @@ export const ContainerSchema = z.object({
   // gear.tex "Containers": the Bulk column — the container as an item.
   bulk: num.default(2),
 }).strip()
+
+export const ContainerEntrySchema = ContainerSchema.extend({ price: PriceSchema })
 
 export interface Container {
   name: string

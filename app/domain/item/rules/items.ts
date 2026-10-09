@@ -1,7 +1,7 @@
-import { Armor, ArmorSchema, Character, Container, ContainerSchema, DamageComponent, Item, ItemSchema, Material, SlotGroup, Weapon, WeaponSchema } from '../../types'
+import { Armor, ArmorSchema, Character, Container, ContainerEntrySchema, DamageComponent, Item, ItemEntrySchema, ItemSchema, Material, SlotGroup, Weapon, WeaponSchema } from '../../types'
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
-import { scaleArmor, scaleWeapon } from '../../character/rules/size'
+import { getVMAt, scaleArmor, scaleWeapon } from '../../character/rules/size'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
@@ -29,8 +29,8 @@ export const GEAR_SIZE = 3
 // the bulk its row of the Containers table gives, carrying its empty slots.
 const containerItems: Record<string, unknown> = Object.fromEntries(
   Object.entries(containersCatalog as Record<string, unknown>).map(([key, raw]) => {
-    const container = ContainerSchema.parse(raw)
-    return [key, { name: container.name, type: 'container', bulk: container.bulk, refId: key, container }]
+    const { price, ...container } = ContainerEntrySchema.parse(raw)
+    return [key, { name: container.name, type: 'container', bulk: container.bulk, refId: key, container, price }]
   })
 )
 
@@ -40,14 +40,24 @@ export function getItemCatalog(): Record<string, unknown> {
   return catalog
 }
 
-const templates: Item[] = Object.values(catalog).map((raw) => ItemSchema.parse(raw))
+type CatalogEntry = { template: Item; price: number | null; currency: boolean }
 
-// The template an item was stamped from: the one its refId names, or, for an
+const entries: CatalogEntry[] = Object.values(catalog).map((raw) => {
+  const { price, currency, ...template } = ItemEntrySchema.parse(raw)
+  return { template, price, currency }
+})
+
+const byRefId = new Map(entries.filter(({ template: t }) => t.refId).map((e) => [`${e.template.type}|${e.template.refId}`, e]))
+const byName = new Map(entries.filter(({ template: t }) => !t.refId).map((e) => [`${e.template.type}|${e.template.name}`, e]))
+
+// The entry an item was stamped from: the one its refId names, or, for an
 // item that is only a name and a description, the one of the same name.
+function getEntry(item: Pick<Item, 'type' | 'refId' | 'name'>): CatalogEntry | undefined {
+  return item.refId ? byRefId.get(`${item.type}|${item.refId}`) : byName.get(`${item.type}|${item.name}`)
+}
+
 function getTemplate(item: Pick<Item, 'type' | 'refId' | 'name'>): Item | undefined {
-  return item.refId
-    ? templates.find((t) => t.type === item.type && t.refId === item.refId)
-    : templates.find((t) => t.type === item.type && !t.refId && t.name === item.name)
+  return getEntry(item)?.template
 }
 
 export function scaleItem(item: Item, scale: number): Item {
@@ -71,6 +81,20 @@ function scaleContainer(container: Container, steps: number): Container {
 export function getItemScale(item: Item): number {
   const template = getTemplate(item)
   return template ? GEAR_SIZE + item.bulk - template.bulk : GEAR_SIZE
+}
+
+// What one unit of the item costs, in coppers: its entry's price, which is
+// for the size 3 make, times the VM of the size it has been scaled to
+// (creating.tex "Volume Multiplier (VM)"; the table's ruling that price
+// follows it). Null for an item with no entry or an entry with no price.
+export function getItemPrice(item: Item): number | null {
+  const price = getEntry(item)?.price ?? null
+  return price === null ? null : Math.round(price * getVMAt(getItemScale(item)))
+}
+
+// Whether the item is a stable currency, counted as money.
+export function isCurrency(item: Item): boolean {
+  return getEntry(item)?.currency ?? false
 }
 
 // A catalog entry is a template: stamping it yields an item with its own id
@@ -179,6 +203,6 @@ export function getHeldPotions(c: Character): Item[] {
   return c.held.filter((item) => item.potion !== null)
 }
 
-function getContents(container: Container): Item[] {
+export function getContents(container: Container): Item[] {
   return Object.values(container.slots).flatMap((slot) => slot.items)
 }

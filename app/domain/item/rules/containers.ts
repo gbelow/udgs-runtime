@@ -1,21 +1,36 @@
-import { Character, Container, ContainerKind, Item, ItemSchema, SlotKind } from '../../types'
+import { Character, Container, ContainerKind, Item, ItemSchema, SlotGroup, SlotKind, SlotKindSchema } from '../../types'
 import { isSameItem } from './items'
 import { getSize } from '../../character/rules/size'
 
-// gear.tex "Quiver": "Can be slung on a belt" — a quiver in a quick slot of
-// a container the character has on is one more container to them, named by
-// the quiver's own id.
-export function getSlungContainers(c: Character): Record<string, Container> {
+// The kinds opened in place in a slot rather than put on: the slot groups
+// they open in, and what being there is called. gear.tex "Quiver": "Can be
+// slung on a belt", so a quiver opens in a quick slot; a coin pouch opens in
+// whatever slot it is kept in.
+export const OPENS_IN: Partial<Record<ContainerKind, { slots: readonly SlotKind[]; where: string }>> = {
+  quiver: { slots: ['quick'], where: 'slung' },
+  pouch: { slots: SlotKindSchema.options, where: 'in a slot' },
+}
+
+// Every slot group of the container changed the same way.
+export function mapSlotGroups(container: Container, change: (group: SlotGroup) => SlotGroup): Container {
+  const { quick, medium, large } = container.slots
+  return { ...container, slots: { quick: change(quick), medium: change(medium), large: change(large) } }
+}
+
+// A quiver or pouch opened in a slot of a container the character has on is
+// one more container to them, named by its own id.
+export function getInnerContainers(c: Character): Record<string, Container> {
   return Object.fromEntries(
     Object.values(c.containers).flatMap((container) =>
-      container.slots.quick.items.flatMap((item) => (item.container?.kind === 'quiver' ? [[item.id, item.container]] : [])))
+      SlotKindSchema.options.flatMap((slot) =>
+        container.slots[slot].items.flatMap((item) => (item.container && OPENS_IN[item.container.kind]?.slots.includes(slot) ? [[item.id, item.container]] : []))))
   )
 }
 
 // Every container the character can put things into and take them out of:
-// the ones they have on, and the quivers slung on those.
+// the ones they have on, and the quivers and pouches opened in those.
 export function getOpenContainers(c: Character): Record<string, Container> {
-  return { ...c.containers, ...getSlungContainers(c) }
+  return { ...c.containers, ...getInnerContainers(c) }
 }
 
 export function getContainer(c: Character, key: string): Container | undefined {

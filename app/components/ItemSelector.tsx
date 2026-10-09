@@ -13,7 +13,7 @@ export function ItemSelector(){
     </>} render={(row) => (
       <ListButton key={row.key} aria-label={row.name} title={row.bulkName}
         selected={pending?.source === 'catalog' && pending.key === row.key}
-        onClick={() => select(row.key)}>{row.name} <span className='text-muted text-xs'>· {row.bulkName}</span></ListButton>
+        onClick={() => select(row.key)}>{row.name} <span className='text-muted text-xs'>· {row.bulkName} · {row.price}</span></ListButton>
     )}>
       {
         pending?.source === 'catalog' ?
