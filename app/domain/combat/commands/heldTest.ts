@@ -1,10 +1,10 @@
 import type { Degree } from '../../types'
 import { SWIM_FAILURE_SINK } from '../../tables'
 import type { Action, CombatState, HeldRoll, Updater } from '../types'
-import { rollModed, type Dice, type RollMode } from '../dice'
+import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { getHeldBar, getHeldRoll, type HeldKind } from '../rules/heldRoll'
 import { getHeldModes, getHeldTest, type CalledKind } from '../rules/heldTest'
-import { getDegree, resolveTest } from '../rules/test'
+import { getDegree, resolveTest } from '../../play/test'
 import { sink } from './swim'
 
 // What a held test leaves on the fight, once, at the moment it is made:

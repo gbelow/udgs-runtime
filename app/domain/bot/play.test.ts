@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rollD10, seededRng } from '../combat/dice'
+import { rollD10, seededRng } from '../play/dice'
 import { getOpenAction } from '../combat/rules/log'
 import { getNextRoundBar } from '../combat/rules/turn'
 import { nextRound } from '../combat/commands/nextRound'

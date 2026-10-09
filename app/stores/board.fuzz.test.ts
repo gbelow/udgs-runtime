@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
-import { rollD10, seededRng } from '../domain/combat/dice'
+import { rollD10, seededRng } from '../domain/play/dice'
 import { CombatStateSchema, type ActionDraft, type CombatState } from '../domain/combat/types'
 import { getActionPanel } from '../domain/combat/projections/actionPanel'
 import { getFootprint } from '../domain/combat/rules/board'

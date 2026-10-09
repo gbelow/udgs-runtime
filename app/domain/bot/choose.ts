@@ -1,5 +1,5 @@
 import type { CombatState, RootAction } from '../combat/types'
-import { rollD10, seededRng, type Dice } from '../combat/dice'
+import { rollD10, seededRng, type Dice } from '../play/dice'
 import { getFightName } from '../combat/rules/fighters'
 import { getHistory, getLog } from '../combat/rules/log'
 import { declareDefense, getDefenseOptions } from './answer'

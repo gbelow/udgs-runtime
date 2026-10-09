@@ -6,7 +6,7 @@ import { getFightName } from '../rules/fighters'
 import { getArcTarget, getRepeatCost, getRepeatDraw } from '../rules/fireAgain'
 import { getHeldSize } from '../../character/rules/concentration'
 import { getChargeDraw } from '../../character/rules/spells'
-import { perState } from './perState'
+import { perState } from '../../perState'
 
 // spells.tex "Sustained Spells": what the active character is holding, what
 // holding it costs at the round change, and who it links them to, with the

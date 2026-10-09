@@ -7,7 +7,7 @@ import { getFreeHoldingHands } from '../../item/rules/hands'
 import { coordKey } from '../geometry'
 import { getFootprint } from './board'
 import { getMoveHeld } from './heldRoll'
-import { getDegree } from './test'
+import { getDegree } from '../../play/test'
 import { getMoveOrigin, touchesGround } from './waypoint'
 
 // combat.tex "Swimming": the body of water a footprint stands in, read off the

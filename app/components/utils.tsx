@@ -1,4 +1,4 @@
-import { rollDie, rollD10, type Dice } from "../domain/combat/dice"
+import { rollDie, rollD10, type Dice } from "../domain/play/dice"
 
 // UI-layer convenience wrapper: injects the real entropy source into the pure
 // domain dice rule. This is the single Math.random seam for test rolls.

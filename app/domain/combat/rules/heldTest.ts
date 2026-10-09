@@ -3,13 +3,13 @@ import { CALLED_TESTS } from '../../lists'
 import type { CombatState, HeldRoll, HeldTest } from '../types'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { sumTerms, type Term } from '../../character/rules/terms'
-import type { RollMode } from '../dice'
-import type { Test } from './test'
+import type { RollMode } from '../../play/dice'
+import type { Test } from '../../play/test'
 import type { HeldKind } from './heldRoll'
 import { getSituationalAfflictions } from './situational'
 import { getSwimTestTerms, getWaterOf } from './swim'
 import { getStealthTerms } from '../../character/rules/skills'
-import { getDegree } from './test'
+import { getDegree } from '../../play/test'
 
 export type CalledKind = (typeof CALLED_TESTS)[number]
 

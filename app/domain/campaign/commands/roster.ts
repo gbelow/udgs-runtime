@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { CampaignUpdater } from '../types'
 import { addInstance } from '../../instances'
-import { clearPlan, dropEmptyParties, joinParty } from './parties'
+import { dropEmptyParties, joinParty } from './parties'
 
 // The character joins the roster, in the party they were in or another (see
 // `joinParty`).
@@ -16,15 +16,14 @@ export function addToRoster(char: CampaignCharacter, newId: () => string): Campa
 export function removeFromRoster(id: string): CampaignUpdater {
   return (state) => {
     if (!state.characters[id]) return state
-    const unplanned = clearPlan(id)(state)
-    const { [id]: _gone, ...characters } = unplanned.characters
-    const { [id]: _party, ...partyOf } = unplanned.partyOf
+    const { [id]: _gone, ...characters } = state.characters
+    const { [id]: _party, ...partyOf } = state.partyOf
     return dropEmptyParties({
-      ...unplanned,
+      ...state,
       characters,
       partyOf,
-      out: unplanned.out.filter((o) => o !== id),
-      activeCharacterId: unplanned.activeCharacterId === id ? null : unplanned.activeCharacterId,
+      out: state.out.filter((o) => o !== id),
+      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId,
     })
   }
 }

@@ -17,7 +17,7 @@ import { getReachableCells } from '../rules/reach'
 import { getDepth } from '../rules/swim'
 import { getDragFacts, getDragReach, getGroupSteps } from '../rules/drag'
 import { getPartner, holds } from '../rules/partners'
-import { perState } from './perState'
+import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/hazard'
 import { getCellLight } from '../rules/light'
 

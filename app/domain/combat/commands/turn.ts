@@ -1,6 +1,6 @@
 import type { SurgeKind } from '../../types'
 import type { CombatState, ContestRoll, Updater } from '../types'
-import type { Dice } from '../dice'
+import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder } from '../rules/turn'

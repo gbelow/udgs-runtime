@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { CombatStateSchema, type HitLocation, type ActionDraft, type ActionKind, type CombatState, type Coord, type RootAction } from '../app/domain/combat/types'
-import { rollD10, seededRng, type Dice } from '../app/domain/combat/dice'
+import { rollD10, seededRng, type Dice } from '../app/domain/play/dice'
 import { buildFighter } from './lib/fighters'
 import type { CampaignCharacter } from '../app/domain/types'
 import { addInstance } from '../app/domain/instances'

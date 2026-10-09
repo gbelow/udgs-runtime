@@ -3,7 +3,7 @@ import { CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesS
 import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
-import { ROLL_MODES } from './dice'
+import { ROLL_MODES } from '../play/dice'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
 export type { Degree, HitLocation, Interruption } from '../types'

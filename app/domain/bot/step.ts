@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { chooseAnyAnswer, chooseTurnAction } from './choose'
 import { stepWith } from './engine'
 import type { Party } from './party'

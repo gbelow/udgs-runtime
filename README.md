@@ -157,7 +157,7 @@ Non-negotiable constraints:
   - `app/domain/**` may not import from `app/stores/**`, React, or Zustand — the domain defines its own types and the store imports them, never the reverse.
   - `rules/`, `lenses/` and `projections/` may not import `commands/` or the bot — the read side never runs a button to find out an answer.
   - `app/domain/{character,item}/**` may not form an import cycle — size and scale, then items, then the character's state, then AP prices; a file that imports upward mixes two of those and is split.
-  - `app/components/**` may not import from `**/domain/*/rules/**`, `**/domain/*/lenses/**`, `**/domain/*/projections/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/combat/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
+  - `app/components/**` may not import from `**/domain/*/rules/**`, `**/domain/*/lenses/**`, `**/domain/*/projections/**` or `**/domain/*/commands/**` — go through a hook in `app/hooks/`. Type-only imports are allowed via `import type`. Inert modules (`domain/types`, `domain/tables`, `domain/factories`, `domain/utils`, `domain/play/dice`) stay importable. `BreakMe.tsx` is exempt: it's a stress-test harness whose whole purpose is to drive the lens registry and the store directly.
 
 ## Minimal Feature Context
 

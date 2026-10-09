@@ -5,7 +5,7 @@ import { getAfflictions, getInjuryPenalty, hasAffliction, isDead } from '../../c
 import { getCharisma } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { sumTerms, type Term } from '../../character/rules/terms'
-import type { Test } from './test'
+import type { Test } from '../../play/test'
 import { getFightName } from './fighters'
 import { getSituationalAfflictions } from './situational'
 import { isNearBlindGround } from './detection'

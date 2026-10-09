@@ -4,7 +4,7 @@ import { gainHunger, gainThirst } from '../../character/commands/heal'
 import { ETS_PER_DAY, getDaysEnded } from '../rules/clock'
 
 // survival.tex "Day": "Every end of day, characters get +2 hunger and +2
-// thirst"; "Rest": the day's three healing rests start over.
+// thirst".
 const DAILY_HUNGER = 2
 const DAILY_THIRST = 2
 
@@ -14,7 +14,7 @@ function endDays(state: CampaignState, days: number): CampaignState {
   if (days <= 0) return state
   const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) =>
     [id, Array.from({ length: days }).reduce<CampaignCharacter>((acc) => endDay(acc), c)]))
-  return { ...state, characters, rests: {} }
+  return { ...state, characters }
 }
 
 // Moves the clock on to this time, ending every day it passes on the roster.

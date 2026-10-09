@@ -1,12 +1,9 @@
-import type { CampaignState, CampaignUpdater, Decision, Group, GroupKind, Party } from '../types'
-import { CampSchema, CrawlMapSchema, GroupSchema, PartySchema } from '../types'
-import { getDecisionsCalled, getExplorationBar, getPartyMembers } from '../rules/exploration'
+import type { CampaignState, CampaignUpdater, Party } from '../types'
+import { CrawlMapSchema, PartySchema } from '../types'
+import { getPartyMembers } from '../rules/place'
 
 const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
   (state) => (state.parties[partyId] ? { ...state, parties: { ...state.parties, [partyId]: update(state.parties[partyId]) } } : state)
-
-const withGroup = (partyId: string, groupId: string, update: (g: Group) => Group): CampaignUpdater =>
-  withParty(partyId, (p) => (p.groups[groupId] ? { ...p, groups: { ...p.groups, [groupId]: update(p.groups[groupId]) } } : p))
 
 // A party's name: the first "Party n" no party has.
 function nextPartyName(state: CampaignState): string {
@@ -23,19 +20,6 @@ export function addParty(partyId: string, from?: Party): CampaignUpdater {
     ...state,
     parties: { ...state.parties, [partyId]: PartySchema.parse({ name: nextPartyName(state), exposure: from?.exposure, lit: from?.lit, node: from?.node }) },
   })
-}
-
-// Out of any group and any rest the character planned.
-export function clearPlan(id: string): CampaignUpdater {
-  return (state) => {
-    const partyId = state.partyOf[id]
-    const unplanned = { ...state, resting: state.resting.filter((r) => r !== id) }
-    return partyId ? withParty(partyId, (p) => ({
-      ...p,
-      groups: Object.fromEntries(Object.entries(p.groups).map(([gid, g]) =>
-        [gid, { ...g, members: g.members.filter((m) => m !== id), roller: g.roller === id ? null : g.roller }])),
-    }))(unplanned) : unplanned
-  }
 }
 
 // Parties nobody is in any more are gone.
@@ -60,16 +44,13 @@ export function joinParty(id: string, newPartyId: () => string): CampaignUpdater
 
 // Brings every member of one party into another on the same node, where
 // they are together.
-// The party that is joined keeps its camp; the groups of the one that joins
-// are dropped.
 export function mergeParties(fromId: string, intoId: string): CampaignUpdater {
   return (state) => {
     if (fromId === intoId || !state.parties[fromId] || !state.parties[intoId]) return state
     if (state.parties[fromId].node !== state.parties[intoId].node) return state
     const moved = getPartyMembers(state, fromId)
-    const unplanned = moved.reduce((s, id) => clearPlan(id)(s), state)
-    const { [fromId]: _gone, ...parties } = unplanned.parties
-    return { ...unplanned, parties, partyOf: { ...unplanned.partyOf, ...Object.fromEntries(moved.map((id) => [id, intoId])) } }
+    const { [fromId]: _gone, ...parties } = state.parties
+    return { ...state, parties, partyOf: { ...state.partyOf, ...Object.fromEntries(moved.map((id) => [id, intoId])) } }
   }
 }
 
@@ -85,12 +66,11 @@ export function setPartyLit(partyId: string, lit: boolean): CampaignUpdater {
   return withParty(partyId, (p) => ({ ...p, lit }))
 }
 
-// The table puts the party on a node of the map, or takes it off the map; it
-// leaves its camp behind.
+// The table puts the party on a node of the map, or takes it off the map.
 export function setPartyNode(partyId: string, node: string | null): CampaignUpdater {
   return (state) => {
     if (node !== null && !state.map?.nodes[node]) return state
-    return withParty(partyId, (p) => (p.node === node ? p : { ...p, node, camp: CampSchema.parse({}) }))(state)
+    return withParty(partyId, (p) => ({ ...p, node }))(state)
   }
 }
 
@@ -107,52 +87,4 @@ export function loadMap(raw: unknown): CampaignUpdater {
 
 export function unloadMap(state: CampaignState): CampaignState {
   return { ...state, map: null, parties: Object.fromEntries(Object.entries(state.parties).map(([pid, p]) => [pid, { ...p, node: null }])) }
-}
-
-export function addGroup(partyId: string, kind: GroupKind, newId: () => string): CampaignUpdater {
-  return withParty(partyId, (p) => ({ ...p, groups: { ...p.groups, [newId()]: GroupSchema.parse({ kind }) } }))
-}
-
-export function removeGroup(partyId: string, groupId: string): CampaignUpdater {
-  return withParty(partyId, (p) => {
-    const { [groupId]: _gone, ...groups } = p.groups
-    return { ...p, groups }
-  })
-}
-
-// The table's settings for the group's test.
-export function setGroup(partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>): CampaignUpdater {
-  return withGroup(partyId, groupId, (g) => ({ ...g, ...settings }))
-}
-
-// "only one character rolls for it": one of the group's members.
-export function setRoller(partyId: string, groupId: string, roller: string): CampaignUpdater {
-  return withGroup(partyId, groupId, (g) => (g.members.includes(roller) ? { ...g, roller } : g))
-}
-
-// The character goes with this group of their party for the coming ET,
-// leaving whatever else they planned.
-export function joinGroup(id: string, groupId: string): CampaignUpdater {
-  return (state) => {
-    const partyId = state.partyOf[id]
-    if (getExplorationBar(state, id) || !state.parties[partyId]?.groups[groupId]) return state
-    return withGroup(partyId, groupId, (g) => ({ ...g, members: [...g.members, id], roller: g.roller ?? id }))(clearPlan(id)(state))
-  }
-}
-
-// The character rests the coming ET, or, with false, is idle.
-export function setResting(id: string, resting: boolean): CampaignUpdater {
-  return (state) => {
-    if (getExplorationBar(state, id)) return state
-    const cleared = clearPlan(id)(state)
-    return resting ? { ...cleared, resting: [...cleared.resting, id] } : cleared
-  }
-}
-
-// What happens to a character forced to rest while their group goes away.
-export function decide(id: string, decision: Decision): CampaignUpdater {
-  return (state) => {
-    if (!state.opening || !getDecisionsCalled(state).includes(id)) return state
-    return { ...state, opening: { ...state.opening, decisions: { ...state.opening.decisions, [id]: decision } } }
-  }
 }

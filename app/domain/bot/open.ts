@@ -1,5 +1,5 @@
 import type { CombatState, RootAction } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { getOpenAction } from '../combat/rules/log'
 import { hasOpenAnswer } from '../combat/rules/options'
 import { commitAction, resolveAction, rollOrPay } from '../combat/commands/action'

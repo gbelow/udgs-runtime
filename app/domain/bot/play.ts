@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { stepBot } from './step'
 import type { Party } from './party'
 

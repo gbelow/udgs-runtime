@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rollD10, seededRng } from './dice'
+import { rollD10, seededRng } from '../play/dice'
 import { nextRound } from './commands/nextRound'
 import { sumTerms } from '../character/rules/terms'
 import { board, spearman } from '../bot/fixtures'

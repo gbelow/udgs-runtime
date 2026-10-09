@@ -1,11 +1,12 @@
-import type { Camp, CampaignState, Decision, EventType, GroupKind, GroupResult, TerrainTag, TestRoll } from '../types'
-import type { RollMode } from '../../combat/dice'
-import { perState } from '../../combat/projections/perState'
-import { isNight } from '../rules/clock'
+import type { CampaignState, EventType, TerrainTag } from '../../campaign/types'
+import type { Camp, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
+import type { RollMode } from '../../play/dice'
+import { perPair } from '../../perState'
+import { isNight } from '../../campaign/rules/clock'
+import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
 import {
-  canRestHeal, getConnectionsFrom, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getExposure,
-  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPartyMembers, getPlace, getRestExposure, getRestHealing,
-  getRestRecovery, getTerrainWear, getWear, hasWood,
+  canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
+  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getRestHealing, getRestRecovery, getWear, hasWood,
 } from '../rules/exploration'
 
 export type MemberView = { id: string; name: string; isActive: boolean; plan: string; out: boolean }
@@ -60,16 +61,18 @@ const nameOf = (state: CampaignState, id: string) => state.characters[id]?.fight
 const nodeName = (state: CampaignState, id: string) => state.map?.nodes[id]?.name ?? id
 
 // What the character spends the coming ET on, by name.
-function planOf(state: CampaignState, partyId: string, id: string): string {
-  const group = Object.values(state.parties[partyId]?.groups ?? {}).find((g) => g.members.includes(id))
-  return group ? group.kind : state.resting.includes(id) ? 'rest' : 'idle'
+function planOf(t: Exploring, partyId: string, id: string): string {
+  const group = Object.values(getGroups(t, partyId)).find((g) => g.members.includes(id))
+  return group ? group.kind : t.exploration.resting.includes(id) ? 'rest' : 'idle'
 }
 
 // survival.tex "Exploration", "Making camp", "Point crawl" — every party,
 // where it is, who is in it and what they plan, its groups and the tests
 // they will make, and its camp; the decisions the coming ET waits on and
 // what the last ET's groups came to.
-export const getPartiesView = perState((state: CampaignState): PartiesView => ({
+const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b: ExplorationState }): PartiesView => {
+  const t: Exploring = { campaign: state, exploration }
+  return {
   map: state.map ? { name: state.map.name, nodes: Object.entries(state.map.nodes).map(([id, n]) => ({ id, name: n.name })) } : null,
   night: isNight(state.clock, state.dayETs),
   dayETs: state.dayETs,
@@ -81,16 +84,16 @@ export const getPartiesView = perState((state: CampaignState): PartiesView => ({
       node: place?.id ?? null,
       place: place ? { node: place.id, name: place.node.name, terrain: place.terrain?.name ?? null, tags: place.terrain?.tags ?? [] } : null,
       exposure: getExposure(state, party),
-      restExposure: getRestExposure(state, party),
+      restExposure: getRestExposure(t, partyId),
       lit: party.lit,
       wood: hasWood(state, party),
       nightDL: getNightDL(state, party),
       knowledge: getLocationKnowledge(state, partyId),
-      camp: party.camp,
+      camp: getCamp(t, partyId),
       members: getPartyMembers(state, partyId).map((id) => ({
-        id, name: nameOf(state, id), isActive: id === state.activeCharacterId, plan: planOf(state, partyId, id), out: state.out.includes(id),
+        id, name: nameOf(state, id), isActive: id === state.activeCharacterId, plan: planOf(t, partyId, id), out: state.out.includes(id),
       })),
-      groups: Object.entries(party.groups).map(([groupId, g]) => {
+      groups: Object.entries(getGroups(t, partyId)).map(([groupId, g]) => {
         const test = getGroupTest(state, partyId, g)
         return {
           id: groupId, kind: g.kind, members: g.members.map((id) => ({ id, name: nameOf(state, id) })), roller: g.roller,
@@ -102,12 +105,17 @@ export const getPartiesView = perState((state: CampaignState): PartiesView => ({
       others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.node === party.node).map(([id, p]) => ({ id, name: p.name })),
     }
   }),
-  decisions: getDecisionsCalled(state).map((id) => ({ id, name: nameOf(state, id), decision: state.opening?.decisions[id] ?? null })),
-  results: state.results,
-}))
+  decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
+  results: exploration.results,
+  }
+})
+
+export const getPartiesView = (t: Exploring): PartiesView => partiesView(t.campaign, t.exploration)
+
+const partiesDigest = perPair(({ a, b }: { a: CampaignState; b: ExplorationState }) => JSON.stringify(partiesView(a, b)))
 
 // Everything the parties display, as one string to gate their render on.
-export const getPartiesDigest = perState((state: CampaignState) => JSON.stringify(getPartiesView(state)))
+export const getPartiesDigest = (t: Exploring): string => partiesDigest(t.campaign, t.exploration)
 
 // What a plan would do to the character over the ET, as changes to IL and
 // exhaustion; `idle` is set on a rest that has no healing left today.
@@ -125,18 +133,20 @@ export type ExplorationPanel = {
 // survival.tex "Exhaustion", "Rest", "Wear" — what each plan for the coming
 // ET would do to the character where their party is, and why none can be
 // made.
-export function getExplorationPanel(state: CampaignState, id: string | null): ExplorationPanel {
+export function getExplorationPanel(t: Exploring, id: string | null): ExplorationPanel {
+  const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
   if (!id || !c || !party) return { bar: 'not with a party', options: [], willDL: null, lastRoll: null, potion: 0 }
-  const plan = planOf(state, state.partyOf[id], id)
+  const partyId = state.partyOf[id]
+  const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
-  const exposure = getRestExposure(state, party)
+  const exposure = getRestExposure(t, partyId)
   const healing = getRestHealing(c, exposure)
-  const rest: PlanOption = canRestHeal(state, id)
+  const rest: PlanOption = canRestHeal(t, id)
     ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(exposure), c.resources.exhaustion), hunger: 0, thirst: 0, idle: false, selected: plan === 'rest' }
     : { ...idle, plan: 'rest', label: 'rest', selected: plan === 'rest' }
-  const groups = Object.entries(party.groups).map(([groupId, g], i): PlanOption => ({
+  const groups = Object.entries(getGroups(t, partyId)).map(([groupId, g], i): PlanOption => ({
     plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind)), exhaustion: 1, hunger: 0, thirst: 0, idle: false, selected: g.members.includes(id),
   }))
   // the terrain's wear, which every plan pays on top
@@ -147,7 +157,7 @@ export function getExplorationPanel(state: CampaignState, id: string | null): Ex
     bar: getExplorationBar(state, id),
     options: [...groups, rest, idle].map(worn),
     willDL: getExhaustionTest(c)?.DL ?? null,
-    lastRoll: state.exhaustionRolls[id] ?? null,
+    lastRoll: t.exploration.exhaustionRolls[id] ?? null,
     potion: c.injuries.potion,
   }
 }

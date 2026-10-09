@@ -1,6 +1,6 @@
 import type { ActionKind, AttackAction, CombatState, HOPPurchase, RootAction } from '../combat/types'
 import type { Outcome } from '../types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { rollOrPay } from '../combat/commands/action'
 import { spendHOP } from '../combat/commands/choices'
 import { appendActions } from '../combat/commands/log'

@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { getAction, getHistory, getOpenAction } from '../combat/rules/log'
 import { getTurnHolder, hasAgreedToEnd } from '../combat/rules/turn'
 import { endTurn, startTurn, toggleAgreeToEnd } from '../combat/commands/turn'

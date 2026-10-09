@@ -5,7 +5,7 @@ import { resetCombat } from '../../combat/commands/resetCombat'
 import { getFightSeconds } from '../rules/clock'
 import { getReturnBar } from '../rules/fight'
 import { addToRoster, checkOut } from './roster'
-import { clearPlan, dropEmptyParties } from './parties'
+import { dropEmptyParties } from './parties'
 import { advanceClock } from './clock'
 
 // Takes these characters off the roster and into the fight.
@@ -22,9 +22,8 @@ export function sendToFight(ids: string[], newId: () => string): TableUpdater {
 function forgetMissing(state: CampaignState): CampaignState {
   const gone = state.out.filter((id) => !state.characters[id])
   if (gone.length === 0) return state
-  const cleared = gone.reduce((s, id) => clearPlan(id)(s), state)
-  const partyOf = Object.fromEntries(Object.entries(cleared.partyOf).filter(([id]) => !gone.includes(id)))
-  return dropEmptyParties({ ...cleared, partyOf, out: cleared.out.filter((id) => !gone.includes(id)) })
+  const partyOf = Object.fromEntries(Object.entries(state.partyOf).filter(([id]) => !gone.includes(id)))
+  return dropEmptyParties({ ...state, partyOf, out: state.out.filter((id) => !gone.includes(id)) })
 }
 
 // Ends the fight and puts everyone in it back on the roster as the fight left

@@ -9,7 +9,7 @@ import { CharacterSheet, SimpleResource } from './CharacterSheet';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
 import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';
-import { ROLL_MODES } from '../domain/combat/dice';
+import { ROLL_MODES } from '../domain/play/dice';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';

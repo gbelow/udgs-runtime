@@ -102,7 +102,7 @@ Detail for `instructions/combat-map.md`. When this and the code disagree, the co
 - `outcomes.ts` — `getOutcomes` (damage previews), `getActionNotes`, `getLastReport` (reads
   the end of `getHistory`).
 - `labels.ts` — names for actions, options and HOP purchases.
-- `perState.ts` — memoizes a projection per state object. Each big projection exports a
+- `domain/perState.ts` (shared with every part) — memoizes a projection per state object. Each big projection exports a
   `…Digest` (its JSON) so a hook re-renders only when the view actually changed, then reads
   the same cached view.
 

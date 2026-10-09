@@ -15,12 +15,14 @@ import * as charactersModule from './combat/commands/characters'
 import * as moraleModule from './combat/commands/morale'
 import * as socialModule from './combat/commands/social'
 import * as rosterModule from './campaign/commands/roster'
-import * as campaignExplorationModule from './campaign/commands/exploration'
 import * as fightModule from './campaign/commands/fight'
 import * as clockModule from './campaign/commands/clock'
 import * as partiesModule from './campaign/commands/parties'
 import * as mapModule from './campaign/commands/map'
-import { CampaignStateSchema, CrawlMapSchema, type CrawlMap, type Table } from './campaign/types'
+import { CampaignStateSchema, CrawlMapSchema, type CampaignState, type CrawlMap, type Table } from './campaign/types'
+import * as explorationModule from './exploration/commands/exploration'
+import * as plansModule from './exploration/commands/plans'
+import { ExplorationStateSchema, type Exploring } from './exploration/types'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
 import { getRootTest } from './combat/rules/attack'
@@ -36,7 +38,8 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule, ...clockModule, ...partiesModule }
+const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule }
+const explorationCommands = { ...explorationModule, ...plansModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -281,8 +284,8 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
 }
 
 // The campaign's subject is a table: `a` and `b` on the roster in party
-// `p`, `b` travelling as group `g`, `a` with an exhaustion Will test to
-// make, and the combat subject's fight beside it, its strike cleared.
+// `p` on node `n1`, `a` with an exhaustion Will test to make, and the combat
+// subject's fight beside it, its strike cleared.
 const campaignCases: Record<string, (t: Table) => unknown> = {
   addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued')(campaign),
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
@@ -290,7 +293,6 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
   checkOut: ({ campaign }) => campaignCommands.checkOut('a')(campaign),
   addParty: ({ campaign }) => campaignCommands.addParty('q')(campaign),
-  clearPlan: ({ campaign }) => campaignCommands.clearPlan('b')(campaign),
   dropEmptyParties: ({ campaign }) => campaignCommands.dropEmptyParties({ ...campaign, partyOf: {} }),
   joinParty: ({ campaign }) => campaignCommands.joinParty('c', () => 'q')(campaign),
   mergeParties: ({ campaign }) => campaignCommands.mergeParties('p', 'q')(campaignCommands.addParty('q')(campaign)),
@@ -300,19 +302,24 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   loadMap: ({ campaign }) => campaignCommands.loadMap({ name: 'other' })(campaign),
   unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
-  addGroup: ({ campaign }) => campaignCommands.addGroup('p', 'fire', () => 'h')(campaign),
-  removeGroup: ({ campaign }) => campaignCommands.removeGroup('p', 'g')(campaign),
-  setGroup: ({ campaign }) => campaignCommands.setGroup('p', 'g', { DL: 5 })(campaign),
-  setRoller: ({ campaign }) => campaignCommands.setRoller('p', 'g', 'b')(campaign),
-  joinGroup: ({ campaign }) => campaignCommands.joinGroup('a', 'g')(campaign),
-  setResting: ({ campaign }) => campaignCommands.setResting('a', true)(campaign),
-  decide: ({ campaign }) => campaignCommands.decide('b', 'carry')({ ...campaign, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } }),
-  eat: ({ campaign }) => campaignCommands.eat('a', 3)(campaign),
-  drink: ({ campaign }) => campaignCommands.drink('a')(campaign),
-  passET: (t) => campaignCommands.passET(() => 0, () => 'q')({ ...t, fight: { ...t.fight, characters: {} }, campaign: { ...t.campaign, resting: ['a'] } }),
   advanceClock: ({ campaign }) => campaignCommands.advanceClock(2 * 24 * 60 * 60)(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
   returnFromFight: (t) => campaignCommands.returnFromFight(() => 'issued')(t),
+}
+
+// Exploration's subject is the campaign's beside what exploration keeps:
+// `b` travelling along path `c` as group `g` of party `p`, with a camp.
+const explorationCases: Record<string, (t: Exploring) => unknown> = {
+  addGroup: (t) => explorationCommands.addGroup('p', 'fire', () => 'h')(t),
+  removeGroup: (t) => explorationCommands.removeGroup('p', 'g')(t),
+  setGroup: (t) => explorationCommands.setGroup('p', 'g', { DL: 5 })(t),
+  setRoller: (t) => explorationCommands.setRoller('p', 'g', 'b')(t),
+  joinGroup: (t) => explorationCommands.joinGroup('a', 'g')(t),
+  setResting: (t) => explorationCommands.setResting('a', true)(t),
+  decide: (t) => explorationCommands.decide('b', 'carry')({ ...t, exploration: { ...t.exploration, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } } }),
+  eat: ({ campaign }) => explorationCommands.eat('a', 3)(campaign),
+  drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
+  passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
 }
 
 // `a` and `b` holding each other, nothing open.
@@ -454,6 +461,14 @@ function combatSubject(): CombatState {
   }
 }
 
+function campaignSubject(fight: CombatState): CampaignState {
+  const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
+  return CampaignStateSchema.parse({
+    characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
+    parties: { p: { name: 'Party 1', node: 'n1' } },
+  })
+}
+
 describe('commands are pure updaters', () => {
   it.each(Object.entries({ ...characterCases, ...itemCases }))('%s leaves its character alone', (_name, run) => {
     const subject = characterSubject()
@@ -485,12 +500,20 @@ describe('commands are pure updaters', () => {
 
   it.each(Object.entries(campaignCases))('%s leaves its campaign and fight alone', (_name, run) => {
     const fight = cleared(combatSubject())
-    const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
-    const campaign = CampaignStateSchema.parse({
-      characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
-      parties: { p: { name: 'Party 1', node: 'n1', groups: { g: { kind: 'travel', members: ['b'], roller: 'b', target: 'c' } } } },
-    })
-    const subject = { campaign, fight }
+    const subject = { campaign: campaignSubject(fight), fight }
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
+
+  it.each(Object.entries(explorationCases))('%s leaves its campaign and exploration alone', (_name, run) => {
+    const subject: Exploring = {
+      campaign: campaignSubject(cleared(combatSubject())),
+      exploration: ExplorationStateSchema.parse({
+        groups: { p: { g: { kind: 'travel', members: ['b'], roller: 'b', target: 'c' } } },
+        camps: { p: { node: 'n1', shelter: 1, firewood: 2, fire: true } },
+      }),
+    }
     const pristine = structuredClone(subject)
     run(deepFreeze(subject))
     expect(subject).toEqual(pristine)
@@ -506,6 +529,7 @@ describe('every command is covered', () => {
     ['item', itemCommands, itemCases],
     ['combat', combatCommands, combatCases],
     ['campaign', campaignCommands, campaignCases],
+    ['exploration', explorationCommands, explorationCases],
     ['map', mapModule, mapCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {

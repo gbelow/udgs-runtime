@@ -5,9 +5,10 @@ import { CharacterSheet } from './CharacterSheet';
 import { useClock, useExploration, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useMapNames } from '../hooks/useMap';
-import { DECISIONS, EVENT_TYPES, GROUP_KINDS, type EventType } from '../domain/campaign/types';
-import { ROLL_MODES, type RollMode } from '../domain/combat/dice';
-import type { PartyView } from '../domain/campaign/projections/exploration';
+import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
+import { DECISIONS, GROUP_KINDS } from '../domain/exploration/types';
+import { ROLL_MODES, type RollMode } from '../domain/play/dice';
+import type { PartyView } from '../domain/exploration/projections/exploration';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 

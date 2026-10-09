@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { resolveAction, rollOrPay } from '../combat/commands/action'
 import { chooseGrapple } from '../combat/commands/choices'
 import { isGrappleRowOf } from '../combat/rules/grapple'

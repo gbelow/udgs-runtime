@@ -1,9 +1,9 @@
 import type { CombatState } from '../types'
 import { getFightName } from '../rules/fighters'
 import { getHeldBar } from '../rules/heldRoll'
-import type { RollMode } from '../dice'
+import type { RollMode } from '../../play/dice'
 import { describeHeld, getHeldDL, getHeldModes, isCalledKind, type CalledKind } from '../rules/heldTest'
-import { perState } from './perState'
+import { perState } from '../../perState'
 
 export type HeldTestRow = {
   id: string

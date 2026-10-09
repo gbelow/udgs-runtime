@@ -7,7 +7,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { getSenseReaches, type SenseReach } from './detection'
 import { getTurnHolder } from './turn'
 import { getMoveDestination } from './waypoint'
-import { getDegree } from './test'
+import { getDegree } from '../../play/test'
 
 // combat.tex "Stealth in combat". Every character's stealth value is rolled
 // once a round and held to its end. Outside their own turn a character is

@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { getNextRoundBar } from '../combat/rules/turn'
 import { nextRound } from '../combat/commands/nextRound'
 import { stepWith } from './engine'

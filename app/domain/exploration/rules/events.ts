@@ -1,5 +1,5 @@
-import type { Degree } from '../../combat/types'
-import type { CampaignState, CrawlEvent } from '../types'
+import type { Degree } from '../../types'
+import type { CampaignState, CrawlEvent } from '../../campaign/types'
 import { getKnowledge } from '../../character/rules/knowledge'
 
 // survival.tex "Random event": "put all available events in a numbered list

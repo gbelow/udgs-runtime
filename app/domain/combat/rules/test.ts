@@ -1,43 +1,8 @@
-import type { Action, ActionRoll, Degree } from '../types'
-import type { Dice } from '../dice'
-import type { Term } from '../../character/rules/terms'
+import type { Action, Degree } from '../types'
 
 // Whether the action's test came to a hit or a critical.
 export function isWon(root: Pick<Action, 'roll'>): boolean {
   return root.roll?.degree === 'hit' || root.roll?.degree === 'critical'
-}
-
-// A skill test as the book defines it: a skill against a DL or an opposing
-// skill, read on one of two scales. `degrees` is the four-stage one;
-// `overflow` is play.tex "Hit Overflow Point": the critical band is not a
-// degree but HOP to spend, and without `grazes` (gear.tex "Piercing":
-// "Grazes behave like a miss") a graze is a miss. The die explodes only
-// where the test says it does.
-type TestBase = { skill: number; DL: number; explodes: boolean; terms?: { skill: Term[]; DL: Term[] } }
-export type Test =
-  | TestBase & { scale: 'degrees' }
-  | TestBase & { scale: 'overflow'; grazes: boolean }
-
-// play.tex "Degrees of success": over the DL by 10 is a critical, by 5 a
-// hit, by 0 a graze, less a miss.
-function scoreTest(over: number): Degree {
-  return over >= 10 ? 'critical' : over >= 5 ? 'hit' : over >= 0 ? 'graze' : 'miss'
-}
-
-// The degree a score comes to against a DL.
-export function getDegree(score: number, DL: number): Degree {
-  return scoreTest(score - DL)
-}
-
-export function resolveTest(test: Test, dice: Dice): ActionRoll {
-  const die = dice(test.explodes)
-  const score = die + test.skill
-  const over = score - test.DL
-  const base = { die, DL: test.DL, score, skillTerms: test.terms?.skill ?? [], DLTerms: test.terms?.DL ?? [] }
-  if (test.scale === 'degrees') return { ...base, degree: scoreTest(over), HOP: 0 }
-  if (over >= 5) return { ...base, degree: 'hit', HOP: over - 5 }
-  if (over >= 0 && test.grazes) return { ...base, degree: 'graze', HOP: 0 }
-  return { ...base, degree: 'miss', HOP: 0 }
 }
 
 // combat.tex "Evasion": a reflex test against what is coming turns the

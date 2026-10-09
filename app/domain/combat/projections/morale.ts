@@ -4,7 +4,7 @@ import { getAggravators, getMoraleBar, getMoraleDLOf, getSocialValue } from '../
 import { getInsultBar, getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
-import { perState } from './perState'
+import { perState } from '../../perState'
 
 export type MoraleRow = {
   id: string

@@ -29,3 +29,8 @@ export function getDaysEnded(from: number, to: number): number {
 export function isNight(clock: number, dayETs: number): boolean {
   return Math.floor((clock % DAY_SECONDS) / ET_SECONDS) >= dayETs
 }
+
+// The day the clock is in, counted from 0.
+export function getDay(clock: number): number {
+  return Math.floor(clock / DAY_SECONDS)
+}

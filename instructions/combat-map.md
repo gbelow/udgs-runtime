@@ -241,7 +241,6 @@ app/domain/combat/
 ├── types.ts            CombatState, Board, every Action schema, derived action types
 ├── factories.ts        makeAction, makeBoard (ingestion), addCharacterToCombat
 ├── geometry.ts         hex math, no rules
-├── dice.ts             d10 with explosions; rollModed (normal, safe or risky) over any Dice
 │
 ├── commands/                        the write side
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
@@ -288,7 +287,7 @@ app/domain/combat/
 │   ├── sweep.ts        sweeps: the arc, the chain of strikes, the share each passes on
 │   ├── protect.ts      protecting another: the line, Defender and Defensive Advance steps
 │   ├── attack.ts       weapon rows per action, test terms and DLs, defending reaction
-│   ├── test.ts         resolveTest: skill vs DL → degree and HOP
+│   ├── test.ts         isWon and resisted: what a test's degree means for an action
 │   ├── breakage.ts     the blow a block met: what it broke, the dice it needs, the setting's bar
 │   ├── damage.ts       attack deliveries, interruption, HOP options and prices, hooked motion
 │   ├── delivery.ts     a row's damage as it leaves the weapon
@@ -333,14 +332,14 @@ app/domain/combat/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    ├── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts
-    └── perState.ts     memoize once per state object
+    └── actionPanel.ts, boardView.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts
 ```
 
 The combat domain calls into `character/` (costs, afflictions, deliveries, skill terms,
-effects) and `item/` (hands, items). The one call back is the character's effect processor
-(`character/commands/deliver.ts`), which rolls a delivery's test with `rules/test.ts` and
-`dice.ts`, since a skill test is play and lives here.
+effects) and `item/` (hands, items). The skill test itself (`resolveTest`, `getDegree`) and
+the dice live in `domain/play/`, shared with every other part of play; the character's effect
+processor (`character/commands/deliver.ts`) rolls a delivery's test there and reads it with
+`resisted` from `rules/test.ts`.
 
 ## Where a change goes
 

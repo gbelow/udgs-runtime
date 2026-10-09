@@ -1,8 +1,8 @@
 import type { MoraleRoll, Updater } from '../types'
-import { rollModed, type Dice, type RollMode } from '../dice'
+import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
 import { getMoraleBar, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure } from '../rules/morale'
-import { resolveTest } from '../rules/test'
+import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
 

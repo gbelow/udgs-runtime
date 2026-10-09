@@ -1,4 +1,4 @@
-import type { Dice } from '../domain/combat/dice'
+import type { Dice } from '../domain/play/dice'
 import type { TerrainBrush } from '../domain/types'
 import { CombatStateSchema, type ActionDraft, type CombatState, type LightLevel, type Updater } from '../domain/combat/types'
 import { getBoardView, type BoardView } from '../domain/combat/projections/boardView'

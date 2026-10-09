@@ -81,7 +81,28 @@ const eslintConfig = [
     },
   },
 
-  // 4. Components must not reach into the rule-bearing halves of the domain, nor
+  // 4. The parts of play meet only through the campaign. Each mode runs its
+  //    own sequence (combat its rounds, exploration its ETs) over the
+  //    campaign's characters, clock and places, so a mode may read and move
+  //    the campaign but never another mode, and the campaign knows no mode.
+  //    The skill test and the dice (domain/play) are shared by every part and
+  //    import none of them.
+  {
+    files: ["app/domain/**/*.ts"],
+    ignores: ["**/*.test.ts"],
+    rules: {
+      "import/no-restricted-paths": ["error", {
+        zones: [
+          { target: "./app/domain/campaign", from: "./app/domain/exploration", message: "The campaign knows no mode: exploration reads and moves the campaign, never the other way round." },
+          { target: "./app/domain/exploration", from: "./app/domain/combat", message: "Exploration and combat meet only through the campaign (check-out and check-in). Shared play rules belong in app/domain/play." },
+          { target: "./app/domain/combat", from: "./app/domain/exploration", message: "Combat and exploration meet only through the campaign." },
+          { target: "./app/domain/play", from: ["./app/domain/combat", "./app/domain/campaign", "./app/domain/exploration", "./app/domain/bot"], message: "The skill test and the dice are shared by every part of play and import none of them." },
+        ],
+      }],
+    },
+  },
+
+  // 5. Components must not reach into the rule-bearing halves of the domain, nor
   //    into the state layer. Rules, lenses, projections and commands ARE the
   //    game rules, and so is every constant in tables.ts; a component that
   //    imports one is one step away from reimplementing it inline (which is how

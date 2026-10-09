@@ -1,5 +1,5 @@
 import type { CombatState, Coord } from '../combat/types'
-import type { Dice } from '../combat/dice'
+import type { Dice } from '../play/dice'
 import { setDistance } from '../combat/geometry'
 import { getAction, getOpenAction } from '../combat/rules/log'
 import type { ReachableCell } from '../combat/rules/move'
