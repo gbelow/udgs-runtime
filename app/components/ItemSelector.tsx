@@ -7,7 +7,7 @@ export function ItemSelector(){
   const { catalog, pending, amount, scale, select, setAmount, setScale, clear } = useItemLens()
 
   return(
-    <CatalogList label='item' groups={groupBy(catalog, (row) => row.type)} nameOf={(row) => row.name} beside={<>
+    <CatalogList label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} beside={<>
       <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
       <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
     </>} render={(row) => (
