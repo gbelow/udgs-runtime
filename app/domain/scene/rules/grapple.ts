@@ -13,7 +13,7 @@ import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './wea
 import { AT_CHEST, delivering, getRowDamage } from './delivery'
 import { isAttackAction } from './actionCatalog'
 import { getMidActionTerm } from './opportunity'
-import { isProne } from './ground'
+import { isProne } from './board/ground'
 import { isWon } from './test'
 
 type GrappleAffliction = (typeof GRAPPLE_AFFLICTIONS)[number]

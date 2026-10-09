@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { SceneStateSchema, PlacementSchema, TerrainCellSchema, type Board, type SceneState, type Coord, type Direction } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
-import { DIRECTIONS, ROTATIONS, add } from '../geometry'
+import { DIRECTIONS, ROTATIONS, add } from './board/geometry'
 import { getSenseReaches } from './detection'
 
 function fighter(id: string): CampaignCharacter {

@@ -1,7 +1,7 @@
 import type { SceneState } from '../types'
 import { endSurge } from '../../character/commands/actionSurge'
 import { burnScorch, touchFire } from '../../character/commands/deliver'
-import { getHazardOf } from '../rules/hazard'
+import { getHazardOf } from '../rules/board/hazard'
 import { updateCharacter } from './characters'
 import { sinkInArmor } from './swim'
 

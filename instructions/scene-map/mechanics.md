@@ -71,7 +71,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   (`isGuardingShot`, per shooter). A joined shot triggers only the opportunity attacks its
   shooter draws. The evader's flee follows the lead's roll; their move is lost if any shot
   interrupted them (`getShotGroup`).
-- **Cover** (`rules/board.ts`) — sight and fire are two lines: `seesAcross` is cut only by an
+- **Cover** (`rules/board/board.ts`) — sight and fire are two lines: `seesAcross` is cut only by an
   opaque blocking cell, `firesAcross` by any blocking cell, glass included, and `getCoverAcross`
   finds the weakest wall on the most open line of fire, met at the sturdiest cell on that line.
   `getCover` answers for a character from a set of cells: total (a blocking cell nothing breaks,
@@ -137,7 +137,7 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   heat) — never under a character it hits. A shot at the ground is answered by guards next to the
   space and closer to the shooter (`isGuardingCells`); one that answers it stops the shot
   (`isStoppedByGuard`): no break, no impact charge, no light.
-- **Fuel and fire on the ground** (`rules/hazard.ts`, `rules/extinguish.ts`) — an item with `fuel`
+- **Fuel and fire on the ground** (`rules/board/hazard.ts`, `rules/extinguish.ts`) — an item with `fuel`
   (`oil`, `alcohol`: a flask) thrown breaks where it lands instead of lying there: `reduceBoard`
   lays a `HazardLayer` with `fuel` and no fire on the cell (`coatCell`). A coat is harmless until
   something burns in its space; `igniteCell` then sets it burning at the hotter of the fuel's

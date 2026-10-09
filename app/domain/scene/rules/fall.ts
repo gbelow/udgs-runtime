@@ -6,7 +6,7 @@ import { getTGH } from '../../character/rules/misc'
 import { hasGrant } from '../../character/rules/abilities'
 import { getFallDM2 } from '../../character/rules/size'
 import type { Term } from '../../character/rules/terms'
-import { coordKey } from '../geometry'
+import { coordKey } from './board/geometry'
 import { delivering } from './delivery'
 import { getSensoryTermsHere } from './detection'
 

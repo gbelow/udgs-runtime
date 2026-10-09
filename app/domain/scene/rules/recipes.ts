@@ -7,7 +7,7 @@ import { makeAction } from '../factories'
 import { isDefense } from './actionCatalog'
 import { getAction, getReactionsTo, getRootOf } from './log'
 import { getDefaultAim, getFreeAttackOptions } from './attack'
-import { isInReach } from './board'
+import { isInReach } from './board/board'
 import { getHookedMotion } from './damage'
 import { getDisarmOptions } from './grapple'
 

@@ -1,7 +1,7 @@
 import type { TerrainBrush } from '../../types'
 import type { SceneState, Coord, Updater } from '../types'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
-import { getBoardMode, getFloorPicker } from '../rules/boardMode'
+import { getBoardMode, getFloorPicker } from '../rules/board/boardMode'
 import { getOpenAction } from '../rules/log'
 import { setTarget } from './action'
 import { paintTerrain, pickCell, placeCharacter, turnCharacter, turnMove } from './board'

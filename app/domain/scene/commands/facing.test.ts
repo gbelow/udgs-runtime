@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { SceneStateSchema, type SceneState } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import type { CampaignCharacter } from '../../types'
-import { DIRECTIONS, ROTATIONS, add } from '../geometry'
+import { DIRECTIONS, ROTATIONS, add } from '../rules/board/geometry'
 import { amendAction, commitAction, declareAction } from './action'
 
 function walker(): CampaignCharacter {

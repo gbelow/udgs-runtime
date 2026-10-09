@@ -11,7 +11,7 @@ import type { ActionCost } from '../../character/rules/actionCosts'
 import { getSpellEffects, produceEffects } from '../../character/rules/production'
 import { getAimedDeliveries, getTargetDeliveries, isAreaSpell, isInSpellReach } from './cast'
 import { isAreaEffect } from './explosion'
-import { getDistanceBetween } from './board'
+import { getDistanceBetween } from './board/board'
 import { getArc, getPartner } from './partners'
 
 // A held spell fired again without the casting test (the table's ruling):

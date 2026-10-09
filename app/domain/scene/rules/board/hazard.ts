@@ -1,13 +1,13 @@
-import type { Fuel, Visibility } from '../../types'
-import { HazardLayerSchema, type Action, type BlastAction, type Board, type SceneState, type Coord, type Hazard, type HazardLayer, type MoveAction, type Placement, type TerrainCell } from '../types'
-import { SPELLS, isSpellKey } from '../../spells'
-import { FUEL_BURN } from '../../tables'
-import { isSpellActive } from '../../character/rules/effects'
-import { coordKey, sameCell } from '../geometry'
+import type { Fuel, Visibility } from '../../../types'
+import { HazardLayerSchema, type Action, type BlastAction, type Board, type SceneState, type Coord, type Hazard, type HazardLayer, type MoveAction, type Placement, type TerrainCell } from '../../types'
+import { SPELLS, isSpellKey } from '../../../spells'
+import { FUEL_BURN } from '../../../tables'
+import { isSpellActive } from '../../../character/rules/effects'
+import { coordKey, sameCell } from './geometry'
 import { getFootprint, getPlacedFootprint } from './board'
 import { getMoveOrigin, getMoveWaypoint, touchesGround } from './waypoint'
-import { getTurnHolder } from './turn'
-import { findOpenRoot } from './log'
+import { getTurnHolder } from '../turn'
+import { findOpenRoot } from '../log'
 
 // combat.tex "Environmental Hazards": what the ground does to whoever stands
 // on it — the fire and the gas actions left on each cell, and the gas the

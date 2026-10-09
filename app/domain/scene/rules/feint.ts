@@ -3,7 +3,7 @@ import { canSurgeAtAll } from '../../character/rules/surge'
 import { getCunningTerms } from '../../character/rules/skills'
 import type { Term } from '../../character/rules/terms'
 import type { SceneState, FeintAction } from '../types'
-import { getDistanceBetween, getMeleeRange } from './board'
+import { getDistanceBetween, getMeleeRange } from './board/board'
 import { isWon } from './test'
 
 // "A cunning against cunning test between two characters in melee": whoever

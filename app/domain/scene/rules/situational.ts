@@ -1,11 +1,11 @@
 import type { AfflictionKey, CampaignCharacter } from '../../types'
 import type { SceneState } from '../types'
 import { hasAffliction } from '../../character/rules/afflictions'
-import { getHazardOf } from './hazard'
+import { getHazardOf } from './board/hazard'
 import { getGrappleAfflictionsOf } from './grapple'
 import { isVisorClosed } from '../../character/rules/armor'
 import { hasGrant } from '../../character/rules/abilities'
-import { getClimbDegree, isTrivialClimb } from './cliff'
+import { getClimbDegree, isTrivialClimb } from './board/cliff'
 import { findOpenRoot } from './log'
 import { clampDepth, getWaterOf } from './swim'
 

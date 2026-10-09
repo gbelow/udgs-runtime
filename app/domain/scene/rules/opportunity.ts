@@ -1,11 +1,11 @@
 import type { Action, ActionOf, SceneState, InterruptibleAction, OpportunityAction } from '../types'
 import type { Term } from '../../character/rules/terms'
 import { getActionDef, isRootAction } from './actionCatalog'
-import { getDistanceBetween, getMeleeRange, withPlacements } from './board'
+import { getDistanceBetween, getMeleeRange, withPlacements } from './board/board'
 import { getDrawnOpportunityAttacks, getOpeningReaction, getReactionsTo, getRootOf } from './log'
 import { isBroken } from './interruption'
 import { getMoveFacts, getMoveOverride } from './move'
-import { getMoveWaypoint } from './waypoint'
+import { getMoveWaypoint } from './board/waypoint'
 import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
 
 // combat.tex "Interruption": "If the character is in the middle of an

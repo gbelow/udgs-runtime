@@ -1,10 +1,10 @@
-import type { SceneState } from '../types'
-import { getOpenAction, findOpenRoot } from './log'
-import { findOption } from './options'
-import { getAim } from './aim'
-import { isAimable } from './explosion'
-import { getEvasiveJumpPlacements } from './move'
-import { canPickUp, getReachableFloor } from './floor'
+import type { SceneState } from '../../types'
+import { getOpenAction, findOpenRoot } from '../log'
+import { findOption } from '../options'
+import { getAim } from '../aim'
+import { isAimable } from '../explosion'
+import { getEvasiveJumpPlacements } from '../move'
+import { canPickUp, getReachableFloor } from '../floor'
 
 // What a click on the board means depends on what the open action is waiting
 // for: a path, the landing of an evasive jump, the aim of an explosion, or

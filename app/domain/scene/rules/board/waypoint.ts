@@ -1,6 +1,6 @@
-import type { MoveKind } from '../../types'
-import type { SceneState, Coord, MoveAction, Placement } from '../types'
-import { setDistance } from '../geometry'
+import type { MoveKind } from '../../../types'
+import type { SceneState, Coord, MoveAction, Placement } from '../../types'
+import { setDistance } from './geometry'
 import { getFootprint, getPlacedFootprint, placeAt } from './board'
 
 // Where the mover stands along a move: where it sets out from, each step of

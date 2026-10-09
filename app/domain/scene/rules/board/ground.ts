@@ -1,8 +1,8 @@
-import type { Character } from '../../types'
-import type { SceneState, Coord, MoveAction, Placement } from '../types'
-import { getSize } from '../../character/rules/size'
-import { hasAffliction } from '../../character/rules/afflictions'
-import { coordKey } from '../geometry'
+import type { Character } from '../../../types'
+import type { SceneState, Coord, MoveAction, Placement } from '../../types'
+import { getSize } from '../../../character/rules/size'
+import { hasAffliction } from '../../../character/rules/afflictions'
+import { coordKey } from './geometry'
 import { getFootprint, getOccupancy } from './board'
 
 // creating.tex "Size and Space Occupation": "Two creatures of size 3 can

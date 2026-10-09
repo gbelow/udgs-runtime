@@ -1,7 +1,7 @@
 import type { SceneState, Coord, ExtinguishAction, TerrainCell } from '../types'
-import { parseCoordKey, sameCell, setDistance } from '../geometry'
-import { getPlacedFootprint } from './board'
-import { getCellHazard, isLayerLive } from './hazard'
+import { parseCoordKey, sameCell, setDistance } from './board/geometry'
+import { getPlacedFootprint } from './board/board'
+import { getCellHazard, isLayerLive } from './board/hazard'
 
 // combat.tex "Fire": "Both muffling and throwing water require 4 AP by
 // default and being in a burning space or adjacent to it."

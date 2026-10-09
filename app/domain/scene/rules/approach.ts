@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
 import type { Coord, Placement } from '../types'
-import { setDistance } from '../geometry'
-import { getFootprint } from './board'
+import { setDistance } from './board/geometry'
+import { getFootprint } from './board/board'
 
 // How a mover's way brings them to someone, step by step.
 

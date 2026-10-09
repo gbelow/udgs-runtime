@@ -1,7 +1,7 @@
 import { ArmorSchema, PartWoundSchema, StanceSchema, presetPart, type Armor, type BodyPart, type Character, type Coord, type HitLocation, type PartWound, type Stance } from '../../types'
 import type { FootprintPreset } from '../../lists'
 import { isCampaignCharacter } from '../../utils'
-import { sameCell } from '../../scene/geometry'
+import { sameCell } from '../../scene/rules/board/geometry'
 import { getPresetFootprint, inFootprint, isAnchor, isSoundFootprint, settleParts } from '../rules/footprint'
 
 // The race's side of a creature: its body, stance, natural armor and

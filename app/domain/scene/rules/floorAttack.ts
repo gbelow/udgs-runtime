@@ -1,13 +1,13 @@
 import type { Item } from '../../types'
 import type { Term } from '../../character/rules/terms'
 import type { AttackAction, Coord, SceneState, ExplosionAction, FloorItem } from '../types'
-import { setDistance } from '../geometry'
-import { firesAcross, getAimableCells, getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board'
+import { setDistance } from './board/geometry'
+import { firesAcross, getAimableCells, getPlacedFootprint, getShotReachOf, getStrikeReach, isAimableCell } from './board/board'
 import { getObjectPart } from './equipment'
 import { getImpactExplosion } from './explosion'
 import { findFloorItem } from './floor'
 import { getBurnOf } from './ignition'
-import { hasUnlitFuel } from './hazard'
+import { hasUnlitFuel } from './board/hazard'
 import { isSweep } from './sweep'
 
 // A strike or a shot aimed at the ground: an item lying on the floor, named

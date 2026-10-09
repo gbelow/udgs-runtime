@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../types'
 import type { ActionRoll, SceneState } from '../scene/types'
-import { setDistance } from '../scene/geometry'
+import { setDistance } from '../scene/rules/board/geometry'
 import { getRootTest } from '../scene/rules/attack'
 import { getOpenAction } from '../scene/rules/log'
 import { getSettled } from '../scene/rules/settle'

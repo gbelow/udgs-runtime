@@ -1,6 +1,6 @@
-import type { SceneState, MoveAction } from '../types'
-import { getWalkableCells, type ReachableCell } from './move'
-import { getUsableCells } from './prepared'
+import type { SceneState, MoveAction } from '../../types'
+import { getWalkableCells, type ReachableCell } from '../move'
+import { getUsableCells } from '../prepared'
 
 // The spaces a declared move may be taken to: all it can walk to, but for the
 // reposition of a prepared defense, only those its defense can be made from.

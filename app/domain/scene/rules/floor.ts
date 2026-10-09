@@ -3,8 +3,8 @@ import type { SceneState, Coord, FloorItem, ShootAction } from '../types'
 import { canHoldWith, getHeldItem } from '../../item/rules/hands'
 import { getAttackKind } from '../../weaponProperties'
 import { findWeaponRow } from './weaponRow'
-import { distance } from '../geometry'
-import { getPlacedFootprint } from './board'
+import { distance } from './board/geometry'
+import { getPlacedFootprint } from './board/board'
 
 export function onFloor(item: Item, cell: Coord | null): FloorItem {
   return { item, cell }

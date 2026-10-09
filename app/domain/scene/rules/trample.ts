@@ -2,12 +2,12 @@ import type { Character } from '../../types'
 import type { SceneState, Coord, MoveAction, Placement, StrikeAction, Trample } from '../types'
 import { getForce } from '../../character/rules/skills'
 import { getMovementSpeed } from '../../character/rules/movement'
-import { sameCell } from '../geometry'
-import { getFootprint } from './board'
-import { getMoveOrigin } from './waypoint'
+import { sameCell } from './board/geometry'
+import { getFootprint } from './board/board'
+import { getMoveOrigin } from './board/waypoint'
 import { getDrawnOpportunityAttacks, getReactionsTo } from './log'
 import { getMoveBlockCells } from './move'
-import { isProne } from './ground'
+import { isProne } from './board/ground'
 
 // combat.tex "Trample": "Happens when a character moves through a space
 // occupied by another character." Two ways into one here: a move whose path

@@ -408,7 +408,7 @@ export interface Container {
 // A hex cell in axial coordinates; one cell is one metre (combat.tex
 // "Movement Costs and Speeds" prices basic movement at 1 AP per metre and
 // "Movement" moves in whole spaces). The geometry that reads these is in
-// `scene/geometry.ts`.
+// `scene/rules/board/geometry.ts`.
 export const CoordSchema = z.object({ q: num.default(0), r: num.default(0) }).strip()
 export type Coord = z.infer<typeof CoordSchema>
 

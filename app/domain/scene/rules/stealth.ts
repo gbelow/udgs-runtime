@@ -1,12 +1,12 @@
 import type { Action, SceneState, Degree, Detection, DetectionTest, StealthTurn } from '../types'
 import { getArmor } from '../../character/rules/armor'
 import { isMuffled } from '../../item/rules/items'
-import { coordKey } from '../geometry'
-import { getPlacedFootprint } from './board'
+import { coordKey } from './board/geometry'
+import { getPlacedFootprint } from './board/board'
 import { isDead } from '../../character/rules/afflictions'
 import { getSenseReaches, type SenseReach } from './detection'
 import { getTurnHolder } from './turn'
-import { getMoveDestination } from './waypoint'
+import { getMoveDestination } from './board/waypoint'
 import { getDegree } from '../../play/test'
 
 // combat.tex "Stealth in combat". Every character's stealth value is rolled

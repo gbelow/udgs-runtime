@@ -1,7 +1,7 @@
 import type { Action, ActionOf, SceneState, ShootAction } from '../types'
 import { makeAction } from '../factories'
 import { getAction, getOpenedBy, getReactionsTo } from './log'
-import { isInShotRange } from './board'
+import { isInShotRange } from './board/board'
 
 // combat.tex "Coordinated Shots": "Whenever an ally shoots a target, it is
 // possible to target the same target in the same action, as long as they are

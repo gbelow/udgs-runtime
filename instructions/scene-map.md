@@ -240,7 +240,6 @@ Read only the one the change touches.
 app/domain/scene/
 ├── types.ts            SceneState, Board, every Action schema, derived action types
 ├── factories.ts        makeAction, makeBoard (ingestion), addCharacterToCombat
-├── geometry.ts         hex math, no rules
 │
 ├── commands/                        the write side
 │   ├── action.ts       the pipeline buttons: declare … commit, react, roll/pay, resolve
@@ -266,6 +265,17 @@ app/domain/scene/
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
+│   ├── board/                       the grid: what only a fight on the board asks
+│   │   ├── geometry.ts     hex math, no rules
+│   │   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
+│   │   ├── ground.ts       crossable and restable cells
+│   │   ├── cliff.ts        what is a cliff, which movement may step over one, the climb's DL, the fall a move ends in
+│   │   ├── waypoint.ts     where the mover stands along a path
+│   │   ├── reach.ts        getReachableCells: the spaces a declared move may be taken to (every reader of a move's reach asks here; `move.ts` `getWalkableCells` is the raw walk)
+│   │   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched, fuel catching fire
+│   │   ├── light.ts        light: the board's level (bright, dim, dark) and darkness painted on it; bright within the radius of a light held in hand or lying on the floor — an item's own, or one Lamp or Revealing Light cast into it — walls casting shadow (`getCellLight`, `getLightOf`, `isUnlit`); Darkseeing drunk sees clearly in dim light
+│   │   └── boardMode.ts    getBoardMode (what the open action wants of a click), getFloorPicker
+│   │
 │   ├── actionCatalog.ts ACTIONS (with each kind's `rule`), isReaction/isRootAction/isDefense
 │   ├── deliveries.ts   what an action delivered, per character
 │   ├── changes.ts      getChanges: what a step changed in the fight, by comparing it before and after
@@ -298,16 +308,9 @@ app/domain/scene/
 │   ├── move.ts         movement prices, path legality, runs, Balance, move override, jumps
 │   ├── approach.ts     how a mover's way brings them to someone: distances along it, the step that first comes within a range
 │   ├── prepared.ts     prepared reactions: what is prepared in the round, its zone and triggers (a move's, and an attack's for a defense made for an ally), what a fired one opened, a defense's reposition, cancelling and no chaining
-│   ├── reach.ts        getReachableCells: the spaces a declared move may be taken to (every reader of a move's reach asks here; `move.ts` `getWalkableCells` is the raw walk)
-│   ├── cliff.ts        what is a cliff, which movement may step over one, the climb's DL, the fall a move ends in
 │   ├── fall.ts         a fall: its DL, damage, what each degree of the Balance test leaves of it
-│   ├── waypoint.ts     where the mover stands along a path
 │   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
-│   ├── board.ts        footprints, distance, reach, sight, flankers, threateners
-│   ├── ground.ts       crossable and restable cells
-│   ├── boardMode.ts    getBoardMode (what the open action wants of a click), getFloorPicker
-│   ├── hazard.ts       fire and gas on the ground, what a footprint stands in, what a move walks through, the fire a landing touched, fuel catching fire
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
 │   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
 │   ├── partners.ts     who is grappled with whom
@@ -326,7 +329,6 @@ app/domain/scene/
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── reload.ts       reloads: the rows in hand that are reloaded, why one cannot be, the stack it takes and what it leaves in the weapon (`Item.loaded`)
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
-│   ├── light.ts        light: the board's level (bright, dim, dark) and darkness painted on it; bright within the radius of a light held in hand or lying on the floor — an item's own, or one Lamp or Revealing Light cast into it — walls casting shadow (`getCellLight`, `getLightOf`, `isUnlit`); Darkseeing drunk sees clearly in dim light
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   └── fighters.ts     active character, fight names, who holds an item

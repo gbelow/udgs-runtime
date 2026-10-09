@@ -19,7 +19,7 @@ import { getOpeningReaction, getReactionsTo } from './log'
 import { getAttackVariant, getDefendingReaction, getMoveStep, isBracedStep, isHookStep } from './attack'
 import { findWeaponRow, getRowProperties, type WeaponRow } from './weaponRow'
 import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
-import { getCover, getPlacedFootprint, toDamageWall } from './board'
+import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 

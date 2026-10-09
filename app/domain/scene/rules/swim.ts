@@ -4,11 +4,11 @@ import { SWIM_ONE_HAND_PENALTY } from '../../tables'
 import { getSwimTerms } from '../../character/rules/skills'
 import type { Term } from '../../character/rules/terms'
 import { getFreeHoldingHands } from '../../item/rules/hands'
-import { coordKey } from '../geometry'
-import { getFootprint } from './board'
+import { coordKey } from './board/geometry'
+import { getFootprint } from './board/board'
 import { getMoveHeld } from './heldRoll'
 import { getDegree } from '../../play/test'
-import { getMoveOrigin, touchesGround } from './waypoint'
+import { getMoveOrigin, touchesGround } from './board/waypoint'
 
 // combat.tex "Swimming": the body of water a footprint stands in, read off the
 // cells of it that are liquid. The surface is the cells' elevation and the

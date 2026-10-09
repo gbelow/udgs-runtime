@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../types'
 import type { SceneState } from '../scene/types'
-import { setDistance } from '../scene/geometry'
+import { setDistance } from '../scene/rules/board/geometry'
 import { canAfford } from '../character/rules/cost'
 import { getSTA } from '../character/rules/characteristics'
 import weapons from '../../assets/weapons.json'

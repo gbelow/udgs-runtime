@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ActionSchema, BoardSchema, CoordSchema, PlacementSchema, TerrainCellSchema, type ActionKind, type ActionOf, type Board } from './types'
-import { parseCoordKey } from './geometry'
+import { parseCoordKey } from './rules/board/geometry'
 
 // An action of a known kind, every field it does not name at its default.
 export function makeAction<K extends ActionKind>(kind: K, fields: Partial<Omit<ActionOf<K>, 'kind'>> & { id: string; actorId: string }): ActionOf<K> {

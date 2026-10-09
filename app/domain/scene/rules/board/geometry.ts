@@ -1,4 +1,4 @@
-import type { Coord, Direction } from './types'
+import type { Coord, Direction } from '../../types'
 
 // Hex arithmetic in axial coordinates (q, r), with the implied third cube
 // axis s = -q - r. Nothing here is a rule: this is the metric the board

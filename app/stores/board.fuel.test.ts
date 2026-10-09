@@ -4,7 +4,7 @@ import { fighter } from '../domain/bot/fixtures'
 import { holdItem } from '../domain/item/commands/hands'
 import { ItemSchema } from '../domain/types'
 import { HazardLayerSchema, TerrainCellSchema, type Updater } from '../domain/scene/types'
-import { coordKey } from '../domain/scene/geometry'
+import { coordKey } from '../domain/scene/rules/board/geometry'
 
 // A flask thrown at the board and a fire put out, from the click to what
 // stands after. Expected values are where the click landed; the game numbers

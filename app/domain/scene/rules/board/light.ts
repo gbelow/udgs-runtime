@@ -1,8 +1,8 @@
-import type { CampaignCharacter } from '../../types'
-import type { SceneState, Coord, LightLevel } from '../types'
-import { SPELL_LIGHT } from '../../tables'
-import { LIGHT_LEVELS } from '../../lists'
-import { coordKey, distance } from '../geometry'
+import type { CampaignCharacter } from '../../../types'
+import type { SceneState, Coord, LightLevel } from '../../types'
+import { SPELL_LIGHT } from '../../../tables'
+import { LIGHT_LEVELS } from '../../../lists'
+import { coordKey, distance } from './geometry'
 import { getPlacedFootprint, seesAcross } from './board'
 
 // combat.tex "Darkness and light": "In a situation of darkness, the field of

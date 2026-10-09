@@ -4,14 +4,14 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
 
 ## The board
 
-- `geometry.ts` — hex arithmetic in axial coordinates, no rules: `DIRECTIONS` (also the
+- `rules/board/geometry.ts` — hex arithmetic in axial coordinates, no rules: `DIRECTIONS` (also the
   rotation order), `distance`, `setDistance`, `line`, `disk`, `ring`, `rotate`, `walkOut`,
   plane conversion for drawing and cones. One cell is one metre.
-- `rules/board.ts` — footprints and occupancy by size, distance between characters, reach
+- `rules/board/board.ts` — footprints and occupancy by size, distance between characters, reach
   and shot range, line of sight and line of fire, cover (see `mechanics.md` "Cover"), high
   ground, flankers, melee threateners.
-- `rules/ground.ts` — where a footprint may cross and where it may come to rest.
-- `rules/hazard.ts` — fire and gas left on the ground. A blast paints
+- `rules/board/ground.ts` — where a footprint may cross and where it may come to rest.
+- `rules/board/hazard.ts` — fire and gas left on the ground. A blast paints
   a `HazardLayer` onto each cell it covers (`TerrainCell.layers`). The layer holds the fire
   its own burn deals in that zone, whether the gas suffocates, and the visibility it leaves.
   A layer from a sustained spell names its holder and the explosion that cast it; it is
@@ -25,11 +25,11 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   `nextRound` burns the counter with the fire each character stands in added, as one
   instance. Every burn and radiant hit goes through the counter the same way
   (`getOutcome`).
-- `rules/move.ts`, `rules/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
+- `rules/move.ts`, `rules/board/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
   runs, Balance tests, reachable cells, where the mover stands along a path, where a move
   was cut short, tramples.
 - **Cliffs and falls.** Ground a metre or more above or below the cell beside it is a cliff
-  (`rules/cliff.ts`): a walk may not step over it, a jump goes up as far as its vertical reach
+  (`rules/board/cliff.ts`): a walk may not step over it, a jump goes up as far as its vertical reach
   clears and comes down as a fall, and a climb (the way over, always a test) is the only
   movement that crosses it on foot. A move's facts carry the fall it ended in (a jump that
   landed lower; a climb that missed, from the highest point it reached to the lower of where
@@ -86,7 +86,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   `turnCharacter`, `paintTerrain`) live in `commands/board.ts` and are refused while an
   action is open. `makeBoard` (`factories.ts`) ingests a VTT snapshot best-effort.
 - What a click on the board means is `resolveClick` (`commands/click.ts`), read off the state
-  at the click through `getBoardMode` and `getFloorPicker` (`rules/boardMode.ts`); the hook
+  at the click through `getBoardMode` and `getFloorPicker` (`rules/board/boardMode.ts`); the hook
   only dispatches it.
 
 ## Reading for the UI: projections

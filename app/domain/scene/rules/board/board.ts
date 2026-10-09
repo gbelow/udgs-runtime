@@ -1,10 +1,10 @@
-import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../types'
-import type { Board, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../types'
-import { REACH, RMArr } from '../../tables'
-import { isMeleeRange } from '../../weaponProperties'
-import { getWieldedWeapons } from '../../item/rules/hands'
-import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from '../geometry'
-import { findRowVariant, findWeaponRow } from './weaponRow'
+import type { Character, Damage, MeleeRange, Weapon, WeaponAttack } from '../../../types'
+import type { Board, SceneState, Coord, Placement, ShootAction, StrikeAction, TerrainCell } from '../../types'
+import { REACH, RMArr } from '../../../tables'
+import { isMeleeRange } from '../../../weaponProperties'
+import { getWieldedWeapons } from '../../../item/rules/hands'
+import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
+import { findRowVariant, findWeaponRow } from '../weaponRow'
 
 // The board rules read the spatial facts of a fight off `state.board`.
 // Every rule that answers for a fight answers null, or "passes", when the

@@ -3,8 +3,8 @@ import { getHeldItem } from '../../item/rules/hands'
 import { getHeldEntry } from '../../character/rules/concentration'
 import { SPELLS, isSpellKey } from '../../spells'
 import { isGrapplingStill } from './grapple'
-import { setDistance } from '../geometry'
-import { getDistanceBetween, getPlacedFootprint } from './board'
+import { setDistance } from './board/geometry'
+import { getDistanceBetween, getPlacedFootprint } from './board/board'
 import { getPartner, getTethersOf, isTether } from './partners'
 
 // Whether the holder still maintains the bind with what it was made with.
