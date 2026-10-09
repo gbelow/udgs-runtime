@@ -18,6 +18,7 @@ import * as rosterModule from './campaign/commands/roster'
 import * as campaignExplorationModule from './campaign/commands/exploration'
 import * as fightModule from './campaign/commands/fight'
 import * as clockModule from './campaign/commands/clock'
+import * as partiesModule from './campaign/commands/parties'
 import { CampaignStateSchema, type Table } from './campaign/types'
 import { CombatStateSchema, type CombatState } from './combat/types'
 import { getOpenAction } from './combat/rules/log'
@@ -34,7 +35,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule, ...clockModule }
+const campaignCommands = { ...rosterModule, ...campaignExplorationModule, ...fightModule, ...clockModule, ...partiesModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -278,18 +279,32 @@ const combatCases: Record<string, (s: CombatState) => unknown> = {
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
 }
 
-// The campaign's subject is a table: `a` and `b` on the roster, and the
-// combat subject's fight beside it, its strike cleared.
+// The campaign's subject is a table: `a` and `b` on the roster in party
+// `p`, `b` travelling as group `g`, `a` with an exhaustion Will test to
+// make, and the combat subject's fight beside it, its strike cleared.
 const campaignCases: Record<string, (t: Table) => unknown> = {
   addToRoster: ({ campaign }) => campaignCommands.addToRoster(characterSubject(), () => 'issued')(campaign),
   removeFromRoster: ({ campaign }) => campaignCommands.removeFromRoster('a')(campaign),
   updateRosterCharacter: ({ campaign }) => campaignCommands.updateRosterCharacter('a', (c) => ({ ...c, held: [] }))(campaign),
   setRosterActive: ({ campaign }) => campaignCommands.setRosterActive('b')(campaign),
-  setPlan: ({ campaign }) => campaignCommands.setPlan('a', 'rest')(campaign),
-  setExposure: ({ campaign }) => campaignCommands.setExposure(3)(campaign),
+  checkOut: ({ campaign }) => campaignCommands.checkOut('a')(campaign),
+  addParty: ({ campaign }) => campaignCommands.addParty('q')(campaign),
+  clearPlan: ({ campaign }) => campaignCommands.clearPlan('b')(campaign),
+  dropEmptyParties: ({ campaign }) => campaignCommands.dropEmptyParties({ ...campaign, partyOf: {} }),
+  joinParty: ({ campaign }) => campaignCommands.joinParty('c', () => 'q')(campaign),
+  mergeParties: ({ campaign }) => campaignCommands.mergeParties('p', 'q')(campaignCommands.addParty('q')(campaign)),
+  setPartyExposure: ({ campaign }) => campaignCommands.setPartyExposure('p', 3)(campaign),
+  setPartyLight: ({ campaign }) => campaignCommands.setPartyLight('p', 'dark')(campaign),
+  addGroup: ({ campaign }) => campaignCommands.addGroup('p', 'fire', () => 'h')(campaign),
+  removeGroup: ({ campaign }) => campaignCommands.removeGroup('p', 'g')(campaign),
+  setGroup: ({ campaign }) => campaignCommands.setGroup('p', 'g', { DL: 5 })(campaign),
+  setRoller: ({ campaign }) => campaignCommands.setRoller('p', 'g', 'b')(campaign),
+  joinGroup: ({ campaign }) => campaignCommands.joinGroup('a', 'g')(campaign),
+  setResting: ({ campaign }) => campaignCommands.setResting('a', true)(campaign),
+  decide: ({ campaign }) => campaignCommands.decide('b', 'carry')({ ...campaign, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } }),
   eat: ({ campaign }) => campaignCommands.eat('a', 3)(campaign),
   drink: ({ campaign }) => campaignCommands.drink('a')(campaign),
-  passET: (t) => campaignCommands.passET(() => 0)({ ...t, fight: { ...t.fight, characters: {} }, campaign: { ...t.campaign, plans: { a: 'rest', b: 'travel' } } }),
+  passET: (t) => campaignCommands.passET(() => 0, () => 'q')({ ...t, fight: { ...t.fight, characters: {} }, campaign: { ...t.campaign, resting: ['a'] } }),
   advanceClock: ({ campaign }) => campaignCommands.advanceClock(2 * 24 * 60 * 60)(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'], () => 'issued')(t),
   returnFromFight: (t) => campaignCommands.returnFromFight(() => 'issued')(t),
@@ -427,7 +442,12 @@ describe('commands are pure updaters', () => {
 
   it.each(Object.entries(campaignCases))('%s leaves its campaign and fight alone', (_name, run) => {
     const fight = cleared(combatSubject())
-    const subject = { campaign: CampaignStateSchema.parse({ characters: fight.characters, activeCharacterId: 'a', clock: 100 }), fight }
+    const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
+    const campaign = CampaignStateSchema.parse({
+      characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' },
+      parties: { p: { name: 'Party 1', groups: { g: { kind: 'travel', members: ['b'], roller: 'b' } } } },
+    })
+    const subject = { campaign, fight }
     const pristine = structuredClone(subject)
     run(deepFreeze(subject))
     expect(subject).toEqual(pristine)

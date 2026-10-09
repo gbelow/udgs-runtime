@@ -1,20 +1,47 @@
 import type { CampaignCharacter } from '../../types'
 import type { CampaignUpdater } from '../types'
-import { withInstance } from '../../instances'
+import { addInstance } from '../../instances'
+import { clearPlan, dropEmptyParties, joinParty } from './parties'
 
+// The character joins the roster, in the party they were in or another (see
+// `joinParty`).
 export function addToRoster(char: CampaignCharacter, newId: () => string): CampaignUpdater {
-  return (state) => ({ ...state, characters: withInstance(char, state.characters, newId) })
+  return (state) => {
+    const added = addInstance(char, state.characters, newId)
+    return joinParty(added.id, newId)({ ...state, characters: { ...state.characters, [added.id]: added } })
+  }
 }
 
-// survival.tex "Rest": "If rest is interrupted, it gets cancelled and the
-// interrupting event happens instead" — whoever leaves the roster leaves
-// their plan for the ET behind.
+// The character leaves the roster and the party they were in.
 export function removeFromRoster(id: string): CampaignUpdater {
   return (state) => {
     if (!state.characters[id]) return state
+    const unplanned = clearPlan(id)(state)
+    const { [id]: _gone, ...characters } = unplanned.characters
+    const { [id]: _party, ...partyOf } = unplanned.partyOf
+    return dropEmptyParties({
+      ...unplanned,
+      characters,
+      partyOf,
+      out: unplanned.out.filter((o) => o !== id),
+      activeCharacterId: unplanned.activeCharacterId === id ? null : unplanned.activeCharacterId,
+    })
+  }
+}
+
+// survival.tex "Rest": "If rest is interrupted, it gets cancelled and the
+// interrupting event happens instead" — the character leaves the roster for
+// a fight but stays in their party, sitting out what they planned this ET.
+export function checkOut(id: string): CampaignUpdater {
+  return (state) => {
+    if (!state.characters[id]) return state
     const { [id]: _gone, ...characters } = state.characters
-    const { [id]: _plan, ...plans } = state.plans
-    return { ...state, characters, plans, activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId }
+    return {
+      ...state,
+      characters,
+      out: state.out.includes(id) ? state.out : [...state.out, id],
+      activeCharacterId: state.activeCharacterId === id ? null : state.activeCharacterId,
+    }
   }
 }
 
