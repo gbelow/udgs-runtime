@@ -1,0 +1,48 @@
+{
+  "name": "Map 1",
+  "nodes": {
+    "c35b9d09-9ba6-4147-b278-01d301196326": {
+      "name": "Node 2",
+      "terrain": "Forest",
+      "custom": {},
+      "events": {}
+    },
+    "0014e657-fb86-496f-b901-3f6176903309": {
+      "name": "Node 3",
+      "terrain": "Forest",
+      "custom": {},
+      "events": {}
+    },
+    "279a7ad0-2f1b-4008-8b3c-3b12902e1bde": {
+      "name": "Node 1",
+      "terrain": "Forest",
+      "custom": {},
+      "events": {}
+    }
+  },
+  "connections": {
+    "577acbd3-c845-4008-8a22-2a785f286b78": {
+      "a": "279a7ad0-2f1b-4008-8b3c-3b12902e1bde",
+      "b": "c35b9d09-9ba6-4147-b278-01d301196326",
+      "DL": 0,
+      "backDL": 0,
+      "events": {
+        "fd6be700-ee88-4cfb-a008-e38c2db8dafb": {
+          "name": "Event 1",
+          "types": [
+            "obstacle"
+          ],
+          "DL": 0,
+          "enabler": null,
+          "outcomes": {
+            "critical": "",
+            "hit": "",
+            "graze": "",
+            "miss": ""
+          },
+          "way": "there"
+        }
+      }
+    }
+  }
+}

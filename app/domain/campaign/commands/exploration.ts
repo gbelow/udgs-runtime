@@ -1,13 +1,13 @@
 import type { CampaignCharacter } from '../../types'
 import type { Camp, CampaignState, CampaignUpdater, CrawlEvent, Group, GroupResult, Opening, TableUpdater, TestRoll } from '../types'
-import { CampSchema, TerrainWearSchema } from '../types'
+import { CampSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../combat/dice'
 import { getDegree, resolveTest } from '../../combat/rules/test'
 import type { Degree } from '../../combat/types'
 import { gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getConnectionsFrom, getExhaustionTest, getExplorationAction, getExplorationBar, getGroupTest, getNightDL, getPartyMembers,
-  getPartyPlayers, getPassBar, getPlace, getRestExposure, getRestHealing, getRestRecovery, getWear, hasWood, isAway, isForcedToRest,
+  getPartyPlayers, getPassBar, getPlace, getRestExposure, getTerrainWear, getRestHealing, getRestRecovery, getWear, hasWood, isAway, isForcedToRest,
   type Path, type Place,
 } from '../rules/exploration'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/crawl'
@@ -184,7 +184,7 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
   const players = getPartyPlayers(state, partyId)
   const forced = (id: string) => isForcedToRest(opening.rolls[id]?.degree)
   const name = (id: string) => state.characters[id]?.fightName ?? id
-  const terrainWear = getPlace(state, party)?.terrain?.wear ?? TerrainWearSchema.parse({})
+  const wear = getTerrainWear(state, party)
   const start = party.camp
   let camp: Camp = { ...start, progress: [] }
   const working: Record<string, Group> = {}
@@ -219,14 +219,11 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
     const group = working[id]
     const resting = !group && (forced(id) || state.resting.includes(id)) && canRestHeal({ ...state, rests }, id)
     if (resting) rests = { ...rests, [id]: (rests[id] ?? 0) + 1 }
-    characters[id] = resting ? rest(drank, exposure)
-      : group ? [
-        addIL(getWear(drank, getExplorationAction(group.kind), terrainWear.IL)),
-        addExhaustion(1 + terrainWear.exhaustion),
-        gainHunger(terrainWear.hunger),
-        gainThirst(terrainWear.thirst),
-      ].reduce((c, step) => step(c), drank)
+    const planned = resting ? rest(drank, exposure)
+      : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind)))(drank))
       : addExhaustion(1)(drank)
+    characters[id] = [addIL(wear.IL), addExhaustion(wear.exhaustion), gainHunger(wear.hunger), gainThirst(wear.thirst)]
+      .reduce((c, step) => step(c), planned)
   }
 
   const passed: CampaignState = { ...state, characters, rests, parties: { ...state.parties, [partyId]: { ...party, camp } } }

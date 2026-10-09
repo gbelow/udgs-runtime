@@ -2,10 +2,6 @@
 
 ## character creation calculator
 
-## XP tracking
-- spells - intuitive requires XP track
-- interface, learning mode
-
 ## weapons/armor
 - add customization options to weapons
 - add customization options to armors
@@ -36,22 +32,22 @@
 ## simulation
 - build ai strategies
 
-# morale
+## morale
 - feign death
 - call help
 
+## GM TOOLS
+- GM generated explosions
+- GM made tests for players on the fly
+- GM activated triggers
+- GM mode to edit characters freely/ players can only do it through actions
+- GM selected morale pressure
 
 ## compiling to book
 - add insertable variables to descriptions
 - compile abilities/spells/items into tex
 
-## exploration
-- exploration turn apply wear
-- rest value calculated automatically
-- exploration actions - rest, sleep, search, travel
-
 ## out of combat in map
-- how track time
 - when triggers/poison apply
 
 ## chase
@@ -86,14 +82,11 @@
 defending net with weapon binds weapon.
 retweak morale based spells
 
-GM tools, manual inserts
 explosions with multiple instances
-
 corrosion left commented out for further design.
 
 show morale test inside the actions panel. 
 check if morale is forcing surge usage.
-UI to select limit stress action.
 
 combat surprise - team sides - combat start button
 characters sharing same space
@@ -101,7 +94,6 @@ characters as cover
 cover on prepared guards
 breaking cells
 
-rudimentary sleep, eat, 1 ET cycle, drink, wound healing, injury healing. no exploration events yet
 
 # left for combat
 - environmental effects - storm, avalanche
@@ -111,9 +103,9 @@ rudimentary sleep, eat, 1 ET cycle, drink, wound healing, injury healing. no exp
 - combat snapshots, do/undo action, list of last actions
 
 # no map combat 
-- explosions
-- rough terrain tests
-- senses
+- explosions/ tests for all
+- mobility tests
+- senses/stealth
 - 
 
 
@@ -122,3 +114,9 @@ Where I went beyond or changed the plan
   - the Crossbow and Shield ability, because combat has no reload action yet;
   - cover on prepared guards;
   - characters as cover
+
+
+- Does turning a flexible body cost anything, or can it bend freely along any path?
+- Can a snake end its move coiled into a blob, or must the cells stay in walk order?
+- When a body is split, does the piece without the chest just drop as an item, or can it be a creature of its own (a hydra head, worm halves)?
+- Should a link be cuttable on its own (its own wound), or only through a lost part?

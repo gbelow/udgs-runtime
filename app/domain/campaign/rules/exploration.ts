@@ -1,6 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CampaignState, Connection, CrawlNode, Group, GroupKind, Party, PathEvent, Table, Terrain } from '../types'
+import type { CampaignState, Connection, CrawlNode, Group, GroupKind, Party, PathEvent, Table, Terrain, TerrainWear } from '../types'
+import { TerrainWearSchema } from '../types'
 import type { Degree } from '../../combat/types'
 import type { Test } from '../../combat/rules/test'
 import { getAwareness, getSTA } from '../../character/rules/characteristics'
@@ -24,11 +25,11 @@ export function isAway(kind: GroupKind): boolean {
 // survival.tex "Wear": "The basic wear is to increase IL by +1"; "STA < 8 =
 // +1 IL per EA. STA < 6 = +2 IL and so on", read off the derived STA (the
 // table's ruling); combat.tex "Lame": "Takes +2 IL for traveling and
-// Searching"; "Terrain": "Terrain can have value for extra wear".
-export function getWear(c: CampaignCharacter, action: ExplorationAction, terrain = 0): number {
+// Searching".
+export function getWear(c: CampaignCharacter, action: ExplorationAction): number {
   const stamina = Math.max(0, Math.floor((9 - getSTA(c)) / 2))
   const lame = action !== 'prepare' && hasAffliction(c, 'lame') ? 2 : 0
-  return 1 + stamina + lame + terrain
+  return 1 + stamina + lame
 }
 
 export type Place = { id: string; node: CrawlNode; terrain: Terrain | null }
@@ -38,6 +39,14 @@ export function getPlace(state: CampaignState, party: Party): Place | null {
   const node = party.node ? state.map?.nodes[party.node] : undefined
   if (!party.node || !node) return null
   return { id: party.node, node, terrain: getNodeTerrain(node) }
+}
+
+// survival.tex "Terrain": "Terrain can have value for extra wear. For
+// example, spending an ET in the desert without shelter always inflicts an
+// extra thirst" — paid every ET by everyone on the node, whatever they do;
+// a shelter is a node of its own, with its own wear.
+export function getTerrainWear(state: CampaignState, party: Party): TerrainWear {
+  return getPlace(state, party)?.terrain?.wear ?? TerrainWearSchema.parse({})
 }
 
 // survival.tex "Terrain": "Every terrain has a value of exposure"; off the

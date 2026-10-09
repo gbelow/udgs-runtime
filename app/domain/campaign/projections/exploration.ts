@@ -5,7 +5,7 @@ import { isNight } from '../rules/clock'
 import {
   canRestHeal, getConnectionsFrom, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getExposure,
   getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getPartyMembers, getPlace, getRestExposure, getRestHealing,
-  getRestRecovery, getWear, hasWood,
+  getRestRecovery, getTerrainWear, getWear, hasWood,
 } from '../rules/exploration'
 
 export type MemberView = { id: string; name: string; isActive: boolean; plan: string; out: boolean }
@@ -136,14 +136,16 @@ export function getExplorationPanel(state: CampaignState, id: string | null): Ex
   const rest: PlanOption = canRestHeal(state, id)
     ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(exposure), c.resources.exhaustion), hunger: 0, thirst: 0, idle: false, selected: plan === 'rest' }
     : { ...idle, plan: 'rest', label: 'rest', selected: plan === 'rest' }
-  const wear = getPlace(state, party)?.terrain?.wear
   const groups = Object.entries(party.groups).map(([groupId, g], i): PlanOption => ({
-    plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind), wear?.IL), exhaustion: 1 + (wear?.exhaustion ?? 0),
-    hunger: wear?.hunger ?? 0, thirst: wear?.thirst ?? 0, idle: false, selected: g.members.includes(id),
+    plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind)), exhaustion: 1, hunger: 0, thirst: 0, idle: false, selected: g.members.includes(id),
   }))
+  // the terrain's wear, which every plan pays on top
+  const wear = getTerrainWear(state, party)
+  const worn = (o: PlanOption): PlanOption =>
+    ({ ...o, IL: o.IL + wear.IL, exhaustion: o.exhaustion + wear.exhaustion, hunger: o.hunger + wear.hunger, thirst: o.thirst + wear.thirst })
   return {
     bar: getExplorationBar(state, id),
-    options: [...groups, rest, idle],
+    options: [...groups, rest, idle].map(worn),
     willDL: getExhaustionTest(c)?.DL ?? null,
     lastRoll: state.exhaustionRolls[id] ?? null,
     potion: c.injuries.potion,
