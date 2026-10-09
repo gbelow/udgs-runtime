@@ -1,14 +1,14 @@
 import type { CampaignCharacter } from '../../types'
 import type { Camp, CampaignState, CampaignUpdater, CrawlEvent, Group, GroupResult, Opening, TableUpdater, TestRoll } from '../types'
-import { CampSchema } from '../types'
+import { CampSchema, TerrainWearSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../combat/dice'
 import { getDegree, resolveTest } from '../../combat/rules/test'
 import type { Degree } from '../../combat/types'
-import { heal } from '../../character/commands/heal'
+import { gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getConnectionsFrom, getExhaustionTest, getExplorationAction, getExplorationBar, getGroupTest, getNightDL, getPartyMembers,
   getPartyPlayers, getPassBar, getPlace, getRestExposure, getRestHealing, getRestRecovery, getWear, hasWood, isAway, isForcedToRest,
-  type Place,
+  type Path, type Place,
 } from '../rules/exploration'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/crawl'
 import { getNextET } from '../rules/clock'
@@ -102,7 +102,6 @@ const meeting = (state: CampaignState, present: string[], score: number, night: 
   return { name: event.name, DL, degree, outcome: event.outcomes[degree] }
 }
 
-type Path = ReturnType<typeof getConnectionsFrom>[number]
 type Drawn = { path: Path } | { event: CrawlEvent } | null
 
 // survival.tex "Travel": "A crit or hit means that no one got lost";
@@ -115,15 +114,15 @@ function travel(state: CampaignState, place: Place, group: Group, roll: TestRoll
   const paths = getConnectionsFrom(state, place.id)
   const chosen = paths.find((p) => p.id === group.target)
   if (!chosen) return { roll, note: 'no path', moves: null, events: [] }
-  const along = (path: Path, note: string) => ({ roll, note, moves: { node: path.to }, events: Object.values(path.connection.events).map(meet) })
+  const along = (path: Path, note: string) => ({ roll, note, moves: { node: path.to }, events: path.events.map(meet) })
   const nameOf = (node: string) => state.map?.nodes[node]?.name ?? node
   if (won(roll.degree)) return along(chosen, `arrived at ${nameOf(chosen.to)}`)
   const weighted = (DL: number, item: Drawn) => ({ weight: getEventWeight(DL), item })
   const drawn = drawWeighted<Drawn>([
     ...Object.values(place.node.events).map((event) => weighted(event.DL, { event })),
-    weighted(chosen.connection.DL, { path: chosen }),
-    ...Object.values(chosen.connection.events).map((event) => weighted(event.DL, { path: chosen })),
-    ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.connection.DL, { path })) : []),
+    weighted(chosen.DL, { path: chosen }),
+    ...chosen.events.map((event) => weighted(event.DL, { path: chosen })),
+    ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.DL, { path })) : []),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
   if (drawn && 'path' in drawn) return along(drawn.path, drawn.path === chosen ? `arrived at ${nameOf(drawn.path.to)}` : `lost, came to ${nameOf(drawn.path.to)}`)
@@ -185,7 +184,7 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
   const players = getPartyPlayers(state, partyId)
   const forced = (id: string) => isForcedToRest(opening.rolls[id]?.degree)
   const name = (id: string) => state.characters[id]?.fightName ?? id
-  const terrainWear = getPlace(state, party)?.terrain?.wear ?? 0
+  const terrainWear = getPlace(state, party)?.terrain?.wear ?? TerrainWearSchema.parse({})
   const start = party.camp
   let camp: Camp = { ...start, progress: [] }
   const working: Record<string, Group> = {}
@@ -221,7 +220,12 @@ function passParty(state: CampaignState, partyId: string, opening: Opening, dice
     const resting = !group && (forced(id) || state.resting.includes(id)) && canRestHeal({ ...state, rests }, id)
     if (resting) rests = { ...rests, [id]: (rests[id] ?? 0) + 1 }
     characters[id] = resting ? rest(drank, exposure)
-      : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind), terrainWear))(drank))
+      : group ? [
+        addIL(getWear(drank, getExplorationAction(group.kind), terrainWear.IL)),
+        addExhaustion(1 + terrainWear.exhaustion),
+        gainHunger(terrainWear.hunger),
+        gainThirst(terrainWear.thirst),
+      ].reduce((c, step) => step(c), drank)
       : addExhaustion(1)(drank)
   }
 

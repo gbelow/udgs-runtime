@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { toast } from "sonner";
-import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, Terrain, TerrainTag } from "../domain/campaign/types";
+import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
 import { getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
 import {
-  addConnection, addEvent, addNode, addTerrain, removeConnection, removeEvent, removeNode, removeTerrain, setConnection, setEvent,
-  setEnabler, setMapName, setNode, setTerrain, toggleEventType, toggleTerrainTag,
+  addConnection, addEvent, addNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
+  setEvent, setEventWay, setMapName, setNode, toggleEventType, toggleNodeTag,
 } from "../domain/campaign/commands/map";
 import { deleteMap, upsertMap } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
@@ -51,15 +51,16 @@ export function useMapEditor() {
   return {
     view, maps, open, create: newMap, save, remove,
     setName: (name: string) => update(setMapName(name)),
-    addTerrain: () => update(addTerrain(newId)),
-    setTerrain: (id: string, patch: Partial<Terrain>) => update(setTerrain(id, patch)),
-    toggleTag: (id: string, tag: TerrainTag) => update(toggleTerrainTag(id, tag)),
-    removeTerrain: (id: string) => update(removeTerrain(id)),
     addNode: () => update(addNode(newId)),
     setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update(setNode(id, patch)),
+    customizeNode: (id: string, patch: Partial<TerrainValues>) => update(customizeNode(id, patch)),
+    customizeWear: (id: string, patch: Partial<TerrainWear>) => update(customizeNodeWear(id, patch)),
+    toggleTag: (id: string, tag: TerrainTag) => update(toggleNodeTag(id, tag)),
+    resetValue: (id: string, key: keyof TerrainValues) => update(resetNodeValue(id, key)),
     removeNode: (id: string) => update(removeNode(id)),
-    addConnection: (a: string, b: string) => update(addConnection(a, b, newId)),
-    setConnection: (id: string, patch: Partial<Pick<Connection, 'DL'>>) => update(setConnection(id, patch)),
+    addConnection: (a: string, b: string, DL: number, backDL: number) => update(addConnection(a, b, DL, backDL, newId)),
+    setConnection: (id: string, patch: Partial<Pick<Connection, 'DL' | 'backDL'>>) => update(setConnection(id, patch)),
+    setWay: (connectionId: string, eventId: string, way: Way) => update(setEventWay(connectionId, eventId, way)),
     removeConnection: (id: string) => update(removeConnection(id)),
     addEvent: (owner: EventOwner) => update(addEvent(owner, newId)),
     setEvent: (owner: EventOwner, eventId: string, patch: Partial<CrawlEvent>) => update(setEvent(owner, eventId, patch)),

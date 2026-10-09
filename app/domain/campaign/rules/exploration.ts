@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { ExplorationAction } from '../../lists'
-import type { CampaignState, Connection, CrawlNode, Group, GroupKind, Party, Table, Terrain } from '../types'
+import type { CampaignState, Connection, CrawlNode, Group, GroupKind, Party, PathEvent, Table, Terrain } from '../types'
 import type { Degree } from '../../combat/types'
 import type { Test } from '../../combat/rules/test'
 import { getAwareness, getSTA } from '../../character/rules/characteristics'
@@ -8,6 +8,7 @@ import { getHealth, getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { isNight } from './clock'
+import { getNodeTerrain } from './terrain'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
 export function getExplorationAction(kind: GroupKind): ExplorationAction {
@@ -36,7 +37,7 @@ export type Place = { id: string; node: CrawlNode; terrain: Terrain | null }
 export function getPlace(state: CampaignState, party: Party): Place | null {
   const node = party.node ? state.map?.nodes[party.node] : undefined
   if (!party.node || !node) return null
-  return { id: party.node, node, terrain: (node.terrain ? state.map?.terrains[node.terrain] : undefined) ?? null }
+  return { id: party.node, node, terrain: getNodeTerrain(node) }
 }
 
 // survival.tex "Terrain": "Every terrain has a value of exposure"; off the
@@ -46,11 +47,21 @@ export function getExposure(state: CampaignState, party: Party): number {
   return place?.terrain ? place.terrain.exposure : party.exposure
 }
 
-// The paths out of a node, with the node at the other end.
-export function getConnectionsFrom(state: CampaignState, node: string): { id: string; connection: Connection; to: string }[] {
+export type Path = { id: string; connection: Connection; to: string; DL: number; events: PathEvent[] }
+
+// The paths out of a node, each as travelled from it: the node at the other
+// end, the DL that way, and the events met going that way.
+export function getConnectionsFrom(state: CampaignState, node: string): Path[] {
   return Object.entries(state.map?.connections ?? {})
     .filter(([, c]) => c.a === node || c.b === node)
-    .map(([id, connection]) => ({ id, connection, to: connection.a === node ? connection.b : connection.a }))
+    .map(([id, connection]) => {
+      const there = connection.a === node
+      const way = there ? 'there' : 'back'
+      return {
+        id, connection, to: there ? connection.b : connection.a, DL: there ? connection.DL : connection.backDL,
+        events: Object.values(connection.events).filter((e) => e.way === 'both' || e.way === way),
+      }
+    })
 }
 
 // survival.tex "Terrain tags": "wood: allows looking for firewood"; off the
@@ -131,7 +142,7 @@ export function getMapDL(state: CampaignState, party: Party, group: Group): numb
   const place = getPlace(state, party)
   if (!place) return null
   switch (group.kind) {
-    case 'travel': return state.map?.connections[group.target ?? '']?.DL ?? null
+    case 'travel': return getConnectionsFrom(state, place.id).find((p) => p.id === group.target)?.DL ?? null
     case 'search': return 0
     case 'shelter':
     case 'firewood': return place.terrain?.shelterDL ?? null

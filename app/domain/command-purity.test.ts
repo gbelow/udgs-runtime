@@ -405,33 +405,34 @@ function declaredPush(s: CombatState): CombatState {
   return aimed
 }
 
-// Two nodes of one terrain joined by a path, an event on each.
+// Two nodes joined by a path, an event on each; the terrain is a name the
+// catalog may not have, which a node falls back from.
 function mapSubject(): CrawlMap {
   const event = { name: 'wolves', types: ['encounter'], DL: 5, outcomes: { hit: 'avoided' } }
   return CrawlMapSchema.parse({
     name: 'm',
-    terrains: { t: { name: 'forest', tags: ['wood'] } },
-    nodes: { n1: { name: 'A', terrain: 't', events: { e: event } }, n2: { name: 'B', terrain: 't' } },
-    connections: { c: { a: 'n1', b: 'n2', DL: 5, events: { e: event } } },
+    nodes: { n1: { name: 'A', terrain: 'forest', custom: { exposure: 2 }, events: { e: event } }, n2: { name: 'B', terrain: 'forest' } },
+    connections: { c: { a: 'n1', b: 'n2', DL: 5, backDL: 8, events: { e: { ...event, way: 'there' } } } },
   })
 }
 
 const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setMapName: (m) => mapModule.setMapName('n')(m),
-  addTerrain: (m) => mapModule.addTerrain(() => 'u')(m),
-  setTerrain: (m) => mapModule.setTerrain('t', { exposure: 3 })(m),
-  removeTerrain: (m) => mapModule.removeTerrain('t')(m),
   addNode: (m) => mapModule.addNode(() => 'n3')(m),
   setNode: (m) => mapModule.setNode('n1', { name: 'C' })(m),
+  customizeNode: (m) => mapModule.customizeNode('n1', { exposure: 1 })(m),
+  customizeNodeWear: (m) => mapModule.customizeNodeWear('n1', { thirst: 1 })(m),
+  toggleNodeTag: (m) => mapModule.toggleNodeTag('n1', 'cold')(m),
+  resetNodeValue: (m) => mapModule.resetNodeValue('n1', 'exposure')(m),
   removeNode: (m) => mapModule.removeNode('n1')(m),
-  addConnection: (m) => mapModule.addConnection('n2', 'n1', () => 'd')(m),
-  setConnection: (m) => mapModule.setConnection('c', { DL: 9 })(m),
+  addConnection: (m) => mapModule.addConnection('n2', 'n1', 1, 2, () => 'd')(m),
+  setConnection: (m) => mapModule.setConnection('c', { backDL: 9 })(m),
   removeConnection: (m) => mapModule.removeConnection('c')(m),
   addEvent: (m) => mapModule.addEvent({ kind: 'connection', id: 'c' }, () => 'f')(m),
   setEvent: (m) => mapModule.setEvent({ kind: 'node', id: 'n1' }, 'e', { DL: 0 })(m),
+  setEventWay: (m) => mapModule.setEventWay('c', 'e', 'both')(m),
   removeEvent: (m) => mapModule.removeEvent({ kind: 'node', id: 'n1' }, 'e')(m),
-  toggleTerrainTag: (m) => mapModule.toggleTerrainTag('t', 'cold')(m),
-  toggleEventType: (m) => mapModule.toggleEventType({ kind: 'node', id: 'n1' }, 'e', 'food')(m),
+  toggleEventType: (m) => mapModule.toggleEventType({ kind: 'connection', id: 'c' }, 'e', 'food')(m),
   setEnabler: (m) => mapModule.setEnabler({ kind: 'connection', id: 'c' }, 'e', 'survival', 2)(m),
 }
 

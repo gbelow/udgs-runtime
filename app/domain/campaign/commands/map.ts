@@ -1,8 +1,10 @@
-import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, Terrain, TerrainTag } from '../types'
-import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, TerrainSchema } from '../types'
+import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, PathEvent, TerrainTag, TerrainValues, TerrainWear, Way } from '../types'
+import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, TerrainWearSchema } from '../types'
+import { getNodeTerrain } from '../rules/terrain'
 
-// survival.tex "Creating the point crawl": the map is made by hand, terrains
-// first, then nodes and the paths between them, then the events on both.
+// survival.tex "Creating the point crawl": the map is made by hand, nodes
+// first, each made of a terrain from the catalog, then the paths between
+// them, then the events on both.
 
 // The first "<label> n" none of the names has.
 function nextName(label: string, names: string[]): string {
@@ -16,34 +18,10 @@ function without<T>(record: Record<string, T>, id: string): Record<string, T> {
   return rest
 }
 
-export function setMapName(name: string): MapUpdater {
-  return (map) => ({ ...map, name })
-}
-
-export function addTerrain(newId: () => string): MapUpdater {
-  return (map) => ({
-    ...map,
-    terrains: { ...map.terrains, [newId()]: TerrainSchema.parse({ name: nextName('Terrain', Object.values(map.terrains).map((t) => t.name)) }) },
-  })
-}
-
-export function setTerrain(id: string, patch: Partial<Terrain>): MapUpdater {
-  return (map) => (map.terrains[id] ? { ...map, terrains: { ...map.terrains, [id]: { ...map.terrains[id], ...patch } } } : map)
-}
-
 const toggled = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value])
 
-export function toggleTerrainTag(id: string, tag: TerrainTag): MapUpdater {
-  return (map) => (map.terrains[id] ? setTerrain(id, { tags: toggled(map.terrains[id].tags, tag) })(map) : map)
-}
-
-// Nodes made of it are left without a terrain.
-export function removeTerrain(id: string): MapUpdater {
-  return (map) => ({
-    ...map,
-    terrains: without(map.terrains, id),
-    nodes: Object.fromEntries(Object.entries(map.nodes).map(([nid, n]) => [nid, n.terrain === id ? { ...n, terrain: null } : n])),
-  })
+export function setMapName(name: string): MapUpdater {
+  return (map) => ({ ...map, name })
 }
 
 export function addNode(newId: () => string): MapUpdater {
@@ -53,8 +31,38 @@ export function addNode(newId: () => string): MapUpdater {
   })
 }
 
+const withNode = (id: string, update: (n: CrawlNode) => CrawlNode): MapUpdater =>
+  (map) => (map.nodes[id] ? { ...map, nodes: { ...map.nodes, [id]: update(map.nodes[id]) } } : map)
+
+// The node's name, or the terrain preset it is made of; what it changed of
+// its terrain stays changed.
 export function setNode(id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>): MapUpdater {
-  return (map) => (map.nodes[id] ? { ...map, nodes: { ...map.nodes, [id]: { ...map.nodes[id], ...patch } } } : map)
+  return withNode(id, (n) => ({ ...n, ...patch }))
+}
+
+// The node changes these values of its terrain.
+export function customizeNode(id: string, patch: Partial<TerrainValues>): MapUpdater {
+  return withNode(id, (n) => ({ ...n, custom: { ...n.custom, ...patch } }))
+}
+
+// The node changes one part of its terrain's extra wear, keeping the rest.
+export function customizeNodeWear(id: string, patch: Partial<TerrainWear>): MapUpdater {
+  return withNode(id, (n) => {
+    const wear = getNodeTerrain(n)?.wear ?? TerrainWearSchema.parse({})
+    return { ...n, custom: { ...n.custom, wear: { ...wear, ...patch } } }
+  })
+}
+
+export function toggleNodeTag(id: string, tag: TerrainTag): MapUpdater {
+  return withNode(id, (n) => ({ ...n, custom: { ...n.custom, tags: toggled(getNodeTerrain(n)?.tags ?? [], tag) } }))
+}
+
+// The node takes this value from its terrain again.
+export function resetNodeValue(id: string, key: keyof TerrainValues): MapUpdater {
+  return withNode(id, (n) => {
+    const { [key]: _gone, ...custom } = n.custom
+    return { ...n, custom }
+  })
 }
 
 // The paths to and from it go with it.
@@ -66,13 +74,13 @@ export function removeNode(id: string): MapUpdater {
   })
 }
 
-// A path between two different nodes of the map.
-export function addConnection(a: string, b: string, newId: () => string): MapUpdater {
+// A path between two different nodes of the map, with its DL each way.
+export function addConnection(a: string, b: string, DL: number, backDL: number, newId: () => string): MapUpdater {
   return (map) => (a === b || !map.nodes[a] || !map.nodes[b] ? map
-    : { ...map, connections: { ...map.connections, [newId()]: ConnectionSchema.parse({ a, b }) } })
+    : { ...map, connections: { ...map.connections, [newId()]: ConnectionSchema.parse({ a, b, DL, backDL }) } })
 }
 
-export function setConnection(id: string, patch: Partial<Pick<Connection, 'DL'>>): MapUpdater {
+export function setConnection(id: string, patch: Partial<Pick<Connection, 'DL' | 'backDL'>>): MapUpdater {
   return (map) => (map.connections[id] ? { ...map, connections: { ...map.connections, [id]: { ...map.connections[id], ...patch } } } : map)
 }
 
@@ -80,27 +88,31 @@ export function removeConnection(id: string): MapUpdater {
   return (map) => ({ ...map, connections: without(map.connections, id) })
 }
 
-// The events of a node or a connection, changed in place.
-function withEvents(owner: EventOwner, update: (events: Record<string, CrawlEvent>) => Record<string, CrawlEvent>): MapUpdater {
-  return (map) => {
-    if (owner.kind === 'node') {
-      const node = map.nodes[owner.id]
-      return node ? { ...map, nodes: { ...map.nodes, [owner.id]: { ...node, events: update(node.events) } } } : map
-    }
-    const connection = map.connections[owner.id]
-    return connection ? { ...map, connections: { ...map.connections, [owner.id]: { ...connection, events: update(connection.events) } } } : map
-  }
+const withPath = (id: string, update: (events: Record<string, PathEvent>) => Record<string, PathEvent>): MapUpdater =>
+  (map) => (map.connections[id] ? { ...map, connections: { ...map.connections, [id]: { ...map.connections[id], events: update(map.connections[id].events) } } } : map)
+
+// The events of a node or a path, changed in place.
+function withEvents(owner: EventOwner, update: <E extends CrawlEvent>(events: Record<string, E>) => Record<string, E>): MapUpdater {
+  return owner.kind === 'node' ? withNode(owner.id, (n) => ({ ...n, events: update(n.events) })) : withPath(owner.id, update)
 }
 
 export function addEvent(owner: EventOwner, newId: () => string): MapUpdater {
-  return withEvents(owner, (events) => ({
-    ...events,
-    [newId()]: CrawlEventSchema.parse({ name: nextName('Event', Object.values(events).map((e) => e.name)) }),
-  }))
+  return (map) => {
+    const events = owner.kind === 'node' ? map.nodes[owner.id]?.events : map.connections[owner.id]?.events
+    const name = nextName('Event', Object.values(events ?? {}).map((e) => e.name))
+    return owner.kind === 'node'
+      ? withNode(owner.id, (n) => ({ ...n, events: { ...n.events, [newId()]: CrawlEventSchema.parse({ name }) } }))(map)
+      : withPath(owner.id, (es) => ({ ...es, [newId()]: PathEventSchema.parse({ name }) }))(map)
+  }
 }
 
 export function setEvent(owner: EventOwner, eventId: string, patch: Partial<CrawlEvent>): MapUpdater {
   return withEvents(owner, (events) => (events[eventId] ? { ...events, [eventId]: { ...events[eventId], ...patch } } : events))
+}
+
+// Which way along the path the event happens.
+export function setEventWay(connectionId: string, eventId: string, way: Way): MapUpdater {
+  return withPath(connectionId, (events) => (events[eventId] ? { ...events, [eventId]: { ...events[eventId], way } } : events))
 }
 
 export function removeEvent(owner: EventOwner, eventId: string): MapUpdater {

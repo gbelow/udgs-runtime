@@ -98,7 +98,7 @@ export const getPartiesView = perState((state: CampaignState): PartiesView => ({
           mode: g.mode, target: g.target, seek: g.seek, tool: g.tool,
         }
       }),
-      paths: place ? getConnectionsFrom(state, place.id).map((p) => ({ id: p.id, name: nodeName(state, p.to), DL: p.connection.DL })) : [],
+      paths: place ? getConnectionsFrom(state, place.id).map((p) => ({ id: p.id, name: nodeName(state, p.to), DL: p.DL })) : [],
       others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.node === party.node).map(([id, p]) => ({ id, name: p.name })),
     }
   }),
@@ -111,7 +111,7 @@ export const getPartiesDigest = perState((state: CampaignState) => JSON.stringif
 
 // What a plan would do to the character over the ET, as changes to IL and
 // exhaustion; `idle` is set on a rest that has no healing left today.
-export type PlanOption = { plan: { group: string } | 'rest' | null; label: string; IL: number; exhaustion: number; idle: boolean; selected: boolean }
+export type PlanOption = { plan: { group: string } | 'rest' | null; label: string; IL: number; exhaustion: number; hunger: number; thirst: number; idle: boolean; selected: boolean }
 
 export type ExplorationPanel = {
   bar: string | null
@@ -130,14 +130,16 @@ export function getExplorationPanel(state: CampaignState, id: string | null): Ex
   const party = id ? state.parties[state.partyOf[id]] : undefined
   if (!id || !c || !party) return { bar: 'not with a party', options: [], willDL: null, lastRoll: null, potion: 0 }
   const plan = planOf(state, state.partyOf[id], id)
-  const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, idle: true, selected: plan === 'idle' }
+  const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
   const exposure = getRestExposure(state, party)
   const healing = getRestHealing(c, exposure)
   const rest: PlanOption = canRestHeal(state, id)
-    ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(exposure), c.resources.exhaustion), idle: false, selected: plan === 'rest' }
+    ? { plan: 'rest', label: 'rest', IL: healing < 0 ? -healing : -Math.min(healing, c.injuries.injuryLevel), exhaustion: -Math.min(getRestRecovery(exposure), c.resources.exhaustion), hunger: 0, thirst: 0, idle: false, selected: plan === 'rest' }
     : { ...idle, plan: 'rest', label: 'rest', selected: plan === 'rest' }
+  const wear = getPlace(state, party)?.terrain?.wear
   const groups = Object.entries(party.groups).map(([groupId, g], i): PlanOption => ({
-    plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind), getPlace(state, party)?.terrain?.wear), exhaustion: 1, idle: false, selected: g.members.includes(id),
+    plan: { group: groupId }, label: `${g.kind} ${i + 1}`, IL: getWear(c, getExplorationAction(g.kind), wear?.IL), exhaustion: 1 + (wear?.exhaustion ?? 0),
+    hunger: wear?.hunger ?? 0, thirst: wear?.thirst ?? 0, idle: false, selected: g.members.includes(id),
   }))
   return {
     bar: getExplorationBar(state, id),

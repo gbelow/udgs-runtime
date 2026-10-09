@@ -187,7 +187,7 @@ function ExplorationSection(){
       <SectionLabel>Next exploration turn</SectionLabel>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {options.map((o) => (
-          <Button key={o.label} aria-label={o.label} variant={o.selected ? 'primary' : 'default'} className={o.selected ? 'bg-accent/15' : ''} disabled={bar !== null} title={bar ?? `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.idle && o.plan ? ' (no healing rests left today)' : ''}`}
+          <Button key={o.label} aria-label={o.label} variant={o.selected ? 'primary' : 'default'} className={o.selected ? 'bg-accent/15' : ''} disabled={bar !== null} title={bar ?? `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.hunger ? `, ${signed(o.hunger)} hunger` : ''}${o.thirst ? `, ${signed(o.thirst)} thirst` : ''}${o.idle && o.plan ? ' (no healing rests left today)' : ''}`}
             onClick={() => (o.plan === null ? rest(false) : o.plan === 'rest' ? rest(true) : joinGroup(o.plan.group))}>{o.label}</Button>
         ))}
       </div>

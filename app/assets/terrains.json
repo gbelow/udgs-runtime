@@ -1,0 +1,15 @@
+{
+  "Forest": {
+    "name": "Forest",
+    "exposure": 0,
+    "shelterDL": -2,
+    "wear": {
+      "IL": 0,
+      "exhaustion": 0,
+      "hunger": 0,
+      "thirst": 0
+    },
+    "knowledge": "survival",
+    "tags": []
+  }
+}

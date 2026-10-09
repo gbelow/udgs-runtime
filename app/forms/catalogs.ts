@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TerrainSchema } from '../domain/campaign/types'
 import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerSchema, ItemSchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
 import abilities from '../assets/abilities.json'
@@ -8,6 +9,7 @@ import armors from '../assets/armors.json'
 import ammo from '../assets/ammo.json'
 import items from '../assets/items.json'
 import containers from '../assets/containers.json'
+import terrains from '../assets/terrains.json'
 
 // The editable catalogs: one JSON file under app/assets each, its schema,
 // and how an entry is keyed and listed. The editor, the save action and the
@@ -53,6 +55,10 @@ export const CATALOGS = {
   containers: {
     label: 'Containers', file: 'containers.json', schema: ContainerSchema, data: containers,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'kind'),
+  },
+  terrains: {
+    label: 'Terrains', file: 'terrains.json', schema: TerrainSchema, data: terrains,
+    keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
   },
 } satisfies Record<string, CatalogSpec>
 

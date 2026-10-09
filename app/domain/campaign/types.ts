@@ -38,38 +38,73 @@ export const CrawlEventSchema = z.object({
 })
 export type CrawlEvent = z.infer<typeof CrawlEventSchema>
 
-// survival.tex "Terrain": what a node is made of. `knowledge` is the one
-// location knowledge is read from; `wear` is extra IL for every EA in it.
+// survival.tex "Terrain": "Terrain can have value for extra wear. For
+// example, spending an ET in the desert without shelter always inflicts an
+// extra thirst" — what every EA in it costs on top of the usual wear.
+export const TerrainWearSchema = z.object({
+  IL: z.number().default(0),
+  exhaustion: z.number().default(0),
+  hunger: z.number().default(0),
+  thirst: z.number().default(0),
+})
+export type TerrainWear = z.infer<typeof TerrainWearSchema>
+
+// survival.tex "Terrain": a preset a node is made of, kept in the terrain
+// catalog outside any map. `knowledge` is the one location knowledge is read
+// from.
 export const TerrainSchema = z.object({
   name: z.string().default(''),
   exposure: z.number().default(0),
   shelterDL: z.number().default(0),
-  wear: z.number().default(0),
+  wear: TerrainWearSchema.default({ IL: 0, exhaustion: 0, hunger: 0, thirst: 0 }),
   knowledge: z.string().default('survival'),
   tags: z.array(TerrainTagSchema).default([]),
 })
 export type Terrain = z.infer<typeof TerrainSchema>
 
+// What a node may change of its terrain. Nothing defaults: a value missing
+// is one the node takes from its terrain.
+export const TerrainValuesSchema = z.object({
+  exposure: z.number(),
+  shelterDL: z.number(),
+  wear: z.object({ IL: z.number(), exhaustion: z.number(), hunger: z.number(), thirst: z.number() }),
+  knowledge: z.string(),
+  tags: z.array(TerrainTagSchema),
+})
+export type TerrainValues = z.infer<typeof TerrainValuesSchema>
+
+// A node is made of a terrain from the catalog, by name, and keeps only what
+// it changes of it.
 export const CrawlNodeSchema = z.object({
   name: z.string().default(''),
   terrain: z.string().nullable().default(null),
+  custom: TerrainValuesSchema.partial().default({}),
   events: z.record(z.string(), CrawlEventSchema).default({}),
 })
 export type CrawlNode = z.infer<typeof CrawlNodeSchema>
 
-// survival.tex "Creating the point crawl": a path between two nodes, both
-// ways, with the DL of travelling it and the events met on the way.
+// Which way along a path an event happens: both ways, from `a` to `b`
+// (there) or from `b` to `a` (back).
+export const WAYS = ['both', 'there', 'back'] as const
+export const WaySchema = z.enum(WAYS)
+export type Way = z.infer<typeof WaySchema>
+
+export const PathEventSchema = CrawlEventSchema.extend({ way: WaySchema.default('both') })
+export type PathEvent = z.infer<typeof PathEventSchema>
+
+// survival.tex "Creating the point crawl": a path between two nodes, with the
+// DL of travelling it each way and the events met on the way.
 export const ConnectionSchema = z.object({
   a: z.string(),
   b: z.string(),
   DL: z.number().default(0),
-  events: z.record(z.string(), CrawlEventSchema).default({}),
+  backDL: z.number().default(0),
+  events: z.record(z.string(), PathEventSchema).default({}),
 })
 export type Connection = z.infer<typeof ConnectionSchema>
 
 export const CrawlMapSchema = z.object({
   name: z.string().default(''),
-  terrains: z.record(z.string(), TerrainSchema).default({}),
   nodes: z.record(z.string(), CrawlNodeSchema).default({}),
   connections: z.record(z.string(), ConnectionSchema).default({}),
 })

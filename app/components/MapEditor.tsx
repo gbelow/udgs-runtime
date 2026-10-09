@@ -1,24 +1,24 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button, ListButton, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useMapEditor } from '../hooks/useMap'
-import { EVENT_TYPES, TERRAIN_TAGS, type EventOwner } from '../domain/campaign/types'
+import { EVENT_TYPES, TERRAIN_TAGS, WAYS, type EventOwner, type TerrainValues, type Way } from '../domain/campaign/types'
 import { knowledges_list } from '../domain/lists'
-import type { EventView } from '../domain/campaign/projections/map'
+import type { EventView, NodeEditorView } from '../domain/campaign/projections/map'
 
 const OUTCOMES = ['critical', 'hit', 'graze', 'miss'] as const
+const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
 
 // survival.tex "Creating the point crawl": the saved maps on the left, the
-// map being made on the right — its terrains, its nodes and the paths
-// between them, and the events on both.
+// map being made on the right — its nodes, each made of a terrain from the
+// catalog, the paths between them, and the events on both.
 export function MapEditor() {
   return (
     <div className='grid grid-cols-12 gap-2 py-2 text-left text-sm'>
       <MapList />
       <div className='col-span-10 flex flex-col gap-4 max-h-[85vh] overflow-y-auto pr-2'>
         <MapHeader />
-        <Terrains />
         <Nodes />
         <Connections />
       </div>
@@ -64,35 +64,6 @@ function MapHeader() {
   )
 }
 
-function Terrains() {
-  const { view, addTerrain, setTerrain, toggleTag, removeTerrain } = useMapEditor()
-  return (
-    <div className='flex flex-col gap-1'>
-      <div className='flex flex-row items-center gap-2'>
-        <SectionLabel>Terrains</SectionLabel>
-        <Button size='xs' variant='ghost' onClick={addTerrain}>+ terrain</Button>
-      </div>
-      {view.terrains.map((t) => (
-        <div key={t.id} className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
-          <TextInput className='w-32' aria-label='terrain name' value={t.name} onChange={(e) => setTerrain(t.id, { name: e.target.value })} />
-          <span className='text-xs text-muted'>exposure</span>
-          <NumberInput className='w-10' aria-label={`${t.name} exposure`} value={t.exposure} onChange={(e) => setTerrain(t.id, { exposure: parseInt(e.target.value) || 0 })} />
-          <span className='text-xs text-muted'>shelter DL</span>
-          <NumberInput className='w-10' aria-label={`${t.name} shelter DL`} value={t.shelterDL} onChange={(e) => setTerrain(t.id, { shelterDL: parseInt(e.target.value) || 0 })} />
-          <span className='text-xs text-muted'>wear</span>
-          <NumberInput className='w-10' aria-label={`${t.name} wear`} value={t.wear} onChange={(e) => setTerrain(t.id, { wear: parseInt(e.target.value) || 0 })} />
-          <span className='text-xs text-muted'>knowledge</span>
-          <TextInput className='w-28' list='knowledges' aria-label={`${t.name} knowledge`} value={t.knowledge} onChange={(e) => setTerrain(t.id, { knowledge: e.target.value })} />
-          {TERRAIN_TAGS.map((tag) => (
-            <Button key={tag} size='xs' variant={t.tags.includes(tag) ? 'primary' : 'ghost'} onClick={() => toggleTag(t.id, tag)}>{tag}</Button>
-          ))}
-          <Button aria-label={`remove ${t.name}`} variant='ghost' onClick={() => removeTerrain(t.id)}>×</Button>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 function Nodes() {
   const { view, addNode, setNode, removeNode, addEvent } = useMapEditor()
   return (
@@ -107,11 +78,13 @@ function Nodes() {
             <TextInput className='w-40' aria-label='node name' value={n.name} onChange={(e) => setNode(n.id, { name: e.target.value })} />
             <select aria-label={`${n.name} terrain`} className={selectClass} value={n.terrain ?? ''} onChange={(e) => setNode(n.id, { terrain: e.target.value || null })}>
               <option value=''>no terrain</option>
-              {view.terrains.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              {n.terrain && !view.presets.includes(n.terrain) ? <option value={n.terrain}>{n.terrain} (not in the catalog)</option> : null}
+              {view.presets.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <Button size='xs' variant='ghost' onClick={() => addEvent({ kind: 'node', id: n.id })}>+ event</Button>
             <Button aria-label={`remove ${n.name}`} variant='ghost' onClick={() => removeNode(n.id)}>×</Button>
           </div>
+          <NodeTerrain node={n} />
           {n.events.map((e) => <EventEditor key={e.id} owner={{ kind: 'node', id: n.id }} event={e} />)}
         </div>
       ))}
@@ -119,10 +92,46 @@ function Nodes() {
   )
 }
 
+// What the node is made of: its terrain's values, the ones the node changed
+// marked, each to be taken from the terrain again.
+function NodeTerrain({ node }: { node: NodeEditorView }) {
+  const { customizeNode, customizeWear, toggleTag, resetValue } = useMapEditor()
+  const values = node.values
+  if (!values) return null
+  const label = (key: keyof TerrainValues, text: string) => (
+    node.custom.includes(key) ?
+      <button type='button' className='text-xs text-accent' title='changed on this node; click to take it from the terrain' onClick={() => resetValue(node.id, key)}>{text} ↺</button>
+      : <span className='text-xs text-muted'>{text}</span>
+  )
+  return (
+    <div className='flex flex-row flex-wrap gap-1.5 items-center ml-4'>
+      {label('exposure', 'exposure')}
+      <NumberInput className='w-10' aria-label={`${node.name} exposure`} value={values.exposure} onChange={(e) => customizeNode(node.id, { exposure: parseInt(e.target.value) || 0 })} />
+      {label('shelterDL', 'shelter DL')}
+      <NumberInput className='w-10' aria-label={`${node.name} shelter DL`} value={values.shelterDL} onChange={(e) => customizeNode(node.id, { shelterDL: parseInt(e.target.value) || 0 })} />
+      {label('wear', 'extra wear')}
+      {WEAR_KEYS.map((key) => (
+        <span key={key} className='flex flex-row gap-1 items-center'>
+          <span className='text-xs text-muted'>{key}</span>
+          <NumberInput className='w-10' aria-label={`${node.name} wear ${key}`} value={values.wear[key]} onChange={(e) => customizeWear(node.id, { [key]: parseInt(e.target.value) || 0 })} />
+        </span>
+      ))}
+      {label('knowledge', 'knowledge')}
+      <TextInput className='w-28' list='knowledges' aria-label={`${node.name} knowledge`} value={values.knowledge} onChange={(e) => customizeNode(node.id, { knowledge: e.target.value })} />
+      {label('tags', 'tags')}
+      {TERRAIN_TAGS.map((tag) => (
+        <Button key={tag} size='xs' variant={values.tags.includes(tag) ? 'primary' : 'ghost'} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>
+      ))}
+    </div>
+  )
+}
+
 function Connections() {
-  const { view, addConnection, setConnection, removeConnection, addEvent } = useMapEditor()
+  const { view, addConnection, setConnection, removeConnection, addEvent, setWay } = useMapEditor()
   const [a, setA] = useState('')
   const [b, setB] = useState('')
+  const [DL, setDL] = useState(0)
+  const [backDL, setBackDL] = useState(0)
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap items-center gap-2'>
@@ -135,18 +144,33 @@ function Connections() {
           <option value=''>to…</option>
           {view.nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
         </select>
-        <Button size='xs' variant='ghost' disabled={!a || !b || a === b} onClick={() => addConnection(a, b)}>+ path</Button>
+        <span className='text-xs text-muted'>DL there</span>
+        <NumberInput className='w-10' aria-label='path DL there' value={DL} onChange={(e) => setDL(parseInt(e.target.value) || 0)} />
+        <span className='text-xs text-muted'>DL back</span>
+        <NumberInput className='w-10' aria-label='path DL back' value={backDL} onChange={(e) => setBackDL(parseInt(e.target.value) || 0)} />
+        <Button size='xs' variant='ghost' disabled={!a || !b || a === b} onClick={() => addConnection(a, b, DL, backDL)}>+ path</Button>
       </div>
       {view.connections.map((c) => (
         <div key={c.id} className='flex flex-col gap-1 border-t border-line pt-1'>
           <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-            <span className='text-sm'>{c.name}</span>
+            <span className='text-sm'>{c.aName} → {c.bName}</span>
             <span className='text-xs text-muted'>DL</span>
-            <NumberInput className='w-10' aria-label={`${c.name} DL`} value={c.DL} onChange={(e) => setConnection(c.id, { DL: parseInt(e.target.value) || 0 })} />
+            <NumberInput className='w-10' aria-label={`${c.aName} to ${c.bName} DL`} value={c.DL} onChange={(e) => setConnection(c.id, { DL: parseInt(e.target.value) || 0 })} />
+            <span className='text-sm'>· {c.bName} → {c.aName}</span>
+            <span className='text-xs text-muted'>DL</span>
+            <NumberInput className='w-10' aria-label={`${c.bName} to ${c.aName} DL`} value={c.backDL} onChange={(e) => setConnection(c.id, { backDL: parseInt(e.target.value) || 0 })} />
             <Button size='xs' variant='ghost' onClick={() => addEvent({ kind: 'connection', id: c.id })}>+ event</Button>
-            <Button aria-label={`remove ${c.name}`} variant='ghost' onClick={() => removeConnection(c.id)}>×</Button>
+            <Button aria-label={`remove ${c.aName} to ${c.bName}`} variant='ghost' onClick={() => removeConnection(c.id)}>×</Button>
           </div>
-          {c.events.map((e) => <EventEditor key={e.id} owner={{ kind: 'connection', id: c.id }} event={e} />)}
+          {c.events.map((e) => (
+            <EventEditor key={e.id} owner={{ kind: 'connection', id: c.id }} event={e}>
+              <select aria-label={`${e.name} way`} className={selectClass} value={e.way} onChange={(ev) => setWay(c.id, e.id, ev.target.value as Way)}>
+                {WAYS.map((way) => (
+                  <option key={way} value={way}>{way === 'both' ? 'both ways' : way === 'there' ? `${c.aName} → ${c.bName}` : `${c.bName} → ${c.aName}`}</option>
+                ))}
+              </select>
+            </EventEditor>
+          ))}
         </div>
       ))}
     </div>
@@ -155,12 +179,13 @@ function Connections() {
 
 // survival.tex "Events": an event, its DL to be found, what it needs known,
 // and what it comes to at each degree.
-function EventEditor({ owner, event }: { owner: EventOwner, event: EventView }) {
+function EventEditor({ owner, event, children }: { owner: EventOwner, event: EventView, children?: ReactNode }) {
   const { setEvent, toggleType, setEnabler, removeEvent } = useMapEditor()
   return (
     <div className='flex flex-col gap-1 ml-4 pl-2 border-l border-line'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <TextInput className='w-40' aria-label='event name' value={event.name} onChange={(e) => setEvent(owner, event.id, { name: e.target.value })} />
+        {children}
         <span className='text-xs text-muted'>DL</span>
         <NumberInput className='w-10' aria-label={`${event.name} DL`} value={event.DL} onChange={(e) => setEvent(owner, event.id, { DL: parseInt(e.target.value) || 0 })} />
         {EVENT_TYPES.map((type) => (
