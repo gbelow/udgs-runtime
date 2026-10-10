@@ -1,5 +1,5 @@
 import { getChaseDigest, getChasePanel, type ChasePanel } from "../domain/scene/projections/chase";
-import { chooseChaseWay, endChase as endTheChase, runChase, startChase as beginChase } from "../domain/scene/commands/chase";
+import { chooseChaseWay, endChase as endTheChase, runChase, startChase as beginChase, turnAround as turnAroundOf } from "../domain/scene/commands/chase";
 import { getChaseStartBar, type ChaseWay } from "../domain/scene/rules/chase";
 import type { ChaseTier } from "../domain/lists";
 import { useCombatStore } from "../stores/useCombatStore";
@@ -21,5 +21,6 @@ export function useChaseCommands() {
     run: () => updateCombatState(runChase(realDice)),
     choose: (way: ChaseWay) => updateCombatState(chooseChaseWay(way)),
     endChase: () => updateCombatState(endTheChase),
+    turnAround: (id: string) => updateCombatState(turnAroundOf(id)),
   };
 }

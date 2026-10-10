@@ -5,6 +5,7 @@ import type { Term } from '../../character/rules/terms'
 import type { SceneState, FeintAction } from '../types'
 import { getDistanceBetween, getMeleeRange } from './board/board'
 import { isWon } from './test'
+import { getRoutingTerms } from './chase'
 
 // "A cunning against cunning test between two characters in melee": whoever
 // either can strike from where they stand, and a cell is the least. On a
@@ -28,11 +29,12 @@ export function getFeintBar(state: SceneState, c: CampaignCharacter): string | n
   return getFeintTargets(state, c.id).length > 0 ? null : 'nobody in melee to feint'
 }
 
-// The actor's cunning against the target's.
+// The actor's cunning against the target's, each with a pursuer's routing
+// bonus (rules/chase.ts).
 export function getFeintTerms(state: SceneState, root: FeintAction): { skill: Term[]; DL: Term[] } | null {
   const actor = state.characters[root.actorId]
   const target = root.targetId ? state.characters[root.targetId] : undefined
-  return actor && target ? { skill: getCunningTerms(actor), DL: getCunningTerms(target) } : null
+  return actor && target ? { skill: [...getCunningTerms(actor), ...getRoutingTerms(state, actor.id)], DL: [...getCunningTerms(target), ...getRoutingTerms(state, target.id)] } : null
 }
 
 // "On a hit or crit, the target is forced to take their turn and use one

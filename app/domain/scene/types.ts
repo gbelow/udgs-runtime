@@ -1300,12 +1300,14 @@ export type ChaseRun = z.infer<typeof ChaseRunSchema>
 
 // combat.tex "Chases": the fight parties running away (everyone else is
 // chasing them), the distance tier between the two sides, this round's run,
-// and whether the quarry has got away.
+// whether the quarry has got away, and who of them has turned around to face
+// the pursuers.
 export const ChaseSchema = z.object({
   quarry: z.array(str).default([]),
   tier: z.enum(CHASE_TIERS).default('combat'),
   run: ChaseRunSchema.nullable().default(null),
   escaped: z.boolean().default(false),
+  turned: z.array(str).default([]),
 }).strip()
 export type Chase = z.infer<typeof ChaseSchema>
 

@@ -10,7 +10,7 @@ export function ChasePanel(){
   const [quarry, setQuarry] = useState<string[]>([])
   const [startTier, setStartTier] = useState<ChaseTier>('combat')
   const chase = useChase(quarry, startTier)
-  const { startChase, run, choose, endChase } = useChaseCommands()
+  const { startChase, run, choose, endChase, turnAround } = useChaseCommands()
   if (chase.parties.length < 2 && !chase.chasing) return null
 
   const toggle = (id: string) => setQuarry(quarry.includes(id) ? quarry.filter((q) => q !== id) : [...quarry, id])
@@ -50,7 +50,19 @@ export function ChasePanel(){
             ))}
             <Button size='xs' aria-label='endChase' onClick={endChase}>end chase</Button>
           </div>
-          {chase.escaped ? <span className='text-xs text-good'>the quarry got away</span> : null}
+          {
+            !chase.escaped ?
+            <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+              <span>turn around</span>
+              {chase.quarry.map((q) => (
+                <label key={q.id} className='flex gap-1 items-center'>
+                  <input type='checkbox' aria-label={`turn around ${q.name}`} checked={q.turned} onChange={() => turnAround(q.id)} />
+                  {q.name}
+                </label>
+              ))}
+            </div>
+            : <span className='text-xs text-good'>the quarry got away</span>
+          }
           {chase.caught.map((reason) => <span key={reason} className='text-xs text-bad'>caught: {reason}</span>)}
           {
             chase.run ?

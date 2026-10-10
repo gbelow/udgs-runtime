@@ -5,7 +5,7 @@ import { SURGES } from '../../tables'
 import { rollPercent, type Dice } from '../../play/dice'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { getChaseStartBar, getChaseWays, getRunBar, getRunners, getRunSpeed, getSideSpeed, isOutrun, stepTier, type ChaseWay } from '../rules/chase'
+import { getChaseSide, getChaseStartBar, getChaseWays, getRunBar, getRunners, getRunSpeed, getSideSpeed, isOutrun, stepTier, type ChaseWay } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
 import { updateCharacter } from './characters'
 
@@ -13,7 +13,7 @@ import { updateCharacter } from './characters'
 // the tier the table sets ("Approach": "The weapon range will decide at what
 // distance both teams start").
 export function startChase(quarry: string[], tier: ChaseTier): Updater {
-  return (state) => getChaseStartBar(state, quarry, tier) ? state : { ...state, chase: { quarry, tier, run: null, escaped: false } }
+  return (state) => getChaseStartBar(state, quarry, tier) ? state : { ...state, chase: { quarry, tier, run: null, escaped: false, turned: [] } }
 }
 
 // combat.tex "Running": what a run takes from each runner — a dash their
@@ -57,3 +57,14 @@ export function chooseChaseWay(way: ChaseWay): Updater {
 // The chase is over and the scene goes on as a fight (combat.tex "Catching":
 // "a combat or social situation starts").
 export const endChase: Updater = (state) => (!state.chase || getFightBusy(state) ? state : { ...state, chase: null })
+
+// combat.tex "Catching": one of the quarry turns around to face the
+// pursuers, or thinks better of it before the table ends the chase.
+export function turnAround(id: string): Updater {
+  return (state) => {
+    const chase = state.chase
+    if (!chase || chase.escaped || !state.characters[id] || getChaseSide(state, id) !== 'quarry') return state
+    const turned = chase.turned.includes(id) ? chase.turned.filter((t) => t !== id) : [...chase.turned, id]
+    return { ...state, chase: { ...chase, turned } }
+  }
+}

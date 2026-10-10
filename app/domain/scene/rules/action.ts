@@ -10,6 +10,7 @@ import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
 import { isInReach, isInShotRange } from './board/board'
+import { isWithinChaseReach } from './chase'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { isTrivialClimb, needsClimbTest } from './board/cliff'
 import { canAfford } from '../../character/rules/cost'
@@ -636,7 +637,7 @@ export function needsTarget(action: Action): boolean {
 // (combat.tex "Sweeping Attack"). Nobody can be aimed at whom the actor has
 // not detected (combat.tex "Stealth in combat").
 export function getTargetIds(state: SceneState, root: RootAction): string[] {
-  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id))
+  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id) && isWithinChaseReach(state, root, id))
 }
 
 function getAimableIds(state: SceneState, root: RootAction): string[] {

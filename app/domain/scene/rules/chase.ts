@@ -1,13 +1,15 @@
 import type { CampaignCharacter } from '../../types'
-import type { SceneState } from '../types'
+import type { RootAction, SceneState } from '../types'
+import type { Term } from '../../character/rules/terms'
 import { AFFLICTIONS, CHASE_ROUND_SECONDS, ROUND_SECONDS, SURGES } from '../../tables'
-import { CHASE_TIERS, type ChaseSide, type ChaseTier } from '../../lists'
+import { CHASE_TIERS, SHOT_RANGES, type ChaseSide, type ChaseTier } from '../../lists'
 import { getAfflictions, isDead } from '../../character/rules/afflictions'
 import { getAGI, getSTA } from '../../character/rules/characteristics'
 import { getRunMovement } from '../../character/rules/movement'
 import { getSituationalAfflictions } from './situational'
 import { getFightName } from './fighters'
 import { getFightBusy } from './turn'
+import { findWeaponRow } from './weaponRow'
 
 export type ChaseWay = 'close' | 'open'
 
@@ -35,15 +37,17 @@ export function getSideSpeed(runners: CampaignCharacter[], tier: ChaseTier): num
 }
 
 // combat.tex "Catching": "The quarry is caught when one of its members does
-// not have STA to run, [...] or when it ends a round with any mobility
-// affliction while in combat range" — both only in combat range, where
-// running is a dash on the movement surge's STA. Each member who would end
-// it, and why.
+// not have STA to run, when they decide to turn around and face the pursuer,
+// or when it ends a round with any mobility affliction while in combat range"
+// — lacking STA only in combat range too, where running is a dash on the
+// movement surge's STA. Each member who would end it, and why.
 export function getCaught(state: SceneState): { id: string; reason: string }[] {
   const chase = state.chase
-  if (!chase || chase.escaped || chase.tier !== 'combat') return []
+  if (!chase || chase.escaped) return []
   return getRunners(state, 'quarry').flatMap((c) => {
     const name = getFightName(state, c.id)
+    if (chase.turned.includes(c.id)) return [{ id: c.id, reason: `${name} turned around` }]
+    if (chase.tier !== 'combat') return []
     if (c.resources.STA < SURGES.movement.STA) return [{ id: c.id, reason: `${name} has no STA to run` }]
     const hobbled = getAfflictions(c, getSituationalAfflictions(state, c.id)).find((k) => AFFLICTIONS[k].category === 'mobility')
     return hobbled ? [{ id: c.id, reason: `${name} is ${hobbled}` }] : []
@@ -60,7 +64,7 @@ export function getChaseStartBar(state: SceneState, quarry: string[], tier: Chas
   const busy = getFightBusy(state)
   if (busy) return busy
   if (state.turnsTaken.length > 0) return 'a chase starts at the beginning of a round'
-  const started = { ...state, chase: { quarry, tier, run: null, escaped: false } }
+  const started = { ...state, chase: { quarry, tier, run: null, escaped: false, turned: [] } }
   if (getRunners(started, 'quarry').length === 0 || getRunners(started, 'pursuers').length === 0) return 'a chase needs someone on each side'
   const caught = getCaught(started)
   return caught.length ? `cannot run: ${caught.map((c) => c.reason).join(', ')}` : null
@@ -106,4 +110,25 @@ export function stepTier(tier: ChaseTier, way: ChaseWay): ChaseTier {
 export function getRoundSeconds(state: SceneState): number {
   if (!state.chase) return ROUND_SECONDS
   return CHASE_ROUND_SECONDS[state.chase.run?.tier ?? state.chase.tier]
+}
+
+// combat.tex "Routing": in combat range "the pursuers have +2 bonus to all
+// uses of strike, accuracy and cunning".
+export function getRoutingTerms(state: SceneState, id: string): Term[] {
+  const chase = state.chase
+  return chase && !chase.escaped && chase.tier === 'combat' && getChaseSide(state, id) === 'pursuers' ? [{ label: 'routing', value: 2 }] : []
+}
+
+// combat.tex "Routing": in combat range "Everyone is considered to be in
+// range to attack or defend anyone"; farther out ("Skirmish": "any weapon
+// with a range higher than 50m can be used") the other side is out of reach
+// of everything but a shot whose weapon reaches the tier — a far weapon to
+// far (the table's ruling).
+export function isWithinChaseReach(state: SceneState, root: RootAction, id: string): boolean {
+  const chase = state.chase
+  if (!chase || chase.tier === 'combat' || getChaseSide(state, root.actorId) === getChaseSide(state, id)) return true
+  const c = state.characters[root.actorId]
+  const row = root.kind === 'shoot' && c ? findWeaponRow(c, root.weaponKey, root.attack) : null
+  if (!row) return false
+  return chase.tier === 'shooting' ? (SHOT_RANGES as readonly string[]).includes(row.atk.range) : chase.tier === 'far' && row.atk.range === 'far'
 }

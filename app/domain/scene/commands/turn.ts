@@ -9,6 +9,8 @@ import { beginTurn, takeQueuedTurn } from './sequence'
 import { markStress, takeStressTurn } from './stress'
 import { getCompelledSurge, getStressTurn } from '../rules/stress'
 import { closeTurn } from './closeTurn'
+import { getRoutingTerms } from '../rules/chase'
+import { sumTerms } from '../../character/rules/terms'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
 // to contest it yet.
@@ -46,7 +48,7 @@ export function rollContest(dice: Dice): Updater {
     if (getRollContestBar(state) || !holder) return state
     const rolls = [holder, ...getContenders(state)].map((id): ContestRoll => {
       const die = dice(false)
-      const skill = getCunning(state.characters[id])
+      const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
       return { id, die, skill, score: die + skill }
     })
     const winner = getContestWinner(rolls) ?? holder

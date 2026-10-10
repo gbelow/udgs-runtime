@@ -38,6 +38,7 @@ import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cas
 import { getLinkDL } from './link'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRecipeHitTerms } from './recipes'
+import { getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
 
@@ -251,7 +252,8 @@ function getShotDistance(state: SceneState, shot: ShootAction): number | null {
 }
 
 // combat.tex "Strike": strike, less the variation's penalty (combat.tex
-// "Heavy Attack") and the location's (combat.tex "Localized damage").
+// "Heavy Attack") and the location's (combat.tex "Localized damage"), and a
+// pursuer's routing bonus (rules/chase.ts).
 // combat.tex "Accuracy": a shot is the Accuracy test instead, less the
 // distance penalty of the way of shooting, and that may carry a bonus of its
 // own (abilities.tex "Elite Sniper": "Snipe gets +1|2|3 to hit").
@@ -273,6 +275,7 @@ function getAttackTerms(state: SceneState, action: AttackAction): Term[] {
     ...(isFloorAttack(action) ? [] : [isObjectAttack(action) ? { label: 'equipment', value: -EQUIPMENT_ATTACK_PENALTY } : { label: action.location, value: -getAimedPlace(action.targetId ? state.characters[action.targetId] : undefined, action).aimPenalty }]),
     ...(action.kind === 'strike' ? getAnswerTerms(state, action) : []),
     ...(skill === grapple ? [] : attackSensoryTerms(state, action, action.kind === 'strike' ? 'strike' : 'accuracy')),
+    ...(skill === grapple ? [] : getRoutingTerms(state, action.actorId)),
   ]
 }
 

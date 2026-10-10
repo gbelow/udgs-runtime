@@ -2,7 +2,7 @@ import type { SceneState } from '../types'
 import { CHASE_TIERS, type ChaseSide, type ChaseTier } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
-import { getCaught, getChaseSide, getChaseWays, getRunBar, getRoundSeconds, type ChaseWay } from '../rules/chase'
+import { getCaught, getChaseSide, getChaseWays, getRunners, getRunBar, getRoundSeconds, type ChaseWay } from '../rules/chase'
 
 export type ChaseRunnerRow = { id: string; name: string; side: ChaseSide; speed: number; slowest: boolean }
 
@@ -11,6 +11,8 @@ export type ChasePanel = {
   // the fight parties, and whether each is running away
   parties: { id: string; name: string; quarry: boolean }[]
   chasing: boolean
+  // the quarry, and whether each has turned around to face the pursuers
+  quarry: { id: string; name: string; turned: boolean }[]
   tier: ChaseTier | null
   escaped: boolean
   caught: string[]
@@ -35,6 +37,7 @@ function buildChasePanel(state: SceneState): ChasePanel {
     tiers: CHASE_TIERS,
     parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name || 'no name', quarry: !!chase?.quarry.includes(id) })),
     chasing: chase !== null,
+    quarry: chase ? getRunners(state, 'quarry').map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id) })) : [],
     tier: chase?.tier ?? null,
     escaped: !!chase?.escaped,
     caught: getCaught(state).map((c) => c.reason),
