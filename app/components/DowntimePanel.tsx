@@ -4,6 +4,7 @@ import { Button, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useClock } from '../hooks/useParty';
 import { useDowntime, useDowntimeCommands, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
+import { ACTIVITIES, type Activity } from '../domain/downtime/types';
 import type { BlockView, DowntimeCharacterView, DowntimeTest } from '../domain/downtime/projections/downtime';
 
 const num = (value: string) => parseInt(value) || 0
@@ -65,7 +66,40 @@ function CharacterCard({ character: c, days, commands }: { character: DowntimeCh
       <span className='text-xs text-muted'>
         purse <span className='font-mono text-fg'>{c.purse}</span> · heals <span className='font-mono text-fg'>{c.dailyHealing}</span> IL a day ({c.healing}) · activity <span className='font-mono text-fg'>{c.planDays}</span> days · <span className={c.short ? 'text-bad' : ''}>pays for <span className='font-mono'>{c.affordable}</span> of {days} days</span>
       </span>
-      {c.block ? <ActivityRow id={c.id} view={c.block} specific={c.specific} commands={commands} /> : <NewActivity id={c.id} commands={commands} />}
+      <ActivityPicker character={c} commands={commands} />
+    </div>
+  )
+}
+
+const ACTIVITY_HINTS: Record<Activity, string> = {
+  training: 'XP toward the next level, with a trainer or alone',
+  job: 'a wage a day, tested at the end',
+  doctor: 'IL healed for a price',
+  learning: 'levels of a specific knowledge, tested at the end',
+}
+
+// story.tex "Downtime": the four things a character can spend their days on,
+// one at a time; the one chosen stays marked and opens its details.
+function ActivityPicker({ character: c, commands }: { character: DowntimeCharacterView, commands: Commands }){
+
+  const [picked, setPicked] = useState<Activity | null>(null)
+  const selected = picked ?? c.activity
+  const choose = (activity: Activity) => {
+    if (activity === 'training') { setPicked(c.activity === 'training' ? null : 'training'); return }
+    setPicked(null)
+    commands.chooseActivity(c.id, activity)
+  }
+
+  return(
+    <div className='flex flex-col gap-1 border-t border-line pt-1'>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        {ACTIVITIES.map((activity) => (
+          <Button key={activity} size='xs' variant={selected === activity ? 'primary' : 'default'} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Button>
+        ))}
+        {c.activity && c.block && c.block.elapsed > 0 && selected !== c.activity ? <span className='text-xs text-bad'>choosing another drops {c.block.elapsed} days spent</span> : null}
+      </div>
+      {selected === 'training' ? <TrainingChooser character={c} commands={commands} onChosen={() => setPicked(null)} /> : null}
+      {c.block && selected === c.activity ? <ActivityRow id={c.id} view={c.block} specific={c.specific} commands={commands} /> : null}
     </div>
   )
 }
@@ -131,29 +165,31 @@ function ActivityRow({ id, view: v, specific, commands }: { id: string, view: Bl
   )
 }
 
-// A new activity: a training asked of the table or done alone, a job, a
-// doctor or a learning test.
-function NewActivity({ id, commands }: { id: string, commands: Commands }){
+// What a training is for, and whether it is asked of a trainer or done
+// alone; the choice made stays marked.
+function TrainingChooser({ character: c, commands, onChosen }: { character: DowntimeCharacterView, commands: Commands, onChosen: () => void }){
 
-  const { addTraining, addBlock } = commands
-  const training = useTrainingOptions(id)
+  const training = useTrainingOptions(c.id)
   const [pick, setPick] = useState('')
-  const chosen = training.find((o) => o.id === pick)
+  const targetId = pick || c.training?.id || ''
+  const chosen = training.find((o) => o.id === targetId)
+  const take = (withTrainer: boolean) => { if (chosen) { commands.chooseTraining(c.id, chosen.target, withTrainer); setPick(''); onChosen() } }
+  const pickTarget = (id: string) => {
+    setPick(id)
+    const option = training.find((o) => o.id === id)
+    if (option && c.training) { commands.chooseTraining(c.id, option.target, c.training.withTrainer); setPick('') }
+  }
 
   return(
-    <div className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
-      <select aria-label='train' className={selectClass} value={pick} onChange={(e) => setPick(e.target.value)}>
+    <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+      <select aria-label='train' className={selectClass} value={targetId} onChange={(e) => pickTarget(e.target.value)}>
         <option value=''>train…</option>
         {training.map((o) => <option key={o.id} value={o.id}>{o.label} → {o.level} ({o.toNext} XP to go)</option>)}
       </select>
-      <Button size='xs' disabled={!chosen} onClick={() => chosen && addTraining(id, chosen.target, true)}>ask for a trainer</Button>
-      <Button size='xs' disabled={!chosen?.alone} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => chosen && addTraining(id, chosen.target, false)}>
+      <Button size='xs' disabled={!chosen} variant={c.training?.withTrainer ? 'primary' : 'default'} onClick={() => take(true)}>with a trainer</Button>
+      <Button size='xs' disabled={!chosen?.alone} variant={c.training && !c.training.withTrainer ? 'primary' : 'default'} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => take(false)}>
         alone{chosen?.alone ? ` (${chosen.alone.skill} vs ${chosen.alone.DL})` : ''}
       </Button>
-      <span className='grow' />
-      <Button size='xs' onClick={() => addBlock(id, 'job')}>+ job</Button>
-      <Button size='xs' onClick={() => addBlock(id, 'doctor')}>+ doctor</Button>
-      <Button size='xs' onClick={() => addBlock(id, 'learning')}>+ learning</Button>
     </div>
   )
 }

@@ -49,6 +49,11 @@ export const BlockSchema = z.discriminatedUnion('kind', [
 export type Block = z.infer<typeof BlockSchema>
 export type BlockKind = Block['kind']
 
+// story.tex "Downtime": what a character can spend their days on; a training
+// is with a trainer or alone.
+export const ACTIVITIES = ['training', 'job', 'doctor', 'learning'] as const
+export type Activity = (typeof ACTIVITIES)[number]
+
 // One character's downtime: how they live, whether someone houses them, and
 // the one activity they are on ("Only one thing can be done per day").
 // `elapsed` is the days already spent on it, as of the clock reading `at`;

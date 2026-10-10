@@ -3,7 +3,7 @@ import type { Block, Downtime, DowntimeResult, DowntimeUpdater, Plan, SkillRef, 
 import type { Dice } from '../../play/dice'
 import { resolveTest, toRoll, type TestRoll } from '../../play/test'
 import { isFamilyKey } from '../../abilities'
-import { addExhaustion, heal } from '../../character/commands/heal'
+import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addKnowledgeXP, addTrainingXP, raiseKnowledge } from '../../character/commands/learning'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
@@ -35,7 +35,8 @@ const fed = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { .
 // gone after.
 function liveDay(c: CampaignCharacter, plan: Plan, day: number): CampaignCharacter {
   const rested = day === 0 ? addExhaustion(-3 * getRestRecovery(getPlanExposure(plan)))(c) : addExhaustion(-c.resources.exhaustion)(c)
-  return heal(Math.min(getDowntimeHealing(rested, plan), rested.injuries.injuryLevel))(rested)
+  const healing = getDowntimeHealing(rested, plan)
+  return healing < 0 ? addIL(-healing)(rested) : heal(Math.min(healing, rested.injuries.injuryLevel))(rested)
 }
 
 // story.tex "Healing": ordinary IL first, then each wound's own; a wound

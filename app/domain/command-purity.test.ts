@@ -562,8 +562,8 @@ describe('commands are pure updaters', () => {
 const downtimeCases: Record<string, (t: Downtime) => unknown> = {
   setLiving: (t) => downtimeCommands.setLiving('a', 'rich')(t),
   setHoused: (t) => downtimeCommands.setHoused('a', true)(t),
-  addTraining: (t) => downtimeCommands.addTraining('b', { kind: 'trainable', key: 'strike' }, true)(t),
-  addBlock: (t) => downtimeCommands.addBlock('b', 'job')(t),
+  chooseTraining: (t) => downtimeCommands.chooseTraining('a', { kind: 'trainable', key: 'strike' }, false)(t),
+  chooseActivity: (t) => downtimeCommands.chooseActivity('a', 'job')(t),
   setBlock: (t) => downtimeCommands.setBlock('a', { XP: 2 })(t),
   setLearningGain: (t) => downtimeCommands.setLearningGain('a', 1, 2)(t),
   decideTraining: (t) => downtimeCommands.decideTraining('a', 'accepted')(t),

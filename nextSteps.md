@@ -94,6 +94,8 @@ all events
 -------------------
 ## Downtime
 
+Celebration - waiting for contacts and leverages. later work
+
 
 -----------------
 ## Chase

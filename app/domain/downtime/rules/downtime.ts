@@ -2,7 +2,7 @@ import type { CampaignCharacter, Character, Degree, Proficiencies, Skills } from
 import { DEGREES, SkillsSchema } from '../../types'
 import { knowledges_list, type LivingLevel } from '../../lists'
 import type { CampaignState, Settlement } from '../../campaign/types'
-import type { Block, Downtime, Plan, SkillRef, TrainingTarget } from '../types'
+import type { Activity, Block, Downtime, Plan, SkillRef, TrainingTarget } from '../types'
 import { PlanSchema } from '../types'
 import type { Test } from '../../play/test'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, isFamilyKey } from '../../abilities'
@@ -177,10 +177,9 @@ export function getBlockDays(block: Block): number {
   return block.kind === 'training' || block.kind === 'self' ? block.XP * DAYS_PER_XP : block.days
 }
 
-// story.tex "Downtime": "Only one thing can be done per day": a character
-// takes up a new activity once the one under way is over.
-export function getActivityBar(plan: Plan): string | null {
-  return plan.block ? 'one activity at a time: finish or drop the one under way' : null
+// The activity the character is on, a training alone being a training.
+export function getActivity(plan: Plan): Activity | null {
+  return plan.block ? (plan.block.kind === 'self' ? 'training' : plan.block.kind) : null
 }
 
 // The days the activity under way still takes.
@@ -212,18 +211,15 @@ export function getPlanExposure(plan: Plan): number {
   return plan.housed ? 0 : getLivingExposure(plan.living)
 }
 
-// survival.tex "Long Camping": the day's healing, 3+3*(health-exposure)/2.
-// In town it never adds IL: at worst the day heals nothing.
+// survival.tex "Long Camping": the day's healing, 3+3*(health-exposure)/2;
+// a negative value works against the character.
 export function getDowntimeHealing(c: CampaignCharacter, plan: Plan): number {
-  return Math.max(0, getLongCampHealing(c, getPlanExposure(plan)))
+  return getLongCampHealing(c, getPlanExposure(plan))
 }
 
-// story.tex "Cost of Living": the table prints Miserable's exposure as -3 and
-// Poor's as -1, a penalty on rest, which survival.tex "Exposure" counts up
-// from 0 ("as comfortable as sleeping in your comfortable home's bed"). Read
-// as that rest exposure.
+// story.tex "Cost of Living": the exposure the standard rests at.
 export function getLivingExposure(level: LivingLevel): number {
-  return Math.max(0, -COST_OF_LIVING[level].exposure)
+  return COST_OF_LIVING[level].exposure
 }
 
 // ── money ────────────────────────────────────────────────

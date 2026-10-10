@@ -1,8 +1,8 @@
 import type { LivingLevel } from "../domain/lists";
-import type { BlockKind, DowntimeUpdater, TrainingTarget } from "../domain/downtime/types";
+import type { Activity, DowntimeUpdater, TrainingTarget } from "../domain/downtime/types";
 import { DECISIONS } from "../domain/downtime/types";
 import { getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
-import { addBlock, addTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
+import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
 import { passDays } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { realDice } from "../components/utils";
@@ -36,8 +36,8 @@ export function useDowntimeCommands() {
     pick,
     setLiving: (id: string, living: LivingLevel) => run(setLiving(id, living)),
     setHoused: (id: string, housed: boolean) => run(setHoused(id, housed)),
-    addTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => run(addTraining(id, target, withTrainer)),
-    addBlock: (id: string, kind: Exclude<BlockKind, 'training' | 'self'>) => run(addBlock(id, kind)),
+    chooseTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => run(chooseTraining(id, target, withTrainer)),
+    chooseActivity: (id: string, activity: Exclude<Activity, 'training'>) => run(chooseActivity(id, activity)),
     setBlock: (id: string, patch: Record<string, unknown>) => run(setBlock(id, patch)),
     setLearningGain: (id: string, degree: number, gain: number) => run(setLearningGain(id, degree, gain)),
     decide: (id: string, decision: (typeof DECISIONS)[number]) => run(decideTraining(id, decision)),

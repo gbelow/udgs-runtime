@@ -2,12 +2,12 @@ import type { CampaignCharacter, Character, Proficiencies, Skills } from '../../
 import { ProficienciesSchema, SkillsSchema } from '../../types'
 import { LIVING_LEVELS, knowledges_list, type LivingLevel } from '../../lists'
 import type { CampaignState } from '../../campaign/types'
-import type { Block, Downtime, DowntimeResult, DowntimeState, SkillRef, TrainingTarget } from '../types'
+import type { Activity, Block, Downtime, DowntimeResult, DowntimeState, SkillRef, TrainingTarget } from '../types'
 import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
 import { perPair, perState } from '../../perState'
 import { formatMoney, getPayable } from '../../item/rules/money'
 import {
-  getActivityBar, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
+  getActivity, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
   getDowntimeHealing, getJobTraining, getLivingCost, getLivingExposure, getPlan, getPlanDays, getPlanExposure, getSelfTrainingTest, getSettlement,
   getSkillName, getSkillValue, getTargetName, getTrainingLevel, getXPToNext, isFormalKnowledge,
 } from '../rules/downtime'
@@ -44,8 +44,9 @@ export type DowntimeCharacterView = {
   affordable: number
   short: boolean
   block: BlockView | null
-  // why another activity cannot be taken up now
-  activityBar: string | null
+  // the activity the character is on, and the target and way of a training
+  activity: Activity | null
+  training: { id: string; withTrainer: boolean } | null
   // the specific knowledges held, for a learning test to raise
   specific: string[]
 }
@@ -69,6 +70,8 @@ export type DowntimePanel = {
 
 const rangeOf = (XP: number) => [0, 0.25, 0.5, 1].map((share) => Math.floor(XP * share)).join('/')
 const skillId = (ref: SkillRef) => `${ref.kind}:${getSkillName(ref)}`
+const targetId = (target: TrainingTarget) =>
+  target.kind === 'trainable' ? `trainable:${target.key}` : target.kind === 'knowledge' ? `knowledge:${target.name}` : `ability:${target.family}`
 
 function selfTest(target: TrainingTarget, c: Character): DowntimeTest | null {
   const test = getSelfTrainingTest(target)(c)
@@ -121,13 +124,14 @@ function characterView(t: Downtime, id: string, days: number): DowntimeCharacter
     housed: plan.housed,
     livingOptions: LIVING_LEVELS.map((level) => ({ level, cost: formatMoney(getLivingCost(t.campaign, id, level)), exposure: getLivingExposure(level) })),
     dailyHealing: getDowntimeHealing(c, plan),
-    healing: `3+3×(health−exposure ${getPlanExposure(plan)})/2, never below 0`,
+    healing: `3+3×(health−exposure ${getPlanExposure(plan)})/2`,
     purse: formatMoney(getPayable(c)),
     planDays: getPlanDays(plan),
     affordable,
     short: affordable < days,
     block: plan.block ? blockView(c, plan.block, plan.elapsed) : null,
-    activityBar: getActivityBar(plan),
+    activity: getActivity(plan),
+    training: plan.block?.kind === 'training' || plan.block?.kind === 'self' ? { id: targetId(plan.block.target), withTrainer: plan.block.kind === 'training' } : null,
     specific: Object.keys(c.knowledges).filter((name) => !isFormalKnowledge(name)),
   }
 }
@@ -169,9 +173,6 @@ const TRAINING_TARGETS: TrainingTarget[] = [
   ...knowledges_list.map((name): TrainingTarget => ({ kind: 'knowledge', name })),
   ...(Object.keys(ABILITY_FAMILIES) as FamilyKey[]).map((family): TrainingTarget => ({ kind: 'ability', family })),
 ]
-
-const targetId = (target: TrainingTarget) =>
-  target.kind === 'trainable' ? `trainable:${target.key}` : target.kind === 'knowledge' ? `knowledge:${target.name}` : `ability:${target.family}`
 
 // What the character can train: every skill, proficiency, formal knowledge
 // and ability whose next level is bought with XP, with the level it reaches,

@@ -570,11 +570,13 @@ export const COINS = [
 ] as const
 
 // story.tex "Cost of Living": the daily cost (in coppers), exposure and
-// renown of each living standard, as the book prints them. "The cost of
-// living changes from town to town. This table is an average."
+// renown of each living standard. "The cost of living changes from town to
+// town. This table is an average." The book prints Miserable's and Poor's
+// exposure as -3 and -1; the table's ruling reads them as +3 and +1, the
+// rest exposure of survival.tex "Exposure".
 export const COST_OF_LIVING: Record<LivingLevel, { cost: number; exposure: number; renown: number }> = {
-  miserable: { cost: 1, exposure: -3, renown: 0 },
-  poor: { cost: 5, exposure: -1, renown: 2 },
+  miserable: { cost: 1, exposure: 3, renown: 0 },
+  poor: { cost: 5, exposure: 1, renown: 2 },
   medium: { cost: 10, exposure: 0, renown: 4 },
   rich: { cost: 30, exposure: 0, renown: 7 },
   lavish: { cost: 100, exposure: 0, renown: 10 },

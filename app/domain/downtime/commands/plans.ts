@@ -1,17 +1,17 @@
 import type { LivingLevel } from '../../lists'
-import type { BlockKind, Downtime, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
+import type { Activity, Downtime, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
 import { BlockSchema, DECISIONS } from '../types'
-import { getActivityBar, getPlan, getTrainerRate, getTrainingLevel, isTrainingTarget } from '../rules/downtime'
+import { getActivity, getPlan, getTrainerRate, getTrainingLevel, isTrainingTarget } from '../rules/downtime'
 
 const onPlan = (id: string, update: (plan: Plan, t: Downtime) => Plan): DowntimeUpdater =>
   (t) => (t.campaign.characters[id]
     ? { ...t, downtime: { ...t.downtime, plans: { ...t.downtime.plans, [id]: update(getPlan(t, id), t) } } }
     : t)
 
-// story.tex "Downtime": "Only one thing can be done per day": an activity is
-// taken up only when none is under way.
+// story.tex "Downtime": "Only one thing can be done per day": taking up an
+// activity puts down the one under way, with the days spent on it.
 const takeUp = (id: string, make: (plan: Plan, t: Downtime) => unknown): DowntimeUpdater =>
-  onPlan(id, (plan, t) => (getActivityBar(plan) ? plan : { ...plan, block: BlockSchema.parse(make(plan, t)), elapsed: 0 }))
+  onPlan(id, (plan, t) => ({ ...plan, block: BlockSchema.parse(make(plan, t)), elapsed: 0 }))
 
 // story.tex "Cost of Living": the standard the character lives at.
 export function setLiving(id: string, living: LivingLevel): DowntimeUpdater {
@@ -26,17 +26,24 @@ export function setHoused(id: string, housed: boolean): DowntimeUpdater {
 const DEFAULT_TEST: SkillRef = { kind: 'skill', key: 'persuasion' }
 
 // A training, asked of the table with the standard rate for the level
-// trained toward, or done alone.
-export function addTraining(id: string, target: TrainingTarget, withTrainer: boolean): DowntimeUpdater {
+// trained toward, or done alone; choosing the one already under way keeps it
+// as it is.
+export function chooseTraining(id: string, target: TrainingTarget, withTrainer: boolean): DowntimeUpdater {
   if (!isTrainingTarget(target)) return (t) => t
-  return takeUp(id, (_plan, t) => (withTrainer
-    ? { kind: 'training', target, rate: getTrainerRate(getTrainingLevel(target)(t.campaign.characters[id])) }
-    : { kind: 'self', target }))
+  const kind = withTrainer ? 'training' : 'self'
+  return (t) => {
+    const block = getPlan(t, id).block
+    if (block?.kind === kind && JSON.stringify(block.target) === JSON.stringify(target)) return t
+    return takeUp(id, () => (withTrainer
+      ? { kind, target, rate: getTrainerRate(getTrainingLevel(target)(t.campaign.characters[id])) }
+      : { kind, target }))(t)
+  }
 }
 
-// A job, a doctor or a learning test, at their defaults for the table to set.
-export function addBlock(id: string, kind: Exclude<BlockKind, 'training' | 'self'>): DowntimeUpdater {
-  return takeUp(id, () => ({ kind, test: DEFAULT_TEST }))
+// A job, a doctor or a learning test, at their defaults for the table to set;
+// choosing the one already under way keeps it as it is.
+export function chooseActivity(id: string, activity: Exclude<Activity, 'training'>): DowntimeUpdater {
+  return (t) => (getActivity(getPlan(t, id)) === activity ? t : takeUp(id, () => ({ kind: activity, test: DEFAULT_TEST }))(t))
 }
 
 // Changes the activity's settings; anything its kind does not take is dropped.
