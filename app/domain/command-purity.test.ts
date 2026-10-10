@@ -193,6 +193,7 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   unslingShield: (c) => itemCommands.unslingShield()({ ...c, onBack: shieldItem }),
   throwOffShield: (c) => itemCommands.throwOffShield()({ ...c, onBack: shieldItem }),
   trade: (c) => itemCommands.trade({ offered: [c.containers.belt.slots.quick.items[0].id], cart: [] })(c),
+  settleStartingWealth: (c) => itemCommands.settleStartingWealth({ ...c, type: 'base', startingWealth: 500 } as unknown as Character),
 }
 
 // A character being made, with a race, a stage and a level bought.
@@ -212,6 +213,8 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   buyCreationStage: creationCommands.buyCreationStage('sprinter', -1),
   setCreationSpell: creationCommands.setCreationSpell('detonate-explosive', 'intuitive'),
   claimCreationSpell: creationCommands.claimCreationSpell('detonate-explosive'),
+  updateCreationCharacter: creationCommands.updateCreationCharacter((c) => itemCommands.holdItem(ItemSchema.parse({ name: 'Torch', bulk: 1 }))(c)),
+  getFinishedCharacter: creationCommands.getFinishedCharacter,
 }
 
 const NOT_UPDATERS = new Set<string>()

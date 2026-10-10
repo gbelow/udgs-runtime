@@ -1,14 +1,29 @@
-import { CampaignCharacter, Character } from "../domain/types";
+import { CampaignCharacter, Character, CreationDraft } from "../domain/types";
 import type { SceneState } from "../domain/scene/types";
 import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useRaceStore } from "../stores/useRaceStore";
+import { useCreationStore } from "../stores/useCreationStore";
+import { updateCreationCharacter } from "../domain/character/commands/creation";
+import { getCreatedCharacter } from "../domain/character/rules/creation";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { updateInventory } from "../domain/scene/commands/characters";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 
 type CharacterUpdater = (c: Character) => Character;
+
+// Every gear panel on the creation tab reads the character the draft makes, so
+// it is built once per draft rather than once per subscriber.
+const created = new WeakMap<CreationDraft, Character>();
+function createdOf(draft: CreationDraft): Character {
+  let c = created.get(draft);
+  if (!c) {
+    c = getCreatedCharacter(draft);
+    created.set(draft, c);
+  }
+  return c;
+}
 type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 
 // Read side: select a derived value off the active character *inside* the
@@ -17,8 +32,9 @@ type CampaignUpdater = (c: CampaignCharacter) => CampaignCharacter;
 // what stops a one-field mutation from re-rendering every subscriber: only
 // changed outputs trigger a render.
 //
-// The edit tab's character, the race tab's race being made, the party's
-// active character and the fight's each live in their own store. All four are
+// The edit tab's character, the creation tab's draft (read as the character it
+// makes), the race tab's race being made, the party's active character and the
+// fight's each live in their own store. All five are
 // subscribed unconditionally (no conditional hook calls), but only the one
 // that owns the active tab (TAB_OWNER) runs `sel` — an idle store's selector short-circuits to a
 // constant null, so it allocates nothing and forces no
@@ -33,6 +49,7 @@ export function useActiveCharacterSelector<T>(
   const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
   const vals = {
     character: useCharacterStore((s) => (owner === "character" ? sel(s.character, null) : null)),
+    creation: useCreationStore((s) => (owner === "creation" ? sel(createdOf(s.draft), null) : null)),
     race: useRaceStore((s) => (owner === "race" ? sel(s.race, null) : null)),
     campaign: useCampaignStore((s) => {
       const c = owner === "campaign" ? getActiveCharacter(s) : null;
@@ -56,6 +73,7 @@ export function useActiveCharacterSelector<T>(
 export function readActiveCharacter(tab: GameTabs): Character | null {
   const owner = TAB_OWNER[tab];
   if (owner === "character") return useCharacterStore.getState().character;
+  if (owner === "creation") return createdOf(useCreationStore.getState().draft);
   if (owner === "race") return useRaceStore.getState().race;
   if (owner === "campaign") return getActiveCharacter(useCampaignStore.getState());
   if (owner === "combat") return getActiveCharacter(useCombatStore.getState());
@@ -86,6 +104,7 @@ function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCh
   const tab = useAppStore((s) => s.selectedGameTab);
   const updateCharacter = useCharacterStore((s) => s.updateCharacter);
   const updateRace = useRaceStore((s) => s.updateRace);
+  const updateDraft = useCreationStore((s) => s.updateDraft);
   const updatePartyActive = useCampaignStore((s) => s.updateActiveCharacter);
 
   function update(updater: CharacterUpdater): Character | undefined;
@@ -93,6 +112,7 @@ function useUpdater(updateCombatActive: (updater: CampaignUpdater) => CampaignCh
   function update(updater: CharacterUpdater | CampaignUpdater) {
     const owner = TAB_OWNER[tab];
     if (owner === "character") return updateCharacter(updater as CharacterUpdater);
+    if (owner === "creation") return createdOf(updateDraft(updateCreationCharacter(updater as CharacterUpdater)));
     if (owner === "race") return updateRace(updater as CharacterUpdater);
     if (owner === "campaign") return updatePartyActive(updater as CampaignUpdater);
     return updateCombatActive(updater as CampaignUpdater);

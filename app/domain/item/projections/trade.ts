@@ -2,7 +2,8 @@ import type { Character } from '../../types'
 import { canFitItem, getContainer } from '../rules/containers'
 import { getCoins, getStackValue } from '../rules/money'
 import { Trade, canFitLine, getLineCost, getLineItem, getOfferedStacks, getTradeBalance } from '../rules/trade'
-import { formatMoney, formatPrice } from './money'
+import { formatMoney } from '../rules/money'
+import { formatPrice } from './money'
 
 export type TradeView = {
   offered: { id: string; name: string; amount: number; value: string }[]

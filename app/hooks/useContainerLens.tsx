@@ -8,7 +8,8 @@ import {
   getBurden,
   getContainerPanels,
 } from "../domain/item/projections/containers";
-import { formatMoney, getPurseLabel, getStartingWealthView, StartingWealthView } from "../domain/item/projections/money";
+import { formatMoney } from "../domain/item/rules/money";
+import { getPurseLabel, getStartingWealthView, StartingWealthView } from "../domain/item/projections/money";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";

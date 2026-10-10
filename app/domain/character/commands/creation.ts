@@ -1,8 +1,9 @@
-import { FOCI, type CreationDraft, type Focus, type Priority, type Race, type SpellMethod, type Trainables } from '../../types'
+import { FOCI, type Character, type CreationDraft, type Focus, type Priority, type Race, type SpellMethod, type Trainables } from '../../types'
 import { FamilyKey } from '../../abilities'
 import type { SpellKey } from '../../spells'
 import type { LimitStressAction } from '../../lists'
-import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell } from '../rules/creation'
+import { settleStartingWealth } from '../../item/commands/wealth'
+import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell, getCreatedCharacter } from '../rules/creation'
 import { canLearnSpell } from '../rules/spells'
 
 // creating.tex "Character Creation", Step 1: the race the character is made
@@ -91,4 +92,22 @@ export function setCreationSpell(key: SpellKey, method: SpellMethod | null): (d:
 // abilities.tex "Magic Theory": a spell claimed as one of the free ones.
 export function claimCreationSpell(key: SpellKey): (d: CreationDraft) => CreationDraft {
   return (d: CreationDraft) => (canClaimCreationSpell(d, key) ? { ...d, spells: { ...d.spells, [key]: { method: 'wizard', free: true } } } : d)
+}
+
+// Gear moved on the character being made: whatever the updater changes on the
+// character as it stands (race bonuses and levels bought included, so fits and
+// prices are worked out for them) is written to the draft's own character.
+export function updateCreationCharacter(updater: (c: Character) => Character): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => {
+    const created = getCreatedCharacter(d)
+    const updated = updater(created)
+    const changed = (Object.keys(updated) as (keyof Character)[]).filter((key) => updated[key] !== created[key])
+    return changed.length === 0 ? d : { ...d, character: { ...d.character, ...Object.fromEntries(changed.map((key) => [key, updated[key]])) } }
+  }
+}
+
+// The character the draft makes: what is bought, with the gold the gear did
+// not use settled.
+export function getFinishedCharacter(d: CreationDraft): Character {
+  return settleStartingWealth(getCreatedCharacter(d))
 }

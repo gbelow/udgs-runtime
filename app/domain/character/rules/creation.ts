@@ -3,6 +3,7 @@ import { COINS, CREATION_PRIORITIES } from '../../tables'
 import { isBaseCharacter } from '../../utils'
 import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
+import { formatMoney, getCarriedValue, getPurse, getSparedWealth } from '../../item/rules/money'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
 import { emptyKnowledge } from './knowledge'
 import { getConvictionSlot } from './requirements'
@@ -286,7 +287,8 @@ function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: Cr
 }
 
 // What stands between the draft and a character: a pool spent past its
-// budget, a stage bought whose requirements the build no longer meets, or a
+// budget, gear bought past the gold or coins kept past the tenth that may be
+// spared (Step 3), a stage bought whose requirements the build no longer meets, or a
 // choice the book requires not made — the limit stress action ("Limit Stress
 // Actions") and the two convictions ("Convictions").
 export function getCreationProblems(d: CreationDraft): string[] {
@@ -309,5 +311,10 @@ export function getCreationProblems(d: CreationDraft): string[] {
     ...(getConvictionSlot(trainables.conviction1.name) === 'conviction1' ? [] : ['choose a temperament']),
     ...(getConvictionSlot(trainables.conviction2.name) === 'conviction2' ? [] : ['choose a worldview']),
   ]
-  return [...over, ...unmet, ...unlearnable, ...overclaimed, ...unchosen]
+  const budget = getCreationGold(d) * GOLD_IN_COPPERS
+  const spent = getCarriedValue(d.character)
+  const spared = getSparedWealth(budget)
+  const broke = spent > budget ? [`gold spent ${formatMoney(spent)} of ${formatMoney(budget)}`] : []
+  const hoarding = getPurse(d.character) > spared ? [`coins kept above ${formatMoney(spared)}`] : []
+  return [...over, ...broke, ...hoarding, ...unmet, ...unlearnable, ...overclaimed, ...unchosen]
 }

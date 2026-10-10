@@ -9,12 +9,12 @@ import type { Trade } from "../domain/item/rules/trade";
 export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'play' | 'break' | 'catalog'
 
 // The store that holds each tab's active character: the one being edited, the
-// race being made, the party's, the fight's — or none, for a tab whose
-// character is not a sheet.
-export type TabOwner = 'character' | 'race' | 'campaign' | 'combat' | null
+// one being made by the book's steps, the race being made, the party's, the
+// fight's — or none, for a tab whose character is not a sheet.
+export type TabOwner = 'character' | 'creation' | 'race' | 'campaign' | 'combat' | null
 
 export const TAB_OWNER: Record<GameTabs, TabOwner> = {
-  create: null,
+  create: 'creation',
   edit: 'character',
   race: 'race',
   map: null,

@@ -3,8 +3,9 @@ import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchem
 import { ABILITY_SECTIONS, knowledges_list, type LimitStressAction } from '../../lists'
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
 import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
-import type { Term } from '../rules/terms'
+import { sumTerms, type Term } from '../rules/terms'
 import { groupBy, type Group } from '../../utils'
+import { getStartingWealthView, type StartingWealthView } from '../../item/projections/money'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
 import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
@@ -15,6 +16,9 @@ export type CreationPrice = { pool: CreationPool | null; amount: number } | null
 // `terms`: where the level comes from, for a talent; empty otherwise.
 export type CreationRow = { key: keyof Trainables; name: string; value: number; bought: number; next: CreationPrice; terms: Term[] }
 export type CreationKnowledgeRow = { name: string; value: number; bought: number; next: CreationPrice }
+// The talent a focus ends with: its priority, the race's bonus and the karma
+// bought, each a term, and their sum.
+export type CreationTalent = { total: number; terms: Term[] }
 // The race the character is made from, as a preset: its bonuses and the
 // abilities it starts with.
 export type CreationRaceView = { name: string; bonuses: Term[]; abilities: string[] }
@@ -46,9 +50,10 @@ export type CreationPanelView = {
   limitStress: LimitStressAction | null
   temperament: string
   worldview: string
-  priorities: { focus: Focus; priority: Priority }[]
+  priorities: { focus: Focus; priority: Priority; talent: CreationTalent | null }[] // the talent a focus ends with; none for wealth
   pools: { pool: CreationPool; budget: number; spent: number; over: boolean }[]
   gold: number
+  wealth: StartingWealthView | null // the gold against the gear carried
   groups: { label: string; rows: CreationRow[] }[]
   knowledges: CreationKnowledgeRow[]
   abilities: CreationAbilityEntry[] // the families held, racial or bought
@@ -79,6 +84,12 @@ function getRaceView(d: CreationDraft): CreationRaceView | null {
     bonuses: Object.entries(d.race.bonuses).flatMap(([label, value]) => (value ? [{ label, value }] : [])),
     abilities: d.race.abilities.map((key) => (isAbilityKey(key) ? ABILITIES[key].name : key)),
   }
+}
+
+function getTalent(d: CreationDraft, focus: Focus): CreationTalent | null {
+  if (!(focus in TalentsSchema.shape)) return null
+  const terms = getCreationTalentTerms(d, focus as keyof Trainables).filter((term) => term.value !== 0)
+  return { total: sumTerms(terms), terms }
 }
 
 export function getCreationPanel(d: CreationDraft): CreationPanelView {
@@ -122,9 +133,10 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     limitStress: d.character.limitStress,
     temperament: d.character.trainables.conviction1.name,
     worldview: d.character.trainables.conviction2.name,
-    priorities: FOCI.map((focus) => ({ focus, priority: d.priorities[focus] })),
+    priorities: FOCI.map((focus) => ({ focus, priority: d.priorities[focus], talent: getTalent(d, focus) })),
     pools: CREATION_POOLS.map((pool) => ({ pool, ...balances[pool], over: balances[pool].spent > balances[pool].budget })),
     gold: getCreationGold(d),
+    wealth: getStartingWealthView(created),
     groups: GROUPS.map(({ label, keys }) => ({
       label,
       rows: keys.map((key) => ({

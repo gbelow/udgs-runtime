@@ -21,7 +21,7 @@ import {
 import { getDrawView } from './hands'
 import { getMoneyValue } from '../rules/money'
 import { isOfferable } from '../rules/trade'
-import { formatMoney } from './money'
+import { formatMoney } from '../rules/money'
 
 export type ContainerItemView = {
   id: string

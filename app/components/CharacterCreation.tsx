@@ -4,6 +4,11 @@ import { Button, CatalogList, Panel, Row, SectionLabel, TextInput, selectClass }
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
 import { SpellCatalogEntry } from './SpellSelector'
+import { ItemSelector } from './ItemSelector'
+import { ArmorPanel } from './ArmorPanel'
+import { HandsPanel } from './HandsPanel'
+import { WeaponPanel } from './WeaponPanel'
+import { ContainerPanel } from './ContainerPanel'
 import { PRIORITIES, SpellMethodSchema } from '../domain/types'
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists'
 import type { CreationPrice, CreationRow } from '../domain/character/lenses/creation'
@@ -31,6 +36,32 @@ export function CharacterCreation() {
       <div className='md:col-span-4 flex flex-col gap-3'>
         <Abilities />
         <Magic />
+      </div>
+      <Gear />
+    </div>
+  )
+}
+
+// creating.tex "Character Creation", Step 3: the wealth focus's gold buys
+// anything but training. Pick from the catalog, then a slot or a hand; the
+// budget above counts the price of everything carried.
+function Gear() {
+  return (
+    <div className='md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4'>
+      <div className='md:col-span-4 flex flex-col gap-1'>
+        <div className='flex flex-col gap-0.5 sticky top-0 z-10 bg-surface py-1'>
+          <SectionLabel>Gear</SectionLabel>
+          <WealthLine />
+        </div>
+        <div className='flex flex-col rounded border border-line p-1'>
+          <ItemSelector />
+        </div>
+      </div>
+      <div className='md:col-span-8 flex flex-col gap-3 text-sm'>
+        <ArmorPanel />
+        <HandsPanel />
+        <WeaponPanel />
+        <ContainerPanel />
       </div>
     </div>
   )
@@ -78,12 +109,18 @@ function Priorities() {
   const { view, setPriority } = useCreation()
   return (
     <Panel title='Priorities' meta={`${view.gold} GP`}>
-      {view.priorities.map(({ focus, priority }) => (
+      {view.priorities.map(({ focus, priority, talent }) => (
         <div key={focus} className='flex flex-row items-center gap-1'>
           <span className='w-14 text-xs'>{focus}</span>
           {PRIORITIES.map((p) => (
             <Button key={p} size='xs' active={p === priority} variant={p === priority ? 'primary' : 'default'} onClick={() => setPriority(focus, p)}>{p}</Button>
           ))}
+          {talent ? (
+            <span className='ml-auto text-xs font-mono'>
+              {talent.total}
+              <span className='text-muted'> = {talent.terms.map((t) => `${t.value} ${t.label}`).join(' + ') || '0'}</span>
+            </span>
+          ) : null}
         </div>
       ))}
     </Panel>
@@ -125,7 +162,25 @@ function Pools() {
           <span className={`font-mono ${over ? 'text-bad' : ''}`}>{spent} / {budget}</span>
         </div>
       ))}
+      <WealthLine />
     </Panel>
+  )
+}
+
+// The gold against the gear carried: spent of the budget, and what is left.
+function WealthLine() {
+  const { view } = useCreation()
+  const wealth = view.wealth
+  if (!wealth) return null
+  const bad = wealth.over || wealth.overSpared
+  return (
+    <div className='flex flex-row flex-wrap items-baseline gap-x-2 text-xs'>
+      <span className='w-12'>gold</span>
+      <span className={`font-mono ${bad ? 'text-bad' : ''}`}>{wealth.spent} / {wealth.budget}</span>
+      <span className={bad ? 'text-bad' : 'text-muted'}>{wealth.left} {wealth.over ? 'over' : 'left'}</span>
+      {wealth.over ? null : <span className='text-muted'>· keeps {wealth.kept} (up to {wealth.spared}), the rest is lost</span>}
+      {wealth.keptHasNowhere ? <span className='text-bad'>· no container to carry it: put one on or it is lost</span> : null}
+    </div>
   )
 }
 

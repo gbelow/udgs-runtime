@@ -1,6 +1,5 @@
-import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
+import { buyCreationKnowledge, getFinishedCharacter, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
 import { getCreationPanel, type CreationPanelView } from "../domain/character/lenses/creation";
-import { getCreatedCharacter } from "../domain/character/rules/creation";
 import { makeRace } from "../domain/factories";
 import type { FamilyKey } from "../domain/abilities";
 import type { LimitStressAction } from "../domain/lists";
@@ -48,7 +47,7 @@ export function useCreation() {
 
   const finish = () => {
     if (view.problems.length) return;
-    loadCharacter(getCreatedCharacter(draft));
+    loadCharacter(getFinishedCharacter(draft));
     newDraft();
     setTab('edit');
   };
