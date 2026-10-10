@@ -1,5 +1,5 @@
 import { Character, Trainable, Trainables } from '../../types'
-import { isFormalKnowledge } from '../rules/knowledge'
+import { isSpecificKnowledgeName, knowledgeName } from '../rules/knowledge'
 import { LearningPrice, getTrainableRaisePrice } from '../rules/learning'
 import { getAbilityTrainingPrice } from '../rules/abilities'
 import { FamilyKey, heldAbility } from '../../abilities'
@@ -36,11 +36,12 @@ export function addAbilityXP(family: FamilyKey, amount: number): (c: Character) 
 }
 
 // story.tex "Specific Knowledge": a learning test raises the knowledge to a
-// level outright, never lowering it. A formal knowledge's name is not a
-// specific knowledge's, so it raises nothing.
+// level outright, never lowering it. A blank name or a formal knowledge's
+// raises nothing.
 export function raiseSpecificKnowledge(name: string, level: number): <C extends Character>(c: C) => C {
+  const named = knowledgeName(name)
   return <C extends Character>(c: C): C => {
-    const held = c.specificKnowledges[name] ?? 0
-    return isFormalKnowledge(name.toLowerCase()) || level <= held ? c : { ...c, specificKnowledges: { ...c.specificKnowledges, [name]: level } }
+    const held = c.specificKnowledges[named] ?? 0
+    return !isSpecificKnowledgeName(named) || level <= held ? c : { ...c, specificKnowledges: { ...c.specificKnowledges, [named]: level } }
   }
 }

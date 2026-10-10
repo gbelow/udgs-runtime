@@ -5,6 +5,7 @@ import { resolveTest, toRoll, type TestRoll } from '../../play/test'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
+import { knowledgeName } from '../../character/rules/knowledge'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
@@ -81,10 +82,11 @@ function resolveBlock(c: CampaignCharacter, block: Block, dice: Dice): Resolved 
     }
     case 'learning': {
       const roll = rollSkill(c, block.test, block.DL, dice)
-      const held = c.specificKnowledges[block.knowledge] ?? 0
+      const name = knowledgeName(block.knowledge)
+      const held = c.specificKnowledges[name] ?? 0
       const level = Math.min(block.max, held + getLearningGain(block, roll.degree))
-      const note = level > held ? `${block.knowledge} ${held} → ${level}` : 'nothing learned'
-      return { c: raiseSpecificKnowledge(block.knowledge, level)(c), result: { what: `learning ${block.knowledge} (${getSkillName(block.test)})`, roll, note } }
+      const note = level > held ? `${name} ${held} → ${level}` : 'nothing learned'
+      return { c: raiseSpecificKnowledge(name, level)(c), result: { what: `learning ${name} (${getSkillName(block.test)})`, roll, note } }
     }
   }
 }

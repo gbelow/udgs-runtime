@@ -11,7 +11,7 @@ import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey,
 import { getAbilityTrainingPrice } from '../../character/rules/abilities'
 import { getLongCampHealing } from '../../character/rules/recovery'
 import { skillTermGetters } from '../../character/rules/skills'
-import { getKnowledge, isFormalKnowledge } from '../../character/rules/knowledge'
+import { getKnowledge, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
 import { getAway, getPlace } from '../../campaign/rules/place'
@@ -257,8 +257,8 @@ export function getBlockBar(block: Block, c: Character): string | null {
       return null
     }
     case 'learning':
-      if (!block.knowledge.trim()) return 'name the knowledge'
-      return isFormalKnowledge(block.knowledge.trim().toLowerCase()) ? `${block.knowledge} is a formal knowledge: train it instead` : null
+      if (!knowledgeName(block.knowledge)) return 'name the knowledge'
+      return isFormalKnowledge(knowledgeName(block.knowledge)) ? `${knowledgeName(block.knowledge)} is a formal knowledge: train it instead` : null
     default: return null
   }
 }

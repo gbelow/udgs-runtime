@@ -4,7 +4,7 @@ import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
 import { isBaseCharacter } from './utils'
-import { isFormalKnowledge } from './character/rules/knowledge'
+import { isFormalKnowledge, isSpecificKnowledgeName, knowledgeName } from './character/rules/knowledge'
 import { heldAbility } from './abilities'
 import { CREATION_ATTRIBUTE } from './tables'
 
@@ -53,18 +53,22 @@ function mergeAbilities(incoming: Record<string, unknown> | undefined): Record<s
 // `knowledges` record of trainables: a formal one is read as the trainable it
 // now is, the rest as specific knowledges, whose XP is dropped.
 function legacyFormalKnowledges(legacy: Record<string, unknown> | undefined): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(legacy ?? {}).filter(([name]) => isFormalKnowledge(name)))
+  return Object.fromEntries(Object.entries(legacy ?? {}).map(([name, entry]): [string, unknown] => [knowledgeName(name), entry]).filter(([name]) => isFormalKnowledge(name)))
 }
 
-// A specific knowledge is a level by name: what is not a finite level, a
-// legacy entry's `value` among them, reads as 0; a formal knowledge's name is
-// never one.
+// A specific knowledge is a level by its kept name: what is not a finite
+// level, a legacy entry's `value` among them, reads as 0; a blank name or a
+// formal knowledge's is never one, and names that come to the same one keep
+// the highest level.
 function readSpecificKnowledges(raw: Record<string, unknown> | undefined): Record<string, number> {
-  return Object.fromEntries(
-    Object.entries(raw ?? {})
-      .filter(([name]) => !isFormalKnowledge(name.toLowerCase()))
-      .map(([name, entry]) => [name, finite(entry !== null && typeof entry === 'object' && 'value' in entry ? entry.value : entry)]),
-  )
+  const out: Record<string, number> = {}
+  for (const [name, entry] of Object.entries(raw ?? {})) {
+    if (!isSpecificKnowledgeName(name)) continue
+    const named = knowledgeName(name)
+    const level = finite(entry !== null && typeof entry === 'object' && 'value' in entry ? entry.value : entry)
+    out[named] = Math.max(out[named] ?? level, level)
+  }
+  return out
 }
 
 const finite = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0)

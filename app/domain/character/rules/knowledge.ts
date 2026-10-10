@@ -8,9 +8,24 @@ export function isFormalKnowledge(name: string): name is keyof Knowledges {
   return Object.hasOwn(KnowledgesSchema.shape, name)
 }
 
+// A knowledge's name as it is kept: trimmed and lowercased, so names that
+// differ only in spacing or case are one knowledge, and a formal knowledge's
+// name matches its key.
+export function knowledgeName(name: string): string {
+  return name.trim().toLowerCase()
+}
+
+// Whether a name can be a specific knowledge's: not blank, and not a formal
+// knowledge's.
+export function isSpecificKnowledgeName(name: string): boolean {
+  const named = knowledgeName(name)
+  return named !== '' && !isFormalKnowledge(named)
+}
+
 // The level held, formal or specific; a specific knowledge not held is 0.
 function getKnowledgeLevel(c: Character, name: string): number {
-  return isFormalKnowledge(name) ? c.trainables[name].value : (c.specificKnowledges[name] ?? 0)
+  const named = knowledgeName(name)
+  return isFormalKnowledge(named) ? c.trainables[named].value : (c.specificKnowledges[named] ?? 0)
 }
 
 // combat.tex "Afflictions": mental penalties affect "all Knowledges", formal
