@@ -1,7 +1,7 @@
 import type { MoraleRoll, Updater } from '../types'
 import { rollModed, type Dice, type RollMode } from '../../play/dice'
 import { cure, inflict } from '../../character/commands/addAffliction'
-import { getMoraleBar, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure } from '../rules/morale'
+import { getMoraleBar, getMoraleOutcome, getMoraleTest, getMoraleTurnBar, getPressure, getPressureKey } from '../rules/morale'
 import { resolveTest } from '../../play/test'
 import { updateCharacter } from './characters'
 import { oweStress } from './stress'
@@ -24,13 +24,13 @@ export function rollMorale(id: string, mode: RollMode, enemyNear: boolean, dice:
   }
 }
 
-// combat.tex "Morale", "Pressure": the table sets how the fight weighs on the
-// character, held until it is set again; nothing for a character not in the
-// fight.
-export function setTablePressure(id: string, value: number): Updater {
+// combat.tex "Morale", "Pressure", "Simplifying": the table sets how the fight
+// weighs on a party, held until it is set again; nothing for a party nobody
+// in the fight is in.
+export function setTablePressure(partyId: string, value: number): Updater {
   return (state) => {
-    if (!state.characters[id]) return state
-    const { [id]: _old, ...rest } = state.tablePressure
-    return { ...state, tablePressure: value === 0 ? rest : { ...rest, [id]: value } }
+    if (!Object.keys(state.characters).some((id) => getPressureKey(state, id) === partyId)) return state
+    const { [partyId]: _old, ...rest } = state.tablePressure
+    return { ...state, tablePressure: value === 0 ? rest : { ...rest, [partyId]: value } }
   }
 }

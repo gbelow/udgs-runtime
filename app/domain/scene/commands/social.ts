@@ -2,7 +2,7 @@ import { INSULT_BONUS, type SocialAction } from '../../tables'
 import type { SceneState, Pressure, Updater } from '../types'
 import { getActionCost } from '../../character/rules/actionCosts'
 import { payCost } from '../../character/commands/cost'
-import { getInsultBar, getOthers, getSayBar, getSocialBar, getSocialTargets, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { getInsultBar, getSayBar, getSocialBar, getSocialTargets, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
 import { getStressSocial } from '../rules/stress'
 import { getSocialValue } from '../rules/morale'
 import { updateCharacter } from './characters'
@@ -34,7 +34,7 @@ export function say(id: string, kind: SocialAction, targets: string[]): Updater 
 export function insult(id: string, targets: string[]): Updater {
   return (state) => {
     if (getInsultBar(state, id, targets)) return state
-    return markStress(id, { acted: true })(speak(state, id, 'insult', INSULT_BONUS, getOthers(state, id, targets)))
+    return markStress(id, { acted: true })(speak(state, id, 'insult', INSULT_BONUS, getSocialTargets(state, id, 'insult', targets)))
   }
 }
 

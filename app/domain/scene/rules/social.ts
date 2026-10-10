@@ -2,6 +2,7 @@ import type { SocialAction } from '../../tables'
 import type { SceneState } from '../types'
 import { getAfflictions } from '../../character/rules/afflictions'
 import { canAffordRest } from '../../character/rules/rest'
+import { getPressureKey } from './morale'
 import { getOpenAction } from './log'
 import { getSituationalAfflictions } from './situational'
 import { getStressSocial } from './stress'
@@ -11,11 +12,24 @@ export function getOthers(state: SceneState, id: string, targets: string[]): str
   return targets.filter((t, i) => t !== id && state.characters[t] && targets.indexOf(t) === i)
 }
 
-// Who a social action is said to. combat.tex "Taunt": a taunt "triggers a
-// morale test for one enemy".
-export function getSocialTargets(state: SceneState, id: string, kind: SocialAction, targets: string[]): string[] {
+// Everyone in the fight in another party than the character's: their
+// enemies.
+export function getEnemies(state: SceneState, id: string): string[] {
+  const party = getPressureKey(state, id)
+  return Object.keys(state.characters).filter((t) => getPressureKey(state, t) !== party)
+}
+
+// Who a social action is said to. With a pick (the table's, per character)
+// it is the pick. Without one, combat.tex "Intimidation": "all enemies";
+// "Rally": "allies" (the rest of the party); creating.tex "Limit Stress
+// Actions" (abusive): the insult is for "the team" it is said to, so all
+// enemies. A taunt names its enemy and has no default.
+export function getSocialTargets(state: SceneState, id: string, kind: SocialAction | 'insult', targets: string[]): string[] {
   const said = getOthers(state, id, targets)
-  return kind === 'taunt' ? said.slice(0, 1) : said
+  if (said.length > 0) return kind === 'taunt' ? said.slice(0, 1) : said
+  if (kind === 'taunt') return []
+  if (kind === 'rally') return Object.keys(state.characters).filter((t) => t !== id && getPressureKey(state, t) === getPressureKey(state, id))
+  return getEnemies(state, id)
 }
 
 // combat.tex "Social actions": "Every social action costs 5 AP and counts as
@@ -37,7 +51,7 @@ export function getSayBar(state: SceneState, id: string, kind: SocialAction, tar
 // insult now, or null — only the abusive in their owed turn, to someone.
 export function getInsultBar(state: SceneState, id: string, targets: string[]): string | null {
   if (getStressSocial(state, id) !== 'insult') return 'not compelled to insult'
-  return getSocialBar(state, id) ?? (getOthers(state, id, targets).length === 0 ? 'nobody to insult' : null)
+  return getSocialBar(state, id) ?? (getSocialTargets(state, id, 'insult', targets).length === 0 ? 'nobody to insult' : null)
 }
 
 // combat.tex "Surrender": the flag is raised once.

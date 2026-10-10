@@ -7,7 +7,11 @@ import { getOpenAction } from '../rules/log'
 // A party nobody in the fight is in any more is gone from it.
 export function dropEmptyFightParties(state: SceneState): SceneState {
   const held = new Set(Object.values(state.partyOf))
-  return { ...state, parties: Object.fromEntries(Object.entries(state.parties).filter(([pid]) => held.has(pid))) }
+  return {
+    ...state,
+    parties: Object.fromEntries(Object.entries(state.parties).filter(([pid]) => held.has(pid))),
+    tablePressure: Object.fromEntries(Object.entries(state.tablePressure).filter(([pid]) => pid === '' || held.has(pid))),
+  }
 }
 
 // The character enters the fight under their id, in the party named, made

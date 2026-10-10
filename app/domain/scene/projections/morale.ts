@@ -1,7 +1,7 @@
 import { SOCIAL_ACTIONS, type SocialAction } from '../../tables'
 import type { SceneState } from '../types'
-import { getAggravators, getMoraleBar, getMoraleDLOf, getSocialValue } from '../rules/morale'
-import { getInsultBar, getSayBar, getSocialBar, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { getAggravators, getMoraleBar, getMoraleDLOf, getPressureKey, getSocialValue } from '../rules/morale'
+import { getInsultBar, getSayBar, getSocialBar, getSocialTargets, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
 import { perState } from '../../perState'
@@ -54,8 +54,10 @@ export type SocialPanel = {
   surrendered: boolean
   // what each one weighs on the morale DL
   value: number
-  kinds: readonly SocialAction[]
-  // whom it can be said to
+  // each kind, and whether it has someone to be said to with nobody picked
+  kinds: { kind: SocialAction; atDefault: boolean }[]
+  insultAtDefault: boolean
+  // whom it can be said to, in place of the default group
   targets: { id: string; name: string }[]
 }
 
@@ -73,7 +75,8 @@ export function getSocialPanel(state: SceneState, id: string): SocialPanel {
     unsurrenderBar: getUnsurrenderBar(state, id),
     surrendered: state.surrendered.includes(id),
     value: c ? getSocialValue(c) : 0,
-    kinds: SOCIAL_ACTIONS,
+    kinds: SOCIAL_ACTIONS.map((kind) => ({ kind, atDefault: getSocialTargets(state, id, kind, []).length > 0 })),
+    insultAtDefault: getSocialTargets(state, id, 'insult', []).length > 0,
     targets,
   }
 }
@@ -84,9 +87,11 @@ export const getMoraleDigest = perState((state) => JSON.stringify(getMoraleRows(
 
 export type TablePressureRow = { id: string; name: string; value: number }
 
-// combat.tex "Morale", "Pressure": everyone in the fight and the pressure the
-// table has set on them.
-export const getTablePressureRows = perState((state): TablePressureRow[] =>
-  Object.keys(state.characters).map((id) => ({ id, name: getFightName(state, id), value: state.tablePressure[id] ?? 0 })))
+// combat.tex "Morale", "Pressure": each party in the fight (and whoever is in
+// none) and the pressure the table has set on it.
+export const getTablePressureRows = perState((state): TablePressureRow[] => {
+  const keys = [...new Set(Object.keys(state.characters).map((id) => getPressureKey(state, id)))]
+  return keys.map((key) => ({ id: key, name: state.parties[key]?.name ?? 'no party', value: state.tablePressure[key] ?? 0 }))
+})
 
 export const getTablePressureDigest = perState((state) => JSON.stringify(getTablePressureRows(state)))

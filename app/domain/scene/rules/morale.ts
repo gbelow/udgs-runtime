@@ -31,6 +31,12 @@ export function getPressure(state: SceneState, id: string): SocialPressure {
   }
 }
 
+// combat.tex "Morale", "Simplifying": the table's pressure is one number per
+// party; whoever is in none shares the key ''.
+export function getPressureKey(state: SceneState, id: string): string {
+  return state.partyOf[id] ?? ''
+}
+
 // combat.tex "Social actions": the value is "1 + character's charisma/2".
 export function getSocialValue(c: CampaignCharacter): number {
   return SOCIAL_BONUS + Math.floor(getCharisma(c) / 2)
@@ -46,7 +52,7 @@ export function getAggravators(state: SceneState, id: string): Term[] {
   if (!c) return []
   const { hostile, rally, insult } = getPressure(state, id)
   const situational = getSituationalAfflictions(state, id)
-  const tablePressure = state.tablePressure[id] ?? 0
+  const tablePressure = state.tablePressure[getPressureKey(state, id)] ?? 0
   const terms: Term[] = []
   const injury = getInjuryPenalty(c)
   if (injury > 0) terms.push({ label: 'injured', value: MORALE_AGGRAVATORS.injured * injury })
