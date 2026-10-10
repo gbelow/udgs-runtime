@@ -46,7 +46,7 @@ export function ListButton({ selected = false, className = '', ...rest }:
 
 export const inputClass = 'bg-transparent border border-line rounded px-1 outline-none focus:border-accent disabled:opacity-40'
 export const selectClass = `${inputClass} bg-surface text-xs py-0.5`
-export const numberClass = `${inputClass} text-center font-mono [&::-webkit-inner-spin-button]:opacity-0 hover:[&::-webkit-inner-spin-button]:opacity-100 focus:[&::-webkit-inner-spin-button]:opacity-100 [appearance:textfield] hover:[appearance:auto] focus:[appearance:auto]`
+export const numberClass = `${inputClass} text-center font-mono [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:m-0`
 
 // While the field has focus it shows what was typed, so clearing it or typing
 // past a leading zero is not overwritten by the committed value.

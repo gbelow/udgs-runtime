@@ -166,7 +166,7 @@ function InjuryControl({type}: {type: keyof typeof INJURY_TITLES}){
     <div className='flex flex-col items-center gap-1'>
       <span className='text-[10px] text-muted'>{INJURY_TITLES[type]}</span>
       <div className={`flex flex-col items-center justify-center gap-0.5 rounded-full border w-16 h-16 ${ring}`}>
-        <NumberInput className='w-10 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value) || 0)} />
+        <NumberInput className='w-12 border-transparent text-base' aria-label={'injury'} value={value} onChange={(e) => setInjury( type, parseInt(e.target.value) || 0)} />
         <div className='flex flex-row gap-2 text-xs text-muted'>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'causeInjury'} onClick={() => setInjury( type, value + 1)}>+</button>
           <button type='button' className='hover:text-fg cursor-pointer' aria-label={'healInjury'} onClick={() => type == 'injuryLevel' ? updateIL(value - 1) : setInjury( type, value - 1)}>−</button>
