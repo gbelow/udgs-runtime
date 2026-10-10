@@ -1,11 +1,11 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, Updater } from '../types'
-import type { ChaseTier } from '../../lists'
+import type { ChaseCover, ChaseSide, ChaseTier, SkirmishStance } from '../../lists'
 import { SURGES } from '../../tables'
 import { rollPercent, type Dice } from '../../play/dice'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
-import { getChaseSide, getChaseStartBar, getChaseWays, getRunBar, getRunners, getRunSpeed, getSideSpeed, isOutrun, stepTier, type ChaseWay } from '../rules/chase'
+import { getChaseSide, getChaseStartBar, getSkirmishAP, getSkirmishAPOf, getStanceBar, getChaseWays, getRunBar, getRunners, getRunSpeed, getSideSpeed, isOutrun, stepTier, type ChaseWay } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
 import { updateCharacter } from './characters'
 
@@ -13,7 +13,7 @@ import { updateCharacter } from './characters'
 // the tier the table sets ("Approach": "The weapon range will decide at what
 // distance both teams start").
 export function startChase(quarry: string[], tier: ChaseTier): Updater {
-  return (state) => getChaseStartBar(state, quarry, tier) ? state : { ...state, chase: { quarry, tier, run: null, escaped: false, turned: [] } }
+  return (state) => getChaseStartBar(state, quarry, tier) ? state : { ...state, chase: { quarry, tier, run: null, escaped: false, turned: [], stances: {}, cover: {} } }
 }
 
 // combat.tex "Running": what a run takes from each runner — a dash their
@@ -66,5 +66,31 @@ export function turnAround(id: string): Updater {
     if (!chase || chase.escaped || !state.characters[id] || getChaseSide(state, id) !== 'quarry') return state
     const turned = chase.turned.includes(id) ? chase.turned.filter((t) => t !== id) : [...chase.turned, id]
     return { ...state, chase: { ...chase, turned } }
+  }
+}
+
+// combat.tex "Skirmish": a side shoots or tries to close in. Once both have
+// chosen, each runner's AP is the skirmish's, and whoever approaches spends
+// their movement surge running.
+export function chooseStance(side: ChaseSide, stance: SkirmishStance): Updater {
+  return (state) => {
+    if (!state.chase || getStanceBar(state, side)) return state
+    const chosen = { ...state, chase: { ...state.chase, stances: { ...state.chase.stances, [side]: stance } } }
+    const sides = (['quarry', 'pursuers'] as const).map((s) => ({ side: s, AP: getSkirmishAP(chosen, s) }))
+    return sides.reduce((acc: SceneState, { side: s, AP }) => AP === null ? acc : getRunners(acc, s).reduce((inner: SceneState, c) => updateCharacter(c.id, (ch) => {
+      const budgeted = { ...ch, resources: { ...ch.resources, AP: getSkirmishAPOf(ch, AP) } }
+      return chosen.chase!.stances[s] === 'approach' ? actionSurge('movement')(budgeted) : budgeted
+    }, 'skirmish')(inner), acc), chosen)
+  }
+}
+
+// combat.tex "Cover": the table says who has cover and whether they stay in
+// it, or takes it away.
+export function setChaseCover(id: string, cover: ChaseCover | null): Updater {
+  return (state) => {
+    const chase = state.chase
+    if (!chase || !state.characters[id]) return state
+    const { [id]: _was, ...rest } = chase.cover
+    return { ...state, chase: { ...chase, cover: cover ? { ...rest, [id]: cover } : rest } }
   }
 }

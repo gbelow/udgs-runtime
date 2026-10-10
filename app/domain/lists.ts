@@ -257,6 +257,14 @@ export const CHASE_TIERS = ['combat', 'shooting', 'far', 'horizon'] as const
 export type ChaseTier = (typeof CHASE_TIERS)[number]
 export const CHASE_SIDES = ['quarry', 'pursuers'] as const
 export type ChaseSide = (typeof CHASE_SIDES)[number]
+// combat.tex "Skirmish": "Both teams shoot at each other or one team shoots
+// and the other attempts to close in".
+export const SKIRMISH_STANCES = ['shoot', 'approach'] as const
+export type SkirmishStance = (typeof SKIRMISH_STANCES)[number]
+// combat.tex "Skirmish", "Cover": staying in cover, untargetable, or
+// leaving it to shoot or move, partly covered.
+export const CHASE_COVERS = ['total', 'partial'] as const
+export type ChaseCover = (typeof CHASE_COVERS)[number]
 
 // creating.tex "Limit Stress Actions": "Each character must choose a limit
 // stress action", the one a failed morale test activates.

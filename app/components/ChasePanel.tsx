@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Button, SectionLabel, selectClass } from './ui'
 import { useChase, useChaseCommands } from '../hooks/useChase'
-import type { ChaseTier } from '../domain/lists'
+import type { ChaseCover, ChaseTier } from '../domain/lists'
 
 // combat.tex "Chases": who runs away and from how far, the round's run, and
 // which way its winner takes the distance.
@@ -10,7 +10,7 @@ export function ChasePanel(){
   const [quarry, setQuarry] = useState<string[]>([])
   const [startTier, setStartTier] = useState<ChaseTier>('combat')
   const chase = useChase(quarry, startTier)
-  const { startChase, run, choose, endChase, turnAround } = useChaseCommands()
+  const { startChase, run, choose, endChase, turnAround, chooseStance, setCover } = useChaseCommands()
   if (chase.parties.length < 2 && !chase.chasing) return null
 
   const toggle = (id: string) => setQuarry(quarry.includes(id) ? quarry.filter((q) => q !== id) : [...quarry, id])
@@ -63,6 +63,37 @@ export function ChasePanel(){
             </div>
             : <span className='text-xs text-good'>the quarry got away</span>
           }
+          {
+            chase.skirmish.length > 0 ?
+            <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center text-xs text-muted'>
+              <span>skirmish</span>
+              {chase.skirmish.map((s) => (
+                <span key={s.side} className='flex gap-1 items-center'>
+                  {s.side}
+                  {
+                    s.stance ?
+                    <span className='text-fg'>{s.stance}{s.AP !== null ? <> · <span className='font-mono'>{s.AP}</span> AP</> : null}</span> :
+                    chase.stances.map((stance) => (
+                      <Button key={stance} size='xs' aria-label={`${s.side} ${stance}`} disabled={s.bar !== null} title={s.bar ?? undefined} onClick={() => chooseStance(s.side, stance)}>{stance}</Button>
+                    ))
+                  }
+                </span>
+              ))}
+            </div>
+            : null
+          }
+          <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+            <span>cover</span>
+            {chase.runners.map((r) => (
+              <label key={r.id} className='flex gap-1 items-center'>
+                {r.name}
+                <select className={selectClass} aria-label={`cover ${r.name}`} value={r.cover ?? ''} onChange={(e) => setCover(r.id, (e.target.value || null) as ChaseCover | null)}>
+                  <option value=''>none</option>
+                  {chase.covers.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
           {chase.caught.map((reason) => <span key={reason} className='text-xs text-bad'>caught: {reason}</span>)}
           {
             chase.run ?

@@ -1,8 +1,8 @@
 import type { SceneState } from '../types'
-import { CHASE_TIERS, type ChaseSide, type ChaseTier } from '../../lists'
+import { CHASE_COVERS, CHASE_SIDES, CHASE_TIERS, SKIRMISH_STANCES, type ChaseCover, type ChaseSide, type ChaseTier, type SkirmishStance } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
-import { getCaught, getChaseSide, getChaseWays, getRunners, getRunBar, getRoundSeconds, type ChaseWay } from '../rules/chase'
+import { getCaught, getChaseSide, getChaseWays, getRunners, getRunBar, getRoundSeconds, getSkirmishAP, getStanceBar, type ChaseWay } from '../rules/chase'
 
 export type ChaseRunnerRow = { id: string; name: string; side: ChaseSide; speed: number; slowest: boolean }
 
@@ -19,6 +19,13 @@ export type ChasePanel = {
   runBar: string | null
   run: { tier: ChaseTier; quarry: number; pursuers: number; winner: ChaseSide | 'draw'; coin: number | null; runners: ChaseRunnerRow[] } | null
   ways: ChaseWay[]
+  // combat.tex "Skirmish": each side's stance, why it cannot take one, and
+  // the AP it has once both have
+  stances: readonly SkirmishStance[]
+  skirmish: { side: ChaseSide; stance: SkirmishStance | null; bar: string | null; AP: number | null }[]
+  // combat.tex "Cover": everyone in the chase and the cover the table gives them
+  covers: readonly ChaseCover[]
+  runners: { id: string; name: string; side: ChaseSide; cover: ChaseCover | null }[]
   elapsed: string
   roundTakes: string
 }
@@ -54,6 +61,10 @@ function buildChasePanel(state: SceneState): ChasePanel {
       }),
     },
     ways: getChaseWays(state),
+    stances: SKIRMISH_STANCES,
+    skirmish: chase && (chase.tier === 'shooting' || Object.keys(chase.stances).length > 0) ? CHASE_SIDES.map((side) => ({ side, stance: chase.stances[side] ?? null, bar: getStanceBar(state, side), AP: getSkirmishAP(state, side) })) : [],
+    covers: CHASE_COVERS,
+    runners: chase ? CHASE_SIDES.flatMap((side) => getRunners(state, side).map((c) => ({ id: c.id, name: getFightName(state, c.id), side, cover: chase.cover[c.id] ?? null }))) : [],
     elapsed: clock(state.elapsed),
     roundTakes: clock(getRoundSeconds(state)),
   }

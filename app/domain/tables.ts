@@ -51,6 +51,27 @@ export const ROUND_SECONDS = 3
 // distance and 5 minutes at horizon".
 export const CHASE_ROUND_SECONDS = { combat: 30, shooting: 60, far: 120, horizon: 300 } as const satisfies Record<ChaseTier, number>
 
+// combat.tex "Chases": the distance between the sides at each tier past
+// combat range, in metres — a skirmish at 50 m (the table's ruling), far and
+// horizon where the book starts them ("Far: This is from around 200m",
+// "Horizon: This is from 500m"). In combat range "Everyone is considered to
+// be in range to attack or defend anyone".
+export const CHASE_TIER_METRES = { shooting: 50, far: 200, horizon: 500 } as const satisfies Record<Exclude<ChaseTier, 'combat'>, number>
+
+// combat.tex "Skirmish": "A round lasts 30 seconds". "Both teams shoot each
+// other. [...] Everyone has 12 AP"; "The approaching team gets 6 AP and must
+// spend a movement surge for running. The shooting team [...] get 18 AP for
+// running speed 2m per 2 AP, 12 AP for 3m, and 9 AP for 4m or higher" — the
+// running speed of the slowest approacher.
+export const SKIRMISH_SECONDS = 30
+export const SKIRMISH_SHOOT_AP = 12
+export const SKIRMISH_APPROACH_AP = 6
+export const SKIRMISH_SHOOTER_AP = [{ speed: 4, AP: 9 }, { speed: 3, AP: 12 }, { speed: 0, AP: 18 }] as const
+
+// combat.tex "Cover": "For the ones who decide to shoot or move, cover is
+// partial, with a bonus of +3 to reflexes by default."
+export const CHASE_PARTIAL_COVER_REFLEX = 3
+
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]
 // creating.tex "Reach Multiplier (RM)": multiplies the range of all weapons.

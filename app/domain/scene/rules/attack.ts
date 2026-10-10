@@ -38,7 +38,7 @@ import { getCastTerms, getSpellTestDLTerms, getSpellTestSkillTerms } from './cas
 import { getLinkDL } from './link'
 import { getCounterStrike, getOpeningCounter } from './counter'
 import { getRecipeHitTerms } from './recipes'
-import { getRoutingTerms } from './chase'
+import { getChaseCoverTerms, getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
 
@@ -317,7 +317,7 @@ function getAnswerTerms(state: SceneState, strike: StrikeAction): Term[] {
 function getReactionTestTerms(state: SceneState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor || (reaction.kind !== 'avoidExplosion' && reaction.kind !== 'blockExplosion')) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...reactionSensoryTerms(state, reaction, 'reflex')]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...(reaction.kind === 'blockExplosion' ? coverTerms(reactor, reaction) : []), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Reflex": what one reaction to a shot puts up against it — the
@@ -327,7 +327,7 @@ function getReactionTestTerms(state: SceneState, reaction: Action): Term[] {
 function shotDefenseTerms(state: SceneState, reaction: Action): Term[] {
   const reactor = state.characters[reaction.actorId]
   if (!reactor) return []
-  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...reactionSensoryTerms(state, reaction, 'reflex')]
+  return [{ label: 'reflex', value: getReflex(reactor) }, ...coverTerms(reactor, reaction), ...getChaseCoverTerms(state, reactor.id), ...reactionSensoryTerms(state, reaction, 'reflex')]
 }
 
 // combat.tex "Guard": "Shield Cover is added to guard as a bonus"; "Defend":

@@ -20,7 +20,7 @@ import { makeAction } from '../factories'
 import { cure } from '../../character/commands/addAffliction'
 import { appendActions } from './log'
 import { rollHeld } from './heldTest'
-import { getRoundSeconds } from '../rules/chase'
+import { getRoundSeconds, isClosingSkirmish } from '../rules/chase'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -58,11 +58,12 @@ function endRound(state: SceneState, c: CampaignCharacter, dice: Dice): Campaign
 // round change left it, puts under enough stress. The upkeep a holder paid
 // for a spray gives them a free aim of it (the table's ruling): the ground
 // moves, nobody is harmed, and the fight waits on it like on a morale test.
-// The round that ends adds the time it took, and a chase runs again.
+// The round that ends adds the time it took, and a chase runs again — in
+// combat range after a skirmish someone approached in.
 export function nextRound(dice: Dice, newId: () => string): (state: SceneState) => SceneState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: state.chase && { ...state.chase, run: null }, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], stress: [] }
+    const next = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: state.chase && { ...state.chase, run: null, stances: {}, tier: isClosingSkirmish(state.chase.stances) ? 'combat' : state.chase.tier }, inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], stress: [] }
     const called = rollStealth({ ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }, dice)
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }
