@@ -5,7 +5,7 @@ import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow } from '../weaponRow'
-import { getChaseDistance } from '../chase'
+import { getChaseDistance, getChaseTierBetween, reachesTier } from '../chase'
 
 // The board rules read the spatial facts of a fight off `state.board`.
 // Every rule that answers for a fight answers null, or "passes", when the
@@ -287,8 +287,14 @@ export function isGuardingCells(state: SceneState, shooterId: string, cells: Coo
 }
 
 // Whether the shot can land on the target from where its actor stands: the
-// target within the shot's reach and out of total cover from them.
+// target within the shot's reach and out of total cover from them — across
+// a chase's tiers, a shot whose range names the tier or a farther one.
 export function isInShotRange(state: SceneState, action: ShootAction, targetId: string): boolean {
+  const tier = getChaseTierBetween(state, action.actorId, targetId)
+  if (tier && tier !== 'combat') {
+    const row = state.characters[action.actorId] ? findWeaponRow(state.characters[action.actorId], action.weaponKey, action.attack) : null
+    return !row || reachesTier(row.atk.range, tier)
+  }
   const distance = getDistanceBetween(state, action.actorId, targetId)
   if (distance === null) return true
   const reach = getShotReachOf(state, action)

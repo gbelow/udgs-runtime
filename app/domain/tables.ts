@@ -59,14 +59,20 @@ export const CHASE_ROUND_SECONDS = { combat: 30, shooting: 60, far: 120, horizon
 export const CHASE_TIER_METRES = { shooting: 50, far: 200, horizon: 500 } as const satisfies Record<Exclude<ChaseTier, 'combat'>, number>
 
 // combat.tex "Skirmish": "A round lasts 30 seconds". "Both teams shoot each
-// other. [...] Everyone has 12 AP"; "The approaching team gets 6 AP and must
+// other. [...] Everyone has 12 AP"; "The approaching team gets 8 AP and must
 // spend a movement surge for running. The shooting team [...] get 18 AP for
 // running speed 2m per 2 AP, 12 AP for 3m, and 9 AP for 4m or higher" — the
 // running speed of the slowest approacher.
 export const SKIRMISH_SECONDS = 30
 export const SKIRMISH_SHOOT_AP = 12
-export const SKIRMISH_APPROACH_AP = 6
+export const SKIRMISH_APPROACH_AP = 8
 export const SKIRMISH_SHOOTER_AP = [{ speed: 4, AP: 9 }, { speed: 3, AP: 12 }, { speed: 0, AP: 18 }] as const
+
+// combat.tex "Separating the group": "If combat starts, the distant group
+// takes 2 full rounds to arrive" — from shooting range, the rounds its
+// slowest member needs to run the tier's 50 m on a movement surge, never more
+// than 3 (the table's ruling).
+export const CHASE_JOIN_MAX_ROUNDS = 3
 
 // combat.tex "Cover": "For the ones who decide to shoot or move, cover is
 // partial, with a bonus of +3 to reflexes by default."

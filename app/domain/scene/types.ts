@@ -1298,18 +1298,31 @@ export const ChaseRunSchema = z.object({
 }).strip()
 export type ChaseRun = z.infer<typeof ChaseRunSchema>
 
-// combat.tex "Chases": the fight parties running away (everyone else is
-// chasing them), the distance tier between the two sides, this round's run,
-// whether the quarry has got away, who of them has turned around to face
-// the pursuers, the stance each side has taken for a skirmish this round,
-// and who the table has in cover.
-export const ChaseSchema = z.object({
-  quarry: z.array(str).default([]),
+// combat.tex "Separating the group": a group running away — a fight party
+// on the quarry's side — and its distance tier from whoever follows it,
+// whether it has got away or is caught and fighting, the rounds in a row
+// nobody has followed it, and this round's run between it and its followers.
+export const ChaseGroupSchema = z.object({
   tier: z.enum(CHASE_TIERS).default('combat'),
-  run: ChaseRunSchema.nullable().default(null),
   escaped: z.boolean().default(false),
+  fighting: z.boolean().default(false),
+  unfollowed: num.default(0),
+  run: ChaseRunSchema.nullable().default(null),
+}).strip()
+export type ChaseGroup = z.infer<typeof ChaseGroupSchema>
+
+// combat.tex "Chases": the groups running away, by fight party (everyone
+// else is chasing them); the group each pursuing party follows, where the
+// table has picked one; who is on the way to join a fight, and the rounds
+// left until they arrive; who of the quarry has turned around to face the
+// pursuers; the stance each party has taken for a skirmish this round; and
+// who the table has in cover.
+export const ChaseSchema = z.object({
+  groups: z.record(str, ChaseGroupSchema).default({}),
+  follows: z.record(str, str).default({}),
+  joining: z.record(str, z.object({ to: str, rounds: num }).strip()).default({}),
   turned: z.array(str).default([]),
-  stances: z.partialRecord(z.enum(CHASE_SIDES), z.enum(SKIRMISH_STANCES)).default({}),
+  stances: z.record(str, z.enum(SKIRMISH_STANCES)).default({}),
   cover: z.record(str, z.enum(CHASE_COVERS)).default({}),
 }).strip()
 export type Chase = z.infer<typeof ChaseSchema>
