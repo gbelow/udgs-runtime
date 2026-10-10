@@ -53,6 +53,7 @@ export type CreationSpellEntry = {
 // with its next price, and what keeps the character from being made.
 export type CreationPanelView = {
   name: string
+  notes: string
   race: CreationRaceView | null
   limitStress: LimitStressAction | null
   temperament: string
@@ -136,6 +137,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
   })
   return {
     name: d.character.name,
+    notes: d.character.notes,
     race: getRaceView(d),
     limitStress: d.character.limitStress,
     temperament: d.character.trainables.conviction1.name,

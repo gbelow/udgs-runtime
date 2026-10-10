@@ -1,4 +1,4 @@
-import { buyCreationKnowledge, getFinishedCharacter, buyCreationLevel, setCreationProgress, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
+import { buyCreationKnowledge, getFinishedCharacter, buyCreationLevel, setCreationProgress, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationNotes, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
 import { getCreationPanel, type CreationPanelView } from "../domain/character/lenses/creation";
 import { makeRace } from "../domain/factories";
 import type { FamilyKey } from "../domain/abilities";
@@ -36,6 +36,7 @@ export function useCreation() {
 
   const chooseRace = (name: string) => update(setCreationRace(name in raceList ? makeRace(raceList[name]) : null));
   const rename = (name: string) => update(setCreationName(name));
+  const annotate = (notes: string) => update(setCreationNotes(notes));
   const setPriority = (focus: Focus, priority: Priority) => update(setCreationPriority(focus, priority));
   const chooseLimitStress = (action: LimitStressAction | null) => update(setCreationLimitStress(action));
   const chooseConviction = (slot: 'conviction1' | 'conviction2', name: string) => update(setCreationConviction(slot, name));
@@ -53,5 +54,5 @@ export function useCreation() {
     setTab('edit');
   };
 
-  return { view, races, rename, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, setProgress, buyKnowledge, buyStage, chooseSpell, claimSpell, finish, restart: newDraft } as const;
+  return { view, races, rename, annotate, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, setProgress, buyKnowledge, buyStage, chooseSpell, claimSpell, finish, restart: newDraft } as const;
 }
