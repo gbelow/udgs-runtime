@@ -51,7 +51,7 @@ export function getStartTurnBar(state: SceneState, id: string): string | null {
 
 // What the fight is busy with, if anything: someone's turn, or an action
 // being played out.
-function getFightBusy(state: SceneState): string | null {
+export function getFightBusy(state: SceneState): string | null {
   const holder = getTurnHolder(state)
   if (holder) return `${getFightName(state, holder)}'s turn`
   return getOpenAction(state) ? 'an action is being played out' : null

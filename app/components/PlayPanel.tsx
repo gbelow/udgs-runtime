@@ -5,6 +5,7 @@ import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
+import { ChasePanel } from './ChasePanel';
 import { CharacterSheet, SimpleResource } from './CharacterSheet';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, TextInput, Tooltip, selectClass } from './ui';
@@ -41,6 +42,7 @@ export function PlayPanel(){
         <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>{round > 0 ? 'end combat' : 'back to party'}</Button>
         <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
+      <ChasePanel />
       <MoralePanel />
       <HeldTestsPanel />
       {isThereActiveCharacter ? <SocialPanel /> : null}

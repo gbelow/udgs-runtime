@@ -1,4 +1,4 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type FootprintPreset, type LivingLevel } from './lists'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type ChaseTier, type FootprintPreset, type LivingLevel } from './lists'
 import type { AfflictionKey, Coord, Degree, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
@@ -41,6 +41,15 @@ export const FUEL_BURN: Record<Fuel, number> = { oil: 8, alcohol: 8 }
 // combat.tex "End of the round": "all characters get reset to 8 AP minus
 // any negative AP they had".
 export const ROUND_AP = 8
+
+// combat.tex "Start": "rounds, which represent 3 seconds of game time each".
+export const ROUND_SECONDS = 3
+
+// combat.tex "Running": how long a chase round run at each tier lasts, in
+// seconds — a dash "around 30 seconds" (routing at that range too), a
+// sustained pace "1 minute in shooting distance and 2 minutes at far
+// distance and 5 minutes at horizon".
+export const CHASE_ROUND_SECONDS = { combat: 30, shooting: 60, far: 120, horizon: 300 } as const satisfies Record<ChaseTier, number>
 
 export const SMArr = [-2,-1,0,1,2,3,4]
 export const dmgArr = [0.5, 0.75, 1, 1.5, 2, 3, 4]

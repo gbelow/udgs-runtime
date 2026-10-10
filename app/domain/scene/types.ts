@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { CHASE_SIDES, CHASE_TIERS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from '../play/dice'
@@ -1283,6 +1283,32 @@ export type EditEntry = z.infer<typeof EditEntrySchema>
 export const FightPartySchema = z.object({ name: str.default('') })
 export type FightParty = z.infer<typeof FightPartySchema>
 
+// combat.tex "Running": the round's run as it came out — the tier it was run
+// at, each runner's speed and each side's (its slowest runner's), who won,
+// the percentile die a sustained draw was settled with, and whether the
+// winner has said which way the distance goes. Written once, like a die.
+export const ChaseRunSchema = z.object({
+  tier: z.enum(CHASE_TIERS),
+  speeds: z.record(str, num).default({}),
+  quarry: num.default(0),
+  pursuers: num.default(0),
+  winner: z.enum(CHASE_SIDES).nullable().default(null),
+  coin: num.nullable().default(null),
+  chosen: z.boolean().default(false),
+}).strip()
+export type ChaseRun = z.infer<typeof ChaseRunSchema>
+
+// combat.tex "Chases": the fight parties running away (everyone else is
+// chasing them), the distance tier between the two sides, this round's run,
+// and whether the quarry has got away.
+export const ChaseSchema = z.object({
+  quarry: z.array(str).default([]),
+  tier: z.enum(CHASE_TIERS).default('combat'),
+  run: ChaseRunSchema.nullable().default(null),
+  escaped: z.boolean().default(false),
+}).strip()
+export type Chase = z.infer<typeof ChaseSchema>
+
 export const SceneStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
@@ -1292,6 +1318,11 @@ export const SceneStateSchema = z.object({
   parties: z.record(str, FightPartySchema).default({}),
   partyOf: z.record(str, str).default({}),
   round: z.number().default(0),
+  // the game time the scene's rounds have taken, in seconds
+  elapsed: num.default(0),
+  // Null is a fight; otherwise the scene is a chase (combat.tex "Chases"),
+  // played without a board
+  chase: ChaseSchema.nullable().default(null),
   // play.tex "Combat": whose turn it is, '' for nobody's, and which turn that
   // is (the number the actions declared in it carry) — the turn can be
   // contested until something is declared in it. `turnsBegun` numbers the

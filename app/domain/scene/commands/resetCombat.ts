@@ -27,6 +27,8 @@ export function resetCombat(state: SceneState): SceneState {
     tablePressure: {},
     surrendered: [],
     round: 0,
+    elapsed: 0,
+    chase: null,
     actions: [],
     stack: [],
     record: [],
