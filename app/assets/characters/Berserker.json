@@ -250,9 +250,7 @@
       "XP": 0,
       "talent": "",
       "type": "proficiency"
-    }
-  },
-  "knowledges": {
+    },
     "biomancy": {
       "value": 2,
       "name": "biomancy",
@@ -261,6 +259,7 @@
       "type": "knowledge"
     }
   },
+  "specificKnowledges": {},
   "size": 3,
   "TGH": 0,
   "senses": {

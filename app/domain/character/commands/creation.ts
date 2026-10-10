@@ -72,14 +72,6 @@ export function setCreationProgress(key: keyof Trainables, XP: number): (d: Crea
   }
 }
 
-// A level of a knowledge bought or given back.
-export function buyCreationKnowledge(name: string, change: 1 | -1): (d: CreationDraft) => CreationDraft {
-  return (d: CreationDraft) => {
-    const count = (d.knowledges[name] ?? 0) + change
-    return count < 0 ? d : { ...d, knowledges: counted(d.knowledges, name, count) }
-  }
-}
-
 // The next stage of an ability family bought, or the last bought given back.
 // The draft keeps the level bought up to, counted from the race's.
 export function buyCreationStage(family: FamilyKey, change: 1 | -1): (d: CreationDraft) => CreationDraft {

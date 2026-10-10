@@ -1,10 +1,9 @@
 import { ABILITIES, getLearnedAbilityKeys } from '../../abilities'
 import { CREATION_ATTRIBUTE } from '../../tables'
-import { Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, TalentsSchema } from '../../types'
+import { Character, Proficiencies, ProficienciesSchema, TalentsSchema } from '../../types'
 import { getAbilityXPCost } from './abilities'
-import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_TALENTS, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost } from './learning'
+import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_KEYS, SKILL_TALENTS, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost } from './learning'
 
-const SKILL_KEYS = Object.keys(SkillsSchema.shape) as (keyof Skills)[]
 const PROFICIENCY_KEYS = Object.keys(ProficienciesSchema.shape) as (keyof Proficiencies)[]
 const TALENT_KEYS = Object.keys(TalentsSchema.shape) as TalentKey[]
 
@@ -44,8 +43,9 @@ export function getProficienciesXP(c: Character): number {
   }))
 }
 
-// creating.tex "Improving skills": a skill the book does not let be trained
-// on its own counts only the XP it holds.
+// creating.tex "Improving skills", and "Learning Knowledge" for the formal
+// knowledges: a skill the book does not let be trained on its own counts only
+// the XP it holds. Specific knowledges are not learned with XP.
 export function getSkillsXP(c: Character): number {
   return sum(SKILL_KEYS.map((key) => {
     const { value, XP } = c.trainables[key]
@@ -54,13 +54,6 @@ export function getSkillsXP(c: Character): number {
     const talent = c.trainables[talentKey].value
     return levelsWorth(value, XP, (level) => getSkillXPCost(level, talent))
   }))
-}
-
-// creating.tex "Learning Knowledge": learned as skills are, "using INT as the
-// talent".
-export function getKnowledgesXP(c: Character): number {
-  const INT = c.trainables.INT.value
-  return sum(Object.values(c.knowledges).map(({ value, XP }) => levelsWorth(value, XP, (level) => getSkillXPCost(level, INT))))
 }
 
 // creating.tex "Improving attributes": every point above the 8 creation
@@ -73,5 +66,5 @@ export function getAttributesXP(c: Character): number {
 }
 
 export function getTotalXP(c: Character): number {
-  return getAbilitiesXP(c) + getProficienciesXP(c) + getSkillsXP(c) + getKnowledgesXP(c) + getAttributesXP(c)
+  return getAbilitiesXP(c) + getProficienciesXP(c) + getSkillsXP(c) + getAttributesXP(c)
 }

@@ -8,7 +8,6 @@ import { getDrain, getUpkeep } from './character/rules/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
 import { AbilityFamilySchema } from './types'
 import { getRequiredTrainable } from './character/rules/requirements'
-import { emptyKnowledge } from './character/rules/knowledge'
 import catalog from '../assets/abilities.json'
 import type { CampaignCharacter, Character, Requirement } from './types'
 
@@ -94,8 +93,6 @@ function grant(c: Character, req: Requirement, meet: boolean): Character {
           const slot = { ...c.trainables[held.slot], ...(present ? { name: req.name, value } : { name: '' }) }
           return { ...c, trainables: { ...c.trainables, [held.slot]: slot } }
         }
-        case 'knowledge':
-          return { ...c, knowledges: { ...c.knowledges, [held.name]: { ...(c.knowledges[held.name] ?? emptyKnowledge(held.name)), value } } }
         case 'trainable':
           return { ...c, trainables: { ...c.trainables, [held.key]: { ...c.trainables[held.key], value } } }
         default:

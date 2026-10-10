@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Character, Proficiencies, Skills } from '../../types'
+import type { CampaignCharacter, Character, Knowledges, Proficiencies, Skills } from '../../types'
 import { ProficienciesSchema, SkillsSchema } from '../../types'
 import { LIVING_LEVELS, knowledges_list, type LivingLevel } from '../../lists'
 import type { CampaignState } from '../../campaign/types'
@@ -9,7 +9,7 @@ import { formatMoney, getPayable } from '../../item/rules/money'
 import {
   getActivity, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
   getDowntimeHealing, getJobTraining, getLivingCost, getLivingExposure, getPlan, getPlanDays, getPlanExposure, getSelfTrainingTest, getSettlement,
-  getSkillName, getSkillValue, getTargetName, getTrainingLevel, getXPToNext, isFormalKnowledge,
+  getSkillName, getSkillValue, getTargetName, getTrainingLevel, getXPToNext,
 } from '../rules/downtime'
 
 export type DowntimeTest = { skill: number; DL: number; label: string }
@@ -71,7 +71,7 @@ export type DowntimePanel = {
 const rangeOf = (XP: number) => [0, 0.25, 0.5, 1].map((share) => Math.floor(XP * share)).join('/')
 const skillId = (ref: SkillRef) => `${ref.kind}:${getSkillName(ref)}`
 const targetId = (target: TrainingTarget) =>
-  target.kind === 'trainable' ? `trainable:${target.key}` : target.kind === 'knowledge' ? `knowledge:${target.name}` : `ability:${target.family}`
+  target.kind === 'trainable' ? `trainable:${target.key}` : `ability:${target.family}`
 
 function selfTest(target: TrainingTarget, c: Character): DowntimeTest | null {
   const test = getSelfTrainingTest(target)(c)
@@ -132,7 +132,7 @@ function characterView(t: Downtime, id: string, days: number): DowntimeCharacter
     block: plan.block ? blockView(c, plan.block, plan.elapsed) : null,
     activity: getActivity(plan),
     training: plan.block?.kind === 'training' || plan.block?.kind === 'self' ? { id: targetId(plan.block.target), withTrainer: plan.block.kind === 'training' } : null,
-    specific: Object.keys(c.knowledges).filter((name) => !isFormalKnowledge(name)),
+    specific: Object.keys(c.specificKnowledges),
   }
 }
 
@@ -169,8 +169,7 @@ export function getDowntimePanel(t: Downtime, span: number | null): DowntimePane
 }
 
 const TRAINING_TARGETS: TrainingTarget[] = [
-  ...([...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape)] as (keyof Skills | keyof Proficiencies)[]).map((key): TrainingTarget => ({ kind: 'trainable', key })),
-  ...knowledges_list.map((name): TrainingTarget => ({ kind: 'knowledge', name })),
+  ...([...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape), ...knowledges_list] as (keyof Skills | keyof Proficiencies | keyof Knowledges)[]).map((key): TrainingTarget => ({ kind: 'trainable', key })),
   ...(Object.keys(ABILITY_FAMILIES) as FamilyKey[]).map((family): TrainingTarget => ({ kind: 'ability', family })),
 ]
 
@@ -184,9 +183,9 @@ export const getTrainingOptions = perState((c: Character): TrainingOption[] => T
 
 const SKILL_REFS: SkillRef[] = (Object.keys(SkillsSchema.shape) as (keyof Skills)[]).map((key) => ({ kind: 'skill', key }))
 
-// story.tex "Job": "arbitrary skill or knowledge" — every skill and held
-// knowledge, at the value a test reads.
+// story.tex "Job": "arbitrary skill or knowledge" — every skill, formal
+// knowledge and held specific knowledge, at the value a test reads.
 export const getSkillOptions = perState((c: Character): SkillOption[] => [
   ...SKILL_REFS,
-  ...Object.keys(c.knowledges).map((name): SkillRef => ({ kind: 'knowledge', name })),
+  ...[...knowledges_list, ...Object.keys(c.specificKnowledges)].map((name): SkillRef => ({ kind: 'knowledge', name })),
 ].map((ref) => ({ id: skillId(ref), ref, label: ref.kind === 'knowledge' ? `${ref.name} (2× knowledge)` : ref.key, value: getSkillValue(ref)(c) })))

@@ -1,14 +1,19 @@
-import { Character, CharacterUpdater } from '../../types'
-import { emptyKnowledge } from '../rules/knowledge'
-import { knowledgesLens, makeKnowledgeEntryLens } from '../lenses/knowledge'
+import { CharacterUpdater } from '../../types'
+import { isFormalKnowledge } from '../rules/knowledge'
 
-export function removeKnowledge(name: string): CharacterUpdater {
-  return (character: Character) => {
-    const { [name]: _, ...remainingKnowledges } = knowledgesLens.get(character)
-    return knowledgesLens.set(character, remainingKnowledges)
+export function removeSpecificKnowledge(name: string): CharacterUpdater {
+  return (character) => {
+    const { [name]: _, ...remaining } = character.specificKnowledges
+    return { ...character, specificKnowledges: remaining }
   }
 }
 
-export function addKnowledge(name: string): CharacterUpdater {
-  return (character: Character) => makeKnowledgeEntryLens(name).set(character, emptyKnowledge(name))
+// story.tex "Specific Knowledge": a new one starts at level 0. A name that is
+// blank, already held, or a formal knowledge's is refused.
+export function addSpecificKnowledge(name: string): CharacterUpdater {
+  const named = name.trim()
+  return (character) =>
+    !named || isFormalKnowledge(named.toLowerCase()) || Object.hasOwn(character.specificKnowledges, named)
+      ? character
+      : { ...character, specificKnowledges: { ...character.specificKnowledges, [named]: 0 } }
 }

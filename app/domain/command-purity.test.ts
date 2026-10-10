@@ -77,7 +77,7 @@ const held = (name: string, value: number, XP = 0) => TrainableSchema.parse({ na
 
 function characterSubject(): CampaignCharacter {
   const base = makeCampaignCharacter({})
-  const withKnowledge = characterCommands.addKnowledge('medicine')(base) as CampaignCharacter
+  const withKnowledge = characterCommands.addSpecificKnowledge('the old town')(base) as CampaignCharacter
   return {
     ...withKnowledge,
     armor,
@@ -133,13 +133,12 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   toggleVisor: (c) => characterCommands.toggleVisor({ ...c, hasHelm: 1 }),
   resetSkill: characterCommands.resetSkill('strike'),
   resetAllSkills: characterCommands.resetAllSkills(),
-  addKnowledge: characterCommands.addKnowledge('navigation'),
+  addSpecificKnowledge: characterCommands.addSpecificKnowledge('the river'),
   setLimitStress: characterCommands.setLimitStress('coward'),
-  removeKnowledge: characterCommands.removeKnowledge('medicine'),
+  removeSpecificKnowledge: characterCommands.removeSpecificKnowledge('the old town'),
   addTrainingXP: characterCommands.addTrainingXP('strike', 4),
-  addKnowledgeXP: characterCommands.addKnowledgeXP('medicine', 4),
   addAbilityXP: characterCommands.addAbilityXP('jumper', 4),
-  raiseKnowledge: characterCommands.raiseKnowledge('medicine', 3),
+  raiseSpecificKnowledge: characterCommands.raiseSpecificKnowledge('the old town', 3),
   grantAbility: characterCommands.grantAbility('keen-eyes-2'),
   learnAbility: characterCommands.learnAbility('sprinter-2'),
   forgetAbility: characterCommands.forgetAbility('sprinter-1'),
@@ -218,7 +217,6 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   setCreationConviction: creationCommands.setCreationConviction('conviction1', 'Fatalism'),
   buyCreationLevel: creationCommands.buyCreationLevel('strike', 1),
   setCreationProgress: creationCommands.setCreationProgress('strike', 1),
-  buyCreationKnowledge: creationCommands.buyCreationKnowledge('medicine', 1),
   buyCreationStage: creationCommands.buyCreationStage('sprinter', -1),
   setCreationSpell: creationCommands.setCreationSpell('detonate-explosive', 'intuitive'),
   claimCreationSpell: creationCommands.claimCreationSpell('detonate-explosive'),

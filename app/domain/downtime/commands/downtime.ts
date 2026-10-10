@@ -4,7 +4,7 @@ import type { Dice } from '../../play/dice'
 import { resolveTest, toRoll, type TestRoll } from '../../play/test'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
-import { addAbilityXP, addKnowledgeXP, addTrainingXP, raiseKnowledge } from '../../character/commands/learning'
+import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
@@ -19,7 +19,6 @@ function addXP(target: TrainingTarget, XP: number): <C extends Character>(c: C) 
     if (XP <= 0) return c
     switch (target.kind) {
       case 'trainable': return addTrainingXP(target.key, XP)(c)
-      case 'knowledge': return addKnowledgeXP(target.name, XP)(c)
       case 'ability': return isFamilyKey(target.family) ? addAbilityXP(target.family, XP)(c) : c
     }
   }
@@ -82,10 +81,10 @@ function resolveBlock(c: CampaignCharacter, block: Block, dice: Dice): Resolved 
     }
     case 'learning': {
       const roll = rollSkill(c, block.test, block.DL, dice)
-      const held = c.knowledges[block.knowledge]?.value ?? 0
+      const held = c.specificKnowledges[block.knowledge] ?? 0
       const level = Math.min(block.max, held + getLearningGain(block, roll.degree))
       const note = level > held ? `${block.knowledge} ${held} → ${level}` : 'nothing learned'
-      return { c: raiseKnowledge(block.knowledge, level)(c), result: { what: `learning ${block.knowledge} (${getSkillName(block.test)})`, roll, note } }
+      return { c: raiseSpecificKnowledge(block.knowledge, level)(c), result: { what: `learning ${block.knowledge} (${getSkillName(block.test)})`, roll, note } }
     }
   }
 }

@@ -1,17 +1,17 @@
-import type { CampaignCharacter, Character, Degree, Proficiencies, Skills } from '../../types'
-import { DEGREES, SkillsSchema } from '../../types'
-import { knowledges_list, type LivingLevel } from '../../lists'
+import type { CampaignCharacter, Character, Degree, Proficiencies } from '../../types'
+import { DEGREES } from '../../types'
+import { type LivingLevel } from '../../lists'
 import type { CampaignState, Settlement } from '../../campaign/types'
 import type { Activity, Block, Downtime, Plan, SkillRef, TrainingTarget } from '../types'
 import { PlanSchema } from '../types'
 import type { Test } from '../../play/test'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, isFamilyKey } from '../../abilities'
 import { COST_OF_LIVING, DAYS_PER_XP, SELF_TRAINING_YIELD, TRAINER_RATES } from '../../tables'
-import { PROFICIENCY_TALENTS, SKILL_TALENTS, getKnowledgeRaisePrice, getTrainableRaisePrice, type LearningPrice } from '../../character/rules/learning'
+import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey, type LearningPrice } from '../../character/rules/learning'
 import { getAbilityTrainingPrice } from '../../character/rules/abilities'
 import { getLongCampHealing } from '../../character/rules/recovery'
 import { skillTermGetters } from '../../character/rules/skills'
-import { getKnowledge } from '../../character/rules/knowledge'
+import { getKnowledge, isFormalKnowledge } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
 import { getAway, getPlace } from '../../campaign/rules/place'
@@ -34,32 +34,16 @@ export function getTrainingLevel(target: TrainingTarget): (c: Character) => numb
   return (c) => {
     switch (target.kind) {
       case 'trainable': return c.trainables[target.key].value + 1
-      case 'knowledge': return (c.knowledges[target.name]?.value ?? 0) + 1
       case 'ability': return isFamilyKey(target.family) ? getAbilityLevel(c, target.family) + 1 : 0
     }
   }
-}
-
-// creating.tex "Areas of Knowledge": the formal areas, trained like skills.
-// Any other knowledge is specific (story.tex "Specific Knowledge"), gained
-// only through learning tests.
-export function isFormalKnowledge(name: string): boolean {
-  return knowledges_list.includes(name)
-}
-
-// What training teaches: skills, proficiencies, formal knowledges and
-// abilities, never a specific knowledge.
-export function isTrainingTarget(target: TrainingTarget): boolean {
-  return target.kind !== 'knowledge' || isFormalKnowledge(target.name)
 }
 
 // What the next level costs, when it can be trained with XP at all; a talent
 // or a karma-priced ability cannot.
 export function getTrainingPrice(target: TrainingTarget): (c: Character) => LearningPrice | null {
   return (c) => {
-    if (!isTrainingTarget(target)) return null
     const price = target.kind === 'trainable' ? getTrainableRaisePrice(target.key)(c)
-      : target.kind === 'knowledge' ? getKnowledgeRaisePrice(target.name)(c)
       : isFamilyKey(target.family) ? getAbilityTrainingPrice(target.family)(c) : null
     return price?.currency === 'XP' ? price : null
   }
@@ -68,7 +52,6 @@ export function getTrainingPrice(target: TrainingTarget): (c: Character) => Lear
 function getHeldXP(target: TrainingTarget, c: Character): number {
   switch (target.kind) {
     case 'trainable': return c.trainables[target.key].XP
-    case 'knowledge': return c.knowledges[target.name]?.XP ?? 0
     case 'ability': return c.abilities[target.family]?.XP ?? 0
   }
 }
@@ -83,20 +66,19 @@ export function getXPToNext(target: TrainingTarget): (c: Character) => number | 
 }
 
 // creating.tex "Talent and Learning": the talent a target's price is read
-// from — the skill's or proficiency's, INT for a knowledge, and for an
+// from — the skill's, knowledge's or proficiency's, and for an
 // ability the lowest of the talents its next stage lists. A skill the book
 // does not let be trained on its own, or a stage with no talent, has none.
 export function getTrainingTalent(target: TrainingTarget): (c: Character) => number | null {
   return (c) => {
     switch (target.kind) {
-      case 'knowledge': return c.trainables.INT.value
       case 'ability': {
         const next = isFamilyKey(target.family) ? getFamilyStages(target.family)[getAbilityLevel(c, target.family)] : undefined
         const talents = next ? ABILITIES[next].talent : []
         return talents.length > 0 ? Math.min(...talents.map((t) => c.trainables[t.property].value)) : null
       }
       case 'trainable': {
-        const talent = target.key in SkillsSchema.shape ? SKILL_TALENTS[target.key as keyof Skills] : PROFICIENCY_TALENTS[target.key as keyof Proficiencies]
+        const talent = isSkillKey(target.key) ? SKILL_TALENTS[target.key] : PROFICIENCY_TALENTS[target.key as keyof Proficiencies]
         return talent ? c.trainables[talent].value : null
       }
     }
@@ -126,7 +108,6 @@ export function getTrainerRate(level: number): number {
 export function getTargetName(target: TrainingTarget): string {
   switch (target.kind) {
     case 'trainable': return target.key
-    case 'knowledge': return target.name
     case 'ability': return isFamilyKey(target.family) ? ABILITY_FAMILIES[target.family].family : target.family
   }
 }
@@ -147,9 +128,11 @@ export function getSkillName(ref: SkillRef): string {
   return ref.kind === 'skill' ? ref.key : ref.name
 }
 
-// What a test's skill is trained as.
-export function getRefTarget(ref: SkillRef): TrainingTarget {
-  return ref.kind === 'skill' ? { kind: 'trainable', key: ref.key } : { kind: 'knowledge', name: ref.name }
+// What a test's skill is trained as; nothing for a specific knowledge, which
+// is not trained.
+export function getRefTarget(ref: SkillRef): TrainingTarget | null {
+  if (ref.kind === 'skill') return { kind: 'trainable', key: ref.key }
+  return isFormalKnowledge(ref.name) ? { kind: 'trainable', key: ref.name } : null
 }
 
 // story.tex "Job": "If skill test DL is equal or higher than 2x training
@@ -159,7 +142,7 @@ export function getJobTraining(block: Extract<Block, { kind: 'job' }>): (c: Char
   return (c) => {
     const target = getRefTarget(block.test)
     const XP = Math.floor(block.days / DAYS_PER_XP)
-    if (XP < 1 || getTrainingPrice(target)(c) === null) return null
+    if (!target || XP < 1 || getTrainingPrice(target)(c) === null) return null
     return block.DL >= 2 * getTrainingLevel(target)(c) ? { target, XP } : null
   }
 }
@@ -275,7 +258,7 @@ export function getBlockBar(block: Block, c: Character): string | null {
     }
     case 'learning':
       if (!block.knowledge.trim()) return 'name the knowledge'
-      return isFormalKnowledge(block.knowledge) ? `${block.knowledge} is a formal knowledge: train it instead` : null
+      return isFormalKnowledge(block.knowledge.trim().toLowerCase()) ? `${block.knowledge} is a formal knowledge: train it instead` : null
     default: return null
   }
 }

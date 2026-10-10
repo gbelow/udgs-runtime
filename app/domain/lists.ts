@@ -5,7 +5,8 @@
 
 // creating.tex "Areas of Knowledge" — the formal areas a character can train,
 // in the rulebook's order. Commented-out entries there (Building, Politics,
-// Botany, Physics) are deliberately absent.
+// Botany, Physics) are deliberately absent. Any other knowledge is specific
+// (story.tex "Specific Knowledge").
 export const knowledges_list = [
   'alchemy',
   'animancy',
@@ -19,7 +20,7 @@ export const knowledges_list = [
   'navigation',
   'survival',
   'animal handling',
-]
+] as const
 
 // creating.tex "Convictions" — "A character must adopt one worldview
 // conviction and one temperament conviction"; which is which is the heading of

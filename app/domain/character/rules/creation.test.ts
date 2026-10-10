@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { makeCreationDraft } from '../../factories'
 import { FOCI, PRIORITIES, RaceSchema, TrainablesSchema, type CreationDraft, type Trainables } from '../../types'
 import { CREATION_ATTRIBUTE, CREATION_PRIORITIES } from '../../tables'
-import { buyCreationKnowledge, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
+import { buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from '../commands/creation'
 import { getCreatedCharacter, getCreationAbilityRaises, getCreationBalances, getCreationBuild, getCreationCharges, getCreationPool, getCreationProblems, getCreationSpellRaises } from './creation'
 import { ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, type FamilyKey } from '../../abilities'
-import { SPELL_LEARN_XP, getKnowledgeRaisePrice, getTrainableRaisePrice } from './learning'
+import { SPELL_LEARN_XP, getTrainableRaisePrice } from './learning'
+import { getKnowledge } from './knowledge'
 import { SPELLS, SPELL_KEYS, type SpellKey } from '../../spells'
-import { knowledges_list } from '../../lists'
 
 const TRAINABLE_KEYS = Object.keys(TrainablesSchema.shape) as (keyof Trainables)[]
 
@@ -32,15 +32,6 @@ describe('a level bought at creation costs what training it costs', () => {
         return
       }
       expect(spent(raised) - spent(d)).toBe(price.amount)
-      d = raised
-    }
-  })
-
-  it.each(knowledges_list)('knowledge "%s"', (name) => {
-    let d = makeCreationDraft()
-    for (let level = 0; level < 3; level++) {
-      const raised = buyCreationKnowledge(name, 1)(d)
-      expect(spent(raised) - spent(d)).toBe(getKnowledgeRaisePrice(name)(getCreationBuild(d)).amount)
       d = raised
     }
   })
@@ -86,7 +77,7 @@ describe('changing race', () => {
   const families = (Object.keys(ABILITY_FAMILIES) as FamilyKey[]).filter((family) => family in getCreationAbilityRaises(chosen()))
 
   it('keeps the name, the choices and everything bought', () => {
-    const d = buyCreationStage(families[0], 1)(buyCreationKnowledge('medicine', 1)(buyCreationLevel('strike', 1)(chosen())))
+    const d = buyCreationStage(families[0], 1)(buyCreationLevel('medicine', 1)(buyCreationLevel('strike', 1)(chosen())))
     const named = { ...d, character: { ...d.character, name: 'Ann' } }
     const raced = setCreationRace(RaceSchema.parse({ name: 'Strong', bonuses: { CON: 1 } }))(named)
     expect({ ...raced, race: null }).toEqual(named)
@@ -122,8 +113,8 @@ describe('a spell chosen at creation', () => {
 // is held at its level.
 describe('the spells Magic Theory teaches', () => {
   const theorist = (): CreationDraft => {
-    let d = buyCreationKnowledge('linguistics', 1)(buyCreationKnowledge('linguistics', 1)(chosen()))
-    for (let i = 0; i < 3; i++) d = buyCreationKnowledge('alchemy', 1)(buyCreationKnowledge('animancy', 1)(d))
+    let d = buyCreationLevel('linguistics', 1)(buyCreationLevel('linguistics', 1)(chosen()))
+    for (let i = 0; i < 3; i++) d = buyCreationLevel('alchemy', 1)(buyCreationLevel('animancy', 1)(d))
     return buyCreationStage('magic-theory', 1)(buyCreationStage('literacy', 1)(d))
   }
 
@@ -141,7 +132,7 @@ describe('the spells Magic Theory teaches', () => {
     expect(getCreationCharges(d)).toEqual(charges)
     for (const key of claimed) {
       expect(getCreatedCharacter(d).spells[key]?.method).toBe('wizard')
-      for (const k of SPELLS[key].knowledge) expect(getCreatedCharacter(d).knowledges[k.name]?.value ?? 0).toBeGreaterThanOrEqual(k.level)
+      for (const k of SPELLS[key].knowledge) expect(getKnowledge(k.name)(getCreatedCharacter(d))).toBeGreaterThanOrEqual(k.level)
     }
   })
 })

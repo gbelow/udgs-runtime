@@ -1,23 +1,25 @@
-import { Character, Trainable, TrainableSchema } from '../../types'
+import { Character, Knowledges, KnowledgesSchema } from '../../types'
 import { getMentalAfflictionPenalty } from './afflictions'
 import { Term, sumTerms } from './terms'
 
-export function emptyKnowledge(name: string): Trainable {
-  return TrainableSchema.parse({ name, type: 'knowledge' })
+// creating.tex "Areas of Knowledge": a formal knowledge is a trainable; any
+// other name is a specific knowledge (story.tex "Specific Knowledge").
+export function isFormalKnowledge(name: string): name is keyof Knowledges {
+  return Object.hasOwn(KnowledgesSchema.shape, name)
 }
 
-// `knowledges` starts at {} and only gains entries as they're set, so a name
-// not yet held reads as an empty Trainable instead of `undefined`.
-function getKnowledgeEntry(c: Character, name: string): Trainable {
-  return c.knowledges[name] ?? emptyKnowledge(name)
+// The level held, formal or specific; a specific knowledge not held is 0.
+function getKnowledgeLevel(c: Character, name: string): number {
+  return isFormalKnowledge(name) ? c.trainables[name].value : (c.specificKnowledges[name] ?? 0)
 }
 
-// combat.tex "Afflictions": mental penalties affect "all Knowledges". The
-// getter therefore reports the afflicted value, and the setter inverts through
-// the penalty so writing a knowledge level still changes the stored base.
+// combat.tex "Afflictions": mental penalties affect "all Knowledges", formal
+// and specific alike. The getter therefore reports the afflicted value, and
+// the setter inverts through the penalty so writing a knowledge level still
+// changes the stored base.
 export function getKnowledgeTerms(name: string): (c: Character) => Term[] {
   return (c: Character) => [
-    { label: name, value: getKnowledgeEntry(c, name).value },
+    { label: name, value: getKnowledgeLevel(c, name) },
     { label: 'affliction', value: -getMentalAfflictionPenalty(c) },
   ]
 }
@@ -26,12 +28,10 @@ export function getKnowledge(name: string): (c: Character) => number {
   return (c: Character) => sumTerms(terms(c))
 }
 
-// Every knowledge the character holds, resolved through its own getter so the
-// mental-affliction penalty is already applied. A flat name -> value record: the
-// shape a list of knowledges renders from, and the shape a per-entry lookup can
-// read without reaching back for the character.
-export function getKnowledgeValues(c: Character): Record<string, number> {
+// Every specific knowledge the character holds, resolved through its own
+// getter so the mental-affliction penalty is already applied.
+export function getSpecificKnowledgeValues(c: Character): Record<string, number> {
   return Object.fromEntries(
-    Object.keys(c.knowledges).map((name) => [name, getKnowledge(name)(c)]),
+    Object.keys(c.specificKnowledges).map((name) => [name, getKnowledge(name)(c)]),
   )
 }

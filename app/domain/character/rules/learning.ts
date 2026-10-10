@@ -1,13 +1,18 @@
-import { Attributes, AttributesSchema, Character, Proficiencies, ProficienciesSchema, Skills, SkillsSchema, Talents, TalentsSchema, Trainables } from '../../types'
+import { Attributes, AttributesSchema, Character, Knowledges, Proficiencies, ProficienciesSchema, Skills, Talents, TalentsSchema, Trainables } from '../../types'
 import { getSM } from './size'
 
 export type TalentKey = keyof Talents
 export type LearningPrice = { currency: 'XP' | 'karma'; amount: number }
 
+// What is trained as a skill: the skills, and the formal knowledges
+// (creating.tex "Learning Knowledge": learned as skills are).
+export type SkillKey = keyof Skills | keyof Knowledges
+
 // creating.tex "Skills" table, Talent column: the talent a skill is trained
 // with. Null where the book marks it not trainable — it rises only through
 // its proficiency, or its knowledge for Exploration. SD is not in the table.
-export const SKILL_TALENTS: Record<keyof Skills, TalentKey | null> = {
+// A formal knowledge is trained "using INT as the talent".
+export const SKILL_TALENTS: Record<SkillKey, TalentKey | null> = {
   strike: 'DEX',
   defend: 'DEX',
   reflex: null,
@@ -28,7 +33,22 @@ export const SKILL_TALENTS: Record<keyof Skills, TalentKey | null> = {
   persuasion: 'INT',
   deception: 'INT',
   insight: 'INT',
+  alchemy: 'INT',
+  animancy: 'INT',
+  biomancy: 'INT',
+  shamanism: 'INT',
+  mechanics: 'INT',
+  smithing: 'INT',
+  chemistry: 'INT',
+  medicine: 'INT',
+  linguistics: 'INT',
+  navigation: 'INT',
+  survival: 'INT',
+  'animal handling': 'INT',
 }
+
+export const SKILL_KEYS = Object.keys(SKILL_TALENTS) as SkillKey[]
+export const isSkillKey = (key: keyof Trainables): key is SkillKey => key in SKILL_TALENTS
 
 // creating.tex "Proficiencies": the talent named beside each.
 export const PROFICIENCY_TALENTS: Record<keyof Proficiencies, TalentKey> = {
@@ -69,7 +89,6 @@ export function getProficiencyXPCost(level: number, talent: number): number {
 }
 
 // creating.tex "Improving skills": 2+2n, "exactly the same" logic otherwise.
-// creating.tex "Learning Knowledge": knowledges are learned as skills are.
 export function getSkillXPCost(level: number, talent: number): number {
   return (2 + 2 * level) * getTalentMultiplier(level, talent)
 }
@@ -117,7 +136,7 @@ const talentOf =(c: Character, talent: TalentKey): number => c.trainables[talent
 
 // The price of the next level of a skill, or null when the book does not
 // let the skill be trained on its own.
-export function getSkillRaisePrice(key: keyof Skills): (c: Character) => LearningPrice | null {
+export function getSkillRaisePrice(key: SkillKey): (c: Character) => LearningPrice | null {
   return (c: Character) => {
     const talent = SKILL_TALENTS[key]
     if (talent === null) return null
@@ -131,14 +150,6 @@ export function getProficiencyRaisePrice(key: keyof Proficiencies): (c: Characte
     if (level > MAX_PROFICIENCY) return null
     return { currency: 'XP', amount: getProficiencyXPCost(level, talentOf(c, PROFICIENCY_TALENTS[key])) }
   }
-}
-
-// creating.tex "Learning Knowledge": "using INT as the talent".
-export function getKnowledgeRaisePrice(name: string): (c: Character) => LearningPrice {
-  return (c: Character) => ({
-    currency: 'XP',
-    amount: getSkillXPCost((c.knowledges[name]?.value ?? 0) + 1, talentOf(c, 'INT')),
-  })
 }
 
 export function getTalentRaisePrice(key: TalentKey): (c: Character) => LearningPrice | null {
@@ -168,7 +179,7 @@ export function getTrainableLimit(key: keyof Trainables): number | null {
 }
 
 export function getTrainableRaisePrice(key: keyof Trainables): (c: Character) => LearningPrice | null {
-  if (key in SkillsSchema.shape) return getSkillRaisePrice(key as keyof Skills)
+  if (isSkillKey(key)) return getSkillRaisePrice(key)
   if (key in ProficienciesSchema.shape) return getProficiencyRaisePrice(key as keyof Proficiencies)
   if (key in TalentsSchema.shape) return getTalentRaisePrice(key as TalentKey)
   return getAttributeRaisePrice(key as keyof Attributes)

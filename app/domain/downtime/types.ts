@@ -1,23 +1,24 @@
 import { z } from 'zod'
-import { ProficienciesSchema, SkillsSchema, type Proficiencies, type Skills } from '../types'
+import { KnowledgesSchema, ProficienciesSchema, SkillsSchema, type Knowledges, type Proficiencies, type Skills } from '../types'
 import { TestRollSchema } from '../play/test'
 import { LIVING_LEVELS } from '../lists'
 import type { CampaignState } from '../campaign/types'
 
 const SkillKeySchema = z.enum(Object.keys(SkillsSchema.shape) as [keyof Skills, ...(keyof Skills)[]])
-const TrainingKeySchema = z.enum([...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape)] as [keyof Skills | keyof Proficiencies, ...(keyof Skills | keyof Proficiencies)[]])
+type TrainingKey = keyof Skills | keyof Proficiencies | keyof Knowledges
+const TrainingKeySchema = z.enum([...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape), ...Object.keys(KnowledgesSchema.shape)] as [TrainingKey, ...TrainingKey[]])
 
-// What a training teaches: a skill or proficiency, a formal knowledge by
-// name, or an ability family. Attributes and talents are not trained in
-// downtime.
+// What a training teaches: a skill, proficiency or formal knowledge, or an
+// ability family. Attributes and talents are not trained in downtime, and a
+// specific knowledge is learned, never trained.
 export const TrainingTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('trainable'), key: TrainingKeySchema }),
-  z.object({ kind: z.literal('knowledge'), name: z.string() }),
   z.object({ kind: z.literal('ability'), family: z.string() }),
 ])
 export type TrainingTarget = z.infer<typeof TrainingTargetSchema>
 
-// story.tex "Job": "arbitrary skill or knowledge vs DL".
+// story.tex "Job": "arbitrary skill or knowledge vs DL" — a knowledge by
+// name, formal or specific.
 export const SkillRefSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('skill'), key: SkillKeySchema }),
   z.object({ kind: z.literal('knowledge'), name: z.string() }),

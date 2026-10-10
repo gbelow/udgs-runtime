@@ -1,14 +1,13 @@
 import { ABILITIES, ABILITY_FAMILIES, ABILITY_FAMILY_OF, AbilityKey, FamilyKey, getAbilityLevel, getFamilyStages, heldAbility, isFamilyKey } from '../../abilities'
 import { COINS, CREATION_PRIORITIES } from '../../tables'
 import { isBaseCharacter } from '../../utils'
-import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, Skills, SkillsSchema, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
+import { AttributesSchema, Character, CreationDraft, ProficienciesSchema, Proficiencies, SpellMethod, SpellMethodSchema, TalentsSchema, Trainables } from '../../types'
 import { SPELLS, SPELL_KEYS, SpellKey, isSpellKey } from '../../spells'
 import { formatMoney, getCarriedValue, getPurse, getSparedWealth } from '../../item/rules/money'
 import { getAbilityXPCost, meetsAbilityRequirements } from './abilities'
-import { emptyKnowledge } from './knowledge'
 import { getConvictionSlot } from './requirements'
 import { canClaimFreeSpell, canLearnSpell, getFreeSpellCount } from './spells'
-import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice } from './learning'
+import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_KEYS, SKILL_TALENTS, SPELL_LEARN_XP, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost, getTrainableRaisePrice, isSkillKey } from './learning'
 import { getRacedCharacter } from './race'
 import { sumTerms, type Term } from './terms'
 
@@ -17,18 +16,18 @@ import { sumTerms, type Term } from './terms'
 export type CreationPool = TalentKey | 'karma'
 export const CREATION_POOLS: CreationPool[] = ['CON', 'SPI', 'INT', 'DEX', 'karma']
 
-const TRAINABLE_KEYS = [...Object.keys(SkillsSchema.shape), ...Object.keys(ProficienciesSchema.shape), ...Object.keys(TalentsSchema.shape)] as (keyof Trainables)[]
+const TRAINABLE_KEYS = [...SKILL_KEYS, ...Object.keys(ProficienciesSchema.shape), ...Object.keys(TalentsSchema.shape)] as (keyof Trainables)[]
 
 const FAMILY_KEYS = Object.keys(ABILITY_FAMILIES) as FamilyKey[]
 
 const isTalent = (key: keyof Trainables): key is TalentKey => key in TalentsSchema.shape
 
-// The pool a trainable is bought from: a skill or proficiency from the XP of
-// its talent, a talent with karma ("After that, talents can only be increased
+// The pool a trainable is bought from: a skill, formal knowledge or
+// proficiency from the XP of its talent, a talent with karma ("After that, talents can only be increased
 // by spending karma"), an attribute from the CON XP (Step 4). Null for a skill
 // the book does not let be trained on its own.
 export function getCreationPool(key: keyof Trainables): CreationPool | null {
-  if (key in SkillsSchema.shape) return SKILL_TALENTS[key as keyof Skills]
+  if (isSkillKey(key)) return SKILL_TALENTS[key]
   if (key in ProficienciesSchema.shape) return PROFICIENCY_TALENTS[key as keyof Proficiencies]
   if (isTalent(key)) return 'karma'
   return 'CON'
@@ -76,10 +75,10 @@ function talentTerms(d: CreationDraft, start: Character, key: keyof Trainables):
   ]
 }
 
-// creating.tex "Gaining Experience (XP)": skills and proficiencies take XP
+// creating.tex "Gaining Experience (XP)": skills, knowledges and proficiencies take XP
 // short of a level, counted toward the next. The XP held is what was put
 // toward it, kept below the price of that level; none for what cannot rise.
-export const hasProgress = (key: keyof Trainables): boolean => key in SkillsSchema.shape || key in ProficienciesSchema.shape
+export const hasProgress = (key: keyof Trainables): boolean => isSkillKey(key) || key in ProficienciesSchema.shape
 
 export function getCreationProgressCap(build: Character, key: keyof Trainables): number {
   const price = hasProgress(key) && getCreationPool(key) !== null ? getTrainableRaisePrice(key)(build) : null
@@ -106,11 +105,6 @@ export function getCreationBuild(d: CreationDraft): Character {
     const XP = getCreationProgress(d, leveled, key)
     if (XP !== trainables[key].XP) trainables[key] = { ...trainables[key], XP }
   }
-  const knowledges = { ...c.knowledges }
-  for (const [name, levels] of Object.entries(d.knowledges)) {
-    const held = knowledges[name] ?? emptyKnowledge(name)
-    if (levels > 0) knowledges[name] = { ...held, value: held.value + levels }
-  }
   const abilities = { ...c.abilities }
   for (const [family, level] of Object.entries(d.abilities)) {
     if (isFamilyKey(family) && level > getAbilityLevel(c, family)) abilities[family] = heldAbility(family, level)
@@ -119,7 +113,7 @@ export function getCreationBuild(d: CreationDraft): Character {
   for (const [key, { method }] of Object.entries(d.spells)) {
     if (!(key in spells)) spells[key] = { method, practice: 0 }
   }
-  return { ...c, trainables, knowledges, abilities, spells }
+  return { ...c, trainables, abilities, spells }
 }
 
 // creating.tex "Character Creation", Step 3 gives the wealth focus in gold.
@@ -156,18 +150,9 @@ function getTrainableCharge(d: CreationDraft, build: Character, key: keyof Train
   const from = getCreationStart(d).trainables[key].value + priorityTalent(d, key)
   const talent = pool === 'karma' ? 0 : build.trainables[pool].value
   const price = isTalent(key) ? getTalentKarmaCost
-    : key in SkillsSchema.shape ? (level: number) => getSkillXPCost(level, talent)
+    : isSkillKey(key) ? (level: number) => getSkillXPCost(level, talent)
     : (level: number) => getProficiencyXPCost(level, talent)
   return { key, pool, amount: sumLevels(from, Math.max(0, count), price) + progress }
-}
-
-// creating.tex "Learning Knowledge": learned as skills are, "using INT as the
-// talent".
-function getKnowledgeCharge(d: CreationDraft, build: Character, name: string): CreationCharge | null {
-  const count = d.knowledges[name] ?? 0
-  if (count <= 0) return null
-  const from = d.character.knowledges[name]?.value ?? 0
-  return { key: `knowledge:${name}`, pool: 'INT', amount: sumLevels(from, count, (level) => getSkillXPCost(level, build.trainables.INT.value)) }
 }
 
 // creating.tex "Improving attributes", bought from 8.
@@ -210,7 +195,6 @@ export function getCreationCharges(d: CreationDraft): CreationCharge[] {
   return [
     ...TRAINABLE_KEYS.map((key) => getTrainableCharge(d, build, key)),
     getAttributesCharge(d, build),
-    ...Object.keys(d.knowledges).map((name) => getKnowledgeCharge(d, build, name)),
     ...families.flatMap((family) => boughtStages(d, family).map((key) => getStageCharge(key, build))),
     ...Object.keys(d.spells).map((key) => getSpellCharge(d, key)),
   ].filter((charge): charge is CreationCharge => charge !== null)
@@ -245,12 +229,6 @@ export function getCreationRaise(d: CreationDraft, key: keyof Trainables): Creat
   if (pool === null || getTrainableRaisePrice(key)(getCreatedCharacter(d)) === null) return null
   const raised = { ...d, trainables: { ...d.trainables, [key]: boughtOf(d, key) + 1 } }
   return rowRaise(d, raised, key in AttributesSchema.shape ? 'attributes' : key, pool)
-}
-
-// What one more level of a knowledge costs, from the INT XP.
-export function getCreationKnowledgeRaise(d: CreationDraft, name: string): CreationCharge {
-  const raised = { ...d, knowledges: { ...d.knowledges, [name]: (d.knowledges[name] ?? 0) + 1 } }
-  return rowRaise(d, raised, `knowledge:${name}`, 'INT')
 }
 
 // The families whose next stage can be bought, each with that stage's price

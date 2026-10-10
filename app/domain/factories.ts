@@ -4,6 +4,7 @@ import { getSTA } from './character/rules/characteristics'
 import { getRaceOf } from './character/rules/race'
 import { getPresetFootprint, isSoundFootprint, settleParts } from './character/rules/footprint'
 import { isBaseCharacter } from './utils'
+import { isFormalKnowledge } from './character/rules/knowledge'
 import { heldAbility } from './abilities'
 import { CREATION_ATTRIBUTE } from './tables'
 
@@ -48,19 +49,39 @@ function mergeAbilities(incoming: Record<string, unknown> | undefined): Record<s
   )
 }
 
+// Characters stored before knowledges were split kept both kinds in one
+// `knowledges` record of trainables: a formal one is read as the trainable it
+// now is, the rest as specific knowledges, whose XP is dropped.
+function legacyFormalKnowledges(legacy: Record<string, unknown> | undefined): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(legacy ?? {}).filter(([name]) => isFormalKnowledge(name)))
+}
+
+// A specific knowledge is a level by name: what is not a finite level, a
+// legacy entry's `value` among them, reads as 0; a formal knowledge's name is
+// never one.
+function readSpecificKnowledges(raw: Record<string, unknown> | undefined): Record<string, number> {
+  return Object.fromEntries(
+    Object.entries(raw ?? {})
+      .filter(([name]) => !isFormalKnowledge(name.toLowerCase()))
+      .map(([name, entry]) => [name, finite(entry !== null && typeof entry === 'object' && 'value' in entry ? entry.value : entry)]),
+  )
+}
+
 const finite = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0)
 
 function addBaseValues(emptyCharacter: BaseCharacter, parsedCharacter: CharacterIngestType): BaseCharacter
 function addBaseValues(emptyCharacter: CampaignCharacter, parsedCharacter: CampaignCharacterIngestType): CampaignCharacter
 function addBaseValues (emptyCharacter: BaseCharacter | CampaignCharacter, parsedCharacter: CharacterIngestType | CampaignCharacterIngestType){
+  const { knowledges: legacyKnowledges, ...ingested } = parsedCharacter
 
   return settleFootprint({
     ...emptyCharacter,
-    ...parsedCharacter,
+    ...ingested,
     footprint: emptyCharacter.footprint,
     
     // deep merge the important nested objects
-    trainables: mergeTrainables(emptyCharacter.trainables, parsedCharacter.trainables),
+    trainables: mergeTrainables(emptyCharacter.trainables, { ...legacyFormalKnowledges(legacyKnowledges), ...parsedCharacter.trainables }),
+    specificKnowledges: readSpecificKnowledges(parsedCharacter.specificKnowledges ?? legacyKnowledges),
     movement: MovementSchema.parse({
       ...emptyCharacter.movement,
       ...parsedCharacter.movement,
@@ -232,7 +253,8 @@ const CharacterIngestValues = {
   name: z.string().optional(),
 
   trainables: z.record(z.string(), z.any()).optional(),
-  knowledges: z.record(z.string(), z.any()).optional(),
+  specificKnowledges: z.record(z.string(), z.unknown()).optional().catch(undefined),
+  knowledges: z.record(z.string(), z.unknown()).optional().catch(undefined), // the record both kinds shared before they were split
   size: z.number().optional(),
   footprint: z.unknown().optional(),
   height: z.number().int().nonnegative().optional().catch(undefined),

@@ -1,6 +1,6 @@
 import { Character, Trainable, Trainables } from '../../types'
-import { emptyKnowledge } from '../rules/knowledge'
-import { LearningPrice, getKnowledgeRaisePrice, getTrainableRaisePrice } from '../rules/learning'
+import { isFormalKnowledge } from '../rules/knowledge'
+import { LearningPrice, getTrainableRaisePrice } from '../rules/learning'
 import { getAbilityTrainingPrice } from '../rules/abilities'
 import { FamilyKey, heldAbility } from '../../abilities'
 
@@ -21,13 +21,6 @@ export function addTrainingXP(key: keyof Trainables, amount: number): (c: Charac
   })
 }
 
-export function addKnowledgeXP(name: string, amount: number): (c: Character) => Character {
-  return (c: Character) => ({
-    ...c,
-    knowledges: { ...c.knowledges, [name]: train(c.knowledges[name] ?? emptyKnowledge(name), amount, getKnowledgeRaisePrice(name)(c)) },
-  })
-}
-
 // abilities.tex "Acquiring abilities": an ability is trained like any
 // trainable. Training one not yet held starts it at level 0, where none of it
 // is learned; it counts toward a stage only while that stage's requirements
@@ -43,10 +36,11 @@ export function addAbilityXP(family: FamilyKey, amount: number): (c: Character) 
 }
 
 // story.tex "Specific Knowledge": a learning test raises the knowledge to a
-// level outright, never lowering it.
-export function raiseKnowledge(name: string, level: number): <C extends Character>(c: C) => C {
+// level outright, never lowering it. A formal knowledge's name is not a
+// specific knowledge's, so it raises nothing.
+export function raiseSpecificKnowledge(name: string, level: number): <C extends Character>(c: C) => C {
   return <C extends Character>(c: C): C => {
-    const held = c.knowledges[name] ?? emptyKnowledge(name)
-    return level > held.value ? { ...c, knowledges: { ...c.knowledges, [name]: { ...held, value: level } } } : c
+    const held = c.specificKnowledges[name] ?? 0
+    return isFormalKnowledge(name.toLowerCase()) || level <= held ? c : { ...c, specificKnowledges: { ...c.specificKnowledges, [name]: level } }
   }
 }

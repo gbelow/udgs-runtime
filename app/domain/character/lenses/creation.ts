@@ -1,6 +1,6 @@
 import { ABILITIES, ABILITY_FAMILIES, FamilyKey, getAbilityLevel, isAbilityKey } from '../../abilities'
-import { AttributesSchema, FOCI, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, SpellMethodSchema, type SpellMethod, type Skills, type Trainables } from '../../types'
-import { ABILITY_SECTIONS, knowledges_list, type LimitStressAction } from '../../lists'
+import { AttributesSchema, FOCI, KnowledgesSchema, ProficienciesSchema, SkillsSchema, TalentsSchema, type CreationDraft, type Focus, type Priority, SpellMethodSchema, type SpellMethod, type Skills, type Trainables } from '../../types'
+import { ABILITY_SECTIONS, type LimitStressAction } from '../../lists'
 import { getAbilityCatalogRows, type AbilityFamilyView } from './abilities'
 import { getSpellCatalogRows, type SpellCatalogRow } from './spells'
 import { sumTerms, type Term } from '../rules/terms'
@@ -8,8 +8,9 @@ import { groupBy, type Group } from '../../utils'
 import { getStartingWealthView, type StartingWealthView } from '../../item/projections/money'
 import { getTrainableLimit } from '../rules/learning'
 import { skillTermGetters } from '../rules/skills'
+import { isFormalKnowledge } from '../rules/knowledge'
 import { getConvictionLevel, getConvictionSlot } from '../rules/requirements'
-import { CREATION_POOLS, getCreationKnowledgeRaise, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
+import { CREATION_POOLS, getCreatedCharacter, getCreationTalentTerms, getCreationAbilityRaises, getCreationBalances, getCreationGold, getCreationPool, getCreationProblems, getCreationRaise, getCreationSpellRaises, getCreationFreeSpells, canClaimCreationSpell, getCreationBuild, getCreationProgress, getCreationProgressCap, getBoughtStageCount, getRacialLevel, type CreationPool } from '../rules/creation'
 
 // What buying the next level costs: its pool and amount; free for a stage the
 // book lists at no cost; null when it cannot be bought.
@@ -22,7 +23,6 @@ export type CreationPrice = { pool: CreationPool | null; amount: number } | null
 // `progress`: the XP put toward the next level, up to `progressCap` (0 when
 // the row takes none).
 export type CreationRow = { key: keyof Trainables; name: string; value: number; bought: number; next: CreationPrice; terms: Term[]; trained: boolean; blocked: string; progress: number; progressCap: number }
-export type CreationKnowledgeRow = { name: string; value: number; bought: number; next: CreationPrice }
 // The talent a focus ends with: its priority, the race's bonus and the karma
 // bought, each a term, and their sum.
 export type CreationTalent = { total: number; terms: Term[] }
@@ -63,7 +63,6 @@ export type CreationPanelView = {
   gold: number
   wealth: StartingWealthView | null // the gold against the gear carried
   groups: { label: string; rows: CreationRow[] }[]
-  knowledges: CreationKnowledgeRow[]
   abilities: CreationAbilityEntry[] // the families held, racial or bought
   abilityCatalog: Group<CreationAbilityEntry>[] // the sections offered, in the book's order
   spells: CreationSpellEntry[] // the spells chosen
@@ -79,11 +78,11 @@ const GROUPS: { label: string; keys: (keyof Trainables)[] }[] = [
   { label: 'Talents', keys: keysOf(TalentsSchema.shape) },
   { label: 'Proficiencies', keys: keysOf(ProficienciesSchema.shape) },
   { label: 'Skills', keys: keysOf(SkillsSchema.shape) },
+  { label: 'Knowledges', keys: keysOf(KnowledgesSchema.shape) },
 ]
 
 const familyName = (family: FamilyKey): string => ABILITY_FAMILIES[family].family
 const FAMILY_BY_NAME = new Map((Object.keys(ABILITY_FAMILIES) as FamilyKey[]).map((family) => [familyName(family), family]))
-const KNOWLEDGES = new Set(knowledges_list)
 
 function getRaceView(d: CreationDraft): CreationRaceView | null {
   if (!d.race) return null
@@ -111,7 +110,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
   const offered = (section: string): boolean => {
     if (getConvictionSlot(section)) return getConvictionLevel(created, section) !== null
     const knowledge = section.toLowerCase()
-    return !KNOWLEDGES.has(knowledge) || (created.knowledges[knowledge]?.value ?? 0) > 0
+    return !isFormalKnowledge(knowledge) || created.trainables[knowledge].value > 0
   }
   const entries = getAbilityCatalogRows(created)
     .sort((a, b) => a.family.localeCompare(b.family))
@@ -168,12 +167,6 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
           progressCap: getCreationProgressCap(build, key),
         }
       }),
-    })),
-    knowledges: knowledges_list.map((name) => ({
-      name,
-      value: created.knowledges[name]?.value ?? 0,
-      bought: d.knowledges[name] ?? 0,
-      next: getCreationKnowledgeRaise(d, name),
     })),
     abilities: entries.filter((entry) => entry.level > 0),
     abilityCatalog: ABILITY_SECTIONS.filter(offered)

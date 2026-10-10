@@ -11,9 +11,7 @@ import armorsCatalog from '../assets/armors.json'
 // keeps nothing it cannot vouch for, and that a character survives the trip
 // through the format it is stored in.
 
-// `unvalidated` marks an input the ingest is known to let through in a shape
-// its own schema rejects. Kept in the list rather than dropped from it.
-const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
+const HOSTILE: { label: string; raw: unknown }[] = [
   { label: 'null', raw: null },
   { label: 'undefined', raw: undefined },
   { label: 'a number', raw: 42 },
@@ -30,9 +28,8 @@ const HOSTILE: { label: string; raw: unknown; unvalidated?: boolean }[] = [
   { label: 'a body that is not a list', raw: { body: 'two' } },
   { label: 'a malformed body part', raw: { body: [{ grip: 'yes' }] } },
   { label: 'a malformed held item', raw: { held: [{ bulk: 'big' }] } },
-  // knowledges are ingested as `z.any()` into an open record and merged raw, so
-  // a malformed entry still reaches the character unchecked.
-  { label: 'a wrongly-typed knowledge', raw: { knowledges: { medicine: { value: 'lots' } } }, unvalidated: true },
+  { label: 'a wrongly-typed legacy knowledge', raw: { knowledges: { medicine: { value: 'lots' }, 'the old town': 'well' } } },
+  { label: 'a wrongly-typed specific knowledge', raw: { specificKnowledges: { 'the old town': { value: 'lots' }, medicine: 2 } } },
   { label: 'afflictions that are not a list', raw: { type: 'campaign', afflictions: 'all of them' } },
   { label: 'unreadable movement values', raw: { movement: { basic: 'fast', run: NaN } } },
   { label: 'a race draft that is not an object', raw: { raceDraft: 'human' } },
@@ -97,16 +94,14 @@ describe('ingestion is total', () => {
     expect(c.trainables.STR.value).toBe(15)
   })
 
-  for (const { label, raw, unvalidated } of HOSTILE) {
-    const run = unvalidated ? it.fails : it
-
-    run(`${label} yields a valid base character`, () => {
+  for (const { label, raw } of HOSTILE) {
+    it(`${label} yields a valid base character`, () => {
       const c = makeCharacter(raw)
       expect(isBaseCharacter(c)).toBe(true)
       expect(BaseCharacterSchema.parse(c)).toEqual(c)
     })
 
-    run(`${label} yields a valid campaign character`, () => {
+    it(`${label} yields a valid campaign character`, () => {
       const c = makeCampaignCharacter(raw)
       expect(isCampaignCharacter(c)).toBe(true)
       expect(CampaignCharacterSchema.parse(c)).toEqual(c)

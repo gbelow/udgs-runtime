@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -105,19 +105,26 @@ export const ProficienciesSchema = z.object({
 
 export type Proficiencies = z.infer<typeof ProficienciesSchema>
 
-// Knowledges are open-ended (players can invent arbitrary ones, e.g. a
-// specific town or how to ride a specific animal), so the key set can't be a
-// closed schema like the other trainable groups — it's a plain string-keyed
-// map, kept off the closed TrainablesSchema union. Missing keys default to 0
-// via getKnowledgeValue, same as an untrained fixed skill would.
-export const KnowledgesSchema = z.record(z.string(), TrainableSchema).default({})
+// creating.tex "Areas of Knowledge": the formal knowledges, trained as skills
+// are. Each is named by its key, the name requirements and spells use.
+type KnowledgeKey = (typeof knowledges_list)[number]
+export const KnowledgesSchema = z.object(
+  Object.fromEntries(knowledges_list.map((name) => [name, trainable('knowledge', 0, name)])) as Record<KnowledgeKey, ReturnType<typeof trainable>>,
+).strip()
 export type Knowledges = z.infer<typeof KnowledgesSchema>
+
+// story.tex "Specific Knowledge": open-ended (a town, a language, how to ride
+// a specific animal), so a plain record of levels by name. It is learned
+// through learning tests, never with XP, and no name is a formal knowledge's.
+export const SpecificKnowledgesSchema = z.record(z.string(), z.number()).default({})
+export type SpecificKnowledges = z.infer<typeof SpecificKnowledgesSchema>
 
 // ── merged whole ────────────────────────────────────────
 export const TrainablesSchema = SkillsSchema
   .merge(AttributesSchema)
   .merge(TalentsSchema)
   .merge(ProficienciesSchema)
+  .merge(KnowledgesSchema)
 
 export type Trainables = z.infer<typeof TrainablesSchema>
 
@@ -1174,7 +1181,7 @@ export const SpellOutcomesSchema = z.object({
 export type SpellOutcomes = z.infer<typeof SpellOutcomesSchema>
 
 export const SpellKnowledgeRequirementSchema = z.object({
-  name: str.default(''), // a knowledge name, lowercased like the knowledges record
+  name: str.default(''), // a knowledge name, lowercased: a formal knowledge's key or a specific knowledge's name
   level: num.default(0),
 }).strip()
 
@@ -1335,7 +1342,7 @@ const CharacterValues = {
   name: z.string().default(''),
 
   trainables: TrainablesSchema.partial().default({}).transform(v => TrainablesSchema.parse(v)),
-  knowledges: KnowledgesSchema,
+  specificKnowledges: SpecificKnowledgesSchema,
   ...RaceBodyValues,
   
   hasGauntlets: z.number().default(0),
@@ -1416,8 +1423,7 @@ export const CreationDraftSchema = z.object({
   race: RaceSchema.nullable().default(null),
   priorities: z.record(FocusSchema, PrioritySchema).default({ CON: 'A', SPI: 'B', INT: 'C', DEX: 'D', wealth: 'E' }),
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
-  progress: z.partialRecord(TrainableKeySchema, num).default({}), // the XP put toward the next level of a skill or proficiency, short of its price
-  knowledges: z.record(z.string(), num).default({}), // the levels bought, by name
+  progress: z.partialRecord(TrainableKeySchema, num).default({}), // the XP put toward the next level of a skill, proficiency or knowledge, short of its price
   abilities: z.record(z.string(), num).default({}), // by ability family: the level bought up to, the race's stages free
   // the spells chosen, by key: the method each is learned by, and whether it
   // was claimed free from an ability (Magic Theory)

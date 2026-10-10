@@ -48,7 +48,7 @@ export function CharacterCreation() {
       ) : null}
       {step === 'Knowledge & spirit' ? (
         <>
-          <div className='md:col-span-6 flex flex-col gap-3'><Knowledges /></div>
+          <div className='md:col-span-6 flex flex-col gap-2'>{group('Knowledges')}</div>
           <div className='md:col-span-6 flex flex-col gap-3'><Choices /></div>
         </>
       ) : null}
@@ -340,15 +340,6 @@ function TrainableGroup({ label, rows }: { label: string; rows: CreationRow[] })
   return (
     <Section title={label}>
       {rows.map((row) => <BuyRow {...row} key={row.key} onBuy={(change) => buyLevel(row.key, change)} onProgress={(XP) => setProgress(row.key, XP)} />)}
-    </Section>
-  )
-}
-
-function Knowledges() {
-  const { view, buyKnowledge } = useCreation()
-  return (
-    <Section title='Knowledges'>
-      {view.knowledges.map((row) => <BuyRow key={row.name} {...row} onBuy={(change) => buyKnowledge(row.name, change)} />)}
     </Section>
   )
 }

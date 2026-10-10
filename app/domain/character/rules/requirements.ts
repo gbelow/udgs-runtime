@@ -1,7 +1,7 @@
 import { TrainablesSchema, type Character, type Requirement, type Trainables } from '../../types'
 import { ABILITIES, AbilityKey, hasAbility } from '../../abilities'
 import { SPELLS, SpellKey } from '../../spells'
-import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, knowledges_list } from '../../lists'
+import { TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS } from '../../lists'
 import { getAGI, getSTA, getSTR } from './characteristics'
 
 const ATTRIBUTE = { STR: getSTR, AGI: getAGI, STA: getSTA } as const
@@ -21,24 +21,21 @@ export function getConvictionLevel(c: Character, name: string): number | null {
   return slot && c.trainables[slot].name === name ? c.trainables[slot].value : null
 }
 
-// Where a trainable a requirement names is kept: a conviction on its slot, a
-// knowledge by its name, anything else on the trainable that carries the
-// name. abilities.tex names the climb and swim skills "Climbing" and
+// Where a trainable a requirement names is kept: a conviction on its slot,
+// anything else — a formal knowledge among them — on the trainable that
+// carries the name. abilities.tex names the climb and swim skills "Climbing" and
 // "Swimming". Null for a name the domain does not hold.
 export type RequiredTrainable =
   | { kind: 'conviction'; slot: ConvictionSlot }
-  | { kind: 'knowledge'; name: string }
   | { kind: 'trainable'; key: keyof Trainables }
 
 const SKILL_ALIASES: Record<string, keyof Trainables> = { climbing: 'climb', swimming: 'swim' }
 const TRAINABLE_BY_NAME = new Map(Object.entries(TrainablesSchema.parse({})).map(([key, t]) => [t.name.toLowerCase(), key as keyof Trainables]))
-const KNOWLEDGES = new Set(knowledges_list)
 
 export function getRequiredTrainable(name: string): RequiredTrainable | null {
   const slot = getConvictionSlot(name)
   if (slot) return { kind: 'conviction', slot }
   const lower = name.toLowerCase()
-  if (KNOWLEDGES.has(lower)) return { kind: 'knowledge', name: lower }
   const key = SKILL_ALIASES[lower] ?? TRAINABLE_BY_NAME.get(lower)
   return key ? { kind: 'trainable', key } : null
 }
@@ -50,7 +47,6 @@ export function getRequiredLevel(c: Character, name: string): number | null | un
   const held = getRequiredTrainable(name)
   switch (held?.kind) {
     case 'conviction': return getConvictionLevel(c, name)
-    case 'knowledge': return c.knowledges[held.name]?.value ?? 0
     case 'trainable': return c.trainables[held.key].value
     default: return undefined
   }

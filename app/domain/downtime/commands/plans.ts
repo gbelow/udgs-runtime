@@ -1,7 +1,7 @@
 import type { LivingLevel } from '../../lists'
 import type { Activity, Downtime, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
 import { BlockSchema, DECISIONS } from '../types'
-import { getActivity, getPlan, getTrainerRate, getTrainingLevel, isTrainingTarget } from '../rules/downtime'
+import { getActivity, getPlan, getTrainerRate, getTrainingLevel } from '../rules/downtime'
 
 const onPlan = (id: string, update: (plan: Plan, t: Downtime) => Plan): DowntimeUpdater =>
   (t) => (t.campaign.characters[id]
@@ -29,7 +29,6 @@ const DEFAULT_TEST: SkillRef = { kind: 'skill', key: 'persuasion' }
 // trained toward, or done alone; choosing the one already under way keeps it
 // as it is.
 export function chooseTraining(id: string, target: TrainingTarget, withTrainer: boolean): DowntimeUpdater {
-  if (!isTrainingTarget(target)) return (t) => t
   const kind = withTrainer ? 'training' : 'self'
   return (t) => {
     const block = getPlan(t, id).block

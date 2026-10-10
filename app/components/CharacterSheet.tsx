@@ -5,7 +5,7 @@ import { ContainerPanel } from './ContainerPanel';
 import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { Button, NumberInput, SectionLabel, StatTile, Tiles } from './ui';
-import { Characteristics, Movement, Resources, Skills } from '../domain/types';
+import { Characteristics, Knowledges, Movement, Resources, Skills } from '../domain/types';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
 import { useMovementLens } from '../hooks/useMovementLens';
@@ -19,7 +19,8 @@ import { useWoundLens } from '../hooks/useWoundLens';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
-import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
+import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
+import { knowledges_list } from '../domain/lists';
 
 type SheetSlots = {
   // the row under the sheet's name and what follows it
@@ -105,6 +106,7 @@ export function CharacterSheet({ header, resources, injuryAction, injuryPanels, 
           <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
         </div>
         <KnowledgesPanel />
+        <SpecificKnowledgesPanel />
         <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
         <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
       </div>
@@ -216,21 +218,36 @@ function SimpleSkill({skillId}: {skillId: keyof Skills}){
 }
 
 function KnowledgesPanel(){
-  const { knowledges } = useKnowledgeLens()
-  const names = Object.keys(knowledges)
-
-  if(!names.length) return null
-
   return(
     <div className='flex flex-col gap-1'>
       <SectionLabel>Knowledge</SectionLabel>
-      <Tiles>{names.map(name => <SimpleKnowledge key={name} name={name} />)}</Tiles>
+      <Tiles>{knowledges_list.map(key => <SimpleKnowledge key={key} knowledgeKey={key} />)}</Tiles>
     </div>
   )
 }
 
-function SimpleKnowledge({name}: {name: string}){
-  const { getValue } = useKnowledgeLens()
+function SimpleKnowledge({knowledgeKey}: {knowledgeKey: keyof Knowledges}){
+  const [value, , terms, view] = useFormalKnowledgeLens(knowledgeKey)
+  return(
+    <SkillTooltip terms={terms} total={value}>
+      <StatTile label={knowledgeKey} value={value} modifier={view.modifier} afflicted={view.afflicted} />
+    </SkillTooltip>
+  )
+}
+
+function SpecificKnowledgesPanel(){
+  const { names } = useSpecificKnowledges()
+  if(!names.length) return null
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Specific knowledge</SectionLabel>
+      <Tiles>{names.map(name => <SimpleSpecificKnowledge key={name} name={name} />)}</Tiles>
+    </div>
+  )
+}
+
+function SimpleSpecificKnowledge({name}: {name: string}){
+  const { getValue } = useSpecificKnowledges()
   const [terms, view] = useKnowledgeTerms(name)
   const value = getValue(name)
   return(

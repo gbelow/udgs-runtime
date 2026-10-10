@@ -13,7 +13,7 @@ import { MovementPanel } from './MovementPanel';
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
 import { useStartFromRace } from '../hooks/useRace';
 import { SensesPanel } from './SensesPanel';
-import { Characteristics, Skills } from '../domain/types';
+import { Characteristics, Knowledges, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -24,8 +24,8 @@ import type { TagLevel } from '../domain/character/lenses/tags';
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
-import { useKnowledgeLens, useKnowledgeTerms } from '../hooks/useKnowledgeLens';
-import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, type LimitStressAction } from '../domain/lists';
+import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
+import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, knowledges_list, type LimitStressAction } from '../domain/lists';
 
 const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', ]
 const TALENTS: (keyof Characteristics)[] = [ 'CON', 'DEX', 'INT', 'SPI']
@@ -157,6 +157,7 @@ export function CharacterCreator() {
         <LimitStressPicker />
 
         <KnowledgePanel />
+        <SpecificKnowledgePanel />
 
         <TextItem aria-label='notes' keyName='notes' mode='large'/>
         <div className='flex flex-row gap-2'>
@@ -196,44 +197,51 @@ function SkillItem({ title, skillName}:{title: string, skillName: keyof Skills})
 }
 
 function KnowledgePanel(){
-  const { knowledges, available: availableDefaults, add } = useKnowledgeLens()
-  const [selected, setSelected] = useState('')
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Knowledge</SectionLabel>
+      <Tiles>{knowledges_list.map(key => <FormalKnowledgeItem key={key} knowledgeKey={key} />)}</Tiles>
+    </div>
+  )
+}
+
+function FormalKnowledgeItem({ knowledgeKey }:{ knowledgeKey: keyof Knowledges }){
+  const [ value, setValue, terms, view ] = useFormalKnowledgeLens(knowledgeKey)
+  return(
+    <SkillTooltip terms={terms} total={value}>
+      <StatTile label={knowledgeKey} value={value} onChange={setValue} modifier={view.modifier} afflicted={view.afflicted} />
+    </SkillTooltip>
+  )
+}
+
+// story.tex "Specific Knowledge": named freely, learned through learning tests.
+function SpecificKnowledgePanel(){
+  const { names, add } = useSpecificKnowledges()
   const [customName, setCustomName] = useState('')
 
-  const existingNames = Object.keys(knowledges)
-
   const handleAdd = () => {
-    const name = customName.trim() || selected
-    if(!name || existingNames.includes(name)) return
-    add(name)
-    setSelected('')
+    add(customName)
     setCustomName('')
   }
 
   return(
     <div className='flex flex-col gap-1'>
-      <SectionLabel>Knowledge</SectionLabel>
+      <SectionLabel>Specific knowledge</SectionLabel>
       <div className='flex flex-row flex-wrap gap-2 items-center'>
-        <select className={`${inputClass} text-sm py-0.5 bg-surface`} title='knowledge' value={selected} onChange={(e) => setSelected(e.target.value)}>
-          <option value=''>— knowledge —</option>
-          {availableDefaults.map(name => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
-        <TextInput className='w-32' placeholder='custom name' value={customName} onChange={(e) => setCustomName(e.target.value)} />
+        <TextInput className='w-40' placeholder='a place, a language…' value={customName} onChange={(e) => setCustomName(e.target.value)} />
         <Button onClick={handleAdd}>add</Button>
       </div>
       <Tiles>
-        {existingNames.map(name => (
-          <KnowledgeItem key={name} name={name} />
+        {names.map(name => (
+          <SpecificKnowledgeItem key={name} name={name} />
         ))}
       </Tiles>
     </div>
   )
 }
 
-function KnowledgeItem({ name }:{ name: string }){
-  const { getValue, setValue, remove } = useKnowledgeLens()
+function SpecificKnowledgeItem({ name }:{ name: string }){
+  const { getValue, setValue, remove } = useSpecificKnowledges()
   const [terms, view] = useKnowledgeTerms(name)
   const value = getValue(name)
   return(

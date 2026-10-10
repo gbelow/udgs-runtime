@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { getAfflictions, getAfflictionPenalty, getMentalAfflictionPenalty } from './afflictions'
-import { magicGetters, skillLenses } from '../lenses'
+import { knowledgeLenses, magicGetters, skillLenses } from '../lenses'
 import { getTGH } from './misc'
-import { makeKnowledgeLens } from '../lenses/knowledge'
-import { addKnowledge } from '../commands'
+import { makeSpecificKnowledgeLens } from '../lenses/knowledge'
+import { addSpecificKnowledge } from '../commands'
 import { AFFLICTIONS } from '../../tables'
-import { knowledges_list } from '../../lists'
 import { makeCharacter, makeCampaignCharacter } from '../../factories'
 import type { AfflictionKey, CampaignCharacter, Skills } from '../../types'
 
@@ -106,9 +105,14 @@ describe('the injury penalty', () => {
 // reports the afflicted value, so its setter has to invert through the penalty
 // for the sheet to bind two-way to it.
 describe('knowledges under a mental affliction', () => {
-  it.each(knowledges_list)('the "%s" lens still round-trips', (name) => {
-    const lens = makeKnowledgeLens(name)
-    const c = addKnowledge(name)(campaign({ afflictions: ['confused'] }))
+  it.each(Object.entries(knowledgeLenses))('the "%s" lens still round-trips', (_, lens) => {
+    const c = campaign({ afflictions: ['confused'] })
+    expect(lens.get(lens.set(c, 5))).toBe(5)
+  })
+
+  it('a specific knowledge lens still round-trips', () => {
+    const lens = makeSpecificKnowledgeLens('the old town')
+    const c = addSpecificKnowledge('the old town')(campaign({ afflictions: ['confused'] }))
     expect(lens.get(lens.set(c, 5))).toBe(5)
   })
 })
@@ -122,8 +126,8 @@ describe('spellcasting takes the mental penalty once', () => {
 
   for (const [name, getter] of Object.entries(magicGetters)) {
     it(name + (EXEMPT.includes(name) ? ' ignores the mental penalty' : ' drops by the mental penalty, no more'), () => {
-      const healthy = addKnowledge(name)(campaign())
-      const afflicted = addKnowledge(name)(campaign({ afflictions: ['intoxicated3'] }))
+      const healthy = campaign()
+      const afflicted = campaign({ afflictions: ['intoxicated3'] })
       const expected = EXEMPT.includes(name) ? 0 : getMentalAfflictionPenalty(afflicted)
       expect(getter(healthy) - getter(afflicted)).toBe(expected)
     })

@@ -1,4 +1,4 @@
-import { Character, Characteristics, Lens, Movement, Senses, Skills } from "../../types";
+import { Character, Characteristics, Knowledges, Lens, Movement, Senses, Skills } from "../../types";
 import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConviction2, getDevotion, getDEX, getINT, getMelee, getRanged, getSorcery, getSPI, getSTA, getSTR, characteristicTermGetters } from "../rules/characteristics";
 import { makeInvertingLens, makeTrainableValueLens } from "./factories";
 import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "../rules/magic";
@@ -9,6 +9,7 @@ import { makeMovementCostLens, makeMovementLens } from "./movement";
 import { makeSenseActiveLens, makeSenseBonusLens, makeSenseHasSenseLens, makeSensePenaltyLens, makeSenseRangeLens, makeSenseRangePenaltyLens, makeSenseReactiveLens } from "./senses";
 import { getStrike, getAccuracy, getDefend, getReflex, getGrapple, getCunning, getSD, getBalance, getClimb, getSwim, getPrestidigitation, getHealth, getExplore, getWill, getStealth, getPersuasion, getInsight, getDeception, getDetection, getForce } from "../rules/skills";
 import { skillTermGetters } from "../rules/skills";
+import { getKnowledge } from "../rules/knowledge";
 import { Term, sumTerms, termsDigest, termsView, TermsView } from "../rules/terms";
 
 export { skillTermGetters, characteristicTermGetters, sumTerms, termsDigest, termsView }
@@ -30,12 +31,26 @@ export const skillLenses: Record<keyof Skills, Lens<Character, number>> = {
   prestidigitation: makeTrainableValueLens("prestidigitation", getPrestidigitation),
   health: makeTrainableValueLens("health", getHealth),
   force: makeTrainableValueLens("force", getForce),
-  // knowledge: makeTrainableValueLens("knowledge", getKnowledge),
   explore: makeTrainableValueLens("explore", getExplore),
   will: makeTrainableValueLens("will", getWill),
   persuasion: makeTrainableValueLens("persuasion", getPersuasion),
   deception: makeTrainableValueLens("deception", getDeception),
   insight: makeTrainableValueLens("insight", getInsight),
+};
+
+export const knowledgeLenses: Record<keyof Knowledges, Lens<Character, number>> = {
+  alchemy: makeTrainableValueLens("alchemy", getKnowledge("alchemy")),
+  animancy: makeTrainableValueLens("animancy", getKnowledge("animancy")),
+  biomancy: makeTrainableValueLens("biomancy", getKnowledge("biomancy")),
+  shamanism: makeTrainableValueLens("shamanism", getKnowledge("shamanism")),
+  mechanics: makeTrainableValueLens("mechanics", getKnowledge("mechanics")),
+  smithing: makeTrainableValueLens("smithing", getKnowledge("smithing")),
+  chemistry: makeTrainableValueLens("chemistry", getKnowledge("chemistry")),
+  medicine: makeTrainableValueLens("medicine", getKnowledge("medicine")),
+  linguistics: makeTrainableValueLens("linguistics", getKnowledge("linguistics")),
+  navigation: makeTrainableValueLens("navigation", getKnowledge("navigation")),
+  survival: makeTrainableValueLens("survival", getKnowledge("survival")),
+  "animal handling": makeTrainableValueLens("animal handling", getKnowledge("animal handling")),
 };
 
 export const characteristicLenses: Record<keyof Characteristics, Lens<Character, number>> = {
