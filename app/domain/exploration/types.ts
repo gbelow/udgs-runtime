@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { DegreeSchema } from '../types'
 import { ROLL_MODES } from '../play/dice'
+import { TestRollSchema, type TestRoll } from '../play/test'
 import { EventTypeSchema, type CampaignState } from '../campaign/types'
 
 // survival.tex "Exploration Action (EA)", "Making camp": what a group of a
@@ -40,13 +41,7 @@ export const CampSchema = z.object({
 export type Camp = z.infer<typeof CampSchema>
 
 // A test made between ETs: an exhaustion Will test, or a group's.
-export const TestRollSchema = z.object({
-  die: z.number(),
-  score: z.number(),
-  DL: z.number(),
-  degree: DegreeSchema,
-})
-export type TestRoll = z.infer<typeof TestRollSchema>
+export { TestRollSchema, type TestRoll }
 
 // What happens to a character forced to rest while their group goes away:
 // left behind to rest, the group staying with them instead of going, or

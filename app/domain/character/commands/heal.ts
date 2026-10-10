@@ -20,6 +20,12 @@ export function gainThirst(amount: number): (c: CampaignCharacter) => CampaignCh
   return (c) => ({ ...c, resources: { ...c.resources, thirst: Math.min(THIRST_LIMIT, c.resources.thirst + amount) } })
 }
 
+export const addExhaustion = (amount: number) => (c: CampaignCharacter): CampaignCharacter =>
+  ({ ...c, resources: { ...c.resources, exhaustion: Math.max(0, c.resources.exhaustion + amount) } })
+
+export const addIL = (amount: number) => (c: CampaignCharacter): CampaignCharacter =>
+  ({ ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + amount } })
+
 export function heal( amount: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const potionDiscount = Math.min(c.injuries.potion, amount)

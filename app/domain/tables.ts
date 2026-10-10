@@ -1,5 +1,5 @@
-import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type FootprintPreset } from './lists'
-import type { AfflictionKey, Coord, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
+import { HIT_LOCATIONS, HOP_PURCHASES, MATERIALS, PART_FLAGS, SHOT_RANGES, WOUND_EFFECTS, type FootprintPreset, type LivingLevel } from './lists'
+import type { AfflictionKey, Coord, Degree, Fuel, MeleeRange, MovementKind, Priority, WeaponProperty } from './types'
 
 // Rule tables: every constant here is a number the rules turn on. Components do
 // not import this module (eslint enforces it) — a table that the UI needs is
@@ -568,6 +568,35 @@ export const COINS = [
   { name: 'SP', value: 10, item: 'Silver Coin' },
   { name: 'CP', value: 1, item: 'Copper Coin' },
 ] as const
+
+// story.tex "Cost of Living": the daily cost (in coppers), exposure and
+// renown of each living standard, as the book prints them. "The cost of
+// living changes from town to town. This table is an average."
+export const COST_OF_LIVING: Record<LivingLevel, { cost: number; exposure: number; renown: number }> = {
+  miserable: { cost: 1, exposure: -3, renown: 0 },
+  poor: { cost: 5, exposure: -1, renown: 2 },
+  medium: { cost: 10, exposure: 0, renown: 4 },
+  rich: { cost: 30, exposure: 0, renown: 7 },
+  lavish: { cost: 100, exposure: 0, renown: 10 },
+}
+
+// story.tex "Trainer": "Standard rates for training are given per level of
+// training", in coppers per day, levels 1 to 5.
+export const TRAINER_RATES = [4, 8, 20, 40, 100] as const
+
+// creating.tex "Gaining Experience (XP)": "A regular training session for
+// skills and proficiencies takes 10 days for 1 XP"; story.tex "Training":
+// "10 x N" days.
+export const DAYS_PER_XP = 10
+
+// story.tex "Training without trainer": "miss = 0 XP, graze = N/4 XP, hit
+// N/2 XP, crit N XP", as the share of N each degree yields.
+export const SELF_TRAINING_YIELD: Record<Degree, number> = { miss: 0, graze: 0.25, hit: 0.5, critical: 1 }
+
+// story.tex "Downtime", Healing: "Healer's heal rate x N in IL and wound.
+// Payment is separate per IL and wound." The table's ruling for a normal
+// doctor: 4 IL a day at 1 SP per IL, both changing with the healer's quality.
+export const DOCTOR = { capacity: 4, price: 10 } as const
 
 // creating.tex "Character Creation", Steps 3–7: what each priority gives a
 // talent focus (its talent and XP to spend) and the wealth focus (gold).

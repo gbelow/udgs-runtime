@@ -1,7 +1,7 @@
 import { Character, Item, SlotKind, SlotKindSchema } from '../../types'
 import { canFitItem, getContainer, getOpenContainers } from './containers'
 import { getCatalogItem, getItemPrice } from './items'
-import { getStackValue } from './money'
+import { getStackValue, type PlacedStack } from './money'
 
 // One line of what is being bought: a catalog entry, how many, the size it
 // is made at, and the slot group it goes into.
@@ -12,8 +12,7 @@ export type TradeLine = { key: string; amount: number; scale: number; containerK
 // catalog, with coins enough to pay any change.
 export type Trade = { offered: string[]; cart: TradeLine[] }
 
-// A stack the character carries in an open container, and where it lies.
-export type PlacedStack = { item: Item; containerKey: string; slot: SlotKind }
+export type { PlacedStack }
 
 export function findStack(c: Character, itemId: string): PlacedStack | null {
   for (const [containerKey, container] of Object.entries(getOpenContainers(c))) {

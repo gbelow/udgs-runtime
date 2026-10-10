@@ -1,5 +1,5 @@
 import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, PathEvent, TerrainTag, TerrainValues, TerrainWear, Way } from '../types'
-import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, TerrainWearSchema } from '../types'
+import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, SettlementSchema, TerrainWearSchema } from '../types'
 import { getNodeTerrain } from '../rules/terrain'
 
 // survival.tex "Creating the point crawl": the map is made by hand, nodes
@@ -38,6 +38,17 @@ const withNode = (id: string, update: (n: CrawlNode) => CrawlNode): MapUpdater =
 // its terrain stays changed.
 export function setNode(id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>): MapUpdater {
   return withNode(id, (n) => ({ ...n, ...patch }))
+}
+
+// The node becomes a settlement at the book's average cost of living, or
+// stops being one.
+export function toggleSettlement(id: string): MapUpdater {
+  return withNode(id, (n) => ({ ...n, settlement: n.settlement ? null : SettlementSchema.parse({}) }))
+}
+
+// story.tex "Cost of Living": "The cost of living changes from town to town".
+export function setSettlementLiving(id: string, living: number): MapUpdater {
+  return withNode(id, (n) => (n.settlement ? { ...n, settlement: { ...n.settlement, living } } : n))
 }
 
 // The node changes these values of its terrain.

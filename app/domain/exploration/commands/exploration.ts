@@ -3,12 +3,13 @@ import type { CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/
 import type { Camp, Exploring, ExplorationUpdater, Group, GroupResult, Opening, TestRoll } from '../types'
 import { CampSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../play/dice'
-import { getDegree, resolveTest } from '../../play/test'
-import { gainHunger, gainThirst, heal } from '../../character/commands/heal'
+import { getDegree, resolveTest, toRoll } from '../../play/test'
+import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getPassBar, getRestExposure, getRestHealing, getRestRecovery, getRestsToday, getWear, hasWood, isAway, isForcedToRest,
+  getPassBar, getRestExposure, getRestsToday, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
+import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
 import { getDay } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
@@ -40,12 +41,6 @@ function spendPotion(c: CampaignCharacter): CampaignCharacter {
   return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel - healed, potion: 0 } }
 }
 
-const addExhaustion = (amount: number) => (c: CampaignCharacter): CampaignCharacter =>
-  ({ ...c, resources: { ...c.resources, exhaustion: Math.max(0, c.resources.exhaustion + amount) } })
-
-const addIL = (amount: number) => (c: CampaignCharacter): CampaignCharacter =>
-  ({ ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + amount } })
-
 // survival.tex "Rest": exhaustion lowers and IL heals, by negative amounts on
 // ground rough enough to work against the character.
 function rest(c: CampaignCharacter, exposure: number): CampaignCharacter {
@@ -53,8 +48,6 @@ function rest(c: CampaignCharacter, exposure: number): CampaignCharacter {
   const healing = getRestHealing(c, exposure)
   return healing < 0 ? addIL(-healing)(recovered) : heal(Math.min(healing, recovered.injuries.injuryLevel))(recovered)
 }
-
-const toRoll = ({ die, score, DL, degree }: TestRoll): TestRoll => ({ die, score, DL, degree })
 
 // survival.tex "Exhaustion": the Will tests the coming ET opens with, rolled
 // once for everyone who plays it.

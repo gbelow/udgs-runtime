@@ -4,7 +4,7 @@ import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, TerrainT
 import { getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
 import {
   addConnection, addEvent, addNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
-  setEvent, setEventWay, setMapName, setNode, toggleEventType, toggleNodeTag,
+  setEvent, setEventWay, setMapName, setNode, setSettlementLiving, toggleEventType, toggleSettlement, toggleNodeTag,
 } from "../domain/campaign/commands/map";
 import { deleteMap, upsertMap } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
@@ -53,6 +53,8 @@ export function useMapEditor() {
     setName: (name: string) => update(setMapName(name)),
     addNode: () => update(addNode(newId)),
     setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update(setNode(id, patch)),
+    toggleSettlement: (id: string) => update(toggleSettlement(id)),
+    setSettlementLiving: (id: string, living: number) => update(setSettlementLiving(id, living)),
     customizeNode: (id: string, patch: Partial<TerrainValues>) => update(customizeNode(id, patch)),
     customizeWear: (id: string, patch: Partial<TerrainWear>) => update(customizeNodeWear(id, patch)),
     toggleTag: (id: string, tag: TerrainTag) => update(toggleNodeTag(id, tag)),

@@ -254,3 +254,7 @@ export const RANGES = [...MELEE_RANGES, ...THROWN_RANGES, ...SHOT_RANGES] as con
 // stress action", the one a failed morale test activates.
 export const LIMIT_STRESS_ACTIONS = ['coward', 'violent', 'tanatosis', 'abusive', 'traitor', 'martyr'] as const
 export type LimitStressAction = (typeof LIMIT_STRESS_ACTIONS)[number]
+
+// story.tex "Cost of Living": the living standards, poorest first.
+export const LIVING_LEVELS = ['miserable', 'poor', 'medium', 'rich', 'lavish'] as const
+export type LivingLevel = (typeof LIVING_LEVELS)[number]

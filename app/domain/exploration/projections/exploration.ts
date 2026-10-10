@@ -6,8 +6,9 @@ import { isNight } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
-  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getRestHealing, getRestRecovery, getWear, hasWood,
+  getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getWear, hasWood,
 } from '../rules/exploration'
+import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 
 export type MemberView = { id: string; name: string; isActive: boolean; plan: string; out: boolean }
 export type GroupView = {

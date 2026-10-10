@@ -64,11 +64,19 @@ export const TerrainValuesSchema = z.object({
 })
 export type TerrainValues = z.infer<typeof TerrainValuesSchema>
 
+// story.tex "Downtime": a town downtime can be spent in. "The cost of living
+// changes from town to town": `living` scales the average the book gives.
+export const SettlementSchema = z.object({
+  living: z.number().default(1),
+})
+export type Settlement = z.infer<typeof SettlementSchema>
+
 // A node is made of a terrain from the catalog, by name, and keeps only what
 // it changes of it.
 export const CrawlNodeSchema = z.object({
   name: z.string().default(''),
   terrain: z.string().nullable().default(null),
+  settlement: SettlementSchema.nullable().default(null),
   custom: TerrainValuesSchema.partial().default({}),
   events: z.record(z.string(), CrawlEventSchema).default({}),
 })

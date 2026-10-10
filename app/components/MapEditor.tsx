@@ -65,7 +65,7 @@ function MapHeader() {
 }
 
 function Nodes() {
-  const { view, addNode, setNode, removeNode, addEvent } = useMapEditor()
+  const { view, addNode, setNode, toggleSettlement, setSettlementLiving, removeNode, addEvent } = useMapEditor()
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row items-center gap-2'>
@@ -81,6 +81,15 @@ function Nodes() {
               {n.terrain && !view.presets.includes(n.terrain) ? <option value={n.terrain}>{n.terrain} (not in the catalog)</option> : null}
               {view.presets.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
+            <label className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`${n.name} settlement`} checked={n.settlement !== null} onChange={() => toggleSettlement(n.id)} />settlement
+            </label>
+            {n.settlement ?
+              <>
+                <span className='text-xs text-muted' title='story.tex "Cost of Living": the cost of living changes from town to town'>living cost ×</span>
+                <NumberInput className='w-12' step={0.1} aria-label={`${n.name} living cost`} value={n.settlement.living} onChange={(e) => setSettlementLiving(n.id, parseFloat(e.target.value) || 0)} />
+              </>
+              : null}
             <Button size='xs' variant='ghost' onClick={() => addEvent({ kind: 'node', id: n.id })}>+ event</Button>
             <Button aria-label={`remove ${n.name}`} variant='ghost' onClick={() => removeNode(n.id)}>×</Button>
           </div>

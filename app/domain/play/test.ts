@@ -1,4 +1,5 @@
-import type { Degree } from '../types'
+import { z } from 'zod'
+import { DegreeSchema, type Degree } from '../types'
 import type { Dice } from './dice'
 import type { Term } from '../character/rules/terms'
 
@@ -41,3 +42,15 @@ export function resolveTest(test: Test, dice: Dice): TestResult {
   if (over >= 0 && test.grazes) return { ...base, degree: 'graze', HOP: 0 }
   return { ...base, degree: 'miss', HOP: 0 }
 }
+
+// A test as it is kept to be read afterwards: the die, the score it came to,
+// the DL and the degree.
+export const TestRollSchema = z.object({
+  die: z.number(),
+  score: z.number(),
+  DL: z.number(),
+  degree: DegreeSchema,
+})
+export type TestRoll = z.infer<typeof TestRollSchema>
+
+export const toRoll = ({ die, score, DL, degree }: TestRoll): TestRoll => ({ die, score, DL, degree })

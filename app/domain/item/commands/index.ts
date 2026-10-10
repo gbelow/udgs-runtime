@@ -3,3 +3,4 @@ export { equipContainer, putOnFromCatalog, putOnFromHands, putOnFromContainer, t
 export { holdItem, regripItem, drawItem, storeItem, dropItem, consumeItem, chargeItem, dischargeItem, slingShield, unslingShield, throwOffShield } from './hands'
 export { trade } from './trade'
 export { settleStartingWealth } from './wealth'
+export { pay, receive } from './money'

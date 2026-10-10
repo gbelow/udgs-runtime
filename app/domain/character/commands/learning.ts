@@ -41,3 +41,12 @@ export function addAbilityXP(family: FamilyKey, amount: number): (c: Character) 
     },
   })
 }
+
+// story.tex "Specific Knowledge": a learning test raises the knowledge to a
+// level outright, never lowering it.
+export function raiseKnowledge(name: string, level: number): <C extends Character>(c: C) => C {
+  return <C extends Character>(c: C): C => {
+    const held = c.knowledges[name] ?? emptyKnowledge(name)
+    return level > held.value ? { ...c, knowledges: { ...c.knowledges, [name]: { ...held, value: level } } } : c
+  }
+}

@@ -77,3 +77,18 @@ export function findCoinSeat(c: Character, coins: Item): { containerKey: string;
 export function getCoins(coppers: number): Item[] {
   return countCoins(coppers).flatMap(({ coin, count }) => getCatalogItem(coin.item, count) ?? [])
 }
+
+// A stack the character carries in an open container, and where it lies.
+export type PlacedStack = { item: Item; containerKey: string; slot: SlotKind }
+
+// The coins the character can pay with: every stack of a currency in an open
+// container, and where it lies.
+export function getPurseStacks(c: Character): PlacedStack[] {
+  return Object.entries(getOpenContainers(c)).flatMap(([containerKey, container]) =>
+    SlotKindSchema.options.flatMap((slot) => container.slots[slot].items.filter(isCurrency).map((item) => ({ item, containerKey, slot }))))
+}
+
+// What the character can pay out of their containers, in coppers.
+export function getPayable(c: Character): number {
+  return getMoneyValue(getPurseStacks(c).map(({ item }) => item))
+}

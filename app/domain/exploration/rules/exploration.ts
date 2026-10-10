@@ -5,7 +5,7 @@ import type { Camp, Exploring, Group, GroupKind } from '../types'
 import { CampSchema } from '../types'
 import type { Test } from '../../play/test'
 import { getAwareness, getSTA } from '../../character/rules/characteristics'
-import { getHealth, getWill } from '../../character/rules/skills'
+import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getDay, isNight } from '../../campaign/rules/clock'
@@ -51,18 +51,6 @@ export function getCamp(t: Exploring, partyId: string): Camp {
 export function hasWood(state: CampaignState, party: Party): boolean {
   const terrain = getPlace(state, party)?.terrain
   return !terrain || terrain.tags.includes('wood')
-}
-
-// survival.tex "Rest": "heals IL equal to 1+(health-exposure)/2. Negative
-// values work against the character."
-export function getRestHealing(c: CampaignCharacter, exposure: number): number {
-  return 1 + Math.floor((getHealth(c) - exposure) / 2)
-}
-
-// survival.tex "Rest": "lowers exhaustion by 3 - exposure/2 instead of
-// increasing it".
-export function getRestRecovery(exposure: number): number {
-  return 3 - Math.floor(exposure / 2)
 }
 
 // survival.tex "Shelter": "improves the exposure for resting by 1 on a hit

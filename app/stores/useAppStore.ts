@@ -6,7 +6,7 @@ import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'downtime' | 'play' | 'break' | 'catalog'
 
 // The store that holds each tab's active character: the one being edited, the
 // one being made by the book's steps, the race being made, the party's, the
@@ -19,6 +19,7 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   race: 'race',
   map: null,
   party: 'campaign',
+  downtime: 'campaign',
   play: 'combat',
   break: 'combat',
   catalog: 'combat',

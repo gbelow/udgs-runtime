@@ -4,17 +4,19 @@ import { CampaignCharacter } from '../domain/types'
 import { CampaignState, CampaignStateSchema, CampaignUpdater } from '../domain/campaign/types'
 import type { TableUpdater } from '../domain/scene/types'
 import { ExplorationState, ExplorationStateSchema, ExplorationUpdater } from '../domain/exploration/types'
+import { DowntimeState, DowntimeStateSchema, DowntimeUpdater } from '../domain/downtime/types'
 import { makeCampaignCharacter } from '../domain/factories'
 import { updateRosterCharacter, setRosterActive } from '../domain/campaign/commands/roster'
 import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 
 // The data half is the domain's CampaignState, as with the combat store: the
-// roster out of any fight and the clock; beside it, what exploration keeps.
+// roster out of any fight and the clock; beside it, what exploration and
+// downtime keep.
 // Moving characters between it and the fight is a domain command over both,
 // landed on both stores by `updateTable`; an exploration command reads and
 // writes the campaign and its own state together, landed by
-// `updateExploration`.
+// `updateExploration`, and a downtime command likewise by `updateDowntime`.
 type CampaignActions = {
   loadCharacter: (rawCharacter: unknown) => void
   loadFighter: (rawCharacter: unknown) => void
@@ -23,13 +25,15 @@ type CampaignActions = {
   updateCampaignState: (updater: CampaignUpdater) => void
   updateTable: (updater: TableUpdater) => void
   updateExploration: (updater: ExplorationUpdater) => void
+  updateDowntime: (updater: DowntimeUpdater) => void
 }
 
-export type CampaignStore = CampaignState & { exploration: ExplorationState } & CampaignActions
+export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState } & CampaignActions
 
 export const useCampaignStore = create<CampaignStore>((set, get) => ({
   ...CampaignStateSchema.parse({}),
   exploration: ExplorationStateSchema.parse({}),
+  downtime: DowntimeStateSchema.parse({}),
 
   updateCampaignState: (updater) => set(updater),
 
@@ -43,6 +47,12 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
     const s = get()
     const { campaign, exploration } = updater({ campaign: s, exploration: s.exploration })
     set({ ...campaign, exploration })
+  },
+
+  updateDowntime: (updater) => {
+    const s = get()
+    const { campaign, downtime } = updater({ campaign: s, downtime: s.downtime })
+    set({ ...campaign, downtime })
   },
 
   loadCharacter: (rawCharacter) =>

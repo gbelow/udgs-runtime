@@ -25,6 +25,9 @@ import type { Table } from './scene/types'
 import * as explorationModule from './exploration/commands/exploration'
 import * as plansModule from './exploration/commands/plans'
 import { ExplorationStateSchema, type Exploring } from './exploration/types'
+import * as downtimeModule from './downtime/commands/downtime'
+import * as downtimePlansModule from './downtime/commands/plans'
+import { DowntimeStateSchema, type Downtime } from './downtime/types'
 import { SceneStateSchema, type SceneState } from './scene/types'
 import { getOpenAction } from './scene/rules/log'
 import { getRootTest } from './scene/rules/attack'
@@ -42,6 +45,7 @@ const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
 const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
+const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
 
 // Every command in the domain is a pure updater — `(subject) => subject` — and
 // the subject it is handed comes back untouched. That is the property the whole
@@ -135,6 +139,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   addTrainingXP: characterCommands.addTrainingXP('strike', 4),
   addKnowledgeXP: characterCommands.addKnowledgeXP('medicine', 4),
   addAbilityXP: characterCommands.addAbilityXP('jumper', 4),
+  raiseKnowledge: characterCommands.raiseKnowledge('medicine', 3),
   grantAbility: characterCommands.grantAbility('keen-eyes-2'),
   learnAbility: characterCommands.learnAbility('sprinter-2'),
   forgetAbility: characterCommands.forgetAbility('sprinter-1'),
@@ -193,6 +198,8 @@ const itemCases: Record<string, (c: CampaignCharacter) => unknown> = {
   unslingShield: (c) => itemCommands.unslingShield()({ ...c, onBack: shieldItem }),
   throwOffShield: (c) => itemCommands.throwOffShield()({ ...c, onBack: shieldItem }),
   trade: (c) => itemCommands.trade({ offered: [c.containers.belt.slots.quick.items[0].id], cart: [] })(c),
+  pay: itemCommands.pay(1),
+  receive: itemCommands.receive(12),
   settleStartingWealth: (c) => itemCommands.settleStartingWealth({ ...c, type: 'base', startingWealth: 500 } as unknown as Character),
 }
 
@@ -456,6 +463,8 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setMapName: (m) => mapModule.setMapName('n')(m),
   addNode: (m) => mapModule.addNode(() => 'n3')(m),
   setNode: (m) => mapModule.setNode('n1', { name: 'C' })(m),
+  toggleSettlement: (m) => mapModule.toggleSettlement('n1')(m),
+  setSettlementLiving: (m) => mapModule.setSettlementLiving('n1', 2)(m),
   customizeNode: (m) => mapModule.customizeNode('n1', { exposure: 1 })(m),
   customizeNodeWear: (m) => mapModule.customizeNodeWear('n1', { thirst: 1 })(m),
   toggleNodeTag: (m) => mapModule.toggleNodeTag('n1', 'cold')(m),
@@ -549,6 +558,33 @@ describe('commands are pure updaters', () => {
   })
 })
 
+// Downtime's subject is the campaign's beside what downtime keeps.
+const downtimeCases: Record<string, (t: Downtime) => unknown> = {
+  setLiving: (t) => downtimeCommands.setLiving('a', 'rich')(t),
+  setHoused: (t) => downtimeCommands.setHoused('a', true)(t),
+  addTraining: (t) => downtimeCommands.addTraining('b', { kind: 'trainable', key: 'strike' }, true)(t),
+  addBlock: (t) => downtimeCommands.addBlock('b', 'job')(t),
+  setBlock: (t) => downtimeCommands.setBlock('a', { XP: 2 })(t),
+  setLearningGain: (t) => downtimeCommands.setLearningGain('a', 1, 2)(t),
+  decideTraining: (t) => downtimeCommands.decideTraining('a', 'accepted')(t),
+  dropBlock: (t) => downtimeCommands.dropBlock('a')(t),
+  passDays: (t) => downtimeCommands.passDays(2, () => 5)(t),
+}
+
+describe('downtime commands are pure', () => {
+  it.each(Object.entries(downtimeCases))('%s leaves its campaign and downtime alone', (_name, run) => {
+    const subject: Downtime = {
+      campaign: { ...campaignSubject(cleared(combatSubject())), parties: {}, partyOf: {} },
+      downtime: DowntimeStateSchema.parse({
+        plans: { a: { block: { kind: 'training', target: { kind: 'trainable', key: 'strike' }, rate: 4 }, elapsed: 0 } },
+      }),
+    }
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
+})
+
 // The point of keying the cases by export name: a command added to one of the
 // command modules inherits the purity check, and fails here until it is given
 // a subject to run against.
@@ -559,6 +595,7 @@ describe('every command is covered', () => {
     ['combat', combatCommands, combatCases],
     ['campaign', campaignCommands, campaignCases],
     ['exploration', explorationCommands, explorationCases],
+    ['downtime', downtimeCommands, downtimeCases],
     ['map', mapModule, mapCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {
