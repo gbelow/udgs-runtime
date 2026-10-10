@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, CatalogList, Panel, Row, SectionLabel, TextInput, selectClass } from './ui'
+import { Button, CatalogList, NumberInput, Panel, Row, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
 import { SpellCatalogEntry } from './SpellSelector'
@@ -21,19 +21,20 @@ export function CharacterCreation() {
   const { view } = useCreation()
   return (
     <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3 text-left text-sm'>
-      <div className='md:col-span-4 flex flex-col gap-3'>
-        <CreationHeader />
+      <CreationBar />
+      <div className='md:col-span-6 xl:col-span-3 flex flex-col gap-3'>
         <RacePreset />
         <Priorities />
         <Choices />
-        <Pools />
-        <Problems />
-      </div>
-      <div className='md:col-span-4 flex flex-col gap-3'>
-        {view.groups.map((group) => <TrainableGroup key={group.label} label={group.label} rows={group.rows} />)}
         <Knowledges />
       </div>
-      <div className='md:col-span-4 flex flex-col gap-3'>
+      <div className='md:col-span-6 xl:col-span-3 flex flex-col gap-3'>
+        {view.groups.filter((group) => group.label !== 'Skills').map((group) => <TrainableGroup key={group.label} label={group.label} rows={group.rows} />)}
+      </div>
+      <div className='md:col-span-6 xl:col-span-3 flex flex-col gap-3'>
+        {view.groups.filter((group) => group.label === 'Skills').map((group) => <TrainableGroup key={group.label} label={group.label} rows={group.rows} />)}
+      </div>
+      <div className='md:col-span-6 xl:col-span-3 flex flex-col gap-3'>
         <Abilities />
         <Magic />
       </div>
@@ -49,7 +50,7 @@ function Gear() {
   return (
     <div className='md:col-span-12 grid grid-cols-1 md:grid-cols-12 gap-4'>
       <div className='md:col-span-4 flex flex-col gap-1'>
-        <div className='flex flex-col gap-0.5 sticky top-0 z-10 bg-surface py-1'>
+        <div className='flex flex-col gap-0.5 py-1'>
           <SectionLabel>Gear</SectionLabel>
           <WealthLine />
         </div>
@@ -67,19 +68,38 @@ function Gear() {
   )
 }
 
-function CreationHeader() {
-  const { view, races, rename, chooseRace, finish, restart } = useCreation()
+// Kept in sight while buying: who is being made, every pool against its
+// budget and the gold, and what still keeps the character from being created.
+function CreationBar() {
+  const { view, rename, finish, restart } = useCreation()
+  const [first, ...rest] = view.problems
+  const gold = view.wealth
   return (
-    <div className='flex flex-row flex-wrap items-center gap-2'>
-      <TextInput aria-label='character name' placeholder='name' className='grow text-sm' value={view.name} onChange={(e) => rename(e.target.value)} />
-      <select aria-label='race' className={selectClass} value={view.race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
-        <option value=''>— race —</option>
-        {races.map((name) => <option key={name} value={name}>{name}</option>)}
-      </select>
-      <Button variant='primary' disabled={view.problems.length > 0} onClick={finish}>create</Button>
-      <Button variant='ghost' onClick={restart}>start over</Button>
+    <div className='md:col-span-12 sticky top-0 z-20 flex flex-col gap-2 bg-surface border-b border-line px-3 py-2 shadow-sm'>
+      <div className='flex flex-row flex-wrap items-center gap-2'>
+        <TextInput aria-label='character name' placeholder='name' className='grow text-sm' value={view.name} onChange={(e) => rename(e.target.value)} />
+        <Tooltip text={view.problems.length ? <ProblemList problems={view.problems} /> : null}>
+          <Button variant='primary' disabled={view.problems.length > 0} onClick={finish}>create</Button>
+        </Tooltip>
+        <Button variant='ghost' onClick={restart}>start over</Button>
+      </div>
+      <div className='flex flex-row flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs'>
+        {view.pools.map(({ pool, budget, spent, over }) => (
+          <span key={pool} className={`font-mono ${over ? 'text-bad' : ''}`}>{pool} {spent}/{budget}</span>
+        ))}
+        {gold ? <span className={`font-mono ${gold.over || gold.overSpared ? 'text-bad' : ''}`}>gold {gold.spent}/{gold.budget}</span> : null}
+        {first ? (
+          <Tooltip text={<ProblemList problems={view.problems} />}>
+            <span className='text-bad'>{first}{rest.length ? ` · +${rest.length} more` : ''}</span>
+          </Tooltip>
+        ) : <span className='text-good'>ready to create</span>}
+      </div>
     </div>
   )
+}
+
+function ProblemList({ problems }: { problems: string[] }) {
+  return <span className='flex flex-col gap-0.5'>{problems.map((problem) => <span key={problem}>{problem}</span>)}</span>
 }
 
 const signed = (value: number): string => (value < 0 ? `${value}` : `+${value}`)
@@ -87,10 +107,16 @@ const signed = (value: number): string => (value < 0 ? `${value}` : `+${value}`)
 // Step 1: the race the character was started from, kept in sight with what it
 // gave.
 function RacePreset() {
-  const { view } = useCreation()
+  const { view, races, chooseRace } = useCreation()
   const race = view.race
+  const picker = (
+    <select aria-label='race' className={selectClass} value={race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
+      <option value=''>— race —</option>
+      {races.map((name) => <option key={name} value={name}>{name}</option>)}
+    </select>
+  )
   return (
-    <Panel title='Race' meta={race ? race.name : 'none'}>
+    <Panel title='Race' actions={picker}>
       {race ? (
         <>
           <div className='flex flex-row flex-wrap gap-2 text-xs'>
@@ -104,25 +130,39 @@ function RacePreset() {
 }
 
 // Step 2: each focus against the five priorities; picking one takes it from
-// the focus that held it.
+// the focus that held it. The pool a focus gives sits on its row, spent
+// against its budget, with the talent it ends with beneath.
 function Priorities() {
   const { view, setPriority } = useCreation()
+  const karma = view.pools.find(({ pool }) => pool === 'karma')
   return (
     <Panel title='Priorities' meta={`${view.gold} GP`}>
-      {view.priorities.map(({ focus, priority, talent }) => (
-        <div key={focus} className='flex flex-row items-center gap-1'>
-          <span className='w-14 text-xs'>{focus}</span>
-          {PRIORITIES.map((p) => (
-            <Button key={p} size='xs' active={p === priority} variant={p === priority ? 'primary' : 'default'} onClick={() => setPriority(focus, p)}>{p}</Button>
-          ))}
-          {talent ? (
-            <span className='ml-auto text-xs font-mono'>
-              {talent.total}
-              <span className='text-muted'> = {talent.terms.map((t) => `${t.value} ${t.label}`).join(' + ') || '0'}</span>
-            </span>
-          ) : null}
+      {view.priorities.map(({ focus, priority, talent }) => {
+        const pool = view.pools.find(({ pool }) => pool === focus)
+        return (
+          <div key={focus} className='flex flex-col'>
+            <div className='flex flex-row items-center gap-1'>
+              <span className='w-14 text-xs'>{focus}</span>
+              {PRIORITIES.map((p) => (
+                <Button key={p} size='xs' active={p === priority} variant={p === priority ? 'primary' : 'default'} onClick={() => setPriority(focus, p)}>{p}</Button>
+              ))}
+              {pool ? <span className={`ml-auto text-xs font-mono ${pool.over ? 'text-bad' : ''}`}>{pool.spent} / {pool.budget} XP</span> : null}
+            </div>
+            {talent ? (
+              <span className='pl-14 text-[10px] font-mono text-muted'>
+                talent {talent.total} = {talent.terms.map((t) => `${t.value} ${t.label}`).join(' + ') || '0'}
+              </span>
+            ) : null}
+          </div>
+        )
+      })}
+      {karma ? (
+        <div className='flex flex-row items-center gap-1 text-xs'>
+          <span className='w-14'>karma</span>
+          <span className='text-muted'>from flaws taken</span>
+          <span className={`ml-auto font-mono ${karma.over ? 'text-bad' : ''}`}>{karma.spent} / {karma.budget}</span>
         </div>
-      ))}
+      ) : null}
     </Panel>
   )
 }
@@ -152,21 +192,6 @@ function ChoiceSelect({ label, value, options, onChange }: { label: string; valu
   )
 }
 
-function Pools() {
-  const { view } = useCreation()
-  return (
-    <Panel title='Budget'>
-      {view.pools.map(({ pool, budget, spent, over }) => (
-        <div key={pool} className='flex flex-row items-baseline gap-2 text-xs'>
-          <span className='w-12'>{pool}</span>
-          <span className={`font-mono ${over ? 'text-bad' : ''}`}>{spent} / {budget}</span>
-        </div>
-      ))}
-      <WealthLine />
-    </Panel>
-  )
-}
-
 // The gold against the gear carried: spent of the budget, and what is left.
 function WealthLine() {
   const { view } = useCreation()
@@ -184,42 +209,48 @@ function WealthLine() {
   )
 }
 
-function Problems() {
-  const { view } = useCreation()
-  if (!view.problems.length) return null
-  return (
-    <div className='flex flex-col gap-0.5 text-xs text-bad'>
-      {view.problems.map((problem) => <span key={problem}>{problem}</span>)}
-    </div>
-  )
-}
-
 const priceLabel = (price: CreationPrice): string =>
   price === null ? '—' : price.pool === null ? 'free' : `${price.amount} ${price.pool}`
 
 // One thing that can be bought: its level now, − to give a level back, + to
 // buy the next at the price shown.
-function BuyRow({ name, value, bought, next, terms = [], onBuy }: { name: string; value: number; bought: number; next: CreationPrice; terms?: Term[]; onBuy: (change: 1 | -1) => void }) {
+function BuyRow({ name, value, bought, next, terms = [], trained = true, blocked = '', progress = 0, progressCap = 0, onBuy, onProgress }: {
+  name: string; value: number; bought: number; next: CreationPrice; terms?: Term[]; trained?: boolean; blocked?: string
+  progress?: number; progressCap?: number; onBuy: (change: 1 | -1) => void; onProgress?: (XP: number) => void
+}) {
   return (
-    <Row dimmed={bought === 0}>
+    <Row dimmed={bought === 0 && progress === 0}>
       <span className='w-32'>
         {name}
         {terms.length ? <span className='block text-[10px] text-muted'>{terms.map((t) => `${t.label} ${t.value}`).join(' + ')}</span> : null}
       </span>
       <span className='w-6 text-center font-mono'>{value}</span>
-      <Button size='xs' disabled={bought === 0} onClick={() => onBuy(-1)}>−</Button>
-      <Button size='xs' disabled={next === null} onClick={() => onBuy(1)}>+</Button>
-      <span className='ml-auto text-muted'>{priceLabel(next)}</span>
+      {trained ? (
+        <>
+          <Button size='xs' disabled={bought === 0} onClick={() => onBuy(-1)}>−</Button>
+          <Tooltip text={next === null ? blocked : ''}>
+            <Button size='xs' disabled={next === null} onClick={() => onBuy(1)}>+</Button>
+          </Tooltip>
+          {onProgress && progressCap > 0 ? (
+            <Tooltip text={`XP toward the next level, up to ${progressCap}`}>
+              <NumberInput aria-label={`${name} xp`} className='w-12 text-xs py-0' min={0} max={progressCap} value={progress} onChange={(e) => onProgress(parseInt(e.target.value) || 0)} />
+            </Tooltip>
+          ) : null}
+          <span className='ml-auto text-muted'>{next === null && blocked ? blocked : priceLabel(next)}</span>
+        </>
+      ) : (
+        <Tooltip className='ml-auto' text={blocked}><span className='text-xs text-muted'>derived</span></Tooltip>
+      )}
     </Row>
   )
 }
 
 function TrainableGroup({ label, rows }: { label: string; rows: CreationRow[] }) {
-  const { buyLevel } = useCreation()
+  const { buyLevel, setProgress } = useCreation()
   return (
     <div className='flex flex-col gap-1'>
       <SectionLabel>{label}</SectionLabel>
-      {rows.map((row) => <BuyRow {...row} key={row.key} onBuy={(change) => buyLevel(row.key, change)} />)}
+      {rows.map((row) => <BuyRow {...row} key={row.key} onBuy={(change) => buyLevel(row.key, change)} onProgress={(XP) => setProgress(row.key, XP)} />)}
     </div>
   )
 }
@@ -255,8 +286,12 @@ function Abilities() {
         <span className='flex flex-row items-center gap-1'>
           {entry.racial > 0 ? <span className='text-xs text-muted' title='given by the race'>🔒 racial</span> : null}
           <Button size='xs' aria-label={`give back ${entry.view.family}`} disabled={entry.bought === 0} onClick={() => buyStage(entry.family, -1)}>−</Button>
-          <Button size='xs' aria-label={`raise ${entry.view.family}`} disabled={entry.next === null} onClick={() => buyStage(entry.family, 1)}>+</Button>
-          <span className='w-14 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>
+          <Tooltip text={entry.next === null ? entry.view.blocked : ''}>
+            <Button size='xs' aria-label={`raise ${entry.view.family}`} disabled={entry.next === null} onClick={() => buyStage(entry.family, 1)}>+</Button>
+          </Tooltip>
+          {entry.next === null && entry.view.blocked
+            ? <LockedLabel reason={entry.view.blocked} />
+            : <span className='w-14 text-right text-xs text-muted'>{priceLabel(entry.next)}</span>}
         </span>
       } />)}
     </div>

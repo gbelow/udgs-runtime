@@ -1,4 +1,4 @@
-import { buyCreationKnowledge, getFinishedCharacter, buyCreationLevel, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
+import { buyCreationKnowledge, getFinishedCharacter, buyCreationLevel, setCreationProgress, buyCreationStage, setCreationConviction, setCreationLimitStress, setCreationName, setCreationPriority, setCreationRace, setCreationSpell, claimCreationSpell } from "../domain/character/commands/creation";
 import { getCreationPanel, type CreationPanelView } from "../domain/character/lenses/creation";
 import { makeRace } from "../domain/factories";
 import type { FamilyKey } from "../domain/abilities";
@@ -40,6 +40,7 @@ export function useCreation() {
   const chooseLimitStress = (action: LimitStressAction | null) => update(setCreationLimitStress(action));
   const chooseConviction = (slot: 'conviction1' | 'conviction2', name: string) => update(setCreationConviction(slot, name));
   const buyLevel = (key: keyof Trainables, change: 1 | -1) => update(buyCreationLevel(key, change));
+  const setProgress = (key: keyof Trainables, XP: number) => update(setCreationProgress(key, XP));
   const buyKnowledge = (name: string, change: 1 | -1) => update(buyCreationKnowledge(name, change));
   const buyStage = (family: FamilyKey, change: 1 | -1) => update(buyCreationStage(family, change));
   const chooseSpell = (key: SpellKey, method: SpellMethod | null) => update(setCreationSpell(key, method));
@@ -52,5 +53,5 @@ export function useCreation() {
     setTab('edit');
   };
 
-  return { view, races, rename, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, buyKnowledge, buyStage, chooseSpell, claimSpell, finish, restart: newDraft } as const;
+  return { view, races, rename, chooseRace, chooseLimitStress, chooseConviction, setPriority, buyLevel, setProgress, buyKnowledge, buyStage, chooseSpell, claimSpell, finish, restart: newDraft } as const;
 }

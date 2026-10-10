@@ -146,18 +146,20 @@ describe('the spells Magic Theory teaches', () => {
   })
 })
 
+const problemsBesidesUnspent = (d: CreationDraft): string[] => getCreationProblems(d).filter((problem) => !problem.includes('left to spend'))
+
 // The user's ruling: karma starts at nothing and the flaws taken fund it, for
 // karma abilities and talents alike.
 describe('karma at creation', () => {
   const raiseDEX = buyCreationLevel('DEX', 1)
 
   it('cannot pay for a talent without a flaw', () => {
-    expect(getCreationProblems(raiseDEX(chosen()))).not.toEqual([])
+    expect(problemsBesidesUnspent(raiseDEX(chosen()))).not.toEqual([])
   })
 
   it('is funded by flaws', () => {
     const flawed = buyCreationStage('glutton', 1)(buyCreationStage('alcoholic', 1)(chosen()))
-    expect(getCreationProblems(raiseDEX(flawed))).toEqual([])
+    expect(problemsBesidesUnspent(raiseDEX(flawed))).toEqual([])
   })
 })
 
@@ -165,7 +167,15 @@ describe('karma at creation', () => {
 // chooses a limit stress action, a temperament and a worldview.
 describe('the choices the book requires', () => {
   it('keep a character from being made until they are made', () => {
-    expect(getCreationProblems(makeCreationDraft())).toHaveLength(3)
-    expect(getCreationProblems(chosen())).toEqual([])
+    expect(problemsBesidesUnspent(makeCreationDraft())).toHaveLength(3)
+    expect(problemsBesidesUnspent(chosen())).toEqual([])
+  })
+})
+
+// creating.tex "Character Creation", Steps 4–7: each focus gives XP "to
+// distribute", so an XP pool left unspent keeps the character from being made.
+describe('XP left to spend', () => {
+  it.each(['CON', 'SPI', 'INT', 'DEX'] as const)('%s keeps a character from being made', (pool) => {
+    expect(getCreationProblems(chosen()).some((problem) => problem.startsWith(`${pool} has`))).toBe(true)
   })
 })

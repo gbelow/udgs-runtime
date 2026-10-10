@@ -3,7 +3,7 @@ import { FamilyKey } from '../../abilities'
 import type { SpellKey } from '../../spells'
 import type { LimitStressAction } from '../../lists'
 import { settleStartingWealth } from '../../item/commands/wealth'
-import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell, getCreatedCharacter } from '../rules/creation'
+import { getBoughtStageCount, getCreationAbilityRaises, getCreationRaise, getCreationBuild, getRacialLevel, canClaimCreationSpell, getCreatedCharacter, getCreationProgressCap, hasProgress } from '../rules/creation'
 import { canLearnSpell } from '../rules/spells'
 
 // creating.tex "Character Creation", Step 1: the race the character is made
@@ -55,6 +55,16 @@ export function buyCreationLevel(key: keyof Trainables, change: 1 | -1): (d: Cre
     const count = (d.trainables[key] ?? 0) + change
     if (count < 0 || (change > 0 && getCreationRaise(d, key) === null)) return d
     return { ...d, trainables: counted(d.trainables, key, count) as CreationDraft['trainables'] }
+  }
+}
+
+// XP put toward the next level of a skill or proficiency, set to a whole
+// amount short of that level's price; none is kept for what cannot take it.
+export function setCreationProgress(key: keyof Trainables, XP: number): (d: CreationDraft) => CreationDraft {
+  return (d: CreationDraft) => {
+    if (!hasProgress(key)) return d
+    const amount = Math.min(Math.max(0, Math.floor(XP) || 0), getCreationProgressCap(getCreationBuild(d), key))
+    return { ...d, progress: counted(d.progress, key, amount) as CreationDraft['progress'] }
   }
 }
 

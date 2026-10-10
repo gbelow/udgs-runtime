@@ -76,6 +76,20 @@ function talentTerms(d: CreationDraft, start: Character, key: keyof Trainables):
   ]
 }
 
+// creating.tex "Gaining Experience (XP)": skills and proficiencies take XP
+// short of a level, counted toward the next. The XP held is what was put
+// toward it, kept below the price of that level; none for what cannot rise.
+export const hasProgress = (key: keyof Trainables): boolean => key in SkillsSchema.shape || key in ProficienciesSchema.shape
+
+export function getCreationProgressCap(build: Character, key: keyof Trainables): number {
+  const price = hasProgress(key) && getCreationPool(key) !== null ? getTrainableRaisePrice(key)(build) : null
+  return price === null ? 0 : Math.max(0, price.amount - 1)
+}
+
+export function getCreationProgress(d: CreationDraft, build: Character, key: keyof Trainables): number {
+  return Math.min(Math.max(0, d.progress[key] ?? 0), getCreationProgressCap(build, key))
+}
+
 // The character as bought: the start, the talents its priorities give, and
 // every level and stage bought on top. The race's attribute bonuses are not
 // in it — they come last (Step 1, "after step 4").
@@ -86,6 +100,11 @@ export function getCreationBuild(d: CreationDraft): Character {
     const terms = talentTerms(d, c, key)
     const value = terms.length ? sumTerms(terms) : trainables[key].value + boughtOf(d, key)
     if (value !== trainables[key].value) trainables[key] = { ...trainables[key], value }
+  }
+  const leveled = { ...c, trainables }
+  for (const key of Object.keys(d.progress) as (keyof Trainables)[]) {
+    const XP = getCreationProgress(d, leveled, key)
+    if (XP !== trainables[key].XP) trainables[key] = { ...trainables[key], XP }
   }
   const knowledges = { ...c.knowledges }
   for (const [name, levels] of Object.entries(d.knowledges)) {
@@ -132,13 +151,14 @@ function sumLevels(from: number, count: number, price: (level: number) => number
 function getTrainableCharge(d: CreationDraft, build: Character, key: keyof Trainables): CreationCharge | null {
   const pool = getCreationPool(key)
   const count = boughtOf(d, key)
-  if (pool === null || count <= 0) return null
+  const progress = getCreationProgress(d, build, key)
+  if (pool === null || (count <= 0 && progress <= 0)) return null
   const from = getCreationStart(d).trainables[key].value + priorityTalent(d, key)
   const talent = pool === 'karma' ? 0 : build.trainables[pool].value
   const price = isTalent(key) ? getTalentKarmaCost
     : key in SkillsSchema.shape ? (level: number) => getSkillXPCost(level, talent)
     : (level: number) => getProficiencyXPCost(level, talent)
-  return { key, pool, amount: sumLevels(from, count, price) }
+  return { key, pool, amount: sumLevels(from, Math.max(0, count), price) + progress }
 }
 
 // creating.tex "Learning Knowledge": learned as skills are, "using INT as the
@@ -287,7 +307,8 @@ function rowRaise(d: CreationDraft, raised: CreationDraft, row: string, pool: Cr
 }
 
 // What stands between the draft and a character: a pool spent past its
-// budget, gear bought past the gold or coins kept past the tenth that may be
+// budget, or an XP pool not spent in full (Steps 4–7 give XP "to distribute"),
+// gear bought past the gold or coins kept past the tenth that may be
 // spared (Step 3), a stage bought whose requirements the build no longer meets, or a
 // choice the book requires not made — the limit stress action ("Limit Stress
 // Actions") and the two convictions ("Convictions").
@@ -295,6 +316,7 @@ export function getCreationProblems(d: CreationDraft): string[] {
   const balances = getCreationBalances(d)
   const build = getCreationBuild(d)
   const over = CREATION_POOLS.filter((pool) => balances[pool].spent > balances[pool].budget).map((pool) => `${pool} spent ${balances[pool].spent} of ${balances[pool].budget}`)
+  const unspent = CREATION_POOLS.filter((pool) => pool !== 'karma' && balances[pool].spent < balances[pool].budget).map((pool) => `${pool} has ${balances[pool].budget - balances[pool].spent} XP left to spend`)
   const unmet = Object.keys(d.abilities).filter(isFamilyKey)
     .flatMap((family) => boughtStages(d, family))
     .filter((key) => !meetsAbilityRequirements(key)(build))
@@ -316,5 +338,5 @@ export function getCreationProblems(d: CreationDraft): string[] {
   const spared = getSparedWealth(budget)
   const broke = spent > budget ? [`gold spent ${formatMoney(spent)} of ${formatMoney(budget)}`] : []
   const hoarding = getPurse(d.character) > spared ? [`coins kept above ${formatMoney(spared)}`] : []
-  return [...over, ...broke, ...hoarding, ...unmet, ...unlearnable, ...overclaimed, ...unchosen]
+  return [...over, ...unspent, ...broke, ...hoarding, ...unmet, ...unlearnable, ...overclaimed, ...unchosen]
 }

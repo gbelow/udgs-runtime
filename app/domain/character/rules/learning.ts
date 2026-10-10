@@ -159,6 +159,14 @@ export function getAttributeRaisePrice(key: keyof Attributes): (c: Character) =>
   }
 }
 
+// The highest level a trainable can be raised to, null when it has no limit.
+export function getTrainableLimit(key: keyof Trainables): number | null {
+  if (key in ProficienciesSchema.shape) return MAX_PROFICIENCY
+  if (key in TalentsSchema.shape) return MAX_TALENT
+  if (key in AttributesSchema.shape) return MAX_ATTRIBUTE
+  return null
+}
+
 export function getTrainableRaisePrice(key: keyof Trainables): (c: Character) => LearningPrice | null {
   if (key in SkillsSchema.shape) return getSkillRaisePrice(key as keyof Skills)
   if (key in ProficienciesSchema.shape) return getProficiencyRaisePrice(key as keyof Proficiencies)

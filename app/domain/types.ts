@@ -1416,6 +1416,7 @@ export const CreationDraftSchema = z.object({
   race: RaceSchema.nullable().default(null),
   priorities: z.record(FocusSchema, PrioritySchema).default({ CON: 'A', SPI: 'B', INT: 'C', DEX: 'D', wealth: 'E' }),
   trainables: z.partialRecord(TrainableKeySchema, num).default({}),
+  progress: z.partialRecord(TrainableKeySchema, num).default({}), // the XP put toward the next level of a skill or proficiency, short of its price
   knowledges: z.record(z.string(), num).default({}), // the levels bought, by name
   abilities: z.record(z.string(), num).default({}), // by ability family: the level bought up to, the race's stages free
   // the spells chosen, by key: the method each is learned by, and whether it
