@@ -22,6 +22,7 @@ import { UNDEFENDED, delivering, getRowDamage, type Defense } from './delivery'
 import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
+import { getSpiritBlow } from '../../character/rules/spirit'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -185,6 +186,7 @@ export function getInterruption(state: SceneState, root: AttackAction, facts: De
 
 // What a delivery does to the own action of the one it lands on.
 export function getDeliveryInterruption(delivery: Delivery, target: Character): Interruption {
+  if (delivery.effect.type === 'spirit') return getSpiritBlow(delivery.effect.effect, delivery.degree)?.interruption ?? 'none'
   return outcomeOf(delivery, target)?.interruption ?? 'none'
 }
 

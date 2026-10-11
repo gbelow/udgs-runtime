@@ -10,7 +10,7 @@ import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/ex
 import { getFloorObject, getAttackExplosion } from '../rules/floorAttack'
 import { isTying } from '../rules/tether'
 import { isVoided } from '../rules/opportunity'
-import { isInterruptedBy } from '../rules/interruption'
+import { getInterruptionBy, isInterruptedBy } from '../rules/interruption'
 import { getAnsweringReactions, getOpener, getReactionsInOrder } from '../rules/openers'
 import { getLapsedDefenses, getPendingReposition } from '../rules/prepared'
 import { getStunEscapes } from '../rules/grapple'
@@ -294,7 +294,8 @@ function openSpellTests(state: SceneState, root: RootAction, newId: () => string
 // combat.tex "Escape": each escape a stun opens, as a maneuver of the held
 // one's that nobody may resist, for them to take or skip.
 function escapesOnStun(state: SceneState, root: RootAction, newId: () => string): Action[] {
-  return getStunEscapes(state, root).map(({ heldId, holderId }) =>
+  const stunned = Object.keys(state.characters).filter((id) => getInterruptionBy(state, root, id) === 'stunned')
+  return getStunEscapes(state, root, stunned).map(({ heldId, holderId }) =>
     makeAction('grapple', { maneuver: 'escape', unresisted: true, id: newId(), actorId: heldId, targetId: holderId, spawnedBy: root.id }))
 }
 

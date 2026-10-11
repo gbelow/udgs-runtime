@@ -1,10 +1,13 @@
-import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery } from '../../types'
+import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery, type SpiritBlow } from '../../types'
+import { STUN_AP } from '../../tables'
 import { breaksOn } from '../rules/breakage'
 import { breakItem } from '../../item/commands/items'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
 import { Outcome, getOutcome } from '../rules/damage'
 import { skillLenses } from '../lenses'
+import { getSpiritBlow, getTestRollTerms } from '../rules/spirit'
+import { sumTerms } from '../rules/terms'
 import { resolveTest } from '../../play/test'
 import { resisted } from '../../scene/rules/test'
 import type { Dice } from '../../play/dice'
@@ -44,6 +47,8 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
         return follow(delivery, degree, null)(breaksOn(effect.effect.chance, effect.effect.roll) ? breakItem(effect.effect.itemId)(c) : c)
       case 'affliction':
         return follow(delivery, degree, null)(inflict([effect.effect.key])(c))
+      case 'spirit':
+        return follow(delivery, degree, null)(takeSpiritBlow(getSpiritBlow(effect.effect, degree))(c))
       case 'buff':
       case 'suppression':
       case 'terrain':
@@ -79,7 +84,7 @@ export function resolvePending(index: number, dice: Dice): (c: CampaignCharacter
   return (c: CampaignCharacter) => {
     const delivery = c.pending[index]
     if (!delivery?.test) return c
-    const degree = resisted(resolveTest({ skill: skillLenses[delivery.test.roll].get(c), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree)
+    const degree = resisted(resolveTest({ skill: sumTerms(getTestRollTerms(c, delivery.test.roll)), DL: delivery.test.DL, explodes: false, scale: 'degrees' }, dice).degree)
     const rest = { ...c, pending: c.pending.filter((_, i) => i !== index) }
     return degree === 'miss' ? rest : deliver({ ...delivery, degree, test: delivery.test })(rest)
   }
@@ -125,6 +130,20 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
       },
       resources: { ...c.resources, ...spendAP(c.resources, outcome.apLoss) },
     })
+  }
+}
+
+// spells.tex "Spiritual Strike": the STA the blow takes is lost, not spent,
+// so it does not bleed, and it stops at none (combat.tex "Negative STA":
+// "only as a result of suffocation"); its interruption ends concentration,
+// and a stun takes its AP as a blow's does (combat.tex "Stun").
+function takeSpiritBlow(blow: SpiritBlow | null): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    if (!blow) return c
+    const drained = { ...c, resources: { ...c.resources, STA: Math.min(c.resources.STA, Math.max(0, c.resources.STA - blow.STA)) } }
+    if (blow.interruption === 'none') return drained
+    const broken = loseConcentration(drained)
+    return blow.interruption === 'stunned' ? { ...broken, resources: { ...broken.resources, ...spendAP(broken.resources, STUN_AP) } } : broken
   }
 }
 

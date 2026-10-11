@@ -14,6 +14,7 @@ import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getAreaBreaks, getAttackBreaks } from './breakage'
 import { isObjectAttack } from './equipment'
+import { withDeliveredTests } from './tested'
 
 // The armor each character wears is put at risk by what the action's effects
 // did to them (gear.tex "Equipment Breakage").
@@ -66,8 +67,8 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'drag': return { ...open, step: 'done', facts: getDragFacts(state, open) }
     case 'explosion': return { ...open, step: 'done', effects: getExplosionPayload(state, open)?.effects ?? [] }
     case 'blast': return withBreaks(state, { ...open, step: 'done', facts: getExplosionFacts(state, open, open.spawnedBy), paint: getTerrainPaint(state, open) })
-    case 'cast': return withBreaks(state, { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) })
-    case 'fireAgain': return withBreaks(state, { ...open, step: 'done', facts: getFireAgainFacts(state, open) })
+    case 'cast': return withBreaks(state, withDeliveredTests(state, { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) }))
+    case 'fireAgain': return withBreaks(state, withDeliveredTests(state, { ...open, step: 'done', facts: getFireAgainFacts(state, open) }))
     case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open), morale: getMoraleSpellOutcome(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }

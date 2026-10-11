@@ -495,6 +495,21 @@ export const MORALE_SPELLS: Partial<Record<SpellKey, MoraleSpell>> = {
   'provocative-mockery': { reach: 'minds', range: null, taunt: true, compels: 'violent', constraint: 'attack', pacify: false },
 }
 
+// spells.tex "Spiritual Strike": a blow to the spirit, whoever launches it.
+// The target tests SPI + `SM`xSM against the attacker's SPI + `SM`xSM; the
+// blow is what their miss lands in full (`hit`) and their graze at half
+// (the table's ruling: stunned and 2 STA, no STA "per 3 points under").
+// abilities.tex "Spirit of Battle": `battleDL` more on the attacker's side
+// (the table's ruling, in place of "uses will instead of animancy").
+export const SPIRIT_ATTACK = {
+  SM: 3,
+  battleDL: 2,
+  blows: {
+    hit: { STA: 2, interruption: 'stunned' },
+    graze: { STA: 1, interruption: 'interrupted' },
+  },
+} as const
+
 // combat.tex "running": "The first 2 AP worth of running must be
 // uninterrupted, otherwise, running cannot be started".
 export const RUN_START_AP = 2

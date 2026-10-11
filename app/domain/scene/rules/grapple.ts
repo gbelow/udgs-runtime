@@ -11,7 +11,6 @@ import { allowsAlong, type RuleRecipeId } from './recipes'
 import { findGrapple, getGrapples, getGrapplesOf, getPartner, holds } from './partners'
 import { findWeaponRow, getWeaponRows, isRowUsable, type WeaponRow } from './weaponRow'
 import { AT_CHEST, delivering, getRowDamage } from './delivery'
-import { isAttackAction } from './actionCatalog'
 import { getMidActionTerm } from './opportunity'
 import { isProne } from './board/ground'
 import { isWon } from './test'
@@ -327,18 +326,16 @@ export function isKnockedDownByHook(state: SceneState, strike: StrikeAction, id:
 }
 
 // combat.tex "Escape": "Being stunned allows for a reaction to escape
-// without the possibility of active resistance." A holder the attack
-// stunned gives whoever they hold an escape — but not the grabber from their
-// own grab's blow.
-export function getStunEscapes(state: SceneState, root: Action): { heldId: string; holderId: string }[] {
-  if (!isAttackAction(root) || root.interruption !== 'stunned' || !root.targetId) return []
-  const holderId = root.targetId
-  return getGrapples(state)
+// without the possibility of active resistance." Each holder the landed
+// action stunned (`stunned`, rules/interruption.ts) gives whoever they hold
+// an escape — but not the grabber from their own grab's blow.
+export function getStunEscapes(state: SceneState, root: Action, stunned: readonly string[]): { heldId: string; holderId: string }[] {
+  return stunned.flatMap((holderId) => getGrapples(state)
     .filter((g) => g.members.includes(holderId) && holds(g, holderId))
     .map((g) => getPartner(g, holderId))
     .filter((heldId) => !(root.kind === 'strike' && root.grabbed && heldId === root.actorId))
     .filter((heldId) => state.characters[heldId] !== undefined)
-    .map((heldId) => ({ heldId, holderId }))
+    .map((heldId) => ({ heldId, holderId })))
 }
 
 // ---------------------------------------------------------------------------

@@ -282,6 +282,11 @@ const ActionBase = {
   // so in no cost: the STA it took and the AP it gave
   surged: z.object({ kind: SurgeKindSchema, STA: num, AP: num }).strip().nullable().default(null),
   roll: ActionRollSchema.nullable().default(null),
+  // the die each one it may deliver a test to threw with its own, by
+  // character id, read when it lands (rules/tested.ts)
+  targetDice: z.record(str, num).default({}),
+  // the tests what it delivered left its targets, rolled as it landed
+  tested: z.array(z.object({ targetId: str, name: str, roll: ActionRollSchema }).strip()).default([]),
   // what its damage came to on each it reached, written as it lands
   results: z.array(ResultSchema).default([]),
   // what its roll and its landing changed in the fight, written as they are

@@ -2935,10 +2935,12 @@
             }
           ]
         ],
-        "description": "The character learns spiritual strike and martial spirit. Uses will instead of animancy against the opponent.",
+        "description": "The character learns spiritual strike and martial spirit. Add +2 to the DL of spiritual strike.",
         "effect": [],
         "recipes": [],
-        "grants": [],
+        "grants": [
+          "spiritOfBattle"
+        ],
         "freeSpells": 0
       }
     ]
@@ -6116,7 +6118,7 @@
     "activation": "active",
     "cost": {
       "AP": 0,
-      "STA": 2,
+      "STA": 1,
       "exhaustion": 0,
       "IL": 0,
       "ET": 0
@@ -6143,7 +6145,7 @@
             }
           ]
         ],
-        "description": "Learns to cast spiritual strike along with melee attacks without increasing the cost of AP, but with the STA cost added in.",
+        "description": "Learns to use spiritual strike along with melee attacks without increasing the cost of AP, but with the STA cost added in. The spellcasting result is the same as the strike's.",
         "effect": [],
         "recipes": [],
         "grants": [],

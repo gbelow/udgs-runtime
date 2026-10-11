@@ -2167,7 +2167,7 @@
     },
     "outcomes": {
       "miss": {
-        "text": "stunned, -2 STA, -1 STA per 3 points under",
+        "text": "stunned, -2 STA",
         "effects": []
       },
       "graze": {
@@ -2183,7 +2183,24 @@
         "effects": []
       }
     },
-    "effects": []
+    "effects": [
+      {
+        "name": "Spiritual Strike",
+        "trigger": "instant",
+        "type": "spirit",
+        "effect": {},
+        "target": "target",
+        "range": 15,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "telepathic-link": {
     "name": "Telepathic Link",

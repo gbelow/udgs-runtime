@@ -73,28 +73,45 @@ function getLandedBefore(state: SceneState, action: Action): LandedInterruption[
   })
 }
 
-// Whether the landed action interrupted the character, who then gets no
-// follow-up of it to choose (the table's ruling): whatever it landed on
-// them — a shot together with the shots joined to it, which land as one
-// (combat.tex "Coordinated Shots"), the crash it set off, the deliveries of
-// an area or a spell — or, for its own actor, whatever landed on them while
-// it was played out, a tied counterattack's strike.
-export function isInterruptedBy(state: SceneState, landed: Action, id: string): boolean {
-  if (landed.actorId === id && getLandedBefore(state, landed).length > 0) return true
-  if (getInterruptionOf(landed, id) !== 'none') return true
+// combat.tex "Interruption", "Stun": the strongest of what the landed action
+// did to the character's own action — what it landed on them (a shot together
+// with the shots joined to it, which land as one, combat.tex "Coordinated
+// Shots"), the crash it set off, the deliveries of an area or a spell, a
+// spiritual attack among them.
+export function getInterruptionBy(state: SceneState, landed: Action, id: string): Interruption {
+  return strongest([getInterruptionOf(landed, id), ...getLandedOn(state, landed, id)])
+}
+
+function getLandedOn(state: SceneState, landed: Action, id: string): Interruption[] {
   switch (landed.kind) {
-    case 'shoot': return getShotGroup(state, landed).some((shot) => shot.targetId === id && shot.interruption !== 'none')
-    case 'strike': return landed.trample?.stunned.includes(id) ?? false
-    case 'move': return landed.facts?.trampled.some((t) => t.stunned.includes(id)) ?? false
+    case 'shoot': return getShotGroup(state, landed).filter((shot) => shot.targetId === id).map((shot) => shot.interruption)
+    case 'strike': return landed.trample?.stunned.includes(id) ? ['stunned'] : []
+    case 'move': return landed.facts?.trampled.some((t) => t.stunned.includes(id)) ? ['stunned'] : []
     case 'blast':
     case 'cast':
+    case 'fireAgain':
     case 'fall':
     case 'spellTest': {
       const c = state.characters[id]
-      return !!c && (landed.facts?.[id] ?? []).some((d) => getDeliveryInterruption(d, c) !== 'none')
+      return c ? (landed.facts?.[id] ?? []).map((d) => getDeliveryInterruption(d, c)) : []
     }
-    default: return false
+    default: return []
   }
+}
+
+const LEVELS: readonly Interruption[] = ['none', 'interrupted', 'stunned']
+
+function strongest(levels: Interruption[]): Interruption {
+  return levels.reduce<Interruption>((a, b) => (LEVELS.indexOf(b) > LEVELS.indexOf(a) ? b : a), 'none')
+}
+
+// Whether the landed action interrupted the character, who then gets no
+// follow-up of it to choose (the table's ruling): whatever it landed on
+// them, or, for its own actor, whatever landed on them while it was played
+// out, a tied counterattack's strike.
+export function isInterruptedBy(state: SceneState, landed: Action, id: string): boolean {
+  if (landed.actorId === id && getLandedBefore(state, landed).length > 0) return true
+  return getInterruptionBy(state, landed, id) !== 'none'
 }
 
 // Whether the action is broken: interrupted before its effect. A move is

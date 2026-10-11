@@ -23,6 +23,7 @@ import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, 
 import { advance, land, repositionDefenders } from './sequence'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
+import { getTestedIds } from '../rules/tested'
 
 // The phases of an action, as commands. Everything up to the roll only edits
 // the action record and is free to undo: the declaration is edited, then
@@ -325,7 +326,7 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     const own = open.kind !== 'move' || needsOwnDie(state, open)
     const test = rootTest && own ? resolveTest(rootTest, rootDice) : null
     if (!test && own && ACTIONS[open.kind].die) return state
-    const thrown = withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice)
+    const thrown = withTargetDice(withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice), dice)
     const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, withClimbRolls(state, { ...thrown, test: test ? getMoveTest(state, open) : null }, rootDice)) : thrown
     return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
   }
@@ -345,6 +346,13 @@ function withClimbGiveUp(state: SceneState, move: MoveAction): MoveAction {
   const actor = state.characters[move.actorId]
   const cost = move.movement === 'climb' && getClimbDegree(state, move) === 'graze' ? getOwnCost(state, move) : null
   return actor && cost && !canAfford(actor, cost) ? { ...move, gaveUp: true } : move
+}
+
+// The die each one the root may deliver a test to throws with it, after its
+// own and before any reaction's, read when it lands (rules/tested.ts).
+function withTargetDice<A extends Action>(root: A, dice: Dice): A {
+  const ids = getTestedIds(root)
+  return ids.length > 0 ? { ...root, targetDice: Object.fromEntries(ids.map((id) => [id, dice(false)])) } : root
 }
 
 // The percentile dice thrown with the root's test, after it and before any
@@ -395,7 +403,7 @@ export function payAction(newId: () => string, dice: Dice): Updater {
     if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
-    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withArmorRolls(state, open, dice), newId)
+    return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withTargetDice(withArmorRolls(state, open, dice), dice), newId)
   }
 }
 

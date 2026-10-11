@@ -854,8 +854,24 @@ export const BreakEffectSchema = z.object({
   roll: num.default(0),
 }).strip()
 
+// spells.tex "Spiritual Strike": a blow to the spirit — the STA it takes, a
+// loss rather than STA spent, and the interruption it lands — as hard as
+// the degree it lands at: `hit` in full, `graze` at half.
+export const SpiritBlowSchema = z.object({
+  STA: num.default(0),
+  interruption: InterruptionSchema.default('none'),
+}).strip()
+export type SpiritBlow = z.infer<typeof SpiritBlowSchema>
+const NO_BLOW = { STA: 0, interruption: 'none' } as const
+export const SpiritEffectSchema = z.object({
+  hit: SpiritBlowSchema.default(NO_BLOW),
+  graze: SpiritBlowSchema.default(NO_BLOW),
+}).strip()
+export type SpiritEffect = z.infer<typeof SpiritEffectSchema>
+
 export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('break'), effect: BreakEffectSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('spirit'), effect: SpiritEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('cost'), effect: CostSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('buff'), effect: BuffSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('suppression'), effect: SuppressionSchema }).strip(),
@@ -881,8 +897,13 @@ export type Condition = z.infer<typeof ConditionSchema>
 // against the effect — a miss lets it land in full, a graze at half, a hit
 // or better not at all — the way combat.tex "Evasion" reads a reflex test
 // against a shot. A delivery with no test lands at the degree it came with.
+// What a target tests with: a skill, or their spirit (spells.tex "Spiritual
+// Strike": SPI + 3xSM).
+export const TestRollKeySchema = z.union([SkillKeySchema, z.literal('spirit')])
+export type TestRollKey = z.infer<typeof TestRollKeySchema>
+
 export const DeliveryTestSchema = z.object({
-  roll: SkillKeySchema,
+  roll: TestRollKeySchema,
   DL: num.default(0),
 }).strip()
 export type DeliveryTest = z.infer<typeof DeliveryTestSchema>
@@ -1029,7 +1050,7 @@ export type Recipe = z.infer<typeof RecipeSchema>
 // its holder for as long as it is learned (character/rules/effects.ts
 // `hasGrant`). What each allows is the rule that asks for it, which cites
 // the book.
-export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight'])
+export const GrantSchema = z.enum(['protectStep', 'advancingIntercept', 'stillReflex', 'fullCircleSweep', 'bowTraining', 'wizardSpells', 'clericSpells', 'softLanding', 'safeClimb', 'riskyClimb', 'climbUpright', 'clawGrip', 'climbLeap', 'humanoidHeight', 'spiritOfBattle'])
 export type Grant = z.infer<typeof GrantSchema>
 
 // What one level of an ability states for itself: its price, what it asks
@@ -1143,6 +1164,9 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
+  // spells.tex "Spiritual Strike": launches a spiritual attack at the target;
+  // what it is and the test it leaves are the attack's own, not the spell's
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('spirit'), effect: z.object({}).strip().default({}) }).strip(),
 ])
 export type SpellEffect = z.infer<typeof SpellEffectSchema>
 

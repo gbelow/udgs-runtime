@@ -1,5 +1,5 @@
 import type { Action, ActionRoll, SceneState, DragFacts, MoraleSpellOutcome } from '../types'
-import type { Effect, Item } from '../../types'
+import type { Degree, Effect, Item } from '../../types'
 import type { Outcome, OutcomeStep } from '../../character/rules/damage'
 import { getBrokenItems } from '../rules/breakage'
 import { getActionName } from './labels'
@@ -15,6 +15,8 @@ import { getDeliveries } from '../rules/deliveries'
 import { isSpellTestBeaten } from '../rules/cast'
 import { getLinkSpell } from '../../character/rules/concentration'
 import { getReadyItems } from '../../item/rules/containers'
+import { getSpiritBlow } from '../../character/rules/spirit'
+import { resisted } from '../rules/test'
 
 // What the settled or resolved action's damage does to each character it
 // was delivered to, as they stand.
@@ -132,14 +134,27 @@ export function getActionReport(state: SceneState, id: string): ActionReport | n
       : getOutcomes(state, root).map(({ id, outcome }) => ({ target: named(id), outcome, steps: [] })),
     notes: delivered.flatMap(({ id, delivery }) => {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
-      const waiting = delivery.test ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
-      return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect)}${waiting}` }]
-    }).concat(getChargeNote(state, root), getActionNotes(state, root)),
+      const waiting = delivery.test && delivery.degree === null ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
+      return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect, delivery.degree)}${waiting}` }]
+    }).concat(getTestedNotes(root, named), getChargeNote(state, root), getActionNotes(state, root)),
   }
 }
 
-// What a cost effect takes from whoever it lands on.
-function lossLabel(effect: Effect): string {
+// The test each target made against what the action delivered them, as it
+// landed (rules/tested.ts), and whether they beat it.
+function getTestedNotes(root: Action, named: (id: string) => string): { target: string; text: string }[] {
+  return root.tested.map(({ targetId, name, roll }) => ({
+    target: named(targetId),
+    text: `${name} test: ${roll.score} vs ${roll.DL}, ${roll.degree}${resisted(roll.degree) === 'miss' ? ', resisted' : ''}`,
+  }))
+}
+
+// What a cost or a spiritual blow takes from whoever it lands on.
+function lossLabel(effect: Effect, degree: Degree | null): string {
+  if (effect.type === 'spirit') {
+    const blow = getSpiritBlow(effect.effect, degree)
+    return blow ? ` -${blow.STA} STA, ${blow.interruption}` : ''
+  }
   if (effect.type !== 'cost') return ''
   const lost = (['AP', 'STA'] as const).filter((k) => effect.effect[k] > 0).map((k) => `-${effect.effect[k]} ${k}`)
   return lost.length > 0 ? ` ${lost.join(' ')}` : ''

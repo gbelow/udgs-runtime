@@ -154,11 +154,17 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **roll / pay** (`payAll`) — first, a prepared defense's reposition is walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price
-  unpaid. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
+  unpaid. A cast or a held spell fired again also throws its target's die (`targetDice`,
+  `rules/tested.ts`), read when it lands. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
   cannot pay.
 - **post** — choices made once the result is known; each only edits the rolled record and
   is reversible (except `saveGraze`, whose price is paid as it is bought).
-- **effect** (`resolveAction` → `land`) — settle, apply, generate follow-ups.
+- **effect** (`resolveAction` → `land`) — settle, apply, generate follow-ups. An instant
+  delivery that leaves its target a test is tested in the settle with the die they threw
+  (`withDeliveredTests`), so what it lands, an interruption above all, is known before any
+  follow-up is offered; one they beat is dropped, and each test is written on the action
+  (`tested`). Only a test someone owes a choice on (accepting a link, safe or risky) is an
+  action of its own.
 
 Reactions are never played out on their own: they are paid with their root and close with
 it. What a reaction *opens* is a root of its own.
@@ -311,7 +317,8 @@ app/domain/scene/
 │   ├── reactions.ts    getTriggers: who may answer a committed action, with what
 │   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after
 │   ├── settle.ts       getSettled: an action as it lands
-│   ├── interruption.ts getInterruptions, isBroken
+│   ├── interruption.ts getInterruptions, isBroken; getInterruptionBy: the strongest of what a landed action did to someone's own action (its blow, a shot group's, a crash, its deliveries), read by isInterruptedBy and the stun escapes
+│   ├── tested.ts       the tests a landing action's instant deliveries leave their targets, rolled with the dice they threw with it
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
@@ -334,7 +341,7 @@ app/domain/scene/
 │   ├── reactionMoves.ts the moves evasion, follow and explosion reflexes open
 │   ├── trample.ts      crashes: Force comparisons from moves, braced blows and catches
 │   ├── extinguish.ts   the burning spaces in reach to muffle, and a space with its fire put out
-│   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes, grapple facts
+│   ├── grapple.ts      grapple rows, maneuvers, grabs, releases, stun escapes (of whoever a landed action stunned), grapple facts
 │   ├── partners.ts     who is grappled with whom
 │   ├── bind.ts         which binds still hold (grapple, tether, arc, link): each holder against what they maintain it with
 │   ├── situational.ts  what the fight puts on a character: gas suffocation, grapple afflictions

@@ -5,6 +5,7 @@ import { getDMAt, getRMAt, getSize } from './size'
 import { getForce } from './skills'
 import { getSpellGear, resolveDL } from './spells'
 import { SPELLS, type SpellKey } from '../../spells'
+import { produceSpiritAttack } from './spirit'
 
 // spells.tex "Casting spells": what a spell produces once it is cast — its
 // effects as this caster makes them, every number resolved, each on its way
@@ -86,6 +87,7 @@ function bare(c: Character, effect: OutcomeEffect, size: number, onArea: boolean
 // `locks` names the spell a locked effect is carried under (spells.tex
 // "Curse"), so the target can read it off the catalog and beat it.
 export function produceSpellEffect(c: Character, effect: SpellEffect, size: number = getSize(c), key: string | null = null): Delivery {
+  if (effect.type === 'spirit') return produceSpiritAttack(c)
   const test = effect.resist ? { roll: effect.resist.roll, DL: resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0 } : null
   return { effect: bare(c, effect, size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
 }

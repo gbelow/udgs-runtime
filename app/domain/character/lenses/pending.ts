@@ -1,6 +1,6 @@
-import type { Character, Skills } from '../../types'
+import type { Character, TestRollKey } from '../../types'
 import { isCampaignCharacter } from '../../utils'
-import { skillTermGetters } from '../rules/skills'
+import { getTestRollTerms } from '../rules/spirit'
 import { Term, sumTerms } from '../rules/terms'
 
 // A delivery waiting on the character's die, as the panel reads it: what
@@ -9,7 +9,7 @@ export type PendingRow = {
   index: number
   name: string
   kind: string
-  roll: keyof Skills
+  roll: TestRollKey
   DL: number
   terms: Term[]
   total: number
@@ -19,7 +19,7 @@ export function getPendingRows(c: Character): PendingRow[] {
   if (!isCampaignCharacter(c)) return []
   return c.pending.flatMap((d, index) => {
     if (!d.test) return []
-    const terms = skillTermGetters[d.test.roll](c)
+    const terms = getTestRollTerms(c, d.test.roll)
     return [{ index, name: d.effect.name, kind: d.effect.type, roll: d.test.roll, DL: d.test.DL, terms, total: sumTerms(terms) }]
   })
 }
