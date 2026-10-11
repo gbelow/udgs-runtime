@@ -24,7 +24,7 @@ export function ChasePanel(){
         <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
         {chase.chasing ? <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span> : null}
         {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
-        {chase.chasing ? <Button size='xs' aria-label='endChase' onClick={endChase}>end chase</Button> : null}
+        {chase.chasing ? <Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} title={chase.endBar ?? undefined} onClick={endChase}>end chase</Button> : null}
       </div>
       {
         !chase.chasing ?

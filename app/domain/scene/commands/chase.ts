@@ -20,11 +20,19 @@ function setGroup(state: SceneState, group: string, change: Partial<ChaseGroup>)
   return { ...state, chase: { ...chase, groups: { ...chase.groups, [group]: { ...chase.groups[group], ...change } } } }
 }
 
+// combat.tex "Running": "Both sides use their movement surge to sprint" —
+// the surge spent and its AP run off in the sprint, none left over for the
+// round.
+function sprint(c: CampaignCharacter): CampaignCharacter {
+  const surged = actionSurge('movement')(c)
+  return { ...surged, resources: { ...surged.resources, surgeAP: 0 } }
+}
+
 // combat.tex "Running": what a run takes from each runner — a dash their
 // movement surge; a sustained pace, from one who bleeds, the bleed of "an
 // action surge" (each costs the same STA).
 function pay(tier: ChaseTier): (c: CampaignCharacter) => CampaignCharacter {
-  return tier === 'combat' ? actionSurge('movement') : bleed(SURGES.movement.STA)
+  return tier === 'combat' ? sprint : bleed(SURGES.movement.STA)
 }
 
 // combat.tex "Running": the group and whoever follows it run at their
@@ -136,7 +144,8 @@ export function turnAround(id: string): Updater {
 
 // combat.tex "Skirmish": a party shoots or tries to close in. Once it and
 // those it skirmishes against have chosen, each member's AP is the
-// skirmish's, and whoever approaches spends their movement surge running.
+// skirmish's, and whoever approaches spends their movement surge running
+// ("must spend a movement surge for running").
 export function chooseStance(partyId: string, stance: SkirmishStance): Updater {
   return (state) => {
     if (!state.chase || getStanceBar(state, partyId)) return state
@@ -149,7 +158,7 @@ export function chooseStance(partyId: string, stance: SkirmishStance): Updater {
     })
     return budgets.reduce((acc: SceneState, { p, AP }) => getMembers(acc, p).reduce((inner: SceneState, c) => updateCharacter(c.id, (ch) => {
       const budgeted = { ...ch, resources: { ...ch.resources, AP: getSkirmishAPOf(ch, AP) } }
-      return chosen.chase.stances[p] === 'approach' ? actionSurge('movement')(budgeted) : budgeted
+      return chosen.chase.stances[p] === 'approach' ? sprint(budgeted) : budgeted
     }, 'skirmish')(inner), acc), chosen)
   }
 }

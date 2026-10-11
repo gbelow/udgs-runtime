@@ -56,6 +56,8 @@ export type ChasePanel = {
   chaseParties: ChasePartyRow[]
   // combat.tex "Escape": the fight played out before anyone runs
   fightFirst: string | null
+  // why the chase cannot be ended now
+  endBar: string | null
   stances: readonly SkirmishStance[]
   // combat.tex "Cover": everyone in the chase and the cover the table gives them
   covers: readonly ChaseCover[]
@@ -138,6 +140,7 @@ function buildChasePanel(state: SceneState): ChasePanel {
       ...getPursuerParties(state).map((p) => buildPartyRow(state, p, 'pursuers', groups, fighting)),
     ] : [],
     fightFirst: chase ? getFightFirst(state) : null,
+    endBar: getFightBusy(state),
     stances: SKIRMISH_STANCES,
     covers: CHASE_COVERS,
     runners: chase ? (['quarry', 'pursuers'] as const).flatMap((side) => getRunners(state, side).map((c) => ({ id: c.id, name: getFightName(state, c.id), side, cover: chase.cover[c.id] ?? null }))) : [],
