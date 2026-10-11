@@ -1,7 +1,7 @@
 import { AttackType, Character, Weapon, WeaponAttack, WeaponProperty, Edge } from "../../types";
 import { getSTR } from "./characteristics";
 import { getSize, getDM } from "./size";
-import { BOWS, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
+import { BOWS, DISTANCE_FREE, DISTANCE_PENALTY_CAP_STEPS, DISTANCE_STEP, RMArr, SHOTS, ShotKind, dmgArr } from "../../tables";
 import { ActionCost, getActionCost } from "./actionCosts";
 import { getAttackKind, getAttackType, getHeavyRange, getRangeMetres, hasProperty, canSharpen } from "../../weaponProperties";
 import { getBuffBonus } from "./effects";
@@ -120,7 +120,7 @@ export type AttackVariant = {
   // how far a shot carries, in metres; null for anything but a shot, whose
   // reach is the row's own (gear.tex "Short, Long I/II")
   reach: number | null
-  // the penalty a shot takes per 10m to its target; null for anything but a shot
+  // the penalty a shot takes per step of distance to its target; null for anything but a shot
   distance: number | null
 }
 
@@ -137,17 +137,17 @@ export function getShotReach(atk: WeaponAttack, weapon: Weapon): number {
 }
 
 // combat.tex "Shoot", "Quick Shot", "Snipe": the penalty a way of shooting
-// takes per 10m, moved by the shooter's abilities (abilities.tex "Quick
+// takes per step of distance, moved by the shooter's abilities (abilities.tex "Quick
 // Shooter": "Reduces distance penalty of quick shots to -2").
 export function getShotDistanceRate(kind: ShotKind, c: Character): number {
   return Math.max(0, SHOTS[kind].distance + getBuffBonus(c, `distance:${kind}`))
 }
 
-// combat.tex "Accuracy": "a penalty of -2 per 10m of distance" — none under
-// 10m, one step for 10 to 19m and so on — and "Ranged attacks outside the
-// combat area": "5x the shot's distance penalty", where it stops growing.
+// combat.tex "Distance penalty": none under 10m, then a step every 20m —
+// at 10m, 30m and 50m — and "Ranged attacks outside the combat area": "3x
+// the shot's distance penalty", where it stops growing.
 export function getDistancePenalty(rate: number, metres: number): number {
-  return rate * Math.min(DISTANCE_PENALTY_CAP_STEPS, Math.floor(metres / DISTANCE_STEP))
+  return metres < DISTANCE_FREE ? 0 : rate * Math.min(DISTANCE_PENALTY_CAP_STEPS, Math.floor((metres - DISTANCE_FREE) / DISTANCE_STEP) + 1)
 }
 
 // combat.tex "Heavy Attack". Degree n adds n/2 x STR x DM to damage; the

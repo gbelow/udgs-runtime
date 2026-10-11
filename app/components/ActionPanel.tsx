@@ -360,9 +360,9 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
         <SectionLabel>attack</SectionLabel>
         {attacks.map((s) =>
           <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' {...toggle(s.selected)}
-            title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}${s.reach !== null ? ` · ${s.reach}m · -${s.distance}/10m` : ''}`}
+            title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}${s.reach !== null ? ` · ${s.reach}m · -${s.distance}/20m` : ''}`}
             onClick={() => onAttack(s)}>
-            {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/10m</span> : null}
+            {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
           </Button>)}
       </div>
     )
@@ -417,7 +417,7 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
               title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}`}
               onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
-              {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/10m</span> : null}
+              {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
             </Button>
           )
         })}

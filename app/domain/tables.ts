@@ -543,7 +543,7 @@ export const ASSIST = { bonus: [3, 2, 1], max: 5, weaker: 1, weakerBy: 5 } as co
 
 // combat.tex "Shoot", "Quick Shot", "Snipe": the ways a shooting weapon is
 // fired, each named by the variation the attack list gives it and the penalty
-// it takes for every 10m between shooter and target before the shooter's
+// it takes for every step of distance between shooter and target before the shooter's
 // abilities move it.
 export const SHOTS = {
   shoot:     { variant: 'basic', distance: 2 },
@@ -551,11 +551,13 @@ export const SHOTS = {
   snipe:     { variant: 'snipe', distance: 1 },
 } as const satisfies Record<string, { variant: string; distance: number }>
 
-// combat.tex "Accuracy": "a penalty of -2 per 10m of distance"; "Ranged
-// attacks outside the combat area": "5x the shot's distance penalty", which
+// combat.tex "Distance penalty": "a penalty of -2 per 20m of distance [...].
+// Everything under 10m has no penalty" — a step at 10m, 30m, 50m; "Ranged
+// attacks outside the combat area": "3x the shot's distance penalty", which
 // is where the penalty stops growing.
-export const DISTANCE_STEP = 10
-export const DISTANCE_PENALTY_CAP_STEPS = 5
+export const DISTANCE_FREE = 10
+export const DISTANCE_STEP = 20
+export const DISTANCE_PENALTY_CAP_STEPS = 3
 
 export type ShotKind = keyof typeof SHOTS
 

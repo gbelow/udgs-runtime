@@ -169,7 +169,7 @@ export type AttackOption = {
   cut: number
   // metres, for a shot; null for a strike
   reach: number | null
-  // the penalty per 10m of distance, for a shot; null for a strike
+  // the penalty per step of distance, for a shot; null for a strike
   distance: number | null
 }
 

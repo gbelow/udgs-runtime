@@ -31,7 +31,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
           {view.attacks.map((s) =>
             <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' {...toggle(s.selected)}
               onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
-              {s.weapon} {s.attack} {s.variant}{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/10m</span> : null}
+              {s.weapon} {s.attack} {s.variant}{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
             </Button>)}
         </div>
       ) : null}
