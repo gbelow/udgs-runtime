@@ -20,6 +20,8 @@ import { ACTIONS, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
 import type { Trigger } from './reactions'
+import { pickShotDeclaration, pickStrikeDeclaration } from './declaration'
+import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen } from './strikeDeclaration'
 
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP. This allows the player to create any trigger
@@ -71,8 +73,8 @@ export function findPrepared(state: SceneState, id: string): PrepareAction | nul
 export function getPreparedMain(p: PrepareAction, id: string, spawnedBy: string | null = null): RootAction | null {
   const base = { id, actorId: p.actorId, spawnedBy, preparedPart: 'main' as const }
   switch (p.main) {
-    case 'strike': return makeAction('strike', { ...base, weaponKey: p.weaponKey, attack: p.attack, variant: p.variant })
-    case 'shoot': return makeAction('shoot', { ...base, weaponKey: p.weaponKey, attack: p.attack, variant: p.variant, ammoId: p.ammoId })
+    case 'strike': return makeAction('strike', { ...base, ...pickStrikeDeclaration(p) })
+    case 'shoot': return makeAction('shoot', { ...base, ...pickShotDeclaration(p) })
     case 'cast': return makeAction('cast', { ...base, key: p.key, quicken: p.quicken, extend: p.extend })
     case 'move': return makeAction('move', { ...base, movement: p.movement })
     // a defense is answered to an attack, not made as an action of its own
@@ -93,8 +95,9 @@ export function getMainCost(state: SceneState, c: CampaignCharacter, p: PrepareA
   const main = getPreparedMain(p, '')
   switch (main?.kind) {
     case 'strike': {
-      const variant = getAttackVariant(c, main)
-      return variant ? { AP: variant.AP, STA: variant.STA } : null
+      const ctx = getStrikeContext(state, p)
+      const price = ctx && isStrikeDeclarationOpen(ctx) ? getStrikePrice(ctx) : null
+      return price && [price.declared, ...price.added].reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
     }
     case 'shoot': {
       const variant = getAttackVariant(c, main)

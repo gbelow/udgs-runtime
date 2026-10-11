@@ -1,4 +1,4 @@
-import { ActionSchema, type Action, type Coord, type ActionDraft, type ActionRoll, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
+import { ActionSchema, type Action, type Coord, type ActionDraft, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
@@ -328,7 +328,7 @@ export function rollAction(dice: Dice, newId: () => string): Updater {
     if (!test && own && ACTIONS[open.kind].die) return state
     const thrown = withTargetDice(withArmorRolls(state, withPercentileRolls(state, test ? { ...open, roll: test } : open, dice), dice), dice)
     const rolled = thrown.kind === 'move' && open.kind === 'move' ? withClimbGiveUp(state, withClimbRolls(state, { ...thrown, test: test ? getMoveTest(state, open) : null }, rootDice)) : thrown
-    return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? resolveTest(getReactionTest(state, open, a), dice) : a.roll))
+    return payAll(state, rolled, newId, (a) => (a.id !== open.id && ACTIONS[a.kind].die ? withTargetDice({ ...a, roll: resolveTest(getReactionTest(state, open, a), dice) }, dice) : a))
   }
 }
 
@@ -348,8 +348,8 @@ function withClimbGiveUp(state: SceneState, move: MoveAction): MoveAction {
   return actor && cost && !canAfford(actor, cost) ? { ...move, gaveUp: true } : move
 }
 
-// The die each one the root may deliver a test to throws with it, after its
-// own and before any reaction's, read when it lands (rules/tested.ts).
+// The die each one the action may deliver a test to throws with it, right
+// after its own, read when it lands (rules/tested.ts).
 function withTargetDice<A extends Action>(root: A, dice: Dice): A {
   const ids = getTestedIds(root)
   return ids.length > 0 ? { ...root, targetDice: Object.fromEntries(ids.map((id) => [id, dice(false)])) } : root
@@ -421,12 +421,12 @@ export function acceptSpellTest(newId: () => string): Updater {
 // and takes every price in one update: the root is rolled, its reactions
 // done. Nothing happens if anyone cannot pay. `rollOf` throws the die of a
 // reaction that is a test of its own, in the order they were declared.
-function payAll(state: SceneState, root: Action, newId: () => string, rollOf: (a: Action) => ActionRoll | null = (a) => a.roll): SceneState {
+function payAll(state: SceneState, root: Action, newId: () => string, thrown: (a: Action) => Action = (a) => a): SceneState {
   const paid: Action[] = []
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    paid.push({ ...a, cost, costTerms: getCostTerms(state, a) ?? [], roll: rollOf(a), step: a.id === root.id ? 'post' : 'done' })
+    paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
 }

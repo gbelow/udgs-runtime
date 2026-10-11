@@ -27,6 +27,7 @@ import { closeTurn } from './closeTurn'
 import { getResults } from './results'
 import { compelByTest } from './stress'
 import { getHiddenFrom } from '../rules/stealth'
+import { pickMade } from '../rules/declaration'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -234,8 +235,7 @@ function openSweepLink(state: SceneState, root: RootAction, newId: () => string)
   if (root.kind !== 'strike' || !isSweep(root)) return []
   const share = getNextShare(state, root)
   if (share === 0) return []
-  const { weaponKey, attack, variant, sweepDirection } = root
-  const base = { id: newId(), actorId: root.actorId, weaponKey, attack, variant, sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id, swept: [...root.swept, ...(root.targetId ? [root.targetId] : [])] }
+  const base = { id: newId(), actorId: root.actorId, ...pickMade(root), sweepDirection: root.sweepDirection, share, spawnedBy: root.id, sweepOf: root.sweepOf ?? root.id, swept: [...root.swept, ...(root.targetId ? [root.targetId] : [])] }
   if (state.board) {
     const next = getNextSwept(state, root)
     return next ? [makeAction('strike', { ...base, ...next, ...getDefaultAim(state.characters[next.targetId]), step: 'react' })] : []

@@ -5,12 +5,16 @@ import { getTestRollTerms } from '../../character/rules/spirit'
 import { sumTerms } from '../../character/rules/terms'
 import { getSituationalAfflictions } from './situational'
 import { resisted } from './test'
+import { isTestingStrike } from './strikeDeclaration'
+import { getCounterStrike } from './counter'
 
 // The ones an action may deliver a test to, who throw their die with the
 // action's own: a cast's or a held spell's target, and the target of a strike
-// that carries a spiritual attack (abilities.tex "Martial Spirit").
+// declared with something that leaves one (rules/strikeDeclaration.ts) — a
+// counterattack's strike is rolled with the counterattack.
 export function getTestedIds(root: Action): string[] {
-  const testing = root.kind === 'cast' || root.kind === 'fireAgain' || (root.kind === 'strike' && root.martialSpirit)
+  const strike = root.kind === 'strike' ? root : root.kind === 'counterattack' ? getCounterStrike(root, '') : null
+  const testing = root.kind === 'cast' || root.kind === 'fireAgain' || (strike !== null && isTestingStrike(strike))
   return testing && root.targetId ? [root.targetId] : []
 }
 

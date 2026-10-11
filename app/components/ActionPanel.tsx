@@ -6,10 +6,11 @@ import type { ActionOptionView, AttackOptionView, HOPOptionView, OpenActionView,
 import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
-import type { Action, ActionRoll, CostTerm, GrappleManeuver, HitLocation, StrikeAction } from '../domain/scene/types'
+import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
 import { Button, Panel, SectionLabel } from './ui'
 import { SkillTooltip } from './SkillTooltip'
 import { Preparation } from './Preparation'
+import { StrikeModifiers } from './StrikeModifiers'
 
 // A button's look while it is the one picked.
 const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
@@ -85,12 +86,7 @@ export function ActionPanel(){
         </div>
       ) : null}
 
-      {open.martialSpirit ? (
-        <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' {...toggle(open.martialSpirit.on)}
-            title={`launch a spiritual strike with the blow: +${open.martialSpirit.STA} STA, lands on a hit`} onClick={() => amend({ martialSpirit: !open.martialSpirit?.on })}>martial spirit</Button>
-        </div>
-      ) : null}
+      <StrikeModifiers modifiers={open.modifiers} onPress={amend} />
 
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -395,11 +391,6 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
   )
 }
 
-// A reactor who has chosen an opportunity attack declares the strike it
-// opens here — the row and where it aims. The panel's back takes the choice
-// itself back.
-type ReactorFields = { weaponKey?: string; attack?: string; variant?: string; location?: HitLocation; part?: string | null; catch?: boolean; mode?: 'strike' | 'grapple'; maneuver?: GrappleManeuver; ammoId?: string; sweepDirection?: SweepDirection }
-
 type SweepDirection = StrikeAction['sweepDirection']
 
 // combat.tex "Sweeping Attack": "Decide whether to attack from right to left
@@ -409,7 +400,10 @@ function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onT
     <Button key={d} size='xs' {...toggle(direction === d)} onClick={() => onTurn(d)}>{d}</Button>)}</>
 }
 
-function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: ReactorFields) => void }){
+// A reactor who has chosen an opportunity attack declares the strike it
+// opens here — the row and where it aims. The panel's back takes the choice
+// itself back.
+function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend: (fields: Partial<ActionDraft>) => void }){
   const strike = reactor.strike!
   const chosen = reactor.options.find((o) => o.chosen)
   return (
@@ -464,13 +458,8 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
             {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
           </Button>)}
       </div>
-      {strike.catchable || strike.catching ? (
-        <div>
-          <Button size='xs' {...toggle(strike.catching)}
-            title='a grapple row at a runner: 3 AP + 1 STA, and a hit is a crash' onClick={() => onAmend({ catch: !strike.catching })}>catch</Button>
-        </div>
-      ) : null}
-      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.catching ? 'cannot catch with that, nor a jumper in the air' : strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot reach from there') : 'pick the attack'}</span> : null}
+      <StrikeModifiers modifiers={strike.modifiers} onPress={onAmend} />
+      {!strike.complete ? <span className='text-xs text-muted'>{strike.attack ? (strike.shot ? 'that shot cannot be made from there, or has nothing to load it with' : 'that attack cannot be made from there as declared') : 'pick the attack'}</span> : null}
       </> : null}
     </div>
   )

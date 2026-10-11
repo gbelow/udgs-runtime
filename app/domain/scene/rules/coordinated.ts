@@ -2,6 +2,7 @@ import type { Action, ActionOf, SceneState, ShootAction } from '../types'
 import { makeAction } from '../factories'
 import { getAction, getOpenedBy, getReactionsTo } from './log'
 import { isInShotRange } from './board/board'
+import { pickAim, pickShotDeclaration } from './declaration'
 
 // combat.tex "Coordinated Shots": "Whenever an ally shoots a target, it is
 // possible to target the same target in the same action, as long as they are
@@ -42,6 +43,5 @@ export function isJoinInRange(state: SceneState, actorId: string, shot: { weapon
 // The shot a join opens, as declared on the reaction: committed already,
 // since the reaction was, and aimed at the target of the shot it joins.
 export function getJoinedShot(reaction: ActionOf<'joinShot'>, id: string): ShootAction {
-  const { weaponKey, attack, variant, location, part, ammoId } = reaction
-  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, location, part, ammoId, spawnedBy: reaction.id, step: 'react' })
+  return makeAction('shoot', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickShotDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, step: 'react' })
 }

@@ -10,6 +10,7 @@ import { getMovementOptions } from '../rules/move'
 import { getPrepared, getPreparedEvents, getPreparedMain, getPreparedZone, isDefenseMain, isPrepareComplete } from '../rules/prepared'
 import { getFightName } from '../rules/fighters'
 import type { AttackOptionView, SpellOptionView } from './actionPanel'
+import { getStrikeModifierViews, type StrikeModifierView } from './strikeDeclaration'
 
 // combat.tex "Preparing a reaction", as the panel shows it: the action is
 // declared first, and what it can wait for is offered from that — the zone it
@@ -18,6 +19,8 @@ import type { AttackOptionView, SpellOptionView } from './actionPanel'
 export type PrepareView = {
   mains: { kind: PreparableKind; selected: boolean; available: boolean; reason: string | null }[]
   attacks: AttackOptionView[]
+  // what a prepared strike is declared as besides (rules/strikeDeclaration.ts)
+  modifiers: StrikeModifierView[]
   ammo: AmmoOption[]
   // the rows a defense is made with
   defenses: { weaponKey: string; attack: string; weapon: string; selected: boolean }[]
@@ -57,6 +60,7 @@ export function getPrepareView(state: SceneState, open: PrepareAction): PrepareV
   return {
     mains: PREPARABLE_KINDS.map((kind) => ({ kind, selected: open.main === kind, available: reasons[kind] === null, reason: reasons[kind] })),
     attacks: rows.map((o) => ({ ...o, selected: o.weaponKey === open.weaponKey && o.attack === open.attack && o.variant === open.variant })),
+    modifiers: open.main === 'strike' && open.attack ? getStrikeModifierViews(state, open) : [],
     ammo: probe?.kind === 'shoot' ? getAmmoOptions(actor, probe) : [],
     defenses: isDefenseMain(open.main) ? rowsOf(open.main).map((row) => ({ weaponKey: row.wielded.key, attack: row.atk.name, weapon: row.weapon.name, selected: row.wielded.key === open.weaponKey && row.atk.name === open.attack })) : [],
     spells: open.main === 'cast' ? spells.map((o) => ({ ...o, name: SPELLS[o.key].name })) : [],

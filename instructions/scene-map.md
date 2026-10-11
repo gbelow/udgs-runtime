@@ -154,8 +154,8 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **roll / pay** (`payAll`) — first, a prepared defense's reposition is walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price
-  unpaid. A cast, a held spell fired again and a strike carrying a spiritual attack also
-  throw their target's die (`targetDice`, `rules/tested.ts`), read when they land. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
+  unpaid. A cast, a held spell fired again and a strike (or counterattack) declared with
+  something that leaves a test also throw their target's die (`targetDice`, `rules/tested.ts`), read when they land. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
   cannot pay.
 - **post** — choices made once the result is known; each only edits the rolled record and
   is reversible (except `saveGraze`, whose price is paid as it is bought).
@@ -319,7 +319,8 @@ app/domain/scene/
 │   ├── settle.ts       getSettled: an action as it lands
 │   ├── interruption.ts getInterruptions, isBroken; getInterruptionBy: the strongest of what a landed action did to someone's own action (its blow, a shot group's, a crash, its deliveries), read by isInterruptedBy and the stun escapes
 │   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
-│   ├── martialSpirit.ts a spiritual attack launched with a strike (abilities.tex "Martial Spirit"): who may, its STA, the attack a hit carries in the blow's `then`
+│   ├── declaration.ts  the declarations an attack is made with (`StrikeDeclaration`, `ShotDeclaration` in types.ts), copied whole by picks read off the schema
+│   ├── strikeDeclaration.ts one strike declaration, whatever declares it (a turn, an opportunity attack, a counterattack, a preparation, a recipe, a sweep): its context (what it answers, the step that drew it), the variations open there, and `STRIKE_MODIFIERS` — catch, Martial Spirit — each with when it is allowed, its price and what it delivers with the blow
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike
@@ -367,7 +368,7 @@ app/domain/scene/
 │   └── fighters.ts     active character, fight names, who holds an item
 │
 └── projections/                     read-for-UI, no setters
-    └── actionPanel.ts, boardView.ts, chase.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts
+    └── actionPanel.ts, boardView.ts, chase.ts, roster.ts, outcomes.ts, episode.ts, labels.ts, turn.ts, morale.ts, heldTests.ts, senses.ts, prepare.ts, strikeDeclaration.ts (the modifier buttons every panel that declares a strike shows)
 ```
 
 The combat domain calls into `character/` (costs, afflictions, deliveries, skill terms,
@@ -386,6 +387,13 @@ processor (`character/commands/deliver.ts`) rolls a delivery's test there and re
 - **A new reaction kind.** Same, with `type: 'reaction'`; `REACTION_OPENERS` will not
   compile until it has an entry. Its trigger goes in `rules/reactions.ts`, its option and
   reasons in `rules/options.ts`, its completeness in `isDeclarationComplete`.
+- **A new way to declare a strike.** Hold `StrikeDeclaration` and open the strike with
+  `pickStrikeDeclaration`; add it to `StrikeHolder` (`rules/strikeDeclaration.ts`). What it
+  may be declared as is read off its context, so a rule that depends on how the strike came
+  about asks the context (what it answers, the step that drew it), not the kind.
+- **A new strike modifier.** A boolean in `StrikeDeclaration`; `STRIKE_MODIFIERS` will not
+  compile until it has an entry. Every panel, the price, the completeness check and the blow
+  read the registry.
 - **A new follow-up no reaction opens.** Add it to `getFollowUps`, minding the push order
   (last pushed plays first).
 - **A new choice after the die.** A command in `commands/choices.ts` guarded by

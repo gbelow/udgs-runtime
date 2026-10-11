@@ -18,7 +18,7 @@ import { hasGrant } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
 import { getCancellableRoot, getGivenUpFor, getOpportunityState, isVoided } from './opportunity'
-import { canGrab, getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
+import { getHoldBackTargets, getManeuverTargets, getReleaseTargets, isGrappleReach, isManeuverWon, isSeizedUse, needsDisarmPick } from './grapple'
 import { canGrapple, getHOPOptions } from './damage'
 import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
@@ -31,7 +31,7 @@ import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
+import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
@@ -47,7 +47,7 @@ import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
-import { canStrikeWithSpirit, getMartialSpiritCost } from './martialSpirit'
+import { getStrikeContext, getStrikePrice, isStrikeDeclarationOpen, type StrikeHolder } from './strikeDeclaration'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -63,8 +63,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
   if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
-        && (!action.martialSpirit || canStrikeWithSpirit(state, action))
+      return getAttackVariant(c, action) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
     case 'shoot':
       return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
@@ -102,8 +101,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       const root = getRootOf(state, action)
       if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return false
       const cost = getOwnCost(state, strike)
-      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost) && isInReach(fought, strike, action.targetId ?? '') && isVariantOpen(state, action, action.variant) && isAimOnTarget(state, strike)
-        && (!action.catch || (canGrab(state, strike, action.targetId ?? '') && isCatchable(state, action)))
+      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
@@ -179,7 +177,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
       const strike = getCounterStrike(action, '')
-      return getAttackVariant(c, strike) !== null && isVariantOpen(state, strike, strike.variant) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
+      return getAttackVariant(c, strike) !== null && isStrikeOpen(state, action) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
     }
   }
 }
@@ -192,12 +190,18 @@ export function isUsedOutsideGrapple(state: SceneState, action: Action): boolean
   return isSeizedUse(state, action.actorId, action.weaponKey, action.attack, against)
 }
 
-// combat.tex "Catch" is against a running target; nothing lets a jumper be
-// grabbed in the air (combat.tex "jumping": a jump "cannot be voluntarily
-// interrupted in the middle").
-export function isCatchable(state: SceneState, reaction: ActionOf<'opportunityAttack'>): boolean {
-  const root = getRootOf(state, reaction)
-  return root?.kind === 'move' && root.movement === 'run' && root.actorId === reaction.targetId
+// Whether the strike's declaration may be made where it stands
+// (rules/strikeDeclaration.ts).
+function isStrikeOpen(state: SceneState, holder: StrikeHolder): boolean {
+  const ctx = getStrikeContext(state, holder)
+  return ctx !== null && isStrikeDeclarationOpen(ctx)
+}
+
+// What a strike's declaration costs, for the strike or the counterattack
+// that pays for it (an opportunity attack's strike pays for itself).
+function getStrikePriceOf(state: SceneState, action: Action): ReturnType<typeof getStrikePrice> {
+  const ctx = action.kind === 'strike' || action.kind === 'counterattack' ? getStrikeContext(state, action) : null
+  return ctx && getStrikePrice(ctx)
 }
 
 // combat.tex "Preparing a reaction": "The movement part of the action can be
@@ -244,11 +248,9 @@ export function areReactionsComplete(state: SceneState, root: Action): boolean {
 // (rules/drag.ts `getPushPrice`).
 function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action): ActionCost | null {
   switch (action.kind) {
-    // combat.tex "Catch": "The catcher must spend 3 AP + 1STA to perform a
-    // strike with a weapon with the grapple property"
     case 'strike':
-      if (action.catch) return getAttackVariant(c, action) ? getActionCost(c, 'catch') : null
-      return getVariantCost(c, action)
+    case 'counterattack':
+      return getStrikePriceOf(state, action)?.declared ?? null
     case 'shoot':
       return getVariantCost(c, action)
     // paid for by the throw, the cast or the detonation that opened it
@@ -265,8 +267,6 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
       return getSlipCost(c)
     case 'cut':
       return getVariantCost(c, getCutStrike(action))
-    case 'counterattack':
-      return getVariantCost(c, getCounterStrike(action, ''))
     case 'move':
       return getMovePrice(state, c, action, action.movement === 'climb' ? action.path.length : getMoveFacts(state, action).path.length)
     case 'drag':
@@ -377,11 +377,12 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
   if (!declared) return null
   const recipe = getRecipeCost(state, action, declared)
   const priced = action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, recipe) : recipe
+  const strike = getStrikePriceOf(state, action)
   return [
-    { label: getPriceLabel(action), ...declared },
+    { label: strike?.label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
     ...costChange('AP repurposed from the action given up', priced, recipe),
-    ...(action.kind === 'strike' && action.martialSpirit ? [{ label: 'Martial Spirit', ...getMartialSpiritCost() }] : []),
+    ...(strike?.added ?? []),
   ]
 }
 

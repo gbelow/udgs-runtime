@@ -23,7 +23,7 @@ import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 import { getSpiritBlow } from '../../character/rules/spirit'
-import { getStrikeSpirit } from './martialSpirit'
+import { getStrikeRiders } from './strikeDeclaration'
 import { passesCondition, strongerInterruption } from '../../character/rules/damage'
 
 // ---------------------------------------------------------------------------
@@ -136,7 +136,8 @@ function getStrikeTrample(state: SceneState, root: AttackAction): Trample | null
 // what is left of it, for a sweep past its first target (combat.tex "Damage
 // absorption"), which the charge already went off on — where it was aimed,
 // what it met — then each purchase bought, applied in turn — and the degree
-// the test came to.
+// the test came to; with it, what the row's charge and the strike's
+// declaration deliver besides (rules/strikeDeclaration.ts).
 export function getAttackFacts(state: SceneState, root: AttackAction): Delivery | null {
   const attacker = state.characters[root.actorId]
   if (!attacker || !root.roll) return null
@@ -153,8 +154,8 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
-  const spirit = root.kind === 'strike' ? getStrikeSpirit(state, root) : []
-  return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...spirit] }
+  const riders = root.kind === 'strike' ? getStrikeRiders(state, root) : []
+  return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...riders] }
 }
 
 // combat.tex "Cover": a wall that breaks between a shot's shooter and its

@@ -6,10 +6,10 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isCatchable, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
-import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, isVariantOpen, getDLTerms, getRootTestTerms } from '../rules/attack'
+import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
 import { EXTEND, PART_PRESETS } from '../../tables'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
@@ -30,7 +30,7 @@ import type { RollMode } from '../../play/dice'
 import { getDiveSteps } from '../rules/swim'
 import { canMoveWhileResting } from '../rules/rest'
 import { isRootAction } from '../rules/actionCatalog'
-import { canGrab, getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
+import { getDisarmOptions, getManeuverTargets, isManeuverWon } from '../rules/grapple'
 import { getCutStrike } from '../rules/cut'
 import { EQUIPMENT_ATTACK_PENALTY, getAimableItems, isFloorAttack } from '../rules/equipment'
 import { getFloorObject } from '../rules/floorAttack'
@@ -47,7 +47,8 @@ import { GRAPPLE_MANEUVERS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
-import { canStrikeWithSpirit, getMartialSpiritCost } from '../rules/martialSpirit'
+import { isVariantOpen } from '../rules/strikeDeclaration'
+import { getStrikeModifierViews, type StrikeModifierView } from './strikeDeclaration'
 
 export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
@@ -90,9 +91,8 @@ export type ReactorOptions = {
     variant: string
     location: HitLocation
     complete: boolean
-    // combat.tex "Catch": declared as a catch, and whether it may be
-    catching: boolean
-    catchable: boolean
+    // what the strike is declared as besides (rules/strikeDeclaration.ts)
+    modifiers: StrikeModifierView[]
     // combat.tex "Grapple Maneuvers": against a grapple partner, a maneuver
     // instead of the strike
     mode: 'strike' | 'grapple'
@@ -132,8 +132,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             variant: declared.variant,
             location: declared.location,
             complete: isDeclarationComplete(state, c, declared),
-            catching: declared.kind === 'opportunityAttack' && declared.catch,
-            catchable: declared.kind === 'opportunityAttack' && canGrab(state, declared, declared.targetId ?? '') && isCatchable(state, declared),
+            modifiers: declared.kind === 'joinShot' ? [] : getStrikeModifierViews(state, declared),
             mode: declared.kind === 'opportunityAttack' ? declared.mode : 'strike' as const,
             partner: findGrapple(getGrapples(state), c.id, declared.targetId ?? '') !== null,
             maneuvers: GRAPPLE_MANEUVERS.filter((m) => getManeuverTargets(state, c.id, m).includes(declared.targetId ?? '') && (declared.kind !== 'opportunityAttack' || canAffordOpportunity(state, { ...declared, mode: 'grapple', maneuver: m }))),
@@ -258,9 +257,9 @@ export type OpenActionView = {
   // the percentage of the blow left by the time it reaches this one (null
   // at full)
   sweep: { direction: StrikeAction['sweepDirection']; turnable: boolean; next: string[]; left: number | null } | null
-  // abilities.tex "Martial Spirit": while a strike is declared by one who may
-  // launch a spiritual attack with it, whether it does and the STA it adds
-  martialSpirit: { on: boolean; STA: number } | null
+  // while a strike is declared: what it may be declared as besides
+  // (rules/strikeDeclaration.ts)
+  modifiers: StrikeModifierView[]
 }
 
 // combat.tex "Push and drag": the speed the block moves at, and while it is
@@ -460,7 +459,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
       roll: open.roll,
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
-      martialSpirit: open.kind === 'strike' && open.step === 'define' && canStrikeWithSpirit(state, open) ? { on: open.martialSpirit, STA: getMartialSpiritCost().STA } : null,
+      modifiers: open.kind === 'strike' && open.step === 'define' ? getStrikeModifierViews(state, open) : [],
     },
     episode,
     edits,

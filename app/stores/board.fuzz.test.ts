@@ -70,8 +70,7 @@ function finishDeclaration(h: Harness, pick: Picker) {
   const first = <T>(from: readonly T[]) => (from.length ? pick(from) : null)
   const row = first(panel().attacks)
   if (row && !panel().open?.weapon) h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
-  const spirit = panel().open?.martialSpirit
-  if (spirit && pick([true, false])) h.press(amendAction({ martialSpirit: !spirit.on }))
+  for (const m of panel().open?.modifiers ?? []) if (pick([true, false])) h.press(amendAction(m.press))
   const ammo = first(panel().ammo)
   if (ammo) h.press(amendAction({ ammoId: ammo.itemId }))
   const castable = panel().spells.filter((s) => s.castable)
@@ -104,6 +103,7 @@ function fillPreparation(h: Harness, pick: Picker, anyoneEntering = false, only:
   h.press(amendAction({ main: pick(mains).kind, weaponKey: '', attack: '', variant: '', ammoId: '', key: '', quicken: false, extend: 0, movement: 'basic' }))
   const made = view()!
   if (made.attacks.length) { const { weaponKey, attack, variant } = pick(made.attacks); h.press(amendAction({ weaponKey, attack, variant })) }
+  for (const m of view()!.modifiers) if (pick([true, false])) h.press(amendAction(m.press))
   if (made.defenses.length) { const { weaponKey, attack } = pick(made.defenses); h.press(amendAction({ weaponKey, attack })) }
   if (made.ammo.length) h.press(amendAction({ ammoId: pick(made.ammo).itemId }))
   const castable = made.spells.filter((s) => s.castable)
@@ -123,6 +123,7 @@ function answerWithAStrike(h: Harness, id: string, pick: Picker) {
   if (strike.options.length) { const { weaponKey, attack, variant } = pick(strike.options); h.press(amendReaction(id, { weaponKey, attack, variant })) }
   const refreshed = getActionPanel(h.state()).reactors.find((r) => r.id === id)?.strike
   if (refreshed?.locations.length) { const { location, part } = pick(refreshed.locations); h.press(amendReaction(id, { location, part })) }
+  for (const m of refreshed?.modifiers ?? []) if (pick([true, false])) h.press(amendReaction(id, m.press))
   if (refreshed?.maneuvers.length && pick([true, false])) h.press(amendReaction(id, { mode: 'grapple', maneuver: pick(refreshed.maneuvers) }))
 }
 

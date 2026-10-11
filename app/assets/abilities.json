@@ -6117,7 +6117,7 @@
     "section": "Animancy",
     "activation": "active",
     "cost": {
-      "AP": 0,
+      "AP": 1,
       "STA": 1,
       "exhaustion": 0,
       "IL": 0,
@@ -6145,7 +6145,7 @@
             }
           ]
         ],
-        "description": "Learns to use spiritual strike along with melee attacks without increasing the cost of AP, but with the STA cost added in. The spellcasting result is the same as the strike's.",
+        "description": "Learns to use spiritual strike along with melee attacks, adding 1 AP and 1 STA to the attack's cost. The spellcasting result is the same as the strike's.",
         "effect": [],
         "recipes": [],
         "grants": [],

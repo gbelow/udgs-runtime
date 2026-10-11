@@ -319,12 +319,15 @@ const WeaponRowRef = {
   attack: str.default(''),
 }
 
-// An attack as declared before the die: the row, the variation it is made
-// as, and where it is aimed — the kind of place, and the target's part there
-// when one was picked (combat.tex "Localized damage").
-const AttackDeclaration = {
+// What an attack is made with: the row and the variation it is made as.
+export const AttackMade = {
   ...WeaponRowRef,
   variant: str.default(''),
+}
+
+// Where an attack is aimed: the kind of place, and the target's part there
+// when one was picked (combat.tex "Localized damage").
+export const AttackAim = {
   location: HitLocationSchema.default('chest'),
   part: str.nullable().default(null),
 }
@@ -360,6 +363,27 @@ const Breakage = {
 // or counterattack that opens one.
 const SweepDeclaration = {
   sweepDirection: z.enum(['clockwise', 'counterclockwise']).default('clockwise'),
+}
+
+// A strike as declared before the die, whatever declares it — on a turn, as
+// an opportunity attack or a counterattack, or prepared: what it is made
+// with, the way a sweep turns, and what it is made as besides. combat.tex
+// "Catch": a strike with a grapple row at a running target, whose hit is a
+// crash the catcher gets +3 in. abilities.tex "Martial Spirit": a spiritual
+// attack launched with the strike, its price added to the strike's.
+export const StrikeDeclaration = {
+  ...AttackMade,
+  ...SweepDeclaration,
+  catch: z.boolean().default(false),
+  martialSpirit: z.boolean().default(false),
+}
+
+// A shot as declared before the die, whatever declares it: what it is made
+// with, and gear.tex "Quiver": the stack of arrows or bolts it is loaded
+// from, '' for a row that loads nothing.
+export const ShotDeclaration = {
+  ...AttackMade,
+  ammoId: str.default(''),
 }
 
 // Two characters tied together, and which of them hold the other — a hold
@@ -457,7 +481,8 @@ export type FloorItem = z.infer<typeof FloorItemSchema>
 export const StrikeActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('strike'),
-  ...AttackDeclaration,
+  ...StrikeDeclaration,
+  ...AttackAim,
   // combat.tex "Opportunity Attack": "the defense takes -2 penalty unless
   // it's the SD"
   opportunity: z.boolean().default(false),
@@ -475,16 +500,9 @@ export const StrikeActionSchema = z.object({
   // came to is written at the resolve
   grapples: z.boolean().default(false),
   grabbed: GrappleFactsSchema.nullable().default(null),
-  // combat.tex "Catch": a strike with a grapple row at a running target,
-  // "3AP+1STA", whose hit is a crash the catcher gets +3 in
-  catch: z.boolean().default(false),
-  // abilities.tex "Martial Spirit": a spiritual attack launched with the
-  // strike, its STA added to the strike's price
-  martialSpirit: z.boolean().default(false),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
   // at the resolve
   jumpedTo: PlacementSchema.nullable().default(null),
-  ...SweepDeclaration,
   // combat.tex "Sweeping Attack": who the sweep still reaches after this
   // target, in order, written on a board when it is committed or opened;
   // and what is left of the blow when it comes to this target (combat.tex
@@ -505,7 +523,8 @@ export const StrikeActionSchema = z.object({
 export const ShootActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('shoot'),
-  ...AttackDeclaration,
+  ...ShotDeclaration,
+  ...AttackAim,
   ...ObjectAim,
   facts: DeliverySchema.nullable().default(null),
   ...Breakage,
@@ -515,9 +534,6 @@ export const ShootActionSchema = z.object({
   // combat.tex "Throw": what left the hand, one of it, to land where the
   // throw was aimed; written at the resolve, null for a shot
   thrown: ItemSchema.nullable().default(null),
-  // gear.tex "Quiver": the stack of arrows or bolts the shot is loaded
-  // from, declared with the row; '' for a row that loads nothing
-  ammoId: str.default(''),
 }).strip()
 
 // combat.tex "Explosions", "Sprays"; gear.tex "Explosion": an area going
@@ -805,9 +821,8 @@ export const OpportunityAttackActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('opportunityAttack'),
   at: num.nullable().default(null),
-  ...AttackDeclaration,
-  ...SweepDeclaration,
-  catch: z.boolean().default(false),
+  ...StrikeDeclaration,
+  ...AttackAim,
   // combat.tex "Grapple Maneuvers": "can be used like opportunity attacks"
   // — against a grapple partner, what is opened is a maneuver instead of a
   // strike
@@ -833,14 +848,14 @@ export const RetargetActionSchema = z.object({
 export const JoinShotActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('joinShot'),
-  ...AttackDeclaration,
-  ammoId: str.default(''),
+  ...ShotDeclaration,
+  ...AttackAim,
 }).strip()
 
 // abilities.tex "Counterattack": the target's answer to a strike, declared
 // with the strike it opens in full. Its die is thrown with the attack's, and
 // the two results say which of them lands first (rules/counter.ts).
-export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...AttackDeclaration, ...SweepDeclaration }).strip()
+export const CounterattackActionSchema = z.object({ ...ActionBase, kind: z.literal('counterattack'), ...StrikeDeclaration, ...AttackAim }).strip()
 
 // combat.tex "Preparing a reaction": what a prepared action waits for. `enters`
 // is a character coming into the zone the action reaches, its own reach and
@@ -865,7 +880,8 @@ export type PreparableKind = z.infer<typeof PreparableKindSchema>
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP ... A prepared action can consist of 2 AP of
 // movement and one other action". The action is declared first (`main`, with
-// what it is made with: the row, the spell, the way of moving), and the
+// what it is made with: a strike's or a shot's declaration, the spell, the
+// way of moving), and the
 // triggers it can wait for are offered from that. What it is aimed at is
 // declared when it fires. It always carries the 2 AP of movement. A
 // prepared action stays prepared until the end of the round it was made in,
@@ -874,9 +890,8 @@ export const PrepareActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('prepare'),
   main: PreparableKindSchema.nullable().default(null),
-  ...WeaponRowRef,
-  variant: str.default(''),
-  ammoId: str.default(''),
+  ...StrikeDeclaration,
+  ...ShotDeclaration,
   key: str.default(''),
   quicken: z.boolean().default(false),
   extend: num.default(0),
@@ -1005,8 +1020,7 @@ export const FeintActionSchema = z.object({
 export const CutActionSchema = z.object({
   ...ActionBase,
   kind: z.literal('cut'),
-  ...WeaponRowRef,
-  variant: str.default(''),
+  ...AttackMade,
   breakRoll: num.default(0),
 }).strip()
 

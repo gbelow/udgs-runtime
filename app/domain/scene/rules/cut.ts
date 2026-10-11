@@ -10,6 +10,7 @@ import { isInReach } from './board/board'
 import { getTethers, getTethersOf } from './partners'
 import { findWeaponRow } from './weaponRow'
 import { isWon } from './test'
+import { pickMade } from './declaration'
 
 // gear.tex "Equipment Breakage"; combat.tex "Attack against equipment": a cut
 // is swung with a weapon row like a strike, at one end of a net's tether, and
@@ -20,7 +21,7 @@ export const CUT_DL = [{ label: 'net', value: 0 }]
 // The strike a cut is made as: the same row, reach and skill, aimed at the
 // character at that end.
 export function getCutStrike(root: CutAction): StrikeAction {
-  return makeAction('strike', { id: root.id, actorId: root.actorId, targetId: root.targetId, weaponKey: root.weaponKey, attack: root.attack, variant: root.variant })
+  return makeAction('strike', { id: root.id, actorId: root.actorId, targetId: root.targetId, ...pickMade(root) })
 }
 
 // Every character at the end of a tether the cutter's row reaches.

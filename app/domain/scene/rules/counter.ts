@@ -1,6 +1,7 @@
 import type { Action, ActionOf, SceneState, StrikeAction } from '../types'
 import { makeAction } from '../factories'
 import { getAction, getOpenedBy } from './log'
+import { pickAim, pickStrikeDeclaration } from './declaration'
 
 // abilities.tex "Counterattack": "You can attack in response to an attack,
 // as long as you are within range. Both attacks are made against the
@@ -14,8 +15,7 @@ import { getAction, getOpenedBy } from './log'
 // at the attacker it answers: rolled with that attack, paid for by the
 // reaction, and made under the reaction's recipe (rules/recipes.ts).
 export function getCounterStrike(reaction: ActionOf<'counterattack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, sweepDirection, location, part } = reaction
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, spawnedBy: reaction.id, recipe: reaction.recipe, step: 'post', roll: reaction.roll })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), spawnedBy: reaction.id, recipe: reaction.recipe, step: 'post', roll: reaction.roll, targetDice: reaction.targetDice })
 }
 
 // Where the counterattack's strike lands against the attack: ahead of it on

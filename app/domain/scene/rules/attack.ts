@@ -41,6 +41,7 @@ import { getRecipeHitTerms } from './recipes'
 import { getChaseCoverTerms, getRoutingTerms } from './chase'
 import { getMidActionTerm } from './opportunity'
 import { getShotLead } from './coordinated'
+import { pickAim, pickStrikeDeclaration } from './declaration'
 
 // What an action is rolled with and against: the weapon rows and
 // variations an attack can be made with, the opportunity attack a reaction
@@ -105,8 +106,7 @@ export function isAimOnTarget(state: SceneState, action: { targetId: string | nu
 // answers — a catch, when it was declared as one at a runner (combat.tex
 // "Catch").
 export function getOpportunityStrike(reaction: ActionOf<'opportunityAttack'>, id: string): StrikeAction {
-  const { weaponKey, attack, variant, location, part, sweepDirection } = reaction
-  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, weaponKey, attack, variant, sweepDirection, location, part, catch: reaction.catch, opportunity: true, spawnedBy: reaction.id, step: 'react' })
+  return makeAction('strike', { id, actorId: reaction.actorId, targetId: reaction.targetId, ...pickStrikeDeclaration(reaction), ...pickAim(reaction), opportunity: true, spawnedBy: reaction.id, step: 'react' })
 }
 
 // What the opportunity attack opens, as declared on the reaction: a strike,
@@ -116,21 +116,6 @@ export function getOpportunityAction(state: SceneState, reaction: ActionOf<'oppo
   const base = { id, actorId: reaction.actorId, targetId: reaction.targetId, opportunity: true, spawnedBy: reaction.id, step: 'react' as const }
   if (reaction.mode === 'grapple') return makeAction('grapple', { ...base, maneuver: reaction.maneuver })
   return getOpportunityStrike(reaction, id)
-}
-
-// Whether the strike may be declared as this variation where it is made.
-// combat.tex "Braced Attack": "a reaction when a target is moving towards
-// the weapon or as an action in situations where the attacker is mounted
-// and running" — mounts are not modelled, so only the reaction, drawn by a
-// step towards the attacker. "Hook Attack": "an action or ... a reaction
-// against running targets that move away from the weapon" — and the
-// reaction a runner moving away draws is only ever a hook attack.
-export function isVariantOpen(state: SceneState, action: Action, variant: string): boolean {
-  if (action.kind === 'strike') return action.opportunity || variant !== 'braced'
-  if (action.kind !== 'opportunityAttack') return true
-  if (variant === 'braced') return isBracedStep(state, action)
-  const hooked = isHookStep(state, action)
-  return variant === 'hook' ? hooked : !hooked
 }
 
 // The move an opportunity attack answers and the step of its path it fires
