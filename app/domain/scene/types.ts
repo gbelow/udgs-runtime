@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
-import { CHASE_COVERS, CHASE_SIDES, CHASE_TIERS, SKIRMISH_STANCES, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
+import { CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
 import { ROLL_MODES } from '../play/dice'
+import { TestRollSchema } from '../play/test'
 import type { CampaignState } from '../campaign/types'
 
 export { DEGREES, DegreeSchema, HitLocationSchema, InterruptionSchema } from '../types'
@@ -1283,46 +1284,93 @@ export type EditEntry = z.infer<typeof EditEntrySchema>
 export const FightPartySchema = z.object({ name: str.default('') })
 export type FightParty = z.infer<typeof FightPartySchema>
 
-// combat.tex "Running": the round's run as it came out — the tier it was run
-// at, each runner's speed and each side's (its slowest runner's), who won,
-// the percentile die a sustained draw was settled with, and whether the
-// winner has said which way the distance goes. Written once, like a die.
+// combat.tex "Running": what one link of the chain came to this round — the
+// tier it was run at, each runner's speed and each end's (its slowest
+// runner's), whether the speeds were compared (only when the two ends ran
+// opposite ways), who won, the percentile die a sustained draw was settled
+// with, the way the distance went, and whether it is a skirmish, whose way
+// lands when the round ends ("At the end, both teams will be in combat
+// range"). Written once, like a die.
 export const ChaseRunSchema = z.object({
   tier: z.enum(CHASE_TIERS),
   speeds: z.record(str, num).default({}),
-  quarry: num.default(0),
-  pursuers: num.default(0),
-  winner: z.enum(CHASE_SIDES).nullable().default(null),
+  chaser: num.default(0),
+  chased: num.default(0),
+  contest: z.boolean().default(false),
+  winner: z.enum(CHASE_ROLES).nullable().default(null),
   coin: num.nullable().default(null),
-  chosen: z.boolean().default(false),
+  way: z.enum(CHASE_WAYS).nullable().default(null),
+  skirmish: z.boolean().default(false),
 }).strip()
 export type ChaseRun = z.infer<typeof ChaseRunSchema>
 
-// combat.tex "Separating the group": a group running away — a fight party
-// on the quarry's side — and its distance tier from whoever follows it,
-// whether it has got away or is caught and fighting, the rounds in a row
-// nobody has followed it, and this round's run between it and its followers.
-export const ChaseGroupSchema = z.object({
+// combat.tex "Group chases": a party chasing another — one of its own team
+// left behind chases the faster ones — at a distance tier, and this round's
+// run between the two.
+export const ChaseLinkSchema = z.object({
+  chases: str,
   tier: z.enum(CHASE_TIERS).default('combat'),
-  escaped: z.boolean().default(false),
-  fighting: z.boolean().default(false),
-  unfollowed: num.default(0),
   run: ChaseRunSchema.nullable().default(null),
 }).strip()
-export type ChaseGroup = z.infer<typeof ChaseGroupSchema>
+export type ChaseLink = z.infer<typeof ChaseLinkSchema>
 
-// combat.tex "Chases": the groups running away, by fight party (everyone
-// else is chasing them); the group each pursuing party follows, where the
-// table has picked one; who is on the way to join a fight, and the rounds
-// left until they arrive; who of the quarry has turned around to face the
-// pursuers; the stance each party has taken for a skirmish this round; and
+// combat.tex "Chase actions": what a party does this round — and, running,
+// what it scouts for ("They will describe what they are looking for. The
+// odds that such a place exists will be a test with an arbitrary DL"), or,
+// hiding, what the table adds to its stealth ("penalties for the amount of
+// characters, gear carried [...]"; "The hiding spot [...] can grant stealth
+// bonuses").
+export const ChaseScoutSchema = z.object({ what: str.default(''), DL: num.default(0), obstacle: z.boolean().default(false) }).strip()
+export type ChaseScout = z.infer<typeof ChaseScoutSchema>
+export const ChaseDeclarationSchema = z.object({
+  move: z.enum(CHASE_MOVES),
+  scout: ChaseScoutSchema.nullable().default(null),
+  hideModifier: num.default(0),
+}).strip()
+export type ChaseDeclaration = z.infer<typeof ChaseDeclarationSchema>
+
+// combat.tex "Scouting": a place a party found, the tier it is at ("is
+// approached one tier per round"), whether it is an obstacle, and whether the
+// party has got there.
+export const ChaseFeatureSchema = z.object({
+  what: str.default(''),
+  tier: z.enum(CHASE_TIERS).default('shooting'),
+  obstacle: z.boolean().default(false),
+  reached: z.boolean().default(false),
+}).strip()
+export type ChaseFeature = z.infer<typeof ChaseFeatureSchema>
+
+// A test the chase made this round, kept to be read: hiding (the parties
+// that hid together, and the one found), scouting or crossing an obstacle.
+export const ChaseRollSchema = z.object({
+  kind: z.enum(['hide', 'scout', 'cross']),
+  parties: z.array(str).default([]),
+  found: str.nullable().default(null),
+  roll: TestRollSchema,
+}).strip()
+export type ChaseRoll = z.infer<typeof ChaseRollSchema>
+
+// combat.tex "Chases": the parties on the team that ran away first (everyone
+// else gave chase); the party each party chases, the chain; who is out of it
+// ("Disconnected party"), caught and fighting, separated (hid with a group
+// that was found, and has not yet decided what to do), or on the way to join
+// a fight; what each party declared this round, and whether the round has
+// been resolved, how long it took and the tests it made; the places parties
+// found; who of a chased party has turned around to face the chasers; and
 // who the table has in cover.
 export const ChaseSchema = z.object({
-  groups: z.record(str, ChaseGroupSchema).default({}),
-  follows: z.record(str, str).default({}),
-  joining: z.record(str, z.object({ to: str, rounds: num }).strip()).default({}),
+  runaways: z.array(str).default([]),
+  links: z.record(str, ChaseLinkSchema).default({}),
+  out: z.array(str).default([]),
+  fighting: z.array(str).default([]),
+  separated: z.array(str).default([]),
+  joining: z.record(str, str).default({}),
+  declarations: z.record(str, ChaseDeclarationSchema).default({}),
+  resolved: z.boolean().default(false),
+  seconds: num.nullable().default(null),
+  rolls: z.array(ChaseRollSchema).default([]),
+  features: z.record(str, ChaseFeatureSchema).default({}),
   turned: z.array(str).default([]),
-  stances: z.record(str, z.enum(SKIRMISH_STANCES)).default({}),
   cover: z.record(str, z.enum(CHASE_COVERS)).default({}),
 }).strip()
 export type Chase = z.infer<typeof ChaseSchema>

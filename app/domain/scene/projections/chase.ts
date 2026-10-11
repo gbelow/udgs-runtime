@@ -1,73 +1,86 @@
-import type { SceneState } from '../types'
-import { CHASE_COVERS, CHASE_TIERS, SKIRMISH_STANCES, type ChaseCover, type ChaseSide, type ChaseTier, type SkirmishStance } from '../../lists'
+import type { ChaseDeclaration, SceneState } from '../types'
+import { CHASE_COVERS, CHASE_MOVES, CHASE_TIERS, CROSSING_SKILLS, type ChaseCover, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseTier, type ChaseWay } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
 import { getFightBusy, getNextRoundBar } from '../rules/turn'
-import { getCaught, getChaseWays, getFightFirst, getFollowBar, getFollowed, getFollowers, getJoinBar, getMembers, getPairGroup, getPursuerParties, getQuarryGroups, getRoundSeconds, getRunBar, getRunners, getSkirmishAP, getStanceBar, type ChaseWay } from '../rules/chase'
-
-export type ChaseRunnerRow = { id: string; name: string; side: ChaseSide; speed: number; slowest: boolean }
+import { canTurnAround, getCaught, getChasers, getChaseParties, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen, isRoutingLink } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
 
-// A group running away, and its chase with whoever follows it.
-export type ChaseGroupRow = {
-  id: string
-  name: string
+// The run of the party's link this round.
+export type ChaseRunRow = {
   tier: ChaseTier
-  escaped: boolean
-  fighting: boolean
-  // why the table cannot have it fight or run again now
-  fightBar: string | null
-  // rounds in a row nobody has followed it
-  unfollowed: number
-  followers: string[]
-  // its members, and whether each has turned around to face the pursuers
-  members: { id: string; name: string; turned: boolean }[]
-  caught: string[]
-  runBar: string | null
-  run: { tier: ChaseTier; quarry: number; pursuers: number; winner: ChaseSide | 'draw'; coin: number | null; runners: ChaseRunnerRow[] } | null
-  ways: ChaseWay[]
-  // what the table does next for the group
-  next: string
+  chaser: number
+  chased: number
+  contest: boolean
+  winner: ChaseRole | null
+  coin: number | null
+  way: ChaseWay | null
+  skirmish: boolean
+  runners: { id: string; name: string; role: ChaseRole; speed: number; slowest: boolean }[]
 }
 
-// A party in the chase: the group it follows and the ones it could follow
-// instead (a pursuing party), its skirmish stance, why it cannot take one and
-// the AP it has once its pair has chosen, and whether it is on its way to a
-// fight or the fights it could set off for.
+// A party in the chase: its team, where it stands, who it chases and how
+// far, who chases it, what it declared and what it may declare, how its
+// link ran, and what the table may do with it.
 export type ChasePartyRow = {
   id: string
   name: string
-  side: ChaseSide
-  follows: string | null
-  followOptions: Option[]
-  skirmish: boolean
-  stance: SkirmishStance | null
-  stanceBar: string | null
+  team: ChaseSide
+  status: string
+  out: boolean
+  fighting: boolean
+  separated: boolean
+  chases: { name: string; tier: ChaseTier; enemy: boolean; frozen: boolean } | null
+  chasedBy: string[]
+  members: { id: string; name: string; turned: boolean }[]
+  turnable: boolean
+  caught: string[]
+  declares: boolean
+  declaration: ChaseDeclaration | null
+  moves: { move: ChaseMove; bar: string | null }[]
+  scoutBar: string | null
+  run: ChaseRunRow | null
   AP: number | null
-  joining: { to: string; rounds: number } | null
+  feature: { what: string; tier: ChaseTier; obstacle: boolean; reached: boolean } | null
+  crossBar: string | null
+  followOptions: Option[]
+  putBackOptions: Option[]
   joinOptions: Option[]
+  joining: string | null
+  mergeBar: string | null
+  giveUpBar: string | null
+  fightBar: string | null
 }
+
+export type ChaseRollRow = { kind: 'hide' | 'scout' | 'cross'; parties: string; found: string | null; die: number; score: number; DL: number; degree: string }
 
 export type ChasePanel = {
   tiers: readonly ChaseTier[]
   // the fight parties, and whether each is running away
   parties: { id: string; name: string; quarry: boolean }[]
   chasing: boolean
-  groups: ChaseGroupRow[]
-  chaseParties: ChasePartyRow[]
+  rows: ChasePartyRow[]
+  // combat.tex "Chain order of running": who declares, head first
+  order: string[]
+  resolveBar: string | null
+  resolved: boolean
+  rolls: ChaseRollRow[]
   // combat.tex "Escape": the fight played out before anyone runs
   fightFirst: string | null
   // why the chase cannot be ended now
   endBar: string | null
-  // what the table does next, before any group's own step
+  // what the table does next
   next: string | null
+  // where the tokens go when a fight starts or someone arrives at one
+  placement: string | null
   // why the round cannot end yet
   roundBar: string | null
-  stances: readonly SkirmishStance[]
+  moves: readonly ChaseMove[]
+  crossingSkills: typeof CROSSING_SKILLS
   // combat.tex "Cover": everyone in the chase and the cover the table gives them
   covers: readonly ChaseCover[]
-  runners: { id: string; name: string; side: ChaseSide; cover: ChaseCover | null }[]
+  runners: { id: string; name: string; team: ChaseSide; cover: ChaseCover | null }[]
   elapsed: string
   roundTakes: string
 }
@@ -81,97 +94,131 @@ function clock(seconds: number): string {
 
 const partyName = (state: SceneState, id: string) => state.parties[id]?.name || 'no name'
 
-// What the table does next for the group, in the order a chase round goes:
-// run or skirmish, the winner's way, the round played out, the next round.
-function getGroupNext(state: SceneState, id: string, followers: string[]): string {
+function getStatus(state: SceneState, id: string): string {
   const chase = state.chase!
-  const g = chase.groups[id]
-  const endRound = 'everyone ends their turn and agrees to end the round, then next round'
-  if (g.escaped) return 'they got away'
-  if (g.fighting) return 'fight it out; run again if they break away, or end the chase'
-  if (g.run && !g.run.chosen) return `${g.run.winner === 'quarry' ? state.parties[id]?.name || 'the quarry' : followers.join(', ') || 'the pursuers'} won: close in or pull away`
-  if (g.run && g.tier === 'combat') return `routing: everyone takes turns with their AP, the pursuers at +2; ${endRound}`
-  if (g.run) return endRound
-  if ([id, ...getFollowers(state, id)].some((p) => chase.stances[p])) return 'skirmish: each party below picks shoot or approach, then everyone takes turns with the AP shown'
-  const bar = getRunBar(state, id)
-  if (bar === 'nobody follows them') return 'nobody follows them: pick a pursuer below to follow, or they drift away'
-  if (bar) return bar
-  return g.tier === 'shooting' || g.tier === 'far' ? 'run, or pick skirmish stances below' : 'run'
+  if (chase.out.includes(id)) return 'out of the chase'
+  if (chase.fighting.includes(id)) return 'caught, fighting'
+  if (chase.separated.includes(id)) return 'separated: run on or join the fight'
+  if (chase.joining[id]) return `on the way to the fight of ${partyName(state, chase.joining[id])}`
+  if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
+  if (isFrozen(state, id)) return 'keeping the distance at far range'
+  return getDeclarers(state).includes(id) ? 'running' : 'waiting on others'
 }
 
-function buildGroupRow(state: SceneState, id: string): ChaseGroupRow {
+function buildRun(state: SceneState, id: string): ChaseRunRow | null {
+  const link = state.chase!.links[id]
+  const run = link?.run
+  if (!run) return null
+  return {
+    tier: run.tier,
+    chaser: run.chaser,
+    chased: run.chased,
+    contest: run.contest,
+    winner: run.winner,
+    coin: run.coin,
+    way: run.way,
+    skirmish: run.skirmish,
+    runners: Object.entries(run.speeds).map(([cid, speed]) => {
+      const role: ChaseRole = state.partyOf[cid] === id ? 'chaser' : 'chased'
+      return { id: cid, name: getFightName(state, cid), role, speed, slowest: speed === (role === 'chaser' ? run.chaser : run.chased) }
+    }),
+  }
+}
+
+const probe = (move: ChaseMove): ChaseDeclaration => ({ move, scout: null, hideModifier: 0 })
+
+function buildRow(state: SceneState, id: string): ChasePartyRow {
   const chase = state.chase!
-  const g = chase.groups[id]
-  const run = g.run
+  const link = getLink(state, id)
+  const others = Object.keys(state.parties).filter((p) => p !== id)
+  const feature = chase.features[id]
   return {
     id,
     name: partyName(state, id),
-    tier: g.tier,
-    escaped: g.escaped,
-    fighting: g.fighting,
-    fightBar: g.escaped ? 'they got away' : getFightBusy(state),
-    unfollowed: g.unfollowed,
-    followers: getFollowers(state, id).map((p) => partyName(state, p)),
+    team: getTeam(chase, id),
+    status: getStatus(state, id),
+    out: chase.out.includes(id),
+    fighting: chase.fighting.includes(id),
+    separated: chase.separated.includes(id),
+    chases: link && { name: partyName(state, link.chases), tier: link.tier, enemy: isEnemyLink(state, id), frozen: isFrozen(state, id) },
+    chasedBy: getChasers(state, id).map((p) => partyName(state, p)),
     members: getMembers(state, id).map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id) })),
+    turnable: getMembers(state, id).some((c) => canTurnAround(state, c.id)),
     caught: getCaught(state, id).map((c) => c.reason),
-    runBar: getRunBar(state, id),
-    run: run && {
-      tier: run.tier,
-      quarry: run.quarry,
-      pursuers: run.pursuers,
-      winner: run.winner ?? 'draw',
-      coin: run.coin,
-      runners: Object.entries(run.speeds).map(([cid, speed]) => {
-        const side = chase.groups[state.partyOf[cid] ?? ''] ? 'quarry' : 'pursuers'
-        return { id: cid, name: getFightName(state, cid), side, speed, slowest: speed === (side === 'quarry' ? run.quarry : run.pursuers) }
-      }),
-    },
-    ways: getChaseWays(state, id),
-    next: getGroupNext(state, id, getFollowers(state, id).map((p) => partyName(state, p))),
+    declares: getDeclarers(state).includes(id),
+    declaration: chase.declarations[id] ?? null,
+    moves: CHASE_MOVES.map((move) => ({ move, bar: getDeclareBar(state, id, probe(move)) })),
+    scoutBar: getDeclareBar(state, id, { move: 'run', scout: { what: '', DL: 0, obstacle: false }, hideModifier: 0 }),
+    run: buildRun(state, id),
+    AP: getSkirmishAP(state, id),
+    feature: feature ? { what: feature.what, tier: feature.tier, obstacle: feature.obstacle, reached: feature.reached } : null,
+    crossBar: getObstacleOwner(state, id) ? getCrossBar(state, id) : null,
+    followOptions: chase.out.includes(id) ? [] : others.filter((p) => !chase.out.includes(p) && link?.chases !== p).map((p) => ({ id: p, name: partyName(state, p), bar: getFollowBar(state, id, p) })),
+    putBackOptions: chase.out.includes(id) ? others.filter((p) => !chase.out.includes(p)).map((p) => ({ id: p, name: partyName(state, p), bar: getPutBackBar(state, id, p) })) : [],
+    joinOptions: chase.joining[id] || chase.fighting.includes(id) ? [] : chase.fighting.filter((p) => p !== id && state.parties[p]).map((p) => ({ id: p, name: partyName(state, p), bar: getJoinBar(state, id, p) })),
+    joining: chase.joining[id] ? partyName(state, chase.joining[id]) : null,
+    mergeBar: link && !isEnemyLink(state, id) ? getMergeBar(state, id) : null,
+    giveUpBar: link ? getFightBusy(state) : null,
+    fightBar: getFightBar(state, id, !chase.fighting.includes(id)),
   }
 }
 
-function buildPartyRow(state: SceneState, id: string, side: ChaseSide, groups: string[], fighting: string[]): ChasePartyRow {
-  const chase = state.chase!
-  const followed = side === 'pursuers' ? getFollowed(state, id) : null
-  const group = getPairGroup(state, id)
-  const tier = group ? chase.groups[group].tier : null
-  return {
-    id,
-    name: partyName(state, id),
-    side,
-    follows: followed && partyName(state, followed),
-    followOptions: side === 'pursuers' ? groups.filter((g) => g !== followed).map((g) => ({ id: g, name: partyName(state, g), bar: getFollowBar(state, id, g) })) : [],
-    skirmish: tier === 'shooting' || tier === 'far' || !!chase.stances[id],
-    stance: chase.stances[id] ?? null,
-    stanceBar: getStanceBar(state, id),
-    AP: getSkirmishAP(state, id),
-    joining: chase.joining[id] ? { to: partyName(state, chase.joining[id].to), rounds: chase.joining[id].rounds } : null,
-    joinOptions: chase.joining[id] ? [] : fighting.filter((g) => g !== id).map((g) => ({ id: g, name: partyName(state, g), bar: getJoinBar(state, id, g) })),
+// What the table does next, in the order a chase round goes: declare head
+// to tail, resolve, play out the turns, the next round.
+function getNext(state: SceneState): string | null {
+  const chase = state.chase
+  if (!chase) return 'tick the parties running away, pick how far apart they start, and start the chase'
+  if (state.round === 0) return 'press start combat to begin the first round'
+  const first = getFightFirst(state)
+  if (first) return `${first}: fight it out, then have them run again or end the chase`
+  const endRound = 'everyone ends their turn and agrees to end the round, then next round'
+  if (chase.resolved) {
+    const routing = getChaseParties(state).some((p) => isRoutingLink(state, p))
+    const skirmish = getChaseParties(state).some((p) => getLink(state, p)?.run?.skirmish)
+    if (routing) return `routing: everyone takes turns with their AP, the chasers at +2; ${endRound}`
+    if (skirmish) return `skirmish: everyone takes turns with the AP shown; ${endRound}`
+    return endRound
   }
+  const caught = getChaseParties(state).filter((p) => getCaught(state, p).length > 0)
+  if (caught.length) return `${caught.map((p) => partyName(state, p)).join(', ')} caught: start the fight, or untick whoever turned around`
+  const bar = getResolveBar(state)
+  if (bar?.startsWith('still to declare')) return `declare head to tail (the chased first, then whoever chases them), change it if you must, then resolve`
+  return bar ?? 'resolve the round'
+}
+
+// combat.tex "Catching", "Combat with split group": where the tokens go.
+function getPlacement(state: SceneState): string | null {
+  const chase = state.chase
+  if (!chase) return null
+  const notes = [
+    chase.fighting.length ? 'caught: the one who ended the chase within 10 m of an enemy and 20 m of every teammate, teams on either side of a semicircle around them, the chasers placing first; a grapple starts adjacent' : null,
+    Object.keys(chase.joining).length ? 'arriving: no closer than 50 m to any enemy' : null,
+  ].filter((n) => n)
+  return notes.length ? notes.join('; ') : null
 }
 
 function buildChasePanel(state: SceneState): ChasePanel {
   const chase = state.chase
-  const groups = getQuarryGroups(state)
-  const fighting = groups.filter((g) => chase!.groups[g].fighting)
+  const parties = chase ? Object.keys(state.parties) : []
+  const named = (ids: string[]) => ids.map((p) => partyName(state, p)).join(', ')
   return {
     tiers: CHASE_TIERS,
-    parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name || 'no name', quarry: !!chase?.groups[id] })),
+    parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name || 'no name', quarry: !!chase?.runaways.includes(id) })),
     chasing: chase !== null,
-    groups: chase ? groups.map((g) => buildGroupRow(state, g)) : [],
-    chaseParties: chase ? [
-      ...groups.map((g) => buildPartyRow(state, g, 'quarry', groups, fighting)),
-      ...getPursuerParties(state).map((p) => buildPartyRow(state, p, 'pursuers', groups, fighting)),
-    ] : [],
+    rows: parties.map((p) => buildRow(state, p)),
+    order: chase ? getDeclareOrder(state).map((p) => partyName(state, p)) : [],
+    resolveBar: chase ? getResolveBar(state) : null,
+    resolved: !!chase?.resolved,
+    rolls: chase?.rolls.map((r) => ({ kind: r.kind, parties: named(r.parties), found: r.found && partyName(state, r.found), ...r.roll })) ?? [],
     fightFirst: chase ? getFightFirst(state) : null,
     endBar: getFightBusy(state),
-    next: !chase ? 'tick the parties running away, pick how far apart they start, and start the chase'
-      : state.round === 0 ? 'press start combat to begin the first round' : null,
+    next: getNext(state),
+    placement: getPlacement(state),
     roundBar: chase && state.round > 0 ? getNextRoundBar(state) : null,
-    stances: SKIRMISH_STANCES,
+    moves: CHASE_MOVES,
+    crossingSkills: CROSSING_SKILLS,
     covers: CHASE_COVERS,
-    runners: chase ? (['quarry', 'pursuers'] as const).flatMap((side) => getRunners(state, side).map((c) => ({ id: c.id, name: getFightName(state, c.id), side, cover: chase.cover[c.id] ?? null }))) : [],
+    runners: chase ? Object.values(state.characters).filter((c) => getMembers(state, state.partyOf[c.id] ?? '').includes(c)).map((c) => ({ id: c.id, name: getFightName(state, c.id), team: getTeam(chase, state.partyOf[c.id]), cover: chase.cover[c.id] ?? null })) : [],
     elapsed: clock(state.elapsed),
     roundTakes: clock(getRoundSeconds(state)),
   }

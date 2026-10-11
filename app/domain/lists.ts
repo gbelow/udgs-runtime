@@ -255,12 +255,28 @@ export const RANGES = [...MELEE_RANGES, ...THROWN_RANGES, ...SHOT_RANGES] as con
 // and Horizon", nearest first.
 export const CHASE_TIERS = ['combat', 'shooting', 'far', 'horizon'] as const
 export type ChaseTier = (typeof CHASE_TIERS)[number]
+// The two teams of a chase: the one that ran away first, and the one that
+// gave chase. Who chases whom is a matter of each link, not of the team
+// (combat.tex "Inverting chase").
 export const CHASE_SIDES = ['quarry', 'pursuers'] as const
 export type ChaseSide = (typeof CHASE_SIDES)[number]
-// combat.tex "Skirmish": "Both teams shoot at each other or one team shoots
-// and the other attempts to close in".
-export const SKIRMISH_STANCES = ['shoot', 'approach'] as const
-export type SkirmishStance = (typeof SKIRMISH_STANCES)[number]
+// The two ends of a link in the chain (combat.tex "Group chases").
+export const CHASE_ROLES = ['chaser', 'chased'] as const
+export type ChaseRole = (typeof CHASE_ROLES)[number]
+// combat.tex "Chase actions": "Chase actions can be running, skirmish, [...]
+// or hiding" — running as the party's role goes (a chaser at whoever it
+// chases, the chased away from its chasers) or the other way ("Running can be
+// in the direction of the pursuer or away from them").
+export const CHASE_MOVES = ['run', 'reverse', 'shoot', 'hide'] as const
+export type ChaseMove = (typeof CHASE_MOVES)[number]
+// combat.tex "Running": "the fastest decides to close the distance or move
+// away".
+export const CHASE_WAYS = ['close', 'open'] as const
+export type ChaseWay = (typeof CHASE_WAYS)[number]
+// combat.tex "Hiding and Terrain": "a balance, climb or swim test to
+// determine the ability to traverse".
+export const CROSSING_SKILLS = ['balance', 'climb', 'swim'] as const
+export type CrossingSkill = (typeof CROSSING_SKILLS)[number]
 // combat.tex "Skirmish", "Cover": staying in cover, untargetable, or
 // leaving it to shoot or move, partly covered.
 export const CHASE_COVERS = ['total', 'partial'] as const

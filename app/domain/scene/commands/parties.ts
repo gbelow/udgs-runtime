@@ -3,7 +3,7 @@ import type { SceneState, Updater } from '../types'
 import { addInstance, makeFightName } from '../../instances'
 import { nextPartyName } from '../../campaign/rules/parties'
 import { getOpenAction } from '../rules/log'
-import { splitChaseGroup } from './chase'
+import { getSplitChase } from '../rules/chase'
 
 // A party nobody in the fight is in any more is gone from it.
 export function dropEmptyFightParties(state: SceneState): SceneState {
@@ -51,12 +51,8 @@ export function splitOff(id: string, newId: () => string): Updater {
   return (state) => {
     if (getOpenAction(state) || !state.characters[id]) return state
     const partyId = newId()
-    return dropEmptyFightParties({
-      ...state,
-      parties: { ...state.parties, [partyId]: { name: nextPartyName(state.parties) } },
-      partyOf: { ...state.partyOf, [id]: partyId },
-      chase: splitChaseGroup(state, state.partyOf[id] ?? '', partyId),
-    })
+    const moved = { ...state, parties: { ...state.parties, [partyId]: { name: nextPartyName(state.parties) } }, partyOf: { ...state.partyOf, [id]: partyId } }
+    return dropEmptyFightParties({ ...moved, chase: getSplitChase(moved, state.partyOf[id] ?? '', partyId) })
   }
 }
 
