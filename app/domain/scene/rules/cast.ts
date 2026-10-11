@@ -22,6 +22,7 @@ import { isAreaEffect } from './explosion'
 import { getSituationalAfflictions, isSuffocating } from './situational'
 import { getMoraleDL } from './morale'
 import { getSensoryTermsOfDL } from './detection'
+import { canAimMoraleSpell, getMoraleSpell, getMoraleSpellTargets } from './moraleSpell'
 
 // spells.tex "Casting spells": what the cast produces, per character — the
 // caster's own effects to the caster, the target's to the target, nothing
@@ -277,8 +278,11 @@ export function isTargeted(root: CastAction): boolean {
 }
 
 // A linking spell aims at the one it links; a spell cast through a link
-// aims at everyone linked, picked by nobody.
+// aims at everyone linked, picked by nobody, and so does a morale spell that
+// reaches every mind the caster reaches (rules/moraleSpell.ts).
 function isTargetedSpell(key: SpellKey): boolean {
+  const morale = getMoraleSpell(key)
+  if (morale) return morale.reach === 'target'
   const link = getLinkSpell(key)
   if (link !== null) return link === key
   return SPELLS[key].type !== 'charged' && getTargetEffects(SPELLS[key].effects).length > 0
@@ -299,7 +303,7 @@ export function opensExplosion(state: SceneState, root: CastAction): boolean {
 export function canAimCast(state: SceneState, root: CastAction, targetId: string): boolean {
   const caster = state.characters[root.actorId]
   if (!caster || !isSpellKey(root.key)) return true
-  return isInSpellReach(state, root.actorId, targetId, root.key, root.extend, getCastSizeOf(caster, root))
+  return isInSpellReach(state, root.actorId, targetId, root.key, root.extend, getCastSizeOf(caster, root)) && canAimMoraleSpell(state, root, targetId)
 }
 
 // Whether every targeted effect of the spell reaches the target from where
@@ -314,28 +318,41 @@ export function isInSpellReach(state: SceneState, casterId: string, targetId: st
 // spells.tex "Telepathic Link": who the cast of a spell worked through a
 // link puts to the test — the one a linking spell aims at, or everyone the
 // link it is cast through holds ("These spells are made against all
-// targets affected by link simultaneously"). None for a cast that did not
-// hit, was cancelled, or has no test for its targets to make.
+// targets affected by link simultaneously"); combat.tex "Morale": whom a
+// morale spell calls to a morale test. None for a cast that did not hit, was
+// cancelled, or has no test for its targets to make.
 export function getSpellTestTargets(state: SceneState, root: CastAction): string[] {
   const caster = state.characters[root.actorId]
   if (!caster || !takesEffect(state, root) || !isSpellKey(root.key) || getSpellTestRoll(root.key) === null) return []
   const link = getLinkSpell(root.key)
-  if (link === null) return []
-  const targets = link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(state, root.actorId, link)
+  const targets = getMoraleSpell(root.key) ? getMoraleSpellTargets(state, root)
+    : link === null ? []
+    : link === root.key ? (root.targetId ? [root.targetId] : []) : getLinkedTargets(state, root.actorId, link)
   return targets.filter((id) => state.characters[id])
 }
 
 // The skill the spell's targets test with, as the book words the test
-// ("Charisma vs will"); null when it names none the sheet has.
+// ("Charisma vs will"), the first named; null when it names none the sheet
+// has.
 function getSpellTestRoll(key: SpellKey): keyof Skills | null {
-  const roll = SPELLS[key].test?.roll ?? ''
+  const roll = (SPELLS[key].test?.roll ?? '').split('+')[0].trim()
   return roll in skillTermGetters ? roll as keyof Skills : null
 }
 
+// The target's side of the test: their skill, and whatever else the book
+// adds to it, the caster's (spells.tex "Pacify": "morale aggravators vs will
+// + Charisma").
 export function getSpellTestSkillTerms(state: SceneState, action: SpellTestAction): Term[] {
   const target = action.targetId ? state.characters[action.targetId] : undefined
+  const caster = state.characters[action.actorId]
   const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
-  return target && roll ? skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)) : []
+  if (!target || !roll || !isSpellKey(action.key)) return []
+  const test = SPELLS[action.key].test
+  const added = (test?.roll ?? '').split('+').slice(1).map((t) => t.trim()).filter(Boolean)
+  return [
+    ...skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)),
+    ...(caster && test ? added.map((label) => ({ label: `caster's ${label}`, value: resolveDL(caster, label, test.roll).value ?? 0 })) : []),
+  ]
 }
 
 // The caster's side of the test, term by term: the book's "Charisma" resolved
@@ -394,5 +411,5 @@ export function getLinkOutcome(state: SceneState, root: SpellTestAction): LinkOu
 // spells.tex "Telepathic Link": "or with anyone who allows the link" — a
 // willing target takes the test's effects without rolling for it.
 export function canAcceptSpellTest(action: SpellTestAction): boolean {
-  return action.step === 'react' && !action.accepted
+  return action.step === 'react' && !action.accepted && isSpellKey(action.key) && getLinkSpell(action.key) !== null
 }

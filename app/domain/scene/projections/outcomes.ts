@@ -1,4 +1,4 @@
-import type { Action, ActionRoll, SceneState, DragFacts } from '../types'
+import type { Action, ActionRoll, SceneState, DragFacts, MoraleSpellOutcome } from '../types'
 import type { Effect, Item } from '../../types'
 import type { Outcome, OutcomeStep } from '../../character/rules/damage'
 import { getBrokenItems } from '../rules/breakage'
@@ -71,12 +71,25 @@ function getRootNotes(state: SceneState, root: Action, named: (id: string) => st
 }
 
 // spells.tex "Telepathic Link": whether the test left the target linked to
-// the caster, or broke the link.
+// the caster, or broke the link; combat.tex "Morale": what a morale spell's
+// test left the target, and the limit stress action it compels.
 function spellTestNotes(root: Extract<Action, { kind: 'spellTest' }>, named: (id: string) => string): { target: string; text: string }[] {
+  const morale = root.morale && root.targetId ? [{ target: named(root.targetId), text: getMoraleNote(root.morale, named(root.actorId)) }] : []
   const link = isSpellKey(root.key) ? getLinkSpell(root.key) : null
-  if (!root.targetId || (!root.roll && !root.accepted) || link === null) return []
-  if (isSpellTestBeaten(root)) return [{ target: named(root.targetId), text: link === root.key ? 'resists the link' : 'breaks the link' }]
-  return link === root.key ? [{ target: named(root.targetId), text: `linked to ${named(root.actorId)}` }] : []
+  if (!root.targetId || (!root.roll && !root.accepted) || link === null) return morale
+  if (isSpellTestBeaten(root)) return [...morale, { target: named(root.targetId), text: link === root.key ? 'resists the link' : 'breaks the link' }]
+  return link === root.key ? [{ target: named(root.targetId), text: `linked to ${named(root.actorId)}` }] : morale
+}
+
+function getMoraleNote(outcome: MoraleSpellOutcome, caster: string): string {
+  const bond = outcome.constraint === 'attack' ? `, attacking only ${caster}` : outcome.constraint === 'flee' ? `, running from ${caster}` : ''
+  const parts = [
+    ...(outcome.inflict.length > 0 ? [outcome.inflict.join(', ')] : []),
+    ...(outcome.compel ? [`compelled: ${outcome.compel}${bond}`] : []),
+    ...(outcome.pacified ? ['owes no limit stress action'] : []),
+    ...(outcome.inflict.length === 0 && outcome.cure.length > 0 ? [`no longer ${outcome.cure.join(' or ')}`] : []),
+  ]
+  return parts.length > 0 ? parts.join('; ') : 'no effect'
 }
 
 function dragNotes(facts: DragFacts, named: (id: string) => string): { target: string; text: string }[] {

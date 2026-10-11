@@ -86,6 +86,8 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (target) h.click({ on: 'token', id: target.id })
   const named = h.state().board ? null : first(panel().targets)
   if (named) h.press(setTarget(named.id))
+  const suggested = first(panel().open?.suggestion?.options ?? [])
+  if (suggested) h.press(amendAction({ suggested }))
   const there = first(highlighted(h))
   if (there) h.click({ on: 'cell', cell: there.cell })
   h.commit()
@@ -212,6 +214,7 @@ function plays(): Play[] {
     { name: 'pick a maneuver', run: (h, pick) => h.press(amendAction({ maneuver: pick(GRAPPLE_MANEUVERS) })) },
     { name: 'choose a spell', weight: 3, run: (h, pick) => { const spells = getActionPanel(h.state()).spells.filter((s) => s.castable || s.quickenable); if (spells.length) { const s = pick(spells); h.press(chooseSpell(s.key, !s.castable || (s.quickenable && pick([true, false])))) } } },
     { name: 'pick a potion', run: (h, pick) => { const potions = getActionPanel(h.state()).open?.potions ?? []; if (potions.length) h.press(amendAction({ itemId: pick(potions).itemId })) } },
+    { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.press(amendAction({ suggested: pick(options) })) } },
     { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.press(amendAction({ itemId: pick(gear).itemId })) } },
     { name: 'extend a spell', run: (h, pick) => h.press(stepExtend(pick([1, -1] as const))) },
     { name: 'accept a spell test', run: (h) => h.press(acceptSpellTest(h.newId)) },

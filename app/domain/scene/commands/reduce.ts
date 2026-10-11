@@ -133,8 +133,13 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           return spell.type === 'charged' ? chargeItem(action.key, action.improved, action.itemId, action.chargeItemId)(delivered) : delivered
         }
         // spells.tex "Telepathic Link": what the test let through lands on
-        // the target
-        if (action.kind === 'spellTest') return deliverAll(action.facts?.[c.id] ?? [])(c)
+        // the target, and what a morale spell's test left them (combat.tex
+        // "Morale")
+        if (action.kind === 'spellTest') {
+          const delivered = deliverAll(action.facts?.[c.id] ?? [])(c)
+          const morale = c.id === action.targetId ? action.morale : null
+          return morale ? inflict(morale.inflict)(cure(morale.cure)(delivered)) : delivered
+        }
         // combat.tex "Balance": what the landing did to the one who fell
         if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)

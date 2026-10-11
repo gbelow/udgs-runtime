@@ -31,7 +31,7 @@ describe('limit stress turns', () => {
   it('are taken before anyone else’s, the worst morale test first', () => {
     const state = oweStress(tested([fighter('a', { limitStress: 'coward' }), fighter('b', { limitStress: 'coward' }), fighter('c', { limitStress: 'coward' })], [1, 5, 3]))
 
-    expect(state.stress.map((t) => t.id)).toEqual(['b', 'c', 'a'])
+    expect(state.compulsions.map((t) => t.id)).toEqual(['b', 'c', 'a'])
     expect(state.inTurnCharacter).toBe('b')
     expect(getStartTurnBar(state, 'a')).not.toBeNull()
   })
@@ -53,7 +53,7 @@ describe('limit stress turns', () => {
   it('make an enraged martyr violent', () => {
     const state = oweStress(tested([fighter('a', { limitStress: 'martyr', afflictions: ['enraged'] })], [1]))
 
-    expect(state.stress.map((t) => t.action)).toEqual(['violent'])
+    expect(state.compulsions.map((t) => t.action)).toEqual(['violent'])
   })
 
   it('make a martyr’s reaction surge at once, with no turn to take', () => {

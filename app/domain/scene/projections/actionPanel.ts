@@ -22,6 +22,8 @@ import type { Outcome } from '../../character/rules/damage'
 import { ChargeOption, findObject, getBlastOf, getChargeOptions, getExplosionAreas, isAimable, isSpray } from '../rules/explosion'
 import { MovementOption, ReachableCell, getMovementOptions } from '../rules/move'
 import { getReachableCells } from '../rules/board/reach'
+import { getMoraleSpell, getSuggestible } from '../rules/moraleSpell'
+import type { LimitStressAction } from '../../lists'
 import { getClimbModes, getClimbSteps } from '../rules/board/cliff'
 import { hasGrant } from '../../character/rules/effects'
 import type { RollMode } from '../../play/dice'
@@ -186,6 +188,9 @@ export type OpenActionView = {
   castItemId: string
   // the object a charged spell goes into when that is not its gear
   chargeItemId: string
+  // spells.tex "Suggestion": the limit stress actions the target may be
+  // given, and the one picked; null for any other spell
+  suggestion: { options: LimitStressAction[]; picked: LimitStressAction | null } | null
   // the declaration a move has made so far
   movement: MoveKind
   path: Coord[]
@@ -410,6 +415,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       extend: cast ? { times: cast.extend, DL: cast.extend * EXTEND.DL } : null,
       castItemId: gear?.itemId ?? '',
       chargeItemId: gear?.chargeItemId ?? '',
+      suggestion: cast && getMoraleSpell(cast.key)?.compels === 'suggested' ? { options: cast.targetId ? getSuggestible(state, cast.targetId) : [], picked: cast.suggested } : null,
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       mode: open.kind === 'move' ? open.mode : 'normal',

@@ -18,7 +18,10 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   (`openSpellTests`); the target's die against the caster's side of the spell's test links
   them on a miss or graze, and a hit or better breaks the link; a willing target may take
   it without a die (`acceptSpellTest`), as a miss. What lands on the target is the spell's
-  `outcomes` entry for their own degree (`getSpellTestFacts` → `produceOutcome`).
+  `outcomes` entry for their own degree (`getSpellTestFacts` → `produceOutcome`). A morale
+  spell (`rules/moraleSpell.ts`) opens the same `spellTest` without a link; its degree is a
+  morale test's, settled onto the test as `morale` and landed by `reduceCharacter` and
+  `compelByTest`.
   Everything a cast produces — its facts, the explosion it opens, a charge, its spell
   tests — is made at the cast's size (`getCastSizeOf`): the caster's own, or the
   environment's for shamanism, one up per amplification, capped at its item's size + 1. A

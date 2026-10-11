@@ -7,6 +7,7 @@ import { getHoldBackFacts, getManeuverFacts, getReleaseFacts } from './grapple'
 import { getDragFacts } from './drag'
 import { getExplosionFacts, getExplosionPayload, getTerrainPaint } from './explosion'
 import { getCastFacts, getSpellTestFacts, isFailedCast } from './cast'
+import { getMoraleSpellOutcome } from './moraleSpell'
 import { getMoveFacts } from './move'
 import { getFallFacts } from './fall'
 import { isVoided } from './opportunity'
@@ -67,7 +68,7 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     case 'blast': return withBreaks(state, { ...open, step: 'done', facts: getExplosionFacts(state, open, open.spawnedBy), paint: getTerrainPaint(state, open) })
     case 'cast': return withBreaks(state, { ...open, step: 'done', failed: isFailedCast(state, open), facts: getCastFacts(state, open) })
     case 'fireAgain': return withBreaks(state, { ...open, step: 'done', facts: getFireAgainFacts(state, open) })
-    case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open) }
+    case 'spellTest': return { ...open, step: 'done', facts: getSpellTestFacts(state, open), morale: getMoraleSpellOutcome(state, open) }
     case 'move': return { ...open, step: 'done', facts: getMoveFacts(state, open) }
     case 'fleeFollowUp': return { ...open, step: 'done' }
     case 'fall': return { ...open, step: 'done', facts: getFallFacts(state, open) }

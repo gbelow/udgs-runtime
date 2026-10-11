@@ -33,6 +33,8 @@ import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './thro
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
+import { isSuggestionComplete } from './moraleSpell'
+import { isCompelledAway, isCompelledTarget } from './stress'
 import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
@@ -69,11 +71,11 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
         && (action.source !== 'detonate' || getChargeOptions(state, action).some((o) => o.itemId === action.itemId))
         && isAimed(state, action)
     case 'cast':
-      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken) && getSpellBoardBar(state, c, action.key) === null
+      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken) && getSpellBoardBar(state, c, action.key) === null && isSuggestionComplete(state, action)
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':
-      return isPathLegal(state, action) && isRepositionPlaced(state, action)
+      return isPathLegal(state, action) && isRepositionPlaced(state, action) && isCompelledAway(state, action, action.path.at(-1))
     case 'block':
     case 'intercept': {
       const row = findWeaponRow(c, action.weaponKey, action.attack)
@@ -635,9 +637,10 @@ export function needsTarget(action: Action): boolean {
 // ground, a change from snipe to quick shot) drops off this list and has to
 // be aimed at again. A sweep meets nobody fallen, and nobody twice
 // (combat.tex "Sweeping Attack"). Nobody can be aimed at whom the actor has
-// not detected (combat.tex "Stealth in combat").
+// not detected (combat.tex "Stealth in combat"). One compelled to attack
+// a caster aims at nobody else (rules/stress.ts).
 export function getTargetIds(state: SceneState, root: RootAction): string[] {
-  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id) && !isSheltered(state, root.actorId, id))
+  return getAimableIds(state, root).filter((id) => notices(state, root.actorId, id) && !isSheltered(state, root.actorId, id) && isCompelledTarget(state, root.actorId, id))
 }
 
 function getAimableIds(state: SceneState, root: RootAction): string[] {

@@ -128,6 +128,17 @@ export function ActionPanel(){
       ) : null}
       <GearPicker label='with' options={view.gear} selected={open.castItemId} onPick={(itemId) => amend({ itemId })} />
       <GearPicker label='charge into' options={view.chargeInto} selected={open.chargeItemId} onPick={(chargeItemId) => amend({ chargeItemId })} />
+      {open.suggestion && !locked ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>suggest</SectionLabel>
+          {open.suggestion.options.length === 0 ? <span className='text-xs text-muted'>pick a target who is afraid, enraged or confused</span> : null}
+          {open.suggestion.options.map((a) =>
+            <Button key={a} size='xs' variant={a === open.suggestion?.picked ? 'primary' : 'default'} className={a === open.suggestion?.picked ? 'bg-accent/15' : ''}
+              onClick={() => amend({ suggested: a })}>
+              {a}
+            </Button>)}
+        </div>
+      ) : null}
       {open.spell && !locked ? <div className='text-xs text-muted'>{open.spell}{open.quicken ? ' · quickened' : ''} <Cost cost={open.cost} /></div> : null}
       {open.spell && open.extend && !locked ? (
         <div className='flex flex-row gap-1 items-center text-xs'>

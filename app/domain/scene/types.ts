@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
+import { AfflictionKeySchema, CampaignCharacterSchema, CoordSchema, type Coord, DegreeSchema, SensesSchema, DeliverySchema, FuelSchema, ItemSchema, SpellEffectSchema, HitLocationSchema, InterruptionSchema, MoveKindSchema, MovementKindSchema, OutcomeSchema, OutcomeStepSchema, SurgeKindSchema, VisibilitySchema } from '../types'
 import { CHASE_COVERS, CHASE_MOVES, CHASE_ROLES, CHASE_TIERS, CHASE_WAYS, GRAPPLE_AFFLICTIONS, GRAPPLE_MANEUVERS, HELD_TESTS, HOP_PURCHASES, LIGHT_LEVELS, LIMIT_STRESS_ACTIONS, PUSH_MOVEMENTS } from '../lists'
 import { PRESSURE_KINDS, SPELL_MODIFICATIONS } from '../tables'
 import type { ACTIONS } from './rules/actionCatalog'
@@ -600,6 +600,8 @@ export const CastActionSchema = z.object({
   // a hit that did nothing, written when it lands: short of the
   // amplifications or the range its HOP had to buy
   failed: z.boolean().default(false),
+  // spells.tex "Suggestion": the limit stress action suggested to the target
+  suggested: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
@@ -622,6 +624,25 @@ export const FireAgainActionSchema = z.object({
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
 
+// combat.tex "Compulsions": what a spell may bind a compelled action to —
+// attacking its caster, or running from them.
+export const COMPULSION_CONSTRAINTS = ['attack', 'flee'] as const
+export type CompulsionConstraint = (typeof COMPULSION_CONSTRAINTS)[number]
+
+// combat.tex "Morale": what a spell whose test is a morale test (spells.tex
+// "Frighten", "Offend", "Pacify", "Suggestion", "Overwhelming Terror",
+// "Provocative Mockery") left its target, written when it lands: the
+// afflictions it ends and leaves, the limit stress action it compels at once
+// and what binds it, and whether it took back one still owed (Pacify).
+export const MoraleSpellOutcomeSchema = z.object({
+  cure: z.array(AfflictionKeySchema).default([]),
+  inflict: z.array(AfflictionKeySchema).default([]),
+  compel: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
+  constraint: z.enum(COMPULSION_CONSTRAINTS).nullable().default(null),
+  pacified: z.boolean().default(false),
+}).strip()
+export type MoraleSpellOutcome = z.infer<typeof MoraleSpellOutcomeSchema>
+
 // spells.tex "Telepathic Link": the test one target of a spell worked through
 // a link makes against it, opened by the cast once it hit — the caster's
 // action, the target's die. `accepted` is a target who takes it without a
@@ -633,6 +654,7 @@ export const SpellTestActionSchema = z.object({
   key: str.default(''),
   accepted: z.boolean().default(false),
   facts: DeliveriesSchema.nullable().default(null),
+  morale: MoraleSpellOutcomeSchema.nullable().default(null),
 }).strip()
 
 // combat.tex "Defend": the four active defenses, each a reaction to a strike.
@@ -1226,18 +1248,22 @@ export const PressureSchema = z.object({
 })
 export type Pressure = z.infer<typeof PressureSchema>
 
-// creating.tex "Limit Stress Actions": a character a miss in the morale test
-// owes their limit stress action, `action` as it stands after the book's
-// substitutions (a martyr who is enraged is violent; an abusive or a traitor
-// the table finds nobody for is a coward). `acted` is whether the social
-// action it compels has been taken; `taken` whether their turn for it is over.
-export const StressTurnSchema = z.object({
+// combat.tex "Compulsions": a character a miss in a morale test owes their
+// limit stress action, `action` as it stands after the book's substitutions
+// (a martyr who is enraged is violent; an abusive or a traitor the table finds
+// nobody for is a coward). `acted` is whether the social action it compels has
+// been taken; `taken` whether their turn for it is over. `by` is the caster
+// whose spell the test was ('' for the round's own test), and `constraint`
+// what the spell binds the action to.
+export const CompulsionSchema = z.object({
   id: z.string(),
   action: z.enum(LIMIT_STRESS_ACTIONS),
   acted: z.boolean().default(false),
   taken: z.boolean().default(false),
+  by: z.string().default(''),
+  constraint: z.enum(COMPULSION_CONSTRAINTS).nullable().default(null),
 })
-export type StressTurn = z.infer<typeof StressTurnSchema>
+export type Compulsion = z.infer<typeof CompulsionSchema>
 export type MoraleRoll = z.infer<typeof MoraleRollSchema>
 export type MoraleCall = z.infer<typeof MoraleCallSchema>
 
@@ -1406,10 +1432,11 @@ export const SceneStateSchema = z.object({
   // combat.tex "Morale": who the beginning of this round called to a test, and
   // the tests made
   morale: z.array(MoraleCallSchema).default([]),
-  // creating.tex "Limit Stress Actions": the limit stress actions the morale
-  // tests activated, the worst test first — each taken as a turn before
-  // anyone else's, and kept to the round's end for what a martyr still owes
-  stress: z.array(StressTurnSchema).default([]),
+  // combat.tex "Compulsions": the limit stress actions the morale tests
+  // activated, the worst test first, and those a spell's test activated, as
+  // they landed — each taken as a turn before anyone else's, and kept to the
+  // round's end for what a martyr still owes
+  compulsions: z.array(CompulsionSchema).default([]),
   // The tests called or made once for the round, kept to the round's end
   heldTests: z.array(HeldTestSchema).default([]),
   // The round's turns something has been committed in, by the number its

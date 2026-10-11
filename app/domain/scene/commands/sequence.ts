@@ -21,9 +21,11 @@ import { getTurnHolder } from '../rules/turn'
 import { getHeldRoll } from '../rules/heldRoll'
 import { isHeldCalled } from '../rules/heldTest'
 import { getFeinted } from '../rules/feint'
+import { getNextStress } from '../rules/stress'
 import { appendActions, applyPhase, replaceActions, withdrawActions } from './log'
 import { closeTurn } from './closeTurn'
 import { getResults } from './results'
+import { compelByTest } from './stress'
 import { getHiddenFrom } from '../rules/stealth'
 
 // What carries the fight on between the commands. Every action runs
@@ -42,7 +44,7 @@ import { getHiddenFrom } from '../rules/stealth'
 // it, the turn goes to whoever is due to flee.
 export function advance(state: SceneState, newId: () => string): SceneState {
   const top = getOpenAction(state)
-  if (!top) return handOverToFleers(state)
+  if (!top) return handOverToFleers(handOverToCompelled(state))
   if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
@@ -59,7 +61,8 @@ export function land(state: SceneState, open: RootAction, newId: () => string): 
   const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
-  return advance(appendActions(resolved.kind === 'feint' ? forceSurge(fled, resolved) : fled, followUps), newId)
+  const forced = resolved.kind === 'feint' ? forceSurge(fled, resolved) : resolved.kind === 'spellTest' ? compelByTest(fled, resolved) : fled
+  return advance(appendActions(forced, followUps), newId)
 }
 
 // combat.tex "Turns and Actions" ("Feint"): the one the test went against "is
@@ -73,6 +76,19 @@ function forceSurge(state: SceneState, feint: FeintAction): SceneState {
   if (holder === feinted) return { ...state, forcedSurge: feinted }
   const ended = holder ? closeTurn(state, holder) : state
   return { ...beginTurn(ended, feinted), forcedSurge: feinted }
+}
+
+// combat.tex "Compulsions": "They must occur immediately" — a limit stress
+// action a spell's test activated is taken as a feint's surge is (the
+// table's ruling), once nothing is being played out: whoever holds the turn
+// ends it, a compelled turn of their own with it, and the compelled begins
+// theirs.
+function handOverToCompelled(state: SceneState): SceneState {
+  const next = getNextStress(state)
+  const holder = getTurnHolder(state)
+  if (!next || next.by === '' || holder === next.id) return state
+  const settled = holder ? { ...state, compulsions: state.compulsions.map((t) => (t.id === holder && !t.taken ? { ...t, taken: true } : t)) } : state
+  return beginTurn(holder ? closeTurn(settled, holder) : settled, next.id)
 }
 
 // The character's turn begins: nobody has asked to contest it yet, and it

@@ -45,11 +45,16 @@ export function crossbowman(id: string): CampaignCharacter {
 }
 
 // A caster holding a flamethrower (spells.tex "Flamethrower"), the focus surge
-// spent, with the spells that ask for nothing in hand besides.
+// spent, with the spells that ask for nothing in hand besides, the morale
+// spells among them, and synesthesia for those that reach every mind it takes
+// in (abilities.tex "Synesthesia").
 export function mage(id: string): CampaignCharacter {
   const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
-  const known = Object.fromEntries(['flamethrower', 'telepathic-link', 'pain', 'frighten', 'sleep'].map((key) => [key, { method: 'intuitive' as const, practice: 6 }]))
-  return { ...holdItem(flamethrower)(fighter(id)), spells: known, usedSurge: 'focus' }
+  const spells = ['flamethrower', 'telepathic-link', 'pain', 'sleep', 'frighten', 'offend', 'pacify', 'suggestion', 'overwhelming-terror', 'provocative-mockery']
+  const known = Object.fromEntries(spells.map((key) => [key, { method: 'intuitive' as const, practice: 6 }]))
+  const caster = fighter(id)
+  const senses = { ...caster.senses, synesthesia: { ...caster.senses.synesthesia, hasSense: true, range: 10 } }
+  return { ...holdItem(flamethrower)({ ...caster, senses }), spells: known, usedSurge: 'focus' }
 }
 
 // A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II").

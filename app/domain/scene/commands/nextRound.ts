@@ -47,7 +47,7 @@ function endRound(state: SceneState, c: CampaignCharacter, dice: Dice): Campaign
   const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(payHeldSources(() => rollPercent(dice))(c))))
   const spent = expireUsedAbilities(burnt)
   const due = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
-  const woken = state.stress.some((t) => t.id === c.id && t.action === 'tanatosis') ? cure(['unconscious'])(due) : due
+  const woken = state.compulsions.some((t) => t.id === c.id && t.action === 'tanatosis') ? cure(['unconscious'])(due) : due
   const reset = resetAP({ ...woken, usedSurge: null })
   if (!isConcentrating(reset)) return reset
   return canSurge('focus')(reset) ? actionSurge('focus')(reset) : loseConcentration(reset)
@@ -63,7 +63,7 @@ function endRound(state: SceneState, c: CampaignCharacter, dice: Dice): Campaign
 export function nextRound(dice: Dice, newId: () => string): (state: SceneState) => SceneState {
   return (state) => {
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
-    const next = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], stress: [] }
+    const next = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], compulsions: [] }
     const called = rollStealth({ ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }, dice)
     return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
   }
