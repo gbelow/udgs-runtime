@@ -24,6 +24,8 @@ export function ChasePanel(){
         <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
         {chase.chasing ? <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span> : null}
         {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
+        {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
+        {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
         {chase.chasing ? <Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} title={chase.endBar ?? undefined} onClick={endChase}>end chase</Button> : null}
       </div>
       {
@@ -100,7 +102,7 @@ function GroupRow({ group: g, tiers }: { group: ChaseGroupRow; tiers: readonly C
         </div>
         : null
       }
-      {g.runBar && !g.run && !g.caught.length && !g.escaped && !g.fighting ? <span className='text-muted'>cannot run: {g.runBar}</span> : null}
+      <span className='text-accent'>next: {g.next}</span>
       {g.caught.map((reason) => <span key={reason} className='text-bad'>caught: {reason}</span>)}
       {
         g.run ?

@@ -2,7 +2,7 @@ import type { SceneState } from '../types'
 import { CHASE_COVERS, CHASE_TIERS, SKIRMISH_STANCES, type ChaseCover, type ChaseSide, type ChaseTier, type SkirmishStance } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
-import { getFightBusy } from '../rules/turn'
+import { getFightBusy, getNextRoundBar } from '../rules/turn'
 import { getCaught, getChaseWays, getFightFirst, getFollowBar, getFollowed, getFollowers, getJoinBar, getMembers, getPairGroup, getPursuerParties, getQuarryGroups, getRoundSeconds, getRunBar, getRunners, getSkirmishAP, getStanceBar, type ChaseWay } from '../rules/chase'
 
 export type ChaseRunnerRow = { id: string; name: string; side: ChaseSide; speed: number; slowest: boolean }
@@ -27,6 +27,8 @@ export type ChaseGroupRow = {
   runBar: string | null
   run: { tier: ChaseTier; quarry: number; pursuers: number; winner: ChaseSide | 'draw'; coin: number | null; runners: ChaseRunnerRow[] } | null
   ways: ChaseWay[]
+  // what the table does next for the group
+  next: string
 }
 
 // A party in the chase: the group it follows and the ones it could follow
@@ -58,6 +60,10 @@ export type ChasePanel = {
   fightFirst: string | null
   // why the chase cannot be ended now
   endBar: string | null
+  // what the table does next, before any group's own step
+  next: string | null
+  // why the round cannot end yet
+  roundBar: string | null
   stances: readonly SkirmishStance[]
   // combat.tex "Cover": everyone in the chase and the cover the table gives them
   covers: readonly ChaseCover[]
@@ -74,6 +80,24 @@ function clock(seconds: number): string {
 }
 
 const partyName = (state: SceneState, id: string) => state.parties[id]?.name || 'no name'
+
+// What the table does next for the group, in the order a chase round goes:
+// run or skirmish, the winner's way, the round played out, the next round.
+function getGroupNext(state: SceneState, id: string, followers: string[]): string {
+  const chase = state.chase!
+  const g = chase.groups[id]
+  const endRound = 'everyone ends their turn and agrees to end the round, then next round'
+  if (g.escaped) return 'they got away'
+  if (g.fighting) return 'fight it out; run again if they break away, or end the chase'
+  if (g.run && !g.run.chosen) return `${g.run.winner === 'quarry' ? state.parties[id]?.name || 'the quarry' : followers.join(', ') || 'the pursuers'} won: close in or pull away`
+  if (g.run && g.tier === 'combat') return `routing: everyone takes turns with their AP, the pursuers at +2; ${endRound}`
+  if (g.run) return endRound
+  if ([id, ...getFollowers(state, id)].some((p) => chase.stances[p])) return 'skirmish: each party below picks shoot or approach, then everyone takes turns with the AP shown'
+  const bar = getRunBar(state, id)
+  if (bar === 'nobody follows them') return 'nobody follows them: pick a pursuer below to follow, or they drift away'
+  if (bar) return bar
+  return g.tier === 'shooting' || g.tier === 'far' ? 'run, or pick skirmish stances below' : 'run'
+}
 
 function buildGroupRow(state: SceneState, id: string): ChaseGroupRow {
   const chase = state.chase!
@@ -103,6 +127,7 @@ function buildGroupRow(state: SceneState, id: string): ChaseGroupRow {
       }),
     },
     ways: getChaseWays(state, id),
+    next: getGroupNext(state, id, getFollowers(state, id).map((p) => partyName(state, p))),
   }
 }
 
@@ -141,6 +166,9 @@ function buildChasePanel(state: SceneState): ChasePanel {
     ] : [],
     fightFirst: chase ? getFightFirst(state) : null,
     endBar: getFightBusy(state),
+    next: !chase ? 'tick the parties running away, pick how far apart they start, and start the chase'
+      : state.round === 0 ? 'press start combat to begin the first round' : null,
+    roundBar: chase && state.round > 0 ? getNextRoundBar(state) : null,
     stances: SKIRMISH_STANCES,
     covers: CHASE_COVERS,
     runners: chase ? (['quarry', 'pursuers'] as const).flatMap((side) => getRunners(state, side).map((c) => ({ id: c.id, name: getFightName(state, c.id), side, cover: chase.cover[c.id] ?? null }))) : [],
