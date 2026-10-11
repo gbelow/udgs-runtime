@@ -57,10 +57,14 @@ export function mage(id: string): CampaignCharacter {
   return { ...holdItem(flamethrower)({ ...caster, senses }), spells: known, usedSurge: 'focus' }
 }
 
-// A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II").
+// A fighter with a gauntlet in hand, which grabs (gear.tex "Grapple I/II"),
+// and the spirit to launch a spiritual attack with a blow that others mostly
+// fail to beat (abilities.tex "Martial Spirit").
 export function brawler(id: string): CampaignCharacter {
   const gauntlet = ItemSchema.parse({ name: 'Gauntlet', type: 'weapon', refId: 'Gauntlet', bulk: 1 })
-  return holdItem(gauntlet)(fighter(id))
+  const base = fighter(id)
+  const spirited = { ...base, trainables: { ...base.trainables, SPI: { ...base.trainables.SPI, value: 8 } } }
+  return grantAbility('martial-spirit')(holdItem(gauntlet)(spirited))
 }
 
 // A brawler of size 4 whose three cells bend behind its head, a footprint no

@@ -23,6 +23,8 @@ import { getCover, getPlacedFootprint, toDamageWall } from './board/board'
 import { canGrab, getGrabFacts } from './grapple'
 import { isSweepLink } from './sweep'
 import { getSpiritBlow } from '../../character/rules/spirit'
+import { getStrikeSpirit } from './martialSpirit'
+import { passesCondition, strongerInterruption } from '../../character/rules/damage'
 
 // ---------------------------------------------------------------------------
 // The attacker's side: what an attack delivers, as a damage effect with the
@@ -151,7 +153,8 @@ export function getAttackFacts(state: SceneState, root: AttackAction): Delivery 
   const buyer: Buyer = { state, root, attacker, weapon: row.weapon, properties, edge: row.wielded.edge }
   const bought = HOP_PURCHASES.reduce((d, p) => ((root.spent[p] ?? 0) > 0 ? HOP_TRANSFORMS[p](d, root.spent[p]!, buyer) : d), base)
   const followUps = charge.filter((e) => e.type !== 'damage').map((e) => produceSpellEffect(attacker, e))
-  return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: followUps }
+  const spirit = root.kind === 'strike' ? getStrikeSpirit(state, root) : []
+  return { ...delivering(`${row.weapon.name} ${row.atk.name}`, bought, root.roll.degree), then: [...followUps, ...spirit] }
 }
 
 // combat.tex "Cover": a wall that breaks between a shot's shooter and its
@@ -184,10 +187,17 @@ export function getInterruption(state: SceneState, root: AttackAction, facts: De
   return facts && target ? getDeliveryInterruption(facts, target) : 'none'
 }
 
-// What a delivery does to the own action of the one it lands on.
+// What a delivery does to the own action of the one it lands on: the
+// stronger of its own and what follows it (abilities.tex "Martial Spirit":
+// the blow and the spiritual attack it carries), each follow-up that decides
+// nothing for itself as hard as its parent.
 export function getDeliveryInterruption(delivery: Delivery, target: Character): Interruption {
-  if (delivery.effect.type === 'spirit') return getSpiritBlow(delivery.effect.effect, delivery.degree)?.interruption ?? 'none'
-  return outcomeOf(delivery, target)?.interruption ?? 'none'
+  const outcome = outcomeOf(delivery, target)
+  const own = delivery.effect.type === 'spirit' ? getSpiritBlow(delivery.effect.effect, delivery.degree)?.interruption ?? 'none' : outcome?.interruption ?? 'none'
+  return delivery.then
+    .filter((next) => passesCondition(next.when, outcome))
+    .map((next) => getDeliveryInterruption(next.degree === null && next.test === null ? { ...next, degree: delivery.degree } : next, target))
+    .reduce(strongerInterruption, own)
 }
 
 // What a strike's landing did beyond its damage, written at the resolve:

@@ -154,8 +154,8 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **roll / pay** (`payAll`) — first, a prepared defense's reposition is walked (`repositionDefenders`) and the die waits; then prices the root and every reaction off their actors as they
   stand, throws the root's die and each reaction's own die (in declaration order), and
   takes every price, all in one update: no state exists where a die is known and its price
-  unpaid. A cast or a held spell fired again also throws its target's die (`targetDice`,
-  `rules/tested.ts`), read when it lands. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
+  unpaid. A cast, a held spell fired again and a strike carrying a spiritual attack also
+  throw their target's die (`targetDice`, `rules/tested.ts`), read when they land. The root goes to `post`, its reactions to `done`. Refused as a whole if anyone
   cannot pay.
 - **post** — choices made once the result is known; each only edits the rolled record and
   is reversible (except `saveGraze`, whose price is paid as it is bought).
@@ -318,7 +318,8 @@ app/domain/scene/
 │   ├── openers.ts      REACTION_OPENERS: what each reaction opens, before or after
 │   ├── settle.ts       getSettled: an action as it lands
 │   ├── interruption.ts getInterruptions, isBroken; getInterruptionBy: the strongest of what a landed action did to someone's own action (its blow, a shot group's, a crash, its deliveries), read by isInterruptedBy and the stun escapes
-│   ├── tested.ts       the tests a landing action's instant deliveries leave their targets, rolled with the dice they threw with it
+│   ├── tested.ts       the tests a landing action's instant deliveries leave their targets (and what follows a strike's blow), rolled with the dice they threw with it
+│   ├── martialSpirit.ts a spiritual attack launched with a strike (abilities.tex "Martial Spirit"): who may, its STA, the attack a hit carries in the blow's `then`
 │   ├── opportunity.ts  opportunity attacks: board state while fought, stops, giving up, isVoided
 │   ├── coordinated.ts  joined shots: the lead, the group, the shot a join opens
 │   ├── counter.ts      the contested-reaction pipeline: counterattack slot (before / tie / after) and its strike

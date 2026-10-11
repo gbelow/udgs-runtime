@@ -1,10 +1,10 @@
-import { DamageSchema, type CampaignCharacter, type Condition, type Degree, type Delivery, type SpiritBlow } from '../../types'
+import { DamageSchema, type CampaignCharacter, type Degree, type Delivery, type Interruption, type SpiritBlow } from '../../types'
 import { STUN_AP } from '../../tables'
 import { breaksOn } from '../rules/breakage'
 import { breakItem } from '../../item/commands/items'
 import { SPELLS, isSpellKey } from '../../spells'
 import { getCurses } from '../rules/curses'
-import { Outcome, getOutcome } from '../rules/damage'
+import { Outcome, getOutcome, passesCondition } from '../rules/damage'
 import { skillLenses } from '../lenses'
 import { getSpiritBlow, getTestRollTerms } from '../rules/spirit'
 import { sumTerms } from '../rules/terms'
@@ -27,7 +27,7 @@ import { loseConcentration } from './spells'
 // suppressions are never applied: they are read off the catalogs for as
 // long as their source is in effect; what goes to the ground is the
 // board's.
-export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignCharacter {
+export function deliver(delivery: Delivery, parent: Outcome | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     if (delivery.degree === null && delivery.test !== null) return { ...c, pending: [...c.pending, delivery] }
     const degree = delivery.degree ?? 'hit'
@@ -48,7 +48,7 @@ export function deliver(delivery: Delivery): (c: CampaignCharacter) => CampaignC
       case 'affliction':
         return follow(delivery, degree, null)(inflict([effect.effect.key])(c))
       case 'spirit':
-        return follow(delivery, degree, null)(takeSpiritBlow(getSpiritBlow(effect.effect, degree))(c))
+        return follow(delivery, degree, null)(takeSpiritBlow(getSpiritBlow(effect.effect, degree), parent?.interruption ?? 'none')(c))
       case 'buff':
       case 'suppression':
       case 'terrain':
@@ -90,20 +90,12 @@ export function resolvePending(index: number, dice: Dice): (c: CampaignCharacter
   }
 }
 
-// combat.tex "Cutting damage": poison lands "when damage is at least T0" —
-// what a follow-up asks of its parent's outcome before it is delivered.
-function passes(when: Condition | null, outcome: Outcome | null): boolean {
-  if (when === null) return true
-  if (when.minTier !== null && (outcome === null || outcome.tier === null || outcome.tier < when.minTier)) return false
-  return true
-}
-
 // A follow-up that decides nothing for itself lands as hard as its parent.
 function follow(delivery: Delivery, degree: Degree, outcome: Outcome | null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) =>
     delivery.then
-      .filter((next) => passes(next.when, outcome))
-      .reduce((acc, next) => deliver(next.degree === null && next.test === null ? { ...next, degree } : next)(acc), c)
+      .filter((next) => passesCondition(next.when, outcome))
+      .reduce((acc, next) => deliver(next.degree === null && next.test === null ? { ...next, degree } : next, outcome)(acc), c)
 }
 
 // combat.tex "Injury level", "Bleed", "Wounds", "Interruption": the injury
@@ -136,14 +128,15 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
 // spells.tex "Spiritual Strike": the STA the blow takes is lost, not spent,
 // so it does not bleed, and it stops at none (combat.tex "Negative STA":
 // "only as a result of suffocation"); its interruption ends concentration,
-// and a stun takes its AP as a blow's does (combat.tex "Stun").
-function takeSpiritBlow(blow: SpiritBlow | null): (c: CampaignCharacter) => CampaignCharacter {
+// and a stun takes its AP as a blow's does (combat.tex "Stun") — unless the
+// blow it rode on stunned already, the stronger of the two landing alone.
+function takeSpiritBlow(blow: SpiritBlow | null, landed: Interruption): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     if (!blow) return c
     const drained = { ...c, resources: { ...c.resources, STA: Math.min(c.resources.STA, Math.max(0, c.resources.STA - blow.STA)) } }
     if (blow.interruption === 'none') return drained
     const broken = loseConcentration(drained)
-    return blow.interruption === 'stunned' ? { ...broken, resources: { ...broken.resources, ...spendAP(broken.resources, STUN_AP) } } : broken
+    return blow.interruption === 'stunned' && landed !== 'stunned' ? { ...broken, resources: { ...broken.resources, ...spendAP(broken.resources, STUN_AP) } } : broken
   }
 }
 

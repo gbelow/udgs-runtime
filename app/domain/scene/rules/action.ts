@@ -47,6 +47,7 @@ import { getFireAgainBar, getRepeatCost } from './fireAgain'
 import { getReloadBar, getReloadRow } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
 import { canReposition, findPrepared, getPreparedMain, isDefensePlaced, isPrepareComplete, isPreparedDefense, isRepositionPlaced } from './prepared'
+import { canStrikeWithSpirit, getMartialSpiritCost } from './martialSpirit'
 
 // An action's life in the fight: whether its declaration is complete and
 // aimed at someone it may be, what it costs as declared, and the step the
@@ -63,6 +64,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
   switch (action.kind) {
     case 'strike':
       return getAttackVariant(c, action) !== null && isVariantOpen(state, action, action.variant) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
+        && (!action.martialSpirit || canStrikeWithSpirit(state, action))
     case 'shoot':
       return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
@@ -379,6 +381,7 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
     { label: getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
     ...costChange('AP repurposed from the action given up', priced, recipe),
+    ...(action.kind === 'strike' && action.martialSpirit ? [{ label: 'Martial Spirit', ...getMartialSpiritCost() }] : []),
   ]
 }
 

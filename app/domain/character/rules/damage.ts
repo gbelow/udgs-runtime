@@ -1,4 +1,4 @@
-import type { AfflictionKey, Armor, BodyPart, Character, Damage, DamageKind, Degree, Outcome, OutcomeStep, PartWound } from '../../types'
+import type { AfflictionKey, Armor, BodyPart, Character, Condition, Damage, DamageKind, Degree, Interruption, Outcome, OutcomeStep, PartWound } from '../../types'
 import { MAX_TIER, STUN_AP, STUN_TIER, injuryMap } from '../../tables'
 import { getArmor, isVisorClosed } from './armor'
 import { getTGH } from './misc'
@@ -16,6 +16,21 @@ import { isCampaignCharacter } from '../../utils'
 // producer has already said everything else.
 
 export type { Outcome, OutcomeStep } from '../../types'
+
+// combat.tex "Cutting damage": poison lands "when damage is at least T0" —
+// what a follow-up asks of its parent's outcome before it is delivered.
+export function passesCondition(when: Condition | null, outcome: Outcome | null): boolean {
+  if (when === null) return true
+  if (when.minTier !== null && (outcome === null || outcome.tier === null || outcome.tier < when.minTier)) return false
+  return true
+}
+
+// combat.tex "Interruption", "Stun": of two interruptions landed together,
+// the stronger, never both.
+const INTERRUPTIONS: readonly Interruption[] = ['none', 'interrupted', 'stunned']
+export function strongerInterruption(a: Interruption, b: Interruption): Interruption {
+  return INTERRUPTIONS.indexOf(b) > INTERRUPTIONS.indexOf(a) ? b : a
+}
 
 const NOTHING: Outcome = { stopped: false, type: 'blunt', damage: 0, armor: 0, tier: null, tiers: {}, bodyTier: null, IL: 0, bleed: 0, wound: null, afflictions: [], interruption: 'none', apLoss: 0, dead: false, burning: null, arrived: { blunt: 0, cut: 0 } }
 

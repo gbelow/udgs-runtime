@@ -132,7 +132,7 @@ export function getActionReport(state: SceneState, id: string): ActionReport | n
     outcomes: root.results.length > 0
       ? root.results.map(({ targetId, outcome, steps }) => ({ target: named(targetId), outcome, steps }))
       : getOutcomes(state, root).map(({ id, outcome }) => ({ target: named(id), outcome, steps: [] })),
-    notes: delivered.flatMap(({ id, delivery }) => {
+    notes: delivered.flatMap(({ id, delivery }) => [delivery, ...delivery.then].map((d) => ({ id, delivery: d }))).flatMap(({ id, delivery }) => {
       if (delivery.effect.type === 'damage' && delivery.degree !== null) return []
       const waiting = delivery.test && delivery.degree === null ? ` · ${delivery.test.roll} vs ${delivery.test.DL}` : ''
       return [{ target: named(id), text: `${delivery.effect.name}${lossLabel(delivery.effect, delivery.degree)}${waiting}` }]

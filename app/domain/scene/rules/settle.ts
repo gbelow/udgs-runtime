@@ -14,7 +14,7 @@ import { isVoided } from './opportunity'
 import { getFireAgainFacts } from './fireAgain'
 import { getAreaBreaks, getAttackBreaks } from './breakage'
 import { isObjectAttack } from './equipment'
-import { withDeliveredTests } from './tested'
+import { testStrikeBlow, withDeliveredTests } from './tested'
 
 // The armor each character wears is put at risk by what the action's effects
 // did to them (gear.tex "Equipment Breakage").
@@ -36,9 +36,9 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
   if (isVoided(state, open)) return { ...open, step: 'done' }
   switch (open.kind) {
     case 'strike': {
-      const blow = getAttackFacts(state, open)
+      const { blow, tested } = testStrikeBlow(state, open, getAttackFacts(state, open))
       const facts = isObjectAttack(open) ? null : blow
-      return { ...open, step: 'done', facts, breaks: getAttackBreaks(state, open, blow), ...getStrikeLanding(state, open, facts) }
+      return { ...open, step: 'done', facts, tested, breaks: getAttackBreaks(state, open, blow), ...getStrikeLanding(state, open, facts) }
     }
     case 'shoot': {
       const blow = getAttackFacts(state, open)

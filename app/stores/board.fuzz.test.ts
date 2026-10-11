@@ -70,6 +70,8 @@ function finishDeclaration(h: Harness, pick: Picker) {
   const first = <T>(from: readonly T[]) => (from.length ? pick(from) : null)
   const row = first(panel().attacks)
   if (row && !panel().open?.weapon) h.press(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }))
+  const spirit = panel().open?.martialSpirit
+  if (spirit && pick([true, false])) h.press(amendAction({ martialSpirit: !spirit.on }))
   const ammo = first(panel().ammo)
   if (ammo) h.press(amendAction({ ammoId: ammo.itemId }))
   const castable = panel().spells.filter((s) => s.castable)

@@ -47,6 +47,7 @@ import { GRAPPLE_MANEUVERS, HUMANOID_LOCATIONS } from '../../lists'
 import { perState } from '../../perState'
 import { HOP_LABELS, getActionName, getCancellableLabel, getOptionLabel } from './labels'
 import { getPrepareView, getPreparedRows, type PrepareView, type PreparedRow } from './prepare'
+import { canStrikeWithSpirit, getMartialSpiritCost } from '../rules/martialSpirit'
 
 export type LocationOption = { location: HitLocation; part: string | null; name: string; penalty: number; selected: boolean }
 
@@ -257,6 +258,9 @@ export type OpenActionView = {
   // the percentage of the blow left by the time it reaches this one (null
   // at full)
   sweep: { direction: StrikeAction['sweepDirection']; turnable: boolean; next: string[]; left: number | null } | null
+  // abilities.tex "Martial Spirit": while a strike is declared by one who may
+  // launch a spiritual attack with it, whether it does and the STA it adds
+  martialSpirit: { on: boolean; STA: number } | null
 }
 
 // combat.tex "Push and drag": the speed the block moves at, and while it is
@@ -456,6 +460,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       DL: breakdown(rootTerms ? rootTerms.DL : explosion ? getDLTerms(state, open) : dragTerms ? dragTerms.defender ?? [] : []),
       roll: open.roll,
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
+      martialSpirit: open.kind === 'strike' && open.step === 'define' && canStrikeWithSpirit(state, open) ? { on: open.martialSpirit, STA: getMartialSpiritCost().STA } : null,
     },
     episode,
     edits,

@@ -5,6 +5,7 @@ import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
 import { getDeliveryInterruption } from './damage'
 import { getShotGroup } from './coordinated'
+import { strongerInterruption } from '../../character/rules/damage'
 
 // combat.tex "Interruption": "receiving a tier 1+ blunt or electric injury
 // causes any action and movement to be interrupted, except for running and
@@ -99,10 +100,8 @@ function getLandedOn(state: SceneState, landed: Action, id: string): Interruptio
   }
 }
 
-const LEVELS: readonly Interruption[] = ['none', 'interrupted', 'stunned']
-
 function strongest(levels: Interruption[]): Interruption {
-  return levels.reduce<Interruption>((a, b) => (LEVELS.indexOf(b) > LEVELS.indexOf(a) ? b : a), 'none')
+  return levels.reduce<Interruption>(strongerInterruption, 'none')
 }
 
 // Whether the landed action interrupted the character, who then gets no

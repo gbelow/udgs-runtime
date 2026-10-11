@@ -478,6 +478,9 @@ export const StrikeActionSchema = z.object({
   // combat.tex "Catch": a strike with a grapple row at a running target,
   // "3AP+1STA", whose hit is a crash the catcher gets +3 in
   catch: z.boolean().default(false),
+  // abilities.tex "Martial Spirit": a spiritual attack launched with the
+  // strike, its STA added to the strike's price
+  martialSpirit: z.boolean().default(false),
   // combat.tex "Evasive Jump": where the target's jump landed them, written
   // at the resolve
   jumpedTo: PlacementSchema.nullable().default(null),

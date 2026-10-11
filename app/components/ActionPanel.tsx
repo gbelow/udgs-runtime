@@ -85,6 +85,13 @@ export function ActionPanel(){
         </div>
       ) : null}
 
+      {open.martialSpirit ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <Button size='xs' {...toggle(open.martialSpirit.on)}
+            title={`launch a spiritual strike with the blow: +${open.martialSpirit.STA} STA, lands on a hit`} onClick={() => amend({ martialSpirit: !open.martialSpirit?.on })}>martial spirit</Button>
+        </div>
+      ) : null}
+
       {view.ammo.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>ammo</SectionLabel>
