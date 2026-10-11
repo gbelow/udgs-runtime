@@ -1,7 +1,7 @@
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
-import { getAdjacentIds, getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
+import { getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
 import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
@@ -235,8 +235,8 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   // combat.tex "Guard": each shot has its own angle, so one who guards any
   // of the shots — the lead's or a joiner's — may be declared
   const shooters = [root.actorId, ...getReactionsTo(state, root.id).flatMap((r) => (r.kind === 'joinShot' ? [r.actorId] : []))]
-  const guards = getAdjacentIds(state, root.targetId)
-    .filter((id) => shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
+  const guards = Object.keys(state.characters)
+    .filter((id) => id !== root.targetId && shooters.some((shooter) => isGuardingShot(state, shooter, root.targetId!, id)))
     .map((id): Trigger => ({ characterId: id, kind: 'guard', at: null }))
   // combat.tex "Coordinated Shots": anyone with a shooting weapon may join,
   // whether or not they are in range of the target — that is declared

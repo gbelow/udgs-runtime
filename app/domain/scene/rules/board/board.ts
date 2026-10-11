@@ -5,7 +5,7 @@ import { isMeleeRange } from '../../../weaponProperties'
 import { getWieldedWeapons } from '../../../item/rules/hands'
 import { add, angleBetween, angularGap, centroid, coordKey, disk, line, rotate, setDistance, toPlane } from './geometry'
 import { findRowVariant, findWeaponRow } from '../weaponRow'
-import { getChaseDistance, getChaseTierBetween, reachesTier } from '../chase'
+import { getChaseDistance, getChaseTierBetween, isChaseMate, reachesTier } from '../chase'
 
 // The board rules read the spatial facts of a fight off `state.board`.
 // Every rule that answers for a fight answers null, or "passes", when the
@@ -267,12 +267,15 @@ export function getShotReachOf(state: SceneState, action: ShootAction): number |
   return findRowVariant(shooter, row, action.variant)?.reach ?? null
 }
 
-// combat.tex "Guard": someone "adjacent" to the target may block a ranged
-// attack "as long as they are closer to the projectile source than the
-// adjacent character" — a fact about where the shot comes from, so each of
-// several shots at one target has its own guards.
+// combat.tex "Guard": "block ranged attacks against themselves or adjacent
+// characters, as long as they are closer to the projectile source than the
+// adjacent character" — the target always; someone adjacent by where the
+// shot comes from, so each of several shots at one target has its own
+// guards; in a chase, the target's party (rules/chase.ts).
 export function isGuardingShot(state: SceneState, shooterId: string, targetId: string, guardId: string): boolean {
-  if (guardId === shooterId || !getAdjacentIds(state, targetId).includes(guardId)) return false
+  if (guardId === shooterId) return false
+  if (guardId === targetId || isChaseMate(state, guardId, targetId)) return true
+  if (!getAdjacentIds(state, targetId).includes(guardId)) return false
   const toGuard = getDistanceBetween(state, shooterId, guardId)
   const toTarget = getDistanceBetween(state, shooterId, targetId)
   return toGuard !== null && toTarget !== null && toGuard < toTarget
