@@ -71,6 +71,25 @@ own.
     nothing to choose (`hasPostChoice`, `rules/action.ts`) lands at once. A new step or
     choice must say who owes it, or it will be skipped.
 
+12. **Spaces: the board, none, and the chase, with no adapter between them.** A rule that
+    asks where someone is reads the board, and answers "passes" without one (9). The chase
+    adds its distances at a fixed set of crossing points in the shared rules and commands
+    (distance, shot range, guarding a party member, routing, cover, rest, round length and
+    round end, splitting), and lint rule 6 in `eslint.config.mjs` lists them. Each answers
+    as if there were no chase when there is none, so a fight on the board runs the code it
+    ran before the chase existed. A new crossing point is added to that list on purpose and
+    must answer nothing with no chase. The fuzzer plays a chase with no board beside the
+    board sessions. Actions that only mean something on a board (move, push, throw, aiming
+    an area) are closed without one until a boardless version is built for each, one at a
+    time as play needs it (descriptive move and push, then throw, then picking who an area
+    catches).
+    *Decided 2026-10-11, over a `Space` interface with board, none and chase
+    implementations behind every positional question (about 40 files to re-route).*
+    *Revisit when* the boardless branches pile up (more and more `isPlaced` and
+    `state.board?.` checks spread across rules), or when a new kind of space arrives with
+    real positional rules of its own. A VTT feeding positions fills the board and doesn't
+    count.
+
 ## The action catalog
 
 `rules/actionCatalog.ts` `ACTIONS` is the one table of what each kind is, typed

@@ -79,6 +79,19 @@ export function isAreaSpell(key: SpellKey): boolean {
   return SPELLS[key].effects.some(isAreaEffect)
 }
 
+// Whether a cast that hits opens an area to be aimed: a detonation, or an
+// area laid at once (a charged spell's waits in its object).
+function opensArea(key: SpellKey): boolean {
+  const spell = SPELLS[key]
+  return spell.detonate !== null || (spell.type !== 'charged' && isAreaSpell(key))
+}
+
+// An area is aimed at the board's ground, so a caster on no board cannot cast
+// one until it can be aimed some other way (instructions/scene-map.md idea 12).
+export function getSpellBoardBar(state: SceneState, c: CampaignCharacter, key: SpellKey): string | null {
+  return opensArea(key) && !state.board?.placements[c.id] ? 'not on the board' : null
+}
+
 // Whether the cast does anything: it hit, was not cancelled, and did not
 // fail for want of what its HOP had to buy.
 export function takesEffect(state: SceneState, root: CastAction): boolean {
@@ -167,14 +180,15 @@ export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellO
   const linkDL = getLinkDL(state, c)
   return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
     const spell = SPELLS[key]
+    const boardBar = getSpellBoardBar(state, c, key)
     return {
       key,
       DL: getCastingDL(spell, false, 0, linkDL),
       quickenedDL: getCastingDL(spell, true, 0, linkDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
-      castable: canCastSpell(c, key, false),
-      quickenable: canCastSpell(c, key, true),
-      reason: reasonAgainst(c, key),
+      castable: !boardBar && canCastSpell(c, key, false),
+      quickenable: !boardBar && canCastSpell(c, key, true),
+      reason: boardBar ?? reasonAgainst(c, key),
       targeted: isTargetedSpell(key),
       conditions: getCastConditions(key),
     }
@@ -275,8 +289,7 @@ function isTargetedSpell(key: SpellKey): boolean {
 // spell's area waits in its object.
 export function opensExplosion(state: SceneState, root: CastAction): boolean {
   if (!takesEffect(state, root) || !isSpellKey(root.key)) return false
-  const spell = SPELLS[root.key]
-  return spell.detonate !== null || (spell.type !== 'charged' && isAreaSpell(root.key))
+  return opensArea(root.key)
 }
 
 // Whether every targeted effect of the spell reaches the target from where

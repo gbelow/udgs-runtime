@@ -153,6 +153,62 @@ const eslintConfig = [
     },
   },
 
+  // 6. The chase plugs into the scene's shared rules at a fixed set of
+  //    points, each answering as if there were no chase when there is none,
+  //    so a fight on the board runs the code it ran before the chase existed.
+  //    A new crossing point is a decision: add it here, and make it answer
+  //    nothing with no chase. (Chosen over a full spatial adapter on
+  //    2026-10-11; see instructions/scene-map.md "Spaces".)
+  {
+    files: ["app/domain/scene/rules/**/*.ts"],
+    ignores: ["**/*.test.ts", "app/domain/scene/rules/chase.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["./chase", "../chase"],
+          allowImportNames: ["getChaseDistance", "getChaseTierBetween", "isChaseMate", "reachesTier", "isSheltered", "getChaseCoverTerms", "getRoutingTerms", "getChaseRestBar"],
+          allowTypeImports: true,
+          message: "The scene's shared rules reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["app/domain/scene/commands/**/*.ts"],
+    ignores: ["**/*.test.ts", "app/domain/scene/commands/chase.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", {
+        patterns: [
+          {
+            group: ["../rules/chase"],
+            allowImportNames: ["getRoundSeconds", "getRoutingTerms", "getSplitChase"],
+            allowTypeImports: true,
+            message: "The scene's shared commands reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
+          },
+          {
+            group: ["./chase"],
+            allowImportNames: ["endChaseRound"],
+            allowTypeImports: true,
+            message: "The scene's shared commands reach the chase only through the crossing points listed in eslint.config.mjs (6). Add a new one there, and have it answer nothing when there is no chase.",
+          },
+        ],
+      }],
+    },
+  },
+  {
+    files: ["app/domain/scene/projections/**/*.ts"],
+    ignores: ["**/*.test.ts", "app/domain/scene/projections/chase.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["../rules/chase"],
+          allowTypeImports: true,
+          message: "Only the chase panel projects the chase; the other projections read it through the rules' crossing points (eslint.config.mjs (6)).",
+        }],
+      }],
+    },
+  },
+
   // Bindings that exist on purpose without being read: the rest-sibling omit
   // idiom (`const { [key]: _removed, ...rest }`) and parameters held in place
   // while the formula that used them is staged out. A leading underscore marks

@@ -808,7 +808,14 @@
       "bulk": 2
     }
   },
-  "abilities": {},
+  "abilities": {
+    "archer": {
+      "value": 1,
+      "name": "archer",
+      "XP": 0,
+      "type": "ability"
+    }
+  },
   "spells": {},
   "raceDraft": null,
   "limitStress": null,

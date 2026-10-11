@@ -32,7 +32,7 @@ import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
 import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded, isVariantOpen } from './attack'
-import { canAimCast, canSaveGraze, getImprovementOptions, isTargeted } from './cast'
+import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { canAffordRest } from '../../character/rules/rest'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
@@ -69,7 +69,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
         && (action.source !== 'detonate' || getChargeOptions(state, action).some((o) => o.itemId === action.itemId))
         && isAimed(state, action)
     case 'cast':
-      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken)
+      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken) && getSpellBoardBar(state, c, action.key) === null
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':

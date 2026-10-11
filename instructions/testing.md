@@ -147,6 +147,9 @@ click to what stands afterwards. It is admitted, under these terms.
   walking at them, and a rescue: a shielded character prepares a defense of whoever is attacked and
   someone attacks. Where someone holds a body shield, a shelter is played too: they are shot at and
   guard taking cover behind it, so that the shots after have a covered character to meet.
+  A chase is played with no board: three running from three, every button of the chase panel
+  pressed in any order between exchanges (each closed one must be refused with the state left
+  as it was), targets picked from the action panel's list since there are no tokens to click.
   `FUZZ_SEEDS=n` runs n seeds of every session instead of the few that keep the suite quick.
   `FUZZ_REPORT=1` writes `reports/fuzz-coverage.md`, a table of every action in the catalogue and
   how far the sessions took it, as an artifact to read, never asserted on.

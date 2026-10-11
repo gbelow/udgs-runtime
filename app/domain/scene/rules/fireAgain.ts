@@ -69,6 +69,7 @@ export function getFireAgainBar(state: SceneState, c: CampaignCharacter, key: Sp
   if (!canAfford(c, cost)) return 'cannot pay for it'
   const item = findReadyItem(c, entry.itemId ?? '')?.item
   if (!item || !hasChargesFor(item, SPELLS[key].repeat?.ammo ?? 0, getHeldSize(c, key))) return 'no charges left'
+  if (isAreaSpell(key) && !state.board?.placements[c.id]) return 'not on the board'
   if (!isAreaSpell(key) && getArcTarget(state, c.id, key) === null) return 'bound to nobody'
   return null
 }

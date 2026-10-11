@@ -96,16 +96,17 @@ all events
 
 Celebration - waiting for contacts and leverages. later work
 
+Specific knowledge - GM decides what exists, players consume from the list
+
+Cleric spells are free.
 
 -----------------
 ## Chase
 - action decision/AP budget
-- chase roll - group roll
-- party splitting
-- tracking distances
 - stealth and detection - 
-- time tracking - poison, environmental spells
-- tracking time
+- scouting
+- obstacles 
+- hiding.
 
 ### misc
 poison
@@ -143,5 +144,8 @@ poison
 - sync gameplay
 - permissions gm/player
 
+
+## bugs
+- spell learning formula potentially wrong
 
 

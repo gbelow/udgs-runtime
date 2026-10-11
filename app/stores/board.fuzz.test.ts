@@ -9,14 +9,18 @@ import { getAvailableActions } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
-import { acceptSpellTest, amendAction, declareAction, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { acceptSpellTest, amendAction, declareAction, setTarget, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/scene/commands/choices'
 import { dropToFloor } from '../domain/scene/commands/floor'
 import { endTurn, surge } from '../domain/scene/commands/turn'
 import { nextRound } from '../domain/scene/commands/nextRound'
 import { rollHeld } from '../domain/scene/commands/heldTest'
+import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, runOn, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
+import { moveToParty, splitOff } from '../domain/scene/commands/parties'
+import { getChasePanel } from '../domain/scene/projections/chase'
+import { getChaseStartBar } from '../domain/scene/rules/chase'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
-import { GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
@@ -36,6 +40,7 @@ const seeds = (n: number) => Array.from({ length: Number(process.env.FUZZ_SEEDS)
 const SEEDS = seeds(16)
 const DUEL_SEEDS = seeds(3)
 const CROWD_SEEDS = seeds(4)
+const CHASE_SEEDS = seeds(6)
 const STEPS = 200
 const STORAGE_EVERY = 8
 
@@ -79,6 +84,8 @@ function finishDeclaration(h: Harness, pick: Picker) {
   if (gear && getOpenAction(h.state())?.kind === 'cast') h.press(amendAction({ itemId: gear.itemId }))
   const target = first(h.view().tokens.filter((t) => t.targetable))
   if (target) h.click({ on: 'token', id: target.id })
+  const named = h.state().board ? null : first(panel().targets)
+  if (named) h.press(setTarget(named.id))
   const there = first(highlighted(h))
   if (there) h.click({ on: 'cell', cell: there.cell })
   h.commit()
@@ -668,4 +675,110 @@ const COVER: [number, number][] = [[-1, 0], [-1, -1], [1, -1], [2, 0]]
 
 describe('a crowd behind cover', () => {
   it.each(CROWD_SEEDS)('keeps the crowd sound (seed %i)', (seed) => playCrowd(seed, COVER))
+})
+
+// The chase panel's buttons, each pressed as its hook dispatches it. Every
+// option the panel shows closed is refused, the state left as it was.
+function chasePlays(): Play[] {
+  const panel = (h: Harness) => getChasePanel(h.state())
+  const rows = (h: Harness) => panel(h).rows
+  const refused = (h: Harness, bar: string | null, press: () => void, label: string) => {
+    const before = h.state()
+    press()
+    if (bar !== null) expect(h.state(), `${label} is closed (${bar}) but was accepted`).toBe(before)
+  }
+  const option = (h: Harness, pick: Picker, of: (r: ReturnType<typeof rows>[number]) => { id: string; name: string; bar: string | null }[]) => {
+    const offered = rows(h).flatMap((row) => of(row).map((o) => ({ row, o })))
+    return offered.length ? pick(offered) : null
+  }
+  return [
+    {
+      name: 'start a chase',
+      run: (h, pick) => {
+        const quarry = Object.keys(h.state().parties).filter(() => pick([true, false]))
+        const tier = pick(CHASE_TIERS)
+        refused(h, getChaseStartBar(h.state(), quarry, tier), () => h.press(startChase(quarry, tier)), 'starting the chase')
+      },
+    },
+    {
+      name: 'declare a chase move',
+      weight: 10,
+      run: (h, pick) => {
+        const declaring = rows(h).filter((r) => r.declares)
+        if (!declaring.length) return
+        const row = pick(declaring)
+        const { move, bar } = pick(row.moves)
+        const scout = move === 'run' && bar === null && row.scoutBar === null && pick([true, false, false]) ? { what: 'a ditch', DL: pick([0, 3, 6]), obstacle: pick([true, false]) } : null
+        refused(h, bar, () => h.press(declareChase(row.id, { move, scout, hideModifier: pick([0, 2]) })), `${row.name}'s ${move}`)
+        if (bar === null) expect(h.state().chase?.declarations[row.id]?.move, `${row.name}'s ${move} is open but was not declared`).toBe(move)
+      },
+    },
+    { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round') },
+    { name: 'next round', weight: 3, run: (h) => h.press(nextRound(h.dice, h.newId)) },
+    { name: 'split someone off', weight: 2, run: (h, pick) => h.press(splitOff(pick(Object.keys(h.state().characters)), h.newId)) },
+    { name: 'move someone to another party', run: (h, pick) => h.press(moveToParty(pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties)))) },
+    {
+      name: 'chase another party',
+      run: (h, pick) => { const c = option(h, pick, (r) => r.followOptions); if (c) refused(h, c.o.bar, () => h.press(followParty(c.row.id, c.o.id)), `${c.row.name} chasing ${c.o.name}`) },
+    },
+    {
+      name: 'put a party back',
+      run: (h, pick) => { const c = option(h, pick, (r) => r.putBackOptions); if (c) refused(h, c.o.bar, () => h.press(putBack(c.row.id, c.o.id, pick(CHASE_TIERS))), `${c.row.name} put back after ${c.o.name}`) },
+    },
+    {
+      name: 'join a fight',
+      run: (h, pick) => { const c = option(h, pick, (r) => r.joinOptions); if (c) refused(h, c.o.bar, () => h.press(joinFight(c.row.id, c.o.id)), `${c.row.name} joining ${c.o.name}`) },
+    },
+    {
+      name: 'give up, merge back, run on or fight',
+      run: (h, pick) => {
+        if (!rows(h).length) return
+        const row = pick(rows(h))
+        pick([
+          () => refused(h, row.giveUpBar, () => h.press(giveUp(row.id)), `${row.name} giving up`),
+          () => refused(h, row.mergeBar, () => h.press(mergeBack(row.id)), `${row.name} merging back`),
+          () => h.press(runOn(row.id)),
+          () => refused(h, row.fightBar, () => h.press(setPartyFighting(row.id, !row.fighting)), `${row.name} ${row.fighting ? 'running again' : 'fighting'}`),
+        ])()
+      },
+    },
+    { name: 'turn around', run: (h, pick) => { const members = rows(h).filter((r) => r.turnable).flatMap((r) => r.members); if (members.length) h.press(turnAround(pick(members).id)) } },
+    { name: 'take cover', run: (h, pick) => { const runners = panel(h).runners; if (runners.length) h.press(setChaseCover(pick(runners).id, pick([null, ...CHASE_COVERS]))) } },
+    {
+      name: 'cross an obstacle',
+      run: (h, pick) => {
+        const crossing = rows(h).filter((r) => r.feature?.obstacle)
+        if (!crossing.length) return
+        const row = pick(crossing)
+        refused(h, row.crossBar, () => h.press(crossObstacle(row.id, pick(CROSSING_SKILLS), pick([0, 3, 6]), h.dice)), `${row.name} crossing`)
+      },
+    },
+    { name: 'end the chase', run: (h) => refused(h, panel(h).endBar, () => h.press(endChase), 'ending the chase') },
+  ]
+}
+
+// A chase over no board: three running from three, the panel's buttons
+// pressed in any order between exchanges — a shot, a strike, a spell — played
+// out by the same reactions as on the board, with nothing to read distance,
+// reach or cover from but the chase.
+function playChase(seed: number) {
+  const rng = seededRng(seed)
+  const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
+  const h = openHarness((explodes) => rollD10(explodes, rng))
+  h.bring(warden('Ann'), trained(archer('Bob')), brawler('Cy'), towerWarden('Dee'), crossbowman('Eve'), mage('Fay'))
+  h.press(splitOff(h.idOf('Dee'), h.newId))
+  const theirs = h.state().partyOf[h.idOf('Dee')]
+  for (const name of ['Eve', 'Fay']) h.press(moveToParty(h.idOf(name), theirs))
+  h.press(startChase([h.state().partyOf[h.idOf('Ann')]], pick(['combat', 'shooting', 'far'] as const)))
+  h.press(nextRound(h.dice, h.newId))
+  h.select('Ann')
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h)], pick)
+}
+
+describe('a chase with no board', () => {
+  it.each(CHASE_SEEDS)('keeps the chase sound (seed %i)', (seed) => playChase(seed))
+
+  // A flamethrower cast with no board opened a spray that waited for good on
+  // a direction only a click on a board cell could give it.
+  it('never leaves a spray waiting on a board that is not there (seed 9)', () => playChase(9))
 })
