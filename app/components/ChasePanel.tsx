@@ -100,6 +100,7 @@ function GroupRow({ group: g, tiers }: { group: ChaseGroupRow; tiers: readonly C
         </div>
         : null
       }
+      {g.runBar && !g.run && !g.caught.length && !g.escaped && !g.fighting ? <span className='text-muted'>cannot run: {g.runBar}</span> : null}
       {g.caught.map((reason) => <span key={reason} className='text-bad'>caught: {reason}</span>)}
       {
         g.run ?

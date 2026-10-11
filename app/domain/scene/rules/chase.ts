@@ -135,7 +135,7 @@ function getGroupBar(state: SceneState, group: string): string | null {
   if (!g || !state.parties[group]) return 'they are not running away'
   if (g.escaped) return 'they got away'
   if (g.fighting) return 'they are fighting'
-  if (state.round === 0) return 'the chase has not begun'
+  if (state.round === 0) return 'press start combat to begin the first round'
   return null
 }
 
