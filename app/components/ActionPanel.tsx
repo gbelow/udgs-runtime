@@ -250,7 +250,7 @@ export function ActionPanel(){
       ) : null}
 
       {declared ? (
-        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>commit</Button></div>
+        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button></div>
       ) : null}
 
       {step === 'react' ? (

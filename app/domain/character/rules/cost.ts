@@ -9,3 +9,16 @@ import { CampaignCharacter, Cost } from "../../types"
 export function canAfford(c: CampaignCharacter, cost: Pick<Cost, 'AP' | 'STA'>): boolean {
   return (cost.AP <= 0 || c.resources.AP >= cost.AP) && c.resources.STA >= cost.STA
 }
+
+// combat.tex "Concentration": an action that requires concentration, which
+// "Focus surge is necessary to sustain", may be held over to the next round
+// when there is not the AP for it now — the STA it takes paid at once.
+export function canHold(c: CampaignCharacter, cost: Pick<Cost, 'AP' | 'STA'>): boolean {
+  return c.usedSurge === 'focus' && c.resources.STA >= cost.STA
+}
+
+// What a concentration action asks of the one who would make it: the AP for
+// it, or the means to hold it.
+export function canAffordOrHold(c: CampaignCharacter, cost: Pick<Cost, 'AP' | 'STA'>): boolean {
+  return canAfford(c, cost) || canHold(c, cost)
+}

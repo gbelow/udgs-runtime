@@ -6,6 +6,7 @@ import { findTrigger } from '../rules/reactions'
 import { getCancellableRoot } from '../rules/opportunity'
 import { findWeaponRow } from '../rules/weaponRow'
 import { findPrepared } from '../rules/prepared'
+import { getHeldOf, isGivingUpHeld } from '../rules/hold'
 import { SPELLS, isSpellKey } from '../../spells'
 
 // What the panel calls things: actions, the options to declare them, and
@@ -89,9 +90,10 @@ function getOpportunityLabel(state: SceneState, actorId: string, at: number | nu
 
 // While an opportunity attack against `defenderId` answers a still-live
 // action of their own, that action is what defending actively gives up
-// (`getGivenUpFor`), named.
+// (`getGivenUpFor`), named; so is the action they hold over for the round to
+// change.
 export function getCancellableLabel(state: SceneState, root: Action, defenderId: string): string | null {
-  const own = getCancellableRoot(state, root, defenderId)
+  const own = getCancellableRoot(state, root, defenderId) ?? (isGivingUpHeld(state, defenderId, root.id) ? getHeldOf(state, defenderId) : null)
   return own ? getActionNoun(own) : null
 }
 

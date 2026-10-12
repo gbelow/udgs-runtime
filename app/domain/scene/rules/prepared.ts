@@ -16,6 +16,7 @@ import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMoveWaypoint } from './board/waypoint'
 import { getAction, getAncestry, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
+import { getHeldOf } from './hold'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
@@ -298,7 +299,8 @@ export function isPreparedCancelled(state: SceneState, reaction: Action): boolea
 // that its own actor took (`reactedWithin`).
 export function getReactedWithin(state: SceneState, declared: Action): Action[] {
   if (!isReaction(declared.kind) || declared.kind === 'prepared') return []
-  return getAncestry(state, declared).filter((a) => a.actorId === declared.actorId)
+  const held = getHeldOf(state, declared.actorId)
+  return [...getAncestry(state, declared).filter((a) => a.actorId === declared.actorId), ...(held ? [held] : [])]
 }
 
 // "No chaining": whether the action is, or comes of, a prepared reaction — a

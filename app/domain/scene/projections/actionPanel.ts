@@ -6,7 +6,7 @@ import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
-import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
+import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
 import { AmmoOption, AttackOption, getAmmoOptions, getFreeAttackOptions, getDLTerms, getRootTestTerms } from '../rules/attack'
@@ -307,6 +307,9 @@ export type ActionPanelView = {
   unnoticed: string[]
   // at `commit`: whether the declaration can be locked
   canCommit: boolean
+  // at `commit`: whether locking it holds it over to the next round for want
+  // of the AP (combat.tex "Concentration")
+  holds: boolean
   // whether the open action is closed by a die or by paying, and at `react`
   // whether that close is open
   die: boolean
@@ -351,7 +354,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -381,6 +384,8 @@ function buildActionPanel(state: SceneState): ActionPanelView {
   const area = laid && getExplosionAreas(laid).length > 0 ? { shape: isSpray(laid) ? 'spray' as const : 'explosion' as const, laid } : null
   const move = open.kind === 'move' && open.step === 'define' ? open : null
   const die = needsDie(state, open)
+  const payable = step === 'commit' && getPayableCost(state, open) !== null
+  const holds = step === 'commit' && !payable && getHoldCost(state, open) !== null
   const cost = getOwnCost(state, open)
   // the action as the resolve would settle it now: what a move will walk, what
   // a rolled action will land
@@ -497,7 +502,8 @@ function buildActionPanel(state: SceneState): ActionPanelView {
     noTargets: step === 'target' && declaredTargets.length === 0 && hiddenTargets.length === 0 && floorTargets.length === 0 && getDeclaredCellTargets(state, open).length === 0
       ? (Object.keys(state.characters).length > 1 ? 'nobody in reach' : 'nobody else in the fight')
       : null,
-    canCommit: step === 'commit' && getPayableCost(state, open) !== null,
+    canCommit: step === 'commit' && (payable || holds),
+    holds,
     die,
     compare: drag !== null,
     canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),

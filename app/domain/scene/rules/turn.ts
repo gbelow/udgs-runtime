@@ -8,6 +8,10 @@ import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
+import type { Dice } from '../../play/dice'
+import { getCunning } from '../../character/rules/skills'
+import { getRoutingTerms } from './chase'
+import { sumTerms } from '../../character/rules/terms'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
 // ask, first to play' basis that can be contested by other characters". A
@@ -90,6 +94,14 @@ export function getContenders(state: SceneState): string[] {
 // before anyone (play.tex "Combat": "first to ask, first to play").
 export function getContestWinner(rolls: ContestRoll[]): string | null {
   return rolls.reduce<ContestRoll | null>((best, r) => (best === null || r.score > best.score ? r : best), null)?.id ?? null
+}
+
+// One contender's cunning roll (the die does not explode: play.tex
+// "Exploding die" — only where it says), with the routing bonus of a chase.
+export function rollCunning(state: SceneState, id: string, dice: Dice): ContestRoll {
+  const die = dice(false)
+  const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
+  return { id, die, skill, score: die + skill }
 }
 
 // Why the character cannot make a movement or combat surge now, or null:

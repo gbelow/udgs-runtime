@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Character, Item } from '../../types'
 import type { ActionOf, SceneState } from '../types'
-import { canAfford } from '../../character/rules/cost'
+import { canAffordOrHold } from '../../character/rules/cost'
 import { getReloadCost, needsReload } from '../../character/rules/gear'
 import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { findWeaponRow, getRowStack, getWeaponRows, type WeaponRow } from './weaponRow'
@@ -33,7 +33,7 @@ export function getReloadBar(state: SceneState, c: CampaignCharacter, row: Weapo
   if (shot !== 'empty') return SHOT_BARS[shot]
   if (isSeizedUse(state, c.id, row.wielded.key, row.atk.name, null)) return 'seized'
   if (getLoadableAmmo(c, row.weapon, row.atk).length === 0) return `no ${row.atk.ammo}s in a quick slot`
-  return canAfford(c, getReloadCost(row.atk, c)) ? null : 'cannot afford'
+  return canAffordOrHold(c, getReloadCost(row.atk, c)) ? null : 'cannot afford'
 }
 
 // What the weapon holds once the reload lands: one of the stack it names.

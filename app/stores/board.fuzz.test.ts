@@ -276,6 +276,11 @@ function assertSound(h: Harness, storage: boolean) {
       if (link !== null) expect(known.has(link), `${a.kind} ${a.id} links to ${link}, which is in neither the log nor the journal`).toBe(true)
     }
   }
+
+  const holders = Object.values(s.actions).filter((a) => a.step === 'held').map((a) => a.actorId)
+  expect(new Set(holders).size, 'a character holds one action at a time').toBe(holders.length)
+  for (const id of holders) expect(s.characters[id], `${id} holds an action but is not in the fight`).toBeDefined()
+  for (const id of s.stack) expect(s.actions[id].step, `${id} is held but on the stack`).not.toBe('held')
 }
 
 // The offers are the panel's promise: what getAvailableActions shows open can
@@ -307,7 +312,7 @@ function assertOffersHold(h: Harness) {
 // reports/fuzz-coverage.md: for every action in the catalogue, how many
 // actions stood at each of its steps. Seen after each command, so an
 // action that opens and closes inside one is not counted.
-type Step = 'define' | 'react' | 'post' | 'done'
+type Step = 'define' | 'react' | 'post' | 'done' | 'held'
 let sessions = 0
 const reached = new Map<string, { sessions: Set<string>, steps: Record<Step, number> }>()
 
@@ -316,7 +321,7 @@ function record(session: string) {
   return useCombatStore.subscribe((state) => {
     for (const a of Object.values(state.actions)) {
       const key = `${a.kind}${a.reactionTo ? ' (reaction)' : ''}${'maneuver' in a && a.kind === 'grapple' ? ` ${a.maneuver}` : ''}`
-      const seen = reached.get(key) ?? { sessions: new Set<string>(), steps: { define: 0, react: 0, post: 0, done: 0 } }
+      const seen = reached.get(key) ?? { sessions: new Set<string>(), steps: { define: 0, react: 0, post: 0, done: 0, held: 0 } }
       seen.sessions.add(session)
       if (!counted.has(`${a.id}/${a.step}`)) { seen.steps[a.step]++; counted.add(`${a.id}/${a.step}`) }
       reached.set(key, seen)
@@ -334,16 +339,16 @@ afterAll(() => {
   const line = (key: string) => {
     const r = reached.get(key)
     const kind = key.split(' ')[0]
-    return `| ${key} | ${kind in ACTIONS ? ACTIONS[kind as keyof typeof ACTIONS].type : ''} | ${r?.sessions.size ?? 0} | ${r?.steps.define ?? 0} | ${r?.steps.react ?? 0} | ${r?.steps.post ?? 0} | ${r?.steps.done ?? 0} |`
+    return `| ${key} | ${kind in ACTIONS ? ACTIONS[kind as keyof typeof ACTIONS].type : ''} | ${r?.sessions.size ?? 0} | ${r?.steps.define ?? 0} | ${r?.steps.react ?? 0} | ${r?.steps.post ?? 0} | ${r?.steps.done ?? 0} | ${r?.steps.held ?? 0} |`
   }
   const never = rows.filter((k) => !reached.has(k))
   const body = [
     '# Fuzz coverage',
     '',
-    `${total} sessions. Each count is the actions that stood at that step after some command (define: being declared, react: committed and open to answers, post: rolled, done: finished); an action that jumps a step skips its count, as a reaction does from define to done. "sessions" is how many sessions saw the action at all.`,
+    `${total} sessions. Each count is the actions that stood at that step after some command (define: being declared, react: committed and open to answers, post: rolled, done: finished, held: held over to the next round); an action that jumps a step skips its count, as a reaction does from define to done. "sessions" is how many sessions saw the action at all.`,
     '',
-    '| action | type | sessions | define | react | post | done |',
-    '|---|---|---|---|---|---|---|',
+    '| action | type | sessions | define | react | post | done | held |',
+    '|---|---|---|---|---|---|---|---|',
     ...rows.map(line),
     '',
     `Never seen: ${never.length ? never.join(', ') : 'none'}`,

@@ -7,6 +7,7 @@ import { isBroken } from './interruption'
 import { getMoveFacts, getMoveOverride } from './move'
 import { getMoveWaypoint } from './board/waypoint'
 import { getGroupOrigin, getGroupSteps, getPushStop } from './drag'
+import { isGivingUpHeld } from './hold'
 
 // combat.tex "Interruption": "If the character is in the middle of an
 // action that is not movement, it must interrupt itself in order to use a
@@ -102,7 +103,7 @@ export function getCancellableRoot(state: SceneState, fought: Action, defenderId
 // answer to the attack being fought, when answering it interrupts an action
 // of their own (`getCancellableRoot`) or comes while they stand up.
 export function getMidActionTerm(state: SceneState, fought: Action, reactorId: string): Term | null {
-  if (getCancellableRoot(state, fought, reactorId)) return { label: 'interrupting', value: -2 }
+  if (getCancellableRoot(state, fought, reactorId) || isGivingUpHeld(state, reactorId, fought.id)) return { label: 'interrupting', value: -2 }
   const reaction = getOpeningReaction(state, fought)
   const root = reaction ? getRootOf(state, reaction) : null
   return root?.kind === 'move' && root.movement === 'stand' && root.actorId === reactorId ? { label: 'standing up', value: -2 } : null

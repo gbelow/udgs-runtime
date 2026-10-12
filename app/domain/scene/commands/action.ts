@@ -2,7 +2,7 @@ import { ActionSchema, type Action, type Coord, type ActionDraft, type CastActio
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getHoldCost, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
@@ -21,6 +21,7 @@ import { canAcceptSpellTest, getCastGear } from '../rules/cast'
 import { withSweepArc } from '../rules/sweep'
 import { appendActions, applyPhase, discardDraft, getAnswerableOpen, getOpenAt, pruneReactions, replaceActions, withdrawActions } from './log'
 import { advance, land, repositionDefenders } from './sequence'
+import { giveUpHeld } from './hold'
 import { updateCharacter } from './characters'
 import { actionSurge } from '../../character/commands/actionSurge'
 import { getTestedIds } from '../rules/tested'
@@ -100,8 +101,10 @@ export function commitAction(dice: Dice, newId: () => string): Updater {
     if (!actor || !isDeclarationComplete(state, actor, open)) return state
     if (needsTarget(open) && !isTargetAimed(state, open)) return state
     const cost = getPayableCost(state, open)
-    if (!cost) return state
-    const committed: RootAction = { ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, cost.AP), step: 'react' }
+    const hold = cost ? null : getHoldCost(state, open)
+    if (!cost && !hold) return state
+    // combat.tex "Concentration": what it cannot be paid for, it is held over
+    const committed: RootAction = { ...withCommitFacts(state, actor, open, dice), noise: getNoise(state, open, (cost ?? hold)!.AP), holding: hold !== null, step: 'react' }
     const locked = replaceActions(state, [withStealthFacts(state, committed)])
     return hasOpenAnswer(locked) ? locked : rollOrPay(dice, newId)(locked)
   }
@@ -407,6 +410,7 @@ export function payAction(newId: () => string, dice: Dice): Updater {
     if (!open || needsDie(state, open)) return state
     if (!areReactionsComplete(state, open)) return state
     // combat.tex "Push and drag": the comparison is made as the price is paid
+    if (open.holding) return payAll(state, open, newId)
     return payAll(state, open.kind === 'drag' ? { ...open, compared: getDragComparison(state, open) } : open.kind === 'move' ? withClimbGiveUp(state, open) : withTargetDice(withArmorRolls(state, open, dice), dice), newId)
   }
 }
@@ -432,7 +436,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, thrown: (a
     if (!cost) return state
     paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
   }
-  return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
+  return advance(giveUpHeld(applyPhase(replaceActions(state, paid), paid, 'roll'), paid), newId)
 }
 
 // Lands the rolled action on everyone it concerns and closes it, once

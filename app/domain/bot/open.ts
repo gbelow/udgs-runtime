@@ -34,6 +34,7 @@ export function stepOpen(state: SceneState, parties: readonly Party[], open: Roo
     case 'post':
       return owner ? resolveAction(newId)(state) : null
     case 'done':
+    case 'held':
       return null
   }
 }

@@ -27,6 +27,7 @@ import { makeAction } from '../factories'
 import { canAnswer, getLiveActions, getOpenAction, getReactionsTo, withLiveActions } from './log'
 import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
+import { getHeldOf } from './hold'
 import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
@@ -135,7 +136,16 @@ function computeAvailableActions(state: SceneState, characterId: string): Action
 // What stands closed among the character's own actions: who they are, what they
 // are doing, what surge is in hand, whose turn it is.
 function closeOwn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))
+  return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options)))))))
+}
+
+// combat.tex "Actions": "Only one action can be done at a time", and
+// "Concentration": "Concentration is maintained while the action is not
+// finished" — a character holding an action over to the next round does
+// nothing else; their reactions give it up (combat.tex "Interruption").
+function closeWhileHolding(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  const held = getHeldOf(state, c.id)
+  return held ? closeWith(options, () => `holding ${getActionDef(held.kind).label}`) : options
 }
 
 // combat.tex "Action surge": the reaction surge is made outside one's own turn,

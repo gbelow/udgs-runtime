@@ -1,16 +1,13 @@
 import type { SurgeKind } from '../../types'
-import type { SceneState, ContestRoll, Updater } from '../types'
+import type { SceneState, Updater } from '../types'
 import type { Dice } from '../../play/dice'
-import { getCunning } from '../../character/rules/skills'
 import { actionSurge } from '../../character/commands/actionSurge'
-import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder } from '../rules/turn'
+import { getContestBar, getContenders, getContestWinner, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, rollCunning } from '../rules/turn'
 import { updateCharacter } from './characters'
 import { beginTurn, takeQueuedTurn } from './sequence'
 import { markStress, takeStressTurn } from './stress'
 import { getCompelledSurge, getStressTurn } from '../rules/stress'
 import { closeTurn } from './closeTurn'
-import { getRoutingTerms } from '../rules/chase'
-import { sumTerms } from '../../character/rules/terms'
 
 // The character's turn begins, if nobody else holds one. Nobody has asked
 // to contest it yet.
@@ -46,11 +43,7 @@ export function rollContest(dice: Dice): Updater {
   return (state) => {
     const holder = getTurnHolder(state)
     if (getRollContestBar(state) || !holder) return state
-    const rolls = [holder, ...getContenders(state)].map((id): ContestRoll => {
-      const die = dice(false)
-      const skill = getCunning(state.characters[id]) + sumTerms(getRoutingTerms(state, id))
-      return { id, die, skill, score: die + skill }
-    })
+    const rolls = [holder, ...getContenders(state)].map((id) => rollCunning(state, id, dice))
     const winner = getContestWinner(rolls) ?? holder
     return { ...state, inTurnCharacter: winner, contenders: [], lastContest: { rolls, winner } }
   }

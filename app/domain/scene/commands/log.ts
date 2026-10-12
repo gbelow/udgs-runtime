@@ -25,7 +25,8 @@ import { deliverAll } from '../../character/commands/deliver'
 
 // The fight with the actions in play rewritten, and the stack kept to the
 // actions still being played out: `pushed` goes on top, anything resolved or
-// gone leaves, and what leaves having landed is noted as landed, the
+// gone leaves, an action held over to the next round is in play but waits
+// off the stack, and what leaves having landed is noted as landed, the
 // reactions to it before it; what was in play and is not declared any more
 // leaves the table. A move past its declaration carries the held
 // tests its mover had made when it got there, and the turn it was committed
@@ -45,7 +46,7 @@ export function setActions(state: SceneState, declared: Action[], pushed: string
     ...state,
     actions,
     live: stamped.filter((a) => !entering.includes(a)).map((a) => a.id),
-    stack: [...state.stack, ...pushed].filter((id) => live.has(id)),
+    stack: [...state.stack, ...pushed].filter((id) => live.has(id) && actions[id].step !== 'held'),
     landed: [...state.landed, ...entering.map((a) => a.id)],
     turnsTaken: stamped.reduce(noteTurn, state.turnsTaken),
     stealthTurns: entering.reduce((turns, a) => noteNoise(state, turns, a), state.stealthTurns),

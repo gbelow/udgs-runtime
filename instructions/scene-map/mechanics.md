@@ -44,6 +44,26 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   amplifications brought it to. Letting go of the item lets go of the spell. Any interruption
   or stun ends every held spell: a won maneuver (`reduceCharacter`), a blow as it lands
   (`deliver.ts`), a crash (`trampledBy`).
+- **Concentration** (`rules/hold.ts`, `commands/hold.ts`; combat.tex "Concentration", "Focus
+  surge", "Interruption") — `requiresConcentration` is the one classification: a shot and the
+  reload that is part of one, a spell unless quickened, First Aid (the ability's `concentration`
+  flag). It drives the focus surge a cast or a shot asks for, the opportunity attacks it draws
+  (`getKindTriggers`) and whether it may be held. A concentration action the actor cannot pay
+  for, with the focus surge made and the STA at hand (`canHold`), commits as a hold
+  (`getHoldCost`, `holding`): it is answered by the opportunity attacks it draws, all the actor's AP
+  and its STA are paid at the payment (no die), and once those are fought `advance` parks it
+  (`parkHeld`) instead of landing it: the record goes to `held` (off the stack) with `carried` set
+  to what was paid, and its actor does nothing else (`closeWhileHolding`). A reaction they make gives it up (`getReactedWithin` notes the held
+  action, `giveUpHeld` withdraws it once the reaction is paid), and `getRefundedAP` hands back
+  `carried − 1` AP with it, as for an action given up to an opportunity attack; an interruption
+  from outside breaks it (`breakHeld`, from `land`) and nothing is returned. Cauterization is a concentration action too. At the round
+  change `startFinishing` prices what is left (`carried` comes off the price in `getCostTerms`):
+  whoever has the AP finishes, ranked by cunning rolls (`rollCunning`, the turn contest's) when
+  there are several; whoever has not holds on, the focus surge made again and every AP carried,
+  or loses it without the surge. `releaseNextHeld` takes the next in order up at `react`, drawing
+  no opportunity attacks again, once nothing is open (from `nextRound`, and from `advance` after each landing), unless
+  `getFinishBar` finds what it needs gone, which fails it (`WithdrawalReason` `failed`) and
+  spends none of the new round.
 - **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
   action of their own a character may declare outside their turn; it may take AP negative as long as the next round starts positive (`canAffordRest`), and lands as
   `restCharacter` (STA back). Effortless is the same rest landing with the cast

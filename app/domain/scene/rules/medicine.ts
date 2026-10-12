@@ -2,7 +2,7 @@ import { DamageSchema, type CampaignCharacter, type Degree } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
 import { ABILITIES, hasAbility, type AbilityKey } from '../../abilities'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, canAffordOrHold } from '../../character/rules/cost'
 import { getKnowledgeTestTerms } from '../../character/rules/knowledge'
 import { landed } from '../../character/rules/production'
 import type { CauterizeAction, FirstAidAction, SceneState } from '../types'
@@ -31,13 +31,26 @@ export function getMedicineCost(kind: MedicineKind): ActionCost {
   return { AP, STA }
 }
 
-// Why the character cannot make the action now, or null. Cauterization
-// "Requires a focus surge", and First Aid too (the table's ruling).
+// Why the character cannot make the action now, or null. Both are marked
+// concentration in the catalog (abilities.tex "Medicine"): the focus surge,
+// and held over for want of the AP.
 export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: MedicineKind): string | null {
   if (!hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
   if (c.usedSurge !== 'focus') return 'needs the focus surge'
   if (getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
-  return canAfford(c, getMedicineCost(kind)) ? null : 'cannot afford'
+  const cost = getMedicineCost(kind)
+  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost) : canAfford(c, cost)) ? null : 'cannot afford'
+}
+
+// Whether the catalog marks the ability the action is the use of as
+// requiring concentration.
+export function isConcentrationAbility(kind: MedicineKind): boolean {
+  return ABILITIES[ABILITY[kind]].concentration
+}
+
+// The ability a medicine action is the use of.
+export function getMedicineAbility(kind: MedicineKind): AbilityKey {
+  return ABILITY[kind]
 }
 
 // abilities.tex "First Aid": "Make a medicine test against a DL equal to 2x

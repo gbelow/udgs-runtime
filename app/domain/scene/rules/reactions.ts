@@ -4,6 +4,7 @@ import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
 import { getFlankers, isGuardingCells, isGuardingShot, getFootprint, getMeleeRange, getMeleeThreateners, getPlacedFootprint } from './board/board'
 import { getBlastOf, getThreatenedIds, isAvoidable } from './explosion'
 import { isTrampleable } from './trample'
+import { requiresConcentration } from './hold'
 import { getDragGroup, getGroupOrigin, getGroupSteps } from './drag'
 import { isGrappleRow } from './grapple'
 import { hasProperty } from '../../weaponProperties'
@@ -88,8 +89,12 @@ export function getReactorDetections(state: SceneState, root: RootAction): Detec
 function getDrawnTriggers(state: SceneState, root: RootAction): Trigger[] {
   const triggers = getKindTriggers(state, root)
   const opportunity = getOpeningReaction(state, root) !== null
-  const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root))
-  const drawn = drawsNone ? triggers.filter((t) => t.kind !== 'opportunityAttack' && t.kind !== 'retarget') : triggers
+  const isOpportunity = (t: Trigger) => t.kind === 'opportunityAttack' || t.kind === 'retarget'
+  // combat.tex "Concentration", "Opportunity Attack": the attacks an action
+  // held over draws are fought as it is declared, and what answers its effect
+  // comes when it finishes
+  const drawsNone = opportunity || !drawsOpportunity(state, root) || (root.kind === 'strike' && isSweepLink(root)) || root.finishing !== null
+  const drawn = drawsNone ? triggers.filter((t) => !isOpportunity(t)) : root.holding ? triggers.filter(isOpportunity) : triggers
   const others = root.kind === 'strike' && isSweep(root) ? getSweepTargets(root).filter((id) => id !== root.targetId) : []
   return [...drawn, ...getPreparedTriggers(state, root)].filter((t) => !others.includes(t.characterId))
 }
@@ -130,9 +135,9 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     // combat.tex "Opportunity Attack": a standard action, as drinking is
     // (gear.tex "Potions and Medicine")
     case 'drink': return opportunityTriggers(state, root.actorId)
-    // tending a wound is none of the triggering actions the book lists
+    // combat.tex "Opportunity Attack": an action that requires concentration
     case 'firstAid':
-    case 'cauterize': return []
+    case 'cauterize': return requiresConcentration(root) ? opportunityTriggers(state, root.actorId) : []
     case 'throw': return opportunityTriggers(state, root.actorId)
     // a reload is part of the shot, which is a ranged attack (the table's
     // ruling)
@@ -321,11 +326,12 @@ function explosionTriggers(state: SceneState, root: ExplosionAction): Trigger[] 
   ])
 }
 
-// combat.tex "Opportunity Attack": "Triggering actions include casting
-// spells"; spells.tex "Quicken Spell": "not cause oportunity attacks" — the
-// one way to cast without drawing one.
+// combat.tex "Opportunity Attack": "Triggering actions include any actions
+// that require concentration"; spells.tex "Quicken Spell": "not require
+// concentration and not cause oportunity attacks" — the one way to cast
+// without drawing one.
 function castTriggers(state: SceneState, root: CastAction): Trigger[] {
-  return root.quicken ? [] : opportunityTriggers(state, root.actorId)
+  return requiresConcentration(root) ? opportunityTriggers(state, root.actorId) : []
 }
 
 // combat.tex "Opportunity Attack": "Triggering actions include ... standard

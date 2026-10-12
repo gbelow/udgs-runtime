@@ -110,6 +110,9 @@ function describeWithdrawal(state: SceneState, { action, reason }: JournalEntry)
     case 'passedUp': return `${actor} passed up ${what}`
     case 'forgone': return `${actor} did not take ${what}: they took another follow-up of the same action`
     case 'noLongerTriggered': return `${actor}'s ${what} no longer applied once the action it answered changed`
+    case 'givenUp': return `${actor} gave up ${what}, held over from the round before, to defend`
+    case 'interrupted': return `${actor}'s ${what}, held over, was interrupted: what was spent on it is lost`
+    case 'failed': return `${actor}'s ${what}, held over, failed for want of what it needed when it came to finish`
   }
 }
 

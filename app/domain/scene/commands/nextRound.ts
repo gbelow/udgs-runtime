@@ -22,6 +22,7 @@ import { appendActions } from './log'
 import { rollHeld } from './heldTest'
 import { getRoundSeconds } from '../rules/chase'
 import { endChaseRound } from './chase'
+import { releaseNextHeld, startFinishing } from './hold'
 
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
@@ -68,7 +69,8 @@ export function nextRound(dice: Dice, newId: () => string): (state: SceneState) 
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, endRound(state, c, dice)]))
     const next = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], compulsions: [] }
     const called = rollStealth({ ...next, morale: getMoraleCalled(next).map((id) => ({ id, roll: null })), heldTests: getHeldCalled(next) }, dice)
-    return appendActions(called, getUpkeepAims(called).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(called, called.characters[actorId], key), upkeep: true, step: 'react' })))
+    const finishing = releaseNextHeld(startFinishing(called, dice))
+    return appendActions(finishing, getUpkeepAims(finishing).map(({ actorId, key }) => makeAction('fireAgain', { id: newId(), actorId, key, ...getHold(finishing, finishing.characters[actorId], key), upkeep: true, step: 'react' })))
   }
 }
 

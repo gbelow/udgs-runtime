@@ -7,7 +7,7 @@ import { getAccuracy, getStrike, skillTermGetters } from './skills'
 import type { Term } from './terms'
 import { MAX_SIZE, getSM, getVMAt, getSize } from './size'
 import { getKnowledge } from './knowledge'
-import { canAfford } from './cost'
+import { canAfford, canAffordOrHold } from './cost'
 import { getActionCost, type ActionCost } from './actionCosts'
 import { getCarriedItems, getItemScale, hasAmmo, isGear, isMetalWeapon } from '../../item/rules/items'
 import { getReadyItems } from '../../item/rules/containers'
@@ -310,11 +310,21 @@ export function isCastOverETs(key: SpellKey): boolean {
 // "Spells require using a focus surge to be cast in combat scenes." — unless
 // quickened.
 export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boolean {
+  if (!isCastPossible(c, key)) return false
+  const spell = SPELLS[key]
+  if (!isCampaignCharacter(c) || !(quicken ? canAfford(c, spell.cost) : canAffordOrHold(c, spell.cost))) return false
+  return quicken || c.usedSurge === 'focus'
+}
+
+// What the spell needs of the caster and the gear besides what it costs and
+// the surge it is cast under: known, castable within a round, and its
+// requirements met. What a spell held over to the next round still needs when
+// it finishes (combat.tex "Concentration").
+export function isCastPossible(c: Character, key: SpellKey): boolean {
   if (!isCampaignCharacter(c) || !(key in c.spells)) return false
   const spell = SPELLS[key]
-  if (spell.DL === null || isCastOverETs(key) || !canAfford(c, spell.cost)) return false
-  if (!meetsCastRequirements(c, key) || !hasChargeTarget(c, key) || !mayCastWhileConcentrating(c, key)) return false
-  return quicken || c.usedSurge === 'focus'
+  if (spell.DL === null || isCastOverETs(key)) return false
+  return meetsCastRequirements(c, key) && hasChargeTarget(c, key) && mayCastWhileConcentrating(c, key)
 }
 
 // The DL side of a spell's test resolved for this caster. Terms the domain

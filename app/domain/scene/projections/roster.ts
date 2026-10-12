@@ -5,6 +5,8 @@ import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
 import { getFightName } from '../rules/fighters'
 import { perState } from '../../perState'
+import { getHeldOf } from '../rules/hold'
+import { getActionNoun } from './labels'
 
 // Who a character is to an action.
 export type Role = 'actor' | 'target' | 'reactor' | 'none'
@@ -25,10 +27,18 @@ export type CombatRosterEntry = {
   hasSurged: boolean
   usedSurge: SurgeKind | null
   surrendered: boolean
+  // combat.tex "Concentration": what the character holds over to the next
+  // round, and the AP it has been paid
+  holding: { label: string; AP: number } | null
   // the character's part in the open action, if there is one
   role: Role | null
   // whether a click on the entry aims the open action at it
   targetable: boolean
+}
+
+function holdingOf(state: SceneState, id: string): CombatRosterEntry['holding'] {
+  const held = getHeldOf(state, id)
+  return held ? { label: getActionNoun(held), AP: held.carried.AP } : null
 }
 
 // The fight's roster as the UI reads it: who is in it, who is selected, who has
@@ -44,6 +54,7 @@ function buildCombatRoster(state: SceneState): CombatRosterEntry[] {
     hasSurged: c.usedSurge !== null,
     usedSurge: c.usedSurge,
     surrendered: state.surrendered.includes(id),
+    holding: holdingOf(state, id),
     role: open ? getRole(state, open, id) : null,
     targetable: targets.has(id),
   }))

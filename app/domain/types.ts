@@ -1127,6 +1127,7 @@ export const AbilityFamilySchema = z.object({
   section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'), // passive: always contributes its effects · active: fires once, pays cost · toggle: fires on, contributes effects until toggled off
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }), // what a use of an active ability takes, on top of its instant cost effects
+  concentration: z.boolean().default(false), // combat.tex "Concentration": a use needs the focus surge and may be held over to the next round
   target: AbilityTargetSchema.default('self'),
   stages: z.array(AbilityStageSchema).min(1),
 }).strip()
@@ -1142,6 +1143,7 @@ export const AbilitySchema = z.object({
   section: AbilitySectionSchema.default(ABILITY_SECTIONS[0]),
   activation: ActivationSchema.default('passive'),
   cost: CostSchema.default({ AP: 0, STA: 0, exhaustion: 0, IL: 0, ET: 0 }),
+  concentration: z.boolean().default(false),
   target: AbilityTargetSchema.default('self'),
   requires: z.array(str).default([]), // catalog keys that must already be learned
   ...AbilityStageValues,

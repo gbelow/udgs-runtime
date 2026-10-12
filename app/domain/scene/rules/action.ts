@@ -1,12 +1,14 @@
 import { notices } from './stealth'
-import { getMedicineCost, getMedicineTargets } from './medicine'
+import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, SceneState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
 import { sameCell } from './board/geometry'
 import { SPELLS, isSpellKey } from '../../spells'
-import { canCastSpell } from '../../character/rules/spells'
+import { canCastSpell, isCastPossible } from '../../character/rules/spells'
+import { hasAbility } from '../../abilities'
+import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { hasProperty } from '../../weaponProperties'
 import { isCampaignCharacter } from '../../utils'
@@ -14,7 +16,8 @@ import { isInReach, isInShotRange } from './board/board'
 import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { isTrivialClimb, needsClimbTest } from './board/cliff'
-import { canAfford } from '../../character/rules/cost'
+import { canAfford, canHold } from '../../character/rules/cost'
+import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
 import { hasGrant } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
 import { findTrigger } from './reactions'
@@ -354,6 +357,44 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   return canAfford(c, cost) ? cost : null
 }
 
+// combat.tex "Concentration": "If any condition for the completion of the
+// spell is missing when it finishes, the action fails" — why the held action
+// cannot finish now, or null: what it needed to be made, bar the focus surge
+// and the price, which holding it has paid.
+export function getFinishBar(state: SceneState, held: RootAction): string | null {
+  const c = state.characters[held.actorId]
+  if (!c || isDead(c)) return 'gone'
+  if (hasAffliction(c, 'unconscious')) return 'unconscious'
+  if (needsTarget(held) && !isTargetAimed(state, held)) return 'target out of reach'
+  switch (held.kind) {
+    case 'cast':
+      return isSpellKey(held.key) && isCastPossible(c, held.key) && getSpellBoardBar(state, c, held.key) === null && isSuggestionComplete(state, held) ? null : 'cannot be cast'
+    case 'shoot':
+      return getAttackVariant(c, held) !== null && isShotLoaded(c, held) && isAimOnTarget(state, held) ? null : 'cannot be shot'
+    case 'firstAid':
+    case 'cauterize':
+      return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'nobody bleeding within reach'
+    case 'reload': {
+      const row = getReloadRow(c, held)
+      return row && getRowStack(c, row, held.ammoId) !== null ? null : 'nothing to load'
+    }
+    default:
+      return isDeclarationComplete(state, c, held) ? null : 'no longer possible'
+  }
+}
+
+// combat.tex "Concentration": what holding the action over to the next round
+// takes now — all the AP the actor has and the STA it costs, when it requires
+// concentration, there is not the AP for it, the focus surge is made and the
+// actor holds nothing else. Null where it is simply paid for or cannot be held.
+export function getHoldCost(state: SceneState, action: Action): ActionCost | null {
+  const c = state.characters[action.actorId]
+  if (!c || !requiresConcentration(action) || c.usedSurge !== 'focus') return null
+  const cost = getOwnCost(state, action)
+  if (!cost || canAfford(c, cost) || !canHold(c, cost) || getHeldOf(state, c.id)) return null
+  return { AP: Math.max(0, c.resources.AP), STA: cost.STA }
+}
+
 // Whether the action and every reaction to it can be paid for now, priced as
 // the roll or the payment will price them.
 export function canPayAll(state: SceneState, root: Action): boolean {
@@ -382,13 +423,19 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
   }
   if (action.kind === 'strike' && isSweepLink(action)) return [{ label: 'sweep, paid by its first strike', AP: 0, STA: 0 }]
   if (action.kind === 'fireAgain' && action.upkeep) return [{ label: 'held spell upkeep', AP: 0, STA: 0 }]
+  if (action.holding) {
+    const full = getOwnCost(state, { ...action, holding: false })
+    return full && [{ label: 'held over to the next round', AP: Math.max(0, c.resources.AP), STA: full.STA }]
+  }
   const declared = getDeclaredCost(state, c, action)
   if (!declared) return null
   const recipe = getRecipeCost(state, action, declared)
+  const remaining = { AP: Math.max(0, recipe.AP - action.carried.AP), STA: Math.max(0, recipe.STA - action.carried.STA) }
   const strike = getStrikePriceOf(state, action)
   return [
     { label: strike?.label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
+    ...costChange('paid in the round before', remaining, recipe),
     ...(strike?.added ?? []),
   ]
 }
@@ -448,7 +495,8 @@ function getPriceLabel(action: Action): string {
 export function getRefundedAP(state: SceneState, reactorId: string, rootId: string): number {
   const fought = getAction(state, rootId)
   const given = fought ? getCancellableRoot(state, fought, reactorId) : null
-  return given && getGivenUpFor(state, given)?.id === rootId ? Math.max(0, (given.cost?.AP ?? 0) - 1) : 0
+  if (given && getGivenUpFor(state, given)?.id === rootId) return Math.max(0, (given.cost?.AP ?? 0) + given.carried.AP - 1)
+  return getHeldRefund(state, reactorId, rootId)
 }
 
 // The character as they stand to pay for their answer to the attack: with the
@@ -510,6 +558,7 @@ export function getClimbRedoCount(state: SceneState, action: MoveAction): number
 // reaction declared against it is a test of its own (combat.tex "Avoiding
 // an Explosion").
 export function needsDie(state: SceneState, action: Action): boolean {
+  if (action.holding) return false
   if (action.kind === 'move') return needsOwnDie(state, action) || getClimbRedoCount(state, action) > 0
   if (action.kind === 'spellTest' && action.accepted) return false
   return ACTIONS[action.kind].die || getReactionsTo(state, action.id).some((r) => ACTIONS[r.kind].die)

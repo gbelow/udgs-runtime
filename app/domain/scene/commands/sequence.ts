@@ -28,6 +28,7 @@ import { getResults } from './results'
 import { compelByTest } from './stress'
 import { getHiddenFrom } from '../rules/stealth'
 import { pickMade } from '../rules/declaration'
+import { breakHeld, parkHeld, releaseNextHeld } from './hold'
 
 // What carries the fight on between the commands. Every action runs
 // define → react → roll → post → effect; the actions its reactions open are
@@ -45,11 +46,17 @@ import { pickMade } from '../rules/declaration'
 // it, the turn goes to whoever is due to flee.
 export function advance(state: SceneState, newId: () => string): SceneState {
   const top = getOpenAction(state)
-  if (!top) return handOverToFleers(handOverToCompelled(state))
+  if (!top) {
+    const finishing = releaseNextHeld(state)
+    return finishing !== state ? finishing : handOverToFleers(handOverToCompelled(state))
+  }
   if (isForgone(state, top)) return advance(withdrawActions(state, [top.id], 'forgone'), newId)
   if (top.step !== 'post') return state
   const opened = openBefore(state, top, newId)
-  return opened === state && !hasPostChoice(state, top) ? land(state, top, newId) : opened
+  if (opened !== state || hasPostChoice(state, top)) return opened
+  // combat.tex "Concentration": the attacks an action held over drew are
+  // fought; unless they came to nothing of it, it waits for the round to change
+  return top.holding && !isVoided(state, top) ? advance(parkHeld(state, top), newId) : land(state, top, newId)
 }
 
 // The action's effect: settled as it stands, landed on everyone it
@@ -59,7 +66,7 @@ export function advance(state: SceneState, newId: () => string): SceneState {
 export function land(state: SceneState, open: RootAction, newId: () => string): SceneState {
   const settled = getSettled(state, open)
   const resolved = { ...settled, results: getResults(state, settled) }
-  const landed = applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve')
+  const landed = breakHeld(applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve'), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
   const forced = resolved.kind === 'feint' ? forceSurge(fled, resolved) : resolved.kind === 'spellTest' ? compelByTest(fled, resolved) : fled

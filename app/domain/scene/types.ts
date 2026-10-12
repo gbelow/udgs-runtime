@@ -255,7 +255,18 @@ const ActionBase = {
   // follow-up it opened, or the contested strike it was declared as; null
   // for one no recipe gave.
   recipe: str.nullable().default(null),
-  step: z.enum(['define', 'react', 'post', 'done']).default('define'),
+  // `held`: combat.tex "Concentration" — committed without the AP for it,
+  // paid as far as the AP went and waiting for the round to change; in play
+  // but not on the stack
+  step: z.enum(['define', 'react', 'post', 'done', 'held']).default('define'),
+  // combat.tex "Concentration": what an earlier round paid towards it, kept
+  // from the price as it comes to be paid
+  carried: ActionCostSchema.default({ AP: 0, STA: 0 }),
+  // combat.tex "Concentration": committed to be held over for want of the AP
+  holding: z.boolean().default(false),
+  // combat.tex "Concentration": the place a held action finishes in once the
+  // round has changed (by cunning, highest first); null while it is held on
+  finishing: num.nullable().default(null),
   // Which part of a prepared reaction this action is, when a `prepared`
   // reaction opened it: the movement it may carry, or the action it is for.
   preparedPart: z.enum(['move', 'main']).nullable().default(null),
@@ -1336,8 +1347,9 @@ export type Contest = z.infer<typeof ContestSchema>
 // Why a committed action, or an offer made to someone, left play without
 // landing: an answer taken back, or changed for another; a follow-up passed up,
 // or forgone for another the same actor took; an answer the action it was made
-// to no longer triggered.
-export const WithdrawalReasonSchema = z.enum(['tookBack', 'replaced', 'passedUp', 'forgone', 'noLongerTriggered'])
+// to no longer triggered; a held action given up for a defense, broken by an
+// interruption, or failed for want of what it needs when it came to finish.
+export const WithdrawalReasonSchema = z.enum(['tookBack', 'replaced', 'passedUp', 'forgone', 'noLongerTriggered', 'givenUp', 'interrupted', 'failed'])
 export type WithdrawalReason = z.infer<typeof WithdrawalReasonSchema>
 
 // What was withdrawn, as it stood, and when.

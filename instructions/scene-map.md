@@ -28,7 +28,10 @@ own.
 
 3. **Every action runs the same pipeline.** `define → react → roll → post → effect`, stored
    as `ActionBase.step` (`define | react | post | done`). The roll and the effect are
-   transitions, not places an action waits.
+   transitions, not places an action waits. One more step stands apart: `held`, an action
+   that requires concentration committed without the AP for it, paid as far as the AP went
+   and waiting for the round to change. It is in play (`state.live`) but never on the stack,
+   until the round change takes it up at `react` (`mechanics.md`, Concentration).
 
 4. **A stack decides whose turn it is to be played out.** `state.stack` holds ids of root
    actions still being played out; the top is the open one (`getOpenAction`). Anything an
@@ -287,7 +290,8 @@ app/domain/scene/
 │   ├── floor.ts        dropToFloor, throwOffShieldToFloor, pickFloorItem
 │   ├── characters.ts   removeFromCombat, updateCharacter
 │   ├── parties.ts      joinFight, addToFight, moveToParty, splitOff, renameParty: the scene's parties, inherited from the campaign and changed by the table
-│   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
+│   ├── nextRound.ts    round change: charges and upkeep of held spells, gas, burning, bleed, AP reset, the holders' focus surge, the actions held over taking up their place (`startFinishing`), the free paint-only fireAgain (`upkeep`) each held spray's holder owes an aim
+│   ├── hold.ts         actions held over to the next round: holdOver (the commit), giveUpHeld (a reaction gives it up), breakHeld (an interruption breaks it), startFinishing (the round change: who finishes, the cunning order, who holds on), releaseNextHeld (taken up at `react` once nothing is open; called by `advance`)
 │   ├── turn.ts         startTurn, toggleContest, rollContest, endTurn, surge (turn-gated)
 │   ├── closeTurn.ts    a holder's turn over: surge AP lost, fire burns (endTurn and a won feint)
 │   ├── morale.ts       rollMorale: the will test a round's call is answered with, and what it leaves
@@ -367,6 +371,7 @@ app/domain/scene/
 │   ├── ignition.ts     the burning damage an attack carries, which lights the fuel where it lands
 │   ├── throw.ts        what can be thrown, how far, at what price, what lands
 │   ├── medicine.ts     First Aid and Cauterization: who may be tended, the bar, the price off the ability, the test, what lands
+│   ├── hold.ts         concentration: which actions require it (`requiresConcentration`), the held ones (`getHeldOf`), whether a reaction gives one up and what it gets back (`isGivingUpHeld`, `getHeldRefund`)
 │   ├── reload.ts       reloads: the rows in hand that are reloaded, why one cannot be, the stack it takes and what it leaves in the weapon (`Item.loaded`)
 │   ├── detection.ts    senses: how impaired each of an observer's senses is against a target (`none`, `partial`, `total`: line of sight, darkness no light reaches, bad and zero visibility, fog's radius, a sense's range, touch and smell at 0 m being a grapple partner, camouflage carried, the afflictions that blind, deafen or worsen a sense), and what each detects at; `getActionHeading`, the way a landed action leaves a one-cell token facing, drawn only (written by `reduceBoard`)
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test

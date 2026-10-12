@@ -1,6 +1,8 @@
 import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
+import { getHeldActions } from '../rules/hold'
+import { withdrawActions } from './log'
 import { isSpendingOutOfTurn } from '../rules/turn'
 import { settleBinds } from './bind'
 import { dropEmptyFightParties } from './parties'
@@ -11,8 +13,9 @@ import { getChanges } from '../rules/changes'
 // they had taken.
 // Refused while an action is open, since it may be theirs or aimed at them.
 export function removeFromCombat(id: string): Updater {
-  return (state) => {
-    if (getOpenAction(state)) return state
+  return (given) => {
+    if (getOpenAction(given)) return given
+    const state = withdrawActions(given, getHeldActions(given).filter((h) => h.actorId === id).map((h) => h.id), 'failed')
     const { [id]: leaving, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const { [id]: _cover, ...bodyCover } = state.bodyCover
