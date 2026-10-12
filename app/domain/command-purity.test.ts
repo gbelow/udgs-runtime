@@ -29,7 +29,7 @@ import * as downtimeModule from './downtime/commands/downtime'
 import * as downtimePlansModule from './downtime/commands/plans'
 import { DowntimeStateSchema, type Downtime } from './downtime/types'
 import { SceneStateSchema, type SceneState } from './scene/types'
-import { getOpenAction } from './scene/rules/log'
+import { getOpenAction, withLiveActions } from './scene/rules/log'
 import { getRootTest } from './scene/rules/attack'
 import { makeCampaignCharacter, makeCreationDraft } from './factories'
 import { produceEffects } from './character/rules/production'
@@ -371,7 +371,7 @@ function rolledManeuver(s: SceneState): SceneState {
 // The subject with its committed strike and the evade struck off, for the
 // commands that need nothing open.
 function cleared(s: SceneState): SceneState {
-  return { ...s, actions: [] }
+  return withLiveActions(s, [])
 }
 
 // The one-cell move committed, followed by `b` from the next cell, and paid
@@ -486,7 +486,8 @@ function combatSubject(): SceneState {
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {
     ...SceneStateSchema.parse({
-      actions: [strike, evade],
+      actions: { s1: strike, r1: evade },
+      live: ['s1', 'r1'],
       stack: ['s1'],
       board: { placements: { a: { cell: { q: 0, r: 0 } }, b: { cell: { q: 0, r: 1 } } }, terrain: { '2,0': { blocking: true } } },
     }),

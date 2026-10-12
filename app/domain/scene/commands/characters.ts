@@ -31,7 +31,7 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
     if (!c) return state
     const after = settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c) } })
     const changes = getChanges(state, after, 'edit')
-    return changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.record.length, changes }] }
+    return changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
   }
 }
 

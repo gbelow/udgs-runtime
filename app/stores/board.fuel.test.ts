@@ -73,7 +73,7 @@ describe('putting a fire out', () => {
   it('is offered only for a burning cell in reach, and clears just that one', () => {
     const none = scene()
     none.declare({ kind: 'extinguish' })
-    expect(none.state().actions.some((a) => a.kind === 'extinguish')).toBe(false)
+    expect(Object.values(none.state().actions).some((a) => a.kind === 'extinguish')).toBe(false)
 
     const h = scene()
     h.press(burn(1, 0, 8))

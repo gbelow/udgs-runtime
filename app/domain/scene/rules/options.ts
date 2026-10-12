@@ -23,7 +23,7 @@ import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepurposed, withGuardStep, withoutReserve } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
-import { canAnswer, getOpenAction, getReactionsTo } from './log'
+import { canAnswer, getLiveActions, getOpenAction, getReactionsTo, withLiveActions } from './log'
 import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
 import { getReloadCost } from '../../character/rules/gear'
@@ -162,11 +162,11 @@ function getAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAc
 // the push or any answer to it beyond its payers is not open.
 function closeIfPushUnpayable(state: SceneState, characterId: string, open: RootAction, options: ActionOption[]): ActionOption[] {
   if (!canPayAll(state, open)) return options
-  const others = state.actions.filter((a) => !(a.reactionTo === open.id && a.actorId === characterId))
+  const others = getLiveActions(state).filter((a) => !(a.reactionTo === open.id && a.actorId === characterId))
   return options.map((o) => {
     if (!o.available) return o
     const probe = makeAction(o.draft.kind, { ...o.draft, id: '', actorId: characterId, reactionTo: open.id })
-    return canPayAll({ ...state, actions: [...others, probe] }, open) ? o : { ...o, available: false, reason: 'the push could not pay for it' }
+    return canPayAll(withLiveActions(state, [...others, probe]), open) ? o : { ...o, available: false, reason: 'the push could not pay for it' }
   })
 }
 

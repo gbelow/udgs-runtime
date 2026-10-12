@@ -5,6 +5,7 @@ import { sumTerms } from '../character/rules/terms'
 import { board, spearman } from '../bot/fixtures'
 import { stepBot } from '../bot/step'
 import { tableMove } from '../bot/table'
+import { getLanded } from './rules/log'
 
 // Every action of a fight played out by two bots, checked as it lands.
 describe('what a played-out fight records', () => {
@@ -20,7 +21,7 @@ describe('what a played-out fight records', () => {
       for (let i = 0; i < 200; i++) {
         const next = stepBot(state, parties, dice, newId) ?? tableMove(state, parties, dice, newId)
         if (!next) break
-        const landed = next.record.slice(state.record.length)
+        const landed = getLanded(next).slice(state.landed.length)
 
         // character/rules/terms.ts: "the displayed value and the per-term
         // breakdown can never drift"
@@ -44,10 +45,10 @@ describe('what a played-out fight records', () => {
         }
 
         // what a step's actions record as changed is what changed
-        const known = (st: typeof state) => new Map([...st.actions, ...st.record].map((a) => [a.id, a.changes.length]))
+        const known = (st: typeof state) => new Map(Object.values(st.actions).map((a) => [a.id, a.changes.length]))
         const was = known(state)
         const added = [
-          ...[...next.actions, ...next.record].flatMap((a) => a.changes.slice(was.get(a.id) ?? 0)),
+          ...Object.values(next.actions).flatMap((a) => a.changes.slice(was.get(a.id) ?? 0)),
           ...next.edits.slice(state.edits.length).flatMap((e) => e.changes),
         ]
         for (const id of ['a', 'b']) {
@@ -60,8 +61,8 @@ describe('what a played-out fight records', () => {
 
         // nothing leaves play without landing or reaching the journal, but a
         // draft that was never committed
-        const kept = new Set([...next.actions, ...next.record, ...next.journal.map((j) => j.action)].map((a) => a.id))
-        for (const a of [...state.actions, ...state.record]) {
+        const kept = new Set([...Object.values(next.actions), ...next.journal.map((j) => j.action)].map((a) => a.id))
+        for (const a of Object.values(state.actions)) {
           const draft = a.step === 'define' && a.reactionTo === null && a.spawnedBy === null && a.followUpOf === null
           expect(kept.has(a.id) || draft).toBe(true)
         }
@@ -69,7 +70,7 @@ describe('what a played-out fight records', () => {
       }
       state = nextRound(dice, newId)(state)
     }
-    expect(state.record.length).toBeGreaterThan(0)
+    expect(state.landed.length).toBeGreaterThan(0)
     expect(injuries).toBeGreaterThan(0)
   })
 })

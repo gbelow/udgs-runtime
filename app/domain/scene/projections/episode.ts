@@ -5,7 +5,7 @@ import { getActionName } from './labels'
 import { getActionReport, type ActionReport } from './outcomes'
 import { ACTIONS } from '../rules/actionCatalog'
 import { getFightName } from '../rules/fighters'
-import { getAction, getHistory, getOrigin, getReactionsTo } from '../rules/log'
+import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../rules/log'
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
 import { getMoveOverride } from '../rules/move'
@@ -65,7 +65,7 @@ export function getLastEpisode(state: SceneState): EpisodeEntry[] | null {
   const landed = last ? getAction(state, last) : null
   if (!landed) return null
   const origin = getOrigin(state, landed).id
-  const roots = state.record.filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
+  const roots = getLanded(state).filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
@@ -192,6 +192,6 @@ export function describeChange(state: SceneState, change: Change): string {
 // line each.
 export function getEditsSince(state: SceneState): string[] {
   return state.edits
-    .filter((e) => e.landed >= state.record.length)
+    .filter((e) => e.landed >= state.landed.length)
     .flatMap((e) => e.changes.map((c) => `${e.cause}: ${describeChange(state, c)}`))
 }

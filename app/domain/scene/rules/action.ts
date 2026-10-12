@@ -40,7 +40,7 @@ import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
 import { allowsAlong, getRecipeCost } from './recipes'
-import { getAction, getDrawnOpportunityAttacks, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
+import { getAction, getDrawnOpportunityAttacks, getLiveActions, getOpenAction, getOpenedBy, getReactionsTo, getRootOf } from './log'
 import { getFleeCost } from './flee'
 import { canBeSwept, isSweep, isSweepLink, isSweepRowKept } from './sweep'
 import { getFireAgainBar, getRepeatCost } from './fireAgain'
@@ -405,7 +405,7 @@ export function canAffordOpportunity(state: SceneState, reaction: ActionOf<'oppo
 // keep back from whatever else they answer meanwhile. One still to be
 // declared is not yet priced.
 function getOpportunityReserve(state: SceneState, actorId: string, except: string | null): ActionCost {
-  return state.actions.reduce((sum, a) => {
+  return getLiveActions(state).reduce((sum, a) => {
     if (a.kind !== 'opportunityAttack' || a.actorId !== actorId || a.reactionTo === except || getOpenedBy(state, a)) return sum
     const cost = getOwnCost(state, getOpportunityAction(state, a, `${a.id}-follow-up`))
     return cost ? { AP: sum.AP + cost.AP, STA: sum.STA + cost.STA } : sum

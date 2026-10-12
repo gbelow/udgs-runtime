@@ -79,7 +79,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   registry in `commands/heldTest.ts`. A new kind of held test is a word in `HELD_TESTS`
   (`lists.ts`) and its effect, which does not compile until it has one; a called kind is also
   a word in `CALLED_TESTS` and its entry in `HELD_DEFS`. Rules ask the registry what holds for
-  the round; they do not scan the record for it. Swim moves
+  the round; they do not scan the log for it. Swim moves
   are priced per metre by the degree that metre's water gives the score, and a dive is swum
   like a metre of path.
 - Board edits outside any action (`createBoard`, `importBoard`, `placeCharacter`,

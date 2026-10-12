@@ -6,7 +6,7 @@ import { amendAction, commitAction, declareAction, setTarget } from '../commands
 import { beginTurn } from '../commands/sequence'
 import { nextRound } from '../commands/nextRound'
 import { getTargetIds } from './action'
-import { getOpenAction } from './log'
+import { getLanded, getOpenAction } from './log'
 import { getTriggersFor } from './reactions'
 import { getStealthScore, getStealthTurn } from './stealth'
 
@@ -86,7 +86,7 @@ describe('an attack in the attacker\'s own turn', () => {
     const state = beginTurn(hiddenWith(fight({ q: 1, r: 0 }, { q: 0, r: 0 }, fog('0,0')), 1000), 't')
     const declared = setTarget('o')(declareAction('t', { kind: 'strike', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' }, newId)(state))
     const committed = commitAction(() => 5, newId)(declared)
-    const strike = [...committed.actions, ...committed.record].find((a) => a.kind === 'strike')
+    const strike = Object.values(committed.actions).find((a) => a.kind === 'strike')
     expect(strike?.detections.filter((d) => !d.found).map((d) => d.observerId)).toEqual(['o'])
   })
 
@@ -106,7 +106,7 @@ describe('a turn\'s noise', () => {
   const walked = (movement: 'careful' | 'basic') => {
     const state = beginTurn(hiddenWith(fight({ q: 10, r: 0 }, { q: 0, r: 0 }), 100), 't')
     const moved = commitAction(() => 5, newId)(amendAction({ movement, path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
-    const move = moved.record.find((a) => a.kind === 'move')
+    const move = getLanded(moved).find((a) => a.kind === 'move')
     expect(move, `a ${movement} step landed`).toBeDefined()
     return { counted: getStealthTurn(moved)?.AP, paid: move?.cost?.AP }
   }
@@ -131,7 +131,7 @@ describe('noisy ground', () => {
     const shod = boots ? { ...start, characters: { ...start.characters, t: { ...start.characters.t, held: [ItemSchema.parse({ name: 'Muffled Boots', muffles: true })] } } } : start
     const state = beginTurn(shod, 't')
     const moved = commitAction(() => 5, newId)(amendAction({ movement: 'basic', path: [{ q: 1, r: 0 }] })(declareAction('t', { kind: 'move' }, newId)(state)))
-    const move = moved.record.find((a) => a.kind === 'move')
+    const move = getLanded(moved).find((a) => a.kind === 'move')
     return { heard: getStealthTurn(moved)?.heardAP, paid: move?.cost?.AP ?? 0 }
   }
 

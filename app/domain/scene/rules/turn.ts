@@ -3,7 +3,7 @@ import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
-import { getOpenAction } from './log'
+import { getLiveActions, getOpenAction } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getHeldTurnBar } from './heldRoll'
@@ -65,7 +65,7 @@ function getContestClosed(state: SceneState): string | null {
   if (state.forcedSurge !== '') return 'the turn was forced by a feint'
   if (getStressTurn(state)) return 'the turn is a limit stress action'
   if (state.lastContest) return 'the turn was contested'
-  if (state.turnsTaken.some((t) => t.turn === state.turn) || state.actions.some((a) => a.turn === state.turn)) return 'the turn is under way'
+  if (state.turnsTaken.some((t) => t.turn === state.turn) || getLiveActions(state).some((a) => a.turn === state.turn)) return 'the turn is under way'
   return null
 }
 

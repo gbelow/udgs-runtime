@@ -20,7 +20,8 @@ own.
    applies updaters to it.
 
 2. **An action is data, never a procedure.** A strike, a move, a defense is a record in
-   `state.actions` while in play and in `state.record` once landed (`getLog` reads both): who, against whom, what was declared, what the die said, and — once it
+   `state.actions`, a table keyed by id that holds it both in play (`state.live`) and once landed
+   (`state.landed`): who, against whom, what was declared, what the die said, and — once it
    lands — what it came to (`facts`). Nothing about an action is computed twice: whatever
    needed two characters to work out is written onto the record when the transition
    happens, so the reducers that land it need only the record.
@@ -32,16 +33,20 @@ own.
 4. **A stack decides whose turn it is to be played out.** `state.stack` holds ids of root
    actions still being played out; the top is the open one (`getOpenAction`). Anything an
    action opens — the strike an opportunity attack opens, a riposte, the blast of an
-   explosion — is pushed over it and played out first. `state.record` holds the actions in the
+   explosion — is pushed over it and played out first. `state.landed` holds the ids in the
    order they *landed* (`getHistory`), which differs from the order they were declared, and
-   is only ever added to; a draft taken back leaves `state.actions`, never the record. What
+   is only ever added to; a draft taken back leaves the table and `state.live`. The ordered
+   log (`getLog`) is put together from those lists for whoever shows it. What
    was committed, or offered, and then withdrawn without landing goes into `state.journal`
    with its reason (`withdrawActions`), so nothing leaves play without a trace but a draft.
 
-5. **An action writes only its own record.** Being given up, voided, interrupted or broken is
-   never written onto the victim; it is *derived* from the log (`rules/opportunity.ts`,
-   `rules/interruption.ts`). Nothing is written onto an action after its commit except by
-   its own transitions.
+5. **An action writes only its own record, but for what happens to it on the way.** Apart
+   from its own transitions, the only things written onto an action after its commit are
+   facts that happen to it while it is still in play, and `setActions` writes them
+   at the moment they happen: the interruptions landed on its actor (`interruptions`) and
+   the reactions its actor declared within it (`reactedWithin`). No rule finds them by the
+   order or place of anything in the log. Being given up or voided is derived from those
+   (`rules/opportunity.ts`, `rules/interruption.ts`).
 
 6. **One place changes each part of the state.** Characters change only in
    `reduceCharacter`, binds in `reduceBinds`, the floor in `reduceFloor`, the board in
@@ -116,9 +121,11 @@ and `ActionDraft` (what a click declares).
 
 Three links tie the log together: `reactionTo` (a reaction points at its root),
 `spawnedBy` (an opened action points at whatever opened it) and `followUpOf` (a follow-up
-points at the action it follows). `rules/log.ts` holds every lookup over them, and nothing
-else walks them: up (`getAncestry`, `getOrigin`, `getRootOf`, `getOpeningReaction`) and down
-(`getDescendants`, `getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
+points at the action it follows). They are kept only on the action that points, like a
+foreign key; `rules/log.ts` indexes them once for each table of actions (`getLinks`), so a
+lookup either way is a lookup, never a scan. It holds every lookup over them, and nothing
+else walks them: up (`getAncestry`, `getGivenRiseBy` without follow-ups, `getOrigin`, `getRootOf`, `getOpeningReaction`) and down
+(`getReactionsTo`, `getSpawned`, `getOpenedBy`, `getOpenedMain`, `getPassedUp` for what was
 opened and then passed up, `getDrawnOpportunityAttacks`). What a round or a turn needs to
 remember is kept in a registry beside the log, emptied by `nextRound` (`heldTests`, with
 every character's stealth roll, made as the round begins; `turnsTaken`: the turns something was committed
@@ -271,7 +278,7 @@ app/domain/scene/
 │   ├── results.ts      getResults: what a landing action's damage comes to on each target, with the steps, written onto it by `land`
 │   ├── choices.ts      post-roll choices: HOP, spell improvements, graze save, aims, maneuver picks
 │   ├── sequence.ts     advance, land, openBefore, getFollowUps, the flee handover — the engine
-│   ├── log.ts          setActions (only writer of actions/stack/record), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
+│   ├── log.ts          setActions (only writer of actions/live/stack/landed), withdrawActions (the only way out of play but a draft, writes the journal), discardDraft, applyPhase, pruneReactions
 │   ├── reduce.ts       reduceCharacter / Grapples / Floor / Board, by phase
 │   ├── bind.ts         settleBinds
 │   ├── breakage.ts     toggleBreakage: the optional equipment-breakage rule on or off

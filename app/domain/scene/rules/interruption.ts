@@ -1,6 +1,6 @@
 import type { Interruption } from '../../types'
 import type { Action, SceneState } from '../types'
-import { getAction, getHistory, getReactionsTo, getRootOf, getSpawned } from './log'
+import { getAction, getGivenRiseBy, getRootOf } from './log'
 import { getCounterSlot, getOpeningCounter } from './counter'
 import { isManeuverWon } from './grapple'
 import { getDeliveryInterruption } from './damage'
@@ -25,23 +25,6 @@ export function getInterruptionOf(landed: Action | null | undefined, victimId: s
   }
 }
 
-// Everything the action gave rise to: its reactions, what they opened, and
-// so on down.
-function getDescendantIds(state: SceneState, action: Action): Set<string> {
-  const found = new Set<string>()
-  const queue = [action.id]
-  while (queue.length > 0) {
-    const id = queue.shift()!
-    for (const a of [...getReactionsTo(state, id), ...getSpawned(state, id)]) {
-      if (!found.has(a.id)) {
-        found.add(a.id)
-        queue.push(a.id)
-      }
-    }
-  }
-  return found
-}
-
 // A counterattack's strike that tied the attack lands alongside it, and
 // neither breaks the other (the table's ruling) — though what it lands on
 // the attacker still interrupts or stuns them.
@@ -51,6 +34,21 @@ function isTiedCounterStrike(state: SceneState, landed: Action): boolean {
   return !!counter && !!root && getCounterSlot(root, counter) === 'tie'
 }
 
+export type StampedInterruption = Action['interruptions'][number]
+
+// What the action, as it lands, does to the actions it was given rise by:
+// the interruption it lands on each one's actor. Whichever of those has not
+// landed yet carries it (`interruptions`); one that already has took effect
+// first, and is not broken by it.
+export function getInterruptionsLanding(state: SceneState, landing: Action): { on: Action; interruption: StampedInterruption }[] {
+  if (landing.reactionTo !== null) return []
+  const tie = isTiedCounterStrike(state, landing)
+  return getGivenRiseBy(state, landing).flatMap((on) => {
+    const level = getInterruptionOf(landing, on.actorId)
+    return level === 'none' ? [] : [{ on, interruption: { by: landing.id, level, tie } }]
+  })
+}
+
 export type LandedInterruption = { by: Action; level: Exclude<Interruption, 'none'> }
 
 // The interruptions landed on the action's actor by what it gave rise to,
@@ -58,19 +56,9 @@ export type LandedInterruption = { by: Action; level: Exclude<Interruption, 'non
 // counterattack that rolled lower, a riposte, a follow-up — comes too late
 // to break it.
 export function getInterruptions(state: SceneState, action: Action): LandedInterruption[] {
-  return getLandedBefore(state, action).filter(({ by }) => !isTiedCounterStrike(state, by))
-}
-
-function getLandedBefore(state: SceneState, action: Action): LandedInterruption[] {
-  const descendants = getDescendantIds(state, action)
-  const history = getHistory(state)
-  const landedAt = history.indexOf(action.id)
-  const before = landedAt === -1 ? history : history.slice(0, landedAt)
-  return before.flatMap((id): LandedInterruption[] => {
-    const by = descendants.has(id) ? getAction(state, id) : null
-    if (!by) return []
-    const level = getInterruptionOf(by, action.actorId)
-    return level === 'none' ? [] : [{ by, level }]
+  return action.interruptions.flatMap(({ by, level, tie }): LandedInterruption[] => {
+    const landed = tie ? null : getAction(state, by)
+    return landed ? [{ by: landed, level }] : []
   })
 }
 
@@ -109,7 +97,7 @@ function strongest(levels: Interruption[]): Interruption {
 // them, or, for its own actor, whatever landed on them while it was played
 // out, a tied counterattack's strike.
 export function isInterruptedBy(state: SceneState, landed: Action, id: string): boolean {
-  if (landed.actorId === id && getLandedBefore(state, landed).length > 0) return true
+  if (landed.actorId === id && landed.interruptions.length > 0) return true
   return getInterruptionBy(state, landed, id) !== 'none'
 }
 

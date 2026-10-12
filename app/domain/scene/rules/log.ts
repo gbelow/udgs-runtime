@@ -31,13 +31,59 @@ export function findOpenRoot<K extends ActionKind>(state: SceneState, kind: K, m
 // Every action of the fight, played out or not: what landed, then what is
 // still in play.
 export function getLog(state: SceneState): Action[] {
-  return [...state.record, ...state.actions]
+  return [...getLanded(state), ...getLiveActions(state)]
+}
+
+// The actions still in play, in the order they were declared.
+export function getLiveActions(state: SceneState): Action[] {
+  return state.live.map((id) => state.actions[id])
+}
+
+// The actions played out, in the order they landed.
+export function getLanded(state: SceneState): Action[] {
+  return state.landed.map((id) => state.actions[id])
 }
 
 // The ids of the actions played out, in the order they landed, not counting
 // the reactions to them.
 export function getHistory(state: SceneState): string[] {
-  return state.record.filter((a) => a.reactionTo === null).map((a) => a.id)
+  return state.landed.filter((id) => state.actions[id].reactionTo === null)
+}
+
+// The fight with `live` in play instead of what is, what landed kept: the
+// fight a rule weighs when it asks what a declaration would come to.
+export function withLiveActions(state: SceneState, live: Action[]): SceneState {
+  const actions = { ...state.actions }
+  for (const id of state.live) delete actions[id]
+  for (const a of live) actions[a.id] = a
+  return { ...state, actions, live: live.map((a) => a.id) }
+}
+
+// What points at each action, by the link it points with, in the log's order.
+// Built once for each table of actions and kept beside it, the way a
+// database keeps an index on a foreign key: nothing writes it, so nothing can
+// leave it out of step.
+type Links = { reactions: Map<string, Action[]>; spawned: Map<string, Action[]>; followUps: Map<string, Action[]> }
+
+const linksOf = new WeakMap<SceneState['actions'], { live: string[]; landed: string[]; links: Links }>()
+
+function getLinks(state: SceneState): Links {
+  const kept = linksOf.get(state.actions)
+  if (kept && kept.live === state.live && kept.landed === state.landed) return kept.links
+  const links: Links = { reactions: new Map(), spawned: new Map(), followUps: new Map() }
+  const add = (index: Map<string, Action[]>, id: string | null, a: Action) => {
+    if (id === null) return
+    const listed = index.get(id)
+    if (listed) listed.push(a)
+    else index.set(id, [a])
+  }
+  for (const a of getLog(state)) {
+    add(links.reactions, a.reactionTo, a)
+    add(links.spawned, a.spawnedBy, a)
+    add(links.followUps, a.followUpOf, a)
+  }
+  linksOf.set(state.actions, { live: state.live, landed: state.landed, links })
+  return links
 }
 
 // What the action comes of: what it answers, what opened it, or what it is a
@@ -59,23 +105,20 @@ export function getAncestry(state: SceneState, action: Action): Action[] {
   }
 }
 
-// Everything that comes of the action, the way `getAncestry` walks back: its
-// reactions, what it opened, its follow-ups, and so on down.
-export function getDescendants(state: SceneState, id: string): Action[] {
-  const children = new Map<string, Action[]>()
-  for (const a of getLog(state)) {
-    const parentId = getParentId(a)
-    if (parentId) children.set(parentId, [...(children.get(parentId) ?? []), a])
-  }
+// What the action came of, by answering or being opened, and so on up: the
+// actions it was given rise by. A follow-up comes after what it follows, and
+// is not among them.
+export function getGivenRiseBy(state: SceneState, action: Action): Action[] {
   const found: Action[] = []
-  const seen = new Set([id])
-  const queue = [id]
+  const queue = [action]
   while (queue.length > 0) {
-    for (const a of children.get(queue.shift()!) ?? []) {
-      if (seen.has(a.id)) continue
-      seen.add(a.id)
-      found.push(a)
-      queue.push(a.id)
+    const current = queue.shift()!
+    for (const parentId of [current.reactionTo, current.spawnedBy]) {
+      const parent = parentId && parentId !== action.id && !found.some((a) => a.id === parentId) ? getAction(state, parentId) : null
+      if (parent) {
+        found.push(parent)
+        queue.push(parent)
+      }
     }
   }
   return found
@@ -88,13 +131,13 @@ export function getOrigin(state: SceneState, action: Action): Action {
 }
 
 export function getReactionsTo(state: SceneState, id: string): Action[] {
-  return getLog(state).filter((a) => a.reactionTo === id)
+  return getLinks(state).reactions.get(id) ?? []
 }
 
 // What the action opened: the strike an opportunity attack opens, a prepared
 // reaction's move and main action, the fall a move ended in.
 export function getSpawned(state: SceneState, id: string): Action[] {
-  return getLog(state).filter((a) => a.spawnedBy === id)
+  return getLinks(state).spawned.get(id) ?? []
 }
 
 // What the action opened that its actor passed up instead of playing out.
@@ -115,7 +158,7 @@ export function canAnswer(open: Action, characterId: string): boolean {
 }
 
 export function getAction(state: SceneState, id: string): Action | null {
-  return state.actions.find((a) => a.id === id) ?? state.record.find((a) => a.id === id) ?? null
+  return Object.hasOwn(state.actions, id) ? state.actions[id] : null
 }
 
 // The action a reaction answers; null for one taken on its actor's own
@@ -178,5 +221,5 @@ export function getDrawnOpportunityAttacks(state: SceneState, action: Action): D
 // another of theirs from the same action has been taken.
 export function isForgone(state: SceneState, action: Action): boolean {
   if (action.followUpOf === null || action.step !== 'define') return false
-  return getLog(state).some((a) => a.id !== action.id && a.followUpOf === action.followUpOf && a.actorId === action.actorId && a.step !== 'define')
+  return (getLinks(state).followUps.get(action.followUpOf) ?? []).some((a) => a.id !== action.id && a.actorId === action.actorId && a.step !== 'define')
 }

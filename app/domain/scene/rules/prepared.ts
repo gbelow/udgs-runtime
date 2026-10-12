@@ -15,7 +15,7 @@ import { defRows, getAttackVariant, guardRows, isShotLoaded } from './attack'
 import { isImmobile } from './situational'
 import { getMoveBlockCells, getMovementOptions, getWalkableCells } from './move'
 import { getMoveWaypoint } from './board/waypoint'
-import { getAction, getAncestry, getDescendants, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
+import { getAction, getAncestry, getLiveReactionsTo, getPassedUp, getRootOf, getSpawned } from './log'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { getJoinReaction } from './coordinated'
 import { isInInterceptRange, isOnProtectLine } from './protect'
@@ -288,9 +288,17 @@ export function isPreparedReached(reaction: ActionOf<'prepared'>, walked: number
 // combat.tex "Preparing a reaction": "Reacting to anything else while
 // performing the prepared action will cancel it." Whether its preparer has
 // made a reaction of their own to anything the prepared action opened, or to
-// what that opened in turn.
+// what that opened in turn, and still has it in play or landed: one taken
+// back cancels nothing.
 export function isPreparedCancelled(state: SceneState, reaction: Action): boolean {
-  return getDescendants(state, reaction.id).some((a) => a.actorId === reaction.actorId && isReaction(a.kind) && a.kind !== 'prepared')
+  return reaction.reactedWithin.some((id) => getAction(state, id) !== null)
+}
+
+// The actions a reaction, as it is declared, is made within: what it comes of
+// that its own actor took (`reactedWithin`).
+export function getReactedWithin(state: SceneState, declared: Action): Action[] {
+  if (!isReaction(declared.kind) || declared.kind === 'prepared') return []
+  return getAncestry(state, declared).filter((a) => a.actorId === declared.actorId)
 }
 
 // "No chaining": whether the action is, or comes of, a prepared reaction — a

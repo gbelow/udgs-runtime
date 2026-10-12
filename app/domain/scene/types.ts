@@ -292,6 +292,13 @@ const ActionBase = {
   // what its roll and its landing changed in the fight, written as they are
   // applied
   changes: z.array(ChangeSchema).default([]),
+  // combat.tex "Interruption": what landed on its actor, by something it
+  // gave rise to, before it landed itself, written as each lands in the
+  // order they landed; `tie` marks a counterattack's strike that tied it
+  interruptions: z.array(z.object({ by: str, level: z.enum(['interrupted', 'stunned']), tie: z.boolean() }).strip()).default([]),
+  // combat.tex "Preparing a reaction": the reactions its actor declared to
+  // what it gave rise to, by id, written as each is declared
+  reactedWithin: z.array(str).default([]),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }
@@ -1498,19 +1505,24 @@ export const SceneStateSchema = z.object({
   // the characters whose flee is due once what is being played out is
   // done, in the order they declared it
   fleers: z.array(z.string()).default([]),
-  // The actions still in play, in the order they were declared: the open one
-  // is the last root still short of resolved, and the reactions to the roots
-  // being played out wait here with them. What is taken back leaves from here.
-  actions: z.array(ActionSchema).default([]),
+  // Every action of the fight, still in play or played out, by id. What
+  // answers or opened an action is found by its own link (`reactionTo`,
+  // `spawnedBy`, `followUpOf`), never listed on the action it points to
+  // (rules/log.ts indexes them). What is taken back leaves.
+  actions: z.record(str, ActionSchema).default({}),
+  // The actions still in play, by id, in the order they were declared: the
+  // open one is the last root still short of resolved, and the reactions to
+  // the roots being played out wait here with them.
+  live: z.array(str).default([]),
   // The actions still being played out, by id, the one the table is waiting
   // on last. An action a reaction opens is pushed over the one it answers
   // and played out first; an action leaves when it resolves.
   stack: z.array(z.string()).default([]),
-  // The actions that have been played out, each with the reactions to it, in
-  // the order they landed — which is not the order they were declared in: an
-  // opportunity attack lands before the action it answers. Only ever added
-  // to.
-  record: z.array(ActionSchema).default([]),
+  // The actions that have been played out, by id, each with the reactions to
+  // it, in the order they landed — which is not the order they were declared
+  // in: an opportunity attack lands before the action it answers. Only ever
+  // added to.
+  landed: z.array(str).default([]),
   // What each character who has left the fight went by in it, so the log
   // still names them.
   names: z.record(str, str).default({}),

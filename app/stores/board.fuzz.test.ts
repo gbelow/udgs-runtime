@@ -270,8 +270,8 @@ function assertSound(h: Harness, storage: boolean) {
   }
   expect(view.tokens.map((t) => t.id).sort(), 'the board draws every placed character').toEqual(Object.keys(placements).filter((id) => s.characters[id]).sort())
 
-  const known = new Set([...s.record, ...s.actions, ...s.journal.map((e) => e.action)].map((a) => a.id))
-  for (const a of [...s.record, ...s.actions]) {
+  const known = new Set([...Object.values(s.actions), ...s.journal.map((e) => e.action)].map((a) => a.id))
+  for (const a of Object.values(s.actions)) {
     for (const link of [a.reactionTo, a.spawnedBy, a.followUpOf]) {
       if (link !== null) expect(known.has(link), `${a.kind} ${a.id} links to ${link}, which is in neither the log nor the journal`).toBe(true)
     }

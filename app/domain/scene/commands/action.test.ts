@@ -79,7 +79,7 @@ describe.each(attacks)('the three phases of a $kind', (attack) => {
     const after = cancelAction()(before)
     expect(after.characters).toEqual(before.characters)
     expect(getOpenAction(after)).toBeNull()
-    expect(after.actions).toHaveLength(0)
+    expect(after.live).toHaveLength(0)
 
     const committed = declared(attack)
     expect(cancelAction()(committed)).toEqual(committed)
