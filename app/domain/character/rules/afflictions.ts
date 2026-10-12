@@ -140,8 +140,17 @@ export function getInjuryPenalty(c: Character): number {
   return Math.floor(c.injuries.injuryLevel / getIT(c))
 }
 
+// combat.tex "Injuries and Death": death past 50 IL, the fifth multiple of
+// the threshold.
+const DEATH_PENALTY = 5
+
 export function isDead(c: Character): boolean {
-  return isCampaignCharacter(c) && getInjuryPenalty(c) >= 5
+  return isCampaignCharacter(c) && c.injuries.injuryLevel >= getDeathIL(c)
+}
+
+// The IL that is death: the least at which the character is dead.
+export function getDeathIL(c: CampaignCharacter): number {
+  return DEATH_PENALTY * getIT(c)
 }
 
 // The injury penalty read as a stage for display, 0 (unhurt) to 5 (dead):

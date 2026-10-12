@@ -12,7 +12,8 @@ import { resolveTest } from '../../play/test'
 import { resisted } from '../../scene/rules/test'
 import type { Dice } from '../../play/dice'
 import { payCost, spendAP } from './cost'
-import { inflict } from './addAffliction'
+import { cure, inflict } from './addAffliction'
+import { mend } from './heal'
 import { woundPart } from './wounds'
 import { getPartWound } from '../rules/wounds'
 import { loseConcentration } from './spells'
@@ -46,7 +47,9 @@ export function deliver(delivery: Delivery, parent: Outcome | null = null): (c: 
       case 'break':
         return follow(delivery, degree, null)(breaksOn(effect.effect.chance, effect.effect.roll) ? breakItem(effect.effect.itemId)(c) : c)
       case 'affliction':
-        return follow(delivery, degree, null)(inflict([effect.effect.key])(c))
+        return follow(delivery, degree, null)((effect.effect.cure ? cure : inflict)([effect.effect.key])(c))
+      case 'heal':
+        return follow(delivery, degree, null)(mend(effect.effect)(c))
       case 'spirit':
         return follow(delivery, degree, null)(takeSpiritBlow(getSpiritBlow(effect.effect, degree), parent?.interruption ?? 'none')(c))
       case 'buff':

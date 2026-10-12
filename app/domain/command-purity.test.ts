@@ -89,7 +89,7 @@ function characterSubject(): CampaignCharacter {
     spells: { sleep: { method: 'intuitive', practice: 1 }, darken: { method: 'intuitive', practice: 0 } },
     usedSurge: 'focus',
     afflictions: ['prone'],
-    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind' } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
+    pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind', cure: false } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
     resources: { AP: 6, surgeAP: 2, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
@@ -350,6 +350,8 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   setRoller: (t) => explorationCommands.setRoller('p', 'g', 'b')(t),
   joinGroup: (t) => explorationCommands.joinGroup('a', 'g')(t),
   setResting: (t) => explorationCommands.setResting('a', true)(t),
+  planCast: (t) => explorationCommands.planCast('a', 'regenerate')(t),
+  setCast: (t) => explorationCommands.setCast('a', { targets: ['b'], enhance: 1 })({ ...t, exploration: { ...t.exploration, casts: { a: { key: 'regenerate', targets: [], wound: null, part: null, nutrition: 0, DL: 0, enhance: 0, effortless: false } } } }),
   decide: (t) => explorationCommands.decide('b', 'carry')({ ...t, exploration: { ...t.exploration, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } } }),
   eat: ({ campaign }) => explorationCommands.eat('a', 3)(campaign),
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),

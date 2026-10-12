@@ -1,9 +1,9 @@
 import type { CampaignUpdater } from "../domain/campaign/types";
-import type { Decision, Exploring, ExplorationUpdater, Group, GroupKind } from "../domain/exploration/types";
+import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from "../domain/exploration/types";
 import { getClockView, type ClockView } from "../domain/campaign/projections/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
 import { drink as drinkFor, eat as eatFor, passET as passClock } from "../domain/exploration/commands/exploration";
-import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, removeGroup as removeGroupOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
+import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyNode, unloadMap } from "../domain/campaign/commands/parties";
 import { setDayETs } from "../domain/campaign/commands/clock";
 import { useMapNames } from "./useMap";
@@ -65,6 +65,8 @@ export function usePartyCommands() {
     pick,
     joinGroup: (groupId: string) => planActive((id) => joinGroupOf(id, groupId)),
     rest: (resting: boolean) => planActive((id) => setResting(id, resting)),
+    planCast: (key: string) => planActive((id) => planCastOf(id, key)),
+    setCast: (settings: Partial<Omit<CastPlan, 'key'>>) => planActive((id) => setCastOf(id, settings)),
     eat: (nutrition: number) => asActive((id) => eatFor(id, nutrition)),
     drink: () => asActive(drinkFor),
     leaveParty: () => asActive(removeFromRoster),

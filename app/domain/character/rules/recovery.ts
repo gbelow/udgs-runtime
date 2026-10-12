@@ -2,9 +2,10 @@ import type { CampaignCharacter } from '../../types'
 import { getHealth } from './skills'
 
 // survival.tex "Rest": "heals IL equal to 1+(health-exposure)/2. Negative
-// values work against the character."
-export function getRestHealing(c: CampaignCharacter, exposure: number): number {
-  return 1 + Math.floor((getHealth(c) - exposure) / 2)
+// values work against the character." `bonus` is health the ET gives on top
+// (spells.tex "Enhanced Sleep").
+export function getRestHealing(c: CampaignCharacter, exposure: number, bonus = 0): number {
+  return 1 + Math.floor((getHealth(c) + bonus - exposure) / 2)
 }
 
 // survival.tex "Rest": "lowers exhaustion by 3 - exposure/2 instead of

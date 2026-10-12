@@ -1,6 +1,8 @@
-import type { Decision, ExplorationState, ExplorationUpdater, Group, GroupKind } from '../types'
-import { GroupSchema } from '../types'
+import type { CastPlan, Decision, ExplorationState, ExplorationUpdater, Group, GroupKind } from '../types'
+import { CastPlanSchema, GroupSchema } from '../types'
 import { getDecisionsCalled, getExplorationBar } from '../rules/exploration'
+import { getETCastBar, getETCastCount, getETCastTargets } from '../rules/casting'
+import { isSpellKey } from '../../spells'
 
 const onExploration = (update: (e: ExplorationState) => ExplorationState): ExplorationUpdater =>
   (t) => ({ ...t, exploration: update(t.exploration) })
@@ -11,11 +13,12 @@ const withGroup = (partyId: string, groupId: string, update: (g: Group) => Group
     return group ? { ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [groupId]: update(group) } } } : e
   })
 
-// Out of any group and any rest the character planned.
+// Out of any group, rest and cast the character planned.
 function clearPlan(id: string, e: ExplorationState): ExplorationState {
   const groups = Object.fromEntries(Object.entries(e.groups).map(([pid, gs]) => [pid, Object.fromEntries(Object.entries(gs).map(([gid, g]) =>
     [gid, { ...g, members: g.members.filter((m) => m !== id), roller: g.roller === id ? null : g.roller }]))]))
-  return { ...e, groups, resting: e.resting.filter((r) => r !== id) }
+  const { [id]: _cast, ...casts } = e.casts
+  return { ...e, groups, resting: e.resting.filter((r) => r !== id), casts }
 }
 
 export function addGroup(partyId: string, kind: GroupKind, newId: () => string): ExplorationUpdater {
@@ -68,5 +71,31 @@ export function decide(id: string, decision: Decision): ExplorationUpdater {
     const { opening } = t.exploration
     if (!opening || !getDecisionsCalled(t).includes(id)) return t
     return { ...t, exploration: { ...t.exploration, opening: { ...opening, decisions: { ...opening.decisions, [id]: decision } } } }
+  }
+}
+
+// The character casts this spell over the coming ET, leaving whatever else
+// they planned.
+export function planCast(id: string, key: string): ExplorationUpdater {
+  return (t) => {
+    const c = t.campaign.characters[id]
+    if (!c || getExplorationBar(t.campaign, id) || getETCastBar(c, key)) return t
+    const cleared = clearPlan(id, t.exploration)
+    return { ...t, exploration: { ...cleared, casts: { ...cleared.casts, [id]: CastPlanSchema.parse({ key }) } } }
+  }
+}
+
+// The table's settings for the cast. Only those in the caster's party are
+// aimed at, and no more than the spell reaches; another target, or another
+// wound or part to put the heal on, follows from who is aimed at.
+export function setCast(id: string, settings: Partial<Omit<CastPlan, 'key'>>): ExplorationUpdater {
+  return (t) => {
+    const plan = t.exploration.casts[id]
+    if (!plan || !isSpellKey(plan.key)) return t
+    const reachable = getETCastTargets(t.campaign, id)
+    const targets = (settings.targets ?? plan.targets).filter((target, i, all) => reachable.includes(target) && all.indexOf(target) === i).slice(0, getETCastCount(plan.key))
+    const retargeted = targets[0] !== plan.targets[0]
+    const next: CastPlan = { ...plan, ...settings, targets, ...(retargeted ? { wound: settings.wound ?? null, part: settings.part ?? null } : {}) }
+    return { ...t, exploration: { ...t.exploration, casts: { ...t.exploration.casts, [id]: next } } }
   }
 }

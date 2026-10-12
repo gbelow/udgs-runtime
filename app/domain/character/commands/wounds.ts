@@ -35,6 +35,18 @@ export function severPart(partId: string): (c: CampaignCharacter) => CampaignCha
   }
 }
 
+// spells.tex "Reattach Limb": a lost part put back, "adding a wound that
+// requires 20 IL to be healed and function perfectly again" — carried on
+// the part, so it is useless until then.
+export function reattachPart(partId: string, IL: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    if (!c.body.some((p) => p.id === partId && p.lost)) return c
+    const body = c.body.map((p) => (p.id === partId ? { ...p, lost: false } : p))
+    const wounds = IL > 0 ? [...c.injuries.wounds, { name: 'reattached', part: partId, IL }] : c.injuries.wounds
+    return { ...c, body, injuries: { ...c.injuries, wounds } }
+  }
+}
+
 // survival.tex "Healing Wounds": medicine or magic heal a wound by so much
 // IL wound, without the hunger and thirst healing IL costs; healed to none,
 // it is gone. A negative amount opens it back up.

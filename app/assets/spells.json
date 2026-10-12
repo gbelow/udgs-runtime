@@ -122,6 +122,8 @@
           }
         },
         "target": "area",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": {
           "shape": "explosion",
@@ -204,6 +206,8 @@
           "properties": []
         },
         "target": "area",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": {
           "shape": "explosion",
@@ -287,6 +291,8 @@
           "properties": []
         },
         "target": "area",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": {
           "shape": "explosion",
@@ -415,6 +421,8 @@
           "properties": []
         },
         "target": "area",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": {
           "shape": "spray",
@@ -455,6 +463,8 @@
           }
         },
         "target": "area",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": {
           "shape": "spray",
@@ -685,6 +695,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 10,
         "area": null,
         "scales": {
@@ -761,6 +773,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": null,
         "scales": {
@@ -936,6 +950,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": null,
         "area": null,
         "scales": {
@@ -1302,9 +1318,12 @@
         "trigger": "instant",
         "type": "affliction",
         "effect": {
-          "key": "unconscious"
+          "key": "unconscious",
+          "cure": false
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 15,
         "area": null,
         "scales": {
@@ -2190,6 +2209,8 @@
         "type": "spirit",
         "effect": {},
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 15,
         "area": null,
         "scales": {
@@ -2521,11 +2542,36 @@
     "ammo": 0,
     "duration": "permanent",
     "durationETs": 0,
-    "description": "Modifies food to behave like a potion, giving half of its nutritional value as IL healing in the next rest. Can be used while cooking.",
+    "description": "Modifies food to behave like a potion, giving half of its nutritional value as IL healing in the next ET. Can be used while cooking.",
     "enhance": "",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Healing Food",
+        "trigger": "instant",
+        "type": "heal",
+        "effect": {
+          "of": "potion",
+          "amount": 0,
+          "nutrition": 0.5,
+          "wound": null,
+          "part": null
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "immune-modulation": {
     "name": "Immune modulation",
@@ -2559,11 +2605,11 @@
     "ammo": 0,
     "duration": "none",
     "durationETs": 0,
-    "description": "Attempts to manipulate the body of a living being to metabolize poison. Allows a redo of the health test to resist poison.",
+    "description": "Attempts to manipulate the body of a living being to metabolize poison. Allows a redo of the health test to resist poison, with +2.",
     "enhance": "+2 for each enhancement.",
     "test": {
       "dl": "poison DL",
-      "roll": "health + Sorcery"
+      "roll": "health + 2"
     },
     "outcomes": null,
     "effects": []
@@ -2604,7 +2650,29 @@
     "enhance": "",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Defibrillate",
+        "trigger": "instant",
+        "type": "affliction",
+        "effect": {
+          "key": "unconscious",
+          "cure": true
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "reattach-limb": {
     "name": "Reattach Limb",
@@ -2642,7 +2710,32 @@
     "enhance": "",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Reattach Limb",
+        "trigger": "instant",
+        "type": "heal",
+        "effect": {
+          "of": "limb",
+          "amount": 20,
+          "nutrition": 0,
+          "wound": null,
+          "part": null
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "clotting-touch": {
     "name": "Clotting Touch",
@@ -2680,7 +2773,32 @@
     "enhance": "Enhancing increases the amount of bleeding healed by 1.",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Clotting Touch",
+        "trigger": "instant",
+        "type": "heal",
+        "effect": {
+          "of": "bleed",
+          "amount": 1,
+          "nutrition": 0,
+          "wound": null,
+          "part": null
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 1,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "regenerate": {
     "name": "Regenerate",
@@ -2728,7 +2846,32 @@
     "enhance": "Enhancing the spell increases the healing by 1 per enhancement.",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Regenerate",
+        "trigger": "instant",
+        "type": "heal",
+        "effect": {
+          "of": "injury",
+          "amount": 4,
+          "nutrition": 0,
+          "wound": null,
+          "part": null
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 1,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "revitalize": {
     "name": "Revitalize",
@@ -2766,11 +2909,36 @@
     "ammo": 0,
     "duration": "permanent",
     "durationETs": 0,
-    "description": "Performs a ritual to revive a creature within reach of the body, as long as the body is in a condition to be alive and there is a sample of the soul nearby. The body is revived with all its wounds and IL damage. IL defaults to 49 if it were 50 or higher.",
+    "description": "Performs a ritual to revive a creature within reach of the body, as long as the body is in a condition to be alive and there is a sample of the soul nearby. The body is revived with all its wounds and IL damage. IL drops to 1 less than the maximum if it was higher.",
     "enhance": "",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Revitalize",
+        "trigger": "instant",
+        "type": "heal",
+        "effect": {
+          "of": "revive",
+          "amount": 0,
+          "nutrition": 0,
+          "wound": null,
+          "part": null
+        },
+        "target": "target",
+        "count": 1,
+        "enhance": 0,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "enhanced-sleep": {
     "name": "Enhanced Sleep",
@@ -2804,11 +2972,34 @@
     "ammo": 0,
     "duration": "ET",
     "durationETs": 1,
-    "description": "Blesses the sleep up to 10 creatures for 4 hours, allowing everyone except the caster to receive +2 to the health skill for resting and to complete it in 1 ET.",
+    "description": "Blesses the sleep up to 10 creatures for 4 hours, allowing everyone except the caster to receive +2 to the health skill when resting.",
     "enhance": "Enhancing increases health by +1.",
     "test": null,
     "outcomes": null,
-    "effects": []
+    "effects": [
+      {
+        "name": "Enhanced Sleep",
+        "trigger": "instant",
+        "type": "buff",
+        "effect": {
+          "target": "skill:health",
+          "operation": "+",
+          "value": 2
+        },
+        "target": "target",
+        "count": 10,
+        "enhance": 1,
+        "range": null,
+        "area": null,
+        "scales": {
+          "damage": false,
+          "area": false,
+          "reach": false
+        },
+        "resist": null,
+        "duration": "instant"
+      }
+    ]
   },
   "preserve-corpse": {
     "name": "Preserve Corpse",
@@ -3361,6 +3552,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 100,
         "area": null,
         "scales": {
@@ -3443,6 +3636,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 100,
         "area": null,
         "scales": {
@@ -3588,6 +3783,8 @@
           "properties": []
         },
         "target": "target",
+        "count": 1,
+        "enhance": 0,
         "range": 100,
         "area": null,
         "scales": {

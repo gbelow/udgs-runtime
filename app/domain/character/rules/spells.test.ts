@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { canCastSpell } from './spells'
+import { canCastSpell, isCastOverETs } from './spells'
 import { makeCampaignCharacter } from '../../factories'
 import { SPELLS, SPELL_KEYS, type SpellKey } from '../../spells'
 import { ContainerSchema, ItemSchema } from '../../types'
@@ -15,7 +15,7 @@ const blocksCast = (key: SpellKey) => SPELLS[key].castRequirements.some((item) =
 // spells.tex "Requirements": "Some spells may even be impossible to cast if
 // the minimum conditions are not met." A condition is the table's to judge.
 describe('a spell is cast only with its requirements met', () => {
-  const rolled = SPELL_KEYS.filter((key) => SPELLS[key].DL !== null)
+  const rolled = SPELL_KEYS.filter((key) => SPELLS[key].DL !== null && !isCastOverETs(key))
 
   it.each(rolled.filter(blocksCast))('%s is not castable without them', (key) => {
     expect(canCastSpell(readyToCast(key), key, false)).toBe(false)

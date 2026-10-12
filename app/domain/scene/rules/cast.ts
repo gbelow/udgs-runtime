@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Delivery, Item, Skills } from '../../types'
+import type { CampaignCharacter, Delivery, Item } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
 import type { ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
 import { isCancelled } from './opportunity'
@@ -6,7 +6,7 @@ import { getAction } from './log'
 import { getCastRange, getSpellEffects, getTargetEffects, produceOutcome, produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
 import { GRAZE_SAVE, SPELL_MODIFICATIONS, type SpellModification } from '../../tables'
-import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, pickSpellGear, resolveDL } from '../../character/rules/spells'
+import { canAffordRestWhileCasting, canCastSpell, getAmplifyBounds, getCastConditions, getCastSize, getCastingDL, drawCharges, getCastableGear, getChargeTargets, getSpellSkill, hasChargesFor, getUnmetCastLabel, hasChargeTarget, isCastOverETs, pickSpellGear, resolveDL, getSpellTestRoll, getSpellTestAddedTerms } from '../../character/rules/spells'
 import { getHeldItem } from '../../item/rules/hands'
 import { isSpellActive } from '../../character/rules/effects'
 import { getLinkSpell, mayCastWhileConcentrating } from '../../character/rules/concentration'
@@ -40,11 +40,12 @@ export function getCastFacts(state: SceneState, root: CastAction): Deliveries {
   const size = getCastSizeOf(caster, root)
   const facts: Deliveries = {}
   const effects = getSpellEffects(caster, root.key, root.itemId)
-  const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key))
+  const enhanced = root.improved.enhance ?? 0
+  const own = effects.filter((e) => e.target === 'self' && e.trigger === 'instant').map((e) => produceSpellEffect(caster, e, size, root.key, enhanced))
   if (own.length > 0) facts[root.actorId] = own
   if (root.targetId && state.characters[root.targetId] && getLinkSpell(root.key) === null) {
     const opener = root.spawnedBy ? getAction(state, root.spawnedBy) : null
-    const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, size, opener?.reactionTo ? 'reactive' : 'active')
+    const theirs = getAimedDeliveries(state, caster, root.targetId, root.key, root.itemId, size, opener?.reactionTo ? 'reactive' : 'active', enhanced)
     if (theirs.length > 0) facts[root.targetId] = [...(facts[root.targetId] ?? []), ...theirs]
   }
   return facts
@@ -56,13 +57,13 @@ export function getTargetDeliveries(caster: CampaignCharacter, key: SpellKey, it
   return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => produceSpellEffect(caster, e, size, key))
 }
 
-// The same, aimed at the target from where the caster stands: a test whose
-// DL is written as the caster's sensory skills ("DL: Accuracy") is set less
-// the sensory penalty of the sense they aim it through (combat.tex
-// "Targeted actions").
-export function getAimedDeliveries(state: SceneState, caster: CampaignCharacter, targetId: string, key: SpellKey, itemId: string, size: number, use: 'active' | 'reactive'): Delivery[] {
+// The same, aimed at the target from where the caster stands, with the
+// enhancements bought: a test whose DL is written as the caster's sensory
+// skills ("DL: Accuracy") is set less the sensory penalty of the sense they
+// aim it through (combat.tex "Targeted actions").
+export function getAimedDeliveries(state: SceneState, caster: CampaignCharacter, targetId: string, key: SpellKey, itemId: string, size: number, use: 'active' | 'reactive', enhanced = 0): Delivery[] {
   return getTargetEffects(getSpellEffects(caster, key, itemId)).map((e) => {
-    const delivery = produceSpellEffect(caster, e, size, key)
+    const delivery = produceSpellEffect(caster, e, size, key, enhanced)
     const sensory = e.resist ? sumTerms(getSensoryTermsOfDL(state, caster.id, e.resist.dl, targetId, use)) : 0
     return delivery.test && sensory !== 0 ? { ...delivery, test: { ...delivery.test, DL: delivery.test.DL + sensory } } : delivery
   })
@@ -170,6 +171,7 @@ function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
   const spell = SPELLS[key]
   const unmet = getUnmetCastLabel(c, key)
   if (unmet) return `needs ${unmet}`
+  if (isCastOverETs(key)) return 'takes an ET'
   if (!hasChargeTarget(c, key)) return 'needs a metal weapon at hand'
   if (!canAfford(c, spell.cost)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
@@ -331,14 +333,6 @@ export function getSpellTestTargets(state: SceneState, root: CastAction): string
   return targets.filter((id) => state.characters[id])
 }
 
-// The skill the spell's targets test with, as the book words the test
-// ("Charisma vs will"), the first named; null when it names none the sheet
-// has.
-function getSpellTestRoll(key: SpellKey): keyof Skills | null {
-  const roll = (SPELLS[key].test?.roll ?? '').split('+')[0].trim()
-  return roll in skillTermGetters ? roll as keyof Skills : null
-}
-
 // The target's side of the test: their skill, and whatever else the book
 // adds to it, the caster's (spells.tex "Pacify": "morale aggravators vs will
 // + Charisma").
@@ -347,11 +341,9 @@ export function getSpellTestSkillTerms(state: SceneState, action: SpellTestActio
   const caster = state.characters[action.actorId]
   const roll = isSpellKey(action.key) ? getSpellTestRoll(action.key) : null
   if (!target || !roll || !isSpellKey(action.key)) return []
-  const test = SPELLS[action.key].test
-  const added = (test?.roll ?? '').split('+').slice(1).map((t) => t.trim()).filter(Boolean)
   return [
     ...skillTermGetters[roll](target, getSituationalAfflictions(state, target.id)),
-    ...(caster && test ? added.map((label) => ({ label: `caster's ${label}`, value: resolveDL(caster, label, test.roll).value ?? 0 })) : []),
+    ...(caster ? getSpellTestAddedTerms(caster, action.key) : []),
   ]
 }
 

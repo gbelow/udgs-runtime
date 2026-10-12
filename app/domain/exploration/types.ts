@@ -72,6 +72,38 @@ export const GroupResultSchema = z.object({
 })
 export type GroupResult = z.infer<typeof GroupResultSchema>
 
+// spells.tex "Casting spells": a spell whose cost takes the ET, cast over it
+// instead of resting or going with a group. The table names who it is aimed
+// at (no more than the effect's `count`), what a heal is put on — the wound
+// healed instead of the IL, the lost part put back — the nutrition of the
+// food it is cast into, the DL of a target's test the domain cannot work
+// out ("poison DL"), and the improvements the overflow buys, Effortless
+// first.
+export const CastPlanSchema = z.object({
+  key: z.string().default(''),
+  targets: z.array(z.string()).default([]),
+  wound: z.number().nullable().default(null),
+  part: z.string().nullable().default(null),
+  nutrition: z.number().default(0),
+  DL: z.number().default(0),
+  enhance: z.number().default(0),
+  effortless: z.boolean().default(false),
+})
+export type CastPlan = z.infer<typeof CastPlanSchema>
+
+// What a cast over the ET came to: its test, and the test each target made
+// against it where the spell leaves one.
+export const CastResultSchema = z.object({
+  party: z.string(),
+  caster: z.string(),
+  spell: z.string(),
+  targets: z.array(z.string()).default([]),
+  roll: TestRollSchema.nullable(),
+  note: z.string().default(''),
+  tests: z.array(z.object({ name: z.string(), roll: TestRollSchema })).default([]),
+})
+export type CastResult = z.infer<typeof CastResultSchema>
+
 // What exploration keeps beside the campaign: each party's groups and camp,
 // by party, and the ET loop's own bookkeeping.
 export const ExplorationStateSchema = z.object({
@@ -79,12 +111,15 @@ export const ExplorationStateSchema = z.object({
   camps: z.record(z.string(), CampSchema).default({}),
   // who rests the coming ET outside any group; the rest are idle
   resting: z.array(z.string()).default([]),
+  // who casts a spell over the coming ET, by caster
+  casts: z.record(z.string(), CastPlanSchema).default({}),
   // the rests that have healed each character on `day`; another day has none
   rests: z.object({ day: z.number().default(0), count: z.record(z.string(), z.number()).default({}) }).default({ day: 0, count: {} }),
   opening: OpeningSchema.nullable().default(null),
   // what the last ET opened with and what its groups came to
   exhaustionRolls: z.record(z.string(), TestRollSchema).default({}),
   results: z.array(GroupResultSchema).default([]),
+  castResults: z.array(CastResultSchema).default([]),
 })
 export type ExplorationState = z.infer<typeof ExplorationStateSchema>
 

@@ -61,7 +61,7 @@ export function getFallBlow(c: Character, height: number, soft: boolean, degree:
 }
 
 function proneDelivery(): Delivery {
-  return { effect: { name: 'prone', trigger: 'instant', type: 'affliction', effect: { key: 'prone' } }, degree: 'hit', test: null, when: null, then: [], locks: null }
+  return { effect: { name: 'prone', trigger: 'instant', type: 'affliction', effect: { key: 'prone', cure: false } }, degree: 'hit', test: null, when: null, then: [], locks: null }
 }
 
 // What the landing does to the faller. combat.tex "Fall skill test": a graze

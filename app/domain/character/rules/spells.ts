@@ -1,9 +1,10 @@
-import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Spell, SpellMethod, SpellMethodSchema } from '../../types'
+import { CampaignCharacter, Character, Charge, ChargeTrigger, Grant, Item, Requirement, Skills, Spell, SpellMethod, SpellMethodSchema } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { EXTEND, HIT_MARGIN, QUICKEN_DL } from '../../tables'
 import { getCharisma, getDevotion, getSPI } from './characteristics'
 import { getDivine, getMiracle, getSchoolCasting } from './magic'
-import { getAccuracy, getStrike } from './skills'
+import { getAccuracy, getStrike, skillTermGetters } from './skills'
+import type { Term } from './terms'
 import { MAX_SIZE, getSM, getVMAt, getSize } from './size'
 import { getKnowledge } from './knowledge'
 import { canAfford } from './cost'
@@ -296,12 +297,18 @@ export function getCastConditions(key: SpellKey): string {
   return requirementsLabel(SPELLS[key].castRequirements.filter((item) => item.some((alt) => alt.kind === 'condition')))
 }
 
+// A spell whose cost takes ETs is cast over that time, never within a
+// round: the exploration loop casts it.
+export function isCastOverETs(key: SpellKey): boolean {
+  return SPELLS[key].cost.ET > 0
+}
+
 // "Spells require using a focus surge to be cast in combat scenes." — unless
 // quickened.
 export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boolean {
   if (!isCampaignCharacter(c) || !(key in c.spells)) return false
   const spell = SPELLS[key]
-  if (spell.DL === null || !canAfford(c, spell.cost)) return false
+  if (spell.DL === null || isCastOverETs(key) || !canAfford(c, spell.cost)) return false
   if (!meetsCastRequirements(c, key) || !hasChargeTarget(c, key) || !mayCastWhileConcentrating(c, key)) return false
   return quicken || c.usedSurge === 'focus'
 }
@@ -341,6 +348,23 @@ export function resolveDL(c: Character, dl: string, roll: string): ResolvedTest 
 
 export function resolveTest(c: Character, spell: Spell): ResolvedTest | null {
   return spell.test ? resolveDL(c, spell.test.dl, spell.test.roll) : null
+}
+
+// The skill the spell's targets test with, as the book words the test
+// ("Charisma vs will"), the first named; null when it names none the sheet
+// has.
+export function getSpellTestRoll(key: SpellKey): keyof Skills | null {
+  const roll = (SPELLS[key].test?.roll ?? '').split('+')[0].trim()
+  return roll in skillTermGetters ? roll as keyof Skills : null
+}
+
+// What the book adds to the target's side of the test, the caster's
+// (spells.tex "Pacify": "will + Charisma"), or a number ("health + 2").
+export function getSpellTestAddedTerms(caster: Character, key: SpellKey): Term[] {
+  const test = SPELLS[key].test
+  if (!test) return []
+  return test.roll.split('+').slice(1).map((t) => t.trim()).filter(Boolean)
+    .map((label) => ({ label: /^\d+$/.test(label) ? label : `caster's ${label}`, value: resolveDL(caster, label, test.roll).value ?? 0 }))
 }
 
 // spells.tex "Effortless Spell": "The spell must spend the highest between

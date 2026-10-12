@@ -807,7 +807,27 @@ const EffectBase = {
 // worst of its group winning, as the affliction rules say.
 export const AfflictionEffectSchema = z.object({
   key: AfflictionKeySchema,
+  // takes the affliction away instead (spells.tex "Defibrillate")
+  cure: z.boolean().default(false),
 }).strip()
+
+// survival.tex "Healing": what medicine or magic mends — the IL, or the
+// wound the producer puts it on instead ("Removes 4 IL or heals a wound by
+// 4"); the bleed; a lost part put back, carrying a wound of `amount` IL
+// ("Reattach Limb"); healing banked as a potion's is, spent over the next
+// ET, a share of the nutrition of the food it is cast into ("Healing
+// Food"); a body brought back to one IL short of death ("Revitalize").
+export const HEAL_KINDS = ['injury', 'bleed', 'limb', 'potion', 'revive'] as const
+export const HealEffectSchema = z.object({
+  of: z.enum(HEAL_KINDS).default('injury'),
+  amount: num.default(0),
+  nutrition: num.default(0),
+  // what the producer named: the wound (its index) healed instead of the IL,
+  // the lost part put back
+  wound: num.nullable().default(null),
+  part: str.nullable().default(null),
+}).strip()
+export type HealEffect = z.infer<typeof HealEffectSchema>
 
 // combat.tex "Visibility": what the ground does to whoever stands in it.
 export const VisibilitySchema = z.enum(['good', 'bad', 'zero'])
@@ -879,6 +899,7 @@ export const EffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
   z.object({ ...EffectBase, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
+  z.object({ ...EffectBase, type: z.literal('heal'), effect: HealEffectSchema }).strip(),
 ])
 
 export type Effect = z.infer<typeof EffectSchema>
@@ -1140,9 +1161,14 @@ const NO_SCALES = { damage: false, area: false, reach: false }
 // leaves the target (the DL side in the book's words, resolved for the
 // caster at production), and how long it stays — gone once applied, held
 // by the caster with its upkeep (spells.tex "Sustained"), or locked on the
-// target until something resolves it (spells.tex "Curse").
+// target until something resolves it (spells.tex "Curse"). `count` is how
+// many the caster may aim a target effect at ("up to 10 creatures"), and
+// `enhance` what one "Enhance Spell" adds to its number: a heal's amount, a
+// buff's value.
 const SpellEffectEnvelope = {
   target: z.enum(['self', 'target', 'area']).default('target'),
+  count: num.default(1),
+  enhance: num.default(0),
   range: num.nullable().default(null),
   area: AreaSchema.nullable().default(null),
   scales: SpellScalesSchema.default(NO_SCALES),
@@ -1164,6 +1190,7 @@ export const SpellEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('heal'), effect: HealEffectSchema }).strip(),
   // spells.tex "Spiritual Strike": launches a spiritual attack at the target;
   // what it is and the test it leaves are the attack's own, not the spell's
   z.object({ ...EffectBase, ...SpellEffectEnvelope, type: z.literal('spirit'), effect: z.object({}).strip().default({}) }).strip(),
@@ -1184,6 +1211,7 @@ export const OutcomeEffectSchema = z.discriminatedUnion('type', [
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('affliction'), effect: AfflictionEffectSchema }).strip(),
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('terrain'), effect: TerrainEffectSchema }).strip(),
   z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('tether'), effect: TetherEffectSchema }).strip(),
+  z.object({ ...EffectBase, ...OutcomeEffectEnvelope, type: z.literal('heal'), effect: HealEffectSchema }).strip(),
 ])
 export type OutcomeEffect = z.infer<typeof OutcomeEffectSchema>
 

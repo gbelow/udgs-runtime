@@ -6,9 +6,9 @@ import { useClock, useExploration, useParties, usePartyCommands, usePassBar } fr
 import { useActiveCharacterData } from '../hooks/useCharacterData';
 import { useMapNames } from '../hooks/useMap';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
-import { DECISIONS, GROUP_KINDS } from '../domain/exploration/types';
+import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
-import type { PartyView } from '../domain/exploration/projections/exploration';
+import type { CastPanel, PartyView } from '../domain/exploration/projections/exploration';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
@@ -17,7 +17,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 export function PartyPanel(){
 
   const { day, et, etsPerDay } = useClock()
-  const { map, night, dayETs, parties, decisions, results } = useParties()
+  const { map, night, dayETs, parties, decisions, results, castResults } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
   const { passET, decide, sendActiveToFight, sendAllToFight, leaveParty, loadMap, setDayETs } = usePartyCommands()
@@ -54,7 +54,7 @@ export function PartyPanel(){
       <div className='flex flex-row flex-wrap gap-2 py-2 border-b border-line'>
         {parties.map((party) => <PartyCard key={party.id} party={party} nodes={map?.nodes ?? null} />)}
       </div>
-      {results.length > 0 ?
+      {results.length > 0 || castResults.length > 0 ?
         <div className='flex flex-col gap-0.5 py-2 border-b border-line'>
           <SectionLabel>Last ET</SectionLabel>
           {results.map((r, i) => (
@@ -62,6 +62,14 @@ export function PartyPanel(){
               {r.party} · <span className='text-fg'>{r.kind}</span> ({r.members.join(', ')}){r.roll ? <>: <span className='font-mono text-fg'>{r.roll.score}</span> vs DL <span className='font-mono text-fg'>{r.roll.DL}</span>, {r.roll.degree}</> : null}{r.note ? ` — ${r.note}` : ''}
               {r.events.map((e, j) => (
                 <span key={j} className='block pl-3'><span className='text-fg'>{e.name}</span> vs DL <span className='font-mono text-fg'>{e.DL}</span>, {e.degree}{e.outcome ? `: ${e.outcome}` : ''}</span>
+              ))}
+            </span>
+          ))}
+          {castResults.map((r, i) => (
+            <span key={`cast ${i}`} className='text-xs text-muted'>
+              {r.party} · {r.caster} cast <span className='text-fg'>{r.spell}</span>{r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}{r.roll ? <>: <span className='font-mono text-fg'>{r.roll.score}</span> vs DL <span className='font-mono text-fg'>{r.roll.DL}</span>, {r.roll.degree}</> : null}{r.note ? ` — ${r.note}` : ''}
+              {r.tests.map((test, j) => (
+                <span key={j} className='block pl-3'><span className='text-fg'>{test.name}</span>: <span className='font-mono text-fg'>{test.roll.score}</span> vs DL <span className='font-mono text-fg'>{test.roll.DL}</span>, {test.roll.degree}</span>
               ))}
             </span>
           ))}
@@ -180,18 +188,20 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
 function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, willDL, lastRoll, potion } = useExploration()
-  const { joinGroup, rest, eat, drink } = usePartyCommands()
+  const { bar, options, cast, willDL, lastRoll, potion } = useExploration()
+  const { joinGroup, rest, planCast, setCast, eat, drink } = usePartyCommands()
+  const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
   return(
     <div className='flex flex-col gap-1'>
       <SectionLabel>Next exploration turn</SectionLabel>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {options.map((o) => (
-          <Button key={o.label} aria-label={o.label} variant={o.selected ? 'primary' : 'default'} className={o.selected ? 'bg-accent/15' : ''} disabled={bar !== null} title={bar ?? `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.hunger ? `, ${signed(o.hunger)} hunger` : ''}${o.thirst ? `, ${signed(o.thirst)} thirst` : ''}${o.idle && o.plan ? ' (no healing rests left today)' : ''}`}
-            onClick={() => (o.plan === null ? rest(false) : o.plan === 'rest' ? rest(true) : joinGroup(o.plan.group))}>{o.label}</Button>
+          <Button key={o.label} aria-label={o.label} variant={o.selected ? 'primary' : 'default'} className={o.selected ? 'bg-accent/15' : ''} disabled={bar !== null || closed(o.plan)} title={bar ?? (closed(o.plan) ? 'no spell can be cast' : `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.hunger ? `, ${signed(o.hunger)} hunger` : ''}${o.thirst ? `, ${signed(o.thirst)} thirst` : ''}${o.idle && o.plan ? ' (no healing rests left today)' : ''}`)}
+            onClick={() => (o.plan === null ? rest(false) : o.plan === 'rest' ? rest(true) : o.plan === 'cast' ? (o.selected || cast.ready === null ? null : planCast(cast.ready)) : joinGroup(o.plan.group))}>{o.label}</Button>
         ))}
       </div>
+      <CastPlanRow cast={cast} planCast={planCast} setCast={setCast} />
       {potion > 0 ? <span className='text-xs text-muted'>potion heals up to <span className='font-mono text-fg'>{potion}</span> IL over the ET</span> : null}
       {willDL !== null ? <span className='text-xs text-muted'>Will test DL <span className='font-mono text-fg'>{willDL}</span> opens the ET; a graze or miss forces a rest</span> : null}
       {lastRoll ? <span className='text-xs text-muted'>Will test last ET: <span className='font-mono text-fg'>{lastRoll.score}</span> vs DL <span className='font-mono text-fg'>{lastRoll.DL}</span>, {lastRoll.degree}</span> : null}
@@ -201,6 +211,74 @@ function ExplorationSection(){
         <Button aria-label='eat' disabled={bar !== null} title={bar ?? undefined} onClick={() => eat(nutrition)}>eat</Button>
         <Button aria-label='drink' disabled={bar !== null} title={bar ?? undefined} onClick={drink}>drink water</Button>
       </div>
+    </div>
+  )
+}
+
+// spells.tex "Casting spells": the spell cast over the coming ET and what
+// the table names for it.
+function CastPlanRow({ cast, planCast, setCast }: { cast: CastPanel; planCast: (key: string) => void; setCast: (settings: Partial<Omit<CastPlan, 'key'>>) => void }){
+
+  const plan = cast.plan
+  if (!plan) return null
+  const selected = plan.targets.filter((t) => t.selected).map((t) => t.id)
+
+  return(
+    <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+      <select aria-label='cast spell' className={selectClass} value={plan.key} onChange={(e) => planCast(e.target.value)}>
+        {cast.spells.map((s) => <option key={s.key} value={s.key} disabled={s.reason !== null}>{s.name}{s.reason ? ` (${s.reason})` : ''}</option>)}
+      </select>
+      {plan.count === 1 ?
+        <select aria-label='cast target' className={selectClass} value={selected[0] ?? ''} onChange={(e) => setCast({ targets: e.target.value ? [e.target.value] : [] })}>
+          <option value=''>on…</option>
+          {plan.targets.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+        : plan.count > 1 ?
+        <span className='flex flex-row flex-wrap gap-1 items-center'>
+          <span className='text-xs text-muted'>on (up to {plan.count})</span>
+          {plan.targets.map((t) => (
+            <label key={t.id} className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`cast on ${t.name}`} checked={t.selected} onChange={(e) => setCast({ targets: e.target.checked ? [...selected, t.id] : selected.filter((id) => id !== t.id) })} />{t.name}
+            </label>
+          ))}
+        </span>
+        : null}
+      {plan.wounds ?
+        <select aria-label='cast wound' className={selectClass} value={plan.wound ?? ''} onChange={(e) => setCast({ wound: e.target.value === '' ? null : parseInt(e.target.value) })}>
+          <option value=''>heals IL</option>
+          {plan.wounds.map((w) => <option key={w.index} value={w.index}>{w.label}</option>)}
+        </select>
+        : null}
+      {plan.parts ?
+        <select aria-label='cast part' className={selectClass} value={plan.part ?? ''} onChange={(e) => setCast({ part: e.target.value || null })}>
+          <option value=''>limb…</option>
+          {plan.parts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        : null}
+      {plan.nutrition !== null ?
+        <>
+          <span className='text-xs text-muted'>food nutrition</span>
+          <NumberInput className='w-12' aria-label='cast nutrition' value={plan.nutrition} onChange={(e) => setCast({ nutrition: parseInt(e.target.value) || 0 })} />
+        </>
+        : null}
+      {plan.enteredDL !== null ?
+        <>
+          <span className='text-xs text-muted'>target DL</span>
+          <NumberInput className='w-10' aria-label='cast target DL' value={plan.enteredDL} onChange={(e) => setCast({ DL: parseInt(e.target.value) || 0 })} />
+        </>
+        : null}
+      {plan.enhance !== null ?
+        <>
+          <span className='text-xs text-muted'>enhance</span>
+          <NumberInput className='w-10' aria-label='cast enhance' value={plan.enhance} onChange={(e) => setCast({ enhance: Math.max(0, parseInt(e.target.value) || 0) })} />
+        </>
+        : null}
+      <label className='text-xs text-muted flex items-center gap-1'>
+        <input type='checkbox' aria-label='cast effortless' checked={plan.effortless} onChange={(e) => setCast({ effortless: e.target.checked })} />effortless
+      </label>
+      {plan.skill !== null && plan.DL !== null ?
+        <span className='text-xs text-muted'>skill <span className='font-mono text-fg'>{plan.skill}</span> vs DL <span className='font-mono text-fg'>{plan.DL}</span> · +<span className='font-mono text-fg'>{plan.exhaustion}</span> exhaustion</span>
+        : null}
     </div>
   )
 }

@@ -81,15 +81,26 @@ function bare(c: Character, effect: OutcomeEffect, size: number, onArea: boolean
     case 'cost': return { name, trigger, type, effect: effect.effect }
     case 'buff': return { name, trigger, type, effect: effect.effect }
     case 'suppression': return { name, trigger, type, effect: effect.effect }
+    case 'heal': return { name, trigger, type, effect: effect.effect }
   }
+}
+
+// spells.tex "Enhance Spell": "the special improvement described in the
+// spell", each one adding the effect's `enhance` to its number.
+export function enhanceEffect<E extends SpellEffect>(effect: E, enhanced: number): E {
+  const more = effect.enhance * enhanced
+  if (more === 0) return effect
+  if (effect.type === 'heal') return { ...effect, effect: { ...effect.effect, amount: effect.effect.amount + more } }
+  if (effect.type === 'buff') return { ...effect, effect: { ...effect.effect, value: effect.effect.value + more } }
+  return effect
 }
 
 // `locks` names the spell a locked effect is carried under (spells.tex
 // "Curse"), so the target can read it off the catalog and beat it.
-export function produceSpellEffect(c: Character, effect: SpellEffect, size: number = getSize(c), key: string | null = null): Delivery {
+export function produceSpellEffect(c: Character, effect: SpellEffect, size: number = getSize(c), key: string | null = null, enhanced = 0): Delivery {
   if (effect.type === 'spirit') return produceSpiritAttack(c)
   const test = effect.resist ? { roll: effect.resist.roll, DL: resolveDL(c, effect.resist.dl, effect.resist.roll).value ?? 0 } : null
-  return { effect: bare(c, effect, size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
+  return { effect: bare(c, enhanceEffect(effect, enhanced), size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
 }
 
 // spells.tex "Casting spells": what the target's own result on the spell's
