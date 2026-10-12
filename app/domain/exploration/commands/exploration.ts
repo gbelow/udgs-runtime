@@ -22,7 +22,7 @@ import { chargeItem, consumeItem, spendDoses } from '../../item/commands/hands'
 import { findCarriedItem } from '../../item/rules/containers'
 import { produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey } from '../../spells'
-import { BONE_SETTING_PER_DAY, INFECTION_IL, TRIAGE_DL, getBandageDoses, getETTreatBar, getETTreatPlanBar, getETTreatTest, getInfectionTest, getNeeded, isETMedicine, isETSpared, type ETMedicineKey } from '../rules/medicine'
+import { BONE_SETTING_PER_DAY, INFECTION_IL, TRIAGE_DL, getBandageDoses, getETTreatBar, getETTreatDL, getETTreatPlanBar, getETTreatTest, getInfectionTest, getNeeded, isETMedicine, isETSpared, type ETMedicineKey } from '../rules/medicine'
 import { setWound } from '../../character/commands/wounds'
 import { ABILITIES } from '../../abilities'
 import { buyETImprovements, hasPlannedLimb, needsLimb, getETCastBar, getETCastExhaustion, getETCastTargets, getETCastTest, getETRestBonus, getETTargetTest, produceETCast } from '../rules/casting'
@@ -215,32 +215,37 @@ const land = (out: CastET, id: string, step: (c: CampaignCharacter) => CampaignC
   out.landing[id] = [...(out.landing[id] ?? []), step]
 }
 
-// abilities.tex "Bone Setting", "Wound Triage": the medic's test, made once
-// for everyone tended; whoever it was used on rests the ET. A set wound
-// heals by the degree's rate every day from then on; a triage that hits
-// lowers this ET's infection test of everyone it tended, and spends a
-// bandage on each of them whatever it came to. "A crit does not spend the
+// abilities.tex "Bone Setting", "Wound Triage": the medic's test, made for
+// the wound's bearer, or for each patient against their own infection DL;
+// whoever it was used on rests the ET. A set wound heals by the degree's
+// rate every day from then on; a triage that hits on a patient lowers this
+// ET's infection test of that patient, and spends a bandage on each of them
+// whatever it came to. "A crit does not spend the
 // ET": the medic rests too.
-function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicineKey, plan: CastPlan, targets: string[], base: Omit<CastResult, 'roll' | 'note' | 'tests'>, dice: Dice) {
+function treatOver(out: CastET, state: CampaignState, partyId: string, id: string, key: ETMedicineKey, plan: CastPlan, targets: string[], base: Omit<CastResult, 'roll' | 'note' | 'tests'>, dice: Dice) {
   const medic = state.characters[id]
+  const party = state.parties[partyId]
   const patients = targets.map((target) => state.characters[target])
   const bar = getETTreatBar(medic, key) ?? getETTreatPlanBar(medic, key, patients, plan)
   if (bar) {
     out.results.push({ ...base, roll: null, note: bar, tests: [] })
     return
   }
-  const roll = toRoll(resolveTest(getETTreatTest(medic, key, plan), dice))
   out.patients.push(...targets)
-  if (isETSpared(key, roll.degree)) out.patients.push(id)
-  else out.exhaustion[id] = 0
-  if (key === 'bone-setting' && plan.wound !== null) land(out, targets[0], setWound(plan.wound, BONE_SETTING_PER_DAY[roll.degree]))
   if (key === 'wound-triage') {
     const bandages = getNeeded(medic, key)
     if (bandages) land(out, id, spendDoses(bandages.id, getBandageDoses(patients)))
-    if (won(roll.degree)) out.triaged.push(...targets)
+    out.exhaustion[id] = 0
+    const tests = targets.map((target) => ({ name: state.characters[target].fightName ?? target, roll: toRoll(resolveTest(getETTreatTest(medic, getETTreatDL(state, party, key, state.characters[target])), dice)) }))
+    out.triaged.push(...targets.filter((_, i) => won(tests[i].roll.degree)))
+    out.results.push({ ...base, roll: null, note: `infection DL -${TRIAGE_DL} on a hit`, tests })
+    return
   }
-  const note = key === 'bone-setting' ? `heals ${BONE_SETTING_PER_DAY[roll.degree]} a day` : won(roll.degree) ? `infection DL -${TRIAGE_DL}` : 'no effect'
-  out.results.push({ ...base, roll, note, tests: [] })
+  const roll = toRoll(resolveTest(getETTreatTest(medic, getETTreatDL(state, party, key, patients[0])), dice))
+  if (isETSpared(key, roll.degree)) out.patients.push(id)
+  else out.exhaustion[id] = 0
+  if (plan.wound !== null) land(out, targets[0], setWound(plan.wound, BONE_SETTING_PER_DAY[roll.degree]))
+  out.results.push({ ...base, roll, note: `heals ${BONE_SETTING_PER_DAY[roll.degree]} a day`, tests: [] })
 }
 
 // spells.tex "Casting spells": each planned cast is paid and rolled; one
@@ -264,7 +269,7 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       continue
     }
     if (isETMedicine(key)) {
-      treatOver(out, state, id, key, plan, targets, base, dice)
+      treatOver(out, state, partyId, id, key, plan, targets, base, dice)
       continue
     }
     const bar = getETCastBar(caster, key)

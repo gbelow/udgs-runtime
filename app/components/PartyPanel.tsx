@@ -265,7 +265,7 @@ function CastPlanRow({ cast, planCast, setCast }: { cast: CastPanel; planCast: (
           <span className='text-xs text-muted'>on (up to {plan.count})</span>
           {plan.targets.map((t) => (
             <label key={t.id} className='text-xs text-muted flex items-center gap-1'>
-              <input type='checkbox' aria-label={`cast on ${t.name}`} checked={t.selected} onChange={(e) => setCast({ targets: e.target.checked ? [...selected, t.id] : selected.filter((id) => id !== t.id) })} />{t.name}
+              <input type='checkbox' aria-label={`cast on ${t.name}`} checked={t.selected} onChange={(e) => setCast({ targets: e.target.checked ? [...selected, t.id] : selected.filter((id) => id !== t.id) })} />{t.name}{t.DL !== null ? <> DL <span className='font-mono text-fg'>{t.DL}</span></> : null}
             </label>
           ))}
         </span>
@@ -290,7 +290,7 @@ function CastPlanRow({ cast, planCast, setCast }: { cast: CastPanel; planCast: (
         : null}
       {plan.enteredDL !== null ?
         <>
-          <span className='text-xs text-muted'>{plan.medicine ? 'DL' : 'target DL'}</span>
+          <span className='text-xs text-muted'>target DL</span>
           <NumberInput className='w-10' aria-label='cast target DL' value={plan.enteredDL} onChange={(e) => setCast({ DL: parseInt(e.target.value) || 0 })} />
         </>
         : null}

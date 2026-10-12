@@ -14,7 +14,8 @@ import { getDoseCount } from '../../item/rules/doses'
 import { getInfectionExposure } from '../../campaign/rules/place'
 
 // abilities.tex "Medicine": the abilities used over an ET and the DL of each
-// one's test — Wound Triage names none, so the table enters it.
+// one's test — Wound Triage names none, so each patient's test is against
+// their own infection DL (survival.tex "Infection").
 export const ET_MEDICINE = {
   'bone-setting': { DL: 3 },
   'wound-triage': { DL: null },
@@ -78,8 +79,14 @@ export function getETTreatPlanBar(medic: Character, key: ETMedicineKey, patients
 }
 
 // "make a medicine test" — story.tex "Knowledge": 2x the knowledge.
-export function getETTreatTest(c: Character, key: ETMedicineKey, plan: CastPlan): Test {
-  return { skill: sumTerms(getKnowledgeTestTerms('medicine')(c)), DL: ET_MEDICINE[key].DL ?? plan.DL, explodes: false, scale: 'degrees' }
+export function getETTreatTest(c: Character, DL: number): Test {
+  return { skill: sumTerms(getKnowledgeTestTerms('medicine')(c)), DL, explodes: false, scale: 'degrees' }
+}
+
+// "Bone Setting" names its DL; "Wound Triage" is tested once per patient
+// against the infection DL they would face untreated.
+export function getETTreatDL(state: CampaignState, party: Party, key: ETMedicineKey, patient: CampaignCharacter): number {
+  return ET_MEDICINE[key].DL ?? getInfectionDL(state, party, patient, false)
 }
 
 // "Bone Setting": "It heals 0/1/2/2 per day"; "A crit does not spend the ET".

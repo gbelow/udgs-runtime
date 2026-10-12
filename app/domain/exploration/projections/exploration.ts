@@ -1,5 +1,5 @@
 import type { CampaignState, EventType, TerrainTag } from '../../campaign/types'
-import { ET_MEDICINE, getETMedicine, getETTreatBar, getETTreatCount, getETTreatTest, getInfectionDL, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
+import { ET_MEDICINE, getETMedicine, getETTreatBar, getETTreatCount, getETTreatDL, getETTreatTest, getInfectionDL, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
 import { ABILITIES } from '../../abilities'
 import { getConsume, getDosesLeft } from '../../item/rules/consumables'
 import { getConsumeBar } from '../../item/rules/doses'
@@ -157,7 +157,8 @@ export type CastPanel = {
     DL: number | null
     exhaustion: number
     count: number
-    targets: { id: string; name: string; selected: boolean }[]
+    // the DL of the medic's test on each, when it differs by patient
+    targets: { id: string; name: string; selected: boolean; DL: number | null }[]
     // the wounds of the first target a heal may go on instead of the IL
     wounds: { index: number; label: string }[] | null
     wound: number | null
@@ -237,21 +238,22 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
 }
 
 // abilities.tex "Bone Setting", "Wound Triage": the medic's test, who it is
-// used on, the wound set (one not set yet), and the DL the table enters for
-// a triage.
+// used on, the wound set (one not set yet), and the DL each patient's test
+// is against.
 function getTreatPlanPanel(t: Exploring, id: string, plan: CastPlan, key: ETMedicineKey): NonNullable<CastPanel['plan']> {
   const state = t.campaign
   const c = state.characters[id]
+  const party = state.parties[state.partyOf[id]]
   const reachable = getETCastTargets(state, id)
   const first = plan.targets[0] ? state.characters[plan.targets[0]] : undefined
-  const test = getETTreatTest(c, key, plan)
+  const skill = getETTreatTest(c, 0).skill
   return {
     key,
-    skill: test.skill,
-    DL: test.DL,
+    skill,
+    DL: ET_MEDICINE[key].DL,
     exhaustion: 0,
     count: getETTreatCount(key, reachable.length),
-    targets: reachable.map((target) => ({ id: target, name: nameOf(state, target), selected: plan.targets.includes(target) })),
+    targets: reachable.map((target) => ({ id: target, name: nameOf(state, target), selected: plan.targets.includes(target), DL: getETTreatDL(state, party, key, state.characters[target]) })),
     wounds: key === 'bone-setting' && first
       ? getUnsetWounds(first).map((index) => { const w = first.injuries.wounds[index]; return { index, label: `${w.name} (${first.body.find((p) => p.id === w.part)?.name ?? w.part}, ${w.IL} IL)` } })
       : null,
@@ -259,7 +261,7 @@ function getTreatPlanPanel(t: Exploring, id: string, plan: CastPlan, key: ETMedi
     limbs: null,
     foods: null,
     item: plan.item,
-    enteredDL: ET_MEDICINE[key].DL === null ? plan.DL : null,
+    enteredDL: null,
     enhance: null,
     effortless: false,
     medicine: true,
@@ -290,7 +292,7 @@ function getCastPanel(t: Exploring, id: string): CastPanel {
       DL: test?.DL ?? null,
       exhaustion: getETCastExhaustion(key, false),
       count: getETCastCount(key),
-      targets: getETCastTargets(state, id).map((target) => ({ id: target, name: nameOf(state, target), selected: plan.targets.includes(target) })),
+      targets: getETCastTargets(state, id).map((target) => ({ id: target, name: nameOf(state, target), selected: plan.targets.includes(target), DL: null })),
       wounds: heal?.of === 'injury' && first
         ? first.injuries.wounds.map((w, index) => ({ index, label: `${w.name} (${first.body.find((p) => p.id === w.part)?.name ?? w.part}, ${w.IL} IL)` }))
         : null,
