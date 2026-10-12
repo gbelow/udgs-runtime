@@ -130,6 +130,9 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     // combat.tex "Opportunity Attack": a standard action, as drinking is
     // (gear.tex "Potions and Medicine")
     case 'drink': return opportunityTriggers(state, root.actorId)
+    // tending a wound is none of the triggering actions the book lists
+    case 'firstAid':
+    case 'cauterize': return []
     case 'throw': return opportunityTriggers(state, root.actorId)
     // a reload is part of the shot, which is a ranged attack (the table's
     // ruling)

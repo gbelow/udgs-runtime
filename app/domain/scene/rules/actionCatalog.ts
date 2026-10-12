@@ -144,6 +144,9 @@ export const ACTIONS = {
   throw:       { label: 'throw', rule: 'combat.tex "Throw"',        type: 'action',   price: null,          reactsTo: [],         die: false },
   // gear.tex "Potions and Medicine": a held potion, at a standard action's price
   drink:       { label: 'drink', rule: 'gear.tex "Potions and Medicine"', type: 'action', price: 'standardAction', reactsTo: [],      die: false },
+  // abilities.tex "Medicine": priced by the ability, aimed at one bleeding
+  firstAid:    { label: 'first aid', rule: `abilities.tex "First Aid"; the table's ruling for "full turn": the focus surge and 8 AP, in melee`, type: 'action', price: null, reactsTo: [], die: true, targeted: true },
+  cauterize:   { label: 'cauterize', rule: 'abilities.tex "Cauterization"', type: 'action', price: null, reactsTo: [], die: false, targeted: true },
   // gear.tex "Reload": priced by the row it loads; part of the shot (the
   // table's ruling)
   reload:      { label: 'reload', rule: 'gear.tex "Reload"',          type: 'action',   price: null,          reactsTo: [],         die: false, identity: { weaponKey: '', attack: '' } },

@@ -1,5 +1,6 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
-import { getHeldPotions } from '../../item/rules/items'
+import { getMedicineBar, getMedicineCost } from './medicine'
+import { getTakeableHeld } from '../../item/rules/doses'
 import type { Action, ActionDraft, ActionKind, ActionOf, SceneState, DeclarableKind, RootAction } from '../types'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
@@ -402,9 +403,12 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // be consumed"
   drink: (_state, c) => {
     const cost = getActionCost(c, 'standardAction')
-    const reason = getHeldPotions(c).length === 0 ? 'no potion in hand' : canAfford(c, cost) ? null : 'cannot afford'
+    const reason = getTakeableHeld(c).bar ?? (canAfford(c, cost) ? null : 'cannot afford')
     return [option({ kind: 'drink' }, cost, reason)]
   },
+  // abilities.tex "Medicine": aimed at someone bleeding, self included
+  firstAid: (state, c) => [option({ kind: 'firstAid' }, getMedicineCost('firstAid'), getMedicineBar(state, c, 'firstAid'))],
+  cauterize: (state, c) => [option({ kind: 'cauterize' }, getMedicineCost('cauterize'), getMedicineBar(state, c, 'cauterize'))],
   // gear.tex "Reload": each row in hand that is reloaded, at its own price
   reload: (state, c) => getReloadRows(c).map((row) =>
     option({ kind: 'reload', weaponKey: row.wielded.key, attack: row.atk.name }, getReloadCost(row.atk, c), getReloadBar(state, c, row))),

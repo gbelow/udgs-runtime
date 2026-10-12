@@ -112,11 +112,16 @@ export function produceSpellEffect(c: Character, effect: SpellEffect, size: numb
   return { effect: bare(c, enhanceEffect(effect, enhanced), size, effect.target === 'area'), degree: test ? null : 'hit', test, when: null, then: [], locks: effect.duration === 'locked' ? key : null }
 }
 
+// An effect landing as it is, with no test to make and nothing following.
+export function landed(effect: Effect): Delivery {
+  return { effect, degree: 'hit', test: null, when: null, then: [], locks: null }
+}
+
 // spells.tex "Casting spells": what the target's own result on the spell's
 // test lets through, as this caster makes it at the spell's size. The test
 // is already rolled, so each lands as it is.
 export function produceOutcome(c: Character, spell: Spell, degree: Degree, size: number = getSize(c)): Delivery[] {
-  return (spell.outcomes?.[degree].effects ?? []).map((e) => ({ effect: bare(c, e, size, false), degree: 'hit', test: null, when: null, then: [], locks: null }))
+  return (spell.outcomes?.[degree].effects ?? []).map((e) => landed(bare(c, e, size, false)))
 }
 
 // spells.tex "Extend Spell": "increase the casting range of a spell by

@@ -38,6 +38,7 @@ import { GRAZE_SAVE_COST, getCastCharges, getCastSpentAP, getLinkOutcome, type L
 import { getCastSize, getEffortlessCost } from '../../character/rules/spells'
 import { getFireAgainCharges } from '../rules/fireAgain'
 import { restCharacter, restWhileCasting } from '../../character/commands/rest'
+import { takeDose } from '../../character/commands/consume'
 import { getInterruptionOf } from '../rules/interruption'
 import { loseConcentration } from '../../character/commands/spells'
 import { getAction, getReactionsTo } from '../rules/log'
@@ -144,14 +145,15 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
-        // gear.tex "Potions and Medicine": the potion is gone and its effect
-        // stays for the rest of the fight; "not cumulative, but they can be
-        // refreshed"
-        if (action.kind === 'drink') {
-          const potion = action.drunk?.potion
-          if (c.id !== action.actorId || !potion) return c
-          const drunk = consumeItem(action.itemId)(c)
-          return { ...drunk, active: [...drunk.active.filter((e) => !(e.kind === 'potion' && e.key === potion)), { kind: 'potion', key: potion }] }
+        // gear.tex "Potions and Medicine": a dose taken out of what is held
+        if (action.kind === 'drink') return c.id === action.actorId && action.drunk ? takeDose(action.itemId)(c) : c
+        // abilities.tex "Medicine": what the treatment did to whoever it was
+        // given; First Aid: "On a hit or crit, prevents bleeding that turn
+        // completely" — staunched for the round
+        if (action.kind === 'cauterize') return deliverAll(action.facts?.[c.id] ?? [])(c)
+        if (action.kind === 'firstAid') {
+          const treated = deliverAll(action.facts?.[c.id] ?? [])(c)
+          return isWon(action) && c.id === action.targetId ? { ...treated, injuries: { ...treated.injuries, staunched: true } } : treated
         }
         if (action.kind === 'pickUp') return c.id === action.actorId && action.picked ? holdItem(action.picked)(c) : c
         // gear.tex "Reload": one arrow or bolt leaves its stack and waits in

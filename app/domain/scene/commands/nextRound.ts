@@ -36,7 +36,8 @@ function resetAP(c: CampaignCharacter): CampaignCharacter {
 // burns with the fire they stand in added, as one instance (combat.tex
 // "Burning", "Fire"); not being able to breathe costs its STA. A fired
 // ability is then spent, the bleed runs on (combat.tex "Bleed": +1 IL per
-// bleed intensity at the end of every round in combat), the surge used this
+// bleed intensity at the end of every round in combat) unless First Aid
+// staunched it for the round, the surge used this
 // round is cleared and the AP reset. Whoever still holds a spell makes the
 // focus surge holding it takes (the table's ruling), or lets go of it when
 // they cannot. Whoever fell in tanatosis wakes (creating.tex "Limit Stress
@@ -46,7 +47,8 @@ function endRound(state: SceneState, c: CampaignCharacter, dice: Dice): Campaign
   if (isDead(c)) return c
   const burnt = burnAtRoundStart(getHazardOf(state, c.id).fire)(burnScorch(applyTrigger('end_round')(payHeldSources(() => rollPercent(dice))(c))))
   const spent = expireUsedAbilities(burnt)
-  const due = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
+  const bled = bleed(1)(isSuffocating(state, c) ? suffocate(spent) : spent)
+  const due = bled.injuries.staunched ? { ...bled, injuries: { ...bled.injuries, staunched: false } } : bled
   const woken = state.compulsions.some((t) => t.id === c.id && t.action === 'tanatosis') ? cure(['unconscious'])(due) : due
   const reset = resetAP({ ...woken, usedSurge: null })
   if (!isConcentrating(reset)) return reset

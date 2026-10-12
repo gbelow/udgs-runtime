@@ -4,6 +4,7 @@ import { SPELL_LIGHT } from '../../../tables'
 import { LIGHT_LEVELS } from '../../../lists'
 import { coordKey, distance } from './geometry'
 import { getPlacedFootprint, seesAcross } from './board'
+import { isSuppressed } from '../../../character/rules/effects'
 
 // combat.tex "Darkness and light": "In a situation of darkness, the field of
 // vision is determined by the light source ... Anyone in the light radius is
@@ -72,7 +73,7 @@ export function getLightOf(state: SceneState, id: string): LightLevel {
 }
 
 // gear.tex "Darkseeing": "Allows seeing in dim light at high quality" — dim
-// light is no impairment to the drinker.
+// light is no impairment to whoever has it in them.
 export function seesInDimLight(c: CampaignCharacter): boolean {
-  return c.active.some((e) => e.kind === 'potion' && e.key === 'darkseeing')
+  return isSuppressed(c, 'light:dim')
 }

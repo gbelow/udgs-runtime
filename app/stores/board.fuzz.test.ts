@@ -22,7 +22,7 @@ import { getChaseStartBar } from '../domain/scene/rules/chase'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
 import { CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema, type Character } from '../domain/types'
-import { archer, bomber, crossbowman, brawler, mage, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
+import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
 import { useCombatStore } from './useCombatStore'
 
@@ -600,6 +600,7 @@ const DUELS = [
   { name: 'a bomber and a warden', a: bomber, b: warden, apart: 2 },
   { name: 'a netter and a warden', a: netter, b: warden, apart: 2 },
   { name: 'a bent serpent and a brawler', a: serpent, b: brawler, apart: 2 },
+  { name: 'a bleeding medic and a spearman', a: medic, b: spearman, apart: 1 },
 ]
 
 const duelPlays = () => plays().filter((p) => !['paint a cell', 'set the light', 'drop a held item', 'take a whole action'].includes(p.name))

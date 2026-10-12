@@ -47,7 +47,9 @@ export function heal( amount: number): (c: CampaignCharacter) => CampaignCharact
 // survival.tex "Healing": what a heal effect mends. IL healed costs hunger
 // and thirst as any healing does; a wound healed by medicine or magic does
 // not ("Healing Wounds"). A potion's healing is banked to be spent over the
-// next ET ("Healing Potions"). A body revived keeps its wounds and IL, "IL
+// next ET ("Healing Potions"); gear.tex "Potions and Medicine": "Taking
+// multiple potions does not amplify the effect", so the bank keeps the
+// larger of what it holds and what comes in. A body revived keeps its wounds and IL, "IL
 // defaults to" one short of death (the table's ruling over the book's 49).
 export function mend(effect: HealEffect): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
@@ -60,7 +62,7 @@ export function mend(effect: HealEffect): (c: CampaignCharacter) => CampaignChar
       case 'limb':
         return effect.part ? reattachPart(effect.part, amount)(c) : c
       case 'potion':
-        return amount > 0 ? { ...c, injuries: { ...c.injuries, potion: c.injuries.potion + amount } } : c
+        return amount > c.injuries.potion ? { ...c, injuries: { ...c.injuries, potion: amount } } : c
       case 'revive':
         return { ...c, injuries: { ...c.injuries, injuryLevel: Math.min(c.injuries.injuryLevel, getDeathIL(c) - 1) } }
     }

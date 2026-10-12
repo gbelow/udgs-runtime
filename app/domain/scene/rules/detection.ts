@@ -70,7 +70,7 @@ const byRange: Impair = (state, o, t, range) => {
 // visibility is partial, none is nothing to target; "Fog and smoke": whoever
 // stands in it sees no further than its radius, and others inside within it
 // are in bad visibility.
-function seeInto(state: SceneState, from: Coord[], at: Coord[], dimSighted: boolean): Impairment {
+function seeInto(state: SceneState, from: Coord[], at: Coord[], dimSighted: () => boolean): Impairment {
   const light = getLightAt(state, at)
   if (light === 'dark') return 'total'
   const near = setDistance(from, at) <= FOG_VISION_RADIUS
@@ -78,7 +78,7 @@ function seeInto(state: SceneState, from: Coord[], at: Coord[], dimSighted: bool
   const there = getHazardAt(state, at).visibility
   if (there === 'zero') return inFog && near ? 'partial' : 'total'
   if (inFog && !near) return 'total'
-  return there === 'bad' || (light === 'dim' && !dimSighted) ? 'partial' : 'none'
+  return there === 'bad' || (light === 'dim' && !dimSighted()) ? 'partial' : 'none'
 }
 
 // combat.tex "Sensory impairment": how much of the target a sense takes in
@@ -94,7 +94,7 @@ const IMPAIRMENTS: Record<keyof Senses, Impair> = {
     const from = getPlacedFootprint(state, o)
     const at = getPlacedFootprint(state, t)
     const observer = state.characters[o]
-    const seen = from && at ? seeInto(state, from, at, !!observer && seesInDimLight(observer)) : 'none'
+    const seen = from && at ? seeInto(state, from, at, () => !!observer && seesInDimLight(observer)) : 'none'
     return seen === 'none' && isCamouflaged(state, t) ? 'partial' : seen
   },
   // combat.tex "Hearing": "triggered by a sound event"; nothing on the board
@@ -135,7 +135,7 @@ const isBeyond: TotalInto = (_, from, at, range) => range !== null && setDistanc
 // whoever stood on `at` — `IMPAIRMENTS` of a place rather than a target,
 // line of sight left out.
 const TOTAL_INTO: Record<keyof Senses, TotalInto> = {
-  vision: (state, from, at) => seeInto(state, from, at, false) === 'total',
+  vision: (state, from, at) => seeInto(state, from, at, () => false) === 'total',
   hearing: () => false,
   smell: isBeyond,
   touch: isBeyond,
@@ -203,7 +203,7 @@ function getVisibilityTerm(state: SceneState, observer: CampaignCharacter, towar
 function getImpairmentInto(state: SceneState, observer: CampaignCharacter, from: Coord[], at: Coord[], sense: keyof Senses): Impairment {
   if (sense !== 'vision') return TOTAL_INTO[sense](state, from, at, observer.senses[sense].range) ? 'total' : 'none'
   if (state.board && !seesAcross(state.board, from, at)) return 'total'
-  return seeInto(state, from, at, seesInDimLight(observer))
+  return seeInto(state, from, at, () => seesInDimLight(observer))
 }
 
 function getImpairment(state: SceneState, observer: CampaignCharacter, toward: Toward, sense: keyof Senses): Impairment {

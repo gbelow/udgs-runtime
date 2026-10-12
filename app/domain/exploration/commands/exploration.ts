@@ -1,6 +1,6 @@
 import type { CampaignCharacter, Degree } from '../../types'
 import type { CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
-import type { Camp, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, TestRoll } from '../types'
+import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, TestRoll } from '../types'
 import { CampSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../play/dice'
 import { getDegree, resolveTest, toRoll } from '../../play/test'
@@ -17,10 +17,14 @@ import { passETs } from '../../campaign/commands/clock'
 import { addParty } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
-import { chargeItem, consumeItem } from '../../item/commands/hands'
+import { takeDose } from '../../character/commands/consume'
+import { chargeItem, consumeItem, spendDoses } from '../../item/commands/hands'
 import { findCarriedItem } from '../../item/rules/containers'
 import { produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey } from '../../spells'
+import { BONE_SETTING_PER_DAY, INFECTION_IL, TRIAGE_DL, getBandageDoses, getETTreatBar, getETTreatPlanBar, getETTreatTest, getInfectionTest, getNeeded, isETMedicine, isETSpared, type ETMedicineKey } from '../rules/medicine'
+import { setWound } from '../../character/commands/wounds'
+import { ABILITIES } from '../../abilities'
 import { buyETImprovements, hasPlannedLimb, needsLimb, getETCastBar, getETCastExhaustion, getETCastTargets, getETCastTest, getETRestBonus, getETTargetTest, produceETCast } from '../rules/casting'
 
 const onCharacter = (id: string, update: (c: CampaignCharacter) => CampaignCharacter): CampaignUpdater =>
@@ -44,6 +48,12 @@ export function eatFood(id: string, itemId: string): CampaignUpdater {
     const released = (item.charge?.effects ?? []).map((e) => produceSpellEffect(c, e))
     return deliverAll(released)(consumeItem(itemId)(fed))
   })
+}
+
+// gear.tex "Potions and Medicine": a dose of something the character
+// carries, taken outside a fight, where it takes no action.
+export function takeItem(id: string, itemId: string): CampaignUpdater {
+  return onCharacter(id, takeDose(itemId))
 }
 
 // survival.tex "Thirst": "Every portion of water recovers 1 thirst".
@@ -185,12 +195,53 @@ function goOn(state: CampaignState, partyId: string, start: Camp, camp: Camp, gr
   return { ...stays, roll, note: '', camp: landTask(group, roll.degree, camp) }
 }
 
-type PartyET = { t: Exploring; results: GroupResult[]; castResults: CastResult[] }
+type PartyET = { t: Exploring; results: GroupResult[]; castResults: CastResult[]; infection: Record<string, TestRoll> }
 
 // What the party's casts over the ET came to: who spent it casting and the
 // exhaustion each cast cost them, the health each target rests with on top,
-// what lands on each, and what to read afterwards.
-type CastET = { exhaustion: Record<string, number>; bonus: Record<string, number>; landing: Record<string, ((c: CampaignCharacter) => CampaignCharacter)[]>; results: CastResult[] }
+// what lands on each, who a medic tended (each "considered to be resting for
+// the ET") and whom triage spared at the infection test, and what to read
+// afterwards.
+type CastET = {
+  exhaustion: Record<string, number>
+  bonus: Record<string, number>
+  landing: Record<string, ((c: CampaignCharacter) => CampaignCharacter)[]>
+  patients: string[]
+  triaged: string[]
+  results: CastResult[]
+}
+
+const land = (out: CastET, id: string, step: (c: CampaignCharacter) => CampaignCharacter) => {
+  out.landing[id] = [...(out.landing[id] ?? []), step]
+}
+
+// abilities.tex "Bone Setting", "Wound Triage": the medic's test, made once
+// for everyone tended; whoever it was used on rests the ET. A set wound
+// heals by the degree's rate every day from then on; a triage that hits
+// lowers this ET's infection test of everyone it tended, and spends a
+// bandage on each of them whatever it came to. "A crit does not spend the
+// ET": the medic rests too.
+function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicineKey, plan: CastPlan, targets: string[], base: Omit<CastResult, 'roll' | 'note' | 'tests'>, dice: Dice) {
+  const medic = state.characters[id]
+  const patients = targets.map((target) => state.characters[target])
+  const bar = getETTreatBar(medic, key) ?? getETTreatPlanBar(medic, key, patients, plan)
+  if (bar) {
+    out.results.push({ ...base, roll: null, note: bar, tests: [] })
+    return
+  }
+  const roll = toRoll(resolveTest(getETTreatTest(medic, key, plan), dice))
+  out.patients.push(...targets)
+  if (isETSpared(key, roll.degree)) out.patients.push(id)
+  else out.exhaustion[id] = 0
+  if (key === 'bone-setting' && plan.wound !== null) land(out, targets[0], setWound(plan.wound, BONE_SETTING_PER_DAY[roll.degree]))
+  if (key === 'wound-triage') {
+    const bandages = getNeeded(medic, key)
+    if (bandages) land(out, id, spendDoses(bandages.id, getBandageDoses(patients)))
+    if (won(roll.degree)) out.triaged.push(...targets)
+  }
+  const note = key === 'bone-setting' ? `heals ${BONE_SETTING_PER_DAY[roll.degree]} a day` : won(roll.degree) ? `infection DL -${TRIAGE_DL}` : 'no effect'
+  out.results.push({ ...base, roll, note, tests: [] })
+}
 
 // spells.tex "Casting spells": each planned cast is paid and rolled; one
 // that hits buys what was planned with its overflow and lands on whoever it
@@ -199,7 +250,7 @@ type CastET = { exhaustion: Record<string, number>; bonus: Record<string, number
 function castOver(t: Exploring, partyId: string, players: string[], forced: (id: string) => boolean, dice: Dice): CastET {
   const state = t.campaign
   const name = (id: string) => state.characters[id]?.fightName ?? id
-  const out: CastET = { exhaustion: {}, bonus: {}, landing: {}, results: [] }
+  const out: CastET = { exhaustion: {}, bonus: {}, landing: {}, patients: [], triaged: [], results: [] }
   for (const id of players) {
     const plan = t.exploration.casts[id]
     if (!plan) continue
@@ -207,9 +258,13 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
     const caster = state.characters[id]
     const reachable = getETCastTargets(state, id)
     const targets = plan.targets.filter((target) => reachable.includes(target))
-    const base = { party: state.parties[partyId].name, caster: name(id), spell: isSpellKey(key) ? SPELLS[key].name : key, targets: targets.map(name) }
+    const base = { party: state.parties[partyId].name, caster: name(id), spell: isSpellKey(key) ? SPELLS[key].name : isETMedicine(key) ? ABILITIES[key].name : key, targets: targets.map(name) }
     if (forced(id)) {
       out.results.push({ ...base, roll: null, note: 'forced to rest', tests: [] })
+      continue
+    }
+    if (isETMedicine(key)) {
+      treatOver(out, state, id, key, plan, targets, base, dice)
       continue
     }
     const bar = getETCastBar(caster, key)
@@ -299,7 +354,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
     const drank = spendPotion(characters[id])
     const group = working[id]
     const casting = id in cast.exhaustion
-    const resting = !group && !casting && (forced(id) || t.exploration.resting.includes(id)) && canRestHeal(t, id)
+    const resting = !group && !casting && (forced(id) || t.exploration.resting.includes(id) || cast.patients.includes(id)) && canRestHeal(t, id)
     if (resting) count = { ...count, [id]: count[id] + 1 }
     const planned = resting ? rest(drank, exposure, cast.bonus[id] ?? 0)
       : group ? addExhaustion(1)(addIL(getWear(drank, getExplorationAction(group.kind)))(drank))
@@ -310,7 +365,18 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   // what the casts put on their targets lands once the ET's rest is had, so
   // healing banked as a potion's is spent over the next
   for (const [id, landing] of Object.entries(cast.landing)) {
-    if (characters[id]) characters[id] = landing.reduce((c, land) => land(c), characters[id])
+    if (characters[id]) characters[id] = landing.reduce((c, step) => step(c), characters[id])
+  }
+  // survival.tex "Infection": "Make a health test every ET ... The character
+  // takes 3/1/0/0 IL damage depending on the test result", where the table
+  // plays it
+  const infection: Record<string, TestRoll> = {}
+  if (state.infection) {
+    for (const id of players) {
+      const roll = toRoll(resolveTest(getInfectionTest(state, party, characters[id], cast.triaged.includes(id)), dice))
+      infection[id] = roll
+      characters[id] = addIL(INFECTION_IL[roll.degree])(characters[id])
+    }
   }
 
   const rests = { day, count: { ...(t.exploration.rests.day === day ? t.exploration.rests.count : {}), ...count } }
@@ -326,6 +392,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
       },
       results,
       castResults: cast.results,
+      infection,
     }
   }
   const campaign = moves.reduce((s, move) => {
@@ -333,19 +400,19 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
     const added = addParty(newPartyId, { ...party, node: move.node ?? party.node })(s)
     return { ...added, partyOf: { ...added.partyOf, ...Object.fromEntries(move.ids.map((id) => [id, newPartyId])) } }
   }, passed.campaign)
-  return { t: { ...passed, campaign }, results, castResults: cast.results }
+  return { t: { ...passed, campaign }, results, castResults: cast.results, infection }
 }
 
 // The ET over: its plans emptied for the next, the groups and camps of
 // parties no longer there dropped, its tests kept to read.
-function closeET(t: Exploring, opening: Opening, results: GroupResult[], castResults: CastResult[]): Exploring {
+function closeET(t: Exploring, opening: Opening, results: GroupResult[], castResults: CastResult[], infectionRolls: Record<string, TestRoll>): Exploring {
   const here = (pid: string) => pid in t.campaign.parties
   const groups = Object.fromEntries(Object.entries(t.exploration.groups).filter(([pid]) => here(pid)).map(([pid, gs]) =>
     [pid, Object.fromEntries(Object.entries(gs).map(([gid, g]) => [gid, { ...g, members: [], roller: null }]))]))
   const camps = Object.fromEntries(Object.entries(t.exploration.camps).filter(([pid]) => here(pid)))
   return {
     campaign: { ...t.campaign, out: [] },
-    exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, exhaustionRolls: opening.rolls, results, castResults },
+    exploration: { ...t.exploration, groups, camps, resting: [], casts: {}, opening: null, exhaustionRolls: opening.rolls, infectionRolls, results, castResults },
   }
 }
 
@@ -361,9 +428,9 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
     const played = Object.keys(opened.campaign.parties).reduce<PartyET>((acc, partyId) => {
       const next = passParty(acc.t, partyId, opening, dice, newId)
-      return { t: next.t, results: [...acc.results, ...next.results], castResults: [...acc.castResults, ...next.castResults] }
-    }, { t: opened, results: [], castResults: [] })
-    const closed = closeET(played.t, opening, played.results, played.castResults)
+      return { t: next.t, results: [...acc.results, ...next.results], castResults: [...acc.castResults, ...next.castResults], infection: { ...acc.infection, ...next.infection } }
+    }, { t: opened, results: [], castResults: [], infection: {} })
+    const closed = closeET(played.t, opening, played.results, played.castResults, played.infection)
     return { ...closed, campaign: passETs(1)(closed.campaign) }
   }
 }

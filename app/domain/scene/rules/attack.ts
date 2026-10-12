@@ -1,4 +1,5 @@
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
+import { getFirstAidTerms } from './medicine'
 import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
 import { makeAction } from '../factories'
 import type { Action, ActionOf, AttackAction, SceneState, HitLocation, MoveAction, OpportunityAction, RootAction, ShootAction, StrikeAction } from '../types'
@@ -413,6 +414,8 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
       return getSlipTerms(state, root)?.DL ?? []
     case 'feint':
       return getFeintTerms(state, root)?.DL ?? []
+    case 'firstAid':
+      return getFirstAidTerms(state, root)?.DL ?? []
     case 'cut':
       return CUT_DL
     case 'fall':
@@ -428,6 +431,7 @@ export function getDLTerms(state: SceneState, root: RootAction): Term[] {
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'cauterize':
     case 'reload':
     case 'rest':
     case 'prepare':
@@ -509,6 +513,9 @@ export function getRootTestTerms(state: SceneState, root: RootAction): RootTestT
       return onDegrees(getSlipTerms(state, root))
     case 'feint':
       return onDegrees(getFeintTerms(state, root))
+    // abilities.tex "First Aid": a medicine test
+    case 'firstAid':
+      return onDegrees(getFirstAidTerms(state, root))
     case 'cut':
       return onDegrees({ skill: getAttackTerms(state, getCutStrike(root)), DL: CUT_DL })
     // combat.tex "Balance" ("Fall skill test"): the faller's own die
@@ -536,6 +543,7 @@ export function getRootTestTerms(state: SceneState, root: RootAction): RootTestT
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'cauterize':
     case 'reload':
     case 'rest':
     case 'prepare':

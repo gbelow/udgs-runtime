@@ -2,6 +2,7 @@ import { Ability, Buff, BuffTarget, Character, Cost, Effect, Grant, Trigger } fr
 import { ABILITIES, AbilityKey, getLearnedAbilityKeys, hasAbility, isAbilityKey } from '../../abilities'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
 import { isCampaignCharacter } from '../../utils'
+import { getLastingEffects } from '../../item/rules/consumables'
 
 function isBuff(effect: Effect): effect is Extract<Effect, { type: 'buff' }> {
   return effect.type === 'buff'
@@ -62,9 +63,16 @@ export function isSpellActive(character: Character, key: SpellKey): boolean {
   return getActiveSpellKeys(character).includes(key)
 }
 
+// gear.tex "Potions and Medicine": what the potions taken and still lasting
+// keep on the character.
+function getPotionEffects(character: Character): Effect[] {
+  if (!isCampaignCharacter(character) || !character.active.some((entry) => entry?.kind === 'potion')) return []
+  return character.active.flatMap((entry) => (entry?.kind === 'potion' ? getLastingEffects(entry.key) : []))
+}
+
 // Everything currently contributing: passive abilities always, toggles and
-// held spells while on. Read off the catalogs every time — the character
-// holds only references.
+// held spells while on, potions while they last. Read off the catalogs every
+// time — the character holds only references.
 export function getContributingEffects(character: Character): Effect[] {
   const passive = getLearnedAbilities(character)
     .filter((a) => a.activation === 'passive')
@@ -74,7 +82,12 @@ export function getContributingEffects(character: Character): Effect[] {
   // upkeep; what it did to anyone was delivered when it was cast
   const held = getActiveSpellKeys(character).flatMap((key) =>
     SPELLS[key].effects.flatMap((e): Effect[] => (e.target === 'self' && e.type !== 'damage' ? [{ name: e.name, trigger: e.trigger, type: e.type, effect: e.effect } as Effect] : [])))
-  return [...passive, ...active, ...held]
+  return [...passive, ...active, ...held, ...getPotionEffects(character)]
+}
+
+// The suppressions in effect: what blocks a rule outright for the character.
+export function isSuppressed(character: Character, target: string): boolean {
+  return getContributingEffects(character).some((e) => e.type === 'suppression' && e.effect.target === target)
 }
 
 export function collectBuffs(character: Character): Buff[] {

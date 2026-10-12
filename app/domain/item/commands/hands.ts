@@ -9,6 +9,7 @@ import { getSurgeBar } from '../../character/rules/surge'
 import { getCastSize, getChargeTargets, getSpellGear, pickSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
 import { Improvements, drawOnFood, drawOnGear, produceEffects } from '../../character/rules/production'
+import { getConsume, getDosesLeft, getUnitDoses } from '../rules/consumables'
 
 // What changes the hands keeps whichever kind of character it was given.
 type HeldUpdater = <C extends Character>(c: C) => C
@@ -240,5 +241,27 @@ export function consumeItem(itemId: string): HeldUpdater {
     if (!item) return c
     if (item.amount <= 1) return release(c, itemId)
     return { ...c, held: c.held.map((i) => (i.id === itemId ? { ...i, amount: i.amount - 1, charge: null } : i)) }
+  }
+}
+
+// gear.tex "Potions and Medicine": doses taken out of a stack, out of the
+// unit in use first; a unit emptied is gone and the next one is whole.
+// Short of that many, nothing is taken.
+export function spendDoses(itemId: string, count: number): HeldUpdater {
+  return <C extends Character>(c: C): C => {
+    const found = findCarriedItem(c, itemId)
+    const consume = found ? getConsume(found.item) : null
+    if (!found || !consume) return c
+    const total = getDosesLeft(found.item)
+    if (count <= 0 || count > total) return c
+    const whole = getUnitDoses(found.item)
+    const left = total - count
+    const units = Math.ceil(left / whole)
+    const emptied = Array.from({ length: found.item.amount - units }).reduce<C>((acc) => consumeItem(itemId)(acc), c)
+    if (units === 0) return emptied
+    const change = (i: Item): Item => ({ ...i, consume: { ...consume, doses: left - (units - 1) * whole } })
+    return found.containerKey === null
+      ? { ...emptied, held: emptied.held.map((i) => (i.id === itemId ? change(i) : i)) }
+      : mapContainerItem(found.containerKey, itemId, change)(emptied)
   }
 }

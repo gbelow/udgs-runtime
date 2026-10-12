@@ -198,10 +198,11 @@ function tierOf(damage: number, armor: number, TGH: number): number | null {
 // incoming burning damage, and that total is used against INS to determine
 // the injury. After the damage is applied, the burning counter is halved.
 // Burning damage causes only half IL injury." Radiant damage is dealt the
-// same way (the table's ruling); only its defense may differ.
+// same way (the table's ruling); only its defense may differ. A searing burn
+// leaves the counter alone.
 export function getOutcome(facts: Damage, degree: Degree, target: Character): Outcome {
   const TGH = getTGH(target)
-  const counter = isCampaignCharacter(target) ? target.injuries.burning : 0
+  const counter = isCampaignCharacter(target) && !facts.sear ? target.injuries.burning : 0
   if (isIntercepted(facts, degree, target)) return { ...NOTHING, stopped: true }
   const { arriving, measured: top } = getArriving(facts, target)
   const blockShare = getBlockShare(facts, degree, top?.value ?? 0)
@@ -212,7 +213,7 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
   })
 
   const burnt = measured.find((m) => isBurning(m.type) && m.damage > 0)
-  const burning = burnt ? Math.floor(burnt.damage / 2) : null
+  const burning = burnt && !facts.sear ? Math.floor(burnt.damage / 2) : null
   const arrived = { blunt: arrivedOf(measured, 'blunt'), cut: arrivedOf(measured, 'cut') }
   const tiers = Object.fromEntries(measured.map((m) => [m.type, m.tier])) as Outcome['tiers']
   const best = measured.reduce<(typeof measured)[number] | null>((b, m) => (b === null || m.damage - m.armor > b.damage - b.armor ? m : b), null)

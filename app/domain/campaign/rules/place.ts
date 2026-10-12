@@ -27,6 +27,13 @@ export function getExposure(state: CampaignState, party: Party): number {
   return place?.terrain ? place.terrain.exposure : party.exposure
 }
 
+// survival.tex "Infection Exposure": the terrain's; off the map, the table
+// enters it.
+export function getInfectionExposure(state: CampaignState, party: Party): number {
+  const place = getPlace(state, party)
+  return place?.terrain ? place.terrain.infection : party.infection
+}
+
 export type Path = { id: string; connection: Connection; to: string; DL: number; events: PathEvent[] }
 
 // The paths out of a node, each as travelled from it: the node at the other

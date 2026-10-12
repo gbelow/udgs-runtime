@@ -368,14 +368,16 @@ export type Item = z.infer<typeof ItemSchema>
 // gear.tex "Potions and Medicine": "Potions add an effect to the character
 // for a certain duration" — what one dose puts on whoever takes it: a heal
 // lands at once, a buff or a suppression lasts `ETs` exploration turns. The
-// doses left in this unit ("10 charges"), and the item it is applied with,
-// one dose of which goes with it ("Anti-septic": "when applied with a
-// bandage").
+// doses left in this unit ("10 charges"), the item it is applied with, one
+// dose of which goes with it ("Anti-septic": "when applied with a bandage"),
+// and whether a dose is taken on its own or only spent by what uses it (a
+// bandage, by "Wound Triage").
 export const ConsumeSchema = z.object({
   effects: z.array(z.lazy(() => EffectSchema)).default([]),
   ETs: num.default(0),
   doses: num.default(1),
   with: str.default(''),
+  taken: z.boolean().default(true),
 }).strip()
 export type Consume = z.infer<typeof ConsumeSchema>
 
@@ -550,6 +552,9 @@ export const WoundSchema = z.object({
   name: str,
   part: str,
   IL: num.default(0),
+  // abilities.tex "Bone Setting": "allow a wound to heal with rest. It heals
+  // 0/1/2/2 per day" — what it heals at each day's end once set
+  perDay: num.default(0),
 }).strip()
 
 export type Wound = z.infer<typeof WoundSchema>
@@ -563,6 +568,9 @@ export const InjuriesSchema = z.object({
   // combat.tex "Fire": the worst fire surface touched during the character's
   // own turn, dealt as burning damage when the turn ends
   scorch: z.number().default(0),
+  // abilities.tex "First Aid": "On a hit or crit, prevents bleeding that turn
+  // completely" — until the round changes
+  staunched: z.boolean().default(false),
   potion: z.number().default(0),
   injuryThreshold: z.number().default(10),
   unconsciousThreshold: z.number().default(40),
@@ -769,6 +777,10 @@ export const DamageSchema = z.object({
   smash: z.boolean().default(false),
   // combat.tex "Fall damage": "the damage ignores armor"
   bare: z.boolean().default(false),
+  // burn dealt straight to the flesh, which neither adds the burning counter
+  // nor leaves the character burning (the table's ruling for abilities.tex
+  // "Cauterization")
+  sear: z.boolean().default(false),
   // combat.tex "Fall skill test": "Receiving a T1 injury or higher always
   // makes the character prone and stuns" — an interruption is a stun
   stuns: z.boolean().default(false),

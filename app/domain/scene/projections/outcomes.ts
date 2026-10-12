@@ -1,4 +1,5 @@
 import type { Action, ActionRoll, SceneState, DragFacts, MoraleSpellOutcome } from '../types'
+import { isWon } from '../rules/test'
 import type { Degree, Effect, Item } from '../../types'
 import type { Outcome, OutcomeStep } from '../../character/rules/damage'
 import { getBrokenItems } from '../rules/breakage'
@@ -56,6 +57,7 @@ function getRootNotes(state: SceneState, root: Action, named: (id: string) => st
   if (root.kind === 'throw') return root.thrown ? [{ target: named(root.actorId), text: `threw ${root.thrown.name}` }] : []
   if (root.kind === 'drink') return root.drunk ? [{ target: named(root.actorId), text: `drank ${root.drunk.name}` }] : []
   if (root.kind === 'reload') return root.loaded ? [{ target: named(root.actorId), text: `loaded ${root.loaded.name}` }] : []
+  if (root.kind === 'firstAid' && isWon(root) && root.targetId) return [{ target: named(root.targetId), text: 'bleeding stopped this round' }]
   if (root.kind === 'spellTest') return spellTestNotes(root, named)
   if (root.kind === 'fall') return [{ target: named(root.actorId), text: `fell ${root.height}m` }]
   const facts = getGrappleFacts(root)

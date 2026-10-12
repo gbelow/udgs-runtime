@@ -1,5 +1,6 @@
 import { notices } from './stealth'
-import { getHeldPotions } from '../../item/rules/items'
+import { getMedicineCost, getMedicineTargets } from './medicine'
+import { getTakeableHeld } from '../../item/rules/doses'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionKind, ActionOf, AttackAction, SceneState, Coord, CostTerm, FloorItem, GrappleAction, MoveAction, RootAction } from '../types'
 import { ACTIONS, getActionDef, isAttackAction, isReaction } from './actionCatalog'
@@ -129,9 +130,13 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // combat.tex "Fire": a burning space within its reach
     case 'extinguish':
       return isExtinguishCell(state, action)
-    // gear.tex "Potions and Medicine": a potion in hand
+    // abilities.tex "Medicine": someone bleeding within reach
+    case 'firstAid':
+    case 'cauterize':
+      return action.targetId !== null && getMedicineTargets(state, action.actorId).includes(action.targetId)
+    // gear.tex "Potions and Medicine": a potion in hand with doses enough
     case 'drink':
-      return getHeldPotions(c).some((i) => i.id === action.itemId)
+      return getTakeableHeld(c).takeable.some((i) => i.id === action.itemId)
     // gear.tex "Reload": an empty row that is reloaded, and a stack in a
     // quick slot to load it from
     case 'reload': {
@@ -316,6 +321,10 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'prepare':
     case 'grapple':
       return getCatalogCost(c, action.kind)
+    // abilities.tex "Medicine": the ability's price
+    case 'firstAid':
+    case 'cauterize':
+      return getMedicineCost(action.kind)
   }
 }
 
@@ -555,6 +564,8 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'throw':
     case 'extinguish':
     case 'drink':
+    case 'firstAid':
+    case 'cauterize':
     case 'reload':
     case 'rest':
     case 'prepare':
@@ -676,6 +687,9 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
       return getCutTargets(state, root)
     case 'holdBack':
       return getHoldBackTargets(state, root.actorId)
+    case 'firstAid':
+    case 'cauterize':
+      return getMedicineTargets(state, root.actorId)
     case 'drag':
       return (root.pull ? getPullTargets(state, root.actorId) : getPartners(state, root.actorId)).filter((id) => state.board?.placements[id] !== undefined)
     // aimed at the board, or at nobody

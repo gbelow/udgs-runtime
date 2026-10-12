@@ -2,6 +2,7 @@ import { Armor, ArmorSchema, Character, Container, ContainerEntrySchema, DamageC
 import { BULK_NAMES } from '../../lists'
 import { MATERIAL_HARDNESS } from '../../tables'
 import { getVMAt, scaleArmor, scaleWeapon } from '../../character/rules/size'
+import { getConsume } from './consumables'
 import weaponsCatalog from '../../../assets/weapons.json'
 import armorsCatalog from '../../../assets/armors.json'
 import itemsCatalog from '../../../assets/items.json'
@@ -115,11 +116,11 @@ export function getCatalogItem(key: string, amount = 1, scale = GEAR_SIZE): Item
 // identical: what each carries is its own. Nor are two charged items: what a
 // charge holds was worked out for its caster, and can be charged over. Two
 // stones with different uses left are not the same stone, nor a loaded
-// crossbow an empty one.
+// crossbow an empty one, nor a roll of bandages begun a whole one.
 export function isSameItem(a: Item, b: Item): boolean {
   return !a.container && !b.container && !a.charge && !b.charge && a.type === b.type && a.refId === b.refId && a.name === b.name
     && a.description === b.description && a.bulk === b.bulk && a.broken === b.broken && a.edge === b.edge && a.source?.ammo === b.source?.ammo
-    && a.loaded?.refId === b.loaded?.refId
+    && a.loaded?.refId === b.loaded?.refId && getConsume(a)?.doses === getConsume(b)?.doses
 }
 
 // resolves what a refId'd item actually is, so e.g. a weapon sitting in a
@@ -198,9 +199,10 @@ export function getHeldLight(c: Character): number | null {
   return lights.length === 0 ? null : Math.max(...lights)
 }
 
-// gear.tex "Potions and Medicine": the potions the character holds in hand.
-export function getHeldPotions(c: Character): Item[] {
-  return c.held.filter((item) => item.potion !== null)
+// gear.tex "Potions and Medicine": what the character holds in hand that a
+// dose can be taken of.
+export function getHeldConsumables(c: Character): Item[] {
+  return c.held.filter((item) => getConsume(item)?.taken)
 }
 
 export function getContents(container: Container): Item[] {

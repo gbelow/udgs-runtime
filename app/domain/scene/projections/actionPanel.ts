@@ -1,5 +1,5 @@
 import type { Action, ActionRoll, SceneState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
-import { getHeldPotions } from '../../item/rules/items'
+import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
 import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
@@ -444,7 +444,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
         : open.kind === 'throw' && open.step === 'define' && actor
         ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
         : [],
-      potions: open.kind === 'drink' && open.step === 'define' && actor ? getHeldPotions(actor).map((i) => ({ itemId: i.id, name: i.name })) : [],
+      potions: open.kind === 'drink' && open.step === 'define' && actor ? getTakeableHeld(actor).takeable.map((i) => ({ itemId: i.id, name: i.name })) : [],
       push: drag ? getPushView(state, drag) : null,
       grapple: settled && (grapple || drag || isVoided(state, open)) ? getActionNotes(state, settled) : [],
       cost,

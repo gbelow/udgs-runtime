@@ -4584,13 +4584,13 @@
     "section": "Medicine",
     "activation": "active",
     "cost": {
-      "AP": 0,
+      "AP": 8,
       "STA": 0,
       "exhaustion": 0,
       "IL": 0,
       "ET": 0
     },
-    "target": "self",
+    "target": "other",
     "stages": [
       {
         "XPcost": 0,
@@ -4626,7 +4626,7 @@
       "IL": 0,
       "ET": 0
     },
-    "target": "self",
+    "target": "other",
     "stages": [
       {
         "XPcost": 0,
@@ -4662,7 +4662,7 @@
       "IL": 0,
       "ET": 1
     },
-    "target": "self",
+    "target": "other",
     "stages": [
       {
         "XPcost": 0,
@@ -4688,7 +4688,7 @@
             }
           ]
         ],
-        "description": "In one ET, make a medicine test DL 3 to allow a wound to heal with rest. It heals 0/1/2/2 per sleep. A crit does not spend the ET. The test only needs to be done once per wound. The patient is considered to be resting or sleeping.",
+        "description": "In one ET, make a medicine test DL 3 to allow a wound to heal with rest. It heals 0/1/2/2 per day. A crit does not spend the ET. The test only needs to be done once per wound. The patient is considered to be resting for the ET.",
         "effect": [],
         "recipes": [],
         "grants": [],
@@ -4707,7 +4707,7 @@
       "IL": 0,
       "ET": 1
     },
-    "target": "self",
+    "target": "other",
     "stages": [
       {
         "XPcost": 0,
@@ -4733,7 +4733,7 @@
             }
           ]
         ],
-        "description": "In one ET, make a medicine test to prevent infection. It lowers the DL of the infection test by 2. One test can be used for the whole team and can be retried, but spends resources per character per attempt. The patient is considered to be resting or sleeping.",
+        "description": "In one ET, make a medicine test to prevent infection. It lowers the DL of the infection test by 2. One test can be used for the whole team and can be retried, but spends resources per character per attempt. The patient is considered to be resting for the ET.",
         "effect": [],
         "recipes": [],
         "grants": [],

@@ -38,6 +38,13 @@ export function getKnowledgeTerms(name: string): (c: Character) => Term[] {
     { label: 'affliction', value: -getMentalAfflictionPenalty(c) },
   ]
 }
+// story.tex "Knowledge": "Use 2x the relevant knowledge ... as the skill
+// value" — the terms of a test of the knowledge.
+export function getKnowledgeTestTerms(name: string): (c: Character) => Term[] {
+  const terms = getKnowledgeTerms(name)
+  return (c: Character) => terms(c).map((t) => ({ ...t, value: 2 * t.value }))
+}
+
 export function getKnowledge(name: string): (c: Character) => number {
   const terms = getKnowledgeTerms(name)
   return (c: Character) => sumTerms(terms(c))

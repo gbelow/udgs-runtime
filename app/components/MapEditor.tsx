@@ -116,6 +116,8 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
     <div className='flex flex-row flex-wrap gap-1.5 items-center ml-4'>
       {label('exposure', 'exposure')}
       <NumberInput className='w-10' aria-label={`${node.name} exposure`} value={values.exposure} onChange={(e) => customizeNode(node.id, { exposure: parseInt(e.target.value) || 0 })} />
+      {label('infection', 'infection')}
+      <NumberInput className='w-10' aria-label={`${node.name} infection`} value={values.infection} onChange={(e) => customizeNode(node.id, { infection: parseInt(e.target.value) || 0 })} />
       {label('shelterDL', 'shelter DL')}
       <NumberInput className='w-10' aria-label={`${node.name} shelter DL`} value={values.shelterDL} onChange={(e) => customizeNode(node.id, { shelterDL: parseInt(e.target.value) || 0 })} />
       {label('wear', 'extra wear')}

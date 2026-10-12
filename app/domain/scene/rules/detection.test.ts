@@ -128,7 +128,7 @@ describe('what an observer senses of a target', () => {
     })
 
     it('sees a target clearly with darkseeing', () => {
-      const drunk = { ...dusk, characters: { ...dusk.characters, o: { ...dusk.characters.o, active: [{ kind: 'potion' as const, key: 'darkseeing' }] } } }
+      const drunk = { ...dusk, characters: { ...dusk.characters, o: { ...dusk.characters.o, active: [{ kind: 'potion' as const, key: 'Darkseeing', ETs: 1 }] } } }
       expect(visionOf(drunk)).toBe('none')
     })
   })

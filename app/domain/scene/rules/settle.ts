@@ -1,5 +1,7 @@
 import type { SceneState, RootAction } from '../types'
 import { getReloaded } from './reload'
+import { getCauterizeFacts, getFirstAidFacts } from './medicine'
+import { getConsume } from '../../item/rules/consumables'
 import { getAttackFacts, getInterruption, getStrikeLanding } from './damage'
 import { getThrownItem, getReachableFloor, takeOne } from './floor'
 import { getThrownUnit } from './throw'
@@ -54,7 +56,9 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
       return { ...open, step: 'done', picked: lying ? takeOne(lying, open.id) : null }
     }
     case 'throw': return { ...open, step: 'done', thrown: getThrownUnit(state, open) }
-    case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && i.potion !== null) ?? null }
+    case 'drink': return { ...open, step: 'done', drunk: state.characters[open.actorId]?.held.find((i) => i.id === open.itemId && getConsume(i) !== null) ?? null }
+    case 'firstAid': return { ...open, step: 'done', facts: getFirstAidFacts(open) }
+    case 'cauterize': return { ...open, step: 'done', facts: getCauterizeFacts(open) }
     case 'reload': {
       const actor = state.characters[open.actorId]
       return { ...open, step: 'done', loaded: actor ? getReloaded(actor, open) : null }

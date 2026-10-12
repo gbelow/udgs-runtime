@@ -11,7 +11,7 @@ import { PROFICIENCY_TALENTS, SKILL_TALENTS, getTrainableRaisePrice, isSkillKey,
 import { getAbilityTrainingPrice } from '../../character/rules/abilities'
 import { getLongCampHealing } from '../../character/rules/recovery'
 import { skillTermGetters } from '../../character/rules/skills'
-import { getKnowledge, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
+import { getKnowledgeTestTerms, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
 import { getAway, getPlace } from '../../campaign/rules/place'
@@ -117,7 +117,7 @@ export function getTargetName(target: TrainingTarget): string {
 // story.tex "Knowledge": a knowledge is tested at "2x Knowledge"; a skill at
 // its value.
 export function getSkillValue(ref: SkillRef): (c: Character) => number {
-  return (c) => (ref.kind === 'skill' ? sumTerms(skillTermGetters[ref.key](c)) : 2 * getKnowledge(ref.name)(c))
+  return (c) => sumTerms(ref.kind === 'skill' ? skillTermGetters[ref.key](c) : getKnowledgeTestTerms(ref.name)(c))
 }
 
 export function getSkillTest(ref: SkillRef, DL: number): (c: Character) => Test {

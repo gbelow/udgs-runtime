@@ -13,7 +13,7 @@ export function woundPart(name: string, partId: string, IL: number | null = null
     if (!wound || wound.effect === 'kill') return c
     if (wound.effect === 'sever') return severPart(partId)(c)
     if (c.injuries.wounds.some((w) => w.name === name && w.part === partId)) return c
-    return { ...c, injuries: { ...c.injuries, wounds: [...c.injuries.wounds, { name, part: partId, IL: IL ?? wound.heal }] } }
+    return { ...c, injuries: { ...c.injuries, wounds: [...c.injuries.wounds, { name, part: partId, IL: IL ?? wound.heal, perDay: 0 }] } }
   }
 }
 
@@ -42,7 +42,7 @@ export function reattachPart(partId: string, IL: number): (c: CampaignCharacter)
   return (c: CampaignCharacter) => {
     if (!c.body.some((p) => p.id === partId && p.lost)) return c
     const body = c.body.map((p) => (p.id === partId ? { ...p, lost: false } : p))
-    const wounds = IL > 0 ? [...c.injuries.wounds, { name: 'reattached', part: partId, IL }] : c.injuries.wounds
+    const wounds = IL > 0 ? [...c.injuries.wounds, { name: 'reattached', part: partId, IL, perDay: 0 }] : c.injuries.wounds
     return { ...c, body, injuries: { ...c.injuries, wounds } }
   }
 }
@@ -59,5 +59,15 @@ export function healWound(index: number, amount: number): (c: CampaignCharacter)
       ? c.injuries.wounds.filter((_, i) => i !== index)
       : c.injuries.wounds.map((w, i) => (i === index ? { ...w, IL } : w))
     return { ...c, injuries: { ...c.injuries, wounds } }
+  }
+}
+
+// abilities.tex "Bone Setting": the wound set to heal so much every day; one
+// set already keeps the better of the two.
+export function setWound(index: number, perDay: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => {
+    const wound = c.injuries.wounds[index]
+    if (!wound || perDay <= wound.perDay) return c
+    return { ...c, injuries: { ...c.injuries, wounds: c.injuries.wounds.map((w, i) => (i === index ? { ...w, perDay } : w)) } }
   }
 }

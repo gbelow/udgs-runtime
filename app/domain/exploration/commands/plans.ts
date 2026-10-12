@@ -3,6 +3,7 @@ import { CastPlanSchema, GroupSchema } from '../types'
 import { getDecisionsCalled, getExplorationBar } from '../rules/exploration'
 import { getETCastBar, getETCastCount, getETCastTargets } from '../rules/casting'
 import { isSpellKey } from '../../spells'
+import { getETTreatBar, getETTreatCount, isETMedicine } from '../rules/medicine'
 
 const onExploration = (update: (e: ExplorationState) => ExplorationState): ExplorationUpdater =>
   (t) => ({ ...t, exploration: update(t.exploration) })
@@ -74,12 +75,12 @@ export function decide(id: string, decision: Decision): ExplorationUpdater {
   }
 }
 
-// The character casts this spell over the coming ET, leaving whatever else
-// they planned.
+// The character casts this spell, or uses this medicine ability, over the
+// coming ET, leaving whatever else they planned.
 export function planCast(id: string, key: string): ExplorationUpdater {
   return (t) => {
     const c = t.campaign.characters[id]
-    if (!c || getExplorationBar(t.campaign, id) || getETCastBar(c, key)) return t
+    if (!c || getExplorationBar(t.campaign, id) || (isETMedicine(key) ? getETTreatBar(c, key) : getETCastBar(c, key))) return t
     const cleared = clearPlan(id, t.exploration)
     return { ...t, exploration: { ...cleared, casts: { ...cleared.casts, [id]: CastPlanSchema.parse({ key }) } } }
   }
@@ -91,9 +92,10 @@ export function planCast(id: string, key: string): ExplorationUpdater {
 export function setCast(id: string, settings: Partial<Omit<CastPlan, 'key'>>): ExplorationUpdater {
   return (t) => {
     const plan = t.exploration.casts[id]
-    if (!plan || !isSpellKey(plan.key)) return t
+    if (!plan || !(isSpellKey(plan.key) || isETMedicine(plan.key))) return t
     const reachable = getETCastTargets(t.campaign, id)
-    const targets = (settings.targets ?? plan.targets).filter((target, i, all) => reachable.includes(target) && all.indexOf(target) === i).slice(0, getETCastCount(plan.key))
+    const count = isETMedicine(plan.key) ? getETTreatCount(plan.key, reachable.length) : getETCastCount(plan.key)
+    const targets = (settings.targets ?? plan.targets).filter((target, i, all) => reachable.includes(target) && all.indexOf(target) === i).slice(0, count)
     const retargeted = targets[0] !== plan.targets[0]
     const next: CastPlan = { ...plan, ...settings, targets, ...(retargeted ? { wound: settings.wound ?? null } : {}) }
     return { ...t, exploration: { ...t.exploration, casts: { ...t.exploration.casts, [id]: next } } }

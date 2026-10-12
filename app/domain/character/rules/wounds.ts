@@ -2,10 +2,11 @@ import type { AfflictionKey, CampaignCharacter, Character, PartWound, Wound } fr
 import { isCampaignCharacter } from '../../utils'
 
 // combat.tex "Bleed": "For every STA spent ... the character receives +1 to
-// their IL per bleed intensity."
+// their IL per bleed intensity" — none while it is staunched (abilities.tex
+// "First Aid").
 export function getBled(amount: number): <C extends CampaignCharacter>(c: C) => C {
   return <C extends CampaignCharacter>(c: C): C => {
-    const damage = amount * c.injuries.bleed
+    const damage = c.injuries.staunched ? 0 : amount * c.injuries.bleed
     return { ...c, injuries: { ...c.injuries, injuryLevel: c.injuries.injuryLevel + damage } }
   }
 }

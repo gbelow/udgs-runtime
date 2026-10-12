@@ -1,9 +1,13 @@
 import type { CampaignState, EventType, TerrainTag } from '../../campaign/types'
-import type { Camp, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
+import { ET_MEDICINE, getETMedicine, getETTreatBar, getETTreatCount, getETTreatTest, getInfectionDL, getUnsetWounds, isETMedicine, type ETMedicineKey } from '../rules/medicine'
+import { ABILITIES } from '../../abilities'
+import { getConsume, getDosesLeft } from '../../item/rules/consumables'
+import { getConsumeBar } from '../../item/rules/doses'
+import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
 import type { RollMode } from '../../play/dice'
 import { perPair } from '../../perState'
 import { isNight } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
+import { getConnectionsFrom, getExposure, getInfectionExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
   getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getWear, hasWood,
@@ -41,6 +45,8 @@ export type PartyView = {
   node: string | null
   place: PlaceView | null
   exposure: number
+  // survival.tex "Infection Exposure"
+  infection: number
   restExposure: number
   lit: boolean
   // whether firewood can be looked for where the party is
@@ -59,6 +65,8 @@ export type PartiesView = {
   map: { name: string; nodes: { id: string; name: string }[] } | null
   night: boolean
   dayETs: number
+  // survival.tex "Infection": whether the table plays it
+  infection: boolean
   parties: PartyView[]
   decisions: DecisionView[]
   results: GroupResult[]
@@ -87,6 +95,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
   map: state.map ? { name: state.map.name, nodes: Object.entries(state.map.nodes).map(([id, n]) => ({ id, name: n.name })) } : null,
   night: isNight(state.clock, state.dayETs),
   dayETs: state.dayETs,
+  infection: state.infection,
   parties: Object.entries(state.parties).map(([partyId, party]) => {
     const place = getPlace(state, party)
     return {
@@ -95,6 +104,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
       node: place?.id ?? null,
       place: place ? { node: place.id, name: place.node.name, terrain: place.terrain?.name ?? null, tags: place.terrain?.tags ?? [] } : null,
       exposure: getExposure(state, party),
+      infection: getInfectionExposure(state, party),
       restExposure: getRestExposure(t, partyId),
       lit: party.lit,
       wood: hasWood(state, party),
@@ -159,6 +169,9 @@ export type CastPanel = {
     enteredDL: number | null
     enhance: number | null
     effortless: boolean
+    // a medicine ability rather than a spell: the wound is named, never the
+    // IL, the DL entered is the medic's own, and nothing is effortless
+    medicine: boolean
   } | null
 }
 
@@ -169,9 +182,16 @@ export type ExplorationPanel = {
   // the DL of the Will test the ET will open with, if exhaustion calls for one
   willDL: number | null
   lastRoll: TestRoll | null
+  // survival.tex "Infection": the DL of the health test the ET will end with,
+  // where the table plays it, and the one made the last ET
+  infectionDL: number | null
+  lastInfection: TestRoll | null
   potion: number
   // the food the character carries, a portion of each to eat
   foods: { id: string; name: string; amount: number; nutrition: number; charged: boolean }[]
+  // gear.tex "Potions and Medicine": what the character carries a dose of
+  // to take, the doses left and why one cannot be taken now
+  medicines: { id: string; name: string; doses: number; bar: string | null }[]
 }
 
 // survival.tex "Exhaustion", "Rest", "Wear" — what each plan for the coming
@@ -181,7 +201,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
-  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [] }
+  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, infectionDL: null, lastInfection: null, potion: 0, foods: [], medicines: [] }
   const partyId = state.partyOf[id]
   const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
@@ -200,7 +220,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const castPanel = getCastPanel(t, id)
   const plannedCast = t.exploration.casts[id]
   const cast: PlanOption[] = castPanel.spells.length > 0
-    ? [{ plan: 'cast', label: 'cast', IL: 0, exhaustion: 1 + (castPanel.plan?.exhaustion ?? 0), hunger: 0, thirst: 0, idle: false, selected: !!plannedCast }]
+    ? [{ plan: 'cast', label: castPanel.spells.every((s) => isETMedicine(s.key)) ? 'treat' : 'cast', IL: 0, exhaustion: 1 + (castPanel.plan?.exhaustion ?? 0), hunger: 0, thirst: 0, idle: false, selected: !!plannedCast }]
     : []
   return {
     bar: getExplorationBar(state, id),
@@ -208,17 +228,54 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     cast: castPanel,
     willDL: getExhaustionTest(c)?.DL ?? null,
     lastRoll: t.exploration.exhaustionRolls[id] ?? null,
+    infectionDL: state.infection ? getInfectionDL(state, party, c, false) : null,
+    lastInfection: t.exploration.infectionRolls[id] ?? null,
     potion: c.injuries.potion,
     foods: getCarriedItems(c).flatMap((i) => (i.food === null ? [] : [{ id: i.id, name: i.name, amount: i.amount, nutrition: i.food, charged: i.charge !== null }])),
+    medicines: getCarriedItems(c).flatMap((i) => (getConsume(i)?.taken ? [{ id: i.id, name: i.name, doses: getDosesLeft(i), bar: getConsumeBar(c, i) }] : [])),
+  }
+}
+
+// abilities.tex "Bone Setting", "Wound Triage": the medic's test, who it is
+// used on, the wound set (one not set yet), and the DL the table enters for
+// a triage.
+function getTreatPlanPanel(t: Exploring, id: string, plan: CastPlan, key: ETMedicineKey): NonNullable<CastPanel['plan']> {
+  const state = t.campaign
+  const c = state.characters[id]
+  const reachable = getETCastTargets(state, id)
+  const first = plan.targets[0] ? state.characters[plan.targets[0]] : undefined
+  const test = getETTreatTest(c, key, plan)
+  return {
+    key,
+    skill: test.skill,
+    DL: test.DL,
+    exhaustion: 0,
+    count: getETTreatCount(key, reachable.length),
+    targets: reachable.map((target) => ({ id: target, name: nameOf(state, target), selected: plan.targets.includes(target) })),
+    wounds: key === 'bone-setting' && first
+      ? getUnsetWounds(first).map((index) => { const w = first.injuries.wounds[index]; return { index, label: `${w.name} (${first.body.find((p) => p.id === w.part)?.name ?? w.part}, ${w.IL} IL)` } })
+      : null,
+    wound: plan.wound,
+    limbs: null,
+    foods: null,
+    item: plan.item,
+    enteredDL: ET_MEDICINE[key].DL === null ? plan.DL : null,
+    enhance: null,
+    effortless: false,
+    medicine: true,
   }
 }
 
 function getCastPanel(t: Exploring, id: string): CastPanel {
   const state = t.campaign
   const c = state.characters[id]
-  const spells = getETSpells(c).map((key) => ({ key, name: SPELLS[key].name, reason: getETCastBar(c, key) }))
+  const spells = [
+    ...getETSpells(c).map((key) => ({ key, name: SPELLS[key].name, reason: getETCastBar(c, key) })),
+    ...getETMedicine(c).map((key) => ({ key, name: ABILITIES[key].name, reason: getETTreatBar(c, key) })),
+  ]
   const ready = spells.find((s) => s.reason === null)?.key ?? null
   const plan = t.exploration.casts[id]
+  if (plan && isETMedicine(plan.key)) return { spells, ready, plan: getTreatPlanPanel(t, id, plan, plan.key) }
   if (!plan || !isSpellKey(plan.key)) return { spells, ready, plan: null }
   const key = plan.key
   const heal = getAimedHeal(key)
@@ -244,6 +301,7 @@ function getCastPanel(t: Exploring, id: string): CastPanel {
       enteredDL: entersTargetDL(c, key) ? plan.DL : null,
       enhance: isEnhanceable(key) ? plan.enhance : null,
       effortless: plan.effortless,
+      medicine: false,
     },
   }
 }

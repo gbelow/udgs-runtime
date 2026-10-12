@@ -39,8 +39,8 @@ describe('Revealing Light', () => {
 })
 
 // gear.tex "Potions and Medicine": "Potions require a standard action to be
-// consumed"; "Darkseeing": "Allows seeing in dim light at high quality" — for
-// the rest of the fight (the table's ruling for "1 ET").
+// consumed"; "Darkseeing": "Allows seeing in dim light at high quality for
+// 1 ET".
 describe('a Darkseeing potion', () => {
   function dusk(): SceneState {
     const base = makeCampaignCharacter({ name: 'd' })
@@ -54,7 +54,7 @@ describe('a Darkseeing potion', () => {
   it('is gone once drunk, and the drinker sees clearly in dim light', () => {
     const before = dusk()
     expect(visionOf(before)).toBe('partial')
-    const potion = before.characters.d.held.find((i) => i.potion === 'darkseeing')!
+    const potion = before.characters.d.held.find((i) => i.name === 'Darkseeing')!
     let s = commitAction(() => 9, newId)(amendAction({ itemId: potion.id })(declareAction('d', { kind: 'drink' }, newId)(before)))
     for (let i = 0; i < 10 && getOpenAction(s); i++) s = resolveAction(newId)(s)
     expect(getOpenAction(s)).toBeNull()
