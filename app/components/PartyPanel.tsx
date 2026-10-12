@@ -17,10 +17,10 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 export function PartyPanel(){
 
   const { day, et, etsPerDay } = useClock()
-  const { map, night, dayETs, infection, parties, decisions, results, castResults } = useParties()
+  const { map, night, dayETs, parties, decisions, results, castResults } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
-  const { passET, decide, sendActiveToFight, sendAllToFight, leaveParty, loadMap, setDayETs, setInfection } = usePartyCommands()
+  const { passET, decide, sendActiveToFight, sendAllToFight, leaveParty, loadMap, setDayETs } = usePartyCommands()
   const { fightName } = useActiveCharacterData()
   const hasActive = parties.some((p) => p.members.some((m) => m.isActive))
 
@@ -30,9 +30,6 @@ export function PartyPanel(){
         <span className='text-xs text-muted'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/{etsPerDay} · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></span>
         <span className='text-xs text-muted'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
-        <label className='text-xs text-muted flex items-center gap-1' title='survival.tex "Infection" (optional): a health test every ET'>
-          <input type='checkbox' aria-label='infection' checked={infection} onChange={(e) => setInfection(e.target.checked)} />infection
-        </label>
         <select aria-label='map' className={selectClass} value={map?.name ?? ''} onChange={(e) => loadMap(e.target.value)}>
           <option value=''>no map</option>
           {maps.map((m) => <option key={m} value={m}>{m}</option>)}
@@ -100,7 +97,7 @@ export function PartyPanel(){
 // the groups going on an action.
 function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; name: string }[] | null }){
 
-  const { pick, setExposure, setInfectionExposure, setLit, setNode, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
+  const { pick, setExposure, setLit, setNode, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
 
   return(
     <div className='flex flex-col gap-1.5 border border-line rounded p-2 min-w-72'>
@@ -116,10 +113,6 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
         {party.place ?
           <span className='font-mono text-xs'>{party.exposure}</span>
           : <NumberInput className='w-10' aria-label={`${party.name} exposure`} value={party.exposure} onChange={(e) => setExposure(party.id, parseInt(e.target.value) || 0)} />}
-        <span className='text-xs text-muted'>infection</span>
-        {party.place ?
-          <span className='font-mono text-xs'>{party.infection}</span>
-          : <NumberInput className='w-10' aria-label={`${party.name} infection`} value={party.infection} onChange={(e) => setInfectionExposure(party.id, parseInt(e.target.value) || 0)} />}
         <label className='text-xs text-muted flex items-center gap-1'>
           <input type='checkbox' aria-label={`${party.name} lit`} checked={party.lit} onChange={(e) => setLit(party.id, e.target.checked)} />light at night
         </label>
@@ -195,7 +188,7 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
 function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, cast, willDL, lastRoll, infectionDL, lastInfection, potion, foods, medicines } = useExploration()
+  const { bar, options, cast, willDL, lastRoll, potion, foods, medicines } = useExploration()
   const { joinGroup, rest, planCast, setCast, eat, eatFood, drink, takeItem } = usePartyCommands()
   const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
@@ -212,8 +205,6 @@ function ExplorationSection(){
       {potion > 0 ? <span className='text-xs text-muted'>potion heals up to <span className='font-mono text-fg'>{potion}</span> IL over the ET</span> : null}
       {willDL !== null ? <span className='text-xs text-muted'>Will test DL <span className='font-mono text-fg'>{willDL}</span> opens the ET; a graze or miss forces a rest</span> : null}
       {lastRoll ? <span className='text-xs text-muted'>Will test last ET: <span className='font-mono text-fg'>{lastRoll.score}</span> vs DL <span className='font-mono text-fg'>{lastRoll.DL}</span>, {lastRoll.degree}</span> : null}
-      {infectionDL !== null ? <span className='text-xs text-muted'>infection: health test DL <span className='font-mono text-fg'>{infectionDL}</span> ends the ET; a graze takes 1 IL, a miss 3</span> : null}
-      {lastInfection ? <span className='text-xs text-muted'>infection last ET: <span className='font-mono text-fg'>{lastInfection.score}</span> vs DL <span className='font-mono text-fg'>{lastInfection.DL}</span>, {lastInfection.degree}</span> : null}
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <span className='text-xs text-muted'>portion</span>
         <NumberInput className='w-12' aria-label='nutrition' value={nutrition} onChange={(e) => setNutrition(parseInt(e.target.value) || 0)} />
@@ -265,7 +256,7 @@ function CastPlanRow({ cast, planCast, setCast }: { cast: CastPanel; planCast: (
           <span className='text-xs text-muted'>on (up to {plan.count})</span>
           {plan.targets.map((t) => (
             <label key={t.id} className='text-xs text-muted flex items-center gap-1'>
-              <input type='checkbox' aria-label={`cast on ${t.name}`} checked={t.selected} onChange={(e) => setCast({ targets: e.target.checked ? [...selected, t.id] : selected.filter((id) => id !== t.id) })} />{t.name}{t.DL !== null ? <> DL <span className='font-mono text-fg'>{t.DL}</span></> : null}
+              <input type='checkbox' aria-label={`cast on ${t.name}`} checked={t.selected} onChange={(e) => setCast({ targets: e.target.checked ? [...selected, t.id] : selected.filter((id) => id !== t.id) })} />{t.name}
             </label>
           ))}
         </span>

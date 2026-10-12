@@ -1,6 +1,6 @@
 import type { Character, Item } from '../../types'
 import { getConsume, getDosesLeft } from './consumables'
-import { getCarriedItems, getHeldConsumables } from './items'
+import { getHeldConsumables } from './items'
 import { getSize, getVMAt } from '../../character/rules/size'
 
 // gear.tex "Potions and Medicine": "The contents of a potion on the list are
@@ -11,21 +11,11 @@ export function getDoseCount(c: Character): number {
   return Math.max(1, Math.ceil(getVMAt(getSize(c))))
 }
 
-// gear.tex "Anti-septic": "when applied with a bandage" — what the item is
-// applied with, carried with doses enough for one taking.
-export function getAppliedWith(c: Character, item: Item): Item | null {
-  const name = getConsume(item)?.with ?? ''
-  if (!name) return null
-  return getCarriedItems(c).find((i) => i.name === name && getDosesLeft(i) >= getDoseCount(c)) ?? null
-}
-
 // Why the character cannot take a dose of the item now, or null.
 export function getConsumeBar(c: Character, item: Item): string | null {
-  const consume = getConsume(item)
-  if (!consume?.taken) return 'nothing to take'
+  if (!getConsume(item)) return 'nothing to take'
   const doses = getDoseCount(c)
-  if (getDosesLeft(item) < doses) return `needs ${doses} doses`
-  return consume.with && !getAppliedWith(c, item) ? `needs ${consume.with}` : null
+  return getDosesLeft(item) < doses ? `needs ${doses} doses` : null
 }
 
 // gear.tex "Potions and Medicine": the potions in hand a dose can be taken of

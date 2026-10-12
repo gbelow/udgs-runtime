@@ -53,11 +53,6 @@ export function setPartyExposure(partyId: string, exposure: number): CampaignUpd
   return withParty(partyId, (p) => ({ ...p, exposure }))
 }
 
-// survival.tex "Infection Exposure", entered for a party off the map.
-export function setPartyInfection(partyId: string, infection: number): CampaignUpdater {
-  return withParty(partyId, (p) => ({ ...p, infection }))
-}
-
 // survival.tex "Night and Darkness": whether the party has "a light source
 // or the ability to see in the dark".
 export function setPartyLit(partyId: string, lit: boolean): CampaignUpdater {

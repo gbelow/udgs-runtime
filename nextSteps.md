@@ -3,18 +3,13 @@
 Adding all game modes:
 - Scene - DONE
 - Boardless scene
-- Chase scene
+- Chase scene - DONE
 - Exploration - DONE
-- Downtime
+- Downtime - DONE
 
 # TO DO Priority
 
-Adding all game modes and integrate them
-
 - Current focus:
-Downtime
-
-
 Next Priority: general UI/ what are the screens
 
 
@@ -27,26 +22,23 @@ Next Priority: general UI/ what are the screens
 
 ### movement
 - jumping over things - 
-- layering in UI for height.
+- layering in UI for height. is it doable?
 
 ### combat abilities/spells
 - finish melee combat abilities
 - finish ranged combat abilities
-- morale spells
-- healing spells
+- morale spells -- must test
+- healing spells -- done
 - terrain altering spells
 
 # Content primitives for combat
-- morale based spells
 - explosions with multiple instances
 - corrosion damage
-- spiritual damage
 - riding
-- analyse to find items
+- analyse to find items 
 - environmental effects - storm, avalanche
 
 ### knowledge actions
-- healing
 
 ## GM TOOLS
 - GM generated explosions
@@ -79,7 +71,6 @@ Next Priority: general UI/ what are the screens
 all events
 
 ### knowledge actions
-- medicine
 - repair gear
 
 ### UI
@@ -88,8 +79,6 @@ all events
 
 ### exploration items
 - tents, clothes, etc
-
-
 
 -------------------
 ## Downtime
@@ -102,7 +91,6 @@ Cleric spells are free.
 
 -----------------
 ## Chase
-- action decision/AP budget
 - stealth and detection - 
 - scouting
 - obstacles 
@@ -145,7 +133,10 @@ poison
 - permissions gm/player
 
 
-## bugs
+## issues
 - spell learning formula potentially wrong
+- cauterization burning damage using attack.ts
+- infection DL is in the survival chapter. it s based on current IL level and the  place s infection exposure.
 
 
+abilities that teach other abilities - magic theory, ferocity lv 4, 

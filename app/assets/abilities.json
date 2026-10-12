@@ -4696,51 +4696,6 @@
       }
     ]
   },
-  "wound-triage": {
-    "family": "Wound Triage",
-    "section": "Medicine",
-    "activation": "active",
-    "cost": {
-      "AP": 0,
-      "STA": 0,
-      "exhaustion": 0,
-      "IL": 0,
-      "ET": 1
-    },
-    "target": "other",
-    "stages": [
-      {
-        "XPcost": 0,
-        "karma": 0,
-        "talent": [],
-        "requirements": [
-          [
-            {
-              "kind": "trainable",
-              "name": "Medicine",
-              "level": 1,
-              "op": ">=",
-              "not": false
-            }
-          ],
-          [
-            {
-              "kind": "gear",
-              "name": "Bandages",
-              "level": 0,
-              "op": ">=",
-              "not": false
-            }
-          ]
-        ],
-        "description": "In one ET, make a medicine test to prevent infection. It lowers the DL of the infection test by 2. One test can be used for the whole team and can be retried, but spends resources per character per attempt. The patient is considered to be resting for the ET.",
-        "effect": [],
-        "recipes": [],
-        "grants": [],
-        "freeSpells": 0
-      }
-    ]
-  },
   "diagnosis": {
     "family": "Diagnosis",
     "section": "Medicine",

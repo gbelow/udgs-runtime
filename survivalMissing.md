@@ -49,11 +49,6 @@ What `survival.tex` asks for that the campaign layer does not do yet. The book's
 - Long camping: several days of rest at once — shelter and fire last, "every day, characters heal 3+3*(health-exposure)/2", healing abilities used once a day per healer, exhaustion at zero by the second day.
 - Healing abilities and spells used during an ET, and the exhaustion that casting and concentrating cost outside combat.
 
-## Infection
-
-- Optional in the book: "Make a health test every ET. The DL is equal to the |Injury penalty| + infection exposure, where infection exposure depends on the terrain. The character takes 3/1/0/0 IL damage depending on the test result."
-- Terrains have no infection exposure.
-
 ## The campaign
 
 - The roster, the parties, their positions and the clock live in memory and are lost on reload.

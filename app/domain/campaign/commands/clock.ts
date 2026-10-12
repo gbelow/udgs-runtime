@@ -39,11 +39,6 @@ export function passETs(count: number): CampaignUpdater {
   }
 }
 
-// survival.tex "Infection": "Optional" — the table plays it or not.
-export function setInfection(infection: boolean): CampaignUpdater {
-  return (state) => ({ ...state, infection })
-}
-
 // survival.tex "Night and Darkness": "The day can have any number of periods
 // of day and night. This depends on the season and the location on the map."
 export function setDayETs(dayETs: number): CampaignUpdater {

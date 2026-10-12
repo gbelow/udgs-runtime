@@ -2,7 +2,6 @@
   "Forest": {
     "name": "Forest",
     "exposure": 0,
-    "infection": 0,
     "shelterDL": -2,
     "wear": {
       "IL": 0,

@@ -1037,9 +1037,7 @@
         }
       ],
       "ETs": 0,
-      "doses": 1,
-      "with": "",
-      "taken": true
+      "doses": 1
     }
   },
   "Medium Healing": {
@@ -1071,9 +1069,7 @@
         }
       ],
       "ETs": 0,
-      "doses": 1,
-      "with": "",
-      "taken": true
+      "doses": 1
     }
   },
   "Good Healing": {
@@ -1105,9 +1101,7 @@
         }
       ],
       "ETs": 0,
-      "doses": 1,
-      "with": "",
-      "taken": true
+      "doses": 1
     }
   },
   "Darkseeing": {
@@ -1136,9 +1130,7 @@
         }
       ],
       "ETs": 1,
-      "doses": 1,
-      "with": "",
-      "taken": true
+      "doses": 1
     }
   },
   "Bandages": {
@@ -1154,13 +1146,7 @@
     "light": null,
     "food": null,
     "price": 10,
-    "consume": {
-      "effects": [],
-      "ETs": 0,
-      "doses": 10,
-      "with": "",
-      "taken": false
-    }
+    "consume": null
   },
   "Splint": {
     "name": "Splint",
@@ -1176,70 +1162,6 @@
     "food": null,
     "price": 5,
     "consume": null
-  },
-  "Anti-septic": {
-    "name": "Anti-septic",
-    "description": "Reduces infection exposure by 3 when applied with a bandage. 10 charges.",
-    "type": "medicine",
-    "bulk": 1,
-    "refId": "",
-    "charge": null,
-    "source": null,
-    "camouflage": null,
-    "muffles": false,
-    "light": null,
-    "food": null,
-    "price": 10,
-    "consume": {
-      "effects": [
-        {
-          "name": "infection exposure",
-          "trigger": "instant",
-          "type": "buff",
-          "effect": {
-            "target": "exposure:infection",
-            "operation": "+",
-            "value": -3
-          }
-        }
-      ],
-      "ETs": 1,
-      "doses": 10,
-      "with": "Bandages",
-      "taken": true
-    }
-  },
-  "Antibiotic Poultice": {
-    "name": "Antibiotic Poultice",
-    "description": "Reduces infection exposure by 2 when consumed. 5 charges.",
-    "type": "medicine",
-    "bulk": 1,
-    "refId": "",
-    "charge": null,
-    "source": null,
-    "camouflage": null,
-    "muffles": false,
-    "light": null,
-    "food": null,
-    "price": 40,
-    "consume": {
-      "effects": [
-        {
-          "name": "infection exposure",
-          "trigger": "instant",
-          "type": "buff",
-          "effect": {
-            "target": "exposure:infection",
-            "operation": "+",
-            "value": -2
-          }
-        }
-      ],
-      "ETs": 1,
-      "doses": 5,
-      "with": "",
-      "taken": true
-    }
   },
   "Cocaine": {
     "name": "Cocaine",
@@ -1257,9 +1179,7 @@
     "consume": {
       "effects": [],
       "ETs": 0,
-      "doses": 5,
-      "with": "",
-      "taken": true
+      "doses": 5
     }
   },
   "Morphine": {
@@ -1278,9 +1198,7 @@
     "consume": {
       "effects": [],
       "ETs": 0,
-      "doses": 5,
-      "with": "",
-      "taken": true
+      "doses": 5
     }
   },
   "Ayahuasca": {
@@ -1299,9 +1217,7 @@
     "consume": {
       "effects": [],
       "ETs": 0,
-      "doses": 5,
-      "with": "",
-      "taken": true
+      "doses": 5
     }
   },
   "Antidote": {
@@ -1320,9 +1236,7 @@
     "consume": {
       "effects": [],
       "ETs": 0,
-      "doses": 5,
-      "with": "",
-      "taken": true
+      "doses": 5
     }
   },
   "Copper Coin": {

@@ -74,8 +74,8 @@ export type GroupResult = z.infer<typeof GroupResultSchema>
 
 // spells.tex "Casting spells": a spell whose cost takes the ET, cast over it
 // instead of resting or going with a group — or, the same way, an ability
-// used over the ET (abilities.tex "Bone Setting", "Wound Triage"). The table names who it is aimed
-// at (no more than the effect's `count`), what a heal is put on — the wound
+// used over the ET (abilities.tex "Bone Setting"). The table names who it is
+// aimed at (no more than the effect's `count`), what a heal is put on — the wound
 // healed instead of the IL — the item at hand the cast uses: the food a
 // charged spell goes into, the severed limb put back; the DL of a target's test the domain cannot work
 // out ("poison DL"), and the improvements the overflow buys, Effortless
@@ -118,8 +118,6 @@ export const ExplorationStateSchema = z.object({
   opening: OpeningSchema.nullable().default(null),
   // what the last ET opened with and what its groups came to
   exhaustionRolls: z.record(z.string(), TestRollSchema).default({}),
-  // survival.tex "Infection": the health test each character made the last ET
-  infectionRolls: z.record(z.string(), TestRollSchema).default({}),
   results: z.array(GroupResultSchema).default([]),
   castResults: z.array(CastResultSchema).default([]),
 })

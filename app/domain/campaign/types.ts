@@ -46,8 +46,6 @@ export type TerrainWear = z.infer<typeof TerrainWearSchema>
 export const TerrainSchema = z.object({
   name: z.string().default(''),
   exposure: z.number().default(0),
-  // survival.tex "Infection Exposure": "Increases the DL of infection tests"
-  infection: z.number().default(0),
   shelterDL: z.number().default(0),
   wear: TerrainWearSchema.default({ IL: 0, exhaustion: 0, hunger: 0, thirst: 0 }),
   knowledge: z.string().default('survival'),
@@ -59,7 +57,6 @@ export type Terrain = z.infer<typeof TerrainSchema>
 // is one the node takes from its terrain.
 export const TerrainValuesSchema = z.object({
   exposure: z.number(),
-  infection: z.number(),
   shelterDL: z.number(),
   wear: z.object({ IL: z.number(), exhaustion: z.number(), hunger: z.number(), thirst: z.number() }),
   knowledge: z.string(),
@@ -122,10 +119,8 @@ export const PartySchema = z.object({
   name: z.string().default(''),
   // the node of the map the party is on, or none, off the map
   node: z.string().nullable().default(null),
-  // survival.tex "Exposure": how rough the ground is, entered off the map,
-  // and its infection exposure
+  // survival.tex "Exposure": how rough the ground is, entered off the map
   exposure: z.number().default(0),
-  infection: z.number().default(0),
   // survival.tex "Night and Darkness": a light source or sight in the dark
   lit: z.boolean().default(false),
 })
@@ -143,8 +138,6 @@ export const CampaignStateSchema = z.object({
   // survival.tex "Night and Darkness": "The standard is 4 periods of day and
   // 2 of night"; the ETs of a day that are daylight, night being the rest
   dayETs: z.number().default(4),
-  // survival.tex "Infection" is optional: whether the table plays it
-  infection: z.boolean().default(true),
   // the point crawl the parties are on, if any
   map: CrawlMapSchema.nullable().default(null),
   parties: z.record(z.string(), PartySchema).default({}),

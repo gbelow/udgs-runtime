@@ -1,13 +1,13 @@
 import type { CampaignCharacter } from '../../types'
 import { findCarriedItem } from '../../item/rules/containers'
 import { getConsume, isLasting } from '../../item/rules/consumables'
-import { getAppliedWith, getConsumeBar, getDoseCount } from '../../item/rules/doses'
+import { getConsumeBar, getDoseCount } from '../../item/rules/doses'
 import { spendDoses } from '../../item/commands/hands'
 import { landed } from '../rules/production'
 import { deliverAll } from './deliver'
 
 // gear.tex "Potions and Medicine": a dose taken, as many as the taker's VM
-// asks, and as many of what it is applied with. What it does lands at once;
+// asks. What it does lands at once;
 // what lasts is kept by name for its ETs — "The effects of potions are not
 // cumulative, but they can be refreshed by consuming another potion".
 export function takeDose(itemId: string): (c: CampaignCharacter) => CampaignCharacter {
@@ -16,8 +16,7 @@ export function takeDose(itemId: string): (c: CampaignCharacter) => CampaignChar
     const consume = item ? getConsume(item) : null
     if (!item || !consume || getConsumeBar(c, item)) return c
     const doses = getDoseCount(c)
-    const applied = getAppliedWith(c, item)
-    const spent = spendDoses(itemId, doses)(applied ? spendDoses(applied.id, doses)(c) : c)
+    const spent = spendDoses(itemId, doses)(c)
     const taken = deliverAll(consume.effects.filter((e) => !isLasting(e)).map(landed))(spent)
     if (consume.ETs <= 0 || !consume.effects.some(isLasting)) return taken
     const others = taken.active.filter((e) => !(e.kind === 'potion' && e.key === item.name))

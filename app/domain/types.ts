@@ -368,16 +368,11 @@ export type Item = z.infer<typeof ItemSchema>
 // gear.tex "Potions and Medicine": "Potions add an effect to the character
 // for a certain duration" — what one dose puts on whoever takes it: a heal
 // lands at once, a buff or a suppression lasts `ETs` exploration turns. The
-// doses left in this unit ("10 charges"), the item it is applied with, one
-// dose of which goes with it ("Anti-septic": "when applied with a bandage"),
-// and whether a dose is taken on its own or only spent by what uses it (a
-// bandage, by "Wound Triage").
+// doses left in this unit ("10 charges").
 export const ConsumeSchema = z.object({
   effects: z.array(z.lazy(() => EffectSchema)).default([]),
   ETs: num.default(0),
   doses: num.default(1),
-  with: str.default(''),
-  taken: z.boolean().default(true),
 }).strip()
 export type Consume = z.infer<typeof ConsumeSchema>
 
@@ -672,8 +667,7 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // a term, movement and senses add it to the stored value, surges to AP,
 // `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
 // penalty a way of shooting takes per 10m and `hit:` its test, `attribute:`
-// the attribute on top of its training, `body:size` the creature's size and
-// `exposure:infection` the infection exposure an infection test is made against).
+// the attribute on top of its training and `body:size` the creature's size).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -689,7 +683,6 @@ export const BUFF_TARGETS = [
   ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
   ...prefixed('attribute', Object.keys(AttributesSchema.shape) as (keyof Attributes)[]),
   ...prefixed('body', ['size'] as const),
-  ...prefixed('exposure', ['infection'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
