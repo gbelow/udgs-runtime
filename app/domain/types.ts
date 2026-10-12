@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, POTIONS, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -350,19 +350,34 @@ export const ItemSchema = z.object({
   // metres, lit while held or lying on the floor (the table's ruling); null
   // for an item that gives no light
   light: num.nullable().default(null),
-  // gear.tex "Potions and Medicine": what drinking it gives, for the rest of
-  // the fight (the table's ruling for "1 ET"); null for no potion
-  potion: z.enum(POTIONS).nullable().default(null),
+  // gear.tex "Potions and Medicine": what a dose of it does to whoever takes
+  // it; null for what is not taken
+  consume: z.lazy(() => ConsumeSchema).nullable().default(null),
   // survival.tex "Hunger": "Each portion eaten recovers a number of hunger
   // points defined in the portion itself" — one unit of the stack is a
   // portion; null for what is not food
   food: num.nullable().default(null),
   // a body part cut off, kept whole so it can be put back (spells.tex
-  // "Reattach Limb")
+  // "Reattach Limb"), and the id of the character it was cut from
   part: z.lazy(() => BodyPartSchema).optional(),
+  severedFrom: str.optional(),
 }).strip()
 
 export type Item = z.infer<typeof ItemSchema>
+
+// gear.tex "Potions and Medicine": "Potions add an effect to the character
+// for a certain duration" — what one dose puts on whoever takes it: a heal
+// lands at once, a buff or a suppression lasts `ETs` exploration turns. The
+// doses left in this unit ("10 charges"), and the item it is applied with,
+// one dose of which goes with it ("Anti-septic": "when applied with a
+// bandage").
+export const ConsumeSchema = z.object({
+  effects: z.array(z.lazy(() => EffectSchema)).default([]),
+  ETs: num.default(0),
+  doses: num.default(1),
+  with: str.default(''),
+}).strip()
+export type Consume = z.infer<typeof ConsumeSchema>
 
 // gear.tex's Price columns: what a catalog entry costs made for size 3, in
 // coppers (story.tex "Wealth and Money"); null where the book prints none.
@@ -649,7 +664,8 @@ export type SurgeKind = z.infer<typeof SurgeKindSchema>
 // a term, movement and senses add it to the stored value, surges to AP,
 // `ap:`/`sta:` move the price of an action in ACTION_COSTS, `distance:` the
 // penalty a way of shooting takes per 10m and `hit:` its test, `attribute:`
-// the attribute on top of its training and `body:size` the creature's size).
+// the attribute on top of its training, `body:size` the creature's size and
+// `exposure:infection` the infection exposure an infection test is made against).
 // A group is only listed once every one of its keys is read that way.
 const prefixed = <P extends string, K extends string>(prefix: P, keys: readonly K[]) =>
   keys.map((k) => `${prefix}:${k}` as `${P}:${K}`)
@@ -665,6 +681,7 @@ export const BUFF_TARGETS = [
   ...prefixed('hit', Object.keys(SHOTS) as ShotKind[]),
   ...prefixed('attribute', Object.keys(AttributesSchema.shape) as (keyof Attributes)[]),
   ...prefixed('body', ['size'] as const),
+  ...prefixed('exposure', ['infection'] as const),
 ]
 export type BuffTarget = (typeof BUFF_TARGETS)[number]
 export const BuffTargetSchema = z.enum(BUFF_TARGETS as [BuffTarget, ...BuffTarget[]])
@@ -960,8 +977,8 @@ export const DeliverySchema: z.ZodType<Delivery, Delivery> = z.lazy(() => z.obje
 }).strip()) as unknown as z.ZodType<Delivery, Delivery>
 
 // Something switched on and held: a toggle ability, a held spell, a curse
-// carried until it is beaten, a potion drunk, or a light cast into an item
-// (`itemId`) — the last two for the rest of the fight. The character keeps only the reference;
+// carried until it is beaten, a potion taken, for the `ETs` it has left, or a
+// light cast into an item (`itemId`), for the rest of the fight. The character keeps only the reference;
 // the effects are read off the owning catalog, so nothing copied into state
 // can go stale. A curse keeps the DL the test to beat it is rolled against
 // (spells.tex "Curse": "until the target shrugs it off"); a held spell that
@@ -972,6 +989,7 @@ export const ActiveEntrySchema = z.object({
   key: str,
   DL: num.optional(),
   itemId: str.optional(),
+  ETs: num.optional(),
   // the size a held spell was cast at and the times its range was extended
   size: num.optional(),
   extend: num.optional(),

@@ -54,14 +54,15 @@ export function getAimedHeal(key: SpellKey): HealEffect | null {
 }
 
 // spells.tex "Reattach Limb": a spell that puts a limb back needs the limb
-// at hand, and only one that fits a part the target has lost.
+// at hand, and only the target's own, cut from a part they have lost.
 export function needsLimb(key: SpellKey): boolean {
   return getAimedHeal(key)?.of === 'limb'
 }
 
 export function getLimbOptions(caster: Character, target: Character | undefined): Item[] {
-  const lost = new Set(target?.body.filter((p) => p.lost).map((p) => p.id) ?? [])
-  return getReadyItems(caster).filter((i) => i.part && lost.has(i.part.id))
+  if (!target) return []
+  const lost = new Set(target.body.filter((p) => p.lost).map((p) => p.id))
+  return getReadyItems(caster).filter((i) => i.part && i.severedFrom === target.id && lost.has(i.part.id))
 }
 
 // Whether the plan names a limb the first target can take back.

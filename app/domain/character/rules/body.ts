@@ -1,4 +1,4 @@
-import type { AfflictionKey, BodyPart, Character, HitLocation, Item, PartFlag, PartWound } from '../../types'
+import type { AfflictionKey, BodyPart, CampaignCharacter, Character, HitLocation, Item, PartFlag, PartWound } from '../../types'
 import { ItemSchema } from '../../types'
 import { PART_PRESETS } from '../../tables'
 import { isPartWounded } from './wounds'
@@ -62,7 +62,9 @@ export function canStand(c: Character): boolean {
 }
 
 // A part cut off, as the thing it becomes: whole, holding nothing, so what
-// puts it back gets the part it was.
-export function getSeveredItem(part: BodyPart, id: string): Item {
-  return ItemSchema.parse({ id, name: part.name, part: { ...part, itemId: '', lost: false } })
+// puts it back gets the part it was, and marked with whose it was, since
+// only they can take it back.
+export function getSeveredItem(part: BodyPart, id: string, owner: CampaignCharacter): Item {
+  const whose = owner.fightName || owner.name
+  return ItemSchema.parse({ id, name: whose ? `${whose}'s ${part.name}` : part.name, part: { ...part, itemId: '', lost: false }, severedFrom: owner.id })
 }

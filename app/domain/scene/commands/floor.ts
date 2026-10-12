@@ -76,7 +76,7 @@ export function settleSevered(before: SceneState, actionId: string): Updater {
         .filter((part) => !part.lost && c.body.some((p) => p.id === part.id && p.lost))
         .flatMap((part) => {
           const held = part.itemId && !c.held.some((i) => i.id === part.itemId) ? getHeldItem(was, part.itemId) : undefined
-          const limb = getSeveredItem(part, `severed:${actionId}:${c.id}:${part.id}`)
+          const limb = getSeveredItem(part, `severed:${actionId}:${c.id}:${part.id}`, c)
           return [onFloor(limb, cell), ...(held ? [onFloor(held, cell)] : [])]
         })
     })

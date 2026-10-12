@@ -218,10 +218,6 @@ export const TERRAIN_BRUSHES = ['wall', 'glass', 'sturdier', 'flimsier', 'water'
 // light source reaches, brightest first.
 export const LIGHT_LEVELS = ['bright', 'dim', 'dark'] as const
 
-// gear.tex "Potions and Medicine": what a potion gives whoever drinks it, for
-// the rest of the fight.
-export const POTIONS = ['darkseeing'] as const
-
 // survival.tex "Exploration": "Exploration Action: are Traveling, Searching,
 // Preparing"
 export const EXPLORATION_ACTIONS = ['travel', 'search', 'prepare'] as const

@@ -219,7 +219,7 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       continue
     }
     if (needsLimb(key) && !hasPlannedLimb(caster, state.characters[targets[0]], plan)) {
-      out.results.push({ ...base, roll: null, note: 'no limb at hand for a part they lost', tests: [] })
+      out.results.push({ ...base, roll: null, note: 'none of their lost limbs at hand', tests: [] })
       continue
     }
     const result = resolveTest(test, dice)
