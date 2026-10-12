@@ -75,6 +75,11 @@ export function reduceCharacter(action: Action, phase: Phase, fire: FireTouched 
   }
 }
 
+// combat.tex "Interruption": the AP of the action given up, given back
+function refund(AP: number): (c: CampaignCharacter) => CampaignCharacter {
+  return (c: CampaignCharacter) => (AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c)
+}
+
 function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
   return (before: CampaignCharacter) => {
     const c = phase === 'resolve' ? settleGrapple(getGrappleFacts(action), before) : before
@@ -85,7 +90,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
         // a held spell fired again draws its charges as it is paid for
         if (action.kind === 'fireAgain' && !action.upkeep) return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost)(c))
-        return payCost(action.cost)(c)
+        return refund(action.refunded)(payCost(action.cost)(c))
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
         return payCost(GRAZE_SAVE_COST)(c)

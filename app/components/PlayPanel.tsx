@@ -62,7 +62,6 @@ export function PlayPanel(){
           </>}
           resources={<>
             <SimpleResource rssName={'AP'} />
-            <SimpleResource rssName={'surgeAP'} />
           </>}
           injuryAction={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>}
           injuryPanels={<SustainedPanel />}

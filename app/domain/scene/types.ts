@@ -278,6 +278,9 @@ const ActionBase = {
   hiddenFrom: z.array(str).nullable().default(null),
   // the lines `cost` is the sum of, written with it
   costTerms: z.array(CostTermSchema).default([]),
+  // combat.tex "Interruption": the AP given back to its actor as it was paid,
+  // by the action it gave up
+  refunded: num.default(0),
   // the surge its actor made to take the action, paid when it is declared and
   // so in no cost: the STA it took and the AP it gave
   surged: z.object({ kind: SurgeKindSchema, STA: num, AP: num }).strip().nullable().default(null),

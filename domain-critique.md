@@ -83,8 +83,8 @@ departures from the plan:
   (move, accepted spellTest) stay; the scale moved into `getRootTestTerms`, and
   `getRootTest` only sums.
 - `getOwnCost` keeps flee, sweep link and fireAgain upkeep. These are fixed prices that
-  bypass the recipe and the AP repurposing, not per-kind declared costs; folding them
-  into `getDeclaredCost` would let a recipe or a repurpose change them. Move and push
+  bypass the recipe, not per-kind declared costs; folding them
+  into `getDeclaredCost` would let a recipe change them. Move and push
   did move into `getDeclaredCost`, which is now private and takes `state`.
 
 ---

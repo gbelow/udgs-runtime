@@ -34,22 +34,28 @@ export function canSurge(kind: SurgeKind, compelled = false): (c: CampaignCharac
   }
 }
 
+// The AP of an earmarked surge that is still unspent: what stands above the
+// AP held before it was made. AP spent is taken from the top, so the surge's
+// goes first, and one given back lifts it again.
+export function getSurgeAPLeft(c: CampaignCharacter): number {
+  return c.surgeFloor === null ? 0 : Math.max(0, c.resources.AP - c.surgeFloor)
+}
+
 // The character as a surge leaves them, whether or not it is open to them:
-// its STA spent and bled for, its AP granted, or earmarked apart from the
-// rest (`surgeAP`).
+// its STA spent and bled for, its AP granted, an earmarked surge's marked off
+// from the rest by the AP held before it (`surgeFloor`).
 export function getSurged(kind: SurgeKind): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
     const { STA, earmarked } = SURGES[kind]
     const char = getBled(STA)(c)
-    const AP = getSurgeAP(kind)(c)
     return {
       ...char,
       usedSurge: kind,
       runsFree: kind === 'movement',
+      surgeFloor: earmarked ? char.resources.AP : char.surgeFloor,
       resources: {
         ...char.resources,
-        AP: earmarked ? char.resources.AP : char.resources.AP + AP,
-        surgeAP: earmarked ? AP : char.resources.surgeAP,
+        AP: char.resources.AP + getSurgeAP(kind)(c),
         STA: char.resources.STA - STA,
       },
     }
@@ -64,7 +70,7 @@ export function canSurgeAtAll(c: CampaignCharacter): boolean {
 // Whether the character has AP to spend, or a surge that would give them
 // some.
 export function hasAPLeft(c: CampaignCharacter): boolean {
-  if (c.resources.AP > 0 || c.resources.surgeAP > 0) return true
+  if (c.resources.AP > 0) return true
   return surgeKinds.some((kind) => canSurge(kind)(c) && getSurgeAP(kind)(c) > 0)
 }
 
@@ -77,7 +83,7 @@ function isEarmarked(kind: SurgeKind): kind is EarmarkedSurge {
 // The earmarked surge whose AP is still unspent, if any: until it runs out
 // or ends, only what it allows can be done.
 export function getBindingSurge(c: Character): EarmarkedSurge | null {
-  if (!isCampaignCharacter(c) || c.resources.surgeAP <= 0 || c.usedSurge === null) return null
+  if (!isCampaignCharacter(c) || getSurgeAPLeft(c) <= 0 || c.usedSurge === null) return null
   return isEarmarked(c.usedSurge) ? c.usedSurge : null
 }
 

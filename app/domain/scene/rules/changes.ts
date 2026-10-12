@@ -12,7 +12,6 @@ type Phase = Change['phase']
 
 const COUNTERS: { what: string; read: (c: CampaignCharacter) => number }[] = [
   { what: 'AP', read: (c) => c.resources.AP },
-  { what: 'surge AP', read: (c) => c.resources.surgeAP },
   { what: 'STA', read: (c) => c.resources.STA },
   { what: 'hunger', read: (c) => c.resources.hunger },
   { what: 'thirst', read: (c) => c.resources.thirst },

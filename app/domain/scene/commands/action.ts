@@ -2,7 +2,7 @@ import { ActionSchema, type Action, type Coord, type ActionDraft, type CastActio
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
 import { ACTIONS, isAttackAction, isReaction } from '../rules/actionCatalog'
-import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
+import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClimbRedoCount, getCostTerms, getNextStep, getDeclaredFloorTargets, getOwnCost, getPayableCost, getRefundedAP, getTargetIds, isDeclarationComplete, isTargetAimed, needsDie, needsOwnDie, needsTarget } from '../rules/action'
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
@@ -234,10 +234,10 @@ export function declareReaction(actorId: string, draft: ActionDraft, newId: () =
 // What the surge took from the actor and gave them, off the two fights; null
 // when none was made or it was not open to them.
 function getSurgeMade(before: SceneState, after: SceneState, actorId: string, kind: SurgeKind | null | undefined): Action['surged'] {
-  const was = before.characters[actorId]?.resources
-  const now = after.characters[actorId]?.resources
-  if (!kind || !was || !now || (was.STA === now.STA && was.surgeAP === now.surgeAP && was.AP === now.AP)) return null
-  return { kind, STA: was.STA - now.STA, AP: now.AP - was.AP + now.surgeAP - was.surgeAP }
+  const was = before.characters[actorId]
+  const now = after.characters[actorId]
+  if (!kind || !was || !now || (was.resources.STA === now.resources.STA && was.surgeFloor === now.surgeFloor && was.resources.AP === now.resources.AP)) return null
+  return { kind, STA: was.resources.STA - now.resources.STA, AP: now.resources.AP - was.resources.AP }
 }
 
 // Fills in what the reactor's declared reaction still has to say — the
@@ -430,7 +430,7 @@ function payAll(state: SceneState, root: Action, newId: () => string, thrown: (a
   for (const a of [root, ...getReactionsTo(state, root.id)]) {
     const cost = getPayableCost(state, a)
     if (!cost) return state
-    paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], step: a.id === root.id ? 'post' : 'done' })
+    paid.push({ ...thrown(a), cost, costTerms: getCostTerms(state, a) ?? [], refunded: a.reactionTo ? getRefundedAP(state, a.actorId, a.reactionTo) : 0, step: a.id === root.id ? 'post' : 'done' })
   }
   return advance(applyPhase(replaceActions(state, paid), paid, 'roll'), newId)
 }

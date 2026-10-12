@@ -128,7 +128,7 @@ export function getPreparedBar(state: SceneState, c: CampaignCharacter, p: Prepa
 export function getPreparedMoveBudget(state: SceneState, c: CampaignCharacter, p: PrepareAction): number {
   const cost = getMainCost(state, c, p)
   if (!cost) return 0
-  const spare = c.resources.AP + c.resources.surgeAP - cost.AP
+  const spare = c.resources.AP - cost.AP
   return Math.max(0, Math.min(PREPARED_MOVE_AP, spare))
 }
 

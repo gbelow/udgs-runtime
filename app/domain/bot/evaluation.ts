@@ -34,8 +34,8 @@ function fingerprint(text: string): string {
 
 const CATALOGS = fingerprint(JSON.stringify([weapons, armors, ammo, items, containers, abilities]))
 
-function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'usedSurge'> {
-  const { resources: _resources, usedSurge: _usedSurge, ...rest } = c
+function carried(c: CampaignCharacter): Omit<CampaignCharacter, 'resources' | 'usedSurge' | 'surgeFloor'> {
+  const { resources: _resources, usedSurge: _usedSurge, surgeFloor: _surgeFloor, ...rest } = c
   return rest
 }
 
@@ -64,7 +64,7 @@ export function getEvaluationKey(state: SceneState, attackerId: string, targetId
 }
 
 function rested(state: SceneState, attackerId: string, targetId: string): SceneState {
-  const rest = (c: CampaignCharacter): CampaignCharacter => ({ ...c, resources: { ...c.resources, AP: REST_AP, surgeAP: 0, STA: getSTA(c) } })
+  const rest = (c: CampaignCharacter): CampaignCharacter => ({ ...c, surgeFloor: null, resources: { ...c.resources, AP: REST_AP, STA: getSTA(c) } })
   return { ...state, characters: { ...state.characters, [attackerId]: rest(state.characters[attackerId]), [targetId]: rest(state.characters[targetId]) } }
 }
 

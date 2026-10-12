@@ -91,7 +91,8 @@ function characterSubject(): CampaignCharacter {
     afflictions: ['prone'],
     pending: [{ effect: { name: 'venom', trigger: 'instant', type: 'affliction', effect: { key: 'blind', cure: false } }, degree: null, test: { roll: 'health', DL: 5 }, when: null, then: [], locks: null }],
     injuries: { ...base.injuries, injuryLevel: 12, bleed: 2, potion: 3 },
-    resources: { AP: 6, surgeAP: 2, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
+    surgeFloor: 6,
+    resources: { AP: 8, STA: 10, hunger: 3, thirst: 3, exhaustion: 3 },
   }
 }
 

@@ -8,7 +8,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { rollPercent, type Dice } from '../../play/dice'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canSurge } from '../../character/rules/surge'
-import { actionSurge } from '../../character/commands/actionSurge'
+import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { loseConcentration, payHeldSources } from '../../character/commands/spells'
 import type { SceneState } from '../types'
 import { getHazardOf } from '../rules/board/hazard'
@@ -26,7 +26,8 @@ import { endChaseRound } from './chase'
 // combat.tex "End of the round": "reset to 8 AP minus any negative AP they
 // had. Any unspent AP is lost." — a surge's among it.
 function resetAP(c: CampaignCharacter): CampaignCharacter {
-  return { ...c, resources: { ...c.resources, AP: Math.min(ROUND_AP, c.resources.AP + ROUND_AP), surgeAP: 0 } }
+  const { resources } = endSurge(c)
+  return { ...c, resources: { ...resources, AP: Math.min(ROUND_AP, resources.AP + ROUND_AP) } }
 }
 
 // Everything due at the round change lands on each character — the charges

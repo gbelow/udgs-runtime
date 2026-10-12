@@ -4,7 +4,7 @@ import type { ChaseCover, ChaseRole, ChaseTier, ChaseWay, CrossingSkill } from '
 import { SKIRMISH_APPROACH_AP, SKIRMISH_SHOOT_AP, SURGES } from '../../tables'
 import { rollPercent, type Dice } from '../../play/dice'
 import { resolveTest, toRoll } from '../../play/test'
-import { actionSurge } from '../../character/commands/actionSurge'
+import { actionSurge, endSurge } from '../../character/commands/actionSurge'
 import { bleed } from '../../character/commands/bleed'
 import { canTurnAround, getActiveLinks, getChaseParties, getChaseStartBar, getCrossBar, getCrossingSkill, getDeclareBar, getEnemyChasers, getFightBar, getFightFirst, getFollowBar, getFoundTier, getHidingTest, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPacingLinks, getPartyTierBetween, getPutBackBar, getResolveBar, getRunSeconds, getRunSpeed, getScoutSkill, getSideSpeed, getSkirmishAPOf, getTeam, getWant, isDisconnected, isEnemyLink, isHidingLink, isMeeting, isOutrun, isSkirmishLink, newChase, stepTier } from '../rules/chase'
 import { getFightBusy } from '../rules/turn'
@@ -34,8 +34,7 @@ export function declareChase(partyId: string, declaration: ChaseDeclaration): Up
 // the surge spent and its AP run off in the sprint, none left over for the
 // round.
 function sprint(c: CampaignCharacter): CampaignCharacter {
-  const surged = actionSurge('movement')(c)
-  return { ...surged, resources: { ...surged.resources, surgeAP: 0 } }
+  return endSurge(actionSurge('movement')(c))
 }
 
 // combat.tex "Running": what a run takes from each runner — a dash their

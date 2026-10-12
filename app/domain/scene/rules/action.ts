@@ -344,11 +344,12 @@ function getCatalogCost(c: CampaignCharacter, kind: ActionKind): ActionCost {
 
 // What the action costs its actor now, or null if they cannot pay it. A
 // move pays for the path as it will be walked, cut wherever it will stop;
-// a defense, less what the action given up for it already paid.
+// a defense, with what the action given up for it refunds.
 export function getPayableCost(state: SceneState, action: Action): ActionCost | null {
   const cost = getOwnCost(state, action)
-  const c = state.characters[action.actorId]
-  if (!c || !cost) return null
+  const actor = state.characters[action.actorId]
+  if (!actor || !cost) return null
+  const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
   if (action.kind === 'rest') return canAffordRest(c) ? cost : null
   return canAfford(c, cost) ? cost : null
 }
@@ -361,8 +362,7 @@ export function canPayAll(state: SceneState, root: Action): boolean {
 
 // What the action costs its actor as it stands, whether or not they can pay
 // it; null while it is too incomplete to price. A follow-up is priced as
-// its recipe says (rules/recipes.ts), and a reaction less the AP repurposed
-// towards it. Three prices are fixed past both: a flee costs the movement
+// its recipe says (rules/recipes.ts). Three prices are fixed past it: a flee costs the movement
 // surge, and is null once that cannot be made; a sweep is paid once, by the
 // strike at its first target (combat.tex "Sweeping Attack"); a held spell's
 // upkeep is free.
@@ -372,7 +372,7 @@ export function getOwnCost(state: SceneState, action: Action): ActionCost | null
 }
 
 // The lines `getOwnCost` adds up: what the action is priced at, then what
-// its recipe and the AP repurposed towards it moved that by.
+// its recipe moved that by.
 export function getCostTerms(state: SceneState, action: Action): CostTerm[] | null {
   const c = state.characters[action.actorId]
   if (!c) return null
@@ -385,12 +385,10 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
   const declared = getDeclaredCost(state, c, action)
   if (!declared) return null
   const recipe = getRecipeCost(state, action, declared)
-  const priced = action.reactionTo ? lessRepurposed(state, action.actorId, action.reactionTo, recipe) : recipe
   const strike = getStrikePriceOf(state, action)
   return [
     { label: strike?.label ?? getPriceLabel(action), ...declared },
     ...costChange(`recipe ${action.recipe ?? ''}`.trim(), recipe, declared),
-    ...costChange('AP repurposed from the action given up', priced, recipe),
     ...(strike?.added ?? []),
   ]
 }
@@ -426,9 +424,8 @@ function getOpportunityReserve(state: SceneState, actorId: string, except: strin
 export function withoutReserve(state: SceneState, c: CampaignCharacter, except: string | null): CampaignCharacter {
   const reserve = getOpportunityReserve(state, c.id, except)
   if (reserve.AP <= 0 && reserve.STA <= 0) return c
-  const { AP, surgeAP, STA } = c.resources
-  const fromAP = Math.min(AP, reserve.AP)
-  return { ...c, resources: { ...c.resources, AP: AP - fromAP, surgeAP: Math.max(0, surgeAP - (reserve.AP - fromAP)), STA: Math.max(0, STA - reserve.STA) } }
+  const { AP, STA } = c.resources
+  return { ...c, resources: { ...c.resources, AP: AP - reserve.AP, STA: Math.max(0, STA - reserve.STA) } }
 }
 
 // What the action's own price is named for: the weapon row and variation of
@@ -444,21 +441,21 @@ function getPriceLabel(action: Action): string {
   return ACTIONS[action.kind].label
 }
 
-// combat.tex "Interruption": "The AP from the interrupted action can be
-// repurposed for the reaction, but the amount spent must be the highest
-// between the action and the reaction" — the AP the given-up action cost
-// pays towards the answer to the attack it was given up for, and that one
-// only; AP it does not use is lost, and STA is paid in full.
-export function getRepurposedAP(state: SceneState, reactorId: string, rootId: string): number {
+// combat.tex "Interruption": "The AP from the interrupted action is
+// refunded, but 1 AP is lost" — given back as the answer to the attack the
+// action was given up for is paid, and for that one only; the STA is lost.
+// An interruption from outside refunds nothing.
+export function getRefundedAP(state: SceneState, reactorId: string, rootId: string): number {
   const fought = getAction(state, rootId)
   const given = fought ? getCancellableRoot(state, fought, reactorId) : null
-  return given && getGivenUpFor(state, given)?.id === rootId ? given.cost?.AP ?? 0 : 0
+  return given && getGivenUpFor(state, given)?.id === rootId ? Math.max(0, (given.cost?.AP ?? 0) - 1) : 0
 }
 
-// A reaction's price less the AP repurposed towards it.
-export function lessRepurposed(state: SceneState, reactorId: string, rootId: string, cost: ActionCost): ActionCost {
-  const AP = getRepurposedAP(state, reactorId, rootId)
-  return AP > 0 ? { AP: Math.max(0, cost.AP - AP), STA: cost.STA } : cost
+// The character as they stand to pay for their answer to the attack: with the
+// AP the action given up for it refunds.
+export function withRefund(state: SceneState, c: CampaignCharacter, rootId: string): CampaignCharacter {
+  const AP = getRefundedAP(state, c.id, rootId)
+  return AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c
 }
 
 // A block's or an intercept's price, and the STA of the step it is made

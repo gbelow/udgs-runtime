@@ -1,7 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
-import { EarmarkedSurge, getBindingSurge } from '../../character/rules/surge'
+import { EarmarkedSurge, getBindingSurge, getSurgeAPLeft } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { isInGrapple } from './partners'
 import { isInTurn } from './turn'
@@ -38,5 +38,5 @@ export function getSurgeBarFor(state: SceneState, c: CampaignCharacter, kind: Ac
 export function getFleeBarFor(state: SceneState, c: CampaignCharacter, kind: ActionKind): string | null {
   if (!state.fleeing || !isInTurn(state, c.id)) return null
   if (!allows(state, c, 'movement', kind)) return 'fleeing'
-  return c.resources.surgeAP > 0 ? null : 'flee surge spent'
+  return getSurgeAPLeft(c) > 0 ? null : 'flee surge spent'
 }

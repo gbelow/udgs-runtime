@@ -83,7 +83,7 @@ export function evaluate(state: SceneState, party: Party, actorId: string, tunin
   const threat = tuning.threat > 0 ? tuning.threat * getThreat(state, party, newId) : 0
   const engage = tuning.engage * getGap(state, actorId, foes)
   const left = (ids: readonly string[], pick: (c: CampaignCharacter) => number) => ids.reduce((total, id) => total + (state.characters[id] ? pick(state.characters[id]) : 0), 0)
-  const ap = (c: CampaignCharacter) => c.resources.AP + c.resources.surgeAP
+  const ap = (c: CampaignCharacter) => c.resources.AP
   const sta = (c: CampaignCharacter) => c.resources.STA
   const resources = tuning.ap * (left(party.members, ap) - left(foes, ap)) + tuning.sta * (left(party.members, sta) - left(foes, sta))
   return { total: wounds - threat - engage + resources, wounds, threat, engage, resources, waiting: 0, exchange: 0 }

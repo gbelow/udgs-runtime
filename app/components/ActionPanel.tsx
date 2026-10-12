@@ -593,7 +593,7 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
         <Cost cost={entry.cost} />
         <RollSummary roll={entry.roll} />
         {entry.cause ? <span className='text-xs text-muted'>{entry.cause}</span> : null}      </div>
-      <Breakdown terms={entry.costTerms} roll={entry.roll} surged={entry.surged} changes={entry.changes} />
+      <Breakdown terms={entry.costTerms} refunded={entry.refunded} roll={entry.roll} surged={entry.surged} changes={entry.changes} />
       {entry.reactions.map((r, i) => (
         <div key={i} className='flex flex-col pl-3'>
           <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
@@ -602,7 +602,7 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
             <Cost cost={r.cost} />
             <RollSummary roll={r.roll} />
           </div>
-          <Breakdown terms={r.costTerms} roll={r.roll} surged={r.surged} changes={r.changes} />
+          <Breakdown terms={r.costTerms} refunded={r.refunded} roll={r.roll} surged={r.surged} changes={r.changes} />
         </div>
       ))}
       {entry.withdrawn.map((w, i) => (
@@ -627,11 +627,12 @@ function ReportEntry({ entry }: { entry: EpisodeEntry }){
 
 // Where the numbers came from: the surge made to take the action, what its
 // price adds up from, and what the test's skill and DL add up from.
-function Breakdown({ terms, roll, surged, changes }: { terms: CostTerm[], roll: ActionRoll | null, surged: Action['surged'], changes: string[] }){
+function Breakdown({ terms, refunded, roll, surged, changes }: { terms: CostTerm[], refunded: number, roll: ActionRoll | null, surged: Action['surged'], changes: string[] }){
   return (
     <div className='flex flex-col text-xs text-muted'>
       {surged ? <span>{surged.kind} surge first: −{surged.STA} STA, +{surged.AP} AP</span> : null}
       {terms.length > 0 ? <span>price: {terms.map((t) => `${t.label} ${t.AP}AP${t.STA ? ` ${t.STA}STA` : ''}`).join(' · ')}</span> : null}
+      {refunded > 0 ? <span>refunded: {refunded} AP from the action given up (1 AP lost)</span> : null}
       {roll && roll.skillTerms.length > 0 ? <span>skill: {roll.skillTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
       {roll && roll.DLTerms.length > 0 ? <span>DL: {roll.DLTerms.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</span> : null}
       {changes.map((c, i) => <span key={i}>changed: {c}</span>)}

@@ -251,11 +251,10 @@ it('reports the strike a flanker broke as cancelled once it closes', () => {
   expect(report?.notes.map((n) => n.text)).toContain('strike cancelled')
 })
 
-// combat.tex "Interruption": "The AP from the interrupted action can be
-// repurposed for the reaction, but the amount spent must be the highest
-// between the action and the reaction." The table's ruling: it pays towards
-// the first defense, the one against the attack the action was given up
-// for; later defenses pay in full.
+// combat.tex "Interruption": "The AP from the interrupted action is
+// refunded, but 1 AP is lost." The table's ruling: the refund comes with the
+// first defense, the one against the attack the action was given up for;
+// later defenses pay in full.
 describe('giving up the action an opportunity attack answers', () => {
   // The shot between two threateners, rolled to land on its target, with the
   // shooter stood before the first attack it drew; the attacks will miss.
@@ -273,15 +272,16 @@ describe('giving up the action an opportunity attack answers', () => {
     expect(state.characters.def).toEqual(s.characters.def)
   })
 
-  it("pays the shot's AP towards the first defense only", () => {
+  it("gives the shot's AP back less one with the first defense only", () => {
     let s = evade(firstAttackOnShooter())
     const shot = getLog(s).find((a) => a.kind === 'shoot')!
     const first = getOpenAction(s)!
+    const before = s.characters.atk.resources.AP + shot.cost!.AP
     s = resolveAction(newId)(rollAction(() => MISS, newId)(s))
     const second = getOpenAction(s)!
+    expect(s.characters.atk.resources.AP).toBe(before - 1 - evadeOf(s, first.id)!.cost!.AP)
     s = rollAction(() => MISS, newId)(evade(s))
-    const full = evadeOf(s, second.id)!.cost!.AP
-    expect(evadeOf(s, first.id)!.cost!.AP).toBe(Math.max(0, full - shot.cost!.AP))
+    expect(s.characters.atk.resources.AP).toBe(before - 1 - evadeOf(s, first.id)!.cost!.AP - evadeOf(s, second.id)!.cost!.AP)
   })
 
   it("is taken back with the defense, before that attack's die", () => {

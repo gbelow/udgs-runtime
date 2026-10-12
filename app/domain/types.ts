@@ -576,9 +576,6 @@ export type Injuries = z.infer<typeof InjuriesSchema>
 
 export const ResourcesSchema = z.object({
   AP: num.default(0),
-  // combat.tex "Action surge": what is left of a movement or combat surge,
-  // spent before AP and only on what that surge allows
-  surgeAP: num.default(0),
   STA: num.default(0),
   hunger: num.default(0),
   thirst: num.default(0),
@@ -1341,6 +1338,10 @@ const CampaignValues = {
   afflictions: z.array(AfflictionKeySchema).default([]),
   resources: ResourcesSchema.partial().default({}).transform(v => ResourcesSchema.parse(v)),
   usedSurge: SurgeKindSchema.nullable().default(null),
+  // combat.tex "Action surge": the AP held before a movement or combat surge
+  // was made; what stands above it is the surge's AP, spent first and only on
+  // what that surge allows. Null when no such surge is in force.
+  surgeFloor: num.nullable().default(null),
   // combat.tex "Action surge": "Running costs no STA during a movement
   // surge" — for the rest of the turn it was made in
   runsFree: z.boolean().default(false),

@@ -21,7 +21,7 @@ import { getFeintBar } from './feint'
 import { getExtinguishCells } from './extinguish'
 import { canPickUp, getReachableFloor } from './floor'
 import { canThrowItem, getThrowCost, getThrowables } from './throw'
-import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, lessRepurposed, withGuardStep, withoutReserve } from './action'
+import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
 import { canAnswer, getLiveActions, getOpenAction, getReactionsTo, withLiveActions } from './log'
@@ -172,7 +172,7 @@ function closeIfPushUnpayable(state: SceneState, characterId: string, open: Root
 }
 
 function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
-  const c = withoutReserve(state, answerer, open.id)
+  const c = withRefund(state, withoutReserve(state, answerer, open.id), open.id)
   const characterId = c.id
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
@@ -180,8 +180,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
   return closeBySurge(state, c, closeWhileConcentrating(c, closeIfUnconscious(c, getTriggersFor(state, open, characterId).flatMap((trigger): ActionOption[] => {
     const kind = trigger.kind
     const price = ACTIONS[kind].price
-    const own = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
-    const cost = lessRepurposed(state, c.id, open.id, own)
+    const cost = open.kind === 'drag' ? getPushAnswerCost(state, open, { kind, actorId: c.id }) : price ? getActionCost(c, price) : { AP: 0, STA: 0 }
     const gate = defenseGate(state, c, open, kind, cost)
     const answer = (draft: ActionDraft, own: ActionCost | null = cost, reason: string | null = gate): ActionOption =>
       option(draft, own, reason, open.id, chosen(draft))
@@ -203,7 +202,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
           return guards.map((guard) => {
             const { cost: own, reason } = guardOption(state, c, open, guard, gate)
             const draft: ActionDraft = guard.kind === 'intercept' && guard.advance ? { kind: 'intercept', weaponKey: base.weaponKey, attack: base.attack, advance: true } : { kind, weaponKey: base.weaponKey, attack: base.attack }
-            return answer(draft, lessRepurposed(state, c.id, open.id, own), reason ?? seizedReason(state, guard))
+            return answer(draft, own, reason ?? seizedReason(state, guard))
           })
         })
       // combat.tex "Cover": a guard with a body shield may take total cover
@@ -225,7 +224,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'evasion':
         return [
           answer({ kind }),
-          answer({ kind, stay: true }, lessRepurposed(state, c.id, open.id, getEvasionCost(c, true))),
+          answer({ kind, stay: true }, getEvasionCost(c, true)),
         ]
       // nothing to pick among; where an evasive jump lands is picked on the
       // board, not here

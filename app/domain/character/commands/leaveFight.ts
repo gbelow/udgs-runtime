@@ -16,8 +16,9 @@ export function leaveFight(c: CampaignCharacter): CampaignCharacter {
     ...bled,
     injuries: { ...bled.injuries, bleed: 0 },
     active: bled.active.filter((e) => e.kind !== 'light'),
-    resources: { ...bled.resources, AP: 0, surgeAP: 0 },
+    resources: { ...bled.resources, AP: 0 },
     usedSurge: null,
+    surgeFloor: null,
     runsFree: false,
   }
 }

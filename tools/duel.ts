@@ -18,7 +18,7 @@ import { chooseGrapple, refundHOP, spendHOP } from '../app/domain/scene/commands
 import { getAvailableActions } from '../app/domain/scene/rules/options'
 import { getTargetIds, isDeclarationComplete, needsTarget } from '../app/domain/scene/rules/action'
 import { canAfford } from '../app/domain/character/rules/cost'
-import { canSurge, getSurgeAP } from '../app/domain/character/rules/surge'
+import { canSurge, getSurgeAP, getSurgeAPLeft } from '../app/domain/character/rules/surge'
 import { SURGES } from '../app/domain/tables'
 import { surgeKinds } from '../app/domain/lists'
 import { declareDefense } from '../app/domain/bot/answer'
@@ -571,7 +571,7 @@ function status(state: SceneState, side: Side): string {
   const hurt = c.injuries.wounds.map((w) => `${w.name} (${w.part})`)
   const afflictions = getAfflictions(c)
   const held = c.held.map((i) => i.name).join(' + ') || 'bare hands'
-  return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}${c.resources.surgeAP > 0 ? ` (+${c.resources.surgeAP} surge AP, spendable only on what the surge allows)` : ''}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`
+  return `${getFightName(state, id)} (side ${side}): ${held}, wearing ${c.worn?.name ?? 'no armor'} | AP ${c.resources.AP}${getSurgeAPLeft(c) > 0 ? ` (${getSurgeAPLeft(c)} of it surge AP, spendable only on what the surge allows)` : ''}, STA ${c.resources.STA} | injury level ${c.injuries.injuryLevel}/50 (-${getInjuryPenalty(c)} to tests; dead at 50)${isDead(c) ? ' DEAD' : ''}${hurt.length > 0 ? ` | wounds: ${hurt.join(', ')}` : ''}${afflictions.length > 0 ? ` | ${afflictions.join(', ')}` : ''}`
 }
 
 function render(saved: Saved, next: Prompt | End, played?: string[]): string {

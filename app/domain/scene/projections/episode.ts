@@ -21,6 +21,7 @@ export type ReactionLine = {
   rule: string
   cost: ActionCost | null
   costTerms: CostTerm[]
+  refunded: number
   surged: Action['surged']
   roll: ActionRoll | null
   changes: string[]
@@ -42,6 +43,7 @@ export type EpisodeEntry = ActionReport & {
   rule: string
   cost: ActionCost | null
   costTerms: CostTerm[]
+  refunded: number
   surged: Action['surged']
   // what its roll and its landing changed, a line each
   changes: string[]
@@ -69,7 +71,7 @@ export function getLastEpisode(state: SceneState): EpisodeEntry[] | null {
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)
-    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
+    return report ? [{ ...report, rule: ACTIONS[a.kind].rule, cost: a.cost, costTerms: a.costTerms, refunded: a.refunded, surged: a.surged, changes: a.changes.map((c) => describeChange(state, c)), cause: getCause(state, a), hiddenFrom: describeHiddenFrom(state, a), detections: a.detections.map((d) => describeDetection(state, d)), fate: getFate(state, a), reactions: getReactionLines(state, a), withdrawn: getWithdrawn(state, a.id, rootIds) }] : []
   })
   return entries.length > 0 ? entries : null
 }
@@ -130,7 +132,7 @@ function describeDetection(state: SceneState, { observerId, hiderId, found, test
 function getReactionLines(state: SceneState, root: Action): ReactionLine[] {
   return getReactionsTo(state, root.id)
     .filter((r) => r.step === 'done')
-    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, cost: r.cost, costTerms: r.costTerms, surged: r.surged, roll: r.roll, changes: r.changes.map((c) => describeChange(state, c)) }))
+    .map((r) => ({ actor: getFightName(state, r.actorId), label: getActionName(r), rule: ACTIONS[r.kind].rule, cost: r.cost, costTerms: r.costTerms, refunded: r.refunded, surged: r.surged, roll: r.roll, changes: r.changes.map((c) => describeChange(state, c)) }))
 }
 
 function describe(state: SceneState, action: Action): string {

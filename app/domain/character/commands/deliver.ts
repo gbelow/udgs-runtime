@@ -11,7 +11,7 @@ import { sumTerms } from '../rules/terms'
 import { resolveTest } from '../../play/test'
 import { resisted } from '../../scene/rules/test'
 import type { Dice } from '../../play/dice'
-import { payCost, spendAP } from './cost'
+import { payCost } from './cost'
 import { cure, inflict } from './addAffliction'
 import { mend } from './heal'
 import { woundPart } from './wounds'
@@ -123,7 +123,7 @@ function takeOutcome(outcome: Outcome): (c: CampaignCharacter) => CampaignCharac
         bleed: c.injuries.bleed + outcome.bleed,
         burning: outcome.burning ?? c.injuries.burning,
       },
-      resources: { ...c.resources, ...spendAP(c.resources, outcome.apLoss) },
+      resources: { ...c.resources, AP: c.resources.AP - outcome.apLoss },
     })
   }
 }
@@ -139,7 +139,7 @@ function takeSpiritBlow(blow: SpiritBlow | null, landed: Interruption): (c: Camp
     const drained = { ...c, resources: { ...c.resources, STA: Math.min(c.resources.STA, Math.max(0, c.resources.STA - blow.STA)) } }
     if (blow.interruption === 'none') return drained
     const broken = loseConcentration(drained)
-    return blow.interruption === 'stunned' && landed !== 'stunned' ? { ...broken, resources: { ...broken.resources, ...spendAP(broken.resources, STUN_AP) } } : broken
+    return blow.interruption === 'stunned' && landed !== 'stunned' ? { ...broken, resources: { ...broken.resources, AP: broken.resources.AP - STUN_AP } } : broken
   }
 }
 
