@@ -1,4 +1,4 @@
-import type { CampaignCharacter, Degree, Delivery } from '../../types'
+import type { CampaignCharacter, Degree } from '../../types'
 import type { CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
 import type { Camp, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, TestRoll } from '../types'
 import { CampSchema } from '../types'
@@ -17,8 +17,11 @@ import { passETs } from '../../campaign/commands/clock'
 import { addParty } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
+import { chargeItem, consumeItem } from '../../item/commands/hands'
+import { findCarriedItem } from '../../item/rules/containers'
+import { produceSpellEffect } from '../../character/rules/production'
 import { SPELLS, isSpellKey } from '../../spells'
-import { buyETImprovements, getETCastBar, getETCastExhaustion, getETCastTargets, getETCastTest, getETRestBonus, getETTargetTest, produceETCast } from '../rules/casting'
+import { buyETImprovements, hasPlannedLimb, needsLimb, getETCastBar, getETCastExhaustion, getETCastTargets, getETCastTest, getETRestBonus, getETTargetTest, produceETCast } from '../rules/casting'
 
 const onCharacter = (id: string, update: (c: CampaignCharacter) => CampaignCharacter): CampaignUpdater =>
   (state) => (getExplorationBar(state, id) ? state : updateRosterCharacter(id, update)(state))
@@ -28,6 +31,19 @@ const onCharacter = (id: string, update: (c: CampaignCharacter) => CampaignChara
 export function eat(id: string, nutrition: number): CampaignUpdater {
   return onCharacter(id, (c) =>
     ({ ...c, resources: { ...c.resources, hunger: Math.max(0, c.resources.hunger - Math.max(0, nutrition)) } }))
+}
+
+// survival.tex "Hunger": a portion of food the character carries, eaten: one
+// unit of its stack gone, its nutrition off their hunger, and what a spell
+// charged into it released into them (spells.tex "Healing Food").
+export function eatFood(id: string, itemId: string): CampaignUpdater {
+  return onCharacter(id, (c) => {
+    const item = findCarriedItem(c, itemId)?.item
+    if (!item || item.food === null) return c
+    const fed = { ...c, resources: { ...c.resources, hunger: Math.max(0, c.resources.hunger - Math.max(0, item.food)) } }
+    const released = (item.charge?.effects ?? []).map((e) => produceSpellEffect(c, e))
+    return deliverAll(released)(consumeItem(itemId)(fed))
+  })
 }
 
 // survival.tex "Thirst": "Every portion of water recovers 1 thirst".
@@ -174,7 +190,7 @@ type PartyET = { t: Exploring; results: GroupResult[]; castResults: CastResult[]
 // What the party's casts over the ET came to: who spent it casting and the
 // exhaustion each cast cost them, the health each target rests with on top,
 // what lands on each, and what to read afterwards.
-type CastET = { exhaustion: Record<string, number>; bonus: Record<string, number>; landing: Record<string, Delivery[]>; results: CastResult[] }
+type CastET = { exhaustion: Record<string, number>; bonus: Record<string, number>; landing: Record<string, ((c: CampaignCharacter) => CampaignCharacter)[]>; results: CastResult[] }
 
 // spells.tex "Casting spells": each planned cast is paid and rolled; one
 // that hits buys what was planned with its overflow and lands on whoever it
@@ -202,6 +218,10 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       out.results.push({ ...base, roll: null, note: bar ?? 'no casting DL', tests: [] })
       continue
     }
+    if (needsLimb(key) && !hasPlannedLimb(caster, state.characters[targets[0]], plan)) {
+      out.results.push({ ...base, roll: null, note: 'no limb at hand for a part they lost', tests: [] })
+      continue
+    }
     const result = resolveTest(test, dice)
     const bought = result.degree === 'hit' ? buyETImprovements(plan, result.HOP) : { effortless: false, enhance: 0 }
     out.exhaustion[id] = getETCastExhaustion(key, bought.effortless)
@@ -209,13 +229,20 @@ function castOver(t: Exploring, partyId: string, players: string[], forced: (id:
       out.results.push({ ...base, roll: toRoll(result), note: 'no effect', tests: [] })
       continue
     }
+    if (SPELLS[key].type === 'charged') {
+      out.landing[id] = [...(out.landing[id] ?? []), chargeItem(key, {}, '', plan.item)]
+      out.results.push({ ...base, roll: toRoll(result), note: findCarriedItem(caster, plan.item)?.item.name ?? '', tests: [] })
+      continue
+    }
+    // the limb put back is gone from the caster's hand
+    if (needsLimb(key)) out.landing[id] = [...(out.landing[id] ?? []), consumeItem(plan.item)]
     const deliveries = produceETCast(caster, plan, bought.enhance)
     const bonus = getETRestBonus(key, bought.enhance)
     const tests: CastResult['tests'] = []
     for (const target of targets) {
       const theirs = getETTargetTest(caster, state.characters[target], key, plan.DL)
       if (theirs) tests.push({ name: name(target), roll: toRoll(resolveTest(theirs, dice)) })
-      out.landing[target] = [...(out.landing[target] ?? []), ...deliveries]
+      out.landing[target] = [...(out.landing[target] ?? []), deliverAll(deliveries)]
       out.bonus[target] = (out.bonus[target] ?? 0) + bonus
     }
     const improved = [bought.effortless ? 'effortless' : '', bought.enhance > 0 ? `enhanced x${bought.enhance}` : ''].filter(Boolean).join(', ')
@@ -282,8 +309,8 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   }
   // what the casts put on their targets lands once the ET's rest is had, so
   // healing banked as a potion's is spent over the next
-  for (const [id, deliveries] of Object.entries(cast.landing)) {
-    if (characters[id]) characters[id] = deliverAll(deliveries)(characters[id])
+  for (const [id, landing] of Object.entries(cast.landing)) {
+    if (characters[id]) characters[id] = landing.reduce((c, land) => land(c), characters[id])
   }
 
   const rests = { day, count: { ...(t.exploration.rests.day === day ? t.exploration.rests.count : {}), ...count } }

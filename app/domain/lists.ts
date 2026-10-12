@@ -92,7 +92,7 @@ export const MIN_BULK = -3
 // Burden", then the "Tools of War" and "Special Items" subsections. Groups
 // the item catalog and names the catalog a refId resolves in (weapons.json,
 // ammo.json, armors.json, containers.json).
-export const ITEM_TYPES = ['weapon', 'ammo', 'armor', 'container', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'utility'] as const
+export const ITEM_TYPES = ['weapon', 'ammo', 'armor', 'container', 'flammable', 'poison', 'trap', 'magical', 'medicine', 'food', 'utility'] as const
 
 // gear.tex "Special Items": what a flask can coat a space in. A coat burns
 // when fire reaches it (combat.tex "Fire").

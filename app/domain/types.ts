@@ -353,6 +353,10 @@ export const ItemSchema = z.object({
   // gear.tex "Potions and Medicine": what drinking it gives, for the rest of
   // the fight (the table's ruling for "1 ET"); null for no potion
   potion: z.enum(POTIONS).nullable().default(null),
+  // survival.tex "Hunger": "Each portion eaten recovers a number of hunger
+  // points defined in the portion itself" — one unit of the stack is a
+  // portion; null for what is not food
+  food: num.nullable().default(null),
   // a body part cut off, kept whole so it can be put back (spells.tex
   // "Reattach Limb")
   part: z.lazy(() => BodyPartSchema).optional(),
@@ -815,7 +819,7 @@ export const AfflictionEffectSchema = z.object({
 // wound the producer puts it on instead ("Removes 4 IL or heals a wound by
 // 4"); the bleed; a lost part put back, carrying a wound of `amount` IL
 // ("Reattach Limb"); healing banked as a potion's is, spent over the next
-// ET, a share of the nutrition of the food it is cast into ("Healing
+// ET, a share of the nutrition of the food it is charged into ("Healing
 // Food"); a body brought back to one IL short of death ("Revitalize").
 export const HEAL_KINDS = ['injury', 'bleed', 'limb', 'potion', 'revive'] as const
 export const HealEffectSchema = z.object({
@@ -1274,9 +1278,10 @@ export const SpellSchema = z.object({
   // spells.tex "Charged": what releases the charge a charged spell leaves in
   // its object; empty for any other spell
   triggers: z.array(ChargeTriggerSchema).default([]),
-  // what a charged spell is charged into: the gear it is cast with, or a
-  // metal weapon at hand ("Taser", the table's ruling on metal)
-  chargeInto: z.enum(['gear', 'metalWeapon']).default('gear'),
+  // what a charged spell is charged into: the gear it is cast with, a
+  // metal weapon at hand ("Taser", the table's ruling on metal), or a
+  // portion of food at hand, released into whoever eats it ("Healing Food")
+  chargeInto: z.enum(['gear', 'metalWeapon', 'food']).default('gear'),
   // the charges a cast draws from its gear's source ("+1 charge")
   ammo: num.default(0),
   duration: z.enum(['none', 'permanent', 'ET']).default('none'),

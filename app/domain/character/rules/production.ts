@@ -37,6 +37,15 @@ export function drawOnGear(effects: SpellEffect[], gear: Item | null): SpellEffe
   return effects.map((e): SpellEffect => (e.type === 'damage' && e.fromGear !== null ? { ...e, effect: { ...e.effect, damage: getSourceDamage(gear, e.fromGear) } } : e))
 }
 
+// spells.tex "Healing Food": "giving half of its nutritional value as IL
+// healing" — a heal's share of the nutrition of the portion it is charged
+// into.
+export function drawOnFood(effects: SpellEffect[], food: Item): SpellEffect[] {
+  return effects.map((e): SpellEffect => (e.type === 'heal' && e.effect.nutrition !== 0
+    ? { ...e, effect: { ...e.effect, amount: e.effect.amount + Math.floor(e.effect.nutrition * (food.food ?? 0)) } }
+    : e))
+}
+
 // spells.tex "Relationship between Size and Sorcery": "Any spell that has
 // DM, SM, RM or VM marked in it is scaled to character size", and "Amplify
 // Spell" moves it up a size at a time — the effects at the size they are

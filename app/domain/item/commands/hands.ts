@@ -1,6 +1,6 @@
 import { Character, CharacterUpdater, Item, SlotKind } from '../../types'
 import { canBeHeld, getFreeHoldingHands, getGrip, getHeldItem, Grip } from '../rules/hands'
-import { canFitItem, findReadyItem, getContainer } from '../rules/containers'
+import { canFitItem, findCarriedItem, findReadyItem, getContainer } from '../rules/containers'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { MoveView, getDrawCost, getSlingView, getStoreCost, getUnslingView, isCharged } from '../rules/costs'
 import { addItemToContainer, duplicateItem, mapContainerItem, removeItemFromContainer } from './items'
@@ -8,7 +8,7 @@ import { updateSTA } from '../../character/commands/bleed'
 import { getSurgeBar } from '../../character/rules/surge'
 import { getCastSize, getChargeTargets, getSpellGear, pickSpellGear } from '../../character/rules/spells'
 import { SPELLS, isSpellKey } from '../../spells'
-import { Improvements, drawOnGear, produceEffects } from '../../character/rules/production'
+import { Improvements, drawOnFood, drawOnGear, produceEffects } from '../../character/rules/production'
 
 // What changes the hands keeps whichever kind of character it was given.
 type HeldUpdater = <C extends Character>(c: C) => C
@@ -202,7 +202,7 @@ export function chargeItem(key: string, improved: Improvements = {}, gearId = ''
     const gear = getSpellGear(c, key, gearId)
     const target = pickSpellGear(getChargeTargets(c, key, gear), chargeItemId)
     if (!target) return c
-    const charge = { key, effects: produceEffects(c, drawOnGear(SPELLS[key].effects, gear), getCastSize(c, key, improved.amplify ?? 0, gear?.id)) }
+    const charge = { key, effects: produceEffects(c, drawOnFood(drawOnGear(SPELLS[key].effects, gear), target), getCastSize(c, key, improved.amplify ?? 0, gear?.id)) }
     return changeReadyUnit(target.id, (i) => ({ ...i, charge }))(c)
   }
 }
@@ -226,14 +226,15 @@ export function loadItem(itemId: string, loaded: Item['loaded']): HeldUpdater {
 }
 
 // combat.tex "Throw": what is thrown leaves the hand, and one unit of a held
-// stack is gone — thrown, or gone off where it stood. The last one takes the
-// stack with it; there is no floor yet, so it lands nowhere. The charge went
-// with that unit (spells.tex "Charged": the spell activates one object), so
-// what is left of the stack carries none. A charge that goes off in a quick
-// slot takes its object with it the same way.
+// stack is gone — thrown, eaten, or gone off where it stood. The last one
+// takes the stack with it; there is no floor yet, so it lands nowhere. The
+// charge went with that unit (spells.tex "Charged": the spell activates one
+// object), so what is left of the stack carries none. A charge that goes off
+// in a slot, or a portion eaten out of one, takes its object with it the
+// same way.
 export function consumeItem(itemId: string): HeldUpdater {
   return <C extends Character>(c: C): C => {
-    const found = findReadyItem(c, itemId)
+    const found = findCarriedItem(c, itemId)
     if (found?.containerKey) return removeItemFromContainer(found.containerKey, itemId, 1)(c)
     const item = getHeldItem(c, itemId)
     if (!item) return c

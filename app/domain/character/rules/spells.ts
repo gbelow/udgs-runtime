@@ -194,16 +194,20 @@ export function getCastableGear(c: Character, key: SpellKey): Item[] {
 }
 
 // spells.tex "Charged": what a cast with this gear can be charged into —
-// the gear itself, or a metal weapon at hand ("Taser").
+// the gear itself, a metal weapon at hand ("Taser"), or food at hand
+// ("Healing Food").
 export function getChargeTargets(c: Character, key: SpellKey, gear: Item | null): Item[] {
-  if (SPELLS[key].chargeInto === 'gear') return gear ? [gear] : []
-  return getReadyItems(c).filter(isMetalWeapon)
+  switch (SPELLS[key].chargeInto) {
+    case 'gear': return gear ? [gear] : []
+    case 'metalWeapon': return getReadyItems(c).filter(isMetalWeapon)
+    case 'food': return getReadyItems(c).filter((i) => i.food !== null)
+  }
 }
 
-// Whether a spell charged into a weapon has one at hand; one charged into
+// Whether a spell charged into something at hand has it; one charged into
 // its gear has it once its requirements are met.
 export function hasChargeTarget(c: Character, key: SpellKey): boolean {
-  return SPELLS[key].chargeInto !== 'metalWeapon' || getReadyItems(c).some(isMetalWeapon)
+  return SPELLS[key].chargeInto === 'gear' || getChargeTargets(c, key, null).length > 0
 }
 
 // spells.tex "Charged": what releases a charge — what its spell says.

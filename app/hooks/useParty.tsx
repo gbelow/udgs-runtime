@@ -2,7 +2,7 @@ import type { CampaignUpdater } from "../domain/campaign/types";
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from "../domain/exploration/types";
 import { getClockView, type ClockView } from "../domain/campaign/projections/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
-import { drink as drinkFor, eat as eatFor, passET as passClock } from "../domain/exploration/commands/exploration";
+import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyNode, unloadMap } from "../domain/campaign/commands/parties";
 import { setDayETs } from "../domain/campaign/commands/clock";
@@ -68,6 +68,7 @@ export function usePartyCommands() {
     planCast: (key: string) => planActive((id) => planCastOf(id, key)),
     setCast: (settings: Partial<Omit<CastPlan, 'key'>>) => planActive((id) => setCastOf(id, settings)),
     eat: (nutrition: number) => asActive((id) => eatFor(id, nutrition)),
+    eatFood: (itemId: string) => asActive((id) => eatFoodFor(id, itemId)),
     drink: () => asActive(drinkFor),
     leaveParty: () => asActive(removeFromRoster),
     setExposure: (partyId: string, exposure: number) => updateCampaignState(setPartyExposure(partyId, exposure)),

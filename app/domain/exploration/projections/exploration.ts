@@ -9,9 +9,11 @@ import {
   getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getWear, hasWood,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
+import { getChargeTargets } from '../../character/rules/spells'
+import { getCarriedItems } from '../../item/rules/items'
 import { SPELLS, isSpellKey } from '../../spells'
 import {
-  entersTargetDL, getAimedHeal, getETCastBar, getETCastCount, getETCastExhaustion, getETCastTargets, getETCastTest, getETSpells, isEnhanceable,
+  entersTargetDL, getAimedHeal, getLimbOptions, needsLimb, getETCastBar, getETCastCount, getETCastExhaustion, getETCastTargets, getETCastTest, getETSpells, isEnhanceable,
 } from '../rules/casting'
 
 export type MemberView = { id: string; name: string; isActive: boolean; plan: string; out: boolean }
@@ -149,10 +151,11 @@ export type CastPanel = {
     // the wounds of the first target a heal may go on instead of the IL
     wounds: { index: number; label: string }[] | null
     wound: number | null
-    // the lost parts of the first target a limb may be put back on
-    parts: { id: string; name: string }[] | null
-    part: string | null
-    nutrition: number | null
+    // the severed limbs at hand that fit a part the first target lost
+    limbs: { id: string; name: string }[] | null
+    // the food at hand a spell charged into food may go into
+    foods: { id: string; name: string }[] | null
+    item: string
     enteredDL: number | null
     enhance: number | null
     effortless: boolean
@@ -167,6 +170,8 @@ export type ExplorationPanel = {
   willDL: number | null
   lastRoll: TestRoll | null
   potion: number
+  // the food the character carries, a portion of each to eat
+  foods: { id: string; name: string; amount: number; nutrition: number; charged: boolean }[]
 }
 
 // survival.tex "Exhaustion", "Rest", "Wear" — what each plan for the coming
@@ -176,7 +181,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
   const state = t.campaign
   const c = id ? state.characters[id] : undefined
   const party = id ? state.parties[state.partyOf[id]] : undefined
-  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0 }
+  if (!id || !c || !party) return { bar: 'not with a party', options: [], cast: { spells: [], ready: null, plan: null }, willDL: null, lastRoll: null, potion: 0, foods: [] }
   const partyId = state.partyOf[id]
   const plan = planOf(t, partyId, id)
   const idle: PlanOption = { plan: null, label: 'idle', IL: 0, exhaustion: 1, hunger: 0, thirst: 0, idle: true, selected: plan === 'idle' }
@@ -204,6 +209,7 @@ export function getExplorationPanel(t: Exploring, id: string | null): Exploratio
     willDL: getExhaustionTest(c)?.DL ?? null,
     lastRoll: t.exploration.exhaustionRolls[id] ?? null,
     potion: c.injuries.potion,
+    foods: getCarriedItems(c).flatMap((i) => (i.food === null ? [] : [{ id: i.id, name: i.name, amount: i.amount, nutrition: i.food, charged: i.charge !== null }])),
   }
 }
 
@@ -232,9 +238,9 @@ function getCastPanel(t: Exploring, id: string): CastPanel {
         ? first.injuries.wounds.map((w, index) => ({ index, label: `${w.name} (${first.body.find((p) => p.id === w.part)?.name ?? w.part}, ${w.IL} IL)` }))
         : null,
       wound: plan.wound,
-      parts: heal?.of === 'limb' && first ? first.body.filter((p) => p.lost).map((p) => ({ id: p.id, name: p.name })) : null,
-      part: plan.part,
-      nutrition: heal?.of === 'potion' ? plan.nutrition : null,
+      limbs: needsLimb(key) ? getLimbOptions(c, first).map((i) => ({ id: i.id, name: i.name })) : null,
+      foods: SPELLS[key].chargeInto === 'food' ? getChargeTargets(c, key, null).map((i) => ({ id: i.id, name: i.name })) : null,
+      item: plan.item,
       enteredDL: entersTargetDL(c, key) ? plan.DL : null,
       enhance: isEnhanceable(key) ? plan.enhance : null,
       effortless: plan.effortless,

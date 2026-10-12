@@ -188,8 +188,8 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
 function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
-  const { bar, options, cast, willDL, lastRoll, potion } = useExploration()
-  const { joinGroup, rest, planCast, setCast, eat, drink } = usePartyCommands()
+  const { bar, options, cast, willDL, lastRoll, potion, foods } = useExploration()
+  const { joinGroup, rest, planCast, setCast, eat, eatFood, drink } = usePartyCommands()
   const closed = (plan: unknown) => plan === 'cast' && cast.ready === null
 
   return(
@@ -211,6 +211,15 @@ function ExplorationSection(){
         <Button aria-label='eat' disabled={bar !== null} title={bar ?? undefined} onClick={() => eat(nutrition)}>eat</Button>
         <Button aria-label='drink' disabled={bar !== null} title={bar ?? undefined} onClick={drink}>drink water</Button>
       </div>
+      {foods.length > 0 ?
+        <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+          {foods.map((f) => (
+            <Button key={f.id} aria-label={`eat ${f.name}`} disabled={bar !== null} title={bar ?? `${f.nutrition} hunger${f.charged ? ', charged' : ''}`} onClick={() => eatFood(f.id)}>
+              eat {f.name}{f.charged ? ' ✦' : ''} <span className='text-muted'>×{f.amount}</span>
+            </Button>
+          ))}
+        </div>
+        : null}
     </div>
   )
 }
@@ -249,17 +258,17 @@ function CastPlanRow({ cast, planCast, setCast }: { cast: CastPanel; planCast: (
           {plan.wounds.map((w) => <option key={w.index} value={w.index}>{w.label}</option>)}
         </select>
         : null}
-      {plan.parts ?
-        <select aria-label='cast part' className={selectClass} value={plan.part ?? ''} onChange={(e) => setCast({ part: e.target.value || null })}>
+      {plan.limbs ?
+        <select aria-label='cast limb' className={selectClass} value={plan.item} onChange={(e) => setCast({ item: e.target.value })}>
           <option value=''>limb…</option>
-          {plan.parts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {plan.limbs.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
         : null}
-      {plan.nutrition !== null ?
-        <>
-          <span className='text-xs text-muted'>food nutrition</span>
-          <NumberInput className='w-12' aria-label='cast nutrition' value={plan.nutrition} onChange={(e) => setCast({ nutrition: parseInt(e.target.value) || 0 })} />
-        </>
+      {plan.foods ?
+        <select aria-label='cast food' className={selectClass} value={plan.item} onChange={(e) => setCast({ item: e.target.value })}>
+          <option value=''>into…</option>
+          {plan.foods.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
         : null}
       {plan.enteredDL !== null ?
         <>

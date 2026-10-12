@@ -75,16 +75,15 @@ export type GroupResult = z.infer<typeof GroupResultSchema>
 // spells.tex "Casting spells": a spell whose cost takes the ET, cast over it
 // instead of resting or going with a group. The table names who it is aimed
 // at (no more than the effect's `count`), what a heal is put on — the wound
-// healed instead of the IL, the lost part put back — the nutrition of the
-// food it is cast into, the DL of a target's test the domain cannot work
+// healed instead of the IL — the item at hand the cast uses: the food a
+// charged spell goes into, the severed limb put back; the DL of a target's test the domain cannot work
 // out ("poison DL"), and the improvements the overflow buys, Effortless
 // first.
 export const CastPlanSchema = z.object({
   key: z.string().default(''),
   targets: z.array(z.string()).default([]),
   wound: z.number().nullable().default(null),
-  part: z.string().nullable().default(null),
-  nutrition: z.number().default(0),
+  item: z.string().default(''),
   DL: z.number().default(0),
   enhance: z.number().default(0),
   effortless: z.boolean().default(false),

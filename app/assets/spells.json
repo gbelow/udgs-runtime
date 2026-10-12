@@ -2513,7 +2513,7 @@
   "healing-food": {
     "name": "Healing Food",
     "section": "biomancy",
-    "type": "instant",
+    "type": "charged",
     "cost": {
       "AP": 0,
       "STA": 0,
@@ -2538,7 +2538,7 @@
     "castArea": "",
     "detonate": null,
     "triggers": [],
-    "chargeInto": "gear",
+    "chargeInto": "food",
     "ammo": 0,
     "duration": "permanent",
     "durationETs": 0,

@@ -87,7 +87,7 @@ export function planCast(id: string, key: string): ExplorationUpdater {
 
 // The table's settings for the cast. Only those in the caster's party are
 // aimed at, and no more than the spell reaches; another target, or another
-// wound or part to put the heal on, follows from who is aimed at.
+// wound to put the heal on, follows from who is aimed at.
 export function setCast(id: string, settings: Partial<Omit<CastPlan, 'key'>>): ExplorationUpdater {
   return (t) => {
     const plan = t.exploration.casts[id]
@@ -95,7 +95,7 @@ export function setCast(id: string, settings: Partial<Omit<CastPlan, 'key'>>): E
     const reachable = getETCastTargets(t.campaign, id)
     const targets = (settings.targets ?? plan.targets).filter((target, i, all) => reachable.includes(target) && all.indexOf(target) === i).slice(0, getETCastCount(plan.key))
     const retargeted = targets[0] !== plan.targets[0]
-    const next: CastPlan = { ...plan, ...settings, targets, ...(retargeted ? { wound: settings.wound ?? null, part: settings.part ?? null } : {}) }
+    const next: CastPlan = { ...plan, ...settings, targets, ...(retargeted ? { wound: settings.wound ?? null } : {}) }
     return { ...t, exploration: { ...t.exploration, casts: { ...t.exploration.casts, [id]: next } } }
   }
 }

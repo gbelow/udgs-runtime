@@ -55,6 +55,18 @@ export function findReadyItem(c: Character, itemId: string): { item: Item; conta
   return null
 }
 
+// Where a carried item sits: in the hands, or any slot of the open
+// container under that key. Worn and slung items are not taken out this way.
+export function findCarriedItem(c: Character, itemId: string): { item: Item; containerKey: string | null } | null {
+  const held = c.held.find((i) => i.id === itemId)
+  if (held) return { item: held, containerKey: null }
+  for (const [containerKey, container] of Object.entries(getOpenContainers(c))) {
+    const item = SlotKindSchema.options.flatMap((slot) => container.slots[slot].items).find((i) => i.id === itemId)
+    if (item) return { item, containerKey }
+  }
+  return null
+}
+
 // gear.tex "Containers": "A character can use only one backpack, one
 // bandolier and one belt at a time". Saddles and vehicles aren't limited.
 export const WORN_ONE_AT_A_TIME: ReadonlySet<ContainerKind> = new Set(['belt', 'bandolier', 'backpack'])

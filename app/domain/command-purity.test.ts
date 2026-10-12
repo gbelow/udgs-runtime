@@ -351,9 +351,10 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   joinGroup: (t) => explorationCommands.joinGroup('a', 'g')(t),
   setResting: (t) => explorationCommands.setResting('a', true)(t),
   planCast: (t) => explorationCommands.planCast('a', 'regenerate')(t),
-  setCast: (t) => explorationCommands.setCast('a', { targets: ['b'], enhance: 1 })({ ...t, exploration: { ...t.exploration, casts: { a: { key: 'regenerate', targets: [], wound: null, part: null, nutrition: 0, DL: 0, enhance: 0, effortless: false } } } }),
+  setCast: (t) => explorationCommands.setCast('a', { targets: ['b'], enhance: 1 })({ ...t, exploration: { ...t.exploration, casts: { a: { key: 'regenerate', targets: [], wound: null, item: '', DL: 0, enhance: 0, effortless: false } } } }),
   decide: (t) => explorationCommands.decide('b', 'carry')({ ...t, exploration: { ...t.exploration, opening: { rolls: { b: { die: 0, score: 0, DL: 5, degree: 'miss' } }, decisions: {} } } }),
   eat: ({ campaign }) => explorationCommands.eat('a', 3)(campaign),
+  eatFood: ({ campaign }) => explorationCommands.eatFood('a', 'ration')({ ...campaign, characters: { ...campaign.characters, a: { ...campaign.characters.a, held: [...campaign.characters.a.held, ItemSchema.parse({ id: 'ration', name: 'Ration', type: 'food', food: 3, amount: 2 })] } } }),
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
 }
