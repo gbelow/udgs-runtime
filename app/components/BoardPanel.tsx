@@ -46,6 +46,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
 export function BoardPanel(){
   const { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
+  const [tools, setTools] = useState(false)
 
   if (!view.present) {
     return (
@@ -58,8 +59,13 @@ export function BoardPanel(){
   const painting = brush !== null
   return (
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
-      actions={<Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>}>
+      className='h-full'
+      actions={<>
+        <Button size='xs' {...(tools ? { variant: 'primary' as const, className: 'bg-accent/15' } : {})} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null) }}>paint &amp; light</Button>
+        <Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>
+      </>}>
 
+      {tools ? (<>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
         <Button size='xs' variant={brush === null ? 'primary' : 'default'} className={brush === null ? 'bg-accent/15' : ''}
@@ -75,6 +81,8 @@ export function BoardPanel(){
           <Button key={l} size='xs' variant={view.light === l ? 'primary' : 'default'} className={view.light === l ? 'bg-accent/15' : ''}
             onClick={() => light(l)}>{l}</Button>)}
       </div>
+      <LinkRow />
+      </>) : null}
 
       {view.unplaced.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -83,7 +91,7 @@ export function BoardPanel(){
         </div>
       ) : null}
 
-      <svg viewBox={view.viewBox} className='w-full select-none' role='img' aria-label='board'>
+      <svg viewBox={view.viewBox} className='w-full flex-1 min-h-0 select-none' role='img' aria-label='board'>
         <defs>
           <marker id='grip' viewBox='0 0 10 10' refX={9} refY={5} markerWidth={4} markerHeight={4} orient='auto-start-reverse'>
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
@@ -95,8 +103,6 @@ export function BoardPanel(){
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
         {view.floor.map((f) => <FloorItem key={f.itemId} item={f} onClick={() => clickFloorItem(f.itemId)} />)}
       </svg>
-
-      <LinkRow />
     </Panel>
   )
 }

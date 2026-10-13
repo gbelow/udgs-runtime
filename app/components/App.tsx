@@ -59,6 +59,10 @@ export function App(){
         <div className="col-span-12 mx-2 text-sm md:text-md">
           <MapEditor />
         </div>
+      ) : selectedGameTab == 'play' ? (
+        <div className="col-span-12">
+          <PlayPanel />
+        </div>
       ) : (
       <>
       <div className="hidden md:block col-span-2 border-r border-line pl-1 pr-2 h-full">
@@ -103,8 +107,6 @@ export function App(){
             <PartyPanel/> :
             selectedGameTab == 'downtime' ?
             <DowntimePanel/> :
-            selectedGameTab == 'play' ?
-            <PlayPanel/> :
             selectedGameTab == 'break' ?
             <BreakMe/> :
             null

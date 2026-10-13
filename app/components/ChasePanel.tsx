@@ -7,29 +7,57 @@ import type { ChasePanel as Panel, ChasePartyRow } from '../domain/scene/project
 
 const MOVE_LABELS: Record<ChaseMove, string> = { run: 'run', reverse: 'run the other way', shoot: 'shoot', hide: 'hide' }
 
-// combat.tex "Chases": who runs away and from how far, the chain of who
-// chases whom, what each party declares and how its run went, hiding,
-// scouting and obstacles, cover, and who sets off to join a fight.
-export function ChasePanel(){
+// combat.tex "Chases": who runs away and from how far, said before the chase
+// begins.
+export function ChaseSetup(){
   const [quarry, setQuarry] = useState<string[]>([])
   const [startTier, setStartTier] = useState<ChaseTier>('combat')
   const chase = useChase(quarry, startTier)
-  const { startChase, endChase, resolve, setCover } = useChaseCommands()
-  if (chase.parties.length === 0) return null
+  const { startChase } = useChaseCommands()
+  if (chase.parties.length === 0 || chase.chasing) return null
 
   const toggle = (id: string) => setQuarry(quarry.includes(id) ? quarry.filter((q) => q !== id) : [...quarry, id])
 
   return(
-    <div className='flex flex-col gap-1 py-2 border-b border-line text-sm'>
+    <div className='flex flex-col gap-1 text-sm'>
+      {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+        <span>running away</span>
+        {chase.parties.map((p) => (
+          <label key={p.id} className='flex gap-1 items-center'>
+            <input type='checkbox' aria-label={`quarry ${p.name}`} checked={quarry.includes(p.id)} onChange={() => toggle(p.id)} />
+            {p.name}
+          </label>
+        ))}
+        <select className={selectClass} aria-label='starting tier' value={startTier} onChange={(e) => setStartTier(e.target.value as ChaseTier)}>
+          {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <Button size='xs' aria-label='startChase' disabled={chase.startBar !== null} title={chase.startBar ?? undefined} onClick={() => startChase(quarry, startTier)}>start chase</Button>
+        {chase.startBar ? <span>{chase.startBar}</span> : null}
+      </div>
+    </div>
+  )
+}
+
+// combat.tex "Chases": the chain of who chases whom, what each party declares
+// and how its run went, hiding, scouting and obstacles, cover, and who sets
+// off to join a fight.
+export function ChasePanel(){
+  const chase = useChase([], 'combat')
+  const { endChase, resolve, setCover } = useChaseCommands()
+  if (!chase.chasing) return null
+
+  return(
+    <div className='flex flex-col gap-1 text-sm'>
       <div className='flex flex-row flex-wrap gap-3 items-center'>
         <SectionLabel>Chase</SectionLabel>
         <span className='text-xs text-muted'>time <span className='font-mono text-fg'>{chase.elapsed}</span></span>
-        {chase.chasing ? <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span> : null}
+        <span className='text-xs text-muted'>a round takes <span className='font-mono text-fg'>{chase.roundTakes}</span></span>
         {chase.fightFirst ? <span className='text-xs text-bad'>{chase.fightFirst}</span> : null}
         {chase.next ? <span className='text-xs text-accent'>next: {chase.next}</span> : null}
         {chase.roundBar ? <span className='text-xs text-muted'>next round: {chase.roundBar}</span> : null}
-        {chase.chasing ? <Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} title={chase.resolveBar ?? undefined} onClick={resolve}>resolve the round</Button> : null}
-        {chase.chasing ? <Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} title={chase.endBar ?? undefined} onClick={endChase}>end chase</Button> : null}
+        <Button size='xs' aria-label='resolveChase' disabled={chase.resolveBar !== null} title={chase.resolveBar ?? undefined} onClick={resolve}>resolve the round</Button>
+        <Button size='xs' aria-label='endChase' disabled={chase.endBar !== null} title={chase.endBar ?? undefined} onClick={endChase}>end chase</Button>
       </div>
       {chase.placement ? <span className='text-xs text-muted'>placing: {chase.placement}</span> : null}
       {chase.order.length && !chase.resolved ? <span className='text-xs text-muted'>declaring order: <span className='text-fg'>{chase.order.join(' → ')}</span></span> : null}
@@ -39,39 +67,19 @@ export function ChasePanel(){
           {r.found ? <span className='text-bad'> — {r.found} found</span> : null}
         </span>
       ))}
-      {
-        !chase.chasing ?
-        <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-          <span>running away</span>
-          {chase.parties.map((p) => (
-            <label key={p.id} className='flex gap-1 items-center'>
-              <input type='checkbox' aria-label={`quarry ${p.name}`} checked={quarry.includes(p.id)} onChange={() => toggle(p.id)} />
-              {p.name}
-            </label>
-          ))}
-          <select className={selectClass} aria-label='starting tier' value={startTier} onChange={(e) => setStartTier(e.target.value as ChaseTier)}>
-            {chase.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <Button size='xs' aria-label='startChase' disabled={chase.startBar !== null} title={chase.startBar ?? undefined} onClick={() => startChase(quarry, startTier)}>start chase</Button>
-          {chase.startBar ? <span>{chase.startBar}</span> : null}
-        </div>
-        :
-        <>
-          {chase.rows.map((row) => <PartyRow key={row.id} row={row} chase={chase} />)}
-          <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-            <span>cover</span>
-            {chase.runners.map((r) => (
-              <label key={r.id} className='flex gap-1 items-center'>
-                {r.name}
-                <select className={selectClass} aria-label={`cover ${r.name}`} value={r.cover ?? ''} onChange={(e) => setCover(r.id, (e.target.value || null) as ChaseCover | null)}>
-                  <option value=''>none</option>
-                  {chase.covers.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </label>
-            ))}
-          </div>
-        </>
-      }
+      {chase.rows.map((row) => <PartyRow key={row.id} row={row} chase={chase} />)}
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+        <span>cover</span>
+        {chase.runners.map((r) => (
+          <label key={r.id} className='flex gap-1 items-center'>
+            {r.name}
+            <select className={selectClass} aria-label={`cover ${r.name}`} value={r.cover ?? ''} onChange={(e) => setCover(r.id, (e.target.value || null) as ChaseCover | null)}>
+              <option value=''>none</option>
+              {chase.covers.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
     </div>
   )
 }

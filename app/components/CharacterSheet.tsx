@@ -42,73 +42,19 @@ type SheetSlots = {
 // The active character's sheet as play shows it, wherever they are; each
 // panel fills the slots with what only it offers.
 export function CharacterSheet({ header, resources, injuryAction, injuryPanels, afterInjury, asideTop, asideMid, asideEnd }: SheetSlots){
-
-  const { savePlayerCharacter } = useGameCommands()
-  const { notes } = useActiveCharacterData()
-
   return(
     <div className='grid grid-cols-1 md:grid-cols-12 gap-4 py-3'>
       <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
         {header}
-
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Resources</SectionLabel>
-          <div className='flex flex-row flex-wrap gap-1.5'>
-            {resources}
-            <SimpleResource rssName={'STA'} />
-            <SimpleResource rssName={'exhaustion'} />
-            <SimpleResource rssName={'hunger'} />
-            <SimpleResource rssName={'thirst'} />
-          </div>
-        </div>
-
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Injury</SectionLabel>
-          <div className='flex flex-row flex-wrap gap-x-6 gap-y-3 items-start'>
-            <div className='flex flex-row flex-wrap gap-3 items-end'>
-              <InjuryControl type='potion' />
-              <InjuryControl type='injuryLevel' />
-              <InjuryControl type='bleed' />
-              <InjuryControl type='burning' />
-              {injuryAction}
-            </div>
-            <div className='flex flex-col gap-2 min-w-48'>
-              <WoundPanel />
-              <CursePanel />
-              {injuryPanels}
-            </div>
-          </div>
-        </div>
-
+        <ResourceTiles>{resources}</ResourceTiles>
+        <InjurySection action={injuryAction} panels={injuryPanels} />
         {afterInjury}
-
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Movement</SectionLabel>
-          <Tiles>{MOVES.map((m) => <SimpleMove key={m.name} moveName={m.name} title={m.title} />)}</Tiles>
-        </div>
-
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Characteristics</SectionLabel>
-          <Tiles>{ATTRIBUTES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
-          <Tiles>{TRAINABLES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
-        </div>
-
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Combat</SectionLabel>
-          <Tiles>{COMBAT.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
-        </div>
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Physical</SectionLabel>
-          <Tiles>{PHYSICAL.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
-        </div>
-        <div className='flex flex-col gap-1'>
-          <SectionLabel>Mind &amp; social</SectionLabel>
-          <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
-        </div>
+        <MovementTiles />
+        <CharacteristicTiles />
+        <SkillTiles />
         <KnowledgesPanel />
         <SpecificKnowledgesPanel />
-        <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
-        <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
+        <NotesAndSave />
       </div>
       <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
         {asideTop}
@@ -122,6 +68,98 @@ export function CharacterSheet({ header, resources, injuryAction, injuryPanels, 
         {asideEnd}
       </div>
     </div>
+  )
+}
+
+export function ResourceTiles({ children }: { children?: ReactNode }){
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Resources</SectionLabel>
+      <div className='flex flex-row flex-wrap gap-1.5'>
+        {children}
+        <SimpleResource rssName={'STA'} />
+        <SimpleResource rssName={'exhaustion'} />
+        <SimpleResource rssName={'hunger'} />
+        <SimpleResource rssName={'thirst'} />
+      </div>
+    </div>
+  )
+}
+
+export function InjuryDials({ action }: { action?: ReactNode }){
+  return(
+    <div className='flex flex-row flex-wrap gap-3 items-end'>
+      <InjuryControl type='potion' />
+      <InjuryControl type='injuryLevel' />
+      <InjuryControl type='bleed' />
+      <InjuryControl type='burning' />
+      {action}
+    </div>
+  )
+}
+
+function InjurySection({ action, panels }: { action?: ReactNode, panels?: ReactNode }){
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Injury</SectionLabel>
+      <div className='flex flex-row flex-wrap gap-x-6 gap-y-3 items-start'>
+        <InjuryDials action={action} />
+        <div className='flex flex-col gap-2 min-w-48'>
+          <WoundPanel />
+          <CursePanel />
+          {panels}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MovementTiles(){
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Movement</SectionLabel>
+      <Tiles>{MOVES.map((m) => <SimpleMove key={m.name} moveName={m.name} title={m.title} />)}</Tiles>
+    </div>
+  )
+}
+
+export function CharacteristicTiles(){
+  return(
+    <div className='flex flex-col gap-1'>
+      <SectionLabel>Characteristics</SectionLabel>
+      <Tiles>{ATTRIBUTES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
+      <Tiles>{TRAINABLES.map((p) => <SimpleCharacteristic key={p} propName={p} />)}</Tiles>
+    </div>
+  )
+}
+
+export function SkillTiles(){
+  return(
+    <>
+      <div className='flex flex-col gap-1'>
+        <SectionLabel>Combat</SectionLabel>
+        <Tiles>{COMBAT.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
+      </div>
+      <div className='flex flex-col gap-1'>
+        <SectionLabel>Physical</SectionLabel>
+        <Tiles>{PHYSICAL.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
+      </div>
+      <div className='flex flex-col gap-1'>
+        <SectionLabel>Mind &amp; social</SectionLabel>
+        <Tiles>{MIND.map((s) => <SimpleSkill key={s} skillId={s} />)}</Tiles>
+      </div>
+    </>
+  )
+}
+
+export function NotesAndSave(){
+  const { savePlayerCharacter } = useGameCommands()
+  const { notes } = useActiveCharacterData()
+  return(
+    <>
+      <textarea aria-label='notes' className='border border-line rounded p-1 min-h-32 w-full bg-surface text-sm' value={notes} readOnly/>
+      <div><Button variant='primary' onClick={savePlayerCharacter}>save</Button></div>
+    </>
   )
 }
 
@@ -217,7 +255,7 @@ function SimpleSkill({skillId}: {skillId: keyof Skills}){
   )
 }
 
-function KnowledgesPanel(){
+export function KnowledgesPanel(){
   return(
     <div className='flex flex-col gap-1'>
       <SectionLabel>Knowledge</SectionLabel>
@@ -235,7 +273,7 @@ function SimpleKnowledge({knowledgeKey}: {knowledgeKey: keyof Knowledges}){
   )
 }
 
-function SpecificKnowledgesPanel(){
+export function SpecificKnowledgesPanel(){
   const { names } = useSpecificKnowledges()
   if(!names.length) return null
   return(
@@ -264,7 +302,7 @@ function SimpleMove({moveName, title}: {moveName: keyof Movement, title: string}
 
 // Effects delivered to the character that wait on a test of their own:
 // each rolled here, landing or not as the die says.
-function PendingPanel(){
+export function PendingPanel(){
   const { rows, roll } = usePendingLens()
   if (rows.length === 0) return null
   return(
@@ -285,7 +323,7 @@ function PendingPanel(){
 
 // combat.tex "Wounds": each wound carried, the part it took, what it does,
 // and the IL wound still to heal — healed here a point at a time.
-function WoundPanel(){
+export function WoundPanel(){
   const { rows, heal } = useWoundLens()
   return(
     <div className='flex flex-col gap-1 text-xs'>
@@ -307,7 +345,7 @@ function WoundPanel(){
 
 // spells.tex "Curse": what the character carries until they beat it, each
 // with the test that does.
-function CursePanel(){
+export function CursePanel(){
   const { rows, resist } = useCurseLens()
   if (rows.length === 0) return null
   return(
@@ -330,7 +368,7 @@ function CursePanel(){
   )
 }
 
-function AfflictionsPannel(){
+export function AfflictionsPannel(){
 
   const { sections, setAffliction } = useAfflictionBoard()
 

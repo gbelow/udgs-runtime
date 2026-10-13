@@ -3,13 +3,19 @@ import { useState } from 'react'
 import { WeaponPanel } from './WeaponPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { ActionPanel } from './ActionPanel';
+import { ActionLog, ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
-import { ChasePanel } from './ChasePanel';
-import { CharacterSheet, SimpleResource } from './CharacterSheet';
+import { ChasePanel, ChaseSetup } from './ChasePanel';
+import { ArmorPanel } from './ArmorPanel';
+import { HandsPanel } from './HandsPanel';
+import { ContainerPanel } from './ContainerPanel';
+import { TradePanel } from './TradePanel';
+import { Sidebar } from './Sidebar';
+import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, TextInput, Tooltip, selectClass } from './ui';
 import { useCombatRoster, useCombatState, usePartyPicker, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';
+import { useChase } from '../hooks/useChase';
 import { ROLL_MODES } from '../domain/play/dice';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
@@ -18,63 +24,166 @@ import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { usePartyCommands } from '../hooks/useParty';
 import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
 
-
+// The run screen: the fight and the catalog on the left, the space the scene
+// is played in at the middle, the active character's sheet on the right, and
+// along the bottom what they have, what they can do and what just happened.
 export function PlayPanel(){
+  const { hasActiveCharacter } = useCombatState()
 
-  const { nextRound, resetCombat, killCharacter } = useCombatCommands()
+  return(
+    <div className='flex flex-col md:h-[calc(100vh-3rem)] text-left text-sm'>
+      <div className='flex flex-col md:flex-row flex-1 min-h-0'>
+        <aside className='md:w-64 shrink-0 flex flex-col gap-2 p-2 border-b md:border-b-0 md:border-r border-line min-h-0 overflow-y-auto'>
+          <FightControls />
+          <CharacterList />
+          {hasActiveCharacter ? <PartyControl /> : null}
+          <div className='border-t border-line pt-2'><Sidebar /></div>
+        </aside>
+        <section className='flex-1 min-w-0 min-h-0 p-2 overflow-y-auto flex flex-col gap-2'>
+          <SceneSpace />
+        </section>
+        {hasActiveCharacter ? (
+          <aside className='md:w-[28rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
+            <SheetTabs />
+          </aside>
+        ) : null}
+      </div>
+      {hasActiveCharacter ? (
+        <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[38vh]'>
+          <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
+            <Status />
+          </div>
+          <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
+            <ActionBar />
+          </div>
+          <div className='md:col-span-4 p-2 flex flex-col gap-1 overflow-y-auto'>
+            <SectionLabel>Log</SectionLabel>
+            <ActionLog />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function FightControls(){
+  const { nextRound, resetCombat } = useCombatCommands()
   const { returnFromFight } = usePartyCommands()
-  const { isCharacterDead } = useInjuryLens()
-  const { round, hasActiveCharacter: isThereActiveCharacter, hasOpenAction, nextRoundBar, returnBar } = useCombatState()
-  const { fightName } = useActiveCharacterData()
-
-  const [dice10, setDice10] = useState(1)
-  const [dice6, setDice6] = useState(1)
+  const { round, nextRoundBar, returnBar } = useCombatState()
   const [etsTaken, setEtsTaken] = useState(0)
 
   return(
-    <div className='flex flex-col text-left'>
-      <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
+    <div className='flex flex-col gap-1.5'>
+      <div className='flex flex-row gap-2 items-center'>
         <span className='text-xs text-muted'>Round <span className='font-mono text-fg'>{round}</span></span>
-        <CharacterList />
         <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
+        <Button aria-label='resetGame' variant='ghost' className='ml-auto' onClick={resetCombat}>reset</Button>
+      </div>
+      <div className='flex flex-row gap-2 items-center'>
+        <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>{round > 0 ? 'end combat' : 'back to party'}</Button>
         <span className='text-xs text-muted'>ETs taken</span>
         <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
-        <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>{round > 0 ? 'end combat' : 'back to party'}</Button>
-        <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       </div>
-      <ChasePanel />
-      <MoralePanel />
-      <HeldTestsPanel />
-      {isThereActiveCharacter ? <SocialPanel /> : null}
-      {
-        isThereActiveCharacter ?
-        <CharacterSheet
-          header={<>
-            <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-              <span className='text-base font-medium mr-2'>{fightName}</span>
-              <TurnControl />
-              <Button aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
-              <Button aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
-              <SurgeControl />
-              <PartyControl />
-            </div>
-            <ActionPanel />
-          </>}
-          resources={<>
-            <SimpleResource rssName={'AP'} />
-          </>}
-          injuryAction={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>}
-          injuryPanels={<SustainedPanel />}
-          asideTop={<BoardPanel />}
-          asideMid={<WeaponPanel />}
-          asideEnd={<>
-            <AbilityPanel />
-            <SpellPanel />
-          </>}
-        />
-        : null
-      }
     </div>
+  )
+}
+
+// What the scene is played on: the chase's chain while there is a chase, the
+// board otherwise.
+function SceneSpace(){
+  const chase = useChase([], 'combat')
+  if (chase.chasing) return <ChasePanel />
+  return <BoardPanel />
+}
+
+const SHEET_TABS = ['sheet', 'knowledge', 'gear', 'abilities', 'spells', 'body'] as const
+type SheetTab = typeof SHEET_TABS[number]
+
+function SheetTabs(){
+  const [tab, setTab] = useState<SheetTab>('gear')
+  const { fightName } = useActiveCharacterData()
+
+  return(
+    <div className='flex flex-col gap-2'>
+      <span className='text-base font-medium'>{fightName}</span>
+      <div className='flex flex-row flex-wrap gap-1'>
+        {SHEET_TABS.map((t) =>
+          <Button key={t} size='xs' aria-label={`sheet ${t}`} variant={t === tab ? 'primary' : 'default'} className={t === tab ? 'bg-accent/15' : ''} onClick={() => setTab(t)}>{t}</Button>)}
+      </div>
+      {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
+      {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
+      {tab === 'gear' ? <><HandsPanel /><WeaponPanel /><ArmorPanel /><ContainerPanel /><TradePanel /></> : null}
+      {tab === 'abilities' ? <AbilityPanel /> : null}
+      {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
+      {tab === 'body' ? <><WoundPanel /><CursePanel /></> : null}
+    </div>
+  )
+}
+
+// What the active character has to spend and what weighs on them.
+function Status(){
+  const { killCharacter } = useCombatCommands()
+  const { isCharacterDead } = useInjuryLens()
+  const { hasOpenAction } = useCombatState()
+
+  return(
+    <>
+      <ResourceTiles><SimpleResource rssName={'AP'} /></ResourceTiles>
+      <InjuryDials action={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>} />
+      <PendingPanel />
+      <AfflictionsPannel />
+    </>
+  )
+}
+
+const DRAWERS = ['social', 'chase', 'morale', 'held tests'] as const
+type Drawer = typeof DRAWERS[number]
+
+// The turn, the surges and the actions; what the whole scene can do —
+// talking, running away, morale and the tests held for the round — waits
+// behind its own button until it is wanted, lit while something is owed.
+function ActionBar(){
+  const [dice10, setDice10] = useState(1)
+  const [dice6, setDice6] = useState(1)
+  const [drawer, setDrawer] = useState<Drawer | null>(null)
+  const morale = useMorale()
+  const held = useHeldTests()
+  const chase = useChase([], 'combat')
+  const due: Record<Drawer, boolean> = {
+    social: false,
+    chase: false,
+    morale: morale.some((r) => !r.result),
+    'held tests': held.some((r) => !r.result),
+  }
+  const shown: Record<Drawer, boolean> = {
+    social: true,
+    chase: !chase.chasing,
+    morale: true,
+    'held tests': held.length > 0,
+  }
+
+  return(
+    <>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        <TurnControl />
+        <SurgeControl />
+      </div>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        {DRAWERS.filter((d) => shown[d]).map((d) =>
+          <Button key={d} size='xs' aria-label={`drawer ${d}`} variant={drawer === d ? 'primary' : due[d] ? 'bad' : 'default'} className={drawer === d ? 'bg-accent/15' : ''} onClick={() => setDrawer(drawer === d ? null : d)}>
+            {d}{due[d] ? ' !' : ''}
+          </Button>)}
+        <span className='ml-auto flex flex-row gap-1'>
+          <Button size='xs' aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
+          <Button size='xs' aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
+        </span>
+      </div>
+      {drawer === 'social' ? <SocialPanel /> : null}
+      {drawer === 'chase' ? <ChaseSetup /> : null}
+      {drawer === 'morale' ? <MoralePanel /> : null}
+      {drawer === 'held tests' ? <HeldTestsPanel /> : null}
+      <ActionPanel />
+    </>
   )
 }
 
@@ -320,15 +429,15 @@ function CharacterList(){
   const { parties, pick } = useCombatRoster()
 
   return(
-    <div className='flex flex-row gap-3 grow overflow-x-auto'>
+    <div className='flex flex-col gap-2'>
       {
         parties.map((party) =>
-          <div key={party.id} className='flex flex-row gap-1.5 items-center'>
+          <div key={party.id} className='flex flex-col gap-1 items-stretch'>
             {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
             {party.entries.map((entry) =>
               <Button key={entry.id} aria-label={entry.name}
                 variant={entry.targetable ? 'bad' : entry.isActive ? 'primary' : 'default'}
-                className={entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}
+                className={`text-left ${entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}`}
                 onClick={() => pick(entry)}>
                 {entry.name}
                 {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}
