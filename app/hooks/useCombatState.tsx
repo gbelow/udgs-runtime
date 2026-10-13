@@ -1,5 +1,6 @@
 import { getRosterParties, getCombatRosterDigest, getPartyPicker, getPartyPickerDigest, type CombatRosterEntry, type PartyPicker, type RosterParty } from "../domain/scene/projections/roster";
 import { setTarget } from "../domain/scene/commands/action";
+import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
@@ -42,6 +43,18 @@ export function useCombatRoster(): {
     else setActiveCharacter(entry.id);
   };
 
+  return { parties, pick };
+}
+
+// The fight with no board, one card per character by party; a click does what
+// a click on the roster does.
+export function useSceneCards(): {
+  parties: SceneCardParty[];
+  pick: (entry: CombatRosterEntry) => void;
+} {
+  useCombatStore(getSceneCardsDigest);
+  const parties = getSceneCards(useCombatStore.getState());
+  const { pick } = useCombatRoster();
   return { parties, pick };
 }
 

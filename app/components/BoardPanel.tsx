@@ -6,6 +6,7 @@ import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, 
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput } from './ui'
+import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character, or an item to pick it up',
@@ -50,8 +51,9 @@ export function BoardPanel(){
 
   if (!view.present) {
     return (
-      <Panel title='Board' meta='no grid: everyone is in reach'>
-        <div><Button variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button></div>
+      <Panel title='Board' meta='no grid: everyone is in reach'
+        actions={<Button size='xs' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button>}>
+        <SceneCards />
       </Panel>
     )
   }
