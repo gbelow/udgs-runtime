@@ -220,27 +220,38 @@ describe('the move made while resting', () => {
   })
 })
 
-// play.tex "Combat": an item move that costs AP is made in one's own turn;
-// regripping costs nothing and is not held to it.
+// play.tex "Combat": once the fight has started, gear is handled in one's
+// own turn, whether the move costs AP or not; the GM handles it at any time.
 describe('gear moved outside one\'s own turn', () => {
   const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
   const belted = (id: string) => holdItem(dagger)(putOnFromCatalog(getCatalogItem('Belt')!)(fighter(id))) as CampaignCharacter
   const stow = (c: CampaignCharacter) => storeItem(dagger.id, 'Belt', 'quick')(c) as CampaignCharacter
   const regrip = (c: CampaignCharacter) => regripItem(dagger.id, 2)(c) as CampaignCharacter
+  const started = (s: SceneState): SceneState => ({ ...s, round: 1 })
 
   it('refuses what spends AP', () => {
-    const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
+    const s = started({ ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' })
     expect(updateInventory('a', stow)(s)).toBe(s)
   })
 
+  it('refuses what is free', () => {
+    const s = started({ ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' })
+    expect(updateInventory('a', regrip)(s)).toBe(s)
+  })
+
   it('allows it in their own turn', () => {
-    const s = { ...combat(belted('a')), inTurnCharacter: 'a' }
+    const s = started({ ...combat(belted('a')), inTurnCharacter: 'a' })
     expect(updateInventory('a', stow)(s).characters.a.held).toHaveLength(0)
   })
 
-  it('allows what is free', () => {
+  it('allows it before the fight starts', () => {
     const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
-    expect(updateInventory('a', regrip)(s)).not.toBe(s)
+    expect(updateInventory('a', stow)(s).characters.a.held).toHaveLength(0)
+  })
+
+  it('allows the GM at any time', () => {
+    const s = started({ ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' })
+    expect(updateInventory('a', stow, true)(s).characters.a.held).toHaveLength(0)
   })
 })
 

@@ -30,12 +30,18 @@ export function isFightTab(tab: GameTabs): boolean {
 }
 
 // Who is at the screen. A player only follows the standard rules; the GM and
-// the developer also get the GM tools and the catalog pickers in play. Only
-// dev exists until there are accounts.
+// the developer may also switch the run screen to GM mode, where the GM's
+// tools and catalogs open and the rules a character is held to are lifted.
+// Only dev exists until there are accounts.
 export type Role = 'player' | 'gm' | 'dev'
 
 export function hasGmTools(role: Role): boolean {
   return role !== 'player'
+}
+
+// Whether the screen acts as the GM: the switch is on and the role has it.
+export function isActingAsGm(state: Pick<AppState, 'role' | 'gmMode'>): boolean {
+  return hasGmTools(state.role) && state.gmMode
 }
 
 // The item waiting for a destination to be clicked: a catalog entry picked in
@@ -62,6 +68,8 @@ export interface AppState {
   mapList: JsonObject
   updateMapList: () => void
   role: Role
+  gmMode: boolean
+  setGmMode: (gmMode: boolean) => void
   pendingItem: PendingItem | null
   setPendingItem: (pendingItem: PendingItem | null) => void
 }
@@ -76,6 +84,8 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
     role: 'dev',
+    gmMode: false,
+    setGmMode: (gmMode) => set({ gmMode }),
     pendingItem: null,
     setPendingItem: (pendingItem) => set({ pendingItem }),
     trade: null,

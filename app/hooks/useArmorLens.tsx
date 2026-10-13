@@ -6,7 +6,7 @@ import { DamageTierRow, getDamageTiers } from "../domain/character/lenses/gear";
 import { getHardness } from "../domain/item/rules/items";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
-import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
@@ -18,7 +18,7 @@ const BARE: ArmorPanelView = { name: 'Skin', worn: null, burdenPenalty: 0, defle
 // catalog pick here — the panel is a destination for it like a slot group is;
 // here is also where it comes off.
 export function useArmorLens() {
-  const update = useActiveCharacterUpdate();
+  const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
@@ -56,7 +56,7 @@ export function useDamageTiers(): DamageTierRow[] {
 // The gauntlets and the closed helmet, put on or taken off, and the helmet's
 // visor raised or lowered.
 export function useArmorPieces() {
-  const update = useActiveCharacterUpdate();
+  const update = useActiveInventoryUpdate();
   const pieces: ArmorPiecesView | null = useActiveCharacterDerived(getArmorPiecesView, JSON.stringify) ?? null;
   const gauntlets = () => update(putGauntlets);
   const helm = () => update(putHelm);

@@ -7,8 +7,7 @@ import { toggleBreakage as switchBreakage } from "../domain/scene/commands/break
 import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/scene/commands/morale"
 import { rollHeld as testHeld } from "../domain/scene/commands/heldTest"
 import type { CalledKind } from "../domain/scene/rules/heldTest"
-import { say as saySocial, insult as insultSocial, negotiate as negotiateSocial, defaultToCoward as defaultToCowardSocial, surrender as surrenderSocial, unsurrender as unsurrenderSocial } from "../domain/scene/commands/social"
-import type { SocialAction } from "../domain/tables"
+import { defaultToCoward as defaultToCowardSocial } from "../domain/scene/commands/social"
 import type { Updater } from "../domain/scene/types"
 import type { RollMode } from "../domain/play/dice"
 import { useCombatStore } from "../stores/useCombatStore"
@@ -94,28 +93,15 @@ export function useCombatCommands() {
     updateCombatState(testHeld(id, kind, mode, realDice))
   }
 
-  const say = (kind: SocialAction, targets: string[]) => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(saySocial(id, kind, targets))
-  }
-
   const asActive = (command: (id: string) => Updater) => () => {
     const id = useCombatStore.getState().activeCharacterId
     if (id) updateCombatState(command(id))
   }
 
-  const insult = (targets: string[]) => {
-    const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(insultSocial(id, targets))
-  }
-
   const moveToParty = (partyId: string) => asActive((id) => moveInto(id, partyId))()
   const splitOff = asActive((id) => splitFrom(id, newId))
 
-  const negotiate = asActive(negotiateSocial)
   const defaultToCoward = asActive(defaultToCowardSocial)
-  const surrender = asActive(surrenderSocial)
-  const unsurrender = asActive(unsurrenderSocial)
 
   const resetCombat = () => {
     updateTable(resetFight)
@@ -125,5 +111,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
 }

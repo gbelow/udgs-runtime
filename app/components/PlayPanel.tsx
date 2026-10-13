@@ -9,7 +9,7 @@ import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
 import { ArmorPanel } from './ArmorPanel';
 import { HandsPanel } from './HandsPanel';
-import { ContainerPanel, QuickSlotsPanel } from './ContainerPanel';
+import { ContainerPanel } from './ContainerPanel';
 import { TradePanel } from './TradePanel';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
@@ -19,7 +19,7 @@ import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, Knowle
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
 import { PartiesView } from './PartiesView';
-import { useCombatRoster, useCombatState, useCombatSurgeOptions, useHeldTests, useRoundChange, useSocial, useTurnControls } from '../hooks/useCombatState';
+import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
@@ -28,6 +28,7 @@ import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { usePartyCommands } from '../hooks/useParty';
 import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
 import { useRole } from '../hooks/useRole';
+import { GearLocked, GmLocked } from './Locks';
 
 // The run screen: the round and who is in it along the top, the middle for
 // the scene or whatever catalog the GM opened, the active character's sheet
@@ -73,7 +74,7 @@ export function PlayPanel(){
           {hasActiveCharacter ? <Status /> : <span className='text-xs text-muted'>pick a character in the tracker</span>}
         </div>
         <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {hasActiveCharacter ? <ActionBar open={open} /> : <GmToolsPanel open={open} />}
+          <ActionColumn open={open} hasActiveCharacter={hasActiveCharacter} />
         </div>
         <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-0'>
           <SectionLabel>Log</SectionLabel>
@@ -168,7 +169,7 @@ type SheetTab = typeof SHEET_TABS[number]
 
 // The inventory holds what an item is taken into — the hands, the worn
 // armor, the containers, the trade — so it stays short beside a catalog;
-// what the gear does in a fight, and what is at hand to draw, is under gear.
+// what the gear does in a fight is under gear.
 function SheetTabs(){
   const [tab, setTab] = useState<SheetTab>('inventory')
   const { fightName } = useActiveCharacterData()
@@ -182,16 +183,18 @@ function SheetTabs(){
       </div>
       {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
       {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
-      {tab === 'inventory' ? <><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></> : null}
-      {tab === 'gear' ? <><WeaponPanel /><QuickSlotsPanel /><ArmorPanel /></> : null}
+      {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
+      {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}
       {tab === 'abilities' ? <AbilityPanel /> : null}
       {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
-      {tab === 'body' ? <><WoundPanel /><CursePanel /></> : null}
+      {tab === 'body' ? <GmLocked><WoundPanel /><CursePanel /></GmLocked> : null}
     </div>
   )
 }
 
-// What the active character has to spend and what weighs on them.
+// What the active character has to spend and what weighs on them; the
+// resources, the injuries and the afflictions are the GM's to edit, and the
+// pending tests the character's to roll.
 function Status(){
   const { killCharacter } = useCombatCommands()
   const { isCharacterDead } = useInjuryLens()
@@ -199,36 +202,50 @@ function Status(){
 
   return(
     <>
-      <ResourceTiles><SimpleResource rssName={'AP'} /></ResourceTiles>
-      <InjuryDials action={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>} />
+      <GmLocked>
+        <ResourceTiles><SimpleResource rssName={'AP'} /></ResourceTiles>
+        <InjuryDials action={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>} />
+        <AfflictionsPannel />
+      </GmLocked>
       <PendingPanel />
-      <AfflictionsPannel />
     </>
   )
 }
 
-const DRAWERS = ['social', 'held tests', 'GM'] as const
-type Drawer = typeof DRAWERS[number]
-
-// The turn, the surges and the actions; talking and the tests held for the
-// round wait behind their own button until wanted, lit while something is
-// owed. Morale and starting a chase belong to the round change.
-function ActionBar({ open }: { open: (v: CatalogView) => void }){
+// Who acts from the bar: the active character, held to their turn, or — for
+// the GM and the developer — the GM, whose actions take the place of the
+// character's and who edits anyone's sheet and gear at any time.
+function ActionColumn({ open, hasActiveCharacter }: { open: (v: CatalogView) => void, hasActiveCharacter: boolean }){
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
-  const [drawer, setDrawer] = useState<Drawer | null>(null)
+  const { gmTools, gm, setGmMode } = useRole()
+
+  return(
+    <>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        {gmTools ? <>
+          <Button size='xs' aria-label='act as character' aria-pressed={!gm} variant={gm ? 'default' : 'primary'} className={gm ? '' : 'bg-accent/15'} onClick={() => setGmMode(false)}>character</Button>
+          <Button size='xs' aria-label='act as GM' aria-pressed={gm} variant={gm ? 'primary' : 'default'} className={gm ? 'bg-accent/15' : ''} onClick={() => setGmMode(true)}>GM</Button>
+        </> : null}
+        <span className='ml-auto flex flex-row gap-1'>
+          <Button size='xs' aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
+          <Button size='xs' aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
+        </span>
+      </div>
+      {gm ? <GmToolsPanel open={open} />
+        : hasActiveCharacter ? <ActionBar />
+        : <span className='text-xs text-muted'>pick a character in the tracker</span>}
+    </>
+  )
+}
+
+// The turn, the surges and the actions; the tests held for the round wait
+// behind their own button until wanted, lit while one is owed. Morale and
+// starting a chase belong to the round change.
+function ActionBar(){
+  const [heldOpen, setHeldOpen] = useState(false)
   const held = useHeldTests()
-  const { gmTools } = useRole()
-  const due: Record<Drawer, boolean> = {
-    social: false,
-    'held tests': held.some((r) => !r.result),
-    GM: false,
-  }
-  const shown: Record<Drawer, boolean> = {
-    social: true,
-    'held tests': held.length > 0,
-    GM: gmTools,
-  }
+  const due = held.some((r) => !r.result)
 
   return(
     <>
@@ -237,19 +254,14 @@ function ActionBar({ open }: { open: (v: CatalogView) => void }){
         <SectionLabel>surge</SectionLabel>
         <SurgeControl />
       </div>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {DRAWERS.filter((d) => shown[d]).map((d) =>
-          <Button key={d} size='xs' aria-label={`drawer ${d}`} variant={drawer === d ? 'primary' : due[d] ? 'bad' : 'default'} className={drawer === d ? 'bg-accent/15' : ''} onClick={() => setDrawer(drawer === d ? null : d)}>
-            {d}{due[d] ? ' !' : ''}
-          </Button>)}
-        <span className='ml-auto flex flex-row gap-1'>
-          <Button size='xs' aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
-          <Button size='xs' aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
-        </span>
-      </div>
-      {drawer === 'social' ? <SocialPanel /> : null}
-      {drawer === 'held tests' ? <HeldTestsPanel /> : null}
-      {drawer === 'GM' && gmTools ? <GmToolsPanel open={open} /> : null}
+      {held.length > 0 ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <Button size='xs' aria-label='drawer held tests' variant={heldOpen ? 'primary' : due ? 'bad' : 'default'} className={heldOpen ? 'bg-accent/15' : ''} onClick={() => setHeldOpen(!heldOpen)}>
+            held tests{due ? ' !' : ''}
+          </Button>
+        </div>
+      ) : null}
+      {heldOpen ? <HeldTestsPanel /> : null}
       <ActionPanel />
     </>
   )
@@ -267,11 +279,11 @@ const GM_TOOLS = [
 ] as const
 
 function GmToolsPanel({ open }: { open: (v: CatalogView) => void }){
-  const { gmTools } = useRole()
-  if (!gmTools) return null
+  const cowardBar = useCowardBar()
+  const { defaultToCoward } = useCombatCommands()
 
   return(
-    <div className='flex flex-col gap-1 py-2 border-b border-line'>
+    <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>catalog</SectionLabel>
         {CATALOG_VIEWS.map((v) => <Button key={v} size='xs' aria-label={`open ${v}`} onClick={() => open(v)}>{v}</Button>)}
@@ -283,6 +295,9 @@ function GmToolsPanel({ open }: { open: (v: CatalogView) => void }){
             <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
           </Tooltip>
         ))}
+        <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
+          <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
+        </Tooltip>
       </div>
     </div>
   )
@@ -381,43 +396,6 @@ function HeldTestsPanel(){
           }
         </div>
       ))}
-    </div>
-  )
-}
-
-// combat.tex "Social actions": the active character intimidates, taunts or
-// rallies, for 5 AP: with nobody picked, intimidation goes to every enemy and
-// rally to the party; picking characters says it to them instead. It weighs
-// on their morale test at the next round's beginning. Negotiating and surrendering cost the same
-// and take no one; the table plays out what they come to.
-function SocialPanel(){
-  const { bar, negotiateBar, insultBar, cowardBar, surrenderBar, unsurrenderBar, surrendered, value, kinds, insultAtDefault, targets } = useSocial()
-  const { say, insult, negotiate, defaultToCoward, surrender, unsurrender } = useCombatCommands()
-  const [picked, setPicked] = useState<string[]>([])
-  const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
-
-  return(
-    <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 py-2 border-b border-line text-sm items-center'>
-      <SectionLabel>Social</SectionLabel>
-      {targets.map((t) => (
-        <label key={t.id} className='flex gap-1 items-center text-xs text-muted'>
-          <input type='checkbox' aria-label={`social ${t.name}`} checked={picked.includes(t.id)} onChange={() => toggle(t.id)} />
-          {t.name}
-        </label>
-      ))}
-      {kinds.map(({ kind, atDefault }) => (
-        <Button key={kind} size='xs' aria-label={`social ${kind}`} disabled={bar !== null || (picked.length === 0 && !atDefault)} title={bar ?? undefined} onClick={() => say(kind, picked)}>{kind} · {value}</Button>
-      ))}
-      <Button size='xs' aria-label='social negotiate' disabled={negotiateBar !== null} title={negotiateBar ?? undefined} onClick={negotiate}>negotiate</Button>
-      {insultBar === null || cowardBar === null ? (
-        <>
-          <Button size='xs' aria-label='social insult' disabled={insultBar !== null || (picked.length === 0 && !insultAtDefault)} title={insultBar ?? undefined} onClick={() => insult(picked)}>insult</Button>
-          <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} title={cowardBar ?? undefined} onClick={defaultToCoward}>default to coward</Button>
-        </>
-      ) : null}
-      {surrendered
-        ? <Button size='xs' aria-label='social unsurrender' disabled={unsurrenderBar !== null} title={unsurrenderBar ?? undefined} onClick={unsurrender}>unsurrender</Button>
-        : <Button size='xs' aria-label='social surrender' disabled={surrenderBar !== null} title={surrenderBar ?? undefined} onClick={surrender}>surrender</Button>}
     </div>
   )
 }

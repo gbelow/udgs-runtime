@@ -1,7 +1,5 @@
-import { SOCIAL_ACTIONS, type SocialAction } from '../../tables'
 import type { SceneState } from '../types'
-import { getAggravators, getMoraleBar, getMoraleDLOf, getPressureKey, getSocialValue } from '../rules/morale'
-import { getInsultBar, getSayBar, getSocialBar, getSocialTargets, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { getAggravators, getMoraleBar, getMoraleDLOf, getPressureKey } from '../rules/morale'
 import { getStressAction, getStressOwed, getStressSocial } from '../rules/stress'
 import { getFightName } from '../rules/fighters'
 import { perState } from '../../perState'
@@ -41,44 +39,10 @@ function buildMoraleRows(state: SceneState): MoraleRow[] {
   })
 }
 
-export type SocialPanel = {
-  // why nothing can be said now, null while it can
-  bar: string | null
-  // why the character cannot negotiate, and cannot raise or lower the surrender flag
-  negotiateBar: string | null
-  // why the abusive cannot insult now, and why they cannot be taken for a coward
-  insultBar: string | null
-  cowardBar: string | null
-  surrenderBar: string | null
-  unsurrenderBar: string | null
-  surrendered: boolean
-  // what each one weighs on the morale DL
-  value: number
-  // each kind, and whether it has someone to be said to with nobody picked
-  kinds: { kind: SocialAction; atDefault: boolean }[]
-  insultAtDefault: boolean
-  // whom it can be said to, in place of the default group
-  targets: { id: string; name: string }[]
-}
-
-// combat.tex "Social actions": for the character, what saying one costs them
-// in value and who is there to say it to.
-export function getSocialPanel(state: SceneState, id: string): SocialPanel {
-  const c = state.characters[id]
-  const targets = Object.keys(state.characters).filter((t) => t !== id).map((t) => ({ id: t, name: getFightName(state, t) }))
-  return {
-    bar: getSayBar(state, id, 'intimidate', targets.map((t) => t.id)),
-    negotiateBar: getSocialBar(state, id),
-    insultBar: getInsultBar(state, id, targets.map((t) => t.id)),
-    cowardBar: getStressSocial(state, id) ? null : 'not compelled to a social action',
-    surrenderBar: getSurrenderBar(state, id),
-    unsurrenderBar: getUnsurrenderBar(state, id),
-    surrendered: state.surrendered.includes(id),
-    value: c ? getSocialValue(c) : 0,
-    kinds: SOCIAL_ACTIONS.map((kind) => ({ kind, atDefault: getSocialTargets(state, id, kind, []).length > 0 })),
-    insultAtDefault: getSocialTargets(state, id, 'insult', []).length > 0,
-    targets,
-  }
+// creating.tex "Limit Stress Actions": why the table cannot take the
+// character for a coward, or null — only one compelled to a social action.
+export function getCowardBar(state: SceneState, id: string): string | null {
+  return getStressSocial(state, id) ? null : 'not compelled to a social action'
 }
 
 export const getMoraleRows = perState(buildMoraleRows)

@@ -3,7 +3,7 @@ import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
 import { getHeldActions } from '../rules/hold'
 import { withdrawActions } from './log'
-import { isSpendingOutOfTurn } from '../rules/turn'
+import { getGearBar } from '../rules/turn'
 import { settleBinds } from './bind'
 import { dropEmptyFightParties } from './parties'
 import { getChanges } from '../rules/changes'
@@ -38,13 +38,14 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
   }
 }
 
-// A move with the character's gear — drawing, stowing, sliding a shield —
-// refused when it would spend AP outside their own turn (play.tex "Combat").
-export function updateInventory(id: string, updater: (c: CampaignCharacter) => CampaignCharacter): Updater {
+// A move with the character's gear — drawing, stowing, donning, sliding a
+// shield — refused outside their own turn once the fight has started
+// (play.tex "Combat"). The GM moves anyone's gear at any time, and the log
+// keeps it as the GM's edit.
+export function updateInventory(id: string, updater: (c: CampaignCharacter) => CampaignCharacter, gm = false): Updater {
   return (state) => {
-    const c = state.characters[id]
-    if (!c) return state
-    const after = updater(c)
-    return isSpendingOutOfTurn(state, c, after) ? state : updateCharacter(id, () => after, 'gear')(state)
+    if (!state.characters[id]) return state
+    if (getGearBar(state, id, gm)) return state
+    return updateCharacter(id, updater, gm ? 'GM edit' : 'gear')(state)
   }
 }

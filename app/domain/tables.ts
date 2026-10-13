@@ -459,14 +459,12 @@ export const MORALE_LOW_STA = 3
 
 // combat.tex "Social actions": intimidation, taunt and rally, each moving the
 // target's morale DL by 1 + charisma/2 (`bonus` + half the charisma, floored).
-export const SOCIAL_ACTIONS = ['intimidate', 'taunt', 'rally'] as const
-export type SocialAction = (typeof SOCIAL_ACTIONS)[number]
 export const SOCIAL_BONUS = 1
 
-// creating.tex "Limit Stress Actions" (abusive): the insult "increas[es] the
-// morale test DL by +1 for the team". Compelled, never chosen, so it is no
-// member of `SOCIAL_ACTIONS`.
-export const PRESSURE_KINDS = [...SOCIAL_ACTIONS, 'insult'] as const
+// What weighs on a morale test from what was said: the three social actions,
+// and creating.tex "Limit Stress Actions" (abusive): the insult "increas[es]
+// the morale test DL by +1 for the team".
+export const PRESSURE_KINDS = ['intimidate', 'taunt', 'rally', 'insult'] as const
 export const INSULT_BONUS = 1
 
 // spells.tex, the Animancy spells whose test is a morale test (combat.tex

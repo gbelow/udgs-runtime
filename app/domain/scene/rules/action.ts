@@ -28,6 +28,7 @@ import { canMoveWhileResting } from './rest'
 import { getGroupSteps, getPushMovements, getPushPrice } from './drag'
 import { getPullTargets, getSlipCost, getSlipTargets } from './tether'
 import { getCutStrike, getCutTargets } from './cut'
+import { getEnemies, getSocialCost } from './social'
 import { getFeintTargets } from './feint'
 import { findGrapple, getGrapples, getPartners, isGrapple } from './partners'
 import { isExtinguishCell } from './extinguish'
@@ -39,7 +40,7 @@ import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportun
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
-import { canAffordRest } from '../../character/rules/rest'
+import { canOverdraw } from '../../character/rules/rest'
 import { getIncomingAP } from './roundChange'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
@@ -118,8 +119,11 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // the participants"
     case 'grapple':
       return true
+    case 'social':
     case 'rest':
       return true
+    case 'taunt':
+      return action.targetId !== null
     // combat.tex "Standard Action": something within reach, into a free hand
     case 'pickUp': {
       const found = getReachableFloor(state, c.id).find((f) => f.item.id === action.itemId)
@@ -321,6 +325,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'pickUp':
     case 'extinguish':
     case 'drink':
+    case 'taunt':
     case 'rest':
     case 'prepare':
     case 'grapple':
@@ -329,6 +334,9 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'firstAid':
     case 'cauterize':
       return getMedicineCost(action.kind)
+    // combat.tex "Social actions": 5 AP; combat.tex "Surrender": unflagging is free
+    case 'social':
+      return getSocialCost(c, action.say)
   }
 }
 
@@ -354,7 +362,7 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   const actor = state.characters[action.actorId]
   if (!actor || !cost) return null
   const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
-  if (action.kind === 'rest') return canAffordRest(c, 'rest', getIncomingAP(state)) ? cost : null
+  if (getActionDef(action.kind).rest) return canOverdraw(c, cost, getIncomingAP(state)) ? cost : null
   return canAfford(c, cost) ? cost : null
 }
 
@@ -612,6 +620,8 @@ function getPostStep(state: SceneState, open: RootAction): ActionStep {
     case 'firstAid':
     case 'cauterize':
     case 'reload':
+    case 'social':
+    case 'taunt':
     case 'rest':
     case 'prepare':
     case 'fireAgain':
@@ -728,6 +738,8 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
       return getSlipTargets(state, root.actorId)
     case 'feint':
       return getFeintTargets(state, root.actorId)
+    case 'taunt':
+      return getEnemies(state, root.actorId)
     case 'cut':
       return getCutTargets(state, root)
     case 'holdBack':
@@ -746,6 +758,7 @@ function getAimableIds(state: SceneState, root: RootAction): string[] {
     case 'extinguish':
     case 'drink':
     case 'reload':
+    case 'social':
     case 'rest':
     case 'prepare':
     case 'fireAgain':

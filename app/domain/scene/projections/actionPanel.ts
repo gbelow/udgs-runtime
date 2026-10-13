@@ -2,7 +2,7 @@ import type { Action, ActionRoll, SceneState, StrikeAction, Coord, Deliveries, D
 import { getTakeableHeld } from '../../item/rules/doses'
 
 import type { Area, Character, Item, MoveKind } from '../../types'
-import { isAttackAction, isReactionAction } from '../rules/actionCatalog'
+import { getActionDef, isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
 import { ActionOption, getAvailableActions } from '../rules/options'
@@ -279,8 +279,10 @@ export type PushView = {
 export type ActionPanelView = {
   step: ActionStep | null
   open: OpenActionView | null
-  // with nothing open: what the active character can declare
+  // with nothing open: what the active character can declare, the social
+  // actions apart (rules/actionCatalog.ts `group`)
   options: ActionOptionView[]
+  social: ActionOptionView[]
   // at `react`: everyone the open action triggers something in, with their
   // options; the target's defenses are among them
   reactors: ReactorOptions[]
@@ -354,7 +356,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -367,7 +369,8 @@ function buildActionPanel(state: SceneState): ActionPanelView {
   const edits = getEditsSince(state)
 
   if (!open) {
-    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episodes, edits, prepared: getPreparedRows(state) }
+    const own = active ? labelled(state, active.id, getAvailableActions(state, active.id)) : []
+    return { ...EMPTY, options: own.filter((o) => !getActionDef(o.draft.kind).group), social: own.filter((o) => getActionDef(o.draft.kind).group === 'social'), episodes, edits, prepared: getPreparedRows(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -471,6 +474,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
     prepare: open.kind === 'prepare' && open.step === 'define' ? getPrepareView(state, open) : null,
     prepared: getPreparedRows(state),
     options: [],
+    social: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
     unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     attacks: swung && open.step === 'define' && actor

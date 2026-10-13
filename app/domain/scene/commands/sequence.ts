@@ -26,6 +26,7 @@ import { appendActions, applyPhase, replaceActions, withdrawActions } from './lo
 import { closeTurn } from './closeTurn'
 import { getResults } from './results'
 import { compelByTest } from './stress'
+import { landSocial } from './social'
 import { getHiddenFrom } from '../rules/stealth'
 import { pickMade } from '../rules/declaration'
 import { breakHeld, parkHeld, releaseNextHeld } from './hold'
@@ -69,8 +70,19 @@ export function land(state: SceneState, open: RootAction, newId: () => string): 
   const landed = breakHeld(applyPhase(replaceActions(state, [resolved]), [resolved], 'resolve'), resolved)
   const fled = { ...landed, fleers: [...landed.fleers, ...getFleersOf(landed, resolved)] }
   const followUps = getFollowUps(fled, resolved, newId).map((a) => (a.step === 'define' ? { ...a, followUpOf: resolved.id } : a))
-  const forced = resolved.kind === 'feint' ? forceSurge(fled, resolved) : resolved.kind === 'spellTest' ? compelByTest(fled, resolved) : fled
-  return advance(appendActions(forced, followUps), newId)
+  return advance(appendActions(landOnTable(fled, resolved), followUps), newId)
+}
+
+// What a landed action leaves on the fight beyond its characters, board,
+// floor and binds: whose turn it is, what the table owes, what was said.
+function landOnTable(state: SceneState, resolved: RootAction): SceneState {
+  switch (resolved.kind) {
+    case 'feint': return forceSurge(state, resolved)
+    case 'spellTest': return compelByTest(state, resolved)
+    case 'social':
+    case 'taunt': return landSocial(state, resolved)
+    default: return state
+  }
 }
 
 // combat.tex "Turns and Actions" ("Feint"): the one the test went against "is

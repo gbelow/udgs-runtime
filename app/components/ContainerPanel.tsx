@@ -51,24 +51,6 @@ export function ContainerPanel(){
   )
 }
 
-// gear.tex "Containers": what sits in the quick slots, at hand to be drawn
-// in a fight, container by container.
-export function QuickSlotsPanel(){
-  const { panels } = useContainerLens()
-  const quick = panels.flatMap((panel) => panel.slots.filter((g) => g.slot === 'quick' && g.items.length > 0).map((group) => ({ panel, group })))
-
-  return(
-    <Panel title='Quick slots' meta={quick.length === 0 ? 'nothing at hand' : undefined}>
-      {quick.map(({ panel, group }) => (
-        <div key={panel.key} className='flex flex-col gap-1'>
-          <span className='text-xs text-muted'>{panel.name}</span>
-          <SlotGroupRow containerKey={panel.key} group={group} />
-        </div>
-      ))}
-    </Panel>
-  )
-}
-
 function SlotGroupRow({ containerKey, group }: { containerKey: string, group: ContainerSlotView }){
   const { pending, place, remove, draw, wear, putOn } = useItemLens()
   const { trading, isOffered, toggleOffer } = useTradeLens()

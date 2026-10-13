@@ -1127,6 +1127,26 @@ export const RestActionSchema = z.object({
   kind: z.literal('rest'),
 }).strip()
 
+// combat.tex "Social actions": what the character says, counted as a rest.
+// Intimidation goes to every enemy, a rally and an abusive's insult
+// (creating.tex "Limit Stress Actions") to the party; a negotiation's test and
+// what it comes to are the table's; surrendering raises the flag and
+// unsurrendering lowers it.
+export const SocialSaySchema = z.enum(['intimidate', 'rally', 'insult', 'negotiate', 'surrender', 'unsurrender'])
+export type SocialSay = z.infer<typeof SocialSaySchema>
+
+export const SocialActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('social'),
+  say: SocialSaySchema.default('intimidate'),
+}).strip()
+
+// combat.tex "Taunt": said to the one enemy picked as its target.
+export const TauntActionSchema = z.object({
+  ...ActionBase,
+  kind: z.literal('taunt'),
+}).strip()
+
 // combat.tex "Balance" ("Fall skill test"): the actor falling `height` metres,
 // a Balance test of their own whose degree decides the landing, opened by
 // whatever put them in the air. `to` is the cell they land on when it is not
@@ -1203,6 +1223,8 @@ export const ActionSchema = z.discriminatedUnion('kind', [
   ReloadActionSchema,
   ExtinguishActionSchema,
   RestActionSchema,
+  SocialActionSchema,
+  TauntActionSchema,
   FallActionSchema,
   SwimTestActionSchema,
   ResistActionSchema,
@@ -1243,6 +1265,8 @@ export type FirstAidAction = z.infer<typeof FirstAidActionSchema>
 export type CauterizeAction = z.infer<typeof CauterizeActionSchema>
 export type ReloadAction = z.infer<typeof ReloadActionSchema>
 export type RestAction = z.infer<typeof RestActionSchema>
+export type SocialActionRecord = z.infer<typeof SocialActionSchema>
+export type TauntAction = z.infer<typeof TauntActionSchema>
 export type PrepareAction = z.infer<typeof PrepareActionSchema>
 export type FallAction = z.infer<typeof FallActionSchema>
 export type SwimTestAction = z.infer<typeof SwimTestActionSchema>

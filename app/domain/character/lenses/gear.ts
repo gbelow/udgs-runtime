@@ -4,7 +4,7 @@ import { getHardness } from '../../item/rules/items'
 import { injuryMap } from '../../tables'
 import { getAttackKind, getAttackPropertyLabels, getAttackType } from '../../weaponProperties'
 import { getArmor } from '../rules/armor'
-import { AttackVariant, getAPSurcharge, getAttacksList, getBlockValue, getReloadCost, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
+import { getAPSurcharge, getBlockValue, getReloadCost, getStrikeDamage, isOversize, isWieldable, needsFocus } from '../rules/gear'
 import { getTGH } from '../rules/misc'
 import { getTierThreshold } from '../rules/damage'
 
@@ -91,8 +91,6 @@ export type WeaponPanelRow = WeaponAttackRow & {
   // weapon. A row the grip does not allow, or a weapon too large to wield,
   // keeps its numbers and fires nothing.
   usable: boolean
-  // The attack variants this row can fire, already priced against the wielder.
-  variants: AttackVariant[]
 }
 
 export type WeaponPanelView = {
@@ -115,8 +113,8 @@ export type WeaponPanelView = {
   rows: WeaponPanelRow[]
 }
 
-// The whole weapon panel in one shape: every weapon in the hands, its rows,
-// and the variants each row can fire. One getter means the UI needs no
+// The whole weapon panel in one shape: every weapon in the hands and its
+// rows. One getter means the UI needs no
 // per-weapon lookup back into the character, so nothing on the render path
 // reads state it has not subscribed to.
 export function getWeaponPanels(c: Character): WeaponPanelView[] {
@@ -131,14 +129,10 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     natural,
     broken,
     shield: weapon.shield ? { cover: weapon.shield.cover, body: weapon.shield.body } : null,
-    rows: getWeaponAttackRows(weapon)(c).map((row) => {
-      const usable = !broken && isWieldable(weapon, c) && isAttackUsable(row.handed, grip)
-      return {
-        ...row,
-        usable,
-        variants: usable && !row.needsFocus ? getAttacksList({ atk: row.attack, weapon })(c) : [],
-      }
-    }),
+    rows: getWeaponAttackRows(weapon)(c).map((row) => ({
+      ...row,
+      usable: !broken && isWieldable(weapon, c) && isAttackUsable(row.handed, grip),
+    })),
   }))
 }
 
@@ -161,8 +155,7 @@ export function getWeaponPanelsDigest(panels: WeaponPanelView[]): string {
         panel.shield ? `${panel.shield.cover}/${panel.shield.body}` : '',
         panel.rows
           .map((r) =>
-            [r.name, r.kind, r.handed, r.usable, r.needsFocus, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/'),
-             r.variants.map((v) => `${v.name}/${v.type}/${v.AP}/${v.STA}/${v.penalty}/${v.blunt}/${v.cut}/${v.reach}/${v.distance}`).join('~')]
+            [r.name, r.kind, r.handed, r.usable, r.needsFocus, r.RES, r.blunt, r.cut, r.AP, r.reload, r.range, r.block, r.STRreq, r.properties.join('/')]
               .join(','),
           )
           .join(';'),

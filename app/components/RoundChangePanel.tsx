@@ -4,6 +4,7 @@ import { Card } from './SceneCards'
 import { ChaseSetup } from './ChasePanel'
 import { Button, NumberInput, Panel, SectionLabel, Tooltip } from './ui'
 import { useCombatState, useMorale, useRoundChange, useTablePressure } from '../hooks/useCombatState'
+import { GmLocked } from './Locks'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { ROLL_MODES } from '../domain/play/dice'
 import type { RoundCard, RoundChangeView } from '../domain/scene/projections/roundChange'
@@ -99,22 +100,24 @@ function MoralePanel(){
 
   return(
     <div className='flex flex-col gap-1 py-2 border-y border-line text-sm'>
-      <div className='flex flex-row gap-3 items-center'>
-        <SectionLabel>Morale</SectionLabel>
-        <label className='flex gap-1 items-center text-xs text-muted'>
-          <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
-          enemy within 30 m
-        </label>
-      </div>
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-        <span>pressure</span>
-        {pressure.map((r) => (
-          <label key={r.id} className='flex gap-1 items-center'>
-            {r.name}
-            <NumberInput className='w-10' aria-label={`pressure ${r.name}`} value={r.value} onChange={(e) => setTablePressure(r.id, parseInt(e.target.value) || 0)} />
+      <GmLocked>
+        <div className='flex flex-row gap-3 items-center'>
+          <SectionLabel>Morale</SectionLabel>
+          <label className='flex gap-1 items-center text-xs text-muted'>
+            <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
+            enemy within 30 m
           </label>
-        ))}
-      </div>
+        </div>
+        <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
+          <span>pressure</span>
+          {pressure.map((r) => (
+            <label key={r.id} className='flex gap-1 items-center'>
+              {r.name}
+              <NumberInput className='w-10' aria-label={`pressure ${r.name}`} value={r.value} onChange={(e) => setTablePressure(r.id, parseInt(e.target.value) || 0)} />
+            </label>
+          ))}
+        </div>
+      </GmLocked>
       {rows.length === 0 ? <span className='text-xs text-muted'>nobody is called to a test</span> : null}
       {rows.map((r) => (
         <div key={r.id} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>

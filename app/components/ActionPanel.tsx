@@ -41,6 +41,12 @@ export function ActionPanel(){
           {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
           {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
         </div>
+        {view.social.length > 0 ? (
+          <div className='flex flex-row flex-wrap gap-1 items-center'>
+            <SectionLabel>social</SectionLabel>
+            {view.social.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
+          </div>
+        ) : null}
         <Prepared rows={view.prepared} />
       </Panel>
     )

@@ -5,7 +5,7 @@ import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import type { Character, CharacterUpdater } from "../domain/types";
 import type { Updater } from "../domain/scene/types";
-import { isFightTab, useAppStore } from "../stores/useAppStore";
+import { isActingAsGm, isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { dropToFloor, throwOffShieldToFloor } from "../domain/scene/commands/floor";
 import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
@@ -20,6 +20,7 @@ export function useHandsLens() {
   const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const tab = useAppStore((s) => s.selectedGameTab);
+  const gm = useAppStore(isActingAsGm);
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
@@ -47,7 +48,7 @@ export function useHandsLens() {
   };
 
   const drop = (itemId: string) => {
-    letGo((id) => dropToFloor(id, itemId), dropItem(itemId));
+    letGo((id) => dropToFloor(id, itemId, gm), dropItem(itemId));
     if (pending?.source === 'hand' && pending.itemId === itemId) setPending(null);
   };
 
@@ -71,7 +72,7 @@ export function useHandsLens() {
   };
 
   const throwOff = () => {
-    letGo(throwOffShieldToFloor, throwOffShield());
+    letGo((id) => throwOffShieldToFloor(id, gm), throwOffShield());
   };
 
   return { panel, hold, regrip, drop, wear, putOn, sling, unsling, throwOff } as const;

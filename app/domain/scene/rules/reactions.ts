@@ -163,6 +163,8 @@ function getKindTriggers(state: SceneState, root: RootAction): Trigger[] {
     case 'feint':
     case 'cut':
     case 'holdBack':
+    case 'social':
+    case 'taunt':
     case 'rest':
     case 'fireAgain':
     // preparing is a thing done on one's own turn, and nobody answers it

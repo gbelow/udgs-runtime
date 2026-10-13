@@ -3,13 +3,14 @@ import { setTarget } from "../domain/scene/commands/action";
 import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
 import { getOpenAction } from "../domain/scene/rules/log";
-import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/scene/projections/morale";
+import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
-import { getNextRoundBar } from "../domain/scene/rules/turn";
+import { getGearBar, getNextRoundBar } from "../domain/scene/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
+import { isActingAsGm, useAppStore } from "../stores/useAppStore";
 import { useShallow } from "zustand/shallow";
 
 // Fight-level primitives. Both go through the store selector, so a change to a
@@ -76,6 +77,12 @@ export function usePartyPicker(): PartyPicker | null {
   return getPartyPicker(useCombatStore.getState());
 }
 
+// Why the active character's gear cannot be handled now, or null.
+export function useGearBar(): string | null {
+  const gm = useAppStore(isActingAsGm);
+  return useCombatStore((s) => (s.activeCharacterId ? getGearBar(s, s.activeCharacterId, gm) : null));
+}
+
 const NO_ONE = 'no active character'
 const NO_TURN: TurnControls = { holder: '', inTurn: false, start: NO_ONE, contesting: false, contest: NO_ONE, contenders: '', roll: NO_ONE, end: NO_ONE, result: '', agreed: false, breakage: true, breakageBar: NO_ONE, stealth: '' }
 
@@ -114,12 +121,8 @@ export function useHeldTests(): HeldTestRow[] {
   return getHeldRows(useCombatStore.getState());
 }
 
-const NO_SOCIAL: SocialPanel = { bar: NO_ONE, negotiateBar: NO_ONE, insultBar: NO_ONE, cowardBar: NO_ONE, surrenderBar: NO_ONE, unsurrenderBar: NO_ONE, surrendered: false, value: 0, kinds: [], insultAtDefault: false, targets: [] }
-
-// combat.tex "Social actions" — what the active character can say and to
-// whom, gated on a digest since the panel is freshly allocated.
-export function useSocial(): SocialPanel {
-  useCombatStore((s) => (s.activeCharacterId ? JSON.stringify(getSocialPanel(s, s.activeCharacterId)) : ''));
-  const s = useCombatStore.getState();
-  return s.activeCharacterId ? getSocialPanel(s, s.activeCharacterId) : NO_SOCIAL;
+// creating.tex "Limit Stress Actions": why the table cannot take the active
+// character for a coward, or null.
+export function useCowardBar(): string | null {
+  return useCombatStore((s) => (s.activeCharacterId ? getCowardBar(s, s.activeCharacterId) : NO_ONE));
 }

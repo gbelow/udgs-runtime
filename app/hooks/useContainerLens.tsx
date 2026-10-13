@@ -12,7 +12,7 @@ import { formatMoney } from "../domain/item/rules/money";
 import { getPurseLabel, getStartingWealthView, StartingWealthView } from "../domain/item/projections/money";
 import { Character } from "../domain/types";
 import { useAppStore } from "../stores/useAppStore";
-import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
 import { usePendingItem } from "./useItemLens";
 
 // Stable default for the no-active-character case.
@@ -23,7 +23,7 @@ const NO_BURDEN: BurdenView = { penalty: 0, lame: false, label: 'none' };
 // Containers go on where the item is — a slot, the hands — or straight from
 // the catalog pick here, the way armor does (cf. useArmorLens).
 export function useContainerLens() {
-  const update = useActiveCharacterUpdate();
+  const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;

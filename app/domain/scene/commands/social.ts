@@ -1,65 +1,42 @@
-import { INSULT_BONUS, type SocialAction } from '../../tables'
-import type { SceneState, Pressure, Updater } from '../types'
-import { getActionCost } from '../../character/rules/actionCosts'
-import { payCost } from '../../character/commands/cost'
-import { getInsultBar, getSayBar, getSocialBar, getSocialTargets, getSurrenderBar, getUnsurrenderBar } from '../rules/social'
+import { INSULT_BONUS } from '../../tables'
+import type { SceneState, Pressure, SocialActionRecord, TauntAction, Updater } from '../types'
 import { getStressSocial } from '../rules/stress'
 import { getSocialValue } from '../rules/morale'
-import { updateCharacter } from './characters'
 import { getSpeakingRound } from '../rules/roundChange'
+import { isVoided } from '../rules/opportunity'
+import { getHeard } from '../rules/social'
 import { markStress } from './stress'
 
-const paySocial = (id: string): Updater => (state) =>
-  updateCharacter(id, (c) => payCost(getActionCost(c, 'socialAction'))(c), 'social action')(state)
-
-// The 5 AP paid, and what the character said written as the pressure it puts
-// on each target's morale test, read at the next round's beginning
-// (`getPressure`) — said at the round change, the one it is changing to.
-function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, targets: string[]): SceneState {
-  const paid = paySocial(id)(state)
+// What was said, written as the pressure it puts on each hearer's morale test,
+// read at the next round's beginning (`getPressure`) — said at the round
+// change, the one it is changing to.
+function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, heard: string[]): SceneState {
   const round = getSpeakingRound(state)
-  const said = targets.map((target) => ({ round, from: id, target, kind, value }))
-  return { ...paid, pressure: [...paid.pressure.filter((p) => p.round >= round - 1), ...said] }
+  const said = heard.map((target) => ({ round, from: id, target, kind, value }))
+  return { ...state, pressure: [...state.pressure.filter((p) => p.round >= round - 1), ...said] }
 }
 
-// combat.tex "Social actions": the character says it to each of the targets,
-// the table's pick, for the 5 AP.
-export function say(id: string, kind: SocialAction, targets: string[]): Updater {
-  return (state) => {
-    if (getSayBar(state, id, kind, targets)) return state
-    return speak(state, id, kind, getSocialValue(state.characters[id]), getSocialTargets(state, id, kind, targets))
-  }
-}
-
-// creating.tex "Limit Stress Actions": the insult an abusive character's owed
-// turn compels, said to whoever the table picks.
-export function insult(id: string, targets: string[]): Updater {
-  return (state) => {
-    if (getInsultBar(state, id, targets)) return state
-    return markStress(id, { acted: true })(speak(state, id, 'insult', INSULT_BONUS, getSocialTargets(state, id, 'insult', targets)))
-  }
-}
-
-// combat.tex "Surrender": flags the character surrendered for the 5 AP.
-export function surrender(id: string): Updater {
-  return (state) => {
-    if (getSurrenderBar(state, id)) return state
-    const paid = paySocial(id)(state)
-    return { ...paid, surrendered: [...paid.surrendered, id] }
-  }
-}
-
-export function unsurrender(id: string): Updater {
-  return (state) => (getUnsurrenderBar(state, id) ? state : { ...state, surrendered: state.surrendered.filter((s) => s !== id) })
-}
-
-// combat.tex "Negotiation": the 5 AP. The test and what it comes to are the
-// table's.
-export function negotiate(id: string): Updater {
-  return (state) => {
-    if (getSocialBar(state, id)) return state
-    const paid = paySocial(id)(state)
-    return getStressSocial(state, id) === 'negotiate' ? markStress(id, { acted: true })(paid) : paid
+// combat.tex "Social actions": what a social action leaves once it lands,
+// its 5 AP already paid with it. An intimidation, a rally or a taunt weighs
+// on its hearers' morale; an abusive's insult (creating.tex "Limit Stress
+// Actions") weighs its own bonus and does the duty, as a negotiation does a
+// traitor's; a surrender raises the flag, an unsurrender lowers it.
+export function landSocial(state: SceneState, action: SocialActionRecord | TauntAction): SceneState {
+  const c = state.characters[action.actorId]
+  if (!c || isVoided(state, action)) return state
+  if (action.kind === 'taunt') return action.targetId ? speak(state, c.id, 'taunt', getSocialValue(c), [action.targetId]) : state
+  switch (action.say) {
+    case 'intimidate':
+    case 'rally':
+      return speak(state, c.id, action.say, getSocialValue(c), getHeard(state, c.id, action.say))
+    case 'insult':
+      return markStress(c.id, { acted: true })(speak(state, c.id, 'insult', INSULT_BONUS, getHeard(state, c.id, 'insult')))
+    case 'negotiate':
+      return getStressSocial(state, c.id) === 'negotiate' ? markStress(c.id, { acted: true })(state) : state
+    case 'surrender':
+      return state.surrendered.includes(c.id) ? state : { ...state, surrendered: [...state.surrendered, c.id] }
+    case 'unsurrender':
+      return { ...state, surrendered: state.surrendered.filter((s) => s !== c.id) }
   }
 }
 

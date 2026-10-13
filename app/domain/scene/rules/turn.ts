@@ -1,4 +1,4 @@
-import type { CampaignCharacter, SurgeKind } from '../../types'
+import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
@@ -24,11 +24,12 @@ export function isInTurn(state: SceneState, id: string): boolean {
   return id !== '' && state.inTurnCharacter === id
 }
 
-// Whether a change to a character spends AP they have no turn to spend it
-// in: what costs AP (an item drawn or stowed, a shield slid) waits for their
-// own turn, what is free does not.
-export function isSpendingOutOfTurn(state: SceneState, before: CampaignCharacter, after: CampaignCharacter): boolean {
-  return !isInTurn(state, before.id) && after.resources.AP < before.resources.AP
+// Why the character cannot handle their gear now, or null: once the fight
+// has started, drawing, stowing, donning, dropping and every other move with
+// what they carry waits for their own turn, free or not. Before the first
+// round they are not yet fighting; the GM handles anyone's at any time.
+export function getGearBar(state: SceneState, id: string, gm = false): string | null {
+  return !gm && state.round > 0 && !isInTurn(state, id) ? 'gear is handled only on their own turn' : null
 }
 
 // Who holds the turn, if they are still in the fight.

@@ -49,6 +49,8 @@ export function getSettled(state: SceneState, open: RootAction): RootAction {
     }
     case 'grapple': return { ...open, step: 'done', facts: getManeuverFacts(state, open) }
     case 'rest':
+    case 'social':
+    case 'taunt':
     case 'prepare':
     case 'extinguish': return { ...open, step: 'done' }
     case 'pickUp': {

@@ -28,7 +28,7 @@ import { ExplorationStateSchema, type Exploring } from './exploration/types'
 import * as downtimeModule from './downtime/commands/downtime'
 import * as downtimePlansModule from './downtime/commands/plans'
 import { DowntimeStateSchema, type Downtime } from './downtime/types'
-import { SceneStateSchema, type SceneState } from './scene/types'
+import { SceneStateSchema, SocialActionSchema, type SceneState } from './scene/types'
 import { getOpenAction, withLiveActions } from './scene/rules/log'
 import { getRootTest } from './scene/rules/attack'
 import { makeCampaignCharacter, makeCreationDraft } from './factories'
@@ -243,12 +243,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   letGo: (s) => combatCommands.letGo('a', () => 0)(deepFreeze({ ...cleared(s), inTurnCharacter: '', roundStep: 'concentration' })),
   rollMorale: (s) => combatCommands.rollMorale('a', 'safe', true, () => 3)(deepFreeze({ ...s, morale: [{ id: 'a', roll: null }] })),
   setTablePressure: (s) => combatCommands.setTablePressure('a', 2)(deepFreeze(s)),
-  say: (s) => combatCommands.say('a', 'taunt', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a' })),
-  negotiate: (s) => combatCommands.negotiate('a')(deepFreeze(cleared(s))),
-  insult: (s) => combatCommands.insult('a', ['b'])(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
+  landSocial: (s) => combatCommands.landSocial(deepFreeze(cleared(s)), SocialActionSchema.parse({ id: 'x', actorId: 'a', kind: 'social', say: 'rally' })),
   defaultToCoward: (s) => combatCommands.defaultToCoward('a')(deepFreeze({ ...cleared(s), inTurnCharacter: 'a', compulsions: [{ id: 'a', action: 'abusive', acted: false, taken: false, by: '', constraint: null }] })),
-  surrender: (s) => combatCommands.surrender('a')(deepFreeze(cleared(s))),
-  unsurrender: (s) => combatCommands.unsurrender('a')(deepFreeze({ ...cleared(s), surrendered: ['a'] })),
   resetCombat: combatCommands.resetCombat,
   startTurn: (s) => combatCommands.startTurn('b')(deepFreeze({ ...cleared(s), inTurnCharacter: '' })),
   toggleBreakage: (s) => combatCommands.toggleBreakage(deepFreeze(cleared(s))),

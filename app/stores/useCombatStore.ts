@@ -13,7 +13,8 @@ type CombatActions = {
   getActiveCharacter: () => CampaignCharacter | null
 
   updateActiveCharacter: (
-    updater: (c: CampaignCharacter) => CampaignCharacter
+    updater: (c: CampaignCharacter) => CampaignCharacter,
+    cause?: string
   ) => CampaignCharacter | undefined
 
   updateCombatState: (updater: (state: SceneState) => SceneState) => void
@@ -34,10 +35,10 @@ export const useCombatStore = create<CombatStore>((set, get) => ({
 
   getActiveCharacter: () => getActiveCharacter(get()),
 
-  updateActiveCharacter: (updater) => {
+  updateActiveCharacter: (updater, cause) => {
     const current = get().getActiveCharacter();
     if (!current) return undefined;
-    set(updateCharacter(current.id, updater));
+    set(updateCharacter(current.id, updater, cause));
     return get().characters[current.id];
   },
 

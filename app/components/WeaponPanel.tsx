@@ -1,35 +1,15 @@
 'use client'
 
 import { useWeaponLens } from "../hooks/useWeaponLens";
-import { useCombatActions } from "../hooks/useCombatActions";
-import type { AttackVariant } from "../domain/character/rules/gear";
-import type { AttackKind } from "../domain/types";
 import { Fragment } from "react";
-import { Button, Panel } from "./ui";
+import { Panel } from "./ui";
 
 const th = 'font-medium px-1 pb-1 border-b border-line'
 
-// The weapons in hand as a table; a melee row's variants declare a strike
-// with that row filled in, so the action panel opens at the target step.
+// The weapons in hand as a table of their attacks and properties; attacks
+// are declared from the action panel.
 export function WeaponPanel(){
   const { panels } = useWeaponLens()
-  const { declare } = useCombatActions()
-
-  const AttackButtons = ({ variants, weaponKey, attack, kind }: { variants: AttackVariant[], weaponKey: string, attack: string, kind: AttackKind }) =>{
-    return(
-      <span className='flex flex-row flex-wrap gap-1'>
-        {
-          variants.map(el =>
-            <Button size='xs' key={el.name} disabled={kind !== 'melee'}
-              title={`blunt ${el.blunt} · cut ${el.cut} · ${el.AP} AP${el.STA ? ` · ${el.STA} STA` : ''}${el.penalty ? ` · ${-el.penalty} to hit` : ''}`}
-              onClick={() => declare({ kind: 'strike', weaponKey, attack, variant: el.name })}>
-              {el.name} <span className='font-mono'>{el.blunt}/{el.cut}</span>
-            </Button>
-          )
-        }
-      </span>
-    )
-  }
 
   return(
     <Panel title='Weapons'>
@@ -73,7 +53,7 @@ export function WeaponPanel(){
                       <tr className='border-b border-line/50'>
                         <td colSpan={8} className='px-1 pb-1'>
                           <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center'>
-                            {row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponKey={panel.key} attack={row.name} kind={row.kind} />}
+                            {row.needsFocus ? <span className='text-muted'>needs focus surge</span> : null}
                             {row.properties.length > 0 ? <span className='text-muted'>{row.properties.join(', ')}</span> : null}
                           </div>
                         </td>

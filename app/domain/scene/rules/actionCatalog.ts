@@ -40,6 +40,11 @@ export type ActionDef<K extends ActionKind = ActionKind> = {
   // the declared fields that tell two options of the kind apart, each with
   // the value it reads as when left out
   identity?: Partial<Omit<Extract<ActionDraft, { kind: K }>, 'kind'>>
+  // the heading the panel lists its options under, when not the actions'
+  group?: 'social'
+  // counts as a rest: open at the round's rest step outside the turn, and may
+  // overdraw the AP the next round brings (combat.tex "Rest")
+  rest?: true
 }
 
 export const ACTIONS = {
@@ -153,7 +158,12 @@ export const ACTIONS = {
   // combat.tex "Fire": muffling a burning space, the actor's own or next to it
   extinguish:  { label: 'extinguish', rule: 'combat.tex "Fire"',    type: 'action',   price: 'extinguish', reactsTo: [],      die: false },
   // combat.tex "Rest"
-  rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false },
+  rest:        { label: 'rest', rule: 'combat.tex "Rest"',         type: 'action',   price: 'rest',     reactsTo: [],         die: false, rest: true },
+  // combat.tex "Social actions": each "counts as a Rest action"; priced by
+  // what is said (rules/social.ts `getSocialCost`)
+  social:      { label: 'social', rule: 'combat.tex "Social actions"', type: 'action', price: null,           reactsTo: [],         die: false, identity: { say: 'intimidate' }, group: 'social', rest: true },
+  // combat.tex "Social actions", "Taunt"
+  taunt:       { label: 'taunt', rule: 'combat.tex "Social actions", "Taunt"', type: 'action', price: 'socialAction', reactsTo: [], die: false, targeted: true, group: 'social', rest: true },
   // combat.tex "Balance" ("Fall skill test"): the faller's own Balance test,
   // opened by the jump down or the climb that failed, or declared by a climber
   // who lets go

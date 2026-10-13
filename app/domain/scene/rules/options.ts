@@ -1,7 +1,9 @@
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { getMedicineBar, getMedicineCost } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
-import type { Action, ActionDraft, ActionKind, ActionOf, SceneState, DeclarableKind, RootAction } from '../types'
+import type { Action, ActionDraft, ActionKind, ActionOf, SceneState, DeclarableKind, RootAction, SocialSay } from '../types'
+import { getSocialCost, getSocialSayBar, getTauntBar } from './social'
+import { getStressSocial } from './stress'
 import { ACTIONS, getActionDef, reactsTo } from './actionCatalog'
 import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction } from '../../character/rules/afflictions'
@@ -441,6 +443,13 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const cost = getActionCost(c, 'rest')
     return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : getChaseRestBar(state, c.id) ?? (canAffordRest(c, 'rest', getIncomingAP(state)) ? null : 'cannot afford'))]
   },
+  // combat.tex "Social actions": an insult only for the abusive compelled to
+  // it, and the surrender flag raised or lowered, whichever it stands at
+  social: (state, c) => {
+    const says: SocialSay[] = ['intimidate', 'rally', 'negotiate', ...(getStressSocial(state, c.id) === 'insult' ? ['insult' as const] : []), state.surrendered.includes(c.id) ? 'unsurrender' : 'surrender']
+    return says.map((say) => option({ kind: 'social', say }, getSocialCost(c, say), getSocialSayBar(state, c, say)))
+  },
+  taunt: (state, c) => [option({ kind: 'taunt' }, getActionCost(c, 'socialAction'), getTauntBar(state, c))],
 }
 
 function isPlaced(state: SceneState, c: CampaignCharacter): boolean {
@@ -502,7 +511,12 @@ function closeWhileFleeing(state: SceneState, c: CampaignCharacter, options: Act
 // reactions and what they open — and a rest at the round change, the table's
 // ruling.
 function closeOutOfTurn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (o.draft.kind === 'rest' && getRoundPhase(state) === 'rest' ? null : 'not your turn'))
+  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (getActionDef(o.draft.kind).rest && getRoundPhase(state) === 'rest') || isUnsurrender(o.draft) ? null : 'not your turn')
+}
+
+// combat.tex "Surrender": unflagged "at any time".
+function isUnsurrender(draft: ActionDraft): boolean {
+  return draft.kind === 'social' && draft.say === 'unsurrender'
 }
 
 function closeByRoundChange(state: SceneState, options: ActionOption[]): ActionOption[] {

@@ -1,6 +1,6 @@
 import { CampaignCharacter, Character, CreationDraft } from "../domain/types";
 import type { SceneState } from "../domain/scene/types";
-import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
+import { GameTabs, isActingAsGm, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useRaceStore } from "../stores/useRaceStore";
@@ -85,17 +85,19 @@ export function readActiveCharacter(tab: GameTabs): Character | null {
 // whole-character subscription that useActiveCharacter carries on its read path.
 export function useActiveCharacterUpdate() {
   const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
-  return useUpdater(updateCombatActive);
+  const gm = useAppStore(isActingAsGm);
+  return useUpdater((updater) => updateCombatActive(updater, gm ? 'GM edit' : undefined));
 }
 
 // The same, for a move with the character's gear: in a fight the combat
-// domain refuses what would spend AP outside their own turn.
+// domain refuses it outside their own turn, unless the GM makes it.
 export function useActiveInventoryUpdate() {
   const updateCombatState = useCombatStore((s) => s.updateCombatState);
+  const gm = useAppStore(isActingAsGm);
   return useUpdater((updater) => {
     const id = useCombatStore.getState().activeCharacterId;
     if (!id) return undefined;
-    updateCombatState(updateInventory(id, updater));
+    updateCombatState(updateInventory(id, updater, gm));
     return useCombatStore.getState().characters[id];
   });
 }

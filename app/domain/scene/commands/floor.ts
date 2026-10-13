@@ -8,17 +8,19 @@ import { onFloor } from '../rules/floor'
 import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
-import { isSpendingOutOfTurn } from '../rules/turn'
+import { getGearBar } from '../rules/turn'
 
 // What a character lets go of lands where they stand, and a holder who let
 // go of the last thing they could grapple with lets go of the grapple. A
-// move refused leaves the character as it was, and nothing lands.
-function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C) => C): Updater {
+// move refused leaves the character as it was, and nothing lands; outside
+// their own turn only the GM lets go for them.
+function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C) => C, gm: boolean): Updater {
   return (state) => {
     const c = state.characters[characterId]
     if (!c || !item) return state
+    if (getGearBar(state, characterId, gm)) return state
     const after = letGo(c)
-    if (after === c || isSpendingOutOfTurn(state, c, after)) return state
+    if (after === c) return state
     return settleBinds({
       ...state,
       characters: { ...state.characters, [characterId]: after },
@@ -28,17 +30,17 @@ function landOnFloor(characterId: string, item: Item | null | undefined, letGo: 
 }
 
 // combat.tex "Putting items away": "Dropping items on the floor costs 0 AP".
-export function dropToFloor(characterId: string, itemId: string): Updater {
+export function dropToFloor(characterId: string, itemId: string, gm = false): Updater {
   return (state) => {
     const c = state.characters[characterId]
-    return landOnFloor(characterId, c && getHeldItem(c, itemId), dropItem(itemId))(state)
+    return landOnFloor(characterId, c && getHeldItem(c, itemId), dropItem(itemId), gm)(state)
   }
 }
 
 // gear.tex "Shields": the shield thrown off the back, once the standard
 // action is paid.
-export function throwOffShieldToFloor(characterId: string): Updater {
-  return (state) => landOnFloor(characterId, state.characters[characterId]?.onBack, throwOffShield())(state)
+export function throwOffShieldToFloor(characterId: string, gm = false): Updater {
+  return (state) => landOnFloor(characterId, state.characters[characterId]?.onBack, throwOffShield(), gm)(state)
 }
 
 // An item on the floor chosen for picking up: declares the pick up with it,

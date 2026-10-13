@@ -1,8 +1,10 @@
-import { hasGmTools, useAppStore } from "../stores/useAppStore";
+import { hasGmTools, isActingAsGm, useAppStore } from "../stores/useAppStore";
 
-// Whether the GM tools and the catalog pickers are shown to whoever is at
-// the screen.
+// Whether whoever is at the screen has the GM mode switch, and whether it is
+// on.
 export function useRole() {
   const role = useAppStore((s) => s.role);
-  return { role, gmTools: hasGmTools(role) } as const;
+  const gm = useAppStore(isActingAsGm);
+  const setGmMode = useAppStore((s) => s.setGmMode);
+  return { gmTools: hasGmTools(role), gm, setGmMode } as const;
 }
