@@ -7,8 +7,8 @@ import type { EpisodeEntry } from '../domain/scene/projections/episode'
 import type { Outcome } from '../domain/character/rules/damage'
 import type { ActionCost } from '../domain/character/rules/actionCosts'
 import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '../domain/scene/types'
-import { Button, Panel, SectionLabel } from './ui'
-import { SkillTooltip } from './SkillTooltip'
+import { Button, Panel, SectionLabel, Tooltip } from './ui'
+import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
 import { StrikeModifiers } from './StrikeModifiers'
 
@@ -248,6 +248,8 @@ export function ActionPanel(){
         <div className='text-xs text-muted'>{open.area.shape === 'spray' ? 'click a cell on the board to point the spray' : 'click the cell on the board where it lands'}{open.area.aimed ? ' — or elsewhere to move it' : ''}</div>
       ) : null}
 
+      {declared && open.score.terms.length > 0 ? <Test open={open} /> : null}
+
       {declared ? (
         <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button></div>
       ) : null}
@@ -289,7 +291,7 @@ export function ActionPanel(){
           {open.roll || view.compare ? <Test open={open} /> : null}
           {open.roll ? (
             <RollLine roll={open.roll} className='text-sm'>
-              {open.roll.HOP ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
+              {open.roll.HOP || view.hop.options.length > 0 ? <span>HOP <span className='font-mono'>{view.hop.remaining}</span><span className='text-muted'>/{open.roll.HOP}</span></span> : null}
             </RollLine>
           ) : null}
           {open.walked ? (
@@ -464,22 +466,27 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
   )
 }
 
-// The test as it stands. An explosion has no attacker's side: its DL is
-// what the reactors' reflexes are rolled against.
+// The test as it stands, and what each side adds up from. An explosion has
+// no attacker's side: its DL is what the reactors' reflexes are rolled against.
 function Test({ open }: { open: OpenActionView }){
   return (
-    <div className='flex flex-row flex-wrap gap-x-3 items-baseline text-xs text-muted'>
-      {open.score.terms.length > 0 ? (
-        <SkillTooltip terms={open.score.terms} total={open.score.total}>
-          <span>attack <span className='font-mono text-fg'>{open.score.total}</span></span>
-        </SkillTooltip>
-      ) : null}
-      <SkillTooltip terms={open.DL.terms} total={open.DL.total}>
-        <span>vs DL <span className='font-mono text-fg'>{open.DL.total}</span></span>
-      </SkillTooltip>
+    <div className='flex flex-col text-xs text-muted'>
+      {open.score.terms.length > 0 ? <TermLine label='score' terms={open.score.terms} total={open.score.total} /> : null}
+      <TermLine label='vs DL' terms={open.DL.terms} total={open.DL.total} />
     </div>
   )
 }
+
+function TermLine({ label, terms, total }: { label: string, terms: Term[], total: number }){
+  const shown = terms.filter((t) => t.value !== 0)
+  return (
+    <span>
+      {label} <span className='font-mono text-fg'>{total}</span>
+      {shown.length > 0 ? <> = {shown.map((t) => `${t.label} ${signed(t.value)}`).join(' · ')}</> : null}
+    </span>
+  )
+}
+
 
 // A spell to cast, on the focus surge or quickened without it
 // (spells.tex "Quicken Spell").
@@ -537,12 +544,21 @@ function MovementButton({ option, active, onClick }: { option: MovementOption, a
   )
 }
 
+// Why a closed button is closed, on hover. A disabled button takes no mouse
+// events, so the hover lands on the wrapper and the button lets it through.
+function Closed({ reason, children }: { reason: string | null | undefined, children: React.ReactNode }){
+  if (!reason) return <>{children}</>
+  return <Tooltip text={reason} className='cursor-help [&>button]:pointer-events-none'>{children}</Tooltip>
+}
+
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
-    <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
-      disabled={!option.available} title={option.reason ?? undefined} onClick={onClick}>
-      {option.label} <Cost cost={option.cost} />
-    </Button>
+    <Closed reason={option.available ? null : option.reason}>
+      <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+        disabled={!option.available} onClick={onClick}>
+        {option.label} <Cost cost={option.cost} />
+      </Button>
+    </Closed>
   )
 }
 
@@ -552,12 +568,14 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
   const bought = option.bought > 0
   return (
     <span className='inline-flex items-stretch'>
+      <Closed reason={option.available ? null : option.reason}>
       <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
-        disabled={!option.available} title={option.reason ?? undefined} onClick={onBuy}>
-        {option.label} <span className='font-mono text-muted'>{option.cost}</span>
-        {option.price ? <Cost cost={option.price} /> : null}
+        disabled={!option.available} onClick={onBuy}>
+        {option.label} <span className='font-mono text-muted'>{option.cost} HOP</span>
+        {option.price ? <> + <Cost cost={option.price} /></> : null}
         {bought ? <span className='ml-1 font-mono'>×{option.bought}</span> : null}
       </Button>
+      </Closed>
       {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
     </span>
   )

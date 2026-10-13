@@ -35,6 +35,7 @@ export function PlayPanel(){
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <aside className='md:w-64 shrink-0 flex flex-col gap-2 p-2 border-b md:border-b-0 md:border-r border-line min-h-0 overflow-y-auto'>
           <FightControls />
+          <FightSettings />
           <CharacterList />
           {hasActiveCharacter ? <PartyControl /> : null}
           <div className='border-t border-line pt-2'><Sidebar /></div>
@@ -49,16 +50,16 @@ export function PlayPanel(){
         ) : null}
       </div>
       {hasActiveCharacter ? (
-        <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[38vh]'>
+        <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
           <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
             <Status />
           </div>
           <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
             <ActionBar />
           </div>
-          <div className='md:col-span-4 p-2 flex flex-col gap-1 overflow-y-auto'>
+          <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-0'>
             <SectionLabel>Log</SectionLabel>
-            <ActionLog />
+            <div className='flex-1 min-h-0 overflow-y-auto'><ActionLog /></div>
           </div>
         </div>
       ) : null}
@@ -84,6 +85,23 @@ function FightControls(){
         <span className='text-xs text-muted'>ETs taken</span>
         <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
       </div>
+    </div>
+  )
+}
+
+// How the table plays this fight, apart from anything a character does.
+function FightSettings(){
+  const { toggleBreakage } = useCombatCommands()
+  const { breakage, breakageBar } = useTurnControls()
+
+  return(
+    <div className='flex flex-col gap-1 border-t border-line pt-2'>
+      <SectionLabel>Settings</SectionLabel>
+      <Tooltip text={breakageBar ?? (breakage ? 'gear can break: turn it off' : 'gear never breaks: turn it on')}>
+        <Button size='xs' aria-label='breakage' aria-pressed={breakage} active={breakage} disabled={breakageBar !== null} onClick={toggleBreakage}>
+          equipment breakage: {breakage ? 'on' : 'off'}
+        </Button>
+      </Tooltip>
     </div>
   )
 }
@@ -164,8 +182,9 @@ function ActionBar(){
 
   return(
     <>
-      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-        <TurnControl />
+      <TurnControl />
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>surge</SectionLabel>
         <SurgeControl />
       </div>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -216,8 +235,8 @@ function SustainedPanel(){
 // contested before its holder declares anything — by as many as ask, all
 // rolling cunning at once.
 function TurnControl(){
-  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, toggleBreakage } = useCombatCommands()
-  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, breakage, breakageBar, stealth } = useTurnControls()
+  const { startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn } = useCombatCommands()
+  const { holder, inTurn, start, contesting, contest, contenders, roll, end, result, agreed, stealth } = useTurnControls()
 
   return(
     <div className='flex flex-col gap-0.5'>
@@ -247,9 +266,6 @@ function TurnControl(){
           <Button aria-label='agreeToEnd' aria-pressed={agreed} variant={agreed ? 'primary' : 'default'} className={agreed ? 'bg-accent/20' : ''} onClick={toggleAgreeToEnd}>
             {agreed ? <span className='mr-1'>✓</span> : null}end round ok
           </Button>
-        </Tooltip>
-        <Tooltip text={breakageBar ?? (breakage ? 'equipment breakage is on' : 'equipment breakage is off')}>
-          <Button aria-label='breakage' aria-pressed={breakage} active={breakage} disabled={breakageBar !== null} onClick={toggleBreakage}>breakage</Button>
         </Tooltip>
         {holder ? <span className='text-xs text-muted'>{holder}&apos;s turn{contenders ? `, contested by ${contenders}` : ''}</span> : null}
       </div>
