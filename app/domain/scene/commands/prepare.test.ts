@@ -12,6 +12,7 @@ import { getTriggersFor } from '../rules/reactions'
 import { getPrepared, getPreparedZone } from '../rules/prepared'
 import { add, coordKey, disk, DIRECTIONS, sameCell } from '../rules/board/geometry'
 import { seesAcross } from '../rules/board/board'
+import { getReachableCells } from '../rules/board/reach'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawSpawnedAction } from './action'
 import { passRound } from '../../bot/table'
 
@@ -376,6 +377,20 @@ describe('preparing a defense for an ally', () => {
     const passed = withdrawSpawnedAction(newId)(on)
     expect(backAtTheAttack(passed)).toBe(true)
     expect(getDLTerms(passed, getOpenAction(passed)!).map((t) => t.label)).toContain('cover')
+  })
+
+  // A block walked onto the space the target's evasive jump was landing on,
+  // and the two stood on one space once the strike landed (fuzz crowd, seed 34).
+  it('does not walk onto the space an evasive jump from the same attack lands on', () => {
+    const start = thrust([1, -3])
+    const landing = { cell: { q: 1, r: -1 }, orientation: 0 as const, elevation: 0, depth: 0, focus: null, climb: null }
+    let s = declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)
+    s = declareReaction('def', { kind: 'evasiveJump', to: landing }, newId)(s)
+    s = rollAction(() => MISS, newId)(s)
+    expect(isRepositioning(s)).toBe(true)
+    const move = getOpenAction(s)!
+    expect(move.kind === 'move' && getReachableCells(s, move).some(({ cell }) => sameCell(cell, landing.cell))).toBe(false)
+    expect(getOpenAction(toTheLine(s))).toMatchObject({ kind: 'move', step: 'define' })
   })
 
   // combat.tex "Preparing a reaction": the movement draws opportunity attacks

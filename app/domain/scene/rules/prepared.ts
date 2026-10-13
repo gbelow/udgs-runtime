@@ -386,7 +386,19 @@ export function isRepositionPlaced(state: SceneState, move: ActionOf<'move'>): b
   const from = state.board?.placements[reaction.actorId]
   const end = move.path.at(-1)
   if (!setting || !from || !end) return false
-  return isPlacedToDefend(state, setting.root, setting.owner, setting.prepared, { ...from, cell: end })
+  return canRepositionTo(state, setting, { ...from, cell: end })
+}
+
+// Whether the preparer may walk to the placement to make the defense: it can
+// be made from there, and no evasive jump answering the same attack is landing
+// on it — the jump was declared first and has the space (the table's ruling).
+function canRepositionTo(state: SceneState, setting: NonNullable<ReturnType<typeof getDefenseSetting>>, placement: Placement): boolean {
+  if (!isPlacedToDefend(state, setting.root, setting.owner, setting.prepared, placement)) return false
+  const landings = getLiveReactionsTo(state, setting.root.id).flatMap((r) => {
+    const jumper = state.characters[r.actorId]
+    return r.kind === 'evasiveJump' && r.to && jumper && r.actorId !== setting.owner.id ? getFootprint(jumper, r.to) : []
+  })
+  return !getFootprint(setting.owner, placement).some((c) => landings.some((l) => l.q === c.q && l.r === c.r))
 }
 
 // Of the spaces a move can reach, the ones it is worth walking to: for the
@@ -397,5 +409,5 @@ export function getUsableCells<C extends { cell: Coord }>(state: SceneState, mov
   const setting = reaction && isPreparedDefense(reaction) && reaction.preparedId !== '' ? getDefenseSetting(state, reaction) : null
   const from = state.board?.placements[move.actorId]
   if (!setting || !from) return cells
-  return cells.filter(({ cell }) => isPlacedToDefend(state, setting.root, setting.owner, setting.prepared, { ...from, cell }))
+  return cells.filter(({ cell }) => canRepositionTo(state, setting, { ...from, cell }))
 }
