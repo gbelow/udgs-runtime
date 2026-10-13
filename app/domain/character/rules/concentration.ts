@@ -1,7 +1,8 @@
 import type { ActiveEntry, Character } from '../../types'
 import { SPELLS, SpellKey, isSpellKey } from '../../spells'
+import { ABILITIES, type AbilityKey } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
-import { getActiveSpellKeys, isSpellActive } from './effects'
+import { effectsOn, getActiveAbilityKeys, getActiveSpellKeys, isSpellActive } from './effects'
 import { getSize } from './size'
 
 // spells.tex "Sustained Spells": "actions that can be performed continuously
@@ -9,6 +10,13 @@ import { getSize } from './size'
 // concentrating, and does nothing but what the spell they hold allows.
 export function isConcentrating(c: Character): boolean {
   return getActiveSpellKeys(c).length > 0
+}
+
+// The abilities switched on that charge every round change: what, beside a
+// held spell, the character pays for again or lets go of as the round
+// changes.
+export function getSustainedAbilities(c: Character): AbilityKey[] {
+  return getActiveAbilityKeys(c).filter((key) => ABILITIES[key].activation === 'toggle' && effectsOn(ABILITIES[key].effect, 'end_round').length > 0)
 }
 
 // What the caster keeps of a held spell, and the size it was cast at.

@@ -6,7 +6,6 @@ import { getHeldEntry, getHeldSize } from '../../character/rules/concentration'
 import { drawCharges, getChargeDraw, hasChargesFor } from '../../character/rules/spells'
 import { findReadyItem } from '../../item/rules/containers'
 import { canAfford } from '../../character/rules/cost'
-import { isDead } from '../../character/rules/afflictions'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import { getSpellEffects, produceEffects } from '../../character/rules/production'
 import { getAimedDeliveries, getTargetDeliveries, isAreaSpell, isInSpellReach } from './cast'
@@ -53,12 +52,6 @@ export function getRetargetOptions(c: CampaignCharacter): { key: SpellKey; reach
     .filter((key) => SPELLS[key].repeat !== null && isAreaSpell(key))
     .map((key) => ({ key, reach: getSprayReach(c, key) }))
     .filter(({ reach }) => reach > 0)
-}
-
-// The held sprays whose holders pay their upkeep at the round change, each
-// owed a free aim (the table's ruling); the dead hold nothing.
-export function getUpkeepAims(state: SceneState): { actorId: string; key: SpellKey }[] {
-  return Object.values(state.characters).flatMap((c) => (isDead(c) ? [] : getRetargetOptions(c).map(({ key }) => ({ actorId: c.id, key }))))
 }
 
 // Why the held spell cannot be fired again now, or null.

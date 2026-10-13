@@ -6,6 +6,7 @@ import { getPressureKey } from './morale'
 import { getOpenAction } from './log'
 import { getSituationalAfflictions } from './situational'
 import { getStressSocial } from './stress'
+import { getIncomingAP, getRoundPhase } from './roundChange'
 
 // Who anything is said to: others in the fight, once each.
 export function getOthers(state: SceneState, id: string, targets: string[]): string[] {
@@ -35,12 +36,15 @@ export function getSocialTargets(state: SceneState, id: string, kind: SocialActi
 // combat.tex "Social actions": "Every social action costs 5 AP and counts as
 // a Rest action, which can be done at the end of the round". Why the character
 // cannot take one now, or null: like a rest, in or out of their turn and
-// allowed to overdraw AP, with nothing being played out.
+// allowed to overdraw AP, with nothing being played out; of the round change,
+// only in its first step.
 export function getSocialBar(state: SceneState, id: string): string | null {
   const c = state.characters[id]
   if (!c) return 'not in the fight'
   if (getOpenAction(state)) return 'an action is being played out'
-  return canAffordRest(c, 'socialAction') ? null : 'not enough AP'
+  const phase = getRoundPhase(state)
+  if (phase !== null && phase !== 'rest' && phase !== 'stress') return 'the round is changing'
+  return canAffordRest(c, 'socialAction', getIncomingAP(state)) ? null : 'not enough AP'
 }
 
 export function getSayBar(state: SceneState, id: string, kind: SocialAction, targets: string[]): string | null {

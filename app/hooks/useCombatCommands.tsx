@@ -1,4 +1,4 @@
-import { nextRound as passRound } from "../domain/scene/commands/nextRound"
+import { continueRound as moveRoundOn, holdOn as holdOnTo, letGo as letGoOf, nextRound as passRound } from "../domain/scene/commands/nextRound"
 import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/scene/commands/turn"
 import type { SurgeKind } from "../domain/types"
 import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
@@ -67,7 +67,19 @@ export function useCombatCommands() {
   }
 
   const nextRound = () => {
-    updateCombatState(passRound(realDice, () => crypto.randomUUID()))
+    updateCombatState(passRound(realDice))
+  }
+
+  const continueRound = () => {
+    updateCombatState(moveRoundOn(realDice))
+  }
+
+  const holdOn = (id: string) => {
+    updateCombatState(holdOnTo(id, realDice))
+  }
+
+  const letGo = (id: string) => {
+    updateCombatState(letGoOf(id, realDice))
   }
 
   const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => {
@@ -113,5 +125,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, say, insult, negotiate, defaultToCoward, surrender, unsurrender, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
 }

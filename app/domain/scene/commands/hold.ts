@@ -1,9 +1,6 @@
 import type { Action, RootAction, SceneState } from '../types'
 import type { Dice } from '../../play/dice'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { canSurge } from '../../character/rules/surge'
-import { actionSurge } from '../../character/commands/actionSurge'
-import { payCost } from '../../character/commands/cost'
 import { getFinishBar, getOwnCost } from '../rules/action'
 import { getHeldActions, getHeldOf } from '../rules/hold'
 import { getAction, getLiveActions, getOpenAction } from '../rules/log'
@@ -37,30 +34,28 @@ export function breakHeld(state: SceneState, landed: Action): SceneState {
   return broken.length === 0 ? state : withdrawActions(state, broken.map((h) => h.id), 'interrupted')
 }
 
-// combat.tex "Concentration": the round has changed. Whoever holds an action
-// has the AP of the new round to pay what it still costs, before anyone's
-// turn: those who have enough finish, in the order of their cunning tests
-// ("make cunning tests for all contenders and apply effects from highest to
-// lowest"; alone, none is thrown); those who do not hold on, with the focus
-// surge made again and every AP they have, or lose it.
-export function startFinishing(state: SceneState, dice: Dice): SceneState {
+// combat.tex "Concentration": the round has changed, and these held actions'
+// actors let them go to be finished with the AP of the new round. Those who
+// have enough finish, in the order of their cunning tests ("make cunning
+// tests for all contenders and apply effects from highest to lowest"; alone,
+// none is thrown); the others, and whoever can no longer act, come to
+// nothing.
+export function finishHeld(state: SceneState, ids: string[], dice: Dice): SceneState {
   const finishing: string[] = []
   let s = state
-  for (const held of getHeldActions(state)) {
+  for (const held of getHeldActions(state).filter((h) => ids.includes(h.id))) {
     const c = s.characters[held.actorId]
     const price = c ? getOwnCost(s, held) : null
-    if (!c || !price || isDead(c) || hasAffliction(c, 'unconscious')) s = withdrawActions(s, [held.id], 'failed')
-    else if (c.resources.AP >= price.AP) finishing.push(held.id)
-    else if (canSurge('focus')(c)) s = holdOn(s, held)
-    else s = withdrawActions(s, [held.id], 'failed')
+    if (!c || !price || isDead(c) || hasAffliction(c, 'unconscious') || c.resources.AP < price.AP) s = withdrawActions(s, [held.id], 'failed')
+    else finishing.push(held.id)
   }
-  return finishing.length === 0 ? s : replaceActions(s, rank(s, finishing, dice))
+  return releaseNextHeld(finishing.length === 0 ? s : replaceActions(s, rank(s, finishing, dice)))
 }
 
-function holdOn(state: SceneState, held: RootAction): SceneState {
-  const pool = Math.max(0, state.characters[held.actorId].resources.AP)
-  const characters = { ...state.characters, [held.actorId]: payCost({ AP: pool, STA: 0 })(actionSurge('focus')(state.characters[held.actorId])) }
-  return replaceActions({ ...state, characters }, [{ ...held, carried: { AP: held.carried.AP + pool, STA: held.carried.STA } }])
+// combat.tex "Concentration": the actor holds on to the action for another
+// round, with the AP they have paid into it.
+export function carryOver(state: SceneState, held: RootAction, AP: number): SceneState {
+  return replaceActions(state, [{ ...held, carried: { AP: held.carried.AP + AP, STA: held.carried.STA } }])
 }
 
 // Those finishing, highest cunning roll first and the one who held first

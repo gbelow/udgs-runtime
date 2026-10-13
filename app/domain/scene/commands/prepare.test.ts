@@ -13,7 +13,7 @@ import { getPrepared, getPreparedZone } from '../rules/prepared'
 import { add, coordKey, disk, DIRECTIONS, sameCell } from '../rules/board/geometry'
 import { seesAcross } from '../rules/board/board'
 import { amendAction, amendReaction, commitAction, declareAction as declareOwnAction, declareReaction, payAction, resolveAction, rollAction, setTarget, withdrawSpawnedAction } from './action'
-import { nextRound } from './nextRound'
+import { passRound } from '../../bot/table'
 
 // combat.tex "Preparing a reaction": "Any action can be prepared on a player's
 // turn, but doing so costs 1 AP. This allows the player to create any trigger
@@ -110,7 +110,7 @@ describe('what a preparation waits for', () => {
   it('lapses when the round ends', () => {
     const prepared = prepareStrike(onBoard({ p: [0, 0], m: [-10, 0] }, spearman('p'), fighter('m')), 'p')
     expect(getPrepared(prepared)).toHaveLength(1)
-    const later = nextRound(() => MISS, newId)(prepared)
+    const later = passRound(() => MISS)(prepared)
     expect(getPrepared(later)).toHaveLength(0)
     expect(triggersOf(walking(later, 'm', -10, -2), 'p')).not.toContain('prepared')
   })

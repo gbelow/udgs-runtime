@@ -40,6 +40,7 @@ import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canAffordRest } from '../../character/rules/rest'
+import { getIncomingAP, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
 import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
 
@@ -136,7 +137,7 @@ function computeAvailableActions(state: SceneState, characterId: string): Action
 // What stands closed among the character's own actions: who they are, what they
 // are doing, what surge is in hand, whose turn it is.
 function closeOwn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options)))))))
+  return closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))))
 }
 
 // combat.tex "Actions": "Only one action can be done at a time", and
@@ -438,7 +439,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // combat.tex "Rest"
   rest: (state, c) => {
     const cost = getActionCost(c, 'rest')
-    return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : getChaseRestBar(state, c.id) ?? (canAffordRest(c) ? null : 'cannot afford'))]
+    return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : getChaseRestBar(state, c.id) ?? (canAffordRest(c, 'rest', getIncomingAP(state)) ? null : 'cannot afford'))]
   },
 }
 
@@ -498,9 +499,18 @@ function closeWhileFleeing(state: SceneState, c: CampaignCharacter, options: Act
 }
 
 // play.tex "Combat": a character acts in their own turn; outside it, only
-// reactions and what they open — and a rest, the table's ruling.
+// reactions and what they open — and a rest at the round change, the table's
+// ruling.
 function closeOutOfTurn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (o.draft.kind === 'rest' ? null : 'not your turn'))
+  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (o.draft.kind === 'rest' && getRoundPhase(state) === 'rest' ? null : 'not your turn'))
+}
+
+// The round change has no turns: only its first step lets anyone rest, and
+// the limit stress actions are taken as turns of their own.
+function closeByRoundChange(state: SceneState, options: ActionOption[]): ActionOption[] {
+  const phase = getRoundPhase(state)
+  if (phase === null || phase === 'stress') return options
+  return closeWith(options, (o) => (o.draft.kind === 'rest' && phase === 'rest' ? null : 'the round is changing'))
 }
 
 // The option a draft would take, so a command can refuse exactly what the

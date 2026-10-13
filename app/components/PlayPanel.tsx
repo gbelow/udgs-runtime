@@ -5,7 +5,8 @@ import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
 import { ActionLog, ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
-import { ChasePanel, ChaseSetup } from './ChasePanel';
+import { ChasePanel } from './ChasePanel';
+import { RoundChangePanel } from './RoundChangePanel';
 import { ArmorPanel } from './ArmorPanel';
 import { HandsPanel } from './HandsPanel';
 import { ContainerPanel } from './ContainerPanel';
@@ -14,9 +15,8 @@ import { Sidebar } from './Sidebar';
 import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, TextInput, Tooltip, selectClass } from './ui';
-import { useCombatRoster, useCombatState, usePartyPicker, useCombatSurgeOptions, useHeldTests, useMorale, useSocial, useTablePressure, useTurnControls } from '../hooks/useCombatState';
+import { useCombatRoster, useCombatState, usePartyPicker, useCombatSurgeOptions, useHeldTests, useRoundChange, useSocial, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
-import { ROLL_MODES } from '../domain/play/dice';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
@@ -106,10 +106,12 @@ function FightSettings(){
   )
 }
 
-// What the scene is played on: the chase's chain while there is a chase, the
-// board otherwise.
+// What the scene is played on: the round change while it runs, the chase's
+// chain while there is a chase, the board otherwise.
 function SceneSpace(){
   const chase = useChase([], 'combat')
+  const { view } = useRoundChange()
+  if (view) return <RoundChangePanel />
   if (chase.chasing) return <ChasePanel />
   return <BoardPanel />
 }
@@ -154,29 +156,23 @@ function Status(){
   )
 }
 
-const DRAWERS = ['social', 'chase', 'morale', 'held tests'] as const
+const DRAWERS = ['social', 'held tests'] as const
 type Drawer = typeof DRAWERS[number]
 
-// The turn, the surges and the actions; what the whole scene can do —
-// talking, running away, morale and the tests held for the round — waits
-// behind its own button until it is wanted, lit while something is owed.
+// The turn, the surges and the actions; talking and the tests held for the
+// round wait behind their own button until wanted, lit while something is
+// owed. Morale and starting a chase belong to the round change.
 function ActionBar(){
   const [dice10, setDice10] = useState(1)
   const [dice6, setDice6] = useState(1)
   const [drawer, setDrawer] = useState<Drawer | null>(null)
-  const morale = useMorale()
   const held = useHeldTests()
-  const chase = useChase([], 'combat')
   const due: Record<Drawer, boolean> = {
     social: false,
-    chase: false,
-    morale: morale.some((r) => !r.result),
     'held tests': held.some((r) => !r.result),
   }
   const shown: Record<Drawer, boolean> = {
     social: true,
-    chase: !chase.chasing,
-    morale: true,
     'held tests': held.length > 0,
   }
 
@@ -198,8 +194,6 @@ function ActionBar(){
         </span>
       </div>
       {drawer === 'social' ? <SocialPanel /> : null}
-      {drawer === 'chase' ? <ChaseSetup /> : null}
-      {drawer === 'morale' ? <MoralePanel /> : null}
       {drawer === 'held tests' ? <HeldTestsPanel /> : null}
       <ActionPanel />
     </>
@@ -271,55 +265,6 @@ function TurnControl(){
       </div>
       {result ? <span className='text-xs text-muted'>{result}</span> : null}
       {stealth ? <span className='text-xs text-muted'>{stealth}</span> : null}
-    </div>
-  )
-}
-
-// combat.tex "Morale": the round begins with a will test for whoever the fight
-// has under stress, made normally, safely or riskily; a miss activates the
-// limit stress action, which the table plays out. Whether an enemy is within
-// 30 m is the table's to say, and so is the pressure the fight puts on each
-// fighter, set ahead of the round it weighs on.
-function MoralePanel(){
-  const rows = useMorale()
-  const pressure = useTablePressure()
-  const { rollMorale, setTablePressure } = useCombatCommands()
-  const [enemyNear, setEnemyNear] = useState(true)
-  if (pressure.length === 0) return null
-
-  return(
-    <div className='flex flex-col gap-1 py-2 border-b border-line text-sm'>
-      <div className='flex flex-row gap-3 items-center'>
-        <SectionLabel>Morale</SectionLabel>
-        <label className='flex gap-1 items-center text-xs text-muted'>
-          <input type='checkbox' aria-label='enemyNear' checked={enemyNear} onChange={(e) => setEnemyNear(e.target.checked)} />
-          enemy within 30 m
-        </label>
-      </div>
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
-        <span>pressure</span>
-        {pressure.map((r) => (
-          <label key={r.id} className='flex gap-1 items-center'>
-            {r.name}
-            <NumberInput className='w-10' aria-label={`pressure ${r.name}`} value={r.value} onChange={(e) => setTablePressure(r.id, parseInt(e.target.value) || 0)} />
-          </label>
-        ))}
-      </div>
-      {rows.map((r) => (
-        <div key={r.id} className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
-          <span className='font-medium'>{r.name}</span>
-          <span className='text-muted'>DL <span className='font-mono text-fg'>{r.DL}</span>{r.aggravators ? ` (${r.aggravators})` : ''}</span>
-          {
-            !r.result ?
-            ROLL_MODES.map((mode) => (
-              <Button key={mode} size='xs' aria-label={`morale ${mode} ${r.name}`} onClick={() => rollMorale(r.id, mode, enemyNear)}>{mode}</Button>
-            )) :
-            <span className='text-xs text-muted'>{r.result}</span>
-          }
-          {r.limitStress ? <span className='text-xs text-bad border border-bad rounded px-1.5'>limit stress action: {r.limitStress}</span> : null}
-          {r.owed ? <span className='text-xs text-muted'>{r.owed}</span> : null}
-        </div>
-      ))}
     </div>
   )
 }

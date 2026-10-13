@@ -10,6 +10,7 @@ import { getBalance, getClimb, getDetection, getStealth, getSwim } from '../../c
 import { getSituationalAfflictions } from './situational'
 import { getFightName } from './fighters'
 import { getFightBusy } from './turn'
+import { getRoundPhase } from './roundChange'
 
 // Everyone in the party still alive.
 export function getMembers(state: SceneState, partyId: string): CampaignCharacter[] {
@@ -220,12 +221,13 @@ export function getCaught(state: SceneState, partyId: string): { id: string; rea
 // run away [...]. It always starts at the beginning of a new round. Any
 // character that cannot run for whatever reason at the beginning of the
 // round will prevent the chase from beginning" — whoever the chase would
-// catch at once.
+// catch at once. In a fight under way, its round change is where, once the
+// morale tests are made and the limit stress actions taken.
 export function getChaseStartBar(state: SceneState, quarry: string[], tier: ChaseTier): string | null {
   if (state.chase) return 'a chase is under way'
   const busy = getFightBusy(state)
   if (busy) return busy
-  if (state.turnsTaken.length > 0) return 'a chase starts at the beginning of a round'
+  if (state.round > 0 && getRoundPhase(state) !== 'chase') return 'a chase starts at the round change, after the morale tests'
   const started = { ...state, chase: newChase(state, quarry, tier) }
   const sides = Object.keys(state.parties).map((p) => getMembers(state, p).length > 0 ? getTeam(started.chase, p) : null)
   if (!sides.includes('quarry') || !sides.includes('pursuers')) return 'a chase needs someone on each side'

@@ -5,6 +5,7 @@ import { getTurnHolder, hasAgreedToEnd } from '../scene/rules/turn'
 import { endTurn, startTurn, toggleAgreeToEnd } from '../scene/commands/turn'
 import { stepOpen, type Answerer } from './open'
 import { findParty, getLiveFoes, isMember, type Party } from './party'
+import { stepRoundChange } from './table'
 
 // What a bot does with the table, whatever its way of choosing: take the
 // next step of whoever owes one. How it chooses is a policy — what the
@@ -46,6 +47,8 @@ function startOrder(state: SceneState, parties: readonly Party[], dice: Dice): r
 }
 
 function stepIdle(policy: Policy, state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): SceneState | null {
+  const changed = stepRoundChange(state, dice, (id) => findParty(parties, id) !== undefined)
+  if (changed) return changed
   const holder = getTurnHolder(state)
   if (holder) {
     const party = findParty(parties, holder)

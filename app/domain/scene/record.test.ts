@@ -68,7 +68,7 @@ describe('what a played-out fight records', () => {
         }
         state = next
       }
-      state = nextRound(dice, newId)(state)
+      state = nextRound(dice)(state)
     }
     expect(state.landed.length).toBeGreaterThan(0)
     expect(injuries).toBeGreaterThan(0)

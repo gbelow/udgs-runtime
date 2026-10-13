@@ -662,9 +662,6 @@ export const FireAgainActionSchema = z.object({
   itemId: str.default(''),
   size: num.default(3),
   chargeRoll: num.default(0),
-  // the free aim paying the upkeep at the round change gives (the table's
-  // ruling): nothing is paid or drawn for it
-  upkeep: z.boolean().default(false),
   armorRolls: ArmorRolls,
   facts: DeliveriesSchema.nullable().default(null),
 }).strip()
@@ -1285,6 +1282,14 @@ export const MoraleRollSchema = z.object({
   limitStress: z.boolean(),
 })
 export const MoraleCallSchema = z.object({ id: z.string(), roll: MoraleRollSchema.nullable().default(null) })
+// The steps of the round change the table moves on from by hand; what runs on
+// its own between them, and the steps inside the last one, are read off the
+// state (rules/roundChange.ts).
+export const RoundStepSchema = z.enum(['rest', 'concentration', 'join', 'morale'])
+export type RoundStep = z.infer<typeof RoundStepSchema>
+// What a character holding something on through the round change chose: to
+// pay for it again, or to let it go and finish what it held.
+export const ConcentrationChoiceSchema = z.object({ id: z.string(), hold: z.boolean() })
 // combat.tex "Actions in stealth": what a turn's holder may use their stealth
 // value against. `hiddenFrom` is everyone the holder began the turn
 // undetected by; `AP` what their actions in the turn have spent that "add -1
@@ -1494,6 +1499,11 @@ export const SceneStateSchema = z.object({
   // combat.tex "End of the round": who has said they agree to end it; who
   // has nothing left to spend agrees without saying so
   agreedToEnd: z.array(z.string()).default([]),
+  // The round change under way, null while the round is played in turns
+  roundStep: RoundStepSchema.nullable().default(null),
+  // who has chosen, at this round change, to hold on to what they concentrate
+  // on or let it go
+  concentration: z.array(ConcentrationChoiceSchema).default([]),
   // combat.tex "Morale": who the beginning of this round called to a test, and
   // the tests made
   morale: z.array(MoraleCallSchema).default([]),

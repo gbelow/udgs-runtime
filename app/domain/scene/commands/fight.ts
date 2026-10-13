@@ -5,16 +5,16 @@ import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from './resetCombat'
 import { removeFromCombat } from './characters'
 import { addToFight, joinFight } from './parties'
-import { getHomecoming, getReturnBar, getTableIds, isFromRoster } from '../rules/fight'
+import { getHomecoming, getJoinBar, getReturnBar, getTableIds, isFromRoster } from '../rules/fight'
 import { getOpenAction } from '../rules/log'
 import { addToRoster, checkIn, checkOut } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
 
 // Takes these characters off the roster and into the fight, under the ids
 // they have, each in the party they are in, or one of their own if they are in
-// none.
+// none; refused when nobody can join (`getJoinBar`).
 export function sendToFight(ids: string[]): TableUpdater {
-  return (table) => ids.reduce(({ campaign, fight }, id) => {
+  return (table) => getJoinBar(table.fight) ? table : ids.reduce(({ campaign, fight }, id) => {
     const c = campaign.characters[id]
     if (!c) return { campaign, fight }
     const partyId = campaign.partyOf[id] ?? id
@@ -25,7 +25,7 @@ export function sendToFight(ids: string[]): TableUpdater {
 // A character brought straight into the fight, in the newest party the fight
 // made (see `addToFight`).
 export function loadIntoFight(char: CampaignCharacter, newId: () => string): TableUpdater {
-  return (table) => ({
+  return (table) => getJoinBar(table.fight) ? table : ({
     campaign: table.campaign,
     fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties))(table.fight),
   })

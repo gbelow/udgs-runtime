@@ -4,6 +4,11 @@ import { getOpenAction } from '../scene/rules/log'
 import { hasAgreedToEnd } from '../scene/rules/turn'
 import { cancelAction, resolveAction, rollOrPay, withdrawSpawnedAction } from '../scene/commands/action'
 import { toggleAgreeToEnd } from '../scene/commands/turn'
+import { continueRound, holdOn, letGo, nextRound } from '../scene/commands/nextRound'
+import { getHeldActions } from '../scene/rules/hold'
+import { getOwnCost } from '../scene/rules/action'
+import { rollMorale } from '../scene/commands/morale'
+import { getConcentrationOwed, getContinueBar, getHoldOnBar, getRoundPhase } from '../scene/rules/roundChange'
 import { findParty, type Party } from './party'
 
 // What a bot finds still declared and not committed that it will not take:
@@ -15,11 +20,56 @@ export function passUp(state: SceneState, open: RootAction, newId: () => string)
 // What the table does when no bot has a move, for the characters no bot
 // plays: they answer nothing, so it throws the die of an action waiting on
 // them, lands what is rolled, passes up what they were left to declare, and
-// has them say they are done for the round. Null when there is nothing to do.
+// has them say they are done for the round. At the round change everyone
+// holds on to what they can, tests their morale normally, and the change moves
+// on. Null when there is nothing to do.
 export function tableMove(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): SceneState | null {
   const open = getOpenAction(state)
-  const next = open ? moveOpen(state, open, dice, newId) : agree(state, parties)
+  const next = open ? moveOpen(state, open, dice, newId) : getRoundPhase(state) ? changeRound(state, dice) : agree(state, parties)
   return next !== state ? next : null
+}
+
+function changeRound(state: SceneState, dice: Dice): SceneState {
+  return stepRoundChange(state, dice, () => true) ?? state
+}
+
+// One move of the round change by whoever `plays` the characters: a
+// concentrating character finishes the action they held when its AP are
+// there, else holds on to what they can, else lets go; a character called to
+// a test tests their morale normally. Once nobody in the fight is played by
+// anyone else, the change moves on. Null when there is nothing to do.
+export function stepRoundChange(state: SceneState, dice: Dice, plays: (id: string) => boolean): SceneState | null {
+  if (!getRoundPhase(state)) return null
+  const next = chooseConcentration(state, dice, plays) ?? testMorale(state, dice, plays) ?? (Object.keys(state.characters).every(plays) && !getContinueBar(state) ? continueRound(dice)(state) : null)
+  return next !== null && next !== state ? next : null
+}
+
+function chooseConcentration(state: SceneState, dice: Dice, plays: (id: string) => boolean): SceneState | null {
+  const owed = getConcentrationOwed(state).find(plays)
+  if (!owed) return null
+  const c = state.characters[owed]
+  const finishes = getHeldActions(state).some((h) => h.actorId === owed && (getOwnCost(state, h)?.AP ?? Infinity) <= c.resources.AP)
+  return finishes || getHoldOnBar(state, owed) ? letGo(owed, dice)(state) : holdOn(owed, dice)(state)
+}
+
+function testMorale(state: SceneState, dice: Dice, plays: (id: string) => boolean): SceneState | null {
+  const untested = state.morale.find((m) => m.roll === null && state.characters[m.id] && plays(m.id))
+  return untested ? rollMorale(untested.id, 'normal', true, dice)(state) : null
+}
+
+// One move of the round change that needs no test.
+function moveRoundChange(state: SceneState, dice: Dice): SceneState {
+  return chooseConcentration(state, dice, () => true) ?? (getRoundPhase(state) && !getContinueBar(state) ? continueRound(dice)(state) : state)
+}
+
+// The round passes and its change is moved on as far as it goes with nobody
+// testing morale or taking a turn.
+export function passRound(dice: Dice): (state: SceneState) => SceneState {
+  return (state) => {
+    let current = nextRound(dice)(state)
+    for (let next = moveRoundChange(current, dice); next !== current; next = moveRoundChange(current, dice)) current = next
+    return current
+  }
 }
 
 function moveOpen(state: SceneState, open: RootAction, dice: Dice, newId: () => string): SceneState {

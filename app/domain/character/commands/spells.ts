@@ -2,7 +2,7 @@ import { CampaignCharacter, Character, SpellMethod } from "../../types"
 import { SPELLS, SpellKey, isSpellKey } from "../../spells"
 import { isCampaignCharacter } from "../../utils"
 import { canLearnSpell, drawCharges } from "../rules/spells"
-import { getHeldSize } from "../rules/concentration"
+import { getHeldSize, getSustainedAbilities } from "../rules/concentration"
 import { isSpellActive } from "../rules/effects"
 import { findReadyItem } from "../../item/rules/containers"
 import { hasAmmo } from "../../item/rules/items"
@@ -67,4 +67,12 @@ export function payHeldSources(percent: () => number): (c: CampaignCharacter) =>
 export function loseConcentration(c: CampaignCharacter): CampaignCharacter {
   if (!c.active.some((e) => e.kind === 'spell')) return c
   return { ...c, active: c.active.filter((e) => e.kind !== 'spell') }
+}
+
+// The round change: the character lets go of every held spell and every
+// ability they keep switched on that charges for it.
+export function letGoOfSustained(c: CampaignCharacter): CampaignCharacter {
+  const sustained: string[] = getSustainedAbilities(c)
+  const kept = loseConcentration(c)
+  return sustained.length === 0 ? kept : { ...kept, active: kept.active.filter((e) => !(e.kind === 'ability' && sustained.includes(e.key))) }
 }

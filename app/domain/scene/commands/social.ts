@@ -6,6 +6,7 @@ import { getInsultBar, getSayBar, getSocialBar, getSocialTargets, getSurrenderBa
 import { getStressSocial } from '../rules/stress'
 import { getSocialValue } from '../rules/morale'
 import { updateCharacter } from './characters'
+import { getSpeakingRound } from '../rules/roundChange'
 import { markStress } from './stress'
 
 const paySocial = (id: string): Updater => (state) =>
@@ -13,11 +14,12 @@ const paySocial = (id: string): Updater => (state) =>
 
 // The 5 AP paid, and what the character said written as the pressure it puts
 // on each target's morale test, read at the next round's beginning
-// (`getPressure`).
+// (`getPressure`) — said at the round change, the one it is changing to.
 function speak(state: SceneState, id: string, kind: Pressure['kind'], value: number, targets: string[]): SceneState {
   const paid = paySocial(id)(state)
-  const said = targets.map((target) => ({ round: state.round, from: id, target, kind, value }))
-  return { ...paid, pressure: [...paid.pressure.filter((p) => p.round >= state.round - 1), ...said] }
+  const round = getSpeakingRound(state)
+  const said = targets.map((target) => ({ round, from: id, target, kind, value }))
+  return { ...paid, pressure: [...paid.pressure.filter((p) => p.round >= round - 1), ...said] }
 }
 
 // combat.tex "Social actions": the character says it to each of the targets,

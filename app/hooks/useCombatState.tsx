@@ -1,6 +1,7 @@
 import { getRosterParties, getCombatRosterDigest, getPartyPicker, getPartyPickerDigest, type CombatRosterEntry, type PartyPicker, type RosterParty } from "../domain/scene/projections/roster";
 import { setTarget } from "../domain/scene/commands/action";
 import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
+import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getMoraleDigest, getMoraleRows, getSocialPanel, getTablePressureDigest, getTablePressureRows, MoraleRow, SocialPanel, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
@@ -56,6 +57,15 @@ export function useSceneCards(): {
   const parties = getSceneCards(useCombatStore.getState());
   const { pick } = useCombatRoster();
   return { parties, pick };
+}
+
+// The round change for the middle of the run screen, null while the round is
+// played in turns; gated on a digest since the view is freshly allocated.
+export function useRoundChange(): { view: RoundChangeView | null; pick: (entry: CombatRosterEntry) => void } {
+  useCombatStore(getRoundChangeDigest);
+  const view = getRoundChange(useCombatStore.getState());
+  const { pick } = useCombatRoster();
+  return { view, pick };
 }
 
 // The active character's party and the ones they could join, gated on a

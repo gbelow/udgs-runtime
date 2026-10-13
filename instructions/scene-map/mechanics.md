@@ -57,15 +57,18 @@ Detail for `instructions/scene-map.md`: the rules-bearing features layered on th
   action, `giveUpHeld` withdraws it once the reaction is paid), and `getRefundedAP` hands back
   `carried − 1` AP with it, as for an action given up to an opportunity attack; an interruption
   from outside breaks it (`breakHeld`, from `land`) and nothing is returned. Cauterization is a concentration action too. At the round
-  change `startFinishing` prices what is left (`carried` comes off the price in `getCostTerms`):
-  whoever has the AP finishes, ranked by cunning rolls (`rollCunning`, the turn contest's) when
-  there are several; whoever has not holds on, the focus surge made again and every AP carried,
-  or loses it without the surge. `releaseNextHeld` takes the next in order up at `react`, drawing
-  no opportunity attacks again, once nothing is open (from `nextRound`, and from `advance` after each landing), unless
+  change's concentration step its actor chooses (`holdOn` / `letGo`, `commands/nextRound.ts`):
+  holding on makes the focus surge again and carries every AP (`carryOver`); letting go finishes it
+  once nobody owes a choice (`finishHeld`), priced as what is left (`carried` comes off the price in
+  `getCostTerms`): whoever has the AP finishes, ranked by cunning rolls (`rollCunning`, the turn
+  contest's) when there are several, and whoever has not fails. `releaseNextHeld` takes the next in
+  order up at `react`, drawing no opportunity attacks again, once nothing is open (from `finishHeld`,
+  and from `advance` after each landing), unless
   `getFinishBar` finds what it needs gone, which fails it (`WithdrawalReason` `failed`) and
   spends none of the new round.
 - **Rest** — `rest` is a root with no die, priced by the action-cost table, and the one
-  action of their own a character may declare outside their turn; it may take AP negative as long as the next round starts positive (`canAffordRest`), and lands as
+  action of their own a character may declare outside their turn, in the round change's first step
+  (paid out of both rounds' AP, with no careful move); it may take AP negative as long as the next round starts positive (`canAffordRest`, told the AP still to come by `getIncomingAP`), and lands as
   `restCharacter` (STA back). Effortless is the same rest landing with the cast
   (`restWhileCasting`), the AP raised to the rest's. While either waits at `post`, its
   actor may make the rest's careful movement once, in their own turn (`moveWhileResting`,

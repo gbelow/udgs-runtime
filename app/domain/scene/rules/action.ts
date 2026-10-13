@@ -40,6 +40,7 @@ import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTa
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
 import { canAffordRest } from '../../character/rules/rest'
+import { getIncomingAP } from './roundChange'
 import { getCounterStrike } from './counter'
 import { getJoinedShot, isJoinInRange } from './coordinated'
 import { isGuardPlaced } from './protect'
@@ -353,7 +354,7 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   const actor = state.characters[action.actorId]
   if (!actor || !cost) return null
   const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
-  if (action.kind === 'rest') return canAffordRest(c) ? cost : null
+  if (action.kind === 'rest') return canAffordRest(c, 'rest', getIncomingAP(state)) ? cost : null
   return canAfford(c, cost) ? cost : null
 }
 
@@ -403,10 +404,9 @@ export function canPayAll(state: SceneState, root: Action): boolean {
 
 // What the action costs its actor as it stands, whether or not they can pay
 // it; null while it is too incomplete to price. A follow-up is priced as
-// its recipe says (rules/recipes.ts). Three prices are fixed past it: a flee costs the movement
+// its recipe says (rules/recipes.ts). Two prices are fixed past it: a flee costs the movement
 // surge, and is null once that cannot be made; a sweep is paid once, by the
-// strike at its first target (combat.tex "Sweeping Attack"); a held spell's
-// upkeep is free.
+// strike at its first target (combat.tex "Sweeping Attack").
 export function getOwnCost(state: SceneState, action: Action): ActionCost | null {
   const terms = getCostTerms(state, action)
   return terms && terms.reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
@@ -422,7 +422,6 @@ export function getCostTerms(state: SceneState, action: Action): CostTerm[] | nu
     return flee && [{ label: 'movement surge', ...flee }]
   }
   if (action.kind === 'strike' && isSweepLink(action)) return [{ label: 'sweep, paid by its first strike', AP: 0, STA: 0 }]
-  if (action.kind === 'fireAgain' && action.upkeep) return [{ label: 'held spell upkeep', AP: 0, STA: 0 }]
   if (action.holding) {
     const full = getOwnCost(state, { ...action, holding: false })
     return full && [{ label: 'held over to the next round', AP: Math.max(0, c.resources.AP), STA: full.STA }]

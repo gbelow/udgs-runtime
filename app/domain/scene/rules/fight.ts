@@ -8,6 +8,13 @@ export function getReturnBar(fight: SceneState): string | null {
   return getOpenAction(fight) ? 'an action is being played out' : null
 }
 
+// Why nobody can join the fight now, or null: before it starts, or at a round
+// change once whoever concentrates has held on or let go, before the morale
+// tests (the table's ruling).
+export function getJoinBar(fight: SceneState): string | null {
+  return fight.round === 0 || fight.roundStep === 'join' ? null : 'joins only before the fight starts or at the round change, before the morale tests'
+}
+
 // Whether the character was sent to the fight from the roster, rather than
 // brought straight into it: the campaign keeps their party while they are
 // away.

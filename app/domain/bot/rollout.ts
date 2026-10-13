@@ -23,7 +23,7 @@ export function rollout(state: SceneState, parties: readonly Party[], dice: Dice
       continue
     }
     if (parties.some((p) => getLiveFoes(current, p).length === 0) || getNextRoundBar(current) !== null || current.round + 1 >= until) return current
-    current = nextRound(dice, newId)(current)
+    current = nextRound(dice)(current)
   }
   return current
 }

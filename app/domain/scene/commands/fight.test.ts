@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { loadIntoFight, loadOntoRoster, removeFromFight, resetFight, returnFromFight, sendToFight } from './fight'
-import { nextRound } from './nextRound'
+import { passRound } from '../../bot/table'
 import { getNextRoundBar } from '../rules/turn'
 import { SceneStateSchema, type Table, type TableUpdater } from '../types'
 import { CampaignStateSchema } from '../../campaign/types'
@@ -17,7 +17,7 @@ describe('starting a fight', () => {
     const table: Table = { campaign: CampaignStateSchema.parse({ characters: { a: rested, b } }), fight: SceneStateSchema.parse({}) }
     const first = sendToFight(['a', 'b'])(table)
     expect(getNextRoundBar(first.fight)).toBeNull()
-    const fought = { ...first, fight: nextRound(() => 0, () => 'issued')(first.fight) }
+    const fought = { ...first, fight: passRound(() => 0)(first.fight) }
     const again = sendToFight(['a', 'b'])(returnFromFight(0)(fought))
     expect(getNextRoundBar(again.fight)).toBeNull()
   })

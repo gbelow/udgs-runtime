@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { ABILITIES, ABILITY_KEYS, AbilityKey, getLearnedAbilityKeys, hasAbility } from './abilities'
 import { SPELL_KEYS } from './spells'
 import { applyTrigger, forgetAbility, grantAbility, learnAbility, toggleAbility, useAbility } from './character/commands'
-import { nextRound } from './scene/commands/nextRound'
+import { passRound } from './bot/table'
 import { SceneStateSchema } from './scene/types'
 import { getDrain, getUpkeep } from './character/rules/effects'
 import { makeCampaignCharacter, makeCharacter } from './factories'
@@ -186,7 +186,7 @@ describe('used abilities', () => {
     expect(used.resources.AP).toBe(learned.resources.AP - cost.AP - drain.AP)
     expect(used.resources.exhaustion).toBe(learned.resources.exhaustion + cost.exhaustion + drain.exhaustion)
 
-    const round = (c: CampaignCharacter) => nextRound(() => 0, () => 'issued')(SceneStateSchema.parse({ characters: { c }, activeCharacterId: 'c' })).characters.c
+    const round = (c: CampaignCharacter) => passRound(() => 0)(SceneStateSchema.parse({ characters: { c }, activeCharacterId: 'c' })).characters.c
     const after = round(used)
     expect(after.resources.STA).toBe(used.resources.STA - upkeep.STA)
     expect(after.resources.exhaustion).toBe(used.resources.exhaustion + upkeep.exhaustion)

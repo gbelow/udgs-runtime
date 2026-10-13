@@ -13,7 +13,10 @@ import { acceptSpellTest, amendAction, declareAction, setTarget, amendReaction, 
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/scene/commands/choices'
 import { dropToFloor } from '../domain/scene/commands/floor'
 import { endTurn, surge } from '../domain/scene/commands/turn'
-import { nextRound } from '../domain/scene/commands/nextRound'
+import { continueRound, holdOn, letGo, nextRound } from '../domain/scene/commands/nextRound'
+import { rollMorale } from '../domain/scene/commands/morale'
+import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
+import { ROLL_MODES } from '../domain/play/dice'
 import { rollHeld } from '../domain/scene/commands/heldTest'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, runOn, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
 import { moveToParty, splitOff } from '../domain/scene/commands/parties'
@@ -239,7 +242,8 @@ function plays(): Play[] {
     progress('skip', (h) => withdrawSpawnedAction(h.newId)),
     progress('cancel', () => cancelAction()),
     progress('end turn', () => endTurn),
-    progress('next round', (h) => nextRound(h.dice, h.newId)),
+    progress('next round', (h) => nextRound(h.dice)),
+    ...roundChangePlays(),
   ]
 }
 
@@ -456,11 +460,58 @@ function assertSettled(h: Harness) {
   expect(open ? `${open.kind} stuck at ${open.step}` : null).toBeNull()
 }
 
+// The round change's own buttons: each closed one must be refused with the
+// state left as it was.
+function roundChangePlays(): Play[] {
+  const refused = (h: Harness, bar: string | null, press: () => void, label: string) => {
+    const before = h.state()
+    press()
+    if (bar !== null) expect(h.state(), `${label} is closed (${bar}) but was accepted`).toBe(before)
+  }
+  return [
+    { name: 'move the round change on', weight: 3, run: (h) => refused(h, getContinueBar(h.state()), () => h.press(continueRound(h.dice)), 'moving the round change on') },
+    {
+      name: 'hold on or let go',
+      weight: 2,
+      run: (h, pick) => {
+        const id = pick(Object.keys(h.state().characters))
+        if (pick([true, false])) refused(h, getHoldOnBar(h.state(), id), () => h.press(holdOn(id, h.dice)), 'holding on')
+        else refused(h, getLetGoBar(h.state(), id), () => h.press(letGo(id, h.dice)), 'letting go')
+      },
+    },
+    {
+      name: 'test morale',
+      run: (h, pick) => {
+        const owed = h.state().morale.filter((m) => m.roll === null && h.state().characters[m.id])
+        if (owed.length) h.press(rollMorale(pick(owed).id, pick(ROLL_MODES), pick([true, false]), h.dice))
+      },
+    },
+  ]
+}
+
+// The round passes, and its change is played as far as it goes before
+// someone's turn or an action under way: everyone holding something picks
+// whether to hold on, the morale tests are made, and the change moves on.
+function passRoundChange(h: Harness, pick: Picker) {
+  h.press(nextRound(h.dice))
+  for (let i = 0; i < 40 && getRoundPhase(h.state()); i++) {
+    const s = h.state()
+    const owed = getConcentrationOwed(s)
+    const untested = s.morale.find((m) => m.roll === null && s.characters[m.id])
+    if (owed.length) {
+      const id = pick(owed)
+      h.press(getHoldOnBar(s, id) || pick([true, false]) ? letGo(id, h.dice) : holdOn(id, h.dice))
+    } else if (untested) h.press(rollMorale(untested.id, pick(ROLL_MODES), pick([true, false]), h.dice))
+    else if (!getContinueBar(s)) h.press(continueRound(h.dice))
+    else return
+  }
+}
+
 function startTurnOf(h: Harness, pick: Picker, only: readonly string[] | null = null) {
   if (getOpenAction(h.state())?.step === 'define') h.press(cancelAction())
   playOut(h, pick)
   assertSettled(h)
-  if (pick([true, false])) h.press(nextRound(h.dice, h.newId))
+  if (pick([true, false])) passRoundChange(h, pick)
   const { characters, binds } = h.state()
   const bound = binds.flatMap((b) => b.members).filter((id) => characters[id])
   h.select(characters[pick(only ?? (bound.length && pick([true, true, false]) ? bound : Object.keys(characters)))].name)
@@ -726,7 +777,7 @@ function chasePlays(): Play[] {
       },
     },
     { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round') },
-    { name: 'next round', weight: 3, run: (h) => h.press(nextRound(h.dice, h.newId)) },
+    { name: 'next round', weight: 3, run: (h) => h.press(nextRound(h.dice)) },
     { name: 'split someone off', weight: 2, run: (h, pick) => h.press(splitOff(pick(Object.keys(h.state().characters)), h.newId)) },
     { name: 'move someone to another party', run: (h, pick) => h.press(moveToParty(pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties)))) },
     {
@@ -782,7 +833,7 @@ function playChase(seed: number) {
   const theirs = h.state().partyOf[h.idOf('Dee')]
   for (const name of ['Eve', 'Fay']) h.press(moveToParty(h.idOf(name), theirs))
   h.press(startChase([h.state().partyOf[h.idOf('Ann')]], pick(['combat', 'shooting', 'far'] as const)))
-  h.press(nextRound(h.dice, h.newId))
+  passRoundChange(h, pick)
   h.select('Ann')
   session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h)], pick)
 }

@@ -4,7 +4,7 @@ import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { amendAction, commitAction, declareAction, setTarget } from '../commands/action'
 import { beginTurn } from '../commands/sequence'
-import { nextRound } from '../commands/nextRound'
+import { passRound } from '../../bot/table'
 import { getTargetIds } from './action'
 import { getLanded, getOpenAction } from './log'
 import { getTriggersFor } from './reactions'
@@ -39,7 +39,7 @@ const newId = () => `a${++n}`
 // the round begins (the table's ruling).
 describe('the round', () => {
   it('begins with a stealth score for every character', () => {
-    const begun = nextRound(() => 5, newId)(fight({ q: 0, r: 0 }, { q: 1, r: 0 }))
+    const begun = passRound(() => 5)(fight({ q: 0, r: 0 }, { q: 1, r: 0 }))
     expect(['o', 't'].map((id) => getStealthScore(begun, id) !== null)).toEqual([true, true])
   })
 })

@@ -29,7 +29,8 @@ import { getEvasiveJumpPlacements } from '../app/domain/scene/rules/move'
 import { getReachableCells } from '../app/domain/scene/rules/board/reach'
 import { amendAction, commitAction, declareAction, amendReaction, declareReaction, resolveAction, rollOrPay, setTarget } from '../app/domain/scene/commands/action'
 import { endTurn, startTurn, surge, toggleAgreeToEnd } from '../app/domain/scene/commands/turn'
-import { nextRound } from '../app/domain/scene/commands/nextRound'
+import { continueRound, holdOn, letGo, nextRound } from '../app/domain/scene/commands/nextRound'
+import { getConcentrationOwed, getContinueBar, getHoldOnBar, getRoundPhase } from '../app/domain/scene/rules/roundChange'
 import { getAction, getHistory, getLiveReactionsTo, getOpenAction } from '../app/domain/scene/rules/log'
 import { getNextRoundBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd } from '../app/domain/scene/rules/turn'
 import { getCompelledSurge } from '../app/domain/scene/rules/stress'
@@ -439,6 +440,15 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
     const called = state.morale.find((call) => call.roll === null && state.characters[call.id])
     if (called) return { state, next: { kind: 'prompt', side: sideOf(called.id), title: moraleTitle(state, called.id), choices: moraleChoices(state, called.id) } }
 
+    const holding = getConcentrationOwed(state)[0]
+    if (holding) { state = getHoldOnBar(state, holding) ? letGo(holding, env.dice)(state) : holdOn(holding, env.dice)(state); continue }
+    if (getRoundPhase(state)) {
+      const moved = continueRound(env.dice)(state)
+      if (moved === state) return { state, next: { kind: 'end', text: `Stalled: ${getContinueBar(state)}.` } }
+      state = moved
+      continue
+    }
+
     const started = startNextTurn(state, env)
     if (started) { state = started; continue }
 
@@ -448,7 +458,7 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
     const bar = getNextRoundBar(state)
     if (bar !== null) return { state, next: { kind: 'end', text: `Stalled: ${bar}.` } }
     if (state.round + 1 >= maxRounds) return { state, next: { kind: 'end', text: `Draw: still standing after round ${maxRounds}.` } }
-    state = nextRound(env.dice, env.newId)(state)
+    state = nextRound(env.dice)(state)
   }
   return { state, next: { kind: 'end', text: 'Stuck: too many steps without a decision.' } }
 }

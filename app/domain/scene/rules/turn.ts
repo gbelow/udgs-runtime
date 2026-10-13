@@ -11,6 +11,7 @@ import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } 
 import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
 import { getRoutingTerms } from './chase'
+import { getRoundChangeBar } from './roundChange'
 import { sumTerms } from '../../character/rules/terms'
 
 // play.tex "Combat": each character acts in turns "decided on a 'first to
@@ -46,11 +47,12 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
 }
 
 // Why the character cannot start a turn now, or null: nobody else may hold
-// one, nothing may be being played out, and the round's morale tests (combat.tex
-// "Morale": "at the beginning of a round") come first.
+// one, nothing may be being played out, and the round change (its morale
+// tests among it: combat.tex "Morale", "at the beginning of a round") comes
+// first.
 export function getStartTurnBar(state: SceneState, id: string): string | null {
   if (getTurnHolder(state) === id) return 'already in turn'
-  return getFightBusy(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
+  return getFightBusy(state) ?? getRoundChangeBar(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
 }
 
 // What the fight is busy with, if anything: someone's turn, or an action
@@ -126,7 +128,7 @@ export function hasAgreedToEnd(state: SceneState, id: string): boolean {
 // ended first, the table's ruling, and everyone has to agree. Before the
 // first round there is no round to end, so the fight starts at once.
 export function getNextRoundBar(state: SceneState): string | null {
-  const busy = getFightBusy(state)
+  const busy = getFightBusy(state) ?? getRoundChangeBar(state)
   if (busy) return busy
   if (state.round === 0) return null
   const owed = getStressRoundBar(state)

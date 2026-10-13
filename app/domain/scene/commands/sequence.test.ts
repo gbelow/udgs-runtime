@@ -15,8 +15,6 @@ import { aimExplosion, chooseGrapple, spendHOP } from './choices'
 import { pickCell } from './board'
 import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
-import { nextRound } from './nextRound'
-import { getStartTurnBar } from '../rules/turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
 import { archer } from '../../bot/fixtures'
@@ -815,35 +813,6 @@ describe('a held spray retargeted as a reaction', () => {
     }
     expect(landed.map((a) => a.kind).filter((k) => k === 'fireAgain' || k === 'move')).toEqual(['fireAgain', 'move'])
     expect(landed.filter((a) => a.kind === 'blast').flatMap((a) => (a.kind === 'blast' ? Object.keys(a.facts ?? {}) : []))).toEqual([])
-  })
-})
-
-// The upkeep paid at the round change gives the holder a free aim of the
-// spray: the ground moves, nobody is harmed, and nothing is paid for it.
-describe('a held spray aimed at the round change', () => {
-  function atRoundChange(): SceneState {
-    const flamethrower = ItemSchema.parse({ name: 'Flamethrower', type: 'magical', bulk: 2, source: { damage: [{ kind: 'burn', value: 15 }], ammo: 20 } })
-    const caster = { ...(holdItem(flamethrower)(fighter('c'))), spells: { flamethrower: { method: 'intuitive' as const, practice: 0 } }, usedSurge: 'focus' as const }
-    let s = onBoard({ c: [0, 0], z: [3, 0] }, caster, fighter('z'))
-    s = resolveAction(newId)(commitAction(() => 9, newId)(declareAction('c', { kind: 'cast', key: 'flamethrower' }, newId)(s)))
-    s = resolveAction(newId)(aimExplosion(0)(payAction(newId, () => 5)(s)))
-    return nextRound(() => 0, newId)(s)
-  }
-
-  it('waits on the holder, free, and harms nobody', () => {
-    let s = atRoundChange()
-    expect(getOpenAction(s)).toMatchObject({ kind: 'fireAgain', actorId: 'c', upkeep: true, step: 'react' })
-    expect(getStartTurnBar(s, 'z')).not.toBeNull()
-    const ap = s.characters.c.resources.AP
-    const blasts: Action[] = []
-    for (let i = 0; i < 50 && getOpenAction(s); i++) {
-      const next = [rollAction(() => MISS, newId), payAction(newId, () => 5), resolveAction(newId), aimExplosion(0)].map((step) => step(s)).find((t) => t !== s)
-      if (!next) throw new Error('stuck')
-      blasts.push(...getHistory(next).slice(getHistory(s).length).map((id) => getLog(next).find((a) => a.id === id)!).filter((a) => a.kind === 'blast'))
-      s = next
-    }
-    expect(s.characters.c.resources.AP).toBe(ap)
-    expect(blasts.flatMap((a) => (a.kind === 'blast' ? Object.keys(a.facts ?? {}) : []))).toEqual([])
   })
 })
 

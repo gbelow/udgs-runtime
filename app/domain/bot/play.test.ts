@@ -20,7 +20,7 @@ describe('two bots', () => {
       state = playBot(state, [{ members: ['a'] }, { members: ['b'] }], dice, newId)
       expect(getOpenAction(state)).toBeNull()
       expect(getNextRoundBar(state)).toBeNull()
-      state = nextRound(dice, newId)(state)
+      state = nextRound(dice)(state)
     }
   })
 })

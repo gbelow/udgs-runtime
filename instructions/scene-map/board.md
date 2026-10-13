@@ -22,7 +22,7 @@ Detail for `instructions/scene-map.md`. When this and the code disagree, the cod
   stands, so no command has to settle it. `getFireTouched` reads, off
   the board an action landed, the worst fire the turn holder stands in or walked through (a
   jump touches only where it lands), and `reduceCharacter` raises their `scorch` to it. `endTurn` deals the scorch as burning damage, and
-  `nextRound` burns the counter with the fire each character stands in added, as one
+  the round change (`passEnvironment`, `commands/nextRound.ts`) burns the counter with the fire each character stands in added, as one
   instance. Every burn and radiant hit goes through the counter the same way
   (`getOutcome`).
 - `rules/move.ts`, `rules/board/waypoint.ts`, `rules/trample.ts` — move pricing and legality,
