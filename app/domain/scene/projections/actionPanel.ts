@@ -15,7 +15,7 @@ import { SPELLS, isSpellKey } from '../../spells'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { HOPOption, canGrapple, getHOPOptions, getHOPRemaining } from '../rules/damage'
 import { getActionNotes, getOutcomes } from './outcomes'
-import { EpisodeEntry, getEditsSince, getLastEpisode } from './episode'
+import { EpisodeEntry, getEditsSince, getRoundEpisodes } from './episode'
 import { isVoided } from '../rules/opportunity'
 import { getSettled } from '../rules/settle'
 import type { Outcome } from '../../character/rules/damage'
@@ -345,7 +345,7 @@ export type ActionPanelView = {
   grazeSave: { AP: number; STA: number } | null
   deliveries: DeliveryView[]
   // what the last action played out came to, with everything it drew
-  episode: EpisodeEntry[] | null
+  episodes: EpisodeEntry[][]
   // what commands outside any action changed since it landed
   edits: string[]
   // while a preparation is declared: what it is made of and what it waits for
@@ -354,7 +354,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episode: null, edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -363,11 +363,11 @@ function buildActionPanel(state: SceneState): ActionPanelView {
   const step = getNextStep(state)
   const open = getOpenAction(state)
   const active = state.activeCharacterId ? state.characters[state.activeCharacterId] : undefined
-  const episode = getLastEpisode(state)
+  const episodes = getRoundEpisodes(state)
   const edits = getEditsSince(state)
 
   if (!open) {
-    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episode, edits, prepared: getPreparedRows(state) }
+    return { ...EMPTY, options: active ? labelled(state, active.id, getAvailableActions(state, active.id)) : [], episodes, edits, prepared: getPreparedRows(state) }
   }
 
   const actor = state.characters[open.actorId]
@@ -466,7 +466,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       sweep: open.kind === 'strike' && isSweep(open) ? getSweepView(state, open) : null,
       modifiers: open.kind === 'strike' && open.step === 'define' ? getStrikeModifierViews(state, open) : [],
     },
-    episode,
+    episodes,
     edits,
     prepare: open.kind === 'prepare' && open.step === 'define' ? getPrepareView(state, open) : null,
     prepared: getPreparedRows(state),

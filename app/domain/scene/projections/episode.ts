@@ -65,8 +65,24 @@ export type EpisodeEntry = ActionReport & {
 export function getLastEpisode(state: SceneState): EpisodeEntry[] | null {
   const last = getHistory(state).at(-1)
   const landed = last ? getAction(state, last) : null
-  if (!landed) return null
-  const origin = getOrigin(state, landed).id
+  return landed ? getEpisode(state, getOrigin(state, landed).id) : null
+}
+
+// Every chain of actions that began this round, newest first, each in the
+// order its actions landed.
+export function getRoundEpisodes(state: SceneState): EpisodeEntry[][] {
+  const origins = [...new Set(getLanded(state)
+    .filter((a) => a.reactionTo === null)
+    .map((a) => getOrigin(state, a))
+    .filter((o) => o.round === state.round)
+    .map((o) => o.id))]
+  return origins.reverse().flatMap((origin) => {
+    const episode = getEpisode(state, origin)
+    return episode ? [episode] : []
+  })
+}
+
+function getEpisode(state: SceneState, origin: string): EpisodeEntry[] | null {
   const roots = getLanded(state).filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {

@@ -4,6 +4,7 @@ import { useWeaponLens } from "../hooks/useWeaponLens";
 import { useCombatActions } from "../hooks/useCombatActions";
 import type { AttackVariant } from "../domain/character/rules/gear";
 import type { AttackKind } from "../domain/types";
+import { Fragment } from "react";
 import { Button, Panel } from "./ui";
 
 const th = 'font-medium px-1 pb-1 border-b border-line'
@@ -41,7 +42,7 @@ export function WeaponPanel(){
               {panel.shield && <span className='text-muted'>{panel.shield.body ? 'body shield' : 'shield'} · cover +{panel.shield.cover}</span>}
               <span className='text-muted'>{panel.natural ? `${panel.grip} free` : `${panel.grip}h`}</span>
             </div>
-            <div className='overflow-x-auto'>
+            <div>
               <table className='w-full text-xs'>
                 <thead>
                   <tr className='text-[10px] uppercase tracking-wider text-muted text-left'>
@@ -53,14 +54,13 @@ export function WeaponPanel(){
                     <th className={`${th} text-right`}>AP</th>
                     <th className={th}>reach</th>
                     <th className={`${th} text-right`}>DEF</th>
-                    <th className={th}>properties</th>
-                    <th className={th}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {
                     panel.rows.map((row, index) =>
-                      <tr key={panel.name+index.toString()} className={`hover:bg-raised ${row.usable && !row.needsFocus ? '' : 'text-muted'}`}>
+                      <Fragment key={panel.name+index.toString()}>
+                      <tr className={row.usable && !row.needsFocus ? '' : 'text-muted'}>
                         <td className='px-1 py-0.5'>{row.name}</td>
                         <td className='px-1 py-0.5'>{row.handed}</td>
                         <td className='px-1 py-0.5 text-right font-mono'>{row.RES}</td>
@@ -69,9 +69,16 @@ export function WeaponPanel(){
                         <td className='px-1 py-0.5 text-right font-mono'>{row.AP + (row.reload ? '+' + row.reload : '')}</td>
                         <td className='px-1 py-0.5'>{row.range}</td>
                         <td className='px-1 py-0.5 text-right font-mono'>{row.block ?? '–'}</td>
-                        <td className='px-1 py-0.5 text-muted'>{row.properties.join(', ')}</td>
-                        <td className='px-1 py-0.5'>{row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponKey={panel.key} attack={row.name} kind={row.kind} />}</td>
                       </tr>
+                      <tr className='border-b border-line/50'>
+                        <td colSpan={8} className='px-1 pb-1'>
+                          <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center'>
+                            {row.needsFocus ? <span className='text-muted'>needs focus surge</span> : <AttackButtons variants={row.variants} weaponKey={panel.key} attack={row.name} kind={row.kind} />}
+                            {row.properties.length > 0 ? <span className='text-muted'>{row.properties.join(', ')}</span> : null}
+                          </div>
+                        </td>
+                      </tr>
+                      </Fragment>
                     )
                   }
                 </tbody>

@@ -352,7 +352,6 @@ export function ActionPanel(){
           </div>
         </div>
       ) : null}
-      {view.episode || view.edits.length > 0 ? <Report episode={view.episode ?? []} edits={view.edits} /> : null}
     </Panel>
   )
 }
@@ -581,21 +580,37 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
   )
 }
 
+// The round so far, newest first: what was changed by hand since the last
+// action, then each action played out with everything it drew. The newest
+// stands open; the others fold to a line.
 export function ActionLog(){
   const { view } = useCombatActions()
-  if (!view.episode && view.edits.length === 0) return <span className='text-xs text-muted'>nothing played yet</span>
-  return <Report episode={view.episode ?? []} edits={view.edits} />
+  const { episodes, edits } = view
+  if (episodes.length === 0 && edits.length === 0) return <span className='text-xs text-muted'>nothing played this round</span>
+  return (
+    <div className='flex flex-col gap-1.5'>
+      {edits.map((e, i) => <span key={i} className='text-xs text-muted'>since: {e}</span>)}
+      {episodes.map((episode, i) => <Report key={episodes.length - i} episode={episode} open={i === 0} />)}
+    </div>
+  )
 }
 
-// What the last action played out came to, with everything it drew — the
-// answers given to it, what those opened, the follow-ups it left — in the
-// order they landed: the last thing the table saw.
-function Report({ episode, edits }: { episode: EpisodeEntry[], edits: string[] }){
+// What an action played out came to, with everything it drew — the answers
+// given to it, what those opened, the follow-ups it left — in the order they
+// landed.
+function Report({ episode, open }: { episode: EpisodeEntry[], open: boolean }){
+  const head = episode[0]
   return (
-    <div className='flex flex-col gap-2'>
-      {episode.map((entry, i) => <ReportEntry key={i} entry={entry} />)}
-      {edits.map((e, i) => <span key={i} className='text-xs text-muted'>since: {e}</span>)}
-    </div>
+    <details open={open} className='border-b border-line/50 pb-1.5'>
+      <summary className='cursor-pointer select-none text-sm'>
+        {head.actor} · {head.label}
+        {head.roll ? <span className={`ml-2 text-xs ${head.roll.degree === 'miss' ? 'text-bad' : head.roll.degree === 'hit' || head.roll.degree === 'critical' ? 'text-good' : 'text-muted'}`}>{head.roll.degree}</span> : null}
+        {head.outcomes.map((o) => <span key={o.target} className='ml-2 text-xs text-muted'>{o.target}{o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}{o.outcome.dead ? ' dead' : ''}</span>)}
+      </summary>
+      <div className='flex flex-col gap-2 pt-1'>
+        {episode.map((entry, i) => <ReportEntry key={i} entry={entry} />)}
+      </div>
+    </details>
   )
 }
 

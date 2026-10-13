@@ -51,8 +51,8 @@ export function BoardPanel(){
 
   if (!view.present) {
     return (
-      <Panel title='Board' meta='no grid: everyone is in reach'
-        actions={<Button size='xs' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button>}>
+      <Panel meta='no grid: everyone is in reach'
+        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button></span>}>
         <SceneCards />
       </Panel>
     )
