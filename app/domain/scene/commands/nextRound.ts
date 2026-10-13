@@ -41,6 +41,13 @@ function capAP(c: CampaignCharacter): CampaignCharacter {
   return c.resources.AP > ROUND_AP ? { ...c, resources: { ...c.resources, AP: ROUND_AP } } : c
 }
 
+// The first round starts everyone at the round's AP: before it there were
+// none to owe or keep.
+function startAP(c: CampaignCharacter): CampaignCharacter {
+  const { resources } = endSurge(c)
+  return { ...c, usedSurge: null, resources: { ...resources, AP: ROUND_AP } }
+}
+
 // The round ends and the next one's change opens. Whoever fell in tanatosis
 // wakes (creating.tex "Limit Stress Actions": "wakes up the next"). The round
 // that ends adds the time it took, and a chase runs again. The swimming and
@@ -51,7 +58,7 @@ function capAP(c: CampaignCharacter): CampaignCharacter {
 export function nextRound(dice: Dice): Updater {
   return (state) => {
     if (state.roundStep !== null) return state
-    const receive = state.round === 0 ? (c: CampaignCharacter) => capAP(receiveAP(c)) : receiveAP
+    const receive = state.round === 0 ? startAP : receiveAP
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
     const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], compulsions: [], concentration: [], roundStep: 'rest' }
     const called = rollStealth({ ...begun, heldTests: getHeldCalled(begun) }, dice)
@@ -138,7 +145,7 @@ export function holdOn(id: string, dice: Dice): Updater {
     }, 'holds on')(state)
     const held = getHeldActions(paid).find((h) => h.actorId === id)
     const pool = Math.max(0, paid.characters[id].resources.AP)
-    const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }), 'holds on')(paid), held, pool) : paid
+    const carried = held ? carryOver(updateCharacter(id, payCost({ AP: pool, STA: 0 }, true), 'holds on')(paid), held, pool) : paid
     return settleChoices({ ...carried, concentration: [...carried.concentration, { id, hold: true }] }, dice)
   }
 }

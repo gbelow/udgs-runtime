@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import { ActionSchema, type Action, type Coord, type ActionDraft, type CastAction, type SceneState, type FireAgainAction, type MoveAction, type RootAction, type Updater } from '../types'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -352,7 +353,7 @@ function withClimbRolls(state: SceneState, move: MoveAction, dice: Dice): MoveAc
 function withClimbGiveUp(state: SceneState, move: MoveAction): MoveAction {
   const actor = state.characters[move.actorId]
   const cost = move.movement === 'climb' && getClimbDegree(state, move) === 'graze' ? getOwnCost(state, move) : null
-  return actor && cost && !canAfford(actor, cost) ? { ...move, gaveUp: true } : move
+  return actor && cost && !canAfford(actor, cost, isCombatStarted(state)) ? { ...move, gaveUp: true } : move
 }
 
 // The die each one the action may deliver a test to throws with it, right

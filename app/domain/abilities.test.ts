@@ -181,7 +181,7 @@ describe('used abilities', () => {
     const drain = getDrain(effect, 'instant')
     const upkeep = getDrain(effect, 'end_round')
 
-    const used = useAbility(key)(learned) as CampaignCharacter
+    const used = useAbility(key)(learned, true) as CampaignCharacter
     expect(used.resources.STA).toBe(learned.resources.STA - cost.STA - drain.STA)
     expect(used.resources.AP).toBe(learned.resources.AP - cost.AP - drain.AP)
     expect(used.resources.exhaustion).toBe(learned.resources.exhaustion + cost.exhaustion + drain.exhaustion)

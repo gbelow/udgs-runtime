@@ -71,7 +71,7 @@ function priceLabel(cost: Cost): string {
   return parts.join(' + ') || 'free'
 }
 
-export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
+export function getAbilityCatalogRows(c: Character, charged: boolean): AbilityFamilyView[] {
   const families = new Map<string, AbilityFamilyView>()
   for (const key of ABILITY_KEYS) {
     const ability = ABILITIES[key]
@@ -119,7 +119,7 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
       const usable = row.stages.find((s) => s.learned && ABILITIES[s.key].activation === 'active')
       if (usable) {
         const { cost } = ABILITIES[usable.key]
-        row.use = { key: usable.key, name: usable.name, price: priceLabel(cost), affordable: canAfford(c, cost) && !getSurgeBar(c) }
+        row.use = { key: usable.key, name: usable.name, price: priceLabel(cost), affordable: canAfford(c, cost, charged) && !getSurgeBar(c) }
       }
     }
     // A conviction's stages are its levels and may start at 0, so progress
@@ -132,6 +132,6 @@ export function getAbilityCatalogRows(c: Character): AbilityFamilyView[] {
 // The character's own abilities, collapsed the same way: one row per family
 // with every stage's text kept, so the sheet reads "Keen Eyes 2/3" and a step
 // back is a click on the top stage.
-export function getLearnedAbilityRows(c: Character): AbilityFamilyView[] {
-  return getAbilityCatalogRows(c).filter((row) => row.top !== null)
+export function getLearnedAbilityRows(c: Character, charged: boolean): AbilityFamilyView[] {
+  return getAbilityCatalogRows(c, charged).filter((row) => row.top !== null)
 }

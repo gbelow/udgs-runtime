@@ -112,7 +112,7 @@ export function getCreationPanel(d: CreationDraft): CreationPanelView {
     const knowledge = section.toLowerCase()
     return !isFormalKnowledge(knowledge) || created.trainables[knowledge].value > 0
   }
-  const entries = getAbilityCatalogRows(created)
+  const entries = getAbilityCatalogRows(created, false)
     .sort((a, b) => a.family.localeCompare(b.family))
     .map((view) => {
       const family = FAMILY_BY_NAME.get(view.family)!

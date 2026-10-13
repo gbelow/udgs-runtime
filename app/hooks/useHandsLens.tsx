@@ -1,3 +1,4 @@
+import { isChargedIn } from "../domain/scene/rules/started";
 import { holdItem, regripItem, dropItem, putOnFromHands, slingShield, unslingShield, throwOffShield } from "../domain/item/commands";
 import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem } from "../domain/item/rules/items";
@@ -26,7 +27,7 @@ export function useHandsLens() {
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
 
   const panel: HandsPanelView =
-    useActiveCharacterDerived((c: Character) => getHandsPanel(c, fromCatalog ?? undefined), JSON.stringify) ?? EMPTY;
+    useActiveCharacterDerived((c: Character, fight) => getHandsPanel(c, isChargedIn(fight), fromCatalog ?? undefined), JSON.stringify) ?? EMPTY;
 
   // Takes the pending catalog pick straight into the hands.
   const hold = (grip: Grip) => {

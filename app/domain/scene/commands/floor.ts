@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { Updater } from '../types'
 import { dropItem, throwOffShield } from '../../item/commands/hands'
 import { getHeldItem } from '../../item/rules/hands'
@@ -14,12 +15,12 @@ import { getGearBar } from '../rules/turn'
 // go of the last thing they could grapple with lets go of the grapple. A
 // move refused leaves the character as it was, and nothing lands; outside
 // their own turn only the GM lets go for them.
-function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C) => C, gm: boolean): Updater {
+function landOnFloor(characterId: string, item: Item | null | undefined, letGo: <C extends Character>(c: C, charged?: boolean) => C, gm: boolean): Updater {
   return (state) => {
     const c = state.characters[characterId]
     if (!c || !item) return state
     if (getGearBar(state, characterId, gm)) return state
-    const after = letGo(c)
+    const after = letGo(c, isCombatStarted(state))
     if (after === c) return state
     return settleBinds({
       ...state,

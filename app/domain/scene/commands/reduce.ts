@@ -65,9 +65,9 @@ export type Phase = 'roll' | 'save' | 'resolve'
 // ends it where it lands (character/commands/deliver.ts), as a crash does
 // (`trampledBy`). The holder of the turn touches the fire the landing left
 // them in (`getFireTouched`), read off the board the action put them on.
-export function reduceCharacter(action: Action, phase: Phase, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
+export function reduceCharacter(action: Action, phase: Phase, charged: boolean, fire: FireTouched | null = null): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => {
-    const reduced = reducePart(action, phase)(c)
+    const reduced = reducePart(action, phase, charged)(c)
     if (phase !== 'resolve') return reduced
     const damaged = deliverAll(getBreaks(action)[c.id] ?? [])(reduced)
     const touched = fire?.id === c.id ? touchFire(fire.fire)(damaged) : damaged
@@ -80,7 +80,7 @@ function refund(AP: number): (c: CampaignCharacter) => CampaignCharacter {
   return (c: CampaignCharacter) => (AP > 0 ? { ...c, resources: { ...c.resources, AP: c.resources.AP + AP } } : c)
 }
 
-function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => CampaignCharacter {
+function reducePart(action: Action, phase: Phase, charged: boolean): (c: CampaignCharacter) => CampaignCharacter {
   return (before: CampaignCharacter) => {
     const c = phase === 'resolve' ? settleGrapple(getGrappleFacts(action), before) : before
     switch (phase) {
@@ -89,18 +89,18 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         // combat.tex "Flee": the movement surge, made as a reaction
         if (action.kind === 'flee' || action.kind === 'fleeFollowUp') return actionSurge('movement')(c)
         // a held spell fired again draws its charges as it is paid for
-        if (action.kind === 'fireAgain') return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost)(c))
-        return refund(action.refunded)(payCost(action.cost)(c))
+        if (action.kind === 'fireAgain') return drawFromSource(action.itemId, getFireAgainCharges(action))(payCost(action.cost, charged)(c))
+        return refund(action.refunded)(payCost(action.cost, charged)(c))
       case 'save':
         if (c.id !== action.actorId || action.kind !== 'cast' || !action.grazeSaved) return c
-        return payCost(GRAZE_SAVE_COST)(c)
+        return payCost(GRAZE_SAVE_COST, charged)(c)
       case 'resolve':
         // combat.tex "Balance": a move on difficult terrain at a speed the
         // test did not clear ends in a fall
         // combat.tex "Movement": "Stand up: Removes the prone condition" —
         // unless an opportunity attack cancelled it ("Interruption")
         if (action.kind === 'move') {
-          const trampled = trampledBy(action.facts?.trampled ?? [], c)
+          const trampled = trampledBy(action.facts?.trampled ?? [], c, charged)
           if (c.id !== action.actorId) return trampled
           if (action.movement === 'stand') return action.facts?.stop === 'end' ? standUp(c) : c
           if (action.movement === 'prone') return fallProne(c)
@@ -123,7 +123,7 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
           const own = c.id === action.actorId && isSpellKey(action.key) ? drawFromSource(action.itemId, getCastCharges(c, action))(c) : c
           const landed = deliverAll(action.facts?.[c.id] ?? [])(own)
           if (c.id !== action.actorId || !isSpellKey(action.key) || action.roll?.degree !== 'hit' || action.failed) return landed
-          const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)))(landed) : landed
+          const delivered = action.improved.effortless ? restWhileCasting(getEffortlessCost(landed, getCastSpentAP(action)), charged)(landed) : landed
           const spell = SPELLS[action.key]
           // spells.tex "Lamp", "Revealing Light": the torch it was cast with
           // shines for the rest of the fight, the last cast into it winning
@@ -176,21 +176,21 @@ function reducePart(action: Action, phase: Phase): (c: CampaignCharacter) => Cam
         // A purchase with a price of its own is paid as it lands (combat.tex
         // "Assassinate": "1 extra AP").
         if (c.id === action.actorId) {
-          const charged = getChargedWeapon(c, action)
-          const discharged = charged && action.roll && action.roll.degree !== 'miss' ? dischargeItem(charged.id)(c) : c
+          const chargedWeapon = getChargedWeapon(c, action)
+          const discharged = chargedWeapon && action.roll && action.roll.degree !== 'miss' ? dischargeItem(chargedWeapon.id)(c) : c
           const paid = HOP_PURCHASES.reduce((acc, p) => {
             const price = (action.spent[p] ?? 0) > 0 ? getHOPPrice(p, acc) : null
-            return price ? payCost(price)(acc) : acc
+            return price ? payCost(price, charged)(acc) : acc
           }, discharged)
           // combat.tex "Throw": what is thrown leaves the hand
           if (action.kind === 'shoot') return spendShot(releaseThrown(paid, action.weaponKey, action.attack), action)
           // combat.tex "Braced Attack": the crash it triggers, the mover the
           // blow met against the bracer
-          return action.trample ? trampledBy([action.trample], paid) : paid
+          return action.trample ? trampledBy([action.trample], paid, charged) : paid
         }
         if (c.id !== action.targetId || !action.facts) return c
         const struck = deliver(action.facts)(c)
-        return action.kind === 'strike' && action.trample ? trampledBy([action.trample], struck) : struck
+        return action.kind === 'strike' && action.trample ? trampledBy([action.trample], struck, charged) : struck
     }
   }
 }
@@ -332,10 +332,10 @@ function lightBurned(state: SceneState, attack: AttackAction, board: Board): Boa
 // combat.tex "Crash": who it stunned, and the target it knocked prone —
 // "Stun: An interrupt in which the target also loses 2 AP" — and, being
 // interrupted, stops concentrating.
-function trampledBy(tramples: Trample[], c: CampaignCharacter): CampaignCharacter {
+function trampledBy(tramples: Trample[], c: CampaignCharacter, charged: boolean): CampaignCharacter {
   const hit = tramples.filter((t) => t.stunned.includes(c.id))
   if (hit.length === 0) return c
-  const stunned = loseConcentration(payCost({ AP: STUN_AP * hit.length, STA: 0 })(c))
+  const stunned = loseConcentration(payCost({ AP: STUN_AP * hit.length, STA: 0 }, charged)(c))
   return hit.some((t) => t.prone && t.id === c.id) ? fallProne(stunned) : stunned
 }
 

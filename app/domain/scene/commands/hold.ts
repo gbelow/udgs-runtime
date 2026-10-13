@@ -7,6 +7,8 @@ import { getAction, getLiveActions, getOpenAction } from '../rules/log'
 import { isInterruptedBy } from '../rules/interruption'
 import { rollCunning } from '../rules/turn'
 import { replaceActions, setActions, withdrawActions } from './log'
+import { canAfford } from '../../character/rules/cost'
+import { isCombatStarted } from '../rules/started'
 
 // combat.tex "Concentration": an action held over to the next round, in play
 // but off the stack, paid as far as its actor's AP went.
@@ -34,9 +36,9 @@ export function breakHeld(state: SceneState, landed: Action): SceneState {
   return broken.length === 0 ? state : withdrawActions(state, broken.map((h) => h.id), 'interrupted')
 }
 
-// combat.tex "Concentration": the round has changed, and these held actions'
-// actors let them go to be finished with the AP of the new round. Those who
-// have enough finish, in the order of their cunning tests ("make cunning
+// combat.tex "Concentration": the round has changed, or the combat has
+// ended, and these held actions' actors let them go to be finished with the
+// AP of the new round, or for nothing. Those who have enough finish, in the order of their cunning tests ("make cunning
 // tests for all contenders and apply effects from highest to lowest"; alone,
 // none is thrown); the others, and whoever can no longer act, come to
 // nothing.
@@ -46,7 +48,7 @@ export function finishHeld(state: SceneState, ids: string[], dice: Dice): SceneS
   for (const held of getHeldActions(state).filter((h) => ids.includes(h.id))) {
     const c = s.characters[held.actorId]
     const price = c ? getOwnCost(s, held) : null
-    if (!c || !price || isDead(c) || hasAffliction(c, 'unconscious') || c.resources.AP < price.AP) s = withdrawActions(s, [held.id], 'failed')
+    if (!c || !price || isDead(c) || hasAffliction(c, 'unconscious') || !canAfford(c, { AP: price.AP, STA: 0 }, isCombatStarted(s))) s = withdrawActions(s, [held.id], 'failed')
     else finishing.push(held.id)
   }
   return releaseNextHeld(finishing.length === 0 ? s : replaceActions(s, rank(s, finishing, dice)))

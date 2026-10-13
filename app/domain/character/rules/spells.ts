@@ -308,12 +308,13 @@ export function isCastOverETs(key: SpellKey): boolean {
 }
 
 // "Spells require using a focus surge to be cast in combat scenes." — unless
-// quickened.
-export function canCastSpell(c: Character, key: SpellKey, quicken: boolean): boolean {
+// quickened. Before the combat has started (`charged`) there are no surges
+// and nothing is paid.
+export function canCastSpell(c: Character, key: SpellKey, quicken: boolean, charged: boolean): boolean {
   if (!isCastPossible(c, key)) return false
   const spell = SPELLS[key]
-  if (!isCampaignCharacter(c) || !(quicken ? canAfford(c, spell.cost) : canAffordOrHold(c, spell.cost))) return false
-  return quicken || c.usedSurge === 'focus'
+  if (!isCampaignCharacter(c) || !(quicken ? canAfford(c, spell.cost, charged) : canAffordOrHold(c, spell.cost, charged))) return false
+  return !charged || quicken || c.usedSurge === 'focus'
 }
 
 // What the spell needs of the caster and the gear besides what it costs and
@@ -390,6 +391,6 @@ export function getEffortlessCost(c: Character, spentAP: number): ActionCost {
 
 // Whether the caster can pay for resting while casting: never into negative
 // AP. Whether they can breathe to rest is the fight's to say.
-export function canAffordRestWhileCasting(c: CampaignCharacter, spentAP: number): boolean {
-  return canAfford(c, getEffortlessCost(c, spentAP))
+export function canAffordRestWhileCasting(c: CampaignCharacter, spentAP: number, charged: boolean): boolean {
+  return canAfford(c, getEffortlessCost(c, spentAP), charged)
 }

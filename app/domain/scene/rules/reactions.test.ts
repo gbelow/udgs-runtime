@@ -23,7 +23,7 @@ function approach(reactorAP: number, reactorSTA = 6): SceneState {
   const r = regripItem(spear.id, 2)(holdItem(spear)(fighter('r', reactorAP, reactorSTA)))
   let n = 0
   let s: SceneState = {
-    ...SceneStateSchema.parse({ board: { placements: { m: { cell: { q: 0, r: 0 } }, r: { cell: { q: 4, r: 0 } } } } }),
+    ...SceneStateSchema.parse({ round: 1, board: { placements: { m: { cell: { q: 0, r: 0 } }, r: { cell: { q: 4, r: 0 } } } } }),
     characters: { m: fighter('m', 12), r },
   }
   s = declareAction('m', { kind: 'move' }, () => `a${++n}`)(s)

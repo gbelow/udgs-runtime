@@ -86,14 +86,15 @@ export function expireUsedAbilities(c: CampaignCharacter): CampaignCharacter {
 // processed — a cost there is a drain that lands regardless — and whatever
 // else it lists, a buff or a cost due at the round change, is in effect
 // until the round ends. The rest of what it does is a combat procedure the
-// table resolves.
-export function useAbility(key: AbilityKey): (c: Character) => Character {
-  return (c: Character) => {
+// table resolves. Its AP and STA are paid only in a combat that has started
+// (`charged`, which the fight hands in).
+export function useAbility(key: AbilityKey): (c: Character, charged?: boolean) => Character {
+  return (c: Character, charged = false) => {
     if (!isCampaignCharacter(c) || !hasAbility(c, key)) return c
     const ability = ABILITIES[key]
     if (ability.activation !== 'active') return c
-    if (!canAfford(c, ability.cost) || getSurgeBar(c)) return c
-    const fired = applyEffects(effectsOn(ability.effect, 'instant'))(payCost(ability.cost)(c))
+    if (!canAfford(c, ability.cost, charged) || getSurgeBar(c)) return c
+    const fired = applyEffects(effectsOn(ability.effect, 'instant'))(payCost(ability.cost, charged)(c))
     return lingers(ability) ? { ...fired, active: [...fired.active, { kind: 'ability', key }] } : fired
   }
 }

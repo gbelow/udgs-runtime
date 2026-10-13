@@ -129,21 +129,21 @@ describe('drawing and storing charge what the lens prices', () => {
       it(`drawing ${item.name} from ${containerKey} ${slot}`, () => {
         const c = inPlay(20, containerKey, slot, stack)
         const cost = getDrawCost(c, slot, stack)
-        const drawn = drawItem(containerKey, stack.id)(c)
+        const drawn = drawItem(containerKey, stack.id)(c, true)
         expect(ap(drawn)).toBe(20 - cost.AP)
         if (cost.AP > 0) {
           const broke = inPlay(cost.AP - 1, containerKey, slot, stack)
-          expect(drawItem(containerKey, stack.id)(broke)).toEqual(broke)
+          expect(drawItem(containerKey, stack.id)(broke, true)).toEqual(broke)
         }
       })
 
       it(`storing ${item.name} into ${containerKey} ${slot}`, () => {
         const c = holdItem(stack)(inPlay(20, 'belt', 'quick', coin()))
         const cost = getStoreCost(c, slot, stack)
-        const stored = storeItem(stack.id, containerKey, slot)(c)
+        const stored = storeItem(stack.id, containerKey, slot)(c, true)
         expect(ap(stored)).toBe(20 - cost.AP)
         const broke = holdItem(stack)(inPlay(cost.AP - 1, 'belt', 'quick', coin()))
-        expect(storeItem(stack.id, containerKey, slot)(broke)).toEqual(broke)
+        expect(storeItem(stack.id, containerKey, slot)(broke, true)).toEqual(broke)
       })
     }
   }

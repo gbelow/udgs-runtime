@@ -119,7 +119,7 @@ const characterCases: Record<string, (c: CampaignCharacter) => unknown> = {
   inflict: characterCommands.inflict(['prone']),
   cure: characterCommands.cure(['prone']),
   restCharacter: characterCommands.restCharacter,
-  restWhileCasting: characterCommands.restWhileCasting({ AP: 1, STA: 0 }),
+  restWhileCasting: characterCommands.restWhileCasting({ AP: 1, STA: 0 }, true),
   actionSurge: characterCommands.actionSurge('focus'),
   endSurge: characterCommands.endSurge,
   wearFromContainer: (c) => characterCommands.wearFromContainer('belt', packedGambeson.id)(bareOnSheet(c)),

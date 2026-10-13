@@ -3,11 +3,17 @@ import type { CampaignUpdater, Homecoming } from '../types'
 import { addInstance, makeFightName } from '../../instances'
 import { addParty, dropEmptyParties, joinParty, withParty } from './parties'
 
+// Only a fight hands out AP (combat.tex "End of the round"), so whoever is on
+// the roster has none.
+function withoutAP(c: CampaignCharacter): CampaignCharacter {
+  return c.resources.AP === 0 ? c : { ...c, resources: { ...c.resources, AP: 0 } }
+}
+
 // The character joins the roster, in the party they were in or another (see
 // `joinParty`), under an id nobody at the table has `taken`.
 export function addToRoster(char: CampaignCharacter, newId: () => string, taken: readonly string[]): CampaignUpdater {
   return (state) => {
-    const added = addInstance(char, state.characters, newId, taken)
+    const added = addInstance(withoutAP(char), state.characters, newId, taken)
     return joinParty(added.id, newId)({ ...state, characters: { ...state.characters, [added.id]: added } })
   }
 }
@@ -22,7 +28,7 @@ export function checkIn(char: CampaignCharacter, home: Homecoming): CampaignUpda
     const opened = state.parties[home.partyId]
       ? withParty(home.partyId, (p) => ({ ...p, name: home.name || p.name }))(state)
       : addParty(home.partyId, home.from, nameInUse ? undefined : home.name)(state)
-    const back = { ...char, fightName: makeFightName(char, state.characters) }
+    const back = { ...withoutAP(char), fightName: makeFightName(char, state.characters) }
     return dropEmptyParties({ ...opened, characters: { ...opened.characters, [char.id]: back }, partyOf: { ...opened.partyOf, [char.id]: home.partyId } })
   }
 }

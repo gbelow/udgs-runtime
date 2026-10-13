@@ -1,3 +1,4 @@
+import { isChargedIn } from "../domain/scene/rules/started";
 import { useShallow } from "zustand/shallow";
 import { doffArmor, equipArmor, putGauntlets, putHelm, toggleVisor } from "../domain/character/commands";
 import { ArmorPanelView, ArmorPiecesView, getArmorPanel, getArmorPiecesView } from "../domain/character/lenses/armor";
@@ -24,12 +25,13 @@ export function useArmorLens() {
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;
 
-  const panel: ArmorPanelView = useActiveCharacterDerived(getArmorPanel, JSON.stringify) ?? BARE;
+  const panel: ArmorPanelView = useActiveCharacterDerived((c, fight) => getArmorPanel(c, isChargedIn(fight)), JSON.stringify) ?? BARE;
 
   // Whether the catalog pick could be put straight on; null when there is no
   // pick or it is not armor.
+  const charged = useActiveCharacterSelector((_c: Character, fight) => isChargedIn(fight)) ?? false;
   const equipView: WearView | null =
-    useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getEquipView(c, fromCatalog) : null))) ?? null;
+    useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getEquipView(c, fromCatalog, charged) : null))) ?? null;
 
   const drop = () => {
     update(doffArmor(null));
@@ -57,7 +59,7 @@ export function useDamageTiers(): DamageTierRow[] {
 // visor raised or lowered.
 export function useArmorPieces() {
   const update = useActiveInventoryUpdate();
-  const pieces: ArmorPiecesView | null = useActiveCharacterDerived(getArmorPiecesView, JSON.stringify) ?? null;
+  const pieces: ArmorPiecesView | null = useActiveCharacterDerived((c, fight) => getArmorPiecesView(c, isChargedIn(fight)), JSON.stringify) ?? null;
   const gauntlets = () => update(putGauntlets);
   const helm = () => update(putHelm);
   const visor = () => update(toggleVisor);

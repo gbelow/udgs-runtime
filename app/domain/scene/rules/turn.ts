@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { SurgeKind } from '../../types'
 import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
@@ -47,11 +48,12 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
   return null
 }
 
-// Why the character cannot start a turn now, or null: nobody else may hold
-// one, nothing may be being played out, and the round change (its morale
+// Why the character cannot start a turn now, or null: the combat must have
+// started, nobody else may hold one, nothing may be being played out, and the round change (its morale
 // tests among it: combat.tex "Morale", "at the beginning of a round") comes
 // first.
 export function getStartTurnBar(state: SceneState, id: string): string | null {
+  if (!isCombatStarted(state)) return 'combat has not started'
   if (getTurnHolder(state) === id) return 'already in turn'
   return getFightBusy(state) ?? getRoundChangeBar(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
 }

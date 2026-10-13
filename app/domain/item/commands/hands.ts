@@ -12,14 +12,14 @@ import { Improvements, drawOnFood, drawOnGear, produceEffects } from '../../char
 import { getConsume, getDosesLeft, getUnitDoses } from '../rules/consumables'
 
 // What changes the hands keeps whichever kind of character it was given.
-type HeldUpdater = <C extends Character>(c: C) => C
+type HeldUpdater = <C extends Character>(c: C, charged?: boolean) => C
 
-// A character in play pays the price or the move does not happen; on the sheet
-// nothing is charged. `null` is the refusal, so the caller returns the
-// character untouched. Nothing done with the hands is anything a surge's AP
-// allows, so none can be done while any is left.
-export function pay<C extends Character>(c: C, cost: ActionCost): C | null {
-  if (!isCharged(c)) return c
+// A character in a combat that has started pays the price or the move does
+// not happen; anywhere else nothing is charged. `null` is the refusal, so the
+// caller returns the character untouched. Nothing done with the hands is
+// anything a surge's AP allows, so none can be done while any is left.
+export function pay<C extends Character>(c: C, cost: ActionCost, charged: boolean): C | null {
+  if (!isCharged(c, charged)) return c
   if (getSurgeBar(c)) return null
   if (c.resources.AP < cost.AP || c.resources.STA < cost.STA) return null
   const paid = cost.STA > 0 ? updateSTA(c.resources.STA - cost.STA)(c) : c
@@ -106,9 +106,9 @@ export function findInContainer(c: Character, containerKey: string, itemId: stri
 // combat.tex "Drawing items in combat": one unit leaves the container's stack
 // for the hands, at the price of where it sat.
 export function drawItem(containerKey: string, itemId: string, hands: Grip = 1): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const found = findInContainer(c, containerKey, itemId)
-    const paid = pay(c, getDrawCost(c, found.slot, found.item))
+    const paid = pay(c, getDrawCost(c, found.slot, found.item), charged)
     if (!paid) return c
     const unit = duplicateItem(found.item, { amount: 1 })
     return grip(removeItemFromContainer(containerKey, itemId, 1)(paid), unit, hands)
@@ -118,7 +118,7 @@ export function drawItem(containerKey: string, itemId: string, hands: Grip = 1):
 // combat.tex "Putting items away": the held stack goes into a slot group, at
 // the price of the group it goes into.
 export function storeItem(itemId: string, containerKey: string, slot: SlotKind): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
     const container = getContainer(c, containerKey)
@@ -128,7 +128,7 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
     if (!canFitItem(container, slot, item)) {
       throw new Error(`Item "${item.name || item.refId}" does not fit in the ${slot} slots of container "${containerKey}"`)
     }
-    const paid = pay(c, getStoreCost(c, slot, item))
+    const paid = pay(c, getStoreCost(c, slot, item), charged)
     if (!paid) return c
     return addItemToContainer(containerKey, slot, item)(release(paid, itemId))
   }
@@ -136,30 +136,30 @@ export function storeItem(itemId: string, containerKey: string, slot: SlotKind):
 
 // gear.tex "Shields": each move to or from the back is a standard action,
 // once its view allows it.
-function payBackMove<C extends Character>(c: C, view: MoveView | null, what: string): C | null {
+function payBackMove<C extends Character>(c: C, view: MoveView | null, what: string, charged: boolean): C | null {
   if (!view) return null
   if (!view.able) {
     throw new Error(`Cannot ${what}: ${view.why}`)
   }
-  return pay(c, getActionCost(c, 'standardAction'))
+  return pay(c, getActionCost(c, 'standardAction'), charged)
 }
 
 // The held shield is slid to the back.
 export function slingShield(itemId: string): HeldUpdater {
-  return <C extends Character>(c: C): C => {
+  return <C extends Character>(c: C, charged = false): C => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
-    const paid = payBackMove(c, getSlingView(c, item), `sling "${item.name || item.refId}"`)
+    const paid = payBackMove(c, getSlingView(c, item, charged), `sling "${item.name || item.refId}"`, charged)
     return paid ? { ...release(paid, itemId), onBack: item } : c
   }
 }
 
 // The shield on the back is slid to the front, into one hand.
 export function unslingShield(): HeldUpdater {
-  return <C extends Character>(c: C): C => {
+  return <C extends Character>(c: C, charged = false): C => {
     const item = c.onBack
     if (!item) return c
-    const paid = payBackMove(c, getUnslingView(c, item), 'unsling the shield')
+    const paid = payBackMove(c, getUnslingView(c, item, charged), 'unsling the shield', charged)
     return paid ? grip({ ...paid, onBack: null }, item, 1) : c
   }
 }
@@ -167,8 +167,8 @@ export function unslingShield(): HeldUpdater {
 // gear.tex "Shields": "Throwing the shield out also costs a standard action".
 // There is no floor off the combat board, so it is gone.
 export function throwOffShield(): HeldUpdater {
-  return <C extends Character>(c: C): C => {
-    const paid = c.onBack && pay(c, getActionCost(c, 'standardAction'))
+  return <C extends Character>(c: C, charged = false): C => {
+    const paid = c.onBack && pay(c, getActionCost(c, 'standardAction'), charged)
     return paid ? { ...paid, onBack: null } : c
   }
 }

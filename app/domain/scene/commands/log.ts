@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter } from '../../types'
 import type { Action, ActionKind, ActionOf, SceneState, RootAction, WithdrawalReason } from '../types'
 import { getAction, getLiveActions, getLiveReactionsTo, getOpenAction } from '../rules/log'
@@ -175,7 +176,7 @@ function applyOne(s: SceneState, action: Action, phase: Phase): SceneState {
   const rolled = phase === 'resolve' ? dropFallenBalance(thrown, action) : thrown
   const board = rolled.board ? reduceBoard(rolled, action, phase)(rolled.board) : null
   const fire = phase === 'resolve' ? getFireTouched({ ...rolled, board }, action) : null
-  const next = mapCharacters(rolled, reduceCharacter(action, phase, fire))
+  const next = mapCharacters(rolled, reduceCharacter(action, phase, isCombatStarted(rolled), fire))
   const placed = { ...next, board, floor: reduceFloor(rolled, action, phase)(rolled.floor), binds: reduceBinds(rolled, action, phase)(next.binds) }
   return settleSevered(rolled, action.id)(settleBinds(phase === 'resolve' ? settleArcs(placed) : placed))
 }

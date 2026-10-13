@@ -27,8 +27,8 @@ export function equipContainer(key: string, container: Container): CharacterUpda
 
 // The container a container item puts on, once the view allows it from
 // where it is; the view is the one to have refused anything else.
-function toPutOn(c: Character, from: SlotKind | 'hand' | null, item: Item): Container {
-  const view = getPutOnView(c, from, item)
+function toPutOn(c: Character, from: SlotKind | 'hand' | null, item: Item, charged: boolean): Container {
+  const view = getPutOnView(c, from, item, charged)
   if (!view || !item.container) {
     throw new Error(`"${item.name || item.refId}" is not a container to put on`)
   }
@@ -41,25 +41,25 @@ function toPutOn(c: Character, from: SlotKind | 'hand' | null, item: Item): Cont
 // Stamped from the catalog: on the sheet it goes over whatever it displaces,
 // which is gone; in play only over nothing, for nothing.
 export function putOnFromCatalog(item: Item): CharacterUpdater {
-  return (c: Character) => equipContainer(getContainerKey(item), toPutOn(c, null, item))(c)
+  return (c: Character, charged = false) => equipContainer(getContainerKey(item), toPutOn(c, null, item, charged))(c)
 }
 
 // From the hands, for nothing, with what it carries.
 export function putOnFromHands(itemId: string): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
-    const container = toPutOn(c, 'hand', item)
+    const container = toPutOn(c, 'hand', item, charged)
     return equipContainer(getContainerKey(item), container)(dropItem(itemId)(c))
   }
 }
 
 // From a slot: drawn at that slot's price and put on.
 export function putOnFromContainer(containerKey: string, itemId: string): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const { slot, item } = findInContainer(c, containerKey, itemId)
-    const container = toPutOn(c, slot, item)
-    const paid = pay(c, getDrawCost(c, slot, item))
+    const container = toPutOn(c, slot, item, charged)
+    const paid = pay(c, getDrawCost(c, slot, item), charged)
     return paid ? equipContainer(getContainerKey(item), container)(removeItemFromContainer(containerKey, itemId, 1)(paid)) : c
   }
 }

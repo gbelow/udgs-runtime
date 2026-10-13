@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { LimitStressAction } from '../../lists'
 import type { SurgeKind } from '../../types'
 import { SURGES } from '../../tables'
@@ -113,10 +114,10 @@ export function getStressEndBar(state: SceneState): string | null {
       if (canSurge(duty.surge, true)(c)) return `forced to use the ${duty.surge} surge`
       const short = SURGES[duty.surge].STA > c.resources.STA
       const restHelps = short && c.resources.STA + getSTARegen(c) >= SURGES[duty.surge].STA
-      return restHelps && canAffordRest(c) && !isSuffocating(state, c) && !hasRestedThisTurn(state, c.id) ? `forced to rest, then use the ${duty.surge} surge` : null
+      return restHelps && canAffordRest(c, 'rest', isCombatStarted(state)) && !isSuffocating(state, c) && !hasRestedThisTurn(state, c.id) ? `forced to rest, then use the ${duty.surge} surge` : null
     }
     case 'social':
-      return turn.acted || !canAffordRest(c, 'socialAction') ? null : `forced to ${duty.say}`
+      return turn.acted || !canAffordRest(c, 'socialAction', isCombatStarted(state)) ? null : `forced to ${duty.say}`
     default:
       return null
   }

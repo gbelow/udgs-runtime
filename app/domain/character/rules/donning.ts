@@ -42,12 +42,12 @@ export type WearView = {
 // Whether this item could be put on right now. gear.tex "Donning and Doffing
 // armor": "It is not possible to don armor during combat"; on the sheet, off
 // the clock, only the fit is asked.
-export function getWearView(c: Character, item: Item): WearView | null {
+export function getWearView(c: Character, item: Item, charged: boolean): WearView | null {
   if (!isArmorItem(item)) return null
   if (c.worn) return { wearable: false, why: `already wearing ${c.worn.name || c.worn.refId}` }
   const scale = getItemScale(item)
   if (scale !== getSize(c)) return { wearable: false, why: `made for size ${scale}` }
-  if (isCharged(c)) return { wearable: false, why: 'armor cannot be donned in combat' }
+  if (isCharged(c, charged)) return { wearable: false, why: 'armor cannot be donned in combat' }
   return { wearable: true, why: '' }
 }
 
@@ -55,8 +55,8 @@ export function getWearView(c: Character, item: Item): WearView | null {
 // on. On the sheet only the fit is asked: it replaces whatever is worn and
 // costs nothing, the way holding a catalog pick does. In a fight it is a don
 // like any other, and there is none (gear.tex "Donning and Doffing armor").
-export function getEquipView(c: Character, item: Item): WearView | null {
-  if (isCharged(c)) return getWearView(c, item)
+export function getEquipView(c: Character, item: Item, charged: boolean): WearView | null {
+  if (isCharged(c, charged)) return getWearView(c, item, charged)
   if (!isArmorItem(item)) return null
   const scale = getItemScale(item)
   if (scale !== getSize(c)) return { wearable: false, why: `made for size ${scale}` }

@@ -10,8 +10,8 @@ import { addItemToContainer, duplicateItem, removeItemFromContainer } from '../.
 // One unit of the stack goes on. Whether it can is the view's to judge: it
 // fits, nothing is worn, and it is not a fight (gear.tex "Donning and Doffing
 // armor": "It is not possible to don armor during combat").
-function don(c: Character, item: Item): Character {
-  const view = getWearView(c, item)
+function don(c: Character, item: Item, charged: boolean): Character {
+  const view = getWearView(c, item, charged)
   if (!view) {
     throw new Error(`"${item.name || item.refId}" is not armor`)
   }
@@ -24,19 +24,19 @@ function don(c: Character, item: Item): Character {
 // gear.tex "Donning and Doffing armor", from a container: taken from its
 // slot and put on.
 export function wearFromContainer(containerKey: string, itemId: string): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const { item } = findInContainer(c, containerKey, itemId)
-    return removeItemFromContainer(containerKey, itemId, 1)(don(c, item))
+    return removeItemFromContainer(containerKey, itemId, 1)(don(c, item, charged))
   }
 }
 
 // From the hands: only put on. The whole stack leaves the hands, since a
 // stack of armor in the hands is one suit.
 export function wearFromHands(itemId: string): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const item = getHeldItem(c, itemId)
     if (!item) return c
-    const worn = don(c, item)
+    const worn = don(c, item, charged)
     return {
       ...worn,
       held: worn.held.filter((held) => held.id !== itemId),
@@ -49,8 +49,8 @@ export function wearFromHands(itemId: string): CharacterUpdater {
 // sheet it goes over whatever was worn, which is gone, for nothing: this is
 // how a character is dressed. In a fight the view has already refused it.
 export function equipArmor(item: Item): CharacterUpdater {
-  return (c: Character) => {
-    const view = getEquipView(c, item)
+  return (c: Character, charged = false) => {
+    const view = getEquipView(c, item, charged)
     if (!view) {
       throw new Error(`"${item.name || item.refId}" is not armor`)
     }
@@ -64,7 +64,7 @@ export function equipArmor(item: Item): CharacterUpdater {
 // Taken off and put away in one move, at the price of both; or taken off and
 // left on the floor, which there is none of yet.
 export function doffArmor(into: { containerKey: string; slot: SlotKind } | null): CharacterUpdater {
-  return (c: Character) => {
+  return (c: Character, charged = false) => {
     const worn = c.worn
     if (!worn) return c
     const container = into ? getContainer(c, into.containerKey) : undefined
@@ -73,8 +73,8 @@ export function doffArmor(into: { containerKey: string; slot: SlotKind } | null)
     }
     // On the clock, an armor that takes minutes to doff stays on.
     const cost = getDoffCost(c, into?.slot ?? null)
-    if (isCharged(c) && !cost) return c
-    const paid = pay(c, cost ?? FREE)
+    if (isCharged(c, charged) && !cost) return c
+    const paid = pay(c, cost ?? FREE, charged)
     if (!paid) return c
     const bare = { ...paid, worn: null }
     return into ? addItemToContainer(into.containerKey, into.slot, worn)(bare) : bare
@@ -83,21 +83,21 @@ export function doffArmor(into: { containerKey: string; slot: SlotKind } | null)
 
 // gear.tex "Donning and Doffing armor": the pair of gauntlets goes on or
 // comes off together, at its price in play; free on the sheet.
-export function putGauntlets(c: Character): Character {
-  const paid = pay(c, getPieceCost(c, !!c.hasGauntlets))
+export function putGauntlets(c: Character, charged = false): Character {
+  const paid = pay(c, getPieceCost(c, !!c.hasGauntlets), charged)
   return paid ? { ...paid, hasGauntlets: c.hasGauntlets ? 0 : 1 } : c
 }
 
 // The closed helmet the same way; it goes on with the visor down.
-export function putHelm(c: Character): Character {
-  const paid = pay(c, getPieceCost(c, !!c.hasHelm))
+export function putHelm(c: Character, charged = false): Character {
+  const paid = pay(c, getPieceCost(c, !!c.hasHelm), charged)
   return paid ? { ...paid, hasHelm: c.hasHelm ? 0 : 1, visorOpen: false } : c
 }
 
 // gear.tex "Closed helmet": "Opening and closing the visor of a closed helmet
 // is a standard action" — paid in play, free on the sheet.
-export function toggleVisor(c: Character): Character {
+export function toggleVisor(c: Character, charged = false): Character {
   if (!c.hasHelm) return c
-  const paid = pay(c, getActionCost(c, 'standardAction'))
+  const paid = pay(c, getActionCost(c, 'standardAction'), charged)
   return paid ? { ...paid, visorOpen: !c.visorOpen } : c
 }

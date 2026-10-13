@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../scene/rules/started'
 import type { CampaignCharacter } from '../types'
 import type { AttackAction, SceneState } from '../scene/types'
 import { getAttackKind } from '../weaponProperties'
@@ -54,7 +55,7 @@ function withAmmo(state: SceneState, id: string): SceneState {
 function getRows(state: SceneState, id: string, kind: 'strike' | 'shoot'): { ready: SceneState; options: AttackOption[] } {
   const ready = withFocus(kind, state, id)
   const c = ready.characters[id]
-  const options = getAttackRows(state, id, kind).filter((o) => canAfford(c, o))
+  const options = getAttackRows(state, id, kind).filter((o) => canAfford(c, o, isCombatStarted(state)))
   return { ready, options }
 }
 

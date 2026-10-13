@@ -39,9 +39,10 @@ export function getStoreCost(c: Character, slot: SlotKind, item: Item): ActionCo
   return plusAP(standard, 4)
 }
 
-// Only a character in play has AP to spend; on the sheet every move is free.
-export function isCharged(c: Character): c is CampaignCharacter {
-  return isCampaignCharacter(c)
+// Only a character in a combat that has started has AP to spend (`charged`,
+// which the fight hands in); anywhere else every move is free.
+export function isCharged(c: Character, charged: boolean): c is CampaignCharacter {
+  return charged && isCampaignCharacter(c)
 }
 
 // Whether a container item can be put on from where it is — the catalog
@@ -51,11 +52,11 @@ export function isCharged(c: Character): c is CampaignCharacter {
 // which is how a character is dressed; anywhere else the other comes off
 // first. A quiver or a pouch is not put on but opened in a slot (gear.tex
 // "Quiver"). Null for an item that is not a container one can put on.
-export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item): MoveView | null {
+export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item: Item, charged: boolean): MoveView | null {
   if (!item.container || item.container.kind in OPENS_IN) return null
   const displaced = getDisplacedContainer(c, item)
-  if (displaced && (from !== null || isCharged(c))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }
-  if (!isCharged(c)) return { able: true, cost: null, why: '' }
+  if (displaced && (from !== null || isCharged(c, charged))) return { able: false, cost: null, why: `take off the ${displaced.name} first` }
+  if (!isCharged(c, charged)) return { able: true, cost: null, why: '' }
   const cost = from === null || from === 'hand' ? FREE : getDrawCost(c, from, item)
   return { able: true, cost: cost.AP, why: '' }
 }
@@ -63,20 +64,20 @@ export function getPutOnView(c: Character, from: SlotKind | 'hand' | null, item:
 // gear.tex "Shields": a shield "carries its own" strap, so it is slid to the
 // back or back to the front with a standard action, and "throwing the shield
 // out also costs a standard action". On the sheet each is free.
-export function getBackMoveCost(c: Character): number | null {
-  return isCharged(c) ? getActionCost(c, 'standardAction').AP : null
+export function getBackMoveCost(c: Character, charged: boolean): number | null {
+  return isCharged(c, charged) ? getActionCost(c, 'standardAction').AP : null
 }
 
-function backMove(c: Character, why: string): MoveView {
-  return { able: why === '', cost: getBackMoveCost(c), why }
+function backMove(c: Character, why: string, charged: boolean): MoveView {
+  return { able: why === '', cost: getBackMoveCost(c, charged), why }
 }
 
 // Null for a held item that is not a shield.
-export function getSlingView(c: Character, item: Item): MoveView | null {
+export function getSlingView(c: Character, item: Item, charged: boolean): MoveView | null {
   if (getItemWeapon(item)?.shield === undefined) return null
-  return backMove(c, c.onBack ? `the ${c.onBack.name || c.onBack.refId} is on the back` : '')
+  return backMove(c, c.onBack ? `the ${c.onBack.name || c.onBack.refId} is on the back` : '', charged)
 }
 
-export function getUnslingView(c: Character, item: Item): MoveView {
-  return backMove(c, canHoldWith(c, item, 1) ? '' : 'no free hand')
+export function getUnslingView(c: Character, item: Item, charged: boolean): MoveView {
+  return backMove(c, canHoldWith(c, item, 1) ? '' : 'no free hand', charged)
 }

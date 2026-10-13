@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../scene/rules/started'
 import type { CampaignCharacter } from '../types'
 import type { SceneState } from '../scene/types'
 import { setDistance } from '../scene/rules/board/geometry'
@@ -88,8 +89,8 @@ export function getStanding(store: Evaluations, state: SceneState, attackerId: s
   const target = state.characters[targetId]
   if (!attacker || !target) return []
   return evaluate(store, state, attackerId, targetId)
-    .filter((e) => canAfford(attacker, e.cost))
-    .map((e) => guardedBy(e, e.defenses.filter((d) => d.kind === 'none' || canAfford(target, d.cost))))
+    .filter((e) => canAfford(attacker, e.cost, isCombatStarted(state)))
+    .map((e) => guardedBy(e, e.defenses.filter((d) => d.kind === 'none' || canAfford(target, d.cost, isCombatStarted(state)))))
 }
 
 export function getBestAttack(store: Evaluations, state: SceneState, attackerId: string, targetId: string): AttackEstimate | null {

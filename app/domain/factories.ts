@@ -227,7 +227,6 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     resources: {
       ...campaignCharacter.resources,
       STA: getSTA(campaignCharacter),
-      AP: 8,
       ...knownNumbers(parsed.data.resources, campaignCharacter.resources),
     },
     injuries: {

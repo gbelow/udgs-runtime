@@ -43,7 +43,7 @@ function spearman(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
 
 function onBoard(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): SceneState {
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
-  return { ...SceneStateSchema.parse({ board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
+  return { ...SceneStateSchema.parse({ round: 1, board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
 }
 
 let n = 0

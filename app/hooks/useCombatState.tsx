@@ -8,7 +8,7 @@ import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/pr
 import { getGearBar, getNextRoundBar } from "../domain/scene/rules/turn";
 import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
-import { getReturnBar } from "../domain/scene/rules/fight";
+import { getReturnBar, getEndCombatBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { isActingAsGm, useAppStore } from "../stores/useAppStore";
 import { useShallow } from "zustand/shallow";
@@ -23,9 +23,10 @@ export function useCombatState() {
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
   const nextRoundBar = useCombatStore(getNextRoundBar);
   const returnBar = useCombatStore(getReturnBar);
+  const endCombatBar = useCombatStore(getEndCombatBar);
   const hasBoard = useCombatStore((s) => s.board !== null);
 
-  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, hasBoard } as const;
+  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, endCombatBar, hasBoard } as const;
 }
 
 export function useCombatRoster(): {

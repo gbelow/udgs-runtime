@@ -1,3 +1,4 @@
+import { isChargedIn } from "../domain/scene/rules/started";
 import { useShallow } from "zustand/shallow";
 import { putOnFromCatalog, takeOffContainer } from "../domain/item/commands";
 import { getPutOnView } from "../domain/item/rules/costs";
@@ -33,7 +34,7 @@ export function useContainerLens() {
   // input to the projection — each group reports whether it would take it —
   // and the digest covers that too, so a change of selection re-renders.
   const panels: ContainerPanelView[] =
-    useActiveCharacterDerived((c: Character) => getContainerPanels(c, pendingItem ?? undefined), JSON.stringify) ?? [];
+    useActiveCharacterDerived((c: Character, fight) => getContainerPanels(c, isChargedIn(fight), pendingItem ?? undefined), JSON.stringify) ?? [];
 
   // gear.tex "Containers and burden" — the character-wide penalty.
   const burden: BurdenView =
@@ -49,8 +50,9 @@ export function useContainerLens() {
 
   // Whether the catalog pick could be put straight on; null when there is no
   // pick or it is not a container one puts on.
+  const charged = useActiveCharacterSelector((_c: Character, fight) => isChargedIn(fight)) ?? false;
   const putOnView: MoveView | null =
-    useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getPutOnView(c, null, fromCatalog) : null))) ?? null;
+    useActiveCharacterSelector(useShallow((c: Character) => (fromCatalog ? getPutOnView(c, null, fromCatalog, charged) : null))) ?? null;
 
   // Puts the catalog pick on. The pick stays pending, as it does when placed
   // in a slot, so the same container can go on the next character too.

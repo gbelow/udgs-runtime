@@ -39,7 +39,7 @@ export function deliver(delivery: Delivery, parent: Outcome | null = null): (c: 
     }
     switch (effect.type) {
       case 'cost':
-        return follow(delivery, degree, null)(payCost(effect.effect)(c))
+        return follow(delivery, degree, null)(payCost(effect.effect, true)(c))
       case 'damage': {
         const outcome = getOutcome(effect.effect, degree, c)
         return follow(delivery, degree, outcome)(takeOutcome(outcome)(c))

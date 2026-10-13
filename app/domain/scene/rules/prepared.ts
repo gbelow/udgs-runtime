@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter, Character } from '../../types'
 import type { Action, ActionOf, SceneState, Coord, Placement, PreparableKind, PrepareAction, PreparedTrigger, RootAction, ShootAction, StrikeAction } from '../types'
 import { SPELLS, isSpellKey } from '../../spells'
@@ -105,7 +106,7 @@ export function getMainCost(state: SceneState, c: CampaignCharacter, p: PrepareA
       return variant && isShotLoaded(c, main) ? { AP: variant.AP, STA: variant.STA } : null
     }
     case 'cast':
-      return isSpellKey(main.key) && canCastSpell(c, main.key, main.quicken) ? { AP: SPELLS[main.key].cost.AP, STA: SPELLS[main.key].cost.STA } : null
+      return isSpellKey(main.key) && canCastSpell(c, main.key, main.quicken, isCombatStarted(state)) ? { AP: SPELLS[main.key].cost.AP, STA: SPELLS[main.key].cost.STA } : null
     case 'move': {
       const blocks = getMovementOptions(state, c).filter((o) => o.available && o.speed > 0).map((o) => o.block)
       return blocks.length === 0 ? null : blocks.reduce((least, b) => (b.AP < least.AP ? b : least))
@@ -121,7 +122,7 @@ export function getPreparedBar(state: SceneState, c: CampaignCharacter, p: Prepa
   if (isImmobile(state, c)) return 'immobile'
   const cost = getMainCost(state, c, p)
   if (!cost) return 'cannot be made now'
-  return canAfford(c, cost) ? null : 'cannot afford'
+  return canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
 }
 
 // How much of the preparation's 2 AP of movement may be spent: what is left

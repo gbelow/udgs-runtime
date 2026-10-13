@@ -149,7 +149,9 @@ all but the tests themselves written by `setActions` as actions land), or stampe
 - **define** — free to edit or cancel. Only one root can be declared at a time
   (`declareAction` refuses while anything is open), and only by the character whose turn
   it is (`inTurnCharacter`, `rules/turn.ts`); while a movement or combat surge has AP left,
-  only what it allows (`rules/surge.ts`).
+  only what it allows (`rules/surge.ts`). Before the combat has started
+  (`rules/started.ts`, round 0) nobody takes a turn, anyone declares, and nothing costs
+  AP or STA: every price check and payment is handed whether the combat has started.
 - **commit** (`commitAction(dice, newId)`) — checks the declaration is complete
   (`isDeclarationComplete`), aimed legally (`getTargetIds`) and affordable
   (`getPayableCost`), then locks it at `react`. A move records `from` here. When nobody
@@ -301,6 +303,7 @@ app/domain/scene/
 │   ├── stress.ts       oweStress (the last morale test makes the activated limit stress actions owed into `state.compulsions`; tanatosis and a martyr who can pay make theirs at once), compelByTest (a morale spell's test landing: a miss owes a limit stress action at once, bound to its caster as the spell says; Pacify takes one back; `land` calls it, and `advance` hands the turn to the compelled once nothing is open, closing the holder's as a feint does), takeStressTurn (the next owed turn begins; also called by endTurn), markStress
 │   ├── fight.ts        sendToFight, returnFromFight, removeFromFight, resetFight, loadIntoFight, loadOntoRoster: characters off the campaign's roster into the scene and back under the ids they left with, in the parties the scene left them in, with the ETs it took
 │   ├── chase.ts        startChase, declareChase (a party's move for the round, head of the chain first: run, run the other way, shoot, hide, with what it scouts for), resolveChase (hiders hide, every live link is run — the two ends' ways, the faster deciding when they pull apart, a skirmish's way waiting for the round's end — runners pay, skirmish AP, scouting), followParty, putBack, giveUp, mergeBack, runOn, setPartyFighting, joinFight, crossObstacle, turnAround, setChaseCover, endChase; endChaseRound (called by nextRound: skirmish ways, places run towards, arrivals, disconnected parties out)
+│   ├── endCombat.ts    endCombat: the rounds end and everyone stays — `leaveFight` on each, the round back to 0 with nothing the rounds held, held actions finished (`finishHeld`) for nothing; the log stays
 │   ├── resetCombat.ts
 │
 ├── rules/                           what the book says about a state
@@ -377,7 +380,8 @@ app/domain/scene/
 │   ├── stealth.ts      whether an observer has a target (`notices`): outside the target's turn by the board (an unimpaired active sense detects, a partial one tests against the round's score); in their own turn only against whoever is in their `stealthTurns` entry, by the best reactive sense against the score less the turn's noise and the pending action's (`noise`, stamped at commit by `getNoise`); `getTargetIds` closes who is not noticed, `getTriggers` drops who does not notice the actor; `getReactionSensePenalty`, the penalty of the sense a reaction relies on, on the reaction's own test
 │   ├── aim.ts          where the open action waits to be pointed on the board
 │   ├── chase.ts        a chase (`state.chase`, combat.tex "Chases"): the chain of links (each party chases at most one other, at a tier; a team is the side that ran away first or gave chase), the starting chain, who is held (fighting, separated, joining), far links frozen while enemies are at combat range, who declares and in what order, run speeds, who is caught, what may be declared and resolved, the tier between two parties (the farthest on the chain between them, `getChaseDistance`, read by `getDistanceBetween`, so reach, shot penalties, spells and senses see it; a shot crosses tiers by the tier its range names, `reachesTier`), how long a round takes (`state.elapsed`), the routing bonus, cover, skirmish AP, the hiding, scouting and crossing tests, following, putting back, merging back, joining a fight, and a party splitting (`getSplitChase`, called by splitOff)
-│   ├── fight.ts        getReturnBar, getJoinBar, isFromRoster, getHomecoming: why the scene cannot give its characters back or take one in now, and the party it gives each back to
+│   ├── fight.ts        getReturnBar, getEndCombatBar, getJoinBar, isFromRoster, getHomecoming: why the scene cannot give its characters back (not until the combat is ended), end the combat or take one in now, and the party it gives each back to
+│   ├── started.ts      isCombatStarted, isChargedIn: whether the first round is under way, which is what makes turns exist and AP and STA prices get paid
 │   ├── roundChange.ts  the round change: its phases in order (`ROUND_PHASES`), where it stands (`getRoundPhase`: the morale tests, the limit stress actions and the chase read off the state inside `roundStep` 'morale'), what it bars of the turns, the AP still to come, who has to hold on or let go and why they cannot, and what keeps the table from moving it on
 │   └── fighters.ts     active character, fight names, who holds an item
 │

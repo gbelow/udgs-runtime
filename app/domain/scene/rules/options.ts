@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter, SurgeKind } from '../../types'
 import { getMedicineBar, getMedicineCost } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
@@ -73,7 +74,7 @@ function option(draft: ActionDraft, cost: ActionCost | null, reason: string | nu
 // interrupted in the middle". combat.tex "Prone": "Can only crawl and stand
 // up"; "Lame": "Cannot ... jump".
 function defenseGate(state: SceneState, defender: CampaignCharacter, root: Action, kind: ActionKind, cost: ActionCost): string | null {
-  if (!canAfford(defender, cost)) return 'cannot afford'
+  if (!canAfford(defender, cost, isCombatStarted(state))) return 'cannot afford'
   if (hasAffliction(defender, 'unconscious')) return 'unconscious'
   if (isImmobile(state, defender)) return 'immobile'
   if (reactsTo(kind, 'strike') && kind !== 'intercept' && kind !== 'counterattack' && hasFightAffliction(state, defender, 'grappled')) return 'grappled'
@@ -94,7 +95,7 @@ function guardOption(state: SceneState, c: CampaignCharacter, root: Action, guar
   const stepping = needsGuardStep(state, root, guard)
   const placed = stepping || isGuardPlaced(state, root, guard)
   const priced = stepping && !(guard.kind === 'intercept' && guard.advance) ? withGuardStep(c, { ...guard, to: getGuardSteps(state, root, guard)[0] }, getActionCost(c, guard.kind)) : cost
-  const reason = gate ?? (!canAfford(c, priced) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
+  const reason = gate ?? (!canAfford(c, priced, isCombatStarted(state)) ? 'cannot afford' : placed ? null : guard.kind === 'intercept' ? 'out of short range' : 'off the line')
   return { cost: priced, reason }
 }
 
@@ -187,6 +188,7 @@ function closeIfPushUnpayable(state: SceneState, characterId: string, open: Root
 function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootAction): ActionOption[] {
   const c = withRefund(state, withoutReserve(state, answerer, open.id), open.id)
   const characterId = c.id
+  const charged = isCombatStarted(state)
   const declared = getReactionsTo(state, open.id).find((r) => r.actorId === characterId) ?? null
   const chosen = (draft: ActionDraft) => declared !== null && sameDraft(draft, declared)
 
@@ -252,7 +254,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'assist': {
         if (open.kind !== 'drag') return []
         const boosted = getPushAnswerCost(state, open, { kind, actorId: c.id, boost: true })
-        return [answer({ kind }), answer({ kind, boost: true }, boosted, gate ?? (canAfford(c, boosted) ? null : 'cannot afford'))]
+        return [answer({ kind }), answer({ kind, boost: true }, boosted, gate ?? (canAfford(c, boosted, charged) ? null : 'cannot afford'))]
       }
       // combat.tex "Opportunity Attack": "The attack requires the normal AP
       // cost" — it is open only to someone who can pay for a strike, or,
@@ -261,8 +263,8 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'opportunityAttack': {
         const strikes = getFreeAttackOptions(state, c, 'strike')
         const partner = getPartners(state, c.id).includes(open.actorId)
-        const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }))
-          || (partner && canAfford(c, getActionCost(c, 'grappleManeuver')))
+        const affordable = strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged))
+          || (partner && canAfford(c, getActionCost(c, 'grappleManeuver'), charged))
         const reason = strikes.length === 0 && !partner ? 'no melee weapon in hand' : affordable ? null : 'cannot afford a strike'
         return [answer({ kind, at: trigger.at }, null, reason)]
       }
@@ -270,7 +272,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       // the block; one with no AP to move stays put and counts passively,
       // or, held by nobody, lets go
       case 'carry':
-        return [answer({ kind }, cost, gate ?? (canAfford(c, cost) ? null : 'cannot afford'))]
+        return [answer({ kind }, cost, gate ?? (canAfford(c, cost, charged) ? null : 'cannot afford'))]
       case 'letGo': {
         return [answer({ kind }, cost, gate ?? (isHeld(getGrapples(state), c.id) ? 'held' : null))]
       }
@@ -289,14 +291,14 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
         const reaching = shots.filter((s) => isJoinInRange(state, c.id, s, trigger.against ?? ''))
         const reason = shots.length === 0 ? getRowBar(c, 'shoot')
           : reaching.length === 0 ? 'out of range'
-          : reaching.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a shot'
+          : reaching.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a shot'
         return [answer({ kind }, null, gate ?? reason)]
       }
       // abilities.tex "Counterattack": a strike of their own, so it is open
       // only to someone who can pay for one
       case 'counterattack': {
         const strikes = getFreeAttackOptions(state, c, 'strike')
-        const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA })) ? null : 'cannot afford a strike'
+        const reason = strikes.length === 0 ? 'no melee weapon in hand' : strikes.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a strike'
         return [answer({ kind }, null, gate ?? reason)]
       }
       // combat.tex "Flee": paid with the movement surge, made as it is
@@ -313,7 +315,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       // combat.tex "Follow": a move of the follower's own, so it is open only
       // to someone who can pay for one
       case 'follow': {
-        const reason = getMovementOptions(state, c).some((m) => m.available && canAfford(c, m.block)) ? null : 'cannot afford a move'
+        const reason = getMovementOptions(state, c).some((m) => m.available && canAfford(c, m.block, charged)) ? null : 'cannot afford a move'
         return [answer({ kind }, null, reason)]
       }
     }
@@ -353,7 +355,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const maneuver = getActionCost(c, 'grappleManeuver')
     return [
       ...GRAPPLE_MANEUVERS.map((m) =>
-        option({ kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(c, maneuver))),
+        option({ kind: 'grapple', maneuver: m }, maneuver, getManeuverTargets(state, c.id, m).length === 0 ? 'nobody holds you' : afford(state, c, maneuver))),
     ]
   },
   // combat.tex "Prone": "cannot push nor drag"
@@ -384,7 +386,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   slip: (state, c) => {
     if (getSlipTargets(state, c.id).length === 0) return []
     const cost = getSlipCost(c)
-    return [option({ kind: 'slip' }, cost, afford(c, cost))]
+    return [option({ kind: 'slip' }, cost, afford(state, c, cost))]
   },
   // combat.tex "Turns and Actions" ("Feint"): a test against someone in melee
   feint: (state, c) => [option({ kind: 'feint' }, { AP: 0, STA: 0 }, getFeintBar(state, c))],
@@ -399,7 +401,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const reachable = getReachableFloor(state, c.id).filter((f) => canPickUp(c, f.item))
     const reason = state.floor.length === 0 ? 'nothing on the floor'
       : reachable.length === 0 ? (getReachableFloor(state, c.id).length > 0 ? 'no free hand' : 'nothing within reach')
-      : canAfford(c, cost) ? null : 'cannot afford'
+      : canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
     return [option({ kind: 'pickUp' }, cost, reason)]
   },
   // combat.tex "Throw", "Standard Action": something held or on the floor
@@ -408,14 +410,14 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const throwable = getThrowables(state, c).filter((item) => canThrowItem(c, item))
     const reason = !isPlaced(state, c) ? 'not on the board'
       : throwable.length === 0 ? 'nothing it can throw'
-      : throwable.some((item) => canAfford(c, getThrowCost(c, item.id))) ? null : 'cannot afford'
+      : throwable.some((item) => canAfford(c, getThrowCost(c, item.id), isCombatStarted(state))) ? null : 'cannot afford'
     return [option({ kind: 'throw' }, null, reason)]
   },
   // gear.tex "Potions and Medicine": "Potions require a standard action to
   // be consumed"
-  drink: (_state, c) => {
+  drink: (state, c) => {
     const cost = getActionCost(c, 'standardAction')
-    const reason = getTakeableHeld(c).bar ?? (canAfford(c, cost) ? null : 'cannot afford')
+    const reason = getTakeableHeld(c).bar ?? (canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford')
     return [option({ kind: 'drink' }, cost, reason)]
   },
   // abilities.tex "Medicine": aimed at someone bleeding, self included
@@ -429,19 +431,19 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
     const cost = getActionCost(c, 'extinguish')
     const reason = !isPlaced(state, c) ? 'not on the board'
       : getExtinguishCells(state, c.id).length === 0 ? 'nothing burning within reach'
-      : afford(c, cost)
+      : afford(state, c, cost)
     return [option({ kind: 'extinguish' }, cost, reason)]
   },
   // combat.tex "Preparing a reaction": 1 AP, whatever is prepared; it needs a
   // board to be triggered on
   prepare: (state, c) => {
     const cost = getActionCost(c, 'prepare')
-    return [option({ kind: 'prepare' }, cost, !isPlaced(state, c) ? 'not on the board' : afford(c, cost))]
+    return [option({ kind: 'prepare' }, cost, !isPlaced(state, c) ? 'not on the board' : afford(state, c, cost))]
   },
   // combat.tex "Rest"
   rest: (state, c) => {
     const cost = getActionCost(c, 'rest')
-    return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : getChaseRestBar(state, c.id) ?? (canAffordRest(c, 'rest', getIncomingAP(state)) ? null : 'cannot afford'))]
+    return [option({ kind: 'rest' }, cost, isSuffocating(state, c) ? 'cannot breathe' : getChaseRestBar(state, c.id) ?? (canAffordRest(c, 'rest', isCombatStarted(state), getIncomingAP(state)) ? null : 'cannot afford'))]
   },
   // combat.tex "Social actions": an insult only for the abusive compelled to
   // it, and the surrender flag raised or lowered, whichever it stands at
@@ -464,8 +466,8 @@ function seizedReason(state: SceneState, action: Action): string | null {
   return isUsedOutsideGrapple(state, action) ? 'held in a grapple' : null
 }
 
-function afford(c: CampaignCharacter, cost: ActionCost): string | null {
-  return canAfford(c, cost) ? null : 'cannot afford'
+function afford(state: SceneState, c: CampaignCharacter, cost: ActionCost): string | null {
+  return canAfford(c, cost, isCombatStarted(state)) ? null : 'cannot afford'
 }
 
 // combat.tex "Immobile": "Cannot move and cannot use any combat or movement
@@ -509,9 +511,9 @@ function closeWhileFleeing(state: SceneState, c: CampaignCharacter, options: Act
 
 // play.tex "Combat": a character acts in their own turn; outside it, only
 // reactions and what they open — and a rest at the round change, the table's
-// ruling.
+// ruling. Before the combat has started there are no turns, and anyone acts.
 function closeOutOfTurn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return isInTurn(state, c.id) ? options : closeWith(options, (o) => (getActionDef(o.draft.kind).rest && getRoundPhase(state) === 'rest') || isUnsurrender(o.draft) ? null : 'not your turn')
+  return !isCombatStarted(state) || isInTurn(state, c.id) ? options : closeWith(options, (o) => (getActionDef(o.draft.kind).rest && getRoundPhase(state) === 'rest') || isUnsurrender(o.draft) ? null : 'not your turn')
 }
 
 // combat.tex "Surrender": unflagged "at any time".

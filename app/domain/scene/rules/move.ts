@@ -1,7 +1,8 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter, Character, MoveKind, MovementKind, Posture } from '../../types'
 import type { Action, SceneState, Coord, Degree, MoveAction, MoveFacts, Placement } from '../types'
 import { getMoveHeld } from './heldRoll'
-import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
+import { CLIMB_GRAZE_AP, CLIMB_RISKY_AP, FALL, ROUND_AP, RUN_START_AP, SWIM_FAILURE_STA, SWIM_STRUGGLE_AP, type MovementBlock } from '../../tables'
 import { MOVEMENT_KINDS, POSTURES } from '../../lists'
 import { ActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
@@ -542,11 +543,13 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
   if (!getMovementOptions(state, c, action).find((o) => o.kind === kind)?.available) return []
 
   // the walk stops where even the best swum path outruns the price; the path
-  // found is then priced as it is swum
+  // found is then priced as it is swum. Before the combat has started the
+  // move is free, but goes no further than a round's AP would carry it.
   const best = { ...action, dive: 0, path: [] }
+  const payable = (cost: ActionCost) => (isCombatStarted(state) ? canAfford(c, cost, true) : cost.AP <= ROUND_AP)
   const affordable = (steps: number) => {
     if (kind === 'jump' && steps > getMovementSpeed(c, 'jump')) return false
-    return canAfford(c, getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
+    return payable(getMovePrice(state, c, best, steps)) && withinBudget(getMoveCost(c, kind, steps), action.budget)
   }
   const ceiling = getJumpCeiling(c, from)
   const stepFrom = (path: Coord[]) => (path.length > 1 ? path[path.length - 2] : from.cell)
@@ -559,5 +562,5 @@ export function getWalkableCells(state: SceneState, action: MoveAction): Reachab
       return isCrossable(footprint, ground, kind, wetBefore(path)) && canRest(state, c, footprint, ground) && (kind !== 'climb' || (path.length === 1 && isClimbable(state, { ...action, path })))
     })
     .map(({ cell, steps, path }) => ({ cell, steps, cost: getMovePrice(state, c, { ...action, dive: 0, path, metres: kind === 'climb' ? 1 : action.metres }, steps), path }))
-    .filter(({ cost }) => canAfford(c, cost))
+    .filter(({ cost }) => payable(cost))
 }

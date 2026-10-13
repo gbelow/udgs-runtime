@@ -2,6 +2,7 @@ import { continueRound as moveRoundOn, holdOn as holdOnTo, letGo as letGoOf, nex
 import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as beginTurn, surge, toggleAgreeToEnd as toggleAgreement, toggleContest as toggleTurnContest } from "../domain/scene/commands/turn"
 import type { SurgeKind } from "../domain/types"
 import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
+import { endCombat as finishCombat } from "../domain/scene/commands/endCombat"
 import { moveToParty as moveInto, renameParty as renameFightParty, splitOff as splitFrom } from "../domain/scene/commands/parties"
 import { toggleBreakage as switchBreakage } from "../domain/scene/commands/breakage"
 import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/scene/commands/morale"
@@ -69,6 +70,10 @@ export function useCombatCommands() {
     updateCombatState(passRound(realDice))
   }
 
+  const endCombat = () => {
+    updateCombatState(finishCombat(realDice))
+  }
+
   const continueRound = () => {
     updateCombatState(moveRoundOn(realDice))
   }
@@ -111,5 +116,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
 }

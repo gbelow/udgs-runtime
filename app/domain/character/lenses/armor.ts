@@ -18,7 +18,7 @@ export type ArmorPanelView = {
   notes: string
 }
 
-export function getArmorPanel(c: Character): ArmorPanelView {
+export function getArmorPanel(c: Character, charged: boolean): ArmorPanelView {
   const armor = getArmor(c)
   const doff = getDoffCost(c, null)
   return {
@@ -30,8 +30,8 @@ export function getArmorPanel(c: Character): ArmorPanelView {
           scale: getItemScale(c.worn),
           fits: armorFits(c),
           pitted: c.worn.broken,
-          doffCost: isCharged(c) && doff ? doff.AP : null,
-          canDoff: !isCharged(c) || doff !== null,
+          doffCost: isCharged(c, charged) && doff ? doff.AP : null,
+          canDoff: !isCharged(c, charged) || doff !== null,
         }
       : null,
     burdenPenalty: armor.burdenPenalty,
@@ -51,11 +51,11 @@ export type PieceView = { worn: boolean; cost: number | null }
 export type VisorView = { open: boolean; cost: number | null }
 export type ArmorPiecesView = { gauntlets: PieceView; helm: PieceView; visor: VisorView | null }
 
-export function getArmorPiecesView(c: Character): ArmorPiecesView {
-  const cost = (worn: boolean) => (isCharged(c) ? getPieceCost(c, worn).AP : null)
+export function getArmorPiecesView(c: Character, charged: boolean): ArmorPiecesView {
+  const cost = (worn: boolean) => (isCharged(c, charged) ? getPieceCost(c, worn).AP : null)
   return {
     gauntlets: { worn: !!c.hasGauntlets, cost: cost(!!c.hasGauntlets) },
     helm: { worn: !!c.hasHelm, cost: cost(!!c.hasHelm) },
-    visor: c.hasHelm ? { open: c.visorOpen, cost: isCharged(c) ? getActionCost(c, 'standardAction').AP : null } : null,
+    visor: c.hasHelm ? { open: c.visorOpen, cost: isCharged(c, charged) ? getActionCost(c, 'standardAction').AP : null } : null,
   }
 }

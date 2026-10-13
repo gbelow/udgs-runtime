@@ -3,6 +3,7 @@ import path from 'node:path'
 import { SceneStateSchema, type HitLocation, type ActionDraft, type ActionKind, type SceneState, type Coord, type RootAction } from '../app/domain/scene/types'
 import { rollD10, seededRng, type Dice } from '../app/domain/play/dice'
 import { buildFighter } from './lib/fighters'
+import { isCombatStarted } from '../app/domain/scene/rules/started'
 import type { CampaignCharacter } from '../app/domain/types'
 import { addInstance } from '../app/domain/instances'
 import { setDistance } from '../app/domain/scene/rules/board/geometry'
@@ -184,7 +185,7 @@ function strikeChoices(base: Base, id: string, foes: string[], state: SceneState
       const aimed = base.own ? setTarget(target)(amendAction(row)(s)) : amendAction(row)(s)
       return aim ? amendAction(placeOf(aimed, aim))(aimed) : aimed
     })
-    const why = shut ?? (!canAfford(mine, option) ? `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` : !reaches ? 'the foe is out of reach' : null)
+    const why = shut ?? (!canAfford(mine, option, isCombatStarted(state)) ? `needs ${option.AP} AP and ${option.STA} STA, you have ${mine.resources.AP} AP and ${mine.resources.STA} STA` : !reaches ? 'the foe is out of reach' : null)
     return { label, apply, ...(why ? { unavailable: why } : {}) }
   }))
 }

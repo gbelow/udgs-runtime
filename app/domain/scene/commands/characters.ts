@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { CampaignCharacter } from '../../types'
 import type { Updater } from '../types'
 import { getOpenAction } from '../rules/log'
@@ -27,12 +28,13 @@ export function removeFromCombat(id: string): Updater {
 
 // Changes one character outside any action — an edit made on the sheet
 // mid-fight — and brings the grapples back into line with it: a holder whose
-// hands no longer hold a grapple row lets go.
-export function updateCharacter(id: string, updater: (c: CampaignCharacter) => CampaignCharacter, cause = 'sheet edit'): Updater {
+// hands no longer hold a grapple row lets go. The updater is told whether
+// the combat has started, the one place its prices are paid.
+export function updateCharacter(id: string, updater: (c: CampaignCharacter, charged: boolean) => CampaignCharacter, cause = 'sheet edit'): Updater {
   return (state) => {
     const c = state.characters[id]
     if (!c) return state
-    const after = settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c) } })
+    const after = settleBinds({ ...state, characters: { ...state.characters, [id]: updater(c, isCombatStarted(state)) } })
     const changes = getChanges(state, after, 'edit')
     return changes.length === 0 ? after : { ...after, edits: [...after.edits, { cause, round: state.round, turn: state.turn, landed: state.landed.length, changes }] }
   }
@@ -42,7 +44,7 @@ export function updateCharacter(id: string, updater: (c: CampaignCharacter) => C
 // shield — refused outside their own turn once the fight has started
 // (play.tex "Combat"). The GM moves anyone's gear at any time, and the log
 // keeps it as the GM's edit.
-export function updateInventory(id: string, updater: (c: CampaignCharacter) => CampaignCharacter, gm = false): Updater {
+export function updateInventory(id: string, updater: (c: CampaignCharacter, charged: boolean) => CampaignCharacter, gm = false): Updater {
   return (state) => {
     if (!state.characters[id]) return state
     if (getGearBar(state, id, gm)) return state

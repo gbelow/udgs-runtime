@@ -82,7 +82,6 @@ describe('ingestion is total', () => {
   it('starts a character with no resources block at full STA', () => {
     const c = makeCampaignCharacter({})
     expect(c.resources.STA).toBe(getSTA(c))
-    expect(c.resources.AP).toBe(8)
   })
 
   // Abilities were saved as a list of stage keys before they became family

@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter, Delivery } from '../../types'
 import type { Arc, CastAction, SceneState, Deliveries, FireAgainAction } from '../types'
 import { SPELLS, isSpellKey, type SpellKey } from '../../spells'
@@ -59,7 +60,7 @@ export function getFireAgainBar(state: SceneState, c: CampaignCharacter, key: Sp
   const cost = getRepeatCost(key)
   const entry = getHeldEntry(c, key)
   if (!cost || !entry) return 'not held'
-  if (!canAfford(c, cost)) return 'cannot pay for it'
+  if (!canAfford(c, cost, isCombatStarted(state))) return 'cannot pay for it'
   const item = findReadyItem(c, entry.itemId ?? '')?.item
   if (!item || !hasChargesFor(item, SPELLS[key].repeat?.ammo ?? 0, getHeldSize(c, key))) return 'no charges left'
   if (isAreaSpell(key) && !state.board?.placements[c.id]) return 'not on the board'

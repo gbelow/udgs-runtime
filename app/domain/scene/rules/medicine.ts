@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import { DamageSchema, type CampaignCharacter, type Degree } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { Term } from '../../character/rules/terms'
@@ -39,7 +40,7 @@ export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: Me
   if (c.usedSurge !== 'focus') return 'needs the focus surge'
   if (getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
   const cost = getMedicineCost(kind)
-  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost) : canAfford(c, cost)) ? null : 'cannot afford'
+  return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : 'cannot afford'
 }
 
 // Whether the catalog marks the ability the action is the use of as

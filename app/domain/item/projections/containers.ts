@@ -81,7 +81,7 @@ export type BurdenView = {
 
 // A pending stack that is already on the character — in the hands or on the
 // back — pays to be put away; a catalog pick appears in the slot for nothing.
-function getContainerPanel(key: string, container: Container, pending?: Item, c?: Character): ContainerPanelView {
+function getContainerPanel(key: string, container: Container, charged: boolean, pending?: Item, c?: Character): ContainerPanelView {
   const fromHands = c && pending && (getHeldItem(c, pending.id) || c.worn?.id === pending.id) ? pending : undefined
   return {
     key,
@@ -100,7 +100,7 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
         used: getUsedSlots(container, slot),
         available: getAvailableSlots(container, slot),
         fits: pending ? canFitItem(container, slot, pending) : null,
-        storeCost: c && fromHands && isCharged(c) ? getStoreCost(c, slot, fromHands).AP : null,
+        storeCost: c && fromHands && isCharged(c, charged) ? getStoreCost(c, slot, fromHands).AP : null,
         items: container.slots[slot].items.map((item) => ({
           id: item.id,
           name: item.name || item.refId,
@@ -108,9 +108,9 @@ function getContainerPanel(key: string, container: Container, pending?: Item, c?
           bulk: item.bulk,
           bulkName: getBulkName(item.bulk),
           slots: getSlotsNeeded(container, slot, item) ?? item.amount,
-          ...(c ? getDrawView(c, slot, item) : { drawable: false, drawCost: null }),
-          wear: c ? getWearView(c, item) : null,
-          putOn: c ? getPutOnView(c, slot, item) : null,
+          ...(c ? getDrawView(c, slot, item, charged) : { drawable: false, drawCost: null }),
+          wear: c ? getWearView(c, item, charged) : null,
+          putOn: c ? getPutOnView(c, slot, item, charged) : null,
           offerable: isOfferable(item),
         })),
       })),
@@ -125,8 +125,8 @@ function getContainerMoney(container: Container): string | null {
 // The whole container panel in one shape: every open container, its slot
 // groups and the stacks in each, with nothing left for the UI to count. With
 // an item pending placement, each group also says whether it would take it.
-export function getContainerPanels(c: Character, pending?: Item): ContainerPanelView[] {
-  return Object.entries(getOpenContainers(c)).map(([key, container]) => getContainerPanel(key, container, pending, c))
+export function getContainerPanels(c: Character, charged: boolean, pending?: Item): ContainerPanelView[] {
+  return Object.entries(getOpenContainers(c)).map(([key, container]) => getContainerPanel(key, container, charged, pending, c))
 }
 
 // gear.tex "Containers and burden": what the containers alone cost the

@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { Character, Damage, DamageComponent, DamageKind, Delivery, Item, Weapon, WeaponProperty, Edge } from '../../types'
 import type { AttackAction, SceneState, HOPPurchase, Interruption, MoveAction, StrikeAction, Trample } from '../types'
 import { getBlowTrample } from './trample'
@@ -318,7 +319,7 @@ export function getHOPOptions(state: SceneState, root: AttackAction): HOPOption[
     // combat.tex "Hand": "when the target tries to block or intercept without a shield".
     if (purchase === 'handSwitch' && !((defense === 'block' || defense === 'intercept') && !shield)) return closed('no unshielded block')
     if (cost > remaining) return closed('not enough HOP')
-    if (price && !canAfford(attacker, price)) return closed('cannot afford')
+    if (price && !canAfford(attacker, price, isCombatStarted(state))) return closed('cannot afford')
     return { purchase, cost, price, bought, available: true, reason: null }
   })
 }

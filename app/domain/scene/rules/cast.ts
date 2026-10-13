@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter, Delivery, Item } from '../../types'
 import { findReadyItem } from '../../item/rules/containers'
 import type { ActionRoll, CastAction, SceneState, Deliveries, Link, SpellTestAction } from '../types'
@@ -142,7 +143,7 @@ export const GRAZE_SAVE_COST: ActionCost = { AP: GRAZE_SAVE.AP, STA: 0 }
 export function canSaveGraze(state: SceneState, root: CastAction): boolean {
   const caster = state.characters[root.actorId]
   if (!caster || root.step !== 'post' || root.grazeSaved || !root.roll || root.roll.degree !== 'graze') return false
-  if (isCancelled(state, root) || !canAfford(caster, GRAZE_SAVE_COST)) return false
+  if (isCancelled(state, root) || !canAfford(caster, GRAZE_SAVE_COST, isCombatStarted(state))) return false
   return getGrazeSavedRoll(root.roll).degree === 'hit'
 }
 
@@ -167,19 +168,20 @@ export type SpellOption = {
 // spells.tex "Requirements", "Casting spells": what stands between the
 // caster and the spell, what it is cast with first — the one the caster can
 // do something about from here.
-function reasonAgainst(c: CampaignCharacter, key: SpellKey): string | null {
+function reasonAgainst(c: CampaignCharacter, key: SpellKey, charged: boolean): string | null {
   const spell = SPELLS[key]
   const unmet = getUnmetCastLabel(c, key)
   if (unmet) return `needs ${unmet}`
   if (isCastOverETs(key)) return 'takes an ET'
   if (!hasChargeTarget(c, key)) return 'needs a metal weapon at hand'
-  if (!canAfford(c, spell.cost)) return 'cannot pay for it'
+  if (!canAfford(c, spell.cost, charged)) return 'cannot pay for it'
   if (spell.DL === null) return 'no casting DL'
   if (!mayCastWhileConcentrating(c, key)) return 'concentrating'
-  return canCastSpell(c, key, false) ? null : 'needs a focus surge'
+  return canCastSpell(c, key, false, charged) ? null : 'needs a focus surge'
 }
 
 export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellOption[] {
+  const charged = isCombatStarted(state)
   const linkDL = getLinkDL(state, c)
   return (Object.keys(c.spells) as SpellKey[]).filter(isSpellKey).map((key) => {
     const spell = SPELLS[key]
@@ -189,9 +191,9 @@ export function getSpellOptions(state: SceneState, c: CampaignCharacter): SpellO
       DL: getCastingDL(spell, false, 0, linkDL),
       quickenedDL: getCastingDL(spell, true, 0, linkDL),
       cost: { AP: spell.cost.AP, STA: spell.cost.STA },
-      castable: !boardBar && canCastSpell(c, key, false),
-      quickenable: !boardBar && canCastSpell(c, key, true),
-      reason: boardBar ?? reasonAgainst(c, key),
+      castable: !boardBar && canCastSpell(c, key, false, charged),
+      quickenable: !boardBar && canCastSpell(c, key, true, charged),
+      reason: boardBar ?? reasonAgainst(c, key, charged),
       targeted: isTargetedSpell(key),
       conditions: getCastConditions(key),
     }
@@ -250,7 +252,7 @@ export function getImprovementOptions(state: SceneState, root: CastAction): Impr
   return (Object.keys(SPELL_MODIFICATIONS) as SpellModification[]).map((name) => {
     const times = root.improved[name] ?? 0
     const open = name === 'amplify' ? times < amplify.max && canDrawAmplified(caster, root, times + 1)
-      : name === 'effortless' ? times === 0 && !isSuffocating(state, caster) && canAffordRestWhileCasting(caster, getCastSpentAP(root))
+      : name === 'effortless' ? times === 0 && !isSuffocating(state, caster) && canAffordRestWhileCasting(caster, getCastSpentAP(root), isCombatStarted(state))
       : true
     return {
       name,

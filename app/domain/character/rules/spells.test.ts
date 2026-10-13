@@ -18,11 +18,11 @@ describe('a spell is cast only with its requirements met', () => {
   const rolled = SPELL_KEYS.filter((key) => SPELLS[key].DL !== null && !isCastOverETs(key))
 
   it.each(rolled.filter(blocksCast))('%s is not castable without them', (key) => {
-    expect(canCastSpell(readyToCast(key), key, false)).toBe(false)
+    expect(canCastSpell(readyToCast(key), key, false, true)).toBe(false)
   })
 
   it.each(rolled.filter((key) => !blocksCast(key)))('%s is castable with nothing it needs missing', (key) => {
-    expect(canCastSpell(readyToCast(key), key, false)).toBe(true)
+    expect(canCastSpell(readyToCast(key), key, false, true)).toBe(true)
   })
 })
 
@@ -31,5 +31,5 @@ describe('a spell is cast only with its requirements met', () => {
 it('gear carried but not at hand does not cast', () => {
   const grenade = ItemSchema.parse({ name: 'Grenade', type: 'weapon', refId: 'Grenade', bulk: 1 })
   const pack = ContainerSchema.parse({ name: 'Backpack', kind: 'backpack', slots: { medium: { numSlots: 12, items: [grenade] } } })
-  expect(canCastSpell(readyToCast('shock-explosive', { containers: { pack } }), 'shock-explosive', false)).toBe(false)
+  expect(canCastSpell(readyToCast('shock-explosive', { containers: { pack } }), 'shock-explosive', false, true)).toBe(false)
 })

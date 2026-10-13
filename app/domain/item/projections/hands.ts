@@ -55,7 +55,7 @@ export type HandsPanelView = {
   lamingHold: boolean
 }
 
-export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
+export function getHandsPanel(c: Character, charged: boolean, pending?: Item): HandsPanelView {
   const freeHolding = getFreeHoldingHands(c).length
   return {
     hands: c.body.filter((part) => !part.lost && (part.grip || part.naturalWeapon)).map((part) => {
@@ -79,30 +79,30 @@ export function getHandsPanel(c: Character, pending?: Item): HandsPanelView {
         grip,
         laming: isLamingHold(c, item),
         canGrip: { 1: grip !== 1, 2: grip !== 2 && freeHolding >= 1 },
-        wear: getWearView(c, item),
-        putOn: getPutOnView(c, 'hand', item),
-        sling: getSlingView(c, item),
+        wear: getWearView(c, item, charged),
+        putOn: getPutOnView(c, 'hand', item, charged),
+        sling: getSlingView(c, item, charged),
         charge: item.charge && isSpellKey(item.charge.key) ? SPELLS[item.charge.key].name : '',
       }
     }),
-    back: getBackView(c),
+    back: getBackView(c, charged),
     freeHolding,
     canHold: pending ? { 1: canHoldWith(c, pending, 1), 2: canHoldWith(c, pending, 2) } : null,
     lamingHold: pending ? isLamingHold(c, pending) : false,
   }
 }
 
-function getBackView(c: Character): BackView | null {
+function getBackView(c: Character, charged: boolean): BackView | null {
   const item = c.onBack
   if (!item) return null
-  return { name: item.name || item.refId, unsling: getUnslingView(c, item), throwOffCost: getBackMoveCost(c) }
+  return { name: item.name || item.refId, unsling: getUnslingView(c, item, charged), throwOffCost: getBackMoveCost(c, charged) }
 }
 
 // A container's stack as the hands see it: whether it could be drawn right
 // now, and what that would cost a character in play.
-export function getDrawView(c: Character, slot: SlotKind, item: Item): { drawable: boolean; drawCost: number | null } {
+export function getDrawView(c: Character, slot: SlotKind, item: Item, charged: boolean): { drawable: boolean; drawCost: number | null } {
   return {
     drawable: canHoldWith(c, item, 1),
-    drawCost: isCharged(c) ? getDrawCost(c, slot, item).AP : null,
+    drawCost: isCharged(c, charged) ? getDrawCost(c, slot, item).AP : null,
   }
 }

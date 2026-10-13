@@ -1514,7 +1514,9 @@ export const CreationDraftSchema = z.object({
 }).strip()
 export type CreationDraft = z.infer<typeof CreationDraftSchema>
 
-export type CharacterUpdater = (c: Character) => Character
+// `charged` is handed in by a combat that has started: only there do AP and
+// STA prices get paid.
+export type CharacterUpdater = (c: Character, charged?: boolean) => Character
 export type CampaignCharacterUpdater = (c: Character) => CampaignCharacter
 
 export interface Lens<T, V> {

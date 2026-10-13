@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import { notices } from './stealth'
 import { getMedicineAbility, getMedicineCost, getMedicineTargets } from './medicine'
 import { getTakeableHeld } from '../../item/rules/doses'
@@ -78,7 +79,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
         && (action.source !== 'detonate' || getChargeOptions(state, action).some((o) => o.itemId === action.itemId))
         && isAimed(state, action)
     case 'cast':
-      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken) && getSpellBoardBar(state, c, action.key) === null && isSuggestionComplete(state, action)
+      return isCampaignCharacter(c) && isSpellKey(action.key) && canCastSpell(c, action.key, action.quicken, isCombatStarted(state)) && getSpellBoardBar(state, c, action.key) === null && isSuggestionComplete(state, action)
     case 'fireAgain':
       return isCampaignCharacter(c) && isSpellKey(action.key) && getFireAgainBar(state, c, action.key) === null
     case 'move':
@@ -107,7 +108,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       const root = getRootOf(state, action)
       if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return false
       const cost = getOwnCost(state, strike)
-      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
+      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost, isCombatStarted(state)) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
@@ -362,8 +363,8 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   const actor = state.characters[action.actorId]
   if (!actor || !cost) return null
   const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
-  if (getActionDef(action.kind).rest) return canOverdraw(c, cost, getIncomingAP(state)) ? cost : null
-  return canAfford(c, cost) ? cost : null
+  if (getActionDef(action.kind).rest) return canOverdraw(c, cost, isCombatStarted(state), getIncomingAP(state)) ? cost : null
+  return canAfford(c, cost, isCombatStarted(state)) ? cost : null
 }
 
 // combat.tex "Concentration": "If any condition for the completion of the
@@ -400,7 +401,7 @@ export function getHoldCost(state: SceneState, action: Action): ActionCost | nul
   const c = state.characters[action.actorId]
   if (!c || !requiresConcentration(action) || c.usedSurge !== 'focus') return null
   const cost = getOwnCost(state, action)
-  if (!cost || canAfford(c, cost) || !canHold(c, cost) || getHeldOf(state, c.id)) return null
+  if (!cost || canAfford(c, cost, isCombatStarted(state)) || !canHold(c, cost) || getHeldOf(state, c.id)) return null
   return { AP: Math.max(0, c.resources.AP), STA: cost.STA }
 }
 
@@ -457,7 +458,7 @@ function costChange(label: string, after: ActionCost, before: ActionCost): CostT
 export function canAffordOpportunity(state: SceneState, reaction: ActionOf<'opportunityAttack'>): boolean {
   const c = state.characters[reaction.actorId]
   const cost = c && getOwnCost(state, getOpportunityAction(state, reaction, `${reaction.id}-follow-up`))
-  return !c || !cost || canAfford(withoutReserve(state, c, reaction.reactionTo), cost)
+  return !c || !cost || canAfford(withoutReserve(state, c, reaction.reactionTo), cost, isCombatStarted(state))
 }
 
 // What the character's committed opportunity attacks, against actions other
@@ -500,6 +501,7 @@ function getPriceLabel(action: Action): string {
 // action was given up for is paid, and for that one only; the STA is lost.
 // An interruption from outside refunds nothing.
 export function getRefundedAP(state: SceneState, reactorId: string, rootId: string): number {
+  if (!isCombatStarted(state)) return 0
   const fought = getAction(state, rootId)
   const given = fought ? getCancellableRoot(state, fought, reactorId) : null
   if (given && getGivenUpFor(state, given)?.id === rootId) return Math.max(0, (given.cost?.AP ?? 0) + given.carried.AP - 1)

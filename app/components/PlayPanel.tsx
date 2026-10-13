@@ -119,16 +119,18 @@ function Tracker(){
 }
 
 function FightControls({ settings, toggleSettings }: { settings: boolean, toggleSettings: () => void }){
-  const { nextRound, resetCombat } = useCombatCommands()
+  const { nextRound, endCombat, resetCombat } = useCombatCommands()
   const { returnFromFight } = usePartyCommands()
-  const { round, nextRoundBar, returnBar } = useCombatState()
+  const { round, nextRoundBar, returnBar, endCombatBar } = useCombatState()
   const [etsTaken, setEtsTaken] = useState(0)
 
   return(
     <div className='flex flex-row gap-2 items-center'>
       <span className='text-xs text-muted whitespace-nowrap'>Round <span className='font-mono text-fg'>{round}</span></span>
       <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
-      <Button aria-label='endCombat' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>{round > 0 ? 'end combat' : 'back to party'}</Button>
+      {round > 0
+        ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
+        : <Button aria-label='backToParty' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>back to party</Button>}
       <span className='text-xs text-muted whitespace-nowrap'>ETs taken</span>
       <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>

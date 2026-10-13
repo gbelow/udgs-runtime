@@ -37,10 +37,13 @@ describe('what a played-out fight records', () => {
         }
 
         // instructions/scene-map.md, "What is previewed is what lands": the
-        // injury a landed action records for a target is the injury they took
+        // injury a landed action records for a target is the injury they took,
+        // besides what the round change's edits record (a bleed)
+        const edited = next.edits.slice(state.edits.length).flatMap((e) => e.changes)
         for (const id of ['a', 'b']) {
           const recorded = landed.flatMap((a) => a.results).filter((r) => r.targetId === id).reduce((sum, r) => sum + r.outcome.IL, 0)
-          expect(next.characters[id].injuries.injuryLevel - state.characters[id].injuries.injuryLevel).toBe(recorded)
+          const bled = edited.filter((c) => c.kind === 'value' && c.id === id && c.what === 'injury level').reduce((sum, c) => sum + (c.kind === 'value' ? c.to - c.from : 0), 0)
+          expect(next.characters[id].injuries.injuryLevel - state.characters[id].injuries.injuryLevel - bled).toBe(recorded)
           if (recorded > 0) injuries++
         }
 

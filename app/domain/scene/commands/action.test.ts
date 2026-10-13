@@ -29,7 +29,7 @@ function fighter(id: string): CampaignCharacter {
 }
 
 function combat(...characters: CampaignCharacter[]): SceneState {
-  return { ...SceneStateSchema.parse({}), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
+  return { ...SceneStateSchema.parse({ round: 1 }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
 }
 
 let n = 0
@@ -150,8 +150,8 @@ describe('the reducer', () => {
   it.each(kinds)('%s leaves a character with no part in it untouched', (kind) => {
     const bystander = fighter('other')
     const action = { kind, id: 'x', actorId: 'atk', targetId: 'def', reactionTo: null, step: 'post', cost: { AP: 3, STA: 1 }, roll: null, spent: {}, breaks: {}, weaponKey: '', attack: '', variant: '', location: 'chest' } as unknown as Action
-    expect(reduceCharacter(action, 'roll')(bystander)).toEqual(bystander)
-    expect(reduceCharacter(action, 'resolve')(bystander)).toEqual(bystander)
+    expect(reduceCharacter(action, 'roll', true)(bystander)).toEqual(bystander)
+    expect(reduceCharacter(action, 'resolve', true)(bystander)).toEqual(bystander)
   })
 })
 
@@ -245,7 +245,7 @@ describe('gear moved outside one\'s own turn', () => {
   })
 
   it('allows it before the fight starts', () => {
-    const s = { ...combat(belted('a'), fighter('b')), inTurnCharacter: 'b' }
+    const s = { ...combat(belted('a'), fighter('b')), round: 0 }
     expect(updateInventory('a', stow)(s).characters.a.held).toHaveLength(0)
   })
 
