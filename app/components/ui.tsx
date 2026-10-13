@@ -80,9 +80,9 @@ export function SectionLabel({ children, className = '' }: { children: ReactNode
 // time and every one closed at start. A name typed in the filter narrows each
 // category to its matches and opens all those left. A group with a null
 // label is shown without a header, for a catalog with no categories.
-export function CatalogList<T>({ label, groups, nameOf, render, beside, children }: {
+export function CatalogList<T>({ label, groups, nameOf, render, beside, children, wide = false }: {
   label: string, groups: { label: string | null, rows: T[] }[], nameOf: (row: T) => string, render: (row: T) => ReactNode,
-  beside?: ReactNode, children?: ReactNode,
+  beside?: ReactNode, children?: ReactNode, wide?: boolean,
 }){
   const [filter, setFilter] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -97,6 +97,16 @@ export function CatalogList<T>({ label, groups, nameOf, render, beside, children
         {beside}
       </div>
       {children}
+      {wide ? (
+        <div className='columns-[18rem] gap-6'>
+          {shown.map((g) => (
+            <div key={g.label ?? ''} className='break-inside-avoid flex flex-col pb-3'>
+              {g.label !== null ? <SectionLabel>{g.label || 'other'} · {g.rows.length}</SectionLabel> : null}
+              {g.rows.map(render)}
+            </div>
+          ))}
+        </div>
+      ) :
       <div className='flex flex-col'>
         {shown.map((g) => {
           if (g.label === null) return <div key='' className='flex flex-col'>{g.rows.map(render)}</div>
@@ -113,7 +123,7 @@ export function CatalogList<T>({ label, groups, nameOf, render, beside, children
             </div>
           )
         })}
-      </div>
+      </div>}
     </div>
   )
 }

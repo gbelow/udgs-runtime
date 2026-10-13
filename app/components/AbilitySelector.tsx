@@ -8,10 +8,10 @@ import type { AbilityFamilyView } from '../domain/character/lenses/abilities'
 // Browse the catalog one family per row; a click learns the next stage. The
 // stage descriptions unfold under the row so the reader can see what each
 // stage adds before committing.
-export function AbilitySelector(){
+export function AbilitySelector({ wide = false }: { wide?: boolean }){
   const { catalog, learn } = useAbilityLens()
   return(
-    <CatalogList label='ability' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.family} render={(row) => (
+    <CatalogList wide={wide} label='ability' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.family} render={(row) => (
       <AbilityFamilyRow key={row.family} row={row} action={
         row.next ?
         <Button size='xs' variant='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>

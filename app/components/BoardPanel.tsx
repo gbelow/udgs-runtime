@@ -2,11 +2,12 @@
 import { useState } from 'react'
 import { useBoard } from '../hooks/useBoard'
 import { useVttLink } from '../hooks/useVttLink'
+import { useRole } from '../hooks/useRole'
 import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, BoardTokenView } from '../domain/scene/projections/boardView'
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
-import { Button, Panel, SectionLabel, TextInput } from './ui'
-import { SceneCards } from './SceneCards'
+import { Button, Panel, SectionLabel, TextInput, Tooltip } from './ui'
+import { PartiesView } from './PartiesView'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character, or an item to pick it up',
@@ -48,12 +49,13 @@ export function BoardPanel(){
   const { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [tools, setTools] = useState(false)
+  const { gmTools } = useRole()
 
   if (!view.present) {
     return (
       <Panel meta='no grid: everyone is in reach'
         title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button></span>}>
-        <SceneCards />
+        <PartiesView />
       </Panel>
     )
   }
@@ -84,6 +86,14 @@ export function BoardPanel(){
             onClick={() => light(l)}>{l}</Button>)}
       </div>
       <LinkRow />
+      {gmTools ? (
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>GM</SectionLabel>
+          <Tooltip text='put an item from the catalog on the clicked cell — not built yet'>
+            <Button size='xs' aria-label='gm item to ground' disabled>item to ground</Button>
+          </Tooltip>
+        </div>
+      ) : null}
       </>) : null}
 
       {view.unplaced.length > 0 ? (

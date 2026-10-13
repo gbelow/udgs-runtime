@@ -10,10 +10,10 @@ import { SpellMethodSchema } from '../domain/types'
 // Browse the catalog one spell per row, grouped by school. A click unfolds
 // the book's entry; the buttons learn it by one of the three methods, which
 // decides the skill it is cast with.
-export function SpellSelector(){
+export function SpellSelector({ wide = false }: { wide?: boolean }){
   const { catalog, learn } = useSpellLens()
   return(
-    <CatalogList label='spell' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.name} render={(row) => (
+    <CatalogList wide={wide} label='spell' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.name} render={(row) => (
       <SpellCatalogEntry key={row.key} row={row} action={
         row.learned ?
         <span className='text-xs text-muted px-1'>learned</span> :

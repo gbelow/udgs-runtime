@@ -29,6 +29,15 @@ export function isFightTab(tab: GameTabs): boolean {
   return TAB_OWNER[tab] === 'combat'
 }
 
+// Who is at the screen. A player only follows the standard rules; the GM and
+// the developer also get the GM tools and the catalog pickers in play. Only
+// dev exists until there are accounts.
+export type Role = 'player' | 'gm' | 'dev'
+
+export function hasGmTools(role: Role): boolean {
+  return role !== 'player'
+}
+
 // The item waiting for a destination to be clicked: a catalog entry picked in
 // the sidebar, at the size it is to be stamped at, a stack in the hands being
 // put away, or the armor being taken off. Pure UI coordination between
@@ -52,6 +61,7 @@ export interface AppState {
   updateRaceList: () => void
   mapList: JsonObject
   updateMapList: () => void
+  role: Role
   pendingItem: PendingItem | null
   setPendingItem: (pendingItem: PendingItem | null) => void
 }
@@ -65,6 +75,7 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     mapList: initialState.mapList || {},
     
     setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
+    role: 'dev',
     pendingItem: null,
     setPendingItem: (pendingItem) => set({ pendingItem }),
     trade: null,

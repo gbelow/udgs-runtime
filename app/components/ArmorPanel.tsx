@@ -3,7 +3,8 @@ import { useArmorLens, useArmorPieces, useDamageTiers } from '../hooks/useArmorL
 import { useItemLens } from '../hooks/useItemLens'
 import { Button, Panel } from './ui'
 
-export function ArmorPanel(){
+// `tiers` off leaves what is worn and how it comes off, for the inventory.
+export function ArmorPanel({ tiers: showTiers = true }: { tiers?: boolean }){
   const { panel: armor, equipView, equip, drop } = useArmorLens()
   const { pending, selectWorn, clear } = useItemLens()
   // combat.tex "Damage Tiers" — thresholds, IL and wound chance all come from
@@ -41,7 +42,7 @@ export function ArmorPanel(){
       meta={armor.worn ? <>size {armor.worn.scale}{armor.worn.fits ? '' : <span className='text-bad'> · does not fit</span>}</> : 'wear armor from a container, the hands or the catalog'}
       actions={actions}>
       <ArmorAddons />
-      <table className='w-full text-xs'>
+      {showTiers ? <table className='w-full text-xs'>
         <thead>
           <tr className='text-[10px] uppercase tracking-wider text-muted'>
             <th className='text-left font-medium px-1 pb-1 border-b border-line'>tier</th>
@@ -62,7 +63,7 @@ export function ArmorPanel(){
             ))
           }
         </tbody>
-      </table>
+      </table> : null}
       <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 text-xs text-muted'>
         <span>penalty <span className={`font-mono ${armor.burdenPenalty ? 'text-bad' : 'text-fg'}`}>{armor.burdenPenalty}</span></span>
         <span>deflection <span className='font-mono text-fg'>{armor.deflection}</span></span>

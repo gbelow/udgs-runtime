@@ -3,12 +3,16 @@ import { useItemLens } from '../hooks/useItemLens';
 import { Button, CatalogList, ListButton, NumberInput } from './ui';
 import { groupBy } from '../domain/utils';
 
-export function ItemSelector(){
+// `wide` lays every group out at once, in columns, for the middle of the
+// screen.
+export function ItemSelector({ wide = false }: { wide?: boolean }){
   const { catalog, pending, amount, scale, select, setAmount, setScale, clear } = useItemLens()
 
   return(
-    <CatalogList label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} beside={<>
+    <CatalogList wide={wide} label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} beside={<>
+      <span className='text-xs text-muted'>amount</span>
       <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
+      <span className='text-xs text-muted'>size</span>
       <NumberInput className='w-10 text-sm py-0.5' min={1} max={7} aria-label='item size' title='size the item is made for' value={scale} onChange={(e) => setScale(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
     </>} render={(row) => (
       <ListButton key={row.key} aria-label={row.name} title={row.bulkName}

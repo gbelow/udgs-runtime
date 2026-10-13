@@ -22,8 +22,9 @@ export function useCombatState() {
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
   const nextRoundBar = useCombatStore(getNextRoundBar);
   const returnBar = useCombatStore(getReturnBar);
+  const hasBoard = useCombatStore((s) => s.board !== null);
 
-  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar } as const;
+  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, hasBoard } as const;
 }
 
 export function useCombatRoster(): {
