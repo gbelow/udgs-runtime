@@ -6,7 +6,7 @@ import { getPressureKey } from './morale'
 import { getOpenAction } from './log'
 import { getSituationalAfflictions } from './situational'
 import { getStressSocial } from './stress'
-import { getIncomingAP, getRoundPhase } from './roundChange'
+import { getIncomingAP, getRoundChangeActBar } from './roundChange'
 
 // Who anything is said to: others in the fight, once each.
 export function getOthers(state: SceneState, id: string, targets: string[]): string[] {
@@ -42,9 +42,7 @@ export function getSocialBar(state: SceneState, id: string): string | null {
   const c = state.characters[id]
   if (!c) return 'not in the fight'
   if (getOpenAction(state)) return 'an action is being played out'
-  const phase = getRoundPhase(state)
-  if (phase !== null && phase !== 'rest' && phase !== 'stress') return 'the round is changing'
-  return canAffordRest(c, 'socialAction', getIncomingAP(state)) ? null : 'not enough AP'
+  return getRoundChangeActBar(state) ?? (canAffordRest(c, 'socialAction', getIncomingAP(state)) ? null : 'not enough AP')
 }
 
 export function getSayBar(state: SceneState, id: string, kind: SocialAction, targets: string[]): string | null {

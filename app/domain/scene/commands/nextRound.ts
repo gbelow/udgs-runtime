@@ -110,12 +110,11 @@ function passEnvironment(state: SceneState): SceneState {
 // Whoever can no longer act lets go of what they held. With nobody left to
 // choose, the change moves on to who joins.
 function openConcentration(state: SceneState, dice: Dice): SceneState {
-  const capped = Object.values(state.characters).filter((c) => !isDead(c)).reduce<SceneState>((s, c) => updateCharacter(c.id, capAP, 'unspent AP lost')(s), { ...state, roundStep: 'concentration' })
-  const settled = Object.values(capped.characters).reduce((s, c) => {
-    if (isDead(c)) return s
-    if (hasAffliction(c, 'unconscious') && holdsThroughRound(s, c.id)) return letGoOf(s, c.id, dice)
-    return holdsThroughRound(s, c.id) ? s : updateCharacter(c.id, payRoundEnd, 'round end')(s)
-  }, capped)
+  const settled = Object.values(state.characters).filter((c) => !isDead(c)).reduce<SceneState>((s, c) => {
+    const capped = updateCharacter(c.id, capAP, 'unspent AP lost')(s)
+    if (!holdsThroughRound(capped, c.id)) return updateCharacter(c.id, payRoundEnd, 'round end')(capped)
+    return hasAffliction(c, 'unconscious') ? letGoOf(capped, c.id, dice) : capped
+  }, { ...state, roundStep: 'concentration' })
   return getConcentrationOwed(settled).length === 0 && getFinishing(settled).length === 0 ? { ...settled, roundStep: 'join' } : settled
 }
 

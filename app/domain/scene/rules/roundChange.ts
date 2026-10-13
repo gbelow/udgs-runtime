@@ -40,6 +40,14 @@ export function getRoundChangeBar(state: SceneState): string | null {
   return state.roundStep !== null ? 'the round is changing' : null
 }
 
+// Why the round change bars what a character does of their own, or null: only
+// its first step lets anyone rest or speak, and the limit stress actions are
+// taken as turns of their own.
+export function getRoundChangeActBar(state: SceneState): string | null {
+  const phase = getRoundPhase(state)
+  return phase === null || phase === 'rest' || phase === 'stress' ? null : 'the round is changing'
+}
+
 // The AP still to come before the round's own AP: none once the round change
 // has handed them out.
 export function getIncomingAP(state: SceneState): number {

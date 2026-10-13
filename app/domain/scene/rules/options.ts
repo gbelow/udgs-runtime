@@ -40,7 +40,7 @@ import { SURGES } from '../../tables'
 import { isInTurn } from './turn'
 import { isConcentrating } from '../../character/rules/concentration'
 import { canAffordRest } from '../../character/rules/rest'
-import { getIncomingAP, getRoundPhase } from './roundChange'
+import { getIncomingAP, getRoundChangeActBar, getRoundPhase } from './roundChange'
 import { getChaseRestBar } from './chase'
 import { hasFightAffliction, isImmobile, isSuffocating } from './situational'
 
@@ -505,12 +505,9 @@ function closeOutOfTurn(state: SceneState, c: CampaignCharacter, options: Action
   return isInTurn(state, c.id) ? options : closeWith(options, (o) => (o.draft.kind === 'rest' && getRoundPhase(state) === 'rest' ? null : 'not your turn'))
 }
 
-// The round change has no turns: only its first step lets anyone rest, and
-// the limit stress actions are taken as turns of their own.
 function closeByRoundChange(state: SceneState, options: ActionOption[]): ActionOption[] {
-  const phase = getRoundPhase(state)
-  if (phase === null || phase === 'stress') return options
-  return closeWith(options, (o) => (o.draft.kind === 'rest' && phase === 'rest' ? null : 'the round is changing'))
+  const bar = getRoundChangeActBar(state)
+  return bar ? closeWith(options, () => bar) : options
 }
 
 // The option a draft would take, so a command can refuse exactly what the

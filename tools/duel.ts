@@ -23,14 +23,13 @@ import { SURGES } from '../app/domain/tables'
 import { surgeKinds } from '../app/domain/lists'
 import { declareDefense } from '../app/domain/bot/answer'
 import { hold } from '../app/domain/bot/engine'
-import { passUp } from '../app/domain/bot/table'
+import { passUp, stepRoundChange } from '../app/domain/bot/table'
 import { getLiveFoes, isStanding, type Party } from '../app/domain/bot/party'
 import { getEvasiveJumpPlacements } from '../app/domain/scene/rules/move'
 import { getReachableCells } from '../app/domain/scene/rules/board/reach'
 import { amendAction, commitAction, declareAction, amendReaction, declareReaction, resolveAction, rollOrPay, setTarget } from '../app/domain/scene/commands/action'
 import { endTurn, startTurn, surge, toggleAgreeToEnd } from '../app/domain/scene/commands/turn'
-import { continueRound, holdOn, letGo, nextRound } from '../app/domain/scene/commands/nextRound'
-import { getConcentrationOwed, getContinueBar, getHoldOnBar, getRoundPhase } from '../app/domain/scene/rules/roundChange'
+import { nextRound } from '../app/domain/scene/commands/nextRound'
 import { getAction, getHistory, getLiveReactionsTo, getOpenAction } from '../app/domain/scene/rules/log'
 import { getNextRoundBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd } from '../app/domain/scene/rules/turn'
 import { getCompelledSurge } from '../app/domain/scene/rules/stress'
@@ -440,14 +439,8 @@ function advance(initial: SceneState, env: Env, maxRounds: number): { state: Sce
     const called = state.morale.find((call) => call.roll === null && state.characters[call.id])
     if (called) return { state, next: { kind: 'prompt', side: sideOf(called.id), title: moraleTitle(state, called.id), choices: moraleChoices(state, called.id) } }
 
-    const holding = getConcentrationOwed(state)[0]
-    if (holding) { state = getHoldOnBar(state, holding) ? letGo(holding, env.dice)(state) : holdOn(holding, env.dice)(state); continue }
-    if (getRoundPhase(state)) {
-      const moved = continueRound(env.dice)(state)
-      if (moved === state) return { state, next: { kind: 'end', text: `Stalled: ${getContinueBar(state)}.` } }
-      state = moved
-      continue
-    }
+    const changed = stepRoundChange(state, env.dice, () => true, false)
+    if (changed) { state = changed; continue }
 
     const started = startNextTurn(state, env)
     if (started) { state = started; continue }

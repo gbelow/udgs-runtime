@@ -4,7 +4,7 @@ import { getActiveSpellKeys } from '../../character/rules/effects'
 import { getSustainedAbilities } from '../../character/rules/concentration'
 import { ROUND_PHASES, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase, holdsThroughRound, needsFocusToHold, type RoundPhase } from '../rules/roundChange'
 import { getStressOwed } from '../rules/stress'
-import { describeChange } from './episode'
+import { describeChangeTo } from './episode'
 import { getMoraleRows, type MoraleRow } from './morale'
 import { getSceneCards, type SceneCard } from './cards'
 
@@ -64,7 +64,7 @@ export type RoundChangeView = {
 function getHappened(state: SceneState, id: string): string[] {
   return state.edits
     .filter((e) => e.round === state.round)
-    .flatMap((e) => e.changes.filter((c) => c.id === id).map((c) => `${e.cause}: ${describeChange(state, c).replace(/^[^:]*: /, '')}`))
+    .flatMap((e) => e.changes.filter((c) => c.id === id).map((c) => `${e.cause}: ${describeChangeTo(c)}`))
 }
 
 function getConcentration(state: SceneState, id: string): RoundConcentration | null {

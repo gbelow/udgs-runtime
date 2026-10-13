@@ -25,22 +25,19 @@ export function passUp(state: SceneState, open: RootAction, newId: () => string)
 // on. Null when there is nothing to do.
 export function tableMove(state: SceneState, parties: readonly Party[], dice: Dice, newId: () => string): SceneState | null {
   const open = getOpenAction(state)
-  const next = open ? moveOpen(state, open, dice, newId) : getRoundPhase(state) ? changeRound(state, dice) : agree(state, parties)
+  const next = open ? moveOpen(state, open, dice, newId) : getRoundPhase(state) ? stepRoundChange(state, dice, () => true) ?? state : agree(state, parties)
   return next !== state ? next : null
-}
-
-function changeRound(state: SceneState, dice: Dice): SceneState {
-  return stepRoundChange(state, dice, () => true) ?? state
 }
 
 // One move of the round change by whoever `plays` the characters: a
 // concentrating character finishes the action they held when its AP are
 // there, else holds on to what they can, else lets go; a character called to
-// a test tests their morale normally. Once nobody in the fight is played by
-// anyone else, the change moves on. Null when there is nothing to do.
-export function stepRoundChange(state: SceneState, dice: Dice, plays: (id: string) => boolean): SceneState | null {
+// a test tests their morale normally, unless `tests` is off. Once nobody in
+// the fight is played by anyone else, the change moves on. Null when there is
+// nothing to do.
+export function stepRoundChange(state: SceneState, dice: Dice, plays: (id: string) => boolean, tests = true): SceneState | null {
   if (!getRoundPhase(state)) return null
-  const next = chooseConcentration(state, dice, plays) ?? testMorale(state, dice, plays) ?? (Object.keys(state.characters).every(plays) && !getContinueBar(state) ? continueRound(dice)(state) : null)
+  const next = chooseConcentration(state, dice, plays) ?? (tests ? testMorale(state, dice, plays) : null) ?? (Object.keys(state.characters).every(plays) && !getContinueBar(state) ? continueRound(dice)(state) : null)
   return next !== null && next !== state ? next : null
 }
 
@@ -57,17 +54,12 @@ function testMorale(state: SceneState, dice: Dice, plays: (id: string) => boolea
   return untested ? rollMorale(untested.id, 'normal', true, dice)(state) : null
 }
 
-// One move of the round change that needs no test.
-function moveRoundChange(state: SceneState, dice: Dice): SceneState {
-  return chooseConcentration(state, dice, () => true) ?? (getRoundPhase(state) && !getContinueBar(state) ? continueRound(dice)(state) : state)
-}
-
 // The round passes and its change is moved on as far as it goes with nobody
 // testing morale or taking a turn.
 export function passRound(dice: Dice): (state: SceneState) => SceneState {
   return (state) => {
     let current = nextRound(dice)(state)
-    for (let next = moveRoundChange(current, dice); next !== current; next = moveRoundChange(current, dice)) current = next
+    for (let next = stepRoundChange(current, dice, () => true, false); next; next = stepRoundChange(current, dice, () => true, false)) current = next
     return current
   }
 }

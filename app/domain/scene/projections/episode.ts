@@ -201,11 +201,15 @@ function getStopCause(state: SceneState, move: MoveAction, facts: MoveFacts): st
 }
 
 export function describeChange(state: SceneState, change: Change): string {
-  const who = getFightName(state, change.id)
+  return `${change.kind === 'move' ? change.name : getFightName(state, change.id)}: ${describeChangeTo(change)}`
+}
+
+// What the change did, leaving out whom or what it was done to.
+export function describeChangeTo(change: Change): string {
   switch (change.kind) {
-    case 'value': return `${who}: ${change.what} ${change.from} → ${change.to}`
-    case 'gain': return `${who}: ${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
-    case 'move': return `${change.name}: ${change.from} → ${change.to}`
+    case 'value': return `${change.what} ${change.from} → ${change.to}`
+    case 'gain': return `${change.gained ? 'gained' : 'lost'} ${change.what} ${change.name}`
+    case 'move': return `${change.from} → ${change.to}`
   }
 }
 
