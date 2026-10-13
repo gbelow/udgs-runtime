@@ -30,7 +30,7 @@ const SHOT_BARS: Record<Exclude<RowState, 'empty'>, string> = { closed: 'cannot 
 
 // Why the row cannot be reloaded right now, or null.
 export function getReloadBar(state: SceneState, c: CampaignCharacter, row: WeaponRow): string | null {
-  const shot = getRowState(c, row, 'shoot')
+  const shot = getRowState(c, row, 'shoot', isCombatStarted(state))
   if (shot !== 'empty') return SHOT_BARS[shot]
   if (isSeizedUse(state, c.id, row.wielded.key, row.atk.name, null)) return 'seized'
   if (getLoadableAmmo(c, row.weapon, row.atk).length === 0) return `no ${row.atk.ammo}s in a quick slot`

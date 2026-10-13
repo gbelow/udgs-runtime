@@ -57,7 +57,7 @@ function everyoneAttacks(s: SceneState, reactorIds: string[]): SceneState {
     if (!option) return state
     const declared = declareReaction(id, option.draft, newId)(state)
     const rootId = getOpenAction(declared)!.id
-    for (const { weaponKey, attack, variant } of getAttackOptions(declared.characters[id], 'strike')) {
+    for (const { weaponKey, attack, variant } of getAttackOptions(declared.characters[id], 'strike', true)) {
       const amended = amendReaction(id, { weaponKey, attack, variant })(declared)
       const reaction = getLiveReactionsTo(amended, rootId).find((r) => r.actorId === id)
       if (reaction && isDeclarationComplete(amended, amended.characters[id], reaction)) return amended
@@ -399,7 +399,7 @@ describe('an explosion met with a shield', () => {
 // A spearman's thrust at the character, committed.
 function thrustAt(target: CampaignCharacter): SceneState {
   let s = onBoard({ atk: [0, 0], [target.id]: [1, 0] }, spearman('atk'), target)
-  const [row] = getAttackOptions(s.characters.atk, 'strike')
+  const [row] = getAttackOptions(s.characters.atk, 'strike', true)
   s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
   return commitAction(() => 5, newId)(setTarget(target.id)(s))
 }
@@ -414,7 +414,7 @@ describe('a counterattack', () => {
   function strikes(faces: number[]): Action[] {
     const def = spearman('def', ['counterattack'])
     let s = declareReaction('def', { kind: 'counterattack' }, newId)(thrustAt(def))
-    const [row] = getAttackOptions(s.characters.def, 'strike')
+    const [row] = getAttackOptions(s.characters.def, 'strike', true)
     s = amendReaction('def', { weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(s)
     const dice = [...faces]
     s = rollAction(() => dice.shift()!, newId)(s)
@@ -466,7 +466,7 @@ describe('a riposte', () => {
   it('is one choice with the flee: taken, no flee follows; passed up, the flee is offered', () => {
     const offered = missedShieldBearer('evade')
     expect(getOpenAction(withdrawSpawnedAction(newId)(offered))).toMatchObject({ kind: 'fleeFollowUp', actorId: 'def' })
-    const [row] = getAttackOptions(offered.characters.def, 'strike')
+    const [row] = getAttackOptions(offered.characters.def, 'strike', true)
     const declared = commitAction(() => 5, newId)(amendAction({ weaponKey: row.weaponKey, attack: row.attack, variant: row.variant })(offered))
     expect(getOpenAction(resolveAction(newId)(rollAction(() => MISS, newId)(declared)))).toBeNull()
   })
@@ -475,7 +475,7 @@ describe('a riposte', () => {
   // whether it is made with the shield.
   function discounts(s: SceneState): { shield: number[]; other: number[] } {
     const shield = s.characters.def.held[0].id
-    const less = getAttackOptions(s.characters.def, 'strike').filter((o) => o.variant === 'basic').map((o) => {
+    const less = getAttackOptions(s.characters.def, 'strike', true).filter((o) => o.variant === 'basic').map((o) => {
       const declared = amendAction({ weaponKey: o.weaponKey, attack: o.attack, variant: o.variant })(s)
       return { shield: o.weaponKey === shield, less: o.AP - getOwnCost(declared, getOpenAction(declared)!)!.AP }
     })
@@ -511,7 +511,7 @@ describe('a riposte', () => {
   it('draws no opportunity attack from those flanking the riposter', () => {
     const punch = { weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic' } as const
     const start = onBoard({ atk: [0, 0], def: [1, 0], f: [2, 0] }, spearman('atk'), fighter('def', ['riposte']), spearman('f'))
-    const [row] = getAttackOptions(start.characters.atk, 'strike')
+    const [row] = getAttackOptions(start.characters.atk, 'strike', true)
     let s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(start)
     s = declareReaction('def', { kind: 'evade' }, newId)(commitAction(() => 5, newId)(setTarget('def')(s)))
     s = commitAction(() => 5, newId)(amendAction(punch)(resolveAction(newId)(rollAction(() => MISS, newId)(s))))
@@ -546,7 +546,7 @@ describe('an opportunity attack declared with a row it cannot pay for', () => {
       const reaction = getLiveReactionsTo(amended, rootId).find((r) => r.actorId === 'h')!
       return isDeclarationComplete(amended, amended.characters.h, reaction)
     }
-    const priced = getAttackOptions(s.characters.h, 'strike').filter((o) => o.STA > 0 && completeWith(o.STA, o))
+    const priced = getAttackOptions(s.characters.h, 'strike', true).filter((o) => o.STA > 0 && completeWith(o.STA, o))
     expect(priced.length).toBeGreaterThan(0)
     for (const o of priced) expect(completeWith(o.STA - 1, o)).toBe(false)
   })
@@ -602,7 +602,7 @@ describe('protecting the target of a strike', () => {
   function thrustPastBystanders(): SceneState {
     let s = onBoard({ atk: [0, 0], def: [2, 0], p: [1, -1], d: [1, -2], o: [0, 3] },
       spearman('atk'), shielded('def', ['defensive-advance']), shielded('p'), shielded('d', ['defender']), shielded('o'))
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction(() => 5, newId)(setTarget('def')(s))
   }
@@ -668,7 +668,7 @@ describe('a disarm an intercept opens', () => {
     const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
     const shield = ItemSchema.parse({ name: 'Wooden Shield', type: 'weapon', refId: 'Wooden Shield', bulk: 2 })
     let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), holdItem(shield)(fighter('def')))
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction(() => 5, newId)(setTarget('def')(s))
   }
@@ -848,7 +848,7 @@ describe('flee', () => {
       const dagger = ItemSchema.parse({ name: 'Dagger', type: 'weapon', refId: 'Dagger', bulk: 1 })
       const def = fighter('def')
       let s = onBoard({ atk: [0, 0], def: [1, 0] }, holdItem(dagger)(fighter('atk')), { ...def, resources: { ...def.resources, STA } })
-      const [row] = getAttackOptions(s.characters.atk, 'strike')
+      const [row] = getAttackOptions(s.characters.atk, 'strike', true)
       s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
       return commitAction(() => 5, newId)(setTarget('def')(s))
     }
@@ -1012,7 +1012,7 @@ describe('a net', () => {
   // is thrown first, then the two percentile digits.
   it.each([[[9, 0, 1], 0], [[9, 5, 5], 3]] as const)('with the dice %j leaves %i of the three tethered once a sword cuts it', (faces, remaining) => {
     let s = netted()
-    const [{ weaponKey, attack, variant }] = getAttackOptions(s.characters.c, 'strike')
+    const [{ weaponKey, attack, variant }] = getAttackOptions(s.characters.c, 'strike', true)
     s = declareAction('c', { kind: 'cut', weaponKey, attack, variant }, netId)(s)
     let i = 0
     s = commitAction(() => faces[i++] ?? 0, netId)(setTarget('z')(s))
@@ -1096,7 +1096,7 @@ describe('a blow a block met', () => {
   function struck(weapon: string, defense: 'block' | 'evade', die: number, digit: number, breakage = true): SceneState {
     const target = holdItem(shield)(fighter('def'))
     let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, wielder('atk', weapon), target), breakage }
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     s = commitAction(() => 5, newId)(setTarget('def')(s))
     const option = getAvailableActions(s, 'def').find((o) => o.draft.kind === defense && (o.draft.kind !== 'block' || o.draft.weaponKey === shield.id))
@@ -1145,7 +1145,7 @@ describe('a blow that lands on armor', () => {
   function struck(weapon: string | null, die: number, digit: number, breakage = true): SceneState {
     const attacker = weapon ? wielder('atk', weapon) : fighter('atk')
     let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, attacker, { ...fighter('def'), worn: gambeson }), breakage }
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     s = commitAction(() => 5, newId)(setTarget('def')(s))
     let thrown = 0
@@ -1183,7 +1183,7 @@ describe('a strike aimed at equipment', () => {
   // with `die`, then every percentile digit is `digit`.
   function declared(aimed: string, breakage = true): SceneState {
     let s = { ...onBoard({ atk: [0, 0], def: [1, 0] }, wielder('atk', 'Longsword'), holdItem(shield)(fighter('def'))), breakage }
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     s = amendAction({ object: aimed })(setTarget('def')(s))
     return commitAction(() => 5, newId)(s)

@@ -32,7 +32,7 @@ export type WeaponAttackRow = {
   attack: WeaponAttack
 }
 
-export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAttackRow[] {
+export function getWeaponAttackRows(weapon: Weapon, charged: boolean): (c: Character) => WeaponAttackRow[] {
   return (c: Character) =>
     weapon.attacks.map((atk) => ({
       name: atk.name,
@@ -47,7 +47,7 @@ export function getWeaponAttackRows(weapon: Weapon): (c: Character) => WeaponAtt
       range: atk.range,
       block: getBlockValue(atk, weapon, c),
       STRreq: atk.STRreq ?? null,
-      needsFocus: needsFocus(atk, c),
+      needsFocus: needsFocus(atk, c, charged),
       material: atk.material,
       hardness: getHardness(atk.material),
       properties: getAttackPropertyLabels(atk),
@@ -117,7 +117,7 @@ export type WeaponPanelView = {
 // rows. One getter means the UI needs no
 // per-weapon lookup back into the character, so nothing on the render path
 // reads state it has not subscribed to.
-export function getWeaponPanels(c: Character): WeaponPanelView[] {
+export function getWeaponPanels(c: Character, charged: boolean): WeaponPanelView[] {
   return getWieldedWeapons(c).map(({ key, weapon, grip, itemId, natural, broken }) => ({
     key,
     name: weapon.name,
@@ -129,7 +129,7 @@ export function getWeaponPanels(c: Character): WeaponPanelView[] {
     natural,
     broken,
     shield: weapon.shield ? { cover: weapon.shield.cover, body: weapon.shield.body } : null,
-    rows: getWeaponAttackRows(weapon)(c).map((row) => ({
+    rows: getWeaponAttackRows(weapon, charged)(c).map((row) => ({
       ...row,
       usable: !broken && isWieldable(weapon, c) && isAttackUsable(row.handed, grip),
     })),

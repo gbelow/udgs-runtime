@@ -102,7 +102,7 @@ export function getMainCost(state: SceneState, c: CampaignCharacter, p: PrepareA
       return price && [price.declared, ...price.added].reduce((sum, t) => ({ AP: sum.AP + t.AP, STA: sum.STA + t.STA }), { AP: 0, STA: 0 })
     }
     case 'shoot': {
-      const variant = getAttackVariant(c, main)
+      const variant = getAttackVariant(c, main, isCombatStarted(state))
       return variant && isShotLoaded(c, main) ? { AP: variant.AP, STA: variant.STA } : null
     }
     case 'cast':

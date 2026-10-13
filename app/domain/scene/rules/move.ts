@@ -217,7 +217,7 @@ export function isPathLegal(state: SceneState, action: MoveAction): boolean {
 
   if (action.movement === 'climb' && !(isClimbable(state, action) && (isTrivialClimb(state, action) || cells >= 1))) return false
   if (action.leap && !(action.movement === 'climb' && hasGrant(c, 'climbLeap') && !hasAffliction(c, 'lame') && !hasAffliction(c, 'prone'))) return false
-  if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c).includes(action.mode))) return false
+  if (action.mode !== 'normal' && !(action.movement === 'climb' && getClimbModes(c, isCombatStarted(state)).includes(action.mode))) return false
 
   const ceiling = getJumpCeiling(c, from)
   let cursor = from.cell

@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { Action, ActionRoll, SceneState, StrikeAction, Coord, Deliveries, DragAction, GrappleManeuver, HitLocation, MoveStop, PushMovement } from '../types'
 import { getTakeableHeld } from '../../item/rules/doses'
 
@@ -430,7 +431,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       movement: open.kind === 'move' ? open.movement : 'basic',
       path: open.kind === 'move' ? open.path : [],
       mode: open.kind === 'move' ? open.mode : 'normal',
-      climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor) : [],
+      climbModes: open.kind === 'move' && open.movement === 'climb' && actor ? getClimbModes(actor, isCombatStarted(state)) : [],
       climbSteps: open.kind === 'move' && open.movement === 'climb' ? getClimbSteps(state, open) : null,
       canLeap: open.kind === 'move' && open.movement === 'climb' && !!actor && hasGrant(actor, 'climbLeap'),
       leap: open.kind === 'move' && open.leap,
@@ -450,7 +451,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       floor: open.kind === 'pickUp' && open.step === 'define' && actor
         ? getReachableFloor(state, actor.id).map((f) => ({ itemId: f.item.id, name: f.item.name, available: canPickUp(actor, f.item) }))
         : open.kind === 'throw' && open.step === 'define' && actor
-        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i) }))
+        ? getThrowables(state, actor).map((i) => ({ itemId: i.id, name: i.name, available: canThrowItem(actor, i, isCombatStarted(state)) }))
         : [],
       potions: open.kind === 'drink' && open.step === 'define' && actor ? getTakeableHeld(actor).takeable.map((i) => ({ itemId: i.id, name: i.name })) : [],
       push: drag ? getPushView(state, drag) : null,

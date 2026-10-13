@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { Character, Delivery } from '../../types'
 import type { Action, ActionOf, CostTerm, SceneState, StrikeAction } from '../types'
 import { getActionCost, type ActionCost } from '../../character/rules/actionCosts'
@@ -155,7 +156,7 @@ export function isStrikeDeclarationOpen(ctx: StrikeContext): boolean {
 // in its place (named, so the line says so), and what the modifiers add, line
 // by line; null while it names no variation the attacker can make.
 export function getStrikePrice(ctx: StrikeContext): { declared: ActionCost; label: string | null; added: CostTerm[] } | null {
-  const variant = getAttackVariant(ctx.attacker, ctx.strike)
+  const variant = getAttackVariant(ctx.attacker, ctx.strike, isCombatStarted(ctx.state))
   if (!variant) return null
   return getDeclaredModifiers(ctx.strike).reduce<{ declared: ActionCost; label: string | null; added: CostTerm[] }>((price, k) => {
     const change = STRIKE_MODIFIERS[k].price(ctx)

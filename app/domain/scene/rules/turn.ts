@@ -111,8 +111,10 @@ export function rollCunning(state: SceneState, id: string, dice: Dice): ContestR
 
 // Why the character cannot make a movement or combat surge now, or null:
 // those are made only in the character's own turn — and in a flee turn,
-// only the movement surge (combat.tex "Flee").
+// only the movement surge (combat.tex "Flee"). There are none before the
+// combat has started.
 export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind): string | null {
+  if (!isCombatStarted(state)) return 'combat has not started'
   if (state.fleeing && isInTurn(state, id) && kind !== 'movement') return 'fleeing'
   return SURGES[kind].earmarked && !isInTurn(state, id) ? 'only in your own turn' : null
 }

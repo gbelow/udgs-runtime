@@ -37,7 +37,7 @@ export function getMedicineCost(kind: MedicineKind): ActionCost {
 // and held over for want of the AP.
 export function getMedicineBar(state: SceneState, c: CampaignCharacter, kind: MedicineKind): string | null {
   if (!hasAbility(c, ABILITY[kind])) return `${ABILITIES[ABILITY[kind]].name} not learned`
-  if (c.usedSurge !== 'focus') return 'needs the focus surge'
+  if (isCombatStarted(state) && c.usedSurge !== 'focus') return 'needs the focus surge'
   if (getMedicineTargets(state, c.id).length === 0) return 'nobody bleeding within reach'
   const cost = getMedicineCost(kind)
   return (isConcentrationAbility(kind) ? canAffordOrHold(c, cost, isCombatStarted(state)) : canAfford(c, cost, isCombatStarted(state))) ? null : 'cannot afford'

@@ -20,7 +20,7 @@ function missed(score: number, DL: number): MoraleRoll {
 // Every test of the round made, each a miss, `margins` short of its DL.
 function tested(characters: CampaignCharacter[], margins: number[]): SceneState {
   return {
-    ...SceneStateSchema.parse({}),
+    ...SceneStateSchema.parse({ round: 1 }),
     characters: Object.fromEntries(characters.map((c) => [c.id, c])),
     morale: characters.map((c, i) => ({ id: c.id, roll: missed(10 - margins[i], 10) })),
   }

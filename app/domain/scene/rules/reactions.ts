@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { Character } from '../../types'
 import type { ActionKind, CastAction, ReactionKind, SceneState, Detection, DragAction, ExplosionAction, GrappleAction, MoveAction, PickUpAction, RootAction, ShootAction, StrikeAction } from '../types'
 import { ACTIONS, isDefense, isReaction, reactsTo } from './actionCatalog'
@@ -251,7 +252,7 @@ function shootTriggers(state: SceneState, root: ShootAction): Trigger[] {
   // combat.tex "Coordinated Shots": anyone with a shooting weapon may join,
   // whether or not they are in range of the target — that is declared
   const joins = Object.values(state.characters)
-    .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c))
+    .filter((c) => c.id !== root.actorId && c.id !== root.targetId && hasShootingRow(c, isCombatStarted(state)))
     .map((c): Trigger => ({ characterId: c.id, kind: 'joinShot', at: null, against: root.targetId! }))
   // combat.tex "Opportunity Attack": "Triggering actions include ... ranged
   // attacks"

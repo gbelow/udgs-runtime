@@ -154,10 +154,11 @@ function closeWhileHolding(state: SceneState, c: CampaignCharacter, options: Act
 
 // combat.tex "Action surge": the reaction surge is made outside one's own turn,
 // so a reaction the character cannot pay now is still open to them if the
-// surge would let them — the surge made first, then the reaction.
+// surge would let them — the surge made first, then the reaction. There are
+// no surges before the combat has started.
 function withReactionSurge(state: SceneState, c: CampaignCharacter, open: RootAction): ActionOption[] {
   const now = getAnswers(state, c, open)
-  if (now.every((o) => o.available) || !canSurge('reaction')(c)) return now
+  if (now.every((o) => o.available) || !isCombatStarted(state) || !canSurge('reaction')(c)) return now
   const surged = getSurged('reaction')(c)
   const after = getAnswers({ ...state, characters: { ...state.characters, [c.id]: surged } }, surged, open)
   return now.map((o) => {
@@ -289,7 +290,7 @@ function listAnswers(state: SceneState, answerer: CampaignCharacter, open: RootA
       case 'joinShot': {
         const shots = getFreeAttackOptions(state, c, 'shoot')
         const reaching = shots.filter((s) => isJoinInRange(state, c.id, s, trigger.against ?? ''))
-        const reason = shots.length === 0 ? getRowBar(c, 'shoot')
+        const reason = shots.length === 0 ? getRowBar(c, 'shoot', charged)
           : reaching.length === 0 ? 'out of range'
           : reaching.some((s) => canAfford(c, { AP: s.AP, STA: s.STA }, charged)) ? null : 'cannot afford a shot'
         return [answer({ kind }, null, gate ?? reason)]
@@ -331,7 +332,7 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   strike: (state, c) => [option({ kind: 'strike' }, null, getFreeAttackOptions(state, c, 'strike').length > 0 ? null : 'no melee weapon in hand')],
   shoot: (state, c) => {
     const shots = getFreeAttackOptions(state, c, 'shoot')
-    const reason = shots.length > 0 ? null : getRowBar(c, 'shoot')
+    const reason = shots.length > 0 ? null : getRowBar(c, 'shoot', isCombatStarted(state))
     return [option({ kind: 'shoot' }, null, reason)]
   },
   move: (state, c) => {
@@ -407,10 +408,10 @@ const OWN_OPTIONS: { [K in DeclarableKind]: OwnOptions } = {
   // combat.tex "Throw", "Standard Action": something held or on the floor
   // in reach, at its throwing row's price or a standard action's
   throw: (state, c) => {
-    const throwable = getThrowables(state, c).filter((item) => canThrowItem(c, item))
+    const throwable = getThrowables(state, c).filter((item) => canThrowItem(c, item, isCombatStarted(state)))
     const reason = !isPlaced(state, c) ? 'not on the board'
       : throwable.length === 0 ? 'nothing it can throw'
-      : throwable.some((item) => canAfford(c, getThrowCost(c, item.id), isCombatStarted(state))) ? null : 'cannot afford'
+      : throwable.some((item) => canAfford(c, getThrowCost(c, item.id, isCombatStarted(state)), isCombatStarted(state))) ? null : 'cannot afford'
     return [option({ kind: 'throw' }, null, reason)]
   },
   // gear.tex "Potions and Medicine": "Potions require a standard action to

@@ -1,3 +1,4 @@
+import { isChargedIn } from "../domain/scene/rules/started";
 import {
   getWeaponPanels,
   getWeaponPanelsDigest,
@@ -12,7 +13,7 @@ export function useWeaponLens() {
   // STR by hand, which was correct only for as long as those stayed the whole
   // dependency set.
   const panels: WeaponPanelView[] =
-    useActiveCharacterDerived(getWeaponPanels, getWeaponPanelsDigest) ?? [];
+    useActiveCharacterDerived((c, fight) => getWeaponPanels(c, isChargedIn(fight)), getWeaponPanelsDigest) ?? [];
 
   return { panels } as const;
 }

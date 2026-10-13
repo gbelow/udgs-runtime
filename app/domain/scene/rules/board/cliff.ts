@@ -128,9 +128,10 @@ export function isClimbable(state: SceneState, action: MoveAction): boolean {
 
 // abilities.tex "Climber": safe climbing from the first level, risky from the
 // second "during a movement surge"; play.tex "Safe and risky tests": "only ...
-// when indicated in the skill or ability".
-export function getClimbModes(c: Character): RollMode[] {
-  const surging = isCampaignCharacter(c) && c.usedSurge === 'movement'
+// when indicated in the skill or ability". Before the combat has started
+// (`charged`) no surge is asked.
+export function getClimbModes(c: Character, charged: boolean): RollMode[] {
+  const surging = !charged || (isCampaignCharacter(c) && c.usedSurge === 'movement')
   return ['normal', ...(hasGrant(c, 'safeClimb') ? ['safe' as const] : []), ...(hasGrant(c, 'riskyClimb') && surging ? ['risky' as const] : [])]
 }
 

@@ -55,7 +55,7 @@ type Waits = { event: 'enters' | 'sighted'; who?: string | null }
 // The character's turn: a strike prepared, with or without the movement it may
 // carry, waiting for the trigger.
 function prepareStrike(s: SceneState, id: string, waits: Waits = { event: 'enters' }): SceneState {
-  const row = getAttackOptions(s.characters[id], 'strike')[0]
+  const row = getAttackOptions(s.characters[id], 'strike', true)[0]
   const declared = declareAction(id, { kind: 'prepare' }, newId)(s)
   const filled = amendAction({ main: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant, trigger: { event: waits.event, who: waits.who ?? null } })(declared)
   return commitAction(() => MISS, newId)(filled)
@@ -261,7 +261,7 @@ function attackedOnTheWay(): SceneState {
   const option = getAvailableActions(s, 's').find((o) => o.draft.kind === 'opportunityAttack' && o.available)
   if (!option) throw new Error('the movement drew no attack')
   s = declareReaction('s', option.draft, newId)(s)
-  const { weaponKey, attack, variant } = getAttackOptions(s.characters.s, 'strike')[0]
+  const { weaponKey, attack, variant } = getAttackOptions(s.characters.s, 'strike', true)[0]
   s = amendReaction('s', { weaponKey, attack, variant })(s)
   s = payAction(newId, () => MISS)(s)
   expect(getOpenAction(s)).toMatchObject({ kind: 'strike', actorId: 's', targetId: 'p' })
@@ -322,7 +322,7 @@ describe('preparing a defense for an ally', () => {
   function thrust(from: [number, number], extra: Record<string, [number, number]> = {}, others: CampaignCharacter[] = [], who: string | null = null): SceneState {
     let s = onBoard({ atk: [0, 0], def: [2, 0], p: from, ...extra }, spearman('atk'), fighter('def'), shielded('p'), ...others)
     s = prepareDefense(s, 'p', 'block', who)
-    const [row] = getAttackOptions(s.characters.atk, 'strike')
+    const [row] = getAttackOptions(s.characters.atk, 'strike', true)
     s = declareAction('atk', { kind: 'strike', weaponKey: row.weaponKey, attack: row.attack, variant: row.variant }, newId)(s)
     return commitAction(() => MISS, newId)(setTarget('def')(s))
   }
@@ -409,7 +409,7 @@ describe('preparing a defense for an ally', () => {
     let s = toTheLine(rollAction(() => MISS, newId)(declareReaction('p', preparedDefense(start, 'p')!.draft, newId)(start)))
     const attack = getAvailableActions(s, 'e').find((o) => o.draft.kind === 'opportunityAttack' && o.available)!
     s = declareReaction('e', attack.draft, newId)(s)
-    const { weaponKey, attack: row, variant } = getAttackOptions(s.characters.e, 'strike')[0]
+    const { weaponKey, attack: row, variant } = getAttackOptions(s.characters.e, 'strike', true)[0]
     s = payAction(newId, () => MISS)(amendReaction('e', { weaponKey, attack: row, variant })(s))
     s = playOut(declareReaction('p', { kind: 'evade' }, newId)(s), MISS, backAtTheAttack)
     expect(getDefendingReaction(s, getOpenAction(s)!)).toBeNull()

@@ -150,8 +150,10 @@ all but the tests themselves written by `setActions` as actions land), or stampe
   (`declareAction` refuses while anything is open), and only by the character whose turn
   it is (`inTurnCharacter`, `rules/turn.ts`); while a movement or combat surge has AP left,
   only what it allows (`rules/surge.ts`). Before the combat has started
-  (`rules/started.ts`, round 0) nobody takes a turn, anyone declares, and nothing costs
-  AP or STA: every price check and payment is handed whether the combat has started.
+  (`rules/started.ts`, round 0) nobody takes a turn, anyone declares, nothing costs
+  AP or STA, and no surge is made or asked for (flee and feint are closed): every price
+  check, payment and surge requirement is handed whether the combat has started. The first
+  round starts everyone at the round's AP and full STA.
 - **commit** (`commitAction(dice, newId)`) — checks the declaration is complete
   (`isDeclarationComplete`), aimed legally (`getTargetIds`) and affordable
   (`getPayableCost`), then locks it at `react`. A move records `from` here. When nobody

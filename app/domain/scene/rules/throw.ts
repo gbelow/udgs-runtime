@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { Character, Item } from '../../types'
 import type { SceneState, Coord, ThrowAction } from '../types'
 import { type AttackVariant, needsFocus } from '../../character/rules/gear'
@@ -20,18 +21,18 @@ import { isTying } from './tether'
 // The throwing row a held item is thrown with, as its basic variation;
 // null for an item with none the thrower can fire right now — one on the
 // floor, or held with no focus surge made (combat.tex "Focus surge").
-export function getThrowVariant(c: Character, itemId: string): AttackVariant | null {
+export function getThrowVariant(c: Character, itemId: string, charged: boolean): AttackVariant | null {
   const wielded = getWieldedWeapons(c).find((w) => !w.natural && w.itemId === itemId)
   const atk = wielded?.weapon.attacks.find((a) => getAttackKind(a.range) === 'throw')
   if (!wielded || !atk) return null
   const row = { wielded, weapon: wielded.weapon, atk }
-  return isRowUsable(c, row) && !needsFocus(atk, c) ? findRowVariant(c, row, SHOTS.shoot.variant) : null
+  return isRowUsable(c, row) && !needsFocus(atk, c, charged) ? findRowVariant(c, row, SHOTS.shoot.variant) : null
 }
 
 // Whether the item can be thrown: as a standard action, "bulk smaller than
 // character size" (combat.tex "Standard Action"), or with a throwing row.
-export function canThrowItem(c: Character, item: Item): boolean {
-  return item.bulk < getSize(c) || getThrowVariant(c, item.id) !== null
+export function canThrowItem(c: Character, item: Item, charged: boolean): boolean {
+  return item.bulk < getSize(c) || getThrowVariant(c, item.id, charged) !== null
 }
 
 // Everything the character could pick to throw: what they hold, and what
@@ -45,25 +46,25 @@ export function findThrowSource(state: SceneState, actorId: string, itemId: stri
   return (itemId && c ? getThrowables(state, c).find((i) => i.id === itemId) : null) ?? null
 }
 
-export function getThrowCost(c: Character, itemId: string): ActionCost {
-  const row = getThrowVariant(c, itemId)
+export function getThrowCost(c: Character, itemId: string, charged: boolean): ActionCost {
+  const row = getThrowVariant(c, itemId, charged)
   return row ? { AP: row.AP, STA: row.STA } : getActionCost(c, 'standardAction')
 }
 
-function getThrowReach(c: Character, itemId: string): number {
-  return getThrowVariant(c, itemId)?.reach ?? THROW_ITEM_RANGE
+function getThrowReach(c: Character, itemId: string, charged: boolean): number {
+  return getThrowVariant(c, itemId, charged)?.reach ?? THROW_ITEM_RANGE
 }
 
 // Every cell the item can be thrown to, and whether one is.
 export function getThrowCells(state: SceneState, actorId: string, itemId: string): Coord[] {
   const thrower = state.characters[actorId]
-  return thrower ? getAimableCells(state, actorId, getThrowReach(thrower, itemId), firesAcross) : []
+  return thrower ? getAimableCells(state, actorId, getThrowReach(thrower, itemId, isCombatStarted(state)), firesAcross) : []
 }
 
 export function isThrowCell(state: SceneState, actorId: string, itemId: string, cell: Coord): boolean {
   const thrower = state.characters[actorId]
   const footprint = getPlacedFootprint(state, actorId)
-  return !!state.board && !!thrower && !!footprint && isAimableCell(state.board, footprint, getThrowReach(thrower, itemId), cell, firesAcross)
+  return !!state.board && !!thrower && !!footprint && isAimableCell(state.board, footprint, getThrowReach(thrower, itemId, isCombatStarted(state)), cell, firesAcross)
 }
 
 // What lands where it was aimed: one of the stack, carrying the charge,

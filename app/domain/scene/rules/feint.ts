@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter } from '../../types'
 import { canSurgeAtAll } from '../../character/rules/surge'
 import { getCunningTerms } from '../../character/rules/skills'
@@ -22,8 +23,10 @@ export function getFeintTargets(state: SceneState, actorId: string): string[] {
   return Object.keys(state.characters).filter((id) => id !== actorId && canSurgeAtAll(state.characters[id]) && isInMelee(state, actorId, id))
 }
 
-// Why the character cannot feint anyone now, or null.
+// Why the character cannot feint anyone now, or null. A feint forces a turn
+// and a surge, and there are neither before the combat has started.
 export function getFeintBar(state: SceneState, c: CampaignCharacter): string | null {
+  if (!isCombatStarted(state)) return 'combat has not started'
   if (c.usedSurge !== null) return 'action surge used'
   if (!canSurgeAtAll(c)) return 'no surge to pay for'
   return getFeintTargets(state, c.id).length > 0 ? null : 'nobody in melee to feint'

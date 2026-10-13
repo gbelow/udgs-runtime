@@ -142,7 +142,7 @@ function getStrikeTrample(state: SceneState, root: AttackAction): Trample | null
 export function getAttackFacts(state: SceneState, root: AttackAction): Delivery | null {
   const attacker = state.characters[root.actorId]
   if (!attacker || !root.roll) return null
-  const variant = getAttackVariant(attacker, root)
+  const variant = getAttackVariant(attacker, root, isCombatStarted(state))
   const row = findWeaponRow(attacker, root.weaponKey, root.attack)
   if (!variant || !row) return null
   const link = root.kind === 'strike' && isSweepLink(root)

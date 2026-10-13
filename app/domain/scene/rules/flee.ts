@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { CampaignCharacter } from '../../types'
 import type { ActionCost } from '../../character/rules/actionCosts'
 import type { SceneState, MoveAction, RootAction } from '../types'
@@ -27,7 +28,10 @@ export function getFleeCost(c: CampaignCharacter): ActionCost | null {
 // Why the character cannot flee, or null. The flee interrupts someone
 // else's turn, so never the one in turn; and one in a grapple gets out of it
 // by a maneuver (combat.tex "Escape"), not by fleeing (the table's ruling).
+// A flee is a movement surge and a turn, and there are neither before the
+// combat has started.
 export function getFleeBar(state: SceneState, c: CampaignCharacter): string | null {
+  if (!isCombatStarted(state)) return 'combat has not started'
   if (isInTurn(state, c.id)) return 'your turn'
   if (isImmobile(state, c)) return 'immobile'
   if (isConcentrating(c)) return 'concentrating'

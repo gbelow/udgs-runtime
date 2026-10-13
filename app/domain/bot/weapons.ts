@@ -34,7 +34,7 @@ function byOffense(a: AttackOption, b: AttackOption): number {
 // combat.tex "Focus surge": "required to use ranged attacks".
 function withFocus(kind: 'strike' | 'shoot', state: SceneState, id: string): SceneState {
   const c = state.characters[id]
-  const closed = kind === 'shoot' && getFreeAttackOptions(state, c, kind).length === 0 && hasUnfocusedRow(c, kind)
+  const closed = kind === 'shoot' && getFreeAttackOptions(state, c, kind).length === 0 && hasUnfocusedRow(c, kind, isCombatStarted(state))
   return closed ? surge(id, 'focus')(state) : state
 }
 

@@ -1,3 +1,4 @@
+import { getSTA } from '../../character/rules/characteristics'
 import { ROUND_AP } from '../../tables'
 import type { CampaignCharacter } from '../../types'
 import { expireUsedAbilities } from '../../character/commands/abilities'
@@ -41,11 +42,11 @@ function capAP(c: CampaignCharacter): CampaignCharacter {
   return c.resources.AP > ROUND_AP ? { ...c, resources: { ...c.resources, AP: ROUND_AP } } : c
 }
 
-// The first round starts everyone at the round's AP: before it there were
-// none to owe or keep.
+// The first round starts everyone at the round's AP and their full STA:
+// nothing before it was paid for, and what took either before it is undone.
 function startAP(c: CampaignCharacter): CampaignCharacter {
   const { resources } = endSurge(c)
-  return { ...c, usedSurge: null, resources: { ...resources, AP: ROUND_AP } }
+  return { ...c, usedSurge: null, resources: { ...resources, AP: ROUND_AP, STA: getSTA(c) } }
 }
 
 // The round ends and the next one's change opens. Whoever fell in tanatosis

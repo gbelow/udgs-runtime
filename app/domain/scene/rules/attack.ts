@@ -1,3 +1,4 @@
+import { isCombatStarted } from './started'
 import type { AttackKind, CampaignCharacter, Character, WeaponAttack, WeaponProperty } from '../../types'
 import { getFirstAidTerms } from './medicine'
 import { getAmmoStackName, getLoadableAmmo } from '../../item/rules/ammo'
@@ -70,18 +71,18 @@ function rowFits(atk: WeaponAttack, kind: AttackAction['kind']): boolean {
 // "Reload").
 export type RowState = 'open' | 'unfocused' | 'unloaded' | 'empty' | 'closed'
 
-export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind']): RowState {
+export function getRowState(c: Character, row: WeaponRow, kind: AttackAction['kind'], charged: boolean): RowState {
   if (!isRowUsable(c, row) || !rowFits(row.atk, kind)) return 'closed'
-  if (needsFocus(row.atk, c)) return 'unfocused'
+  if (needsFocus(row.atk, c, charged)) return 'unfocused'
   return isRowLoadable(c, row) ? 'open' : needsReload(row.atk) ? 'empty' : 'unloaded'
 }
 
 // The variation an attack declared, priced against the attacker as they
 // stand; null while it names no row of the attack's kind the attacker can
 // fire.
-export function getAttackVariant(c: Character, action: AttackAction): AttackVariant | null {
+export function getAttackVariant(c: Character, action: AttackAction, charged: boolean): AttackVariant | null {
   const row = findWeaponRow(c, action.weaponKey, action.attack)
-  if (!row || getRowState(c, row, action.kind) !== 'open') return null
+  if (!row || getRowState(c, row, action.kind, charged) !== 'open') return null
   return findRowVariant(c, row, action.variant)
 }
 
@@ -159,9 +160,9 @@ export type AttackOption = {
   distance: number | null
 }
 
-export function getAttackOptions(c: Character, kind: AttackAction['kind']): AttackOption[] {
+export function getAttackOptions(c: Character, kind: AttackAction['kind'], charged: boolean): AttackOption[] {
   return getWeaponRows(c).flatMap((row) => {
-    if (getRowState(c, row, kind) !== 'open') return []
+    if (getRowState(c, row, kind, charged) !== 'open') return []
     return getRowVariants(c, row).map((v) => ({
       weaponKey: row.wielded.key,
       weapon: row.weapon.name,
@@ -181,28 +182,28 @@ export function getAttackOptions(c: Character, kind: AttackAction['kind']): Atta
 // The attack options the character's grapples leave open: of a weapon a
 // grapple seized, its grapple rows alone.
 export function getFreeAttackOptions(state: SceneState, c: Character, kind: AttackAction['kind']): AttackOption[] {
-  return getAttackOptions(c, kind).filter((o) => !isSeizedUse(state, c.id, o.weaponKey, o.attack, null))
+  return getAttackOptions(c, kind, isCombatStarted(state)).filter((o) => !isSeizedUse(state, c.id, o.weaponKey, o.attack, null))
 }
 
 // Whether the character holds a shooting row in hand, however it stands
 // for the moment: open, or held back by the focus surge or by nothing to
 // load it with.
-export function hasShootingRow(c: Character): boolean {
-  return getWeaponRows(c).some((row) => getRowState(c, row, 'shoot') !== 'closed')
+export function hasShootingRow(c: Character, charged: boolean): boolean {
+  return getWeaponRows(c).some((row) => getRowState(c, row, 'shoot', charged) !== 'closed')
 }
 
 // Whether the character holds a row of the kind that only the focus surge
 // is keeping closed.
-export function hasUnfocusedRow(c: CampaignCharacter, kind: AttackAction['kind']): boolean {
-  return getWeaponRows(c).some((row) => getRowState(c, row, kind) === 'unfocused')
+export function hasUnfocusedRow(c: CampaignCharacter, kind: AttackAction['kind'], charged: boolean): boolean {
+  return getWeaponRows(c).some((row) => getRowState(c, row, kind, charged) === 'unfocused')
 }
 
 // Why no row of the kind in hand can be fired, by the nearest any of them
 // comes to it.
 const ROW_BARS: [RowState, string][] = [['unfocused', 'needs a focus surge'], ['empty', 'needs reloading'], ['unloaded', 'no arrows or bolts in a quick slot']]
 
-export function getRowBar(c: CampaignCharacter, kind: AttackAction['kind']): string {
-  const states = new Set(getWeaponRows(c).map((row) => getRowState(c, row, kind)))
+export function getRowBar(c: CampaignCharacter, kind: AttackAction['kind'], charged: boolean): string {
+  const states = new Set(getWeaponRows(c).map((row) => getRowState(c, row, kind, charged)))
   return ROW_BARS.find(([state]) => states.has(state))?.[1] ?? (kind === 'shoot' ? 'no shooting weapon in hand' : 'no melee weapon in hand')
 }
 
@@ -248,7 +249,7 @@ function getShotDistance(state: SceneState, shot: ShootAction): number | null {
 function getAttackTerms(state: SceneState, action: AttackAction): Term[] {
   const c = state.characters[action.actorId]
   if (!c) return []
-  const variant = getAttackVariant(c, action)
+  const variant = getAttackVariant(c, action, isCombatStarted(state))
   const shot = action.kind === 'shoot' ? getShotKind(action.variant) : null
   const grapple = action.kind === 'strike' ? getGrappleStrikeTerm(state, action) : null
   const strike = { label: 'strike', value: getStrike(c) }

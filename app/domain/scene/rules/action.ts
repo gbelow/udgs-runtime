@@ -70,9 +70,9 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
   if (isUsedOutsideGrapple(state, action)) return false
   switch (action.kind) {
     case 'strike':
-      return getAttackVariant(c, action) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isSweepRowKept(state, action, action) && isAimOnTarget(state, action)
     case 'shoot':
-      return getAttackVariant(c, action) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
+      return getAttackVariant(c, action, isCombatStarted(state)) !== null && isShotLoaded(c, action) && isAimOnTarget(state, action)
     // cast, the spell was; detonated, a charge it can set off is named
     case 'explosion':
       return (action.source !== 'cast' || isSpellKey(action.key))
@@ -108,13 +108,13 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
       const root = getRootOf(state, action)
       if (root && !action.catch && findTrigger(state, root, action)?.catchOnly) return false
       const cost = getOwnCost(state, strike)
-      return getAttackVariant(c, strike) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost, isCombatStarted(state)) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
+      return getAttackVariant(c, strike, isCombatStarted(state)) !== null && !!cost && isCampaignCharacter(c) && canAfford(c, cost, isCombatStarted(state)) && isInReach(fought, strike, action.targetId ?? '') && isStrikeOpen(state, action) && isAimOnTarget(state, strike)
     }
     // combat.tex "Coordinated Shots": a shot they can fire, from where they
     // stand, at the target of the shot they join
     case 'joinShot': {
       const shot = getJoinedShot(action, '')
-      return getAttackVariant(c, shot) !== null && isShotLoaded(c, shot) && isJoinInRange(state, c.id, shot, action.targetId ?? '') && isAimOnTarget(state, action)
+      return getAttackVariant(c, shot, isCombatStarted(state)) !== null && isShotLoaded(c, shot) && isJoinInRange(state, c.id, shot, action.targetId ?? '') && isAimOnTarget(state, action)
     }
     // combat.tex "Grapple Maneuvers": "performed during a grapple by any of
     // the participants"
@@ -134,7 +134,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // cell the throw reaches
     case 'throw': {
       const item = findThrowSource(state, action.actorId, action.itemId)
-      return !!item && canThrowItem(c, item) && action.to !== null && isThrowCell(state, action.actorId, action.itemId, action.to)
+      return !!item && canThrowItem(c, item, isCombatStarted(state)) && action.to !== null && isThrowCell(state, action.actorId, action.itemId, action.to)
     }
     // combat.tex "Fire": a burning space within its reach
     case 'extinguish':
@@ -165,7 +165,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // nothing more to declare; a blast is generated with its way already
     // walked out
     case 'cut':
-      return getAttackVariant(c, getCutStrike(action)) !== null
+      return getAttackVariant(c, getCutStrike(action), isCombatStarted(state)) !== null
     case 'blast':
     case 'retarget':
     case 'release':
@@ -191,7 +191,7 @@ export function isDeclarationComplete(state: SceneState, c: Character, action: A
     // abilities.tex "Counterattack": "as long as you are within range"
     case 'counterattack': {
       const strike = getCounterStrike(action, '')
-      return getAttackVariant(c, strike) !== null && isStrikeOpen(state, action) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
+      return getAttackVariant(c, strike, isCombatStarted(state)) !== null && isStrikeOpen(state, action) && isInReach(state, strike, action.targetId ?? '') && isAimOnTarget(state, strike)
     }
   }
 }
@@ -266,12 +266,12 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'counterattack':
       return getStrikePriceOf(state, action)?.declared ?? null
     case 'shoot':
-      return getVariantCost(c, action)
+      return getVariantCost(c, action, isCombatStarted(state))
     // paid for by the throw, the cast or the detonation that opened it
     case 'explosion':
       return { AP: 0, STA: 0 }
     case 'throw':
-      return getThrowCost(c, action.itemId)
+      return getThrowCost(c, action.itemId, isCombatStarted(state))
     // gear.tex "Reload": the row's second AP term
     case 'reload': {
       const row = getReloadRow(c, action)
@@ -280,7 +280,7 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
     case 'slip':
       return getSlipCost(c)
     case 'cut':
-      return getVariantCost(c, getCutStrike(action))
+      return getVariantCost(c, getCutStrike(action), isCombatStarted(state))
     case 'move':
       return getMovePrice(state, c, action, action.movement === 'climb' ? action.path.length : getMoveFacts(state, action).path.length)
     case 'drag':
@@ -342,8 +342,8 @@ function getDeclaredCost(state: SceneState, c: CampaignCharacter, action: Action
 }
 
 // What the weapon row and variation the attack is declared with cost.
-function getVariantCost(c: CampaignCharacter, action: AttackAction): ActionCost | null {
-  const variant = getAttackVariant(c, action)
+function getVariantCost(c: CampaignCharacter, action: AttackAction, charged: boolean): ActionCost | null {
+  const variant = getAttackVariant(c, action, charged)
   return variant ? { AP: variant.AP, STA: variant.STA } : null
 }
 
@@ -380,7 +380,7 @@ export function getFinishBar(state: SceneState, held: RootAction): string | null
     case 'cast':
       return isSpellKey(held.key) && isCastPossible(c, held.key) && getSpellBoardBar(state, c, held.key) === null && isSuggestionComplete(state, held) ? null : 'cannot be cast'
     case 'shoot':
-      return getAttackVariant(c, held) !== null && isShotLoaded(c, held) && isAimOnTarget(state, held) ? null : 'cannot be shot'
+      return getAttackVariant(c, held, isCombatStarted(state)) !== null && isShotLoaded(c, held) && isAimOnTarget(state, held) ? null : 'cannot be shot'
     case 'firstAid':
     case 'cauterize':
       return hasAbility(c, getMedicineAbility(held.kind)) && isDeclarationComplete(state, c, held) ? null : 'nobody bleeding within reach'
@@ -668,7 +668,7 @@ export function getDeclaredHiddenTargets(state: SceneState, open: RootAction | n
 function isAimingOpen(state: SceneState, open: RootAction | null): open is RootAction {
   if (open?.step !== 'define') return false
   const actor = state.characters[open.actorId]
-  return !(isAttackAction(open) && (!actor || getAttackVariant(actor, open) === null))
+  return !(isAttackAction(open) && (!actor || getAttackVariant(actor, open, isCombatStarted(state)) === null))
 }
 
 // The items on the floor the open strike or shot can be aimed at, once it is
@@ -676,7 +676,7 @@ function isAimingOpen(state: SceneState, open: RootAction | null): open is RootA
 export function getDeclaredFloorTargets(state: SceneState, open: RootAction | null): FloorItem[] {
   if (!open || !isAttackAction(open) || open.step !== 'define') return []
   const actor = state.characters[open.actorId]
-  return actor && getAttackVariant(actor, open) !== null ? getFloorTargets(state, open) : []
+  return actor && getAttackVariant(actor, open, isCombatStarted(state)) !== null ? getFloorTargets(state, open) : []
 }
 
 // The spaces of the ground the open strike or shot can be aimed at, once it
@@ -684,7 +684,7 @@ export function getDeclaredFloorTargets(state: SceneState, open: RootAction | nu
 export function getDeclaredCellTargets(state: SceneState, open: RootAction | null): Coord[] {
   if (!open || !isAttackAction(open) || open.step !== 'define') return []
   const actor = state.characters[open.actorId]
-  return actor && getAttackVariant(actor, open) !== null ? getCellTargets(state, open) : []
+  return actor && getAttackVariant(actor, open, isCombatStarted(state)) !== null ? getCellTargets(state, open) : []
 }
 
 // Whether the action is aimed at someone it may be aimed at: a character
