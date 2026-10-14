@@ -1,9 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useGameTab } from '../hooks/useGameTab';
-import { PlayPanel } from './PlayPanel';
-import { PartyPanel } from './PartyPanel';
-import { DowntimePanel } from './DowntimePanel';
+import { RunScreen } from './RunScreen';
 import { CharacterCreator } from './CharacterCreator';
 import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
@@ -17,16 +15,14 @@ const TABS = [
   { tab: 'edit', label: 'Character', mobile: true },
   { tab: 'race', label: 'Races', mobile: false },
   { tab: 'map', label: 'Map', mobile: false },
-  { tab: 'party', label: 'Party', mobile: false },
-  { tab: 'downtime', label: 'Downtime', mobile: false },
-  { tab: 'play', label: 'Run', mobile: false },
+  { tab: 'run', label: 'Run', mobile: false },
   { tab: 'break', label: 'Break Me', mobile: false },
   { tab: 'catalog', label: 'Catalog', mobile: false },
 ] as const
 
 export function App(){
 
-  const { tab: selectedGameTab, setTab: setSelectedGameTab } = useGameTab()
+  const { tab: selectedGameTab, runTab, inRun, setTab: setSelectedGameTab } = useGameTab()
 
   const [open, setOpen] = useState(false)
 
@@ -36,8 +32,8 @@ export function App(){
         <div className='flex flex-row justify-start items-stretch h-full gap-1'>
           {TABS.map(({ tab, label, mobile }) => (
             <button key={tab} type='button' aria-label={`head_${tab}`}
-              className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${selectedGameTab === tab ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
-              onClick={() => setSelectedGameTab(tab)}>{label}</button>
+              className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${(tab === 'run' ? inRun : selectedGameTab === tab) ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
+              onClick={() => setSelectedGameTab(tab === 'run' ? runTab : tab)}>{label}</button>
           ))}
         </div>
       </header>
@@ -59,9 +55,9 @@ export function App(){
         <div className="col-span-12 mx-2 text-sm md:text-md">
           <MapEditor />
         </div>
-      ) : selectedGameTab == 'play' ? (
+      ) : inRun ? (
         <div className="col-span-12">
-          <PlayPanel />
+          <RunScreen />
         </div>
       ) : (
       <>
@@ -103,10 +99,6 @@ export function App(){
         {
           selectedGameTab == 'edit' ?
             <CharacterCreator /> :
-            selectedGameTab == 'party' ?
-            <PartyPanel/> :
-            selectedGameTab == 'downtime' ?
-            <DowntimePanel/> :
             selectedGameTab == 'break' ?
             <BreakMe/> :
             null

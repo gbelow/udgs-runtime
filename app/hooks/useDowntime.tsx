@@ -5,15 +5,28 @@ import { getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePan
 import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
 import { passDays } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
+import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
 
-// story.tex "Downtime" — everyone's plans for the coming `span` days (null:
-// as long as the longest plan). The store and what downtime keeps are
-// replaced on every write, so they are the gate and the panel is computed
-// once per pair.
-export function useDowntime(span: number | null): DowntimePanel {
+// story.tex "Downtime" — everyone's plans for the days typed (null: as long
+// as the longest plan). The store and what downtime keeps are replaced on
+// every write, so they are the gate and the panel is computed once per pair.
+export function useDowntime(): DowntimePanel {
+  const span = useAppStore((s) => s.downtimeSpan);
   const campaign = useCampaignStore((s) => s);
   return getDowntimePanel({ campaign, downtime: campaign.downtime }, span);
+}
+
+// The days typed for the coming stretch.
+export function useDowntimeSpan() {
+  const span = useAppStore((s) => s.downtimeSpan);
+  const setSpan = useAppStore((s) => s.setDowntimeSpan);
+  return { span, setSpan } as const;
+}
+
+// What the last days came to.
+export function useDowntimeResults() {
+  return useCampaignStore((s) => s.downtime.results);
 }
 
 // What the character can train.

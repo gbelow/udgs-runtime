@@ -1,8 +1,8 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { Card } from './SceneCards'
-import { CharacterSelector } from './CharacterSelector'
-import { Button, SectionLabel, TextInput, Tooltip } from './ui'
+import { CatalogDrawer } from './RunParts'
+import { Button, TextInput, Tooltip } from './ui'
 import { usePartiesPanel, useSceneCards } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { useBringIntoParty } from '../hooks/useCharacterLibrary'
@@ -93,21 +93,7 @@ function CreateParty(){
 function AddCatalog({ partyId, name, close }: { partyId: string, name: string, close: () => void }){
   const bring = useBringIntoParty()
   const { joinBar } = usePartiesPanel()
-  const { gmTools } = useRole()
-
-  return(
-    <div className='flex flex-col gap-1 p-2 rounded border border-accent w-64 shrink-0'>
-      <div className='flex flex-row gap-1 items-center'>
-        <SectionLabel>adding to {name}</SectionLabel>
-        <Button size='xs' variant='ghost' className='ml-auto' aria-label='close catalog' onClick={close}>×</Button>
-      </div>
-      {joinBar ? <span className='text-xs text-muted'>{joinBar}</span> : null}
-      {gmTools ? null : <span className='text-xs text-muted'>the catalog is the GM&apos;s: only PCs can be added</span>}
-      <fieldset disabled={joinBar !== null} className='min-w-0'>
-        <CharacterSelector catalog={gmTools} onSelect={(c) => bring(c, partyId)} />
-      </fieldset>
-    </div>
-  )
+  return <CatalogDrawer label={`adding to ${name}`} close={close} bar={joinBar} onSelect={(c) => bring(c, partyId)} />
 }
 
 // One party: its name, the button that opens the catalog for it, and its

@@ -1,6 +1,6 @@
 'use client'
 import { memo, Profiler, ProfilerOnRenderCallback, useState } from "react";
-import { PlayPanel } from "./PlayPanel";
+import { RunScreen } from "./RunScreen";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -97,7 +97,7 @@ export function BreakMe() {
   // then Zustand's set(), which synchronously re-runs every subscriber's
   // selector before returning. React's render/commit is deferred, so this
   // window captures the updater plus the *entire* selector fan-out — which is
-  // why it scales with numPanels (each PlayPanel holds several combat-store
+  // why it scales with numPanels (each RunScreen holds several combat-store
   // subscriptions). It is not a React-free floor; it is the synchronous cost
   // of "one mutation, everyone notified."
   const runLatency = () => {
@@ -135,8 +135,8 @@ export function BreakMe() {
     })
   }
 
-  // Finalize on the PlayPanel commit: by the time this fires, the probe grid's
-  // render-phase side effects have populated probeState.rendered. PlayPanels
+  // Finalize on the RunScreen commit: by the time this fires, the probe grid's
+  // render-phase side effects have populated probeState.rendered. RunScreens
   // subscribe to the whole character, so they always re-render on a mutation —
   // this callback is a reliable commit sentinel.
   const onPanelsRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
@@ -251,7 +251,7 @@ export function BreakMe() {
                 {probe.offenders.length > 0 && (
                   <span className="text-muted break-words">{probe.offenders.join(", ")}</span>
                 )}
-                <span>PlayPanel commit: {probe.panelMs.toFixed(3)} ms ({probe.numPanelsAtRun} panel{probe.numPanelsAtRun === 1 ? "" : "s"})</span>
+                <span>RunScreen commit: {probe.panelMs.toFixed(3)} ms ({probe.numPanelsAtRun} panel{probe.numPanelsAtRun === 1 ? "" : "s"})</span>
               </div>
             ) : hasActiveCharacter ? <span className="text-muted">—</span> : <span className="text-muted">no active character</span>}
           </div>
@@ -268,7 +268,7 @@ export function BreakMe() {
 
       <Profiler id="panels" onRender={onPanelsRender}>
         {new Array(numPanels).fill(0).map((_, i) => (
-          <PlayPanel key={i} />
+          <RunScreen key={i} />
         ))}
       </Profiler>
     </div>

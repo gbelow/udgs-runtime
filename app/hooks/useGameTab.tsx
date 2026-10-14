@@ -1,11 +1,13 @@
-import { useAppStore } from "../stores/useAppStore";
+import { isRunTab, RUN_TABS, useAppStore } from "../stores/useAppStore";
 
 // The only adapter onto the app store's tab. Components read the tab through
-// this rather than reaching into the store, so `edit | play | break` stays one
-// concept with one owner.
+// this rather than reaching into the store, so the tab stays one concept with
+// one owner. `runTab` is the run screen's mode to open it on, `inRun`
+// whether the tab is one of them, and `runTabs` the modes.
 export function useGameTab() {
   const tab = useAppStore((s) => s.selectedGameTab);
+  const runTab = useAppStore((s) => s.runTab);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
 
-  return { tab, setTab } as const;
+  return { tab, runTab, inRun: isRunTab(tab), runTabs: RUN_TABS, setTab } as const;
 }

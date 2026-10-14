@@ -20,6 +20,11 @@ export function useActiveCharacterData() {
   return { fightName, notes, name, limitStress };
 }
 
+// Whether the tab has an active character, in whichever store owns it.
+export function useHasActiveCharacter(): boolean {
+  return useActiveCharacterSelector(() => true) ?? false;
+}
+
 // A character outside a fight has no surge to spend, and the constant keeps the
 // fallback from allocating on every call.
 const NO_SURGES: Record<SurgeKind, boolean> = {

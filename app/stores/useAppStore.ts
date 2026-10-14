@@ -6,7 +6,16 @@ import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'party' | 'downtime' | 'play' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog'
+
+// The run screen's modes, one per sequence that moves time: each is a tab of
+// its own, so the store that owns the active character stays the tab's.
+export const RUN_TABS = ['scene', 'exploration', 'downtime'] as const
+export type RunTab = typeof RUN_TABS[number]
+
+export function isRunTab(tab: GameTabs): tab is RunTab {
+  return (RUN_TABS as readonly string[]).includes(tab)
+}
 
 // The store that holds each tab's active character: the one being edited, the
 // one being made by the book's steps, the race being made, the party's, the
@@ -18,9 +27,9 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   edit: 'character',
   race: 'race',
   map: null,
-  party: 'campaign',
+  scene: 'combat',
+  exploration: 'campaign',
   downtime: 'campaign',
-  play: 'combat',
   break: 'combat',
   catalog: 'combat',
 }
@@ -59,6 +68,12 @@ export interface AppState {
   setTrade: (trade: Trade | null) => void
   selectedGameTab: GameTabs
   setSelectedGameTab: (mode: GameTabs) => void
+  // the run screen's mode last shown, opened again when the run screen is
+  runTab: RunTab
+  // the days typed for downtime's coming stretch, or null for as long as the
+  // longest plan
+  downtimeSpan: number | null
+  setDowntimeSpan: (downtimeSpan: number | null) => void
   baseCharacterList: JsonObject
   updateBaseCharacterList: () => void
   playerCharacterList: {id: string, name: string}[]
@@ -82,7 +97,10 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     raceList: initialState.raceList || {},
     mapList: initialState.mapList || {},
     
-    setSelectedGameTab: (selectedGameTab) => set({ selectedGameTab }),
+    runTab: 'scene',
+    downtimeSpan: null,
+    setDowntimeSpan: (downtimeSpan) => set({ downtimeSpan }),
+    setSelectedGameTab: (selectedGameTab) => set(isRunTab(selectedGameTab) ? { selectedGameTab, runTab: selectedGameTab } : { selectedGameTab }),
     role: 'dev',
     gmMode: false,
     setGmMode: (gmMode) => set({ gmMode }),

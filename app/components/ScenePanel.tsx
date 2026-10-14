@@ -1,23 +1,10 @@
 'use client'
 import { useState } from 'react'
-import { WeaponPanel } from './WeaponPanel';
-import { AbilityPanel } from './AbilityPanel';
-import { SpellPanel } from './SpellPanel';
-import { ActionLog, ActionPanel } from './ActionPanel';
+import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { ArmorPanel } from './ArmorPanel';
-import { HandsPanel } from './HandsPanel';
-import { ContainerPanel } from './ContainerPanel';
-import { TradePanel } from './TradePanel';
-import { ItemSelector } from './ItemSelector';
-import { AbilitySelector } from './AbilitySelector';
-import { SpellSelector } from './SpellSelector';
-import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
-import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
-import { PartiesView } from './PartiesView';
 import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -25,86 +12,15 @@ import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
 import { usePartyCommands } from '../hooks/useParty';
-import { useActiveCharacterData, useBindingSurge } from '../hooks/useCharacterData';
-import { useRole } from '../hooks/useRole';
-import { GearLocked, GmLocked } from './Locks';
+import { useBindingSurge } from '../hooks/useCharacterData';
 
-// The run screen: the round and who is in it along the top, the middle for
-// the scene or whatever catalog the GM opened, the active character's sheet
-// on the right, and along the bottom what they have, what they can do and
-// what just happened. Everything the GM has that a player does not opens
-// from the GM drawer.
-export function PlayPanel(){
-  const { hasActiveCharacter } = useCombatState()
-  const [opened, setOpened] = useState<CatalogView[]>([])
-  const [center, setCenter] = useState<CenterView>('parties')
-  const views: CenterView[] = ['parties', 'scene', ...opened]
-  const shown = views.includes(center) ? center : 'parties'
-  const open = (v: CatalogView) => { setOpened((o) => (o.includes(v) ? o : [...o, v])); setCenter(v) }
-  const close = (v: CatalogView) => { setOpened((o) => o.filter((x) => x !== v)); if (center === v) setCenter('scene') }
-
-  return(
-    <div className='flex flex-col md:h-[calc(100vh-3rem)] text-left text-sm'>
-      <Tracker />
-      <div className='flex flex-col md:flex-row flex-1 min-h-0'>
-        <section className='flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
-          <div className='flex flex-row flex-wrap gap-1 items-center'>
-            {views.map((v) => (
-              <span key={v} className='inline-flex items-center'>
-                <Button size='xs' aria-label={`view ${v}`} variant={v === shown ? 'primary' : 'default'} className={v === shown ? 'bg-accent/15' : ''} onClick={() => setCenter(v)}>{v}</Button>
-                {isCatalogView(v) ? <Button size='xs' variant='ghost' aria-label={`close ${v}`} title={`close the ${v} catalog`} onClick={() => close(v)}>×</Button> : null}
-              </span>
-            ))}
-          </div>
-          <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>
-            <CenterSpace view={shown} />
-          </div>
-        </section>
-        {hasActiveCharacter ? (
-          <aside className='md:w-[32rem] shrink-0 p-2 border-t md:border-t-0 md:border-l border-line min-h-0 overflow-y-auto'>
-            <SheetTabs />
-          </aside>
-        ) : null}
-      </div>
-      <div className='grid grid-cols-1 md:grid-cols-12 border-t border-line shrink-0 md:h-[30vh]'>
-        <div className='md:col-span-3 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          {hasActiveCharacter ? <Status /> : <span className='text-xs text-muted'>pick a character in the tracker</span>}
-        </div>
-        <div className='md:col-span-5 p-2 flex flex-col gap-2 overflow-y-auto border-b md:border-b-0 md:border-r border-line'>
-          <ActionColumn open={open} hasActiveCharacter={hasActiveCharacter} />
-        </div>
-        <div className='md:col-span-4 p-2 flex flex-col gap-1 min-h-0'>
-          <SectionLabel>Log</SectionLabel>
-          <div className='flex-1 min-h-0 overflow-y-auto'><ActionLog /></div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-const CATALOG_VIEWS = ['items', 'abilities', 'spells'] as const
-type CatalogView = typeof CATALOG_VIEWS[number]
-type CenterView = 'scene' | 'parties' | CatalogView
-
-function isCatalogView(v: CenterView): v is CatalogView {
-  return (CATALOG_VIEWS as readonly string[]).includes(v)
-}
-
-// The middle of the screen: the scene, the parties, or a
-// catalog laid out across the whole width, giving to the sheet on the right.
-function CenterSpace({ view }: { view: CenterView }){
-  if (view === 'parties') return <PartiesView />
-  if (view === 'items') return <ItemSelector wide />
-  if (view === 'abilities') return <AbilitySelector wide />
-  if (view === 'spells') return <SpellSelector wide />
-  return <SceneSpace />
-}
+// The scene's pieces of the run screen.
 
 // The round and who is in it, kept to a strip so the middle has the height.
-function Tracker(){
+export function SceneStrip(){
   const [settings, setSettings] = useState(false)
   return(
-    <div className='flex flex-col border-b border-line shrink-0'>
+    <div className='flex flex-col'>
       <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center px-2 py-1.5'>
         <FightControls settings={settings} toggleSettings={() => setSettings(!settings)} />
         <CharacterList />
@@ -116,7 +32,7 @@ function Tracker(){
 
 function FightControls({ settings, toggleSettings }: { settings: boolean, toggleSettings: () => void }){
   const { nextRound, endCombat, resetCombat } = useCombatCommands()
-  const { returnFromFight } = usePartyCommands()
+  const { endScene } = usePartyCommands()
   const { round, nextRoundBar, returnBar, endCombatBar } = useCombatState()
   const [etsTaken, setEtsTaken] = useState(0)
 
@@ -126,7 +42,7 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
       <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
       {round > 0
         ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
-        : <Button aria-label='backToParty' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party'} onClick={() => { returnFromFight(etsTaken); setEtsTaken(0) }}>back to party</Button>}
+        : <Button aria-label='endScene' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party, and on to exploring'} onClick={() => { endScene(etsTaken); setEtsTaken(0) }}>end scene</Button>}
       <span className='text-xs text-muted whitespace-nowrap'>ETs taken</span>
       <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
@@ -154,7 +70,7 @@ function FightSettings(){
 
 // What the scene is played on: the round change while it runs, the chase's
 // chain while there is a chase, the board otherwise.
-function SceneSpace(){
+export function SceneSpace(){
   const chase = useChase([], 'combat')
   const { view } = useRoundChange()
   if (view) return <RoundChangePanel />
@@ -162,85 +78,18 @@ function SceneSpace(){
   return <BoardPanel />
 }
 
-const SHEET_TABS = ['sheet', 'knowledge', 'inventory', 'gear', 'abilities', 'spells', 'body'] as const
-type SheetTab = typeof SHEET_TABS[number]
-
-// The inventory holds what an item is taken into — the hands, the worn
-// armor, the containers, the trade — so it stays short beside a catalog;
-// what the gear does in a fight is under gear.
-function SheetTabs(){
-  const [tab, setTab] = useState<SheetTab>('inventory')
-  const { fightName } = useActiveCharacterData()
-
-  return(
-    <div className='flex flex-col gap-2'>
-      <span className='text-base font-medium'>{fightName}</span>
-      <div className='flex flex-row flex-wrap gap-1'>
-        {SHEET_TABS.map((t) =>
-          <Button key={t} size='xs' aria-label={`sheet ${t}`} variant={t === tab ? 'primary' : 'default'} className={t === tab ? 'bg-accent/15' : ''} onClick={() => setTab(t)}>{t}</Button>)}
-      </div>
-      {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
-      {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
-      {tab === 'inventory' ? <GearLocked><HandsPanel /><ArmorPanel tiers={false} /><ContainerPanel /><TradePanel /></GearLocked> : null}
-      {tab === 'gear' ? <GearLocked><WeaponPanel /><ArmorPanel /></GearLocked> : null}
-      {tab === 'abilities' ? <AbilityPanel /> : null}
-      {tab === 'spells' ? <><SustainedPanel /><SpellPanel /></> : null}
-      {tab === 'body' ? <GmLocked><WoundPanel /><CursePanel /></GmLocked> : null}
-    </div>
-  )
-}
-
-// What the active character has to spend and what weighs on them; the
-// resources, the injuries and the afflictions are the GM's to edit, and the
-// pending tests the character's to roll.
-function Status(){
+// The GM's button for killing the active character outright.
+export function KillButton(){
   const { killCharacter } = useCombatCommands()
   const { isCharacterDead } = useInjuryLens()
   const { hasOpenAction } = useCombatState()
-
-  return(
-    <>
-      <GmLocked>
-        <ResourceTiles><SimpleResource rssName={'AP'} /></ResourceTiles>
-        <InjuryDials action={<Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>} />
-        <AfflictionsPannel />
-      </GmLocked>
-      <PendingPanel />
-    </>
-  )
-}
-
-// Who acts from the bar: the active character, held to their turn, or — for
-// the GM and the developer — the GM, whose actions take the place of the
-// character's and who edits anyone's sheet and gear at any time.
-function ActionColumn({ open, hasActiveCharacter }: { open: (v: CatalogView) => void, hasActiveCharacter: boolean }){
-  const [dice10, setDice10] = useState(1)
-  const [dice6, setDice6] = useState(1)
-  const { gmTools, gm, setGmMode } = useRole()
-
-  return(
-    <>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        {gmTools ? <>
-          <Button size='xs' aria-label='act as character' aria-pressed={!gm} variant={gm ? 'default' : 'primary'} className={gm ? '' : 'bg-accent/15'} onClick={() => setGmMode(false)}>character</Button>
-          <Button size='xs' aria-label='act as GM' aria-pressed={gm} variant={gm ? 'primary' : 'default'} className={gm ? 'bg-accent/15' : ''} onClick={() => setGmMode(true)}>GM</Button>
-        </> : null}
-        <span className='ml-auto flex flex-row gap-1'>
-          <Button size='xs' aria-label='roll' onClick={() => setDice10(makeDieRoll(10))}>d10 <span className='font-mono text-fg'>{dice10}</span></Button>
-          <Button size='xs' aria-label='roll' onClick={() => setDice6(makeDieRoll(6))}>d6 <span className='font-mono text-fg'>{dice6}</span></Button>
-        </span>
-      </div>
-      {gm ? <GmToolsPanel open={open} />
-        : hasActiveCharacter ? <ActionBar />
-        : <span className='text-xs text-muted'>pick a character in the tracker</span>}
-    </>
-  )
+  return <Button variant='bad' active={isCharacterDead} disabled={hasOpenAction} title={hasOpenAction ? 'an action is being played out' : undefined} className={isCharacterDead ? 'bg-bad/20' : ''} onClick={killCharacter}>{isCharacterDead ? 'dead' : 'kill'}</Button>
 }
 
 // The turn, the surges and the actions; the tests held for the round wait
 // behind their own button until wanted, lit while one is owed. Morale and
 // starting a chase belong to the round change.
-function ActionBar(){
+export function SceneActions(){
   const [heldOpen, setHeldOpen] = useState(false)
   const held = useHeldTests()
   const due = held.some((r) => !r.result)
@@ -265,10 +114,8 @@ function ActionBar(){
   )
 }
 
-// What the GM has that a player does not, in one place: the catalogs, opened
-// in the middle of the screen, and what the GM does to the scene that no
-// character does, each starting a declaration aimed on the board or the
-// roster like a character's action.
+// What the GM does to the scene that no character does, each starting a
+// declaration aimed on the board or the roster like a character's action.
 const GM_TOOLS = [
   { label: 'explosion', title: 'an explosion where the GM aims it' },
   { label: 'effect', title: 'an effect on the characters the GM picks' },
@@ -276,34 +123,28 @@ const GM_TOOLS = [
   { label: 'triggers', title: "fire one of the scene's triggers" },
 ] as const
 
-function GmToolsPanel({ open }: { open: (v: CatalogView) => void }){
+export function GmSceneTools(){
   const cowardBar = useCowardBar()
   const { defaultToCoward } = useCombatCommands()
 
   return(
-    <div className='flex flex-col gap-1'>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>catalog</SectionLabel>
-        {CATALOG_VIEWS.map((v) => <Button key={v} size='xs' aria-label={`open ${v}`} onClick={() => open(v)}>{v}</Button>)}
-      </div>
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>scene</SectionLabel>
-        {GM_TOOLS.map((t) => (
-          <Tooltip key={t.label} text={`${t.title} — not built yet`}>
-            <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
-          </Tooltip>
-        ))}
-        <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
-          <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <SectionLabel>scene</SectionLabel>
+      {GM_TOOLS.map((t) => (
+        <Tooltip key={t.label} text={`${t.title} — not built yet`}>
+          <Button size='xs' aria-label={`gm ${t.label}`} disabled>{t.label}</Button>
         </Tooltip>
-      </div>
+      ))}
+      <Tooltip text={cowardBar ?? 'nobody for the active character to insult or negotiate with: they default to coward'}>
+        <Button size='xs' aria-label='default to coward' disabled={cowardBar !== null} onClick={defaultToCoward}>default to coward</Button>
+      </Tooltip>
     </div>
   )
 }
 
 // spells.tex "Sustained Spells": what the character is holding, what it
 // costs each round and to fire again, and who it links or binds them to.
-function SustainedPanel(){
+export function SustainedPanel(){
   const { rows, release } = useSustainedPanel()
   if (rows.length === 0) return null
   return(

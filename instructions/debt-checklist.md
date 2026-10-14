@@ -88,7 +88,7 @@ delete the file once every box is ticked.
 - [ ] Surge code split across layers: options are a character lens and a combat
   projection; starting a surge is a combat command, ending one a character command
   outside the turn gate.
-- [ ] `DamageButton` in `components/PlayPanel.tsx` is unused (the lint warning).
+- [x] `DamageButton` in `components/PlayPanel.tsx` is unused (the lint warning) — gone; the file is now `ScenePanel.tsx`.
 - [ ] `equipContainer` is still exported but only used inside its module.
 - [ ] `spendAmmo` (`reduce.ts`) merges only `.containers` back from an updater's result.
 

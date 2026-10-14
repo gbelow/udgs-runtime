@@ -1,7 +1,7 @@
 import { Character } from "../domain/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { loadIntoFight } from "../domain/scene/commands/fight";
-import { useAppStore } from "../stores/useAppStore";
+import { isRunTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
 
@@ -27,9 +27,10 @@ export function useLoadCharacter() {
   const addToParty = useCampaignStore((s) => s.loadCharacter);
 
   return (character: Character) => {
-    if (tab === "edit") loadForEdit(character);
-    if (tab === "party") addToParty(character);
-    if (tab === "play") addToCombat(character);
+    const owner = TAB_OWNER[tab];
+    if (owner === "character") loadForEdit(character);
+    else if (isRunTab(tab) && owner === "campaign") addToParty(character);
+    else if (isRunTab(tab) && owner === "combat") addToCombat(character);
   };
 }
 

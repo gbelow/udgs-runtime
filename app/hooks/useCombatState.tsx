@@ -11,13 +11,13 @@ import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar, getEndCombatBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { isActingAsGm, useAppStore } from "../stores/useAppStore";
+import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
 // Fight-level primitives. Both go through the store selector, so a change to a
 // combatant's sheet does not re-render the round counter.
 export function useCombatState() {
   const round = useCombatStore((s) => s.round);
-  const hasActiveCharacter = useCombatStore((s) => !!s.activeCharacterId);
   // An action being played out holds the fight: whoever it names must stay
   // in it until it resolves.
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
@@ -25,7 +25,12 @@ export function useCombatState() {
   const returnBar = useCombatStore(getReturnBar);
   const endCombatBar = useCombatStore(getEndCombatBar);
 
-  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, endCombatBar } as const;
+  return { round, hasOpenAction, nextRoundBar, returnBar, endCombatBar } as const;
+}
+
+// How many are in the fight, seen from the run screen's other modes.
+export function useFighterCount(): number {
+  return useCombatStore((s) => Object.keys(s.characters).length);
 }
 
 export function useCombatRoster(): {
@@ -78,9 +83,10 @@ export function usePartiesPanel(): PartiesPanel {
 }
 
 // Why the active character's gear cannot be handled now, or null.
+// Outside a fight nothing holds the gear to a turn.
 export function useGearBar(): string | null {
   const gm = useAppStore(isActingAsGm);
-  return useCombatStore((s) => (s.activeCharacterId ? getGearBar(s, s.activeCharacterId, gm) : null));
+  return useActiveCharacterSelector((c, fight) => (fight ? getGearBar(fight, c.id, gm) : null)) ?? null;
 }
 
 const NO_ONE = 'no active character'

@@ -1,9 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel, selectClass } from './ui';
-import { CharacterSheet } from './CharacterSheet';
-import { useClock, useExploration, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
-import { useActiveCharacterData } from '../hooks/useCharacterData';
+import { Button, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { ClockLabel, RollText, RosterCatalog, RosterChip } from './RunParts';
+import { useExploration, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { useMapNames } from '../hooks/useMap';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
@@ -12,34 +11,57 @@ import type { CastPanel, PartyView } from '../domain/exploration/projections/exp
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
-// Everyone out of any fight: the clock they share, the parties they are in,
-// and the sheet of whoever is picked, with their plan for the coming ET.
-export function PartyPanel(){
+// Exploration's pieces of the run screen.
 
-  const { day, et, etsPerDay } = useClock()
-  const { map, night, dayETs, parties, decisions, results, castResults } = useParties()
+// The clock everyone out of a fight shares, the map, the ET passing, and who
+// is on the roster by party, each with their plan for the coming ET.
+export function ExplorationStrip(){
+
+  const { map, night, dayETs, parties } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
-  const { passET, decide, sendActiveToFight, sendAllToFight, leaveParty, loadMap, setDayETs } = usePartyCommands()
-  const { fightName } = useActiveCharacterData()
-  const hasActive = parties.some((p) => p.members.some((m) => m.isActive))
+  const { passET, sendAllToFight, loadMap, setDayETs, pick } = usePartyCommands()
 
   return(
-    <div className='flex flex-col text-left'>
-      <div className='flex flex-row gap-2 items-center py-2 border-b border-line'>
-        <span className='text-xs text-muted'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/{etsPerDay} · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></span>
-        <span className='text-xs text-muted'>day ETs</span>
+    <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
+      <div className='flex flex-row gap-2 items-center'>
+        <ClockLabel> · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></ClockLabel>
+        <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
         <select aria-label='map' className={selectClass} value={map?.name ?? ''} onChange={(e) => loadMap(e.target.value)}>
           <option value=''>no map</option>
           {maps.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <Button aria-label='passET' disabled={passBar !== null} title={passBar ?? undefined} onClick={passET}>next ET</Button>
-        {passBar ? <span className='text-xs text-muted grow'>{passBar}</span> : <span className='grow' />}
+        <Tooltip text={passBar ?? 'everyone spends the ET on their plan'}>
+          <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
+        </Tooltip>
         <Button aria-label='allToFight' disabled={parties.length === 0} onClick={sendAllToFight}>all to fight</Button>
       </div>
+      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
+        {parties.map((party) => (
+          <div key={party.id} className='flex flex-row flex-wrap gap-1 items-center'>
+            <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span>
+            {party.members.map((m) => <RosterChip key={m.id} name={m.name} active={m.isActive} disabled={m.out} note={m.out ? 'in a fight' : m.plan} onClick={() => pick(m.id)} />)}
+          </div>
+        ))}
+      </div>
+      {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
+    </div>
+  )
+}
+
+// The parties: who must decide whether to rest, and each party's place,
+// camp and groups; the catalog opens beside them to bring characters onto
+// the roster.
+export function PartyCards(){
+
+  const { map, parties, decisions } = useParties()
+  const { decide } = usePartyCommands()
+
+  return(
+    <RosterCatalog>
       {decisions.length > 0 ?
-        <div className='flex flex-col gap-1 py-2 border-b border-line'>
+        <div className='flex flex-col gap-1 pb-2 border-b border-line'>
           <SectionLabel>Forced to rest</SectionLabel>
           {decisions.map((d) => (
             <div key={d.id} className='flex flex-row gap-1.5 items-center'>
@@ -51,44 +73,53 @@ export function PartyPanel(){
           ))}
         </div>
         : null}
-      <div className='flex flex-row flex-wrap gap-2 py-2 border-b border-line'>
+      <div className='flex flex-row flex-wrap gap-2 items-start'>
+        {parties.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
         {parties.map((party) => <PartyCard key={party.id} party={party} nodes={map?.nodes ?? null} />)}
       </div>
-      {results.length > 0 || castResults.length > 0 ?
-        <div className='flex flex-col gap-0.5 py-2 border-b border-line'>
-          <SectionLabel>Last ET</SectionLabel>
-          {results.map((r, i) => (
-            <span key={i} className='text-xs text-muted'>
-              {r.party} · <span className='text-fg'>{r.kind}</span> ({r.members.join(', ')}){r.roll ? <>: <span className='font-mono text-fg'>{r.roll.score}</span> vs DL <span className='font-mono text-fg'>{r.roll.DL}</span>, {r.roll.degree}</> : null}{r.note ? ` — ${r.note}` : ''}
-              {r.events.map((e, j) => (
-                <span key={j} className='block pl-3'><span className='text-fg'>{e.name}</span> vs DL <span className='font-mono text-fg'>{e.DL}</span>, {e.degree}{e.outcome ? `: ${e.outcome}` : ''}</span>
-              ))}
-            </span>
+    </RosterCatalog>
+  )
+}
+
+// What the active character does next: sent to a fight or off the roster,
+// and their plan for the coming ET.
+export function ExplorationActions(){
+  const { sendActiveToFight, leaveParty } = usePartyCommands()
+
+  return(
+    <>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+        <Button aria-label='toFight' onClick={sendActiveToFight}>to fight</Button>
+        <Button aria-label='leaveParty' variant='bad' onClick={leaveParty}>leave party</Button>
+      </div>
+      <ExplorationSection />
+    </>
+  )
+}
+
+// What the last ET came to, party by party.
+export function LastEtLog(){
+  const { results, castResults } = useParties()
+  if (results.length === 0 && castResults.length === 0) return <span className='text-xs text-muted'>no ET passed yet</span>
+
+  return(
+    <div className='flex flex-col gap-0.5'>
+      {results.map((r, i) => (
+        <span key={i} className='text-xs text-muted'>
+          {r.party} · <span className='text-fg'>{r.kind}</span> ({r.members.join(', ')})<RollText roll={r.roll} note={r.note} />
+          {r.events.map((e, j) => (
+            <span key={j} className='block pl-3'><span className='text-fg'>{e.name}</span> vs DL <span className='font-mono text-fg'>{e.DL}</span>, {e.degree}{e.outcome ? `: ${e.outcome}` : ''}</span>
           ))}
-          {castResults.map((r, i) => (
-            <span key={`cast ${i}`} className='text-xs text-muted'>
-              {r.party} · {r.caster} cast <span className='text-fg'>{r.spell}</span>{r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}{r.roll ? <>: <span className='font-mono text-fg'>{r.roll.score}</span> vs DL <span className='font-mono text-fg'>{r.roll.DL}</span>, {r.roll.degree}</> : null}{r.note ? ` — ${r.note}` : ''}
-              {r.tests.map((test, j) => (
-                <span key={j} className='block pl-3'><span className='text-fg'>{test.name}</span>: <span className='font-mono text-fg'>{test.roll.score}</span> vs DL <span className='font-mono text-fg'>{test.roll.DL}</span>, {test.roll.degree}</span>
-              ))}
-            </span>
+        </span>
+      ))}
+      {castResults.map((r, i) => (
+        <span key={`cast ${i}`} className='text-xs text-muted'>
+          {r.party} · {r.caster} cast <span className='text-fg'>{r.spell}</span>{r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}<RollText roll={r.roll} note={r.note} />
+          {r.tests.map((test, j) => (
+            <span key={j} className='block pl-3'><span className='text-fg'>{test.name}</span>: <span className='font-mono text-fg'>{test.roll.score}</span> vs DL <span className='font-mono text-fg'>{test.roll.DL}</span>, {test.roll.degree}</span>
           ))}
-        </div>
-        : null}
-      {
-        hasActive ?
-        <CharacterSheet
-          header={
-            <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-              <span className='text-base font-medium mr-2'>{fightName}</span>
-              <Button aria-label='toFight' onClick={sendActiveToFight}>to fight</Button>
-              <Button aria-label='leaveParty' variant='bad' onClick={leaveParty}>leave party</Button>
-            </div>
-          }
-          afterInjury={<ExplorationSection />}
-        />
-        : null
-      }
+        </span>
+      ))}
     </div>
   )
 }

@@ -1,8 +1,8 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel, TextInput, selectClass } from './ui';
-import { useClock } from '../hooks/useParty';
-import { useDowntime, useDowntimeCommands, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
+import { Button, NumberInput, TextInput, Tooltip, selectClass } from './ui';
+import { ClockLabel, RollText, RosterCatalog, RosterChip } from './RunParts';
+import { useDowntime, useDowntimeCommands, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
 import { ACTIVITIES, type Activity } from '../domain/downtime/types';
 import type { BlockView, DowntimeCharacterView, DowntimeTest } from '../domain/downtime/projections/downtime';
@@ -11,62 +11,96 @@ const num = (value: string) => parseInt(value) || 0
 
 type Commands = ReturnType<typeof useDowntimeCommands>
 
-// story.tex "Downtime": the days everyone on the roster spends at once — how
-// each lives, the one activity each is on, what it costs, tests and yields,
-// and how long they can pay for it.
-export function DowntimePanel(){
+// Downtime's pieces of the run screen.
 
-  const [span, setSpan] = useState<number | null>(null)
-  const { day, et, etsPerDay } = useClock()
-  const { days, defaultSpan, settled, bar, characters, results } = useDowntime(span)
-  const commands = useDowntimeCommands()
+// story.tex "Downtime": the days everyone on the roster spends at once — the
+// clock, how many days, the button that passes them, and who is on the
+// roster with the activity they are on.
+export function DowntimeStrip(){
+
+  const { span, setSpan } = useDowntimeSpan()
+  const { days, defaultSpan, settled, bar, characters } = useDowntime()
+  const { pick, passDays } = useDowntimeCommands()
 
   return(
-    <div className='flex flex-col text-left'>
-      <div className='flex flex-row flex-wrap gap-2 items-center py-2 border-b border-line'>
-        <span className='text-xs text-muted'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/{etsPerDay}</span>
+    <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
+      <div className='flex flex-row gap-2 items-center'>
+        <ClockLabel />
         {settled ? <span className='text-xs text-muted'>{settled}</span> : null}
         <span className='text-xs text-muted'>days</span>
         <NumberInput className='w-12' aria-label='days' placeholder={`${defaultSpan}`} value={span ?? ''} onChange={(e) => setSpan(e.target.value === '' ? null : num(e.target.value))} />
-        <Button aria-label='passDays' variant='primary' disabled={bar !== null} title={bar ?? undefined} onClick={() => { commands.passDays(days); setSpan(null) }}>pass {days} days</Button>
-        {bar ? <span className='text-xs text-muted grow'>{bar}</span> : null}
+        <Tooltip text={bar ?? 'everyone spends the days on their activity'}>
+          <Button aria-label='passDays' variant='primary' disabled={bar !== null} onClick={() => { passDays(days); setSpan(null) }}>pass {days} days</Button>
+        </Tooltip>
       </div>
-      <div className='flex flex-row flex-wrap gap-2 py-2 border-b border-line'>
-        {characters.map((c) => <CharacterCard key={c.id} character={c} days={days} commands={commands} />)}
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        {characters.map((c) => <RosterChip key={c.id} name={c.name} active={c.isActive} bad={c.short} note={c.block ? c.block.label : 'no activity'} onClick={() => pick(c.id)} />)}
       </div>
-      {results.length > 0 ?
-        <div className='flex flex-col gap-0.5 py-2'>
-          <SectionLabel>Last days</SectionLabel>
-          {results.map((r, i) => (
-            <span key={i} className='text-xs text-muted'>
-              {r.name} · <span className='text-fg'>{r.what}</span>{r.roll ? <>: <span className='font-mono text-fg'>{r.roll.score}</span> vs DL <span className='font-mono text-fg'>{r.roll.DL}</span>, {r.roll.degree}</> : null}{r.note ? ` — ${r.note}` : ''}
-            </span>
-          ))}
-        </div>
-        : null}
+      {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
     </div>
   )
 }
 
-function CharacterCard({ character: c, days, commands }: { character: DowntimeCharacterView, days: number, commands: Commands }){
+// Everyone on the roster in a row each: how they live, their purse and
+// healing, the activity they are on, and how many of the days they pay for.
+// The activity is set for the active character beside the sheet.
+export function DowntimeRoster(){
 
-  const { pick, setLiving, setHoused } = commands
+  const { days, characters } = useDowntime()
+  const { pick, setLiving, setHoused } = useDowntimeCommands()
 
   return(
-    <div className={`flex flex-col gap-1.5 border rounded p-2 min-w-80 max-w-xl ${c.isActive ? 'border-accent' : 'border-line'}`}>
-      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-        <button type='button' className='text-sm font-medium mr-1 hover:text-accent' onClick={() => pick(c.id)}>{c.name}</button>
-        <select aria-label={`${c.name} living`} className={selectClass} value={c.living} disabled={c.housed} onChange={(e) => setLiving(c.id, e.target.value as LivingLevel)}>
-          {c.livingOptions.map((o) => <option key={o.level} value={o.level}>{o.level} · {o.cost}/day · exposure {o.exposure}</option>)}
-        </select>
-        <label className='text-xs text-muted flex items-center gap-1'>
-          <input type='checkbox' aria-label={`${c.name} housed`} checked={c.housed} onChange={(e) => setHoused(c.id, e.target.checked)} />housed
-        </label>
+    <RosterCatalog>
+      {characters.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
+      <div className='flex flex-col'>
+        {characters.map((c) => (
+          <div key={c.id} className={`flex flex-row flex-wrap gap-x-3 gap-y-1 items-center px-2 py-1 border-l-2 ${c.isActive ? 'border-accent bg-accent/5' : 'border-transparent'}`}>
+            <button type='button' className='text-sm font-medium w-32 text-left truncate hover:text-accent' aria-label={`pick ${c.name}`} onClick={() => pick(c.id)}>{c.name}</button>
+            <select aria-label={`${c.name} living`} className={selectClass} value={c.living} disabled={c.housed} onChange={(e) => setLiving(c.id, e.target.value as LivingLevel)}>
+              {c.livingOptions.map((o) => <option key={o.level} value={o.level}>{o.level} · {o.cost}/day · exposure {o.exposure}</option>)}
+            </select>
+            <label className='text-xs text-muted flex items-center gap-1'>
+              <input type='checkbox' aria-label={`${c.name} housed`} checked={c.housed} onChange={(e) => setHoused(c.id, e.target.checked)} />housed
+            </label>
+            <span className='text-xs text-muted'>purse <span className='font-mono text-fg'>{c.purse}</span></span>
+            <span className='text-xs text-muted'>heals <span className='font-mono text-fg'>{c.dailyHealing}</span> IL a day ({c.healing})</span>
+            <span className='text-xs text-muted'>{c.block ? <><span className='text-fg'>{c.block.label}</span> to day {c.block.lastDay}</> : 'no activity'}</span>
+            <span className={`text-xs ${c.short ? 'text-bad' : 'text-muted'}`}>pays for <span className='font-mono'>{c.affordable}</span> of {days} days</span>
+            {c.block?.bar ? <span className='text-xs text-bad'>{c.block.bar}</span> : null}
+          </div>
+        ))}
       </div>
-      <span className='text-xs text-muted'>
-        purse <span className='font-mono text-fg'>{c.purse}</span> · heals <span className='font-mono text-fg'>{c.dailyHealing}</span> IL a day ({c.healing}) · activity <span className='font-mono text-fg'>{c.planDays}</span> days · <span className={c.short ? 'text-bad' : ''}>pays for <span className='font-mono'>{c.affordable}</span> of {days} days</span>
-      </span>
-      <ActivityPicker character={c} commands={commands} />
+    </RosterCatalog>
+  )
+}
+
+// The active character's activity: the four to choose from, and the one
+// under way with its days, cost, test and yield.
+export function DowntimeActions(){
+
+  const { characters } = useDowntime()
+  const commands = useDowntimeCommands()
+  const c = characters.find((x) => x.isActive)
+  if (!c) return null
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <span className='text-xs text-muted'>activity <span className='font-mono text-fg'>{c.planDays}</span> days</span>
+      <ActivityPicker key={c.id} character={c} commands={commands} />
+    </div>
+  )
+}
+
+// What the last days came to, character by character.
+export function LastDaysLog(){
+  const results = useDowntimeResults()
+  if (results.length === 0) return <span className='text-xs text-muted'>no days passed yet</span>
+
+  return(
+    <div className='flex flex-col gap-0.5'>
+      {results.map((r, i) => (
+        <span key={i} className='text-xs text-muted'>{r.name} · <span className='text-fg'>{r.what}</span><RollText roll={r.roll} note={r.note} /></span>
+      ))}
     </div>
   )
 }
@@ -91,7 +125,7 @@ function ActivityPicker({ character: c, commands }: { character: DowntimeCharact
   }
 
   return(
-    <div className='flex flex-col gap-1 border-t border-line pt-1'>
+    <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {ACTIVITIES.map((activity) => (
           <Button key={activity} size='xs' variant={selected === activity ? 'primary' : 'default'} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Button>

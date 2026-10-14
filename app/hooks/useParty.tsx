@@ -12,6 +12,7 @@ import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
+import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
 
 const exploring = (s: CampaignStore): Exploring => ({ campaign: s, exploration: s.exploration });
@@ -50,6 +51,7 @@ export function usePartyCommands() {
   const updateTable = useCampaignStore((s) => s.updateTable);
   const updateExploration = useCampaignStore((s) => s.updateExploration);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
+  const setTab = useAppStore((s) => s.setSelectedGameTab);
   const { mapList } = useMapNames();
 
   const withActive = (run: (id: string) => void) => {
@@ -84,8 +86,10 @@ export function usePartyCommands() {
     setRoller: (partyId: string, groupId: string, roller: string) => updateExploration(setRollerOf(partyId, groupId, roller)),
     decide: (id: string, decision: Decision) => updateExploration(decideFor(id, decision)),
     passET: () => updateExploration(passClock(realDice, newId)),
-    sendActiveToFight: () => withActive((id) => updateTable(sendToFight([id]))),
-    sendAllToFight: () => updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters))),
-    returnFromFight: (ets: number) => updateTable(returnFromFight(ets)),
+    // Whoever is sent to a fight is followed into the scene, and ending the
+    // scene goes back to exploring.
+    sendActiveToFight: () => withActive((id) => { updateTable(sendToFight([id])); setTab('scene'); }),
+    sendAllToFight: () => { updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters))); setTab('scene'); },
+    endScene: (ets: number) => { updateTable(returnFromFight(ets)); setTab('exploration'); },
   };
 }
