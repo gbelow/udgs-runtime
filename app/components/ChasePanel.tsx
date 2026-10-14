@@ -127,7 +127,7 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         <div className='flex flex-row flex-wrap gap-x-2 gap-y-1 items-center text-muted'>
           <span>declares</span>
           {p.moves.map(({ move, bar }) => (
-            <Button key={move} size='xs' variant={p.declaration?.move === move ? 'primary' : 'default'} active={p.declaration?.move === move} aria-label={`${p.name} ${move}`} disabled={bar !== null} title={bar ?? undefined} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Button>
+            <Button key={move} size='xs' selected={p.declaration?.move === move} aria-label={`${p.name} ${move}`} disabled={bar !== null} title={bar ?? undefined} onClick={() => declareMove(move)}>{MOVE_LABELS[move]}</Button>
           ))}
           <label className='flex gap-1 items-center' title={p.scoutBar ?? undefined}>
             <input type='checkbox' aria-label={`${p.name} scouts`} disabled={p.scoutBar !== null} checked={scouting} onChange={() => setScouting(!scouting)} />

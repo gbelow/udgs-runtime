@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
-import { ClockLabel, RollText, RosterCatalog, RosterChip } from './RunParts';
+import { ClockLabel, RollText, RosterCatalog } from './RunParts';
 import { useExploration, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { useMapNames } from '../hooks/useMap';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
@@ -13,14 +13,13 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 // Exploration's pieces of the run screen.
 
-// The clock everyone out of a fight shares, the map, the ET passing, and who
-// is on the roster by party, each with their plan for the coming ET.
+// The clock everyone out of a fight shares, the map, and the ET passing.
 export function ExplorationStrip(){
 
   const { map, night, dayETs, parties } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
-  const { passET, sendAllToFight, loadMap, setDayETs, pick } = usePartyCommands()
+  const { passET, sendAllToFight, loadMap, setDayETs } = usePartyCommands()
 
   return(
     <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
@@ -36,14 +35,6 @@ export function ExplorationStrip(){
           <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
         <Button aria-label='allToFight' disabled={parties.length === 0} onClick={sendAllToFight}>all to fight</Button>
-      </div>
-      <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center'>
-        {parties.map((party) => (
-          <div key={party.id} className='flex flex-row flex-wrap gap-1 items-center'>
-            <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span>
-            {party.members.map((m) => <RosterChip key={m.id} name={m.name} active={m.isActive} disabled={m.out} note={m.out ? 'in a fight' : m.plan} onClick={() => pick(m.id)} />)}
-          </div>
-        ))}
       </div>
       {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
     </div>
@@ -67,7 +58,7 @@ export function PartyCards(){
             <div key={d.id} className='flex flex-row gap-1.5 items-center'>
               <span className='text-xs'>{d.name}</span>
               {DECISIONS.map((option) => (
-                <Button key={option} aria-label={`${d.name} ${option}`} variant={d.decision === option ? 'primary' : 'default'} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
+                <Button key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
               ))}
             </div>
           ))}
@@ -78,22 +69,6 @@ export function PartyCards(){
         {parties.map((party) => <PartyCard key={party.id} party={party} nodes={map?.nodes ?? null} />)}
       </div>
     </RosterCatalog>
-  )
-}
-
-// What the active character does next: sent to a fight or off the roster,
-// and their plan for the coming ET.
-export function ExplorationActions(){
-  const { sendActiveToFight, leaveParty } = usePartyCommands()
-
-  return(
-    <>
-      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
-        <Button aria-label='toFight' onClick={sendActiveToFight}>to fight</Button>
-        <Button aria-label='leaveParty' variant='bad' onClick={leaveParty}>leave party</Button>
-      </div>
-      <ExplorationSection />
-    </>
   )
 }
 
@@ -164,7 +139,7 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
       </span>
       <div className='flex flex-row flex-wrap gap-1.5'>
         {party.members.map((m) => (
-          <Button key={m.id} aria-label={m.name} disabled={m.out} variant={m.isActive ? 'primary' : 'default'} className={m.isActive ? 'bg-accent/15' : ''} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.out ? 'in a fight' : m.plan}</span></Button>
+          <Button key={m.id} aria-label={m.name} disabled={m.out} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.out ? 'in a fight' : m.plan}</span></Button>
         ))}
       </div>
       {party.groups.map((g, i) => (
@@ -216,7 +191,7 @@ function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; na
 
 // survival.tex "Exhaustion", "Rest", "Wear" — what the character will spend
 // the coming ET on, and eating and drinking, which take no ET.
-function ExplorationSection(){
+export function ExplorationSection(){
 
   const [nutrition, setNutrition] = useState(3)
   const { bar, options, cast, willDL, lastRoll, potion, foods, medicines } = useExploration()
@@ -228,7 +203,7 @@ function ExplorationSection(){
       <SectionLabel>Next exploration turn</SectionLabel>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {options.map((o) => (
-          <Button key={o.label} aria-label={o.label} variant={o.selected ? 'primary' : 'default'} className={o.selected ? 'bg-accent/15' : ''} disabled={bar !== null || closed(o.plan)} title={bar ?? (closed(o.plan) ? 'no spell can be cast' : `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.hunger ? `, ${signed(o.hunger)} hunger` : ''}${o.thirst ? `, ${signed(o.thirst)} thirst` : ''}${o.idle && o.plan ? ' (no healing rests left today)' : ''}`)}
+          <Button key={o.label} aria-label={o.label} selected={o.selected} disabled={bar !== null || closed(o.plan)} title={bar ?? (closed(o.plan) ? 'no spell can be cast' : `${signed(o.IL)} IL, ${signed(o.exhaustion)} exhaustion${o.hunger ? `, ${signed(o.hunger)} hunger` : ''}${o.thirst ? `, ${signed(o.thirst)} thirst` : ''}${o.idle && o.plan ? ' (no healing rests left today)' : ''}`)}
             onClick={() => (o.plan === null ? rest(false) : o.plan === 'rest' ? rest(true) : o.plan === 'cast' ? (o.selected || cast.ready === null ? null : planCast(cast.ready)) : joinGroup(o.plan.group))}>{o.label}</Button>
         ))}
       </div>

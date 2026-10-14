@@ -65,7 +65,7 @@ export function BoardPanel(){
     <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
-        <Button size='xs' {...(tools ? { variant: 'primary' as const, className: 'bg-accent/15' } : {})} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null) }}>paint &amp; light</Button>
+        <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null) }}>paint &amp; light</Button>
         <Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>
         <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button>
       </>}>
@@ -73,17 +73,17 @@ export function BoardPanel(){
       {tools ? (<>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
-        <Button size='xs' variant={brush === null ? 'primary' : 'default'} className={brush === null ? 'bg-accent/15' : ''}
+        <Button size='xs' selected={brush === null}
           onClick={() => setBrush(null)}>control</Button>
         {TERRAIN_BRUSHES.map((b) =>
-          <Button key={b} size='xs' variant={brush === b ? 'primary' : 'default'} className={brush === b ? 'bg-accent/15' : ''}
+          <Button key={b} size='xs' selected={brush === b}
             onClick={() => setBrush(brush === b ? null : b)}>{BRUSH_LABEL[b]}</Button>)}
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>light</SectionLabel>
         {LIGHT_LEVELS.map((l) =>
-          <Button key={l} size='xs' variant={view.light === l ? 'primary' : 'default'} className={view.light === l ? 'bg-accent/15' : ''}
+          <Button key={l} size='xs' selected={view.light === l}
             onClick={() => light(l)}>{l}</Button>)}
       </div>
       <LinkRow />
@@ -131,7 +131,7 @@ function LinkRow(){
       <TextInput aria-label='fight id' placeholder='fight id' value={fight} onChange={(e) => setFight(e.target.value.trim())} className='w-28' />
       <Button size='xs' disabled={!linked} onClick={push}>push</Button>
       <Button size='xs' disabled={!linked} onClick={pull}>pull</Button>
-      <Button size='xs' disabled={!linked} variant={auto ? 'primary' : 'default'} className={auto ? 'bg-accent/15' : ''} onClick={() => setAuto(!auto)}>auto</Button>
+      <Button size='xs' disabled={!linked} selected={auto} onClick={() => setAuto(!auto)}>auto</Button>
       <span className='mx-1 text-line'>|</span>
       <Button size='xs' onClick={copy}>copy</Button>
       <Button size='xs' onClick={paste}>paste</Button>

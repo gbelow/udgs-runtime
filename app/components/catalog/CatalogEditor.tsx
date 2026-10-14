@@ -14,7 +14,7 @@ export function CatalogEditor() {
     <div className='flex flex-col gap-2 py-2'>
       <div className='flex flex-row gap-1 text-xs'>
         {CATALOG_NAMES.map((name) => (
-          <Button key={name} variant={catalog === name ? 'primary' : 'default'} active={catalog === name} onClick={() => setCatalog(name)}>{CATALOGS[name].label}</Button>
+          <Button key={name} selected={catalog === name} onClick={() => setCatalog(name)}>{CATALOGS[name].label}</Button>
         ))}
       </div>
       <CatalogPanel key={catalog} catalog={catalog} />

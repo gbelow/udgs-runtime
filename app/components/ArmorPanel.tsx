@@ -87,18 +87,18 @@ function ArmorAddons (){
 
   return(
     <div className='flex flex-row flex-wrap gap-2 items-center text-xs'>
-      <Button size='xs' variant={pieces.gauntlets.worn ? 'primary' : 'default'} aria-label={pieces.gauntlets.worn ? 'doff gauntlets' : 'don gauntlets'}
+      <Button size='xs' selected={pieces.gauntlets.worn} aria-label={pieces.gauntlets.worn ? 'doff gauntlets' : 'don gauntlets'}
         title={pieces.gauntlets.worn ? 'gauntlets on: -3 prestidigitation, accuracy and climbing; the hands are armored and fight with the gauntlet' : 'no gauntlets'}
         onClick={gauntlets}>
         {pieces.gauntlets.worn ? 'doff gauntlets' : 'don gauntlets'}{pieces.gauntlets.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.gauntlets.cost} AP</span> : null}
       </Button>
-      <Button size='xs' variant={pieces.helm.worn ? 'primary' : 'default'} aria-label={pieces.helm.worn ? 'doff helm' : 'don helm'}
+      <Button size='xs' selected={pieces.helm.worn} aria-label={pieces.helm.worn ? 'doff helm' : 'don helm'}
         title={pieces.helm.worn ? 'closed helmet on' : 'no helmet'}
         onClick={helm}>
         {pieces.helm.worn ? 'doff helm' : 'don helm'}{pieces.helm.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.helm.cost} AP</span> : null}
       </Button>
       {pieces.visor ?
-        <Button size='xs' variant={pieces.visor.open ? 'default' : 'primary'} aria-label={pieces.visor.open ? 'close visor' : 'open visor'}
+        <Button size='xs' selected={!pieces.visor.open} aria-label={pieces.visor.open ? 'close visor' : 'open visor'}
           title={pieces.visor.open ? 'visor up: no helmet penalties, the head can be bypassed' : 'visor down: -2 reflex and detection, no bypass at the head'}
           onClick={visor}>
           {pieces.visor.open ? 'visor up' : 'visor down'}{pieces.visor.cost !== null ? <span className='ml-1 font-mono text-muted'>{pieces.visor.cost} AP</span> : null}

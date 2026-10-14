@@ -36,7 +36,7 @@ export function RosterCatalog({ children }: { children: ReactNode }){
 
   return(
     <div className='flex flex-col gap-2'>
-      <Button size='xs' className={`self-start ${open ? 'bg-accent/15' : ''}`} aria-label='add characters' aria-pressed={open} variant={open ? 'primary' : 'default'} onClick={() => setOpen(!open)}>add characters</Button>
+      <Button size='xs' className='self-start' aria-label='add characters' aria-pressed={open} selected={open} onClick={() => setOpen(!open)}>add characters</Button>
       <div className='flex flex-row gap-3 items-start'>
         {open ? <CatalogDrawer label='adding to the roster' close={() => setOpen(false)} /> : null}
         <div className='flex flex-col gap-2 flex-1 min-w-0'>{children}</div>
@@ -48,7 +48,7 @@ export function RosterCatalog({ children }: { children: ReactNode }){
 // One character on a strip along the top: a click picks them.
 export function RosterChip({ name, active, note, bad = false, disabled = false, onClick }: { name: string, active: boolean, note: ReactNode, bad?: boolean, disabled?: boolean, onClick: () => void }){
   return(
-    <Button size='xs' aria-label={name} disabled={disabled} variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''} onClick={onClick}>
+    <Button size='xs' aria-label={name} disabled={disabled} selected={active} onClick={onClick}>
       {name}<span className={`ml-1.5 text-[10px] ${bad ? 'text-bad' : active ? 'text-accent/80' : 'text-muted'}`}>{note}</span>
     </Button>
   )

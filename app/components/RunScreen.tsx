@@ -14,7 +14,7 @@ import { SpellSelector } from './SpellSelector';
 import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
-import { ExplorationActions, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
+import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
 import { makeDieRoll } from './utils';
 import { Button, SectionLabel } from './ui';
@@ -53,7 +53,7 @@ const MODES: Record<RunTab, Mode> = {
   exploration: {
     strip: <ExplorationStrip />,
     views: [{ key: 'parties', node: <PartyCards /> }],
-    actions: <ExplorationActions />,
+    actions: <ExplorationSection />,
     log: { label: 'Last ET', node: <LastEtLog /> },
   },
   downtime: {
@@ -72,7 +72,7 @@ const CATALOGS = {
 type CatalogView = keyof typeof CATALOGS
 const CATALOG_VIEWS = Object.keys(CATALOGS) as CatalogView[]
 
-const PICK = <span className='text-xs text-muted'>pick a character along the top</span>
+const PICK = <span className='text-xs text-muted'>pick a character</span>
 
 // The run screen, in one of its modes, one per sequence that moves time: the
 // scene, exploration and downtime. Each lays out the same way — what moves
@@ -105,7 +105,7 @@ export function RunScreen(){
           <div className='flex flex-row flex-wrap gap-1 items-center'>
             {middle.map((v) => (
               <span key={v.key} className='inline-flex items-center'>
-                <Button size='xs' aria-label={`view ${v.key}`} variant={v === shown ? 'primary' : 'default'} className={v === shown ? 'bg-accent/15' : ''} onClick={() => setCenter(v.key)}>{v.key}</Button>
+                <Button size='xs' aria-label={`view ${v.key}`} selected={v === shown} onClick={() => setCenter(v.key)}>{v.key}</Button>
                 {v.catalog ? <Button size='xs' variant='ghost' aria-label={`close ${v.key}`} title={`close the ${v.key} catalog`} onClick={() => close(v.key as CatalogView)}>×</Button> : null}
               </span>
             ))}
@@ -143,7 +143,7 @@ function ModeSwitch(){
   return(
     <div className='flex flex-row gap-1 items-center shrink-0'>
       {runTabs.map((t) => (
-        <Button key={t} size='xs' aria-label={`mode ${t}`} aria-pressed={tab === t} variant={tab === t ? 'primary' : 'default'} className={tab === t ? 'bg-accent/15' : ''} onClick={() => setTab(t)}>
+        <Button key={t} size='xs' aria-label={`mode ${t}`} aria-pressed={tab === t} selected={tab === t} onClick={() => setTab(t)}>
           {t}{t === 'scene' && fighters > 0 ? <span className='ml-1.5 text-[10px] text-muted'>{fighters}</span> : null}
         </Button>
       ))}
@@ -166,7 +166,7 @@ function SheetTabs(){
       <span className='text-base font-medium'>{fightName}</span>
       <div className='flex flex-row flex-wrap gap-1'>
         {SHEET_TABS.map((t) =>
-          <Button key={t} size='xs' aria-label={`sheet ${t}`} variant={t === tab ? 'primary' : 'default'} className={t === tab ? 'bg-accent/15' : ''} onClick={() => setTab(t)}>{t}</Button>)}
+          <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}
       </div>
       {tab === 'sheet' ? <><MovementTiles /><CharacteristicTiles /><SkillTiles /><NotesAndSave /></> : null}
       {tab === 'knowledge' ? <><KnowledgesPanel /><SpecificKnowledgesPanel /></> : null}
@@ -205,8 +205,8 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
     <>
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         {hasGmTools ? <>
-          <Button size='xs' aria-label='act as character' aria-pressed={!gm} variant={gm ? 'default' : 'primary'} className={gm ? '' : 'bg-accent/15'} onClick={() => setGmMode(false)}>character</Button>
-          <Button size='xs' aria-label='act as GM' aria-pressed={gm} variant={gm ? 'primary' : 'default'} className={gm ? 'bg-accent/15' : ''} onClick={() => setGmMode(true)}>GM</Button>
+          <Button size='xs' aria-label='act as character' aria-pressed={!gm} selected={!gm} onClick={() => setGmMode(false)}>character</Button>
+          <Button size='xs' aria-label='act as GM' aria-pressed={gm} selected={gm} onClick={() => setGmMode(true)}>GM</Button>
         </> : null}
         <span className='ml-auto flex flex-row gap-1'>
           <DieButton sides={10} />

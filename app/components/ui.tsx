@@ -21,14 +21,16 @@ const SIZE = {
   md: 'text-sm px-3 py-1',
 } as const
 
-export function Button({ variant = 'default', size = 'sm', active = false, className = '', ...rest }:
-  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant, size?: keyof typeof SIZE, active?: boolean }
+// `selected` marks the one chosen among its siblings — a tab, a mode, a
+// picked option — in the accent, whatever its variant otherwise.
+export function Button({ variant = 'default', size = 'sm', active = false, selected = false, className = '', ...rest }:
+  ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant, size?: keyof typeof SIZE, active?: boolean, selected?: boolean }
 ){
   return (
     <button type='button'
       className={`rounded border whitespace-nowrap cursor-pointer disabled:opacity-40 disabled:pointer-events-none disabled:hover:bg-surface
         focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-1
-        ${VARIANT[variant]} ${SIZE[size]} ${active ? 'bg-raised' : ''} ${className}`}
+        ${VARIANT[selected ? 'primary' : variant]} ${SIZE[size]} ${active ? 'bg-raised' : ''} ${selected ? 'bg-accent/15' : ''} ${className}`}
       {...rest} />
   )
 }

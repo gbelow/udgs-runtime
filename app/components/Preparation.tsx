@@ -4,7 +4,6 @@ import type { ActionDraft } from '../domain/scene/types'
 import { Button, SectionLabel } from './ui'
 import { StrikeModifiers } from './StrikeModifiers'
 
-const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
 
 const NO_MAIN = { weaponKey: '', attack: '', variant: '', ammoId: '', catch: false, martialSpirit: false, key: '', quicken: false, extend: 0, movement: 'basic' } as const
 
@@ -22,7 +21,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>prepare</SectionLabel>
         {view.mains.map((m) =>
-          <Button key={m.kind} size='xs' {...toggle(m.selected)} disabled={!m.available} title={m.reason ?? undefined}
+          <Button key={m.kind} size='xs' selected={m.selected} disabled={!m.available} title={m.reason ?? undefined}
             onClick={() => onAmend({ main: m.kind, ...NO_MAIN, trigger: null })}>{m.kind}</Button>)}
       </div>
 
@@ -30,7 +29,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>with</SectionLabel>
           {view.attacks.map((s) =>
-            <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' {...toggle(s.selected)}
+            <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' selected={s.selected}
               onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
               {s.weapon} {s.attack} {s.variant}{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
             </Button>)}
@@ -41,7 +40,7 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>defending with</SectionLabel>
           {view.defenses.map((d) =>
-            <Button key={`${d.weaponKey}:${d.attack}`} size='xs' {...toggle(d.selected)} onClick={() => onAmend({ weaponKey: d.weaponKey, attack: d.attack })}>{d.weapon} {d.attack}</Button>)}
+            <Button key={`${d.weaponKey}:${d.attack}`} size='xs' selected={d.selected} onClick={() => onAmend({ weaponKey: d.weaponKey, attack: d.attack })}>{d.weapon} {d.attack}</Button>)}
         </div>
       ) : null}
       {view.ammo.length > 0 ? (
@@ -77,12 +76,12 @@ export function Preparation({ view, onAmend, onSpell, onExtend }: {
           <div className='flex flex-row flex-wrap gap-1 items-center'>
             <SectionLabel>when</SectionLabel>
             {view.events.map((e) =>
-              <Button key={e.event} size='xs' {...toggle(e.selected)} onClick={() => onAmend({ trigger: { event: e.event, who: view.who.find((w) => w.selected)?.id ?? null } })}>{e.label}</Button>)}
+              <Button key={e.event} size='xs' selected={e.selected} onClick={() => onAmend({ trigger: { event: e.event, who: view.who.find((w) => w.selected)?.id ?? null } })}>{e.label}</Button>)}
           </div>
           <div className='flex flex-row flex-wrap gap-1 items-center'>
             <SectionLabel>who</SectionLabel>
             {view.who.map((w) =>
-              <Button key={w.id ?? 'anyone'} size='xs' {...toggle(w.selected)} disabled={event === null} title={event === null ? 'pick what it waits for first' : undefined}
+              <Button key={w.id ?? 'anyone'} size='xs' selected={w.selected} disabled={event === null} title={event === null ? 'pick what it waits for first' : undefined}
                 onClick={() => event && onAmend({ trigger: { event, who: w.id } })}>{w.name}</Button>)}
           </div>
         </>

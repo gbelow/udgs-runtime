@@ -7,7 +7,6 @@ import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, 
 import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyNode, unloadMap } from "../domain/campaign/commands/parties";
 import { setDayETs } from "../domain/campaign/commands/clock";
 import { useMapNames } from "./useMap";
-import { removeFromRoster } from "../domain/campaign/commands/roster";
 import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
@@ -73,7 +72,6 @@ export function usePartyCommands() {
     eatFood: (itemId: string) => asActive((id) => eatFoodFor(id, itemId)),
     takeItem: (itemId: string) => asActive((id) => takeItemFor(id, itemId)),
     drink: () => asActive(drinkFor),
-    leaveParty: () => asActive(removeFromRoster),
     setExposure: (partyId: string, exposure: number) => updateCampaignState(setPartyExposure(partyId, exposure)),
     setLit: (partyId: string, lit: boolean) => updateCampaignState(setPartyLit(partyId, lit)),
     setNode: (partyId: string, node: string | null) => updateCampaignState(setPartyNode(partyId, node)),
@@ -88,7 +86,6 @@ export function usePartyCommands() {
     passET: () => updateExploration(passClock(realDice, newId)),
     // Whoever is sent to a fight is followed into the scene, and ending the
     // scene goes back to exploring.
-    sendActiveToFight: () => withActive((id) => { updateTable(sendToFight([id])); setTab('scene'); }),
     sendAllToFight: () => { updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters))); setTab('scene'); },
     endScene: (ets: number) => { updateTable(returnFromFight(ets)); setTab('exploration'); },
   };

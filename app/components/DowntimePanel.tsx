@@ -128,7 +128,7 @@ function ActivityPicker({ character: c, commands }: { character: DowntimeCharact
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         {ACTIVITIES.map((activity) => (
-          <Button key={activity} size='xs' variant={selected === activity ? 'primary' : 'default'} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Button>
+          <Button key={activity} size='xs' selected={selected === activity} title={ACTIVITY_HINTS[activity]} onClick={() => choose(activity)}>{activity}</Button>
         ))}
         {c.activity && c.block && c.block.elapsed > 0 && selected !== c.activity ? <span className='text-xs text-bad'>choosing another drops {c.block.elapsed} days spent</span> : null}
       </div>
@@ -220,8 +220,8 @@ function TrainingChooser({ character: c, commands, onChosen }: { character: Down
         <option value=''>train…</option>
         {training.map((o) => <option key={o.id} value={o.id}>{o.label} → {o.level} ({o.toNext} XP to go)</option>)}
       </select>
-      <Button size='xs' disabled={!chosen} variant={c.training?.withTrainer ? 'primary' : 'default'} onClick={() => take(true)}>with a trainer</Button>
-      <Button size='xs' disabled={!chosen?.alone} variant={c.training && !c.training.withTrainer ? 'primary' : 'default'} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => take(false)}>
+      <Button size='xs' disabled={!chosen} selected={c.training?.withTrainer} onClick={() => take(true)}>with a trainer</Button>
+      <Button size='xs' disabled={!chosen?.alone} selected={c.training?.withTrainer === false} title={chosen && !chosen.alone ? 'no talent to train it alone' : undefined} onClick={() => take(false)}>
         alone{chosen?.alone ? ` (${chosen.alone.skill} vs ${chosen.alone.DL})` : ''}
       </Button>
     </div>

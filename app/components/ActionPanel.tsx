@@ -13,7 +13,6 @@ import { Preparation } from './Preparation'
 import { StrikeModifiers } from './StrikeModifiers'
 
 // A button's look while it is the one picked.
-const toggle = (active: boolean) => ({ variant: active ? 'primary' as const : 'default' as const, className: active ? 'bg-accent/15' : '' })
 
 const STEP_LABEL = {
   declare: 'declare',
@@ -72,8 +71,8 @@ export function ActionPanel(){
 
       {open.flee !== null ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' {...toggle(open.flee)} onClick={() => amend({ flee: true })}>flee</Button>
-          <Button size='xs' {...toggle(!open.flee)} onClick={() => amend({ flee: false })}>end</Button>
+          <Button size='xs' selected={open.flee} onClick={() => amend({ flee: true })}>flee</Button>
+          <Button size='xs' selected={!open.flee} onClick={() => amend({ flee: false })}>end</Button>
         </div>
       ) : null}
 
@@ -97,7 +96,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>ammo</SectionLabel>
           {view.ammo.map((a) =>
-            <Button key={a.itemId} size='xs' variant={a.itemId === open.ammoId ? 'primary' : 'default'} className={a.itemId === open.ammoId ? 'bg-accent/15' : ''}
+            <Button key={a.itemId} size='xs' selected={a.itemId === open.ammoId}
               title={a.properties.join(', ')} onClick={() => amend({ ammoId: a.itemId })}>
               {a.name} <span className='font-mono text-muted'>×{a.amount}</span>
             </Button>)}
@@ -108,7 +107,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>floor</SectionLabel>
           {open.floor.map((f) =>
-            <Button key={f.itemId} size='xs' variant={f.itemId === open.item ? 'primary' : 'default'} className={f.itemId === open.item ? 'bg-accent/15' : ''}
+            <Button key={f.itemId} size='xs' selected={f.itemId === open.item}
               disabled={!f.available} title={f.available ? undefined : 'no free hand'} onClick={() => amend({ itemId: f.itemId })}>
               {f.name}
             </Button>)}
@@ -119,7 +118,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>potion</SectionLabel>
           {open.potions.map((p) =>
-            <Button key={p.itemId} size='xs' variant={p.itemId === open.item ? 'primary' : 'default'} className={p.itemId === open.item ? 'bg-accent/15' : ''}
+            <Button key={p.itemId} size='xs' selected={p.itemId === open.item}
               onClick={() => amend({ itemId: p.itemId })}>
               {p.name}
             </Button>)}
@@ -141,7 +140,7 @@ export function ActionPanel(){
           <SectionLabel>suggest</SectionLabel>
           {open.suggestion.options.length === 0 ? <span className='text-xs text-muted'>pick a target who is afraid, enraged or confused</span> : null}
           {open.suggestion.options.map((a) =>
-            <Button key={a} size='xs' variant={a === open.suggestion?.picked ? 'primary' : 'default'} className={a === open.suggestion?.picked ? 'bg-accent/15' : ''}
+            <Button key={a} size='xs' selected={a === open.suggestion?.picked}
               onClick={() => amend({ suggested: a })}>
               {a}
             </Button>)}
@@ -162,7 +161,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>charge</SectionLabel>
           {view.charges.map((c) => (
-            <Button key={c.itemId} size='xs' variant={c.itemId === open.itemId ? 'primary' : 'default'} className={c.itemId === open.itemId ? 'bg-accent/15' : ''}
+            <Button key={c.itemId} size='xs' selected={c.itemId === open.itemId}
               onClick={() => amend({ itemId: c.itemId, key: c.key, center: c.cell })}>
               {c.name} <span className='text-muted'>in {c.item} · {c.holder}</span>
             </Button>
@@ -186,7 +185,7 @@ export function ActionPanel(){
       {open.climbModes.length > 1 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>climb</SectionLabel>
-          {open.climbModes.map((mode) => <Button key={mode} size='xs' {...toggle(mode === open.mode)} onClick={() => amend({ mode })}>{mode}</Button>)}
+          {open.climbModes.map((mode) => <Button key={mode} size='xs' selected={mode === open.mode} onClick={() => amend({ mode })}>{mode}</Button>)}
         </div>
       ) : null}
       {open.climbSteps ? (
@@ -200,7 +199,7 @@ export function ActionPanel(){
       {open.canLeap ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>start</SectionLabel>
-          <Button size='xs' {...toggle(open.leap)} onClick={() => amend({ leap: !open.leap })}>jump</Button>
+          <Button size='xs' selected={open.leap} onClick={() => amend({ leap: !open.leap })}>jump</Button>
         </div>
       ) : null}
       {open.diveSteps ? (
@@ -223,7 +222,7 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>target</SectionLabel>
           {view.targets.map((t) =>
-            <Button key={t.id} size='xs' {...toggle(t.selected)} onClick={() => target(t.id)}>{t.name}</Button>)}
+            <Button key={t.id} size='xs' selected={t.selected} onClick={() => target(t.id)}>{t.name}</Button>)}
           {view.hidden.map((t) =>
             <Button key={t.id} size='xs' disabled title='not detected'>{t.name}</Button>)}
           {view.noTargets ? <span className='text-xs text-muted'>{view.noTargets}</span> : null}
@@ -234,15 +233,13 @@ export function ActionPanel(){
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>aim</SectionLabel>
           {view.locations.map((l) =>
-            <Button key={l.part ?? l.location} size='xs' variant={l.selected ? 'primary' : 'default'}
-              className={l.selected ? 'bg-accent/15' : ''}
+            <Button key={l.part ?? l.location} size='xs' selected={l.selected}
               title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
               onClick={() => amend({ location: l.location, part: l.part, object: '' })}>
               {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
             </Button>)}
           {view.items.map((i) =>
-            <Button key={i.id} size='xs' variant={i.selected ? 'primary' : 'default'}
-              className={i.selected ? 'bg-accent/15' : ''}
+            <Button key={i.id} size='xs' selected={i.selected}
               title={`break their ${i.name}: ${-i.penalty} to hit`}
               onClick={() => amend({ object: i.id })}>
               {i.name}<span className='ml-1 font-mono text-bad'>−{i.penalty}</span>
@@ -270,7 +267,7 @@ export function ActionPanel(){
             return (
               <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
                 <SectionLabel>{r.name}</SectionLabel>
-                <Button size='xs' variant={answered ? 'default' : 'primary'} className={answered ? '' : 'bg-accent/15'} onClick={() => withdraw(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
+                <Button size='xs' selected={!answered} onClick={() => withdraw(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
                 {r.options.map((o) =>
                   <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
                 {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
@@ -312,7 +309,7 @@ export function ActionPanel(){
           {step === 'spend' && open.grapples !== null ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>on the hit</SectionLabel>
-              <Button size='xs' {...toggle(open.grapples)} title='the target is grappled, for nothing' onClick={() => grapple(!open.grapples)}>grapple</Button>
+              <Button size='xs' selected={open.grapples} title='the target is grappled, for nothing' onClick={() => grapple(!open.grapples)}>grapple</Button>
             </div>
           ) : null}
           {step === 'spend' && view.castHOP.options.length > 0 ? (
@@ -335,7 +332,7 @@ export function ActionPanel(){
           {open.along !== null ? (
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>on a hit</SectionLabel>
-              <Button size='xs' variant={open.along ? 'primary' : 'default'} className={open.along ? 'bg-accent/15' : ''}
+              <Button size='xs' selected={open.along}
                 title='a hit only lands if you commit yourself too'
                 onClick={() => choose({ along: !open.along })}>
                 {open.maneuver === 'knockdown' ? 'throw yourself along' : 'stay immobile yourself'}
@@ -346,7 +343,7 @@ export function ActionPanel(){
             <div className='flex flex-row flex-wrap gap-1 items-center'>
               <SectionLabel>take</SectionLabel>
               {open.disarm.map((d) =>
-                <Button key={d.itemId} size='xs' variant={d.itemId === open.item ? 'primary' : 'default'} className={d.itemId === open.item ? 'bg-accent/15' : ''}
+                <Button key={d.itemId} size='xs' selected={d.itemId === open.item}
                   onClick={() => choose({ item: d.itemId })}>{d.name}</Button>)}
             </div>
           ) : null}
@@ -379,7 +376,7 @@ function Declaration({ open, attacks, onAttack }: { open: OpenActionView, attack
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>attack</SectionLabel>
         {attacks.map((s) =>
-          <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' {...toggle(s.selected)}
+          <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' selected={s.selected}
             title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}${s.reach !== null ? ` · ${s.reach}m · -${s.distance}/20m` : ''}`}
             onClick={() => onAttack(s)}>
             {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
@@ -403,7 +400,7 @@ type SweepDirection = StrikeAction['sweepDirection']
 // or vice versa".
 function SweepDirections({ direction, onTurn }: { direction: SweepDirection, onTurn: (direction: SweepDirection) => void }){
   return <>{(['clockwise', 'counterclockwise'] as const).map((d) =>
-    <Button key={d} size='xs' {...toggle(direction === d)} onClick={() => onTurn(d)}>{d}</Button>)}</>
+    <Button key={d} size='xs' selected={direction === d} onClick={() => onTurn(d)}>{d}</Button>)}</>
 }
 
 // A reactor who has chosen an opportunity attack declares the strike it
@@ -418,12 +415,12 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
         <SectionLabel>{reactor.name}</SectionLabel>
         <span className='text-xs'>{chosen?.label ?? (strike.shot ? 'join shot' : 'opportunity attack')}</span>
         {strike.partner ? (['strike', 'grapple'] as const).map((m) =>
-          <Button key={m} size='xs' {...toggle(strike.mode === m)} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
+          <Button key={m} size='xs' selected={strike.mode === m} onClick={() => onAmend({ mode: m })}>{m === 'grapple' ? 'maneuver' : 'strike'}</Button>) : null}
       </div>
       {strike.mode === 'grapple' ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>maneuver</SectionLabel>
-          {strike.maneuvers.map((m) => <Button key={m} size='xs' {...toggle(strike.maneuver === m)} onClick={() => onAmend({ maneuver: m })}>{m}</Button>)}
+          {strike.maneuvers.map((m) => <Button key={m} size='xs' selected={strike.maneuver === m} onClick={() => onAmend({ maneuver: m })}>{m}</Button>)}
         </div>
       ) : null}
       {strike.mode === 'strike' ? <>
@@ -432,7 +429,7 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
         {strike.options.map((s) => {
           const active = s.attack === strike.attack && s.variant === strike.variant
           return (
-            <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+            <Button key={`${s.weaponKey}:${s.attack}:${s.variant}`} size='xs' selected={active}
               title={`blunt ${s.blunt} · cut ${s.cut}${s.penalty ? ` · ${-s.penalty} to hit` : ''}`}
               onClick={() => onAmend({ weaponKey: s.weaponKey, attack: s.attack, variant: s.variant })}>
               {s.weapon} {s.attack} {s.variant} <Cost cost={{ AP: s.AP, STA: s.STA }} />{s.distance !== null ? <span className='ml-1 font-mono text-muted'>-{s.distance}/20m</span> : null}
@@ -450,15 +447,14 @@ function ReactorStrike({ reactor, onAmend }: { reactor: ReactorOptions, onAmend:
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>loaded with</SectionLabel>
           {strike.ammo.map((a) =>
-            <Button key={a.itemId} size='xs' variant={a.itemId === strike.ammoId ? 'primary' : 'default'} className={a.itemId === strike.ammoId ? 'bg-accent/15' : ''}
+            <Button key={a.itemId} size='xs' selected={a.itemId === strike.ammoId}
               onClick={() => onAmend({ ammoId: a.itemId })}>{a.name} <span className='font-mono text-muted'>×{a.amount}</span></Button>)}
         </div>
       ) : null}
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>aim</SectionLabel>
         {strike.locations.map((l) =>
-          <Button key={l.part ?? l.location} size='xs' variant={l.selected ? 'primary' : 'default'}
-            className={l.selected ? 'bg-accent/15' : ''}
+          <Button key={l.part ?? l.location} size='xs' selected={l.selected}
             title={l.penalty ? `${-l.penalty} to hit` : 'no penalty'}
             onClick={() => onAmend({ location: l.location, part: l.part })}>
             {l.name}{l.penalty ? <span className='ml-1 font-mono text-bad'>−{l.penalty}</span> : null}
@@ -502,7 +498,7 @@ function GearPicker({ label, options, selected, onPick }: { label: string, optio
     <div className='flex flex-row flex-wrap gap-1 items-center'>
       <SectionLabel>{label}</SectionLabel>
       {options.map((g) => (
-        <Button key={g.itemId} size='xs' variant={g.itemId === selected ? 'primary' : 'default'} className={g.itemId === selected ? 'bg-accent/15' : ''}
+        <Button key={g.itemId} size='xs' selected={g.itemId === selected}
           onClick={() => onPick(g.itemId)}>
           {g.name} <span className='text-muted'>{g.held ? 'in hand' : 'quick slot'}</span>
         </Button>
@@ -529,20 +525,20 @@ function ImprovementButton({ option, onBuy, onRefund }: { option: ImprovementOpt
   const bought = option.times > 0
   return (
     <span className='inline-flex items-stretch'>
-      <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
+      <Button size='xs' selected={bought} className={bought ? 'rounded-r-none' : ''}
         disabled={!option.available} title={option.text} onClick={onBuy}>
         {option.name} <span className='font-mono text-muted'>{option.HOP}</span>
         {bought ? <span className='ml-1 font-mono'>×{option.times}</span> : null}
         {option.needed > 0 ? <span className='ml-1 text-muted'>needs {option.needed}</span> : null}
       </Button>
-      {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.name}`} onClick={onRefund}>−</Button> : null}
+      {bought ? <Button size='xs' selected className='rounded-l-none border-l-0' aria-label={`refund ${option.name}`} onClick={onRefund}>−</Button> : null}
     </span>
   )
 }
 
 function MovementButton({ option, active, onClick }: { option: MovementOption, active: boolean, onClick: () => void }){
   return (
-    <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+    <Button size='xs' selected={active}
       disabled={!option.available} title={option.reason ?? `${option.speed} m per block`} onClick={onClick}>
       {option.kind} <Cost cost={option.block} />
     </Button>
@@ -559,7 +555,7 @@ function Closed({ reason, children }: { reason: string | null | undefined, child
 function OptionButton({ option, active = false, onClick }: { option: ActionOptionView, active?: boolean, onClick: () => void }){
   return (
     <Closed reason={option.available ? null : option.reason}>
-      <Button size='xs' variant={active ? 'primary' : 'default'} className={active ? 'bg-accent/15' : ''}
+      <Button size='xs' selected={active}
         disabled={!option.available} onClick={onClick}>
         {option.label} <Cost cost={option.cost} />
       </Button>
@@ -574,14 +570,14 @@ function HOPButton({ option, onBuy, onRefund }: { option: HOPOptionView, onBuy: 
   return (
     <span className='inline-flex items-stretch'>
       <Closed reason={option.available ? null : option.reason}>
-      <Button size='xs' variant={bought ? 'primary' : 'default'} className={bought ? 'bg-accent/15 rounded-r-none' : ''}
+      <Button size='xs' selected={bought} className={bought ? 'rounded-r-none' : ''}
         disabled={!option.available} onClick={onBuy}>
         {option.label} <span className='font-mono text-muted'>{option.cost} HOP</span>
         {option.price ? <> + <Cost cost={option.price} /></> : null}
         {bought ? <span className='ml-1 font-mono'>×{option.bought}</span> : null}
       </Button>
       </Closed>
-      {bought ? <Button size='xs' variant='primary' className='bg-accent/15 rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
+      {bought ? <Button size='xs' selected className='rounded-l-none border-l-0' aria-label={`refund ${option.label}`} onClick={onRefund}>−</Button> : null}
     </span>
   )
 }
@@ -744,14 +740,14 @@ function Push({ push, cost, onMovement, onBoost }: { push: PushView, cost: Actio
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <SectionLabel>block</SectionLabel>
           {push.movements.map((m) =>
-            <Button key={m.kind} size='xs' {...toggle(m.kind === push.movement)} disabled={!m.available} title={m.reason ?? undefined} onClick={() => onMovement(m.kind)}>{PUSH_LABEL[m.kind]}</Button>)}
+            <Button key={m.kind} size='xs' selected={m.kind === push.movement} disabled={!m.available} title={m.reason ?? undefined} onClick={() => onMovement(m.kind)}>{PUSH_LABEL[m.kind]}</Button>)}
         </div>
       ) : null}
       <div className='flex flex-row flex-wrap gap-x-3 gap-y-1 items-center text-xs text-muted'>
         <span>cells <span className='font-mono'>{push.cells}</span> <Cost cost={cost} /></span>
         {push.movements.length > 0 && push.cells === 0 ? <span>pick the way on the board</span> : null}
         {push.canBoost ? (
-          <Button size='xs' {...toggle(push.boost)} title='spend 2 AP to gain 5 force; the losing side decides first' onClick={() => onBoost(!push.boost)}>+5 force</Button>
+          <Button size='xs' selected={push.boost} title='spend 2 AP to gain 5 force; the losing side decides first' onClick={() => onBoost(!push.boost)}>+5 force</Button>
         ) : null}
         {push.boost && !push.boosted ? <span>+5 not needed yet</span> : null}
         <span className={push.allowed ? 'text-good' : 'text-bad'}>{push.allowed ? 'moves' : 'held in place'}</span>

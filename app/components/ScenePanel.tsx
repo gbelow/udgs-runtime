@@ -46,7 +46,7 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
       <span className='text-xs text-muted whitespace-nowrap'>ETs taken</span>
       <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
-      <Button aria-label='fight settings' aria-pressed={settings} variant={settings ? 'primary' : 'ghost'} className={settings ? 'bg-accent/15' : ''} title='how the table plays this fight' onClick={toggleSettings}>⚙</Button>
+      <Button aria-label='fight settings' aria-pressed={settings} variant='ghost' selected={settings} title='how the table plays this fight' onClick={toggleSettings}>⚙</Button>
     </div>
   )
 }
@@ -103,7 +103,7 @@ export function SceneActions(){
       </div>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
-          <Button size='xs' aria-label='drawer held tests' variant={heldOpen ? 'primary' : due ? 'bad' : 'default'} className={heldOpen ? 'bg-accent/15' : ''} onClick={() => setHeldOpen(!heldOpen)}>
+          <Button size='xs' aria-label='drawer held tests' variant={due ? 'bad' : 'default'} selected={heldOpen} onClick={() => setHeldOpen(!heldOpen)}>
             held tests{due ? ' !' : ''}
           </Button>
         </div>
@@ -199,7 +199,7 @@ function TurnControl(){
           </Tooltip> : null
         }
         <Tooltip text={agreed ? 'agreed to end the round' : 'agree to end the round'}>
-          <Button aria-label='agreeToEnd' aria-pressed={agreed} variant={agreed ? 'primary' : 'default'} className={agreed ? 'bg-accent/20' : ''} onClick={toggleAgreeToEnd}>
+          <Button aria-label='agreeToEnd' aria-pressed={agreed} selected={agreed} onClick={toggleAgreeToEnd}>
             {agreed ? <span className='mr-1'>✓</span> : null}end round ok
           </Button>
         </Tooltip>
@@ -254,7 +254,7 @@ function SurgeControl(){
           <Tooltip key={option.kind} text={option.used ? `${option.kind} surge used this round` : option.title}>
             {
               option.used ?
-              <Button aria-label={option.kind + ' surge'} aria-pressed variant='primary' className='bg-accent/20 pointer-events-none'>
+              <Button aria-label={option.kind + ' surge'} aria-pressed selected className='pointer-events-none'>
                 <span className='mr-1'>✓</span>{option.kind} surge
               </Button> :
               <Button aria-label={option.kind + ' surge'} disabled={!option.available}
@@ -286,8 +286,8 @@ function CharacterList(){
             {party.name ? <span className='text-[10px] text-muted whitespace-nowrap'>{party.name}</span> : null}
             {party.entries.map((entry) =>
               <Button key={entry.id} size='xs' aria-label={entry.name}
-                variant={entry.targetable ? 'bad' : entry.isActive ? 'primary' : 'default'}
-                className={entry.targetable ? 'animate-pulse' : entry.isActive ? 'bg-accent/15' : ''}
+                variant={entry.targetable ? 'bad' : 'default'} selected={!entry.targetable && entry.isActive}
+                className={entry.targetable ? 'animate-pulse' : ''}
                 onClick={() => pick(entry)}>
                 {entry.name}
                 {entry.usedSurge ? <span className={`ml-1.5 text-[10px] ${entry.isActive ? 'text-accent/80' : 'text-muted'}`}>✓ {entry.usedSurge}</span> : null}

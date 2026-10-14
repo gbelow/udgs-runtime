@@ -109,7 +109,7 @@ function PartyColumn({ id, name, adding, toggleAdding, target, place, children }
       {target ? <span className='text-xs text-accent'>put here</span> : null}
       {id === '' ? <span className='text-xs text-muted'>in no party</span> : <>
         <TextInput key={name} className='w-full text-xs font-medium' aria-label={`${name} name`} disabled={!gmTools || target} title={gmTools ? "the party's name" : GM_BAR} defaultValue={name} onBlur={(e) => renameParty(id, e.target.value.trim())} />
-        <Button size='xs' aria-label={`add characters to ${name}`} aria-pressed={adding} disabled={target} variant={adding ? 'primary' : 'default'} className={adding ? 'bg-accent/15' : ''} onClick={toggleAdding}>add characters to party</Button>
+        <Button size='xs' aria-label={`add characters to ${name}`} aria-pressed={adding} disabled={target} selected={adding} onClick={toggleAdding}>add characters to party</Button>
       </>}
       {children}
     </div>
@@ -126,7 +126,7 @@ function MemberControls({ card, switching, startSwitch }: { card: SceneCard, swi
 
   return(
     <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>
-      <Button size='xs' aria-label={`switch ${card.name}`} aria-pressed={switching} disabled={bar !== null} variant={switching ? 'primary' : 'default'} className={switching ? 'bg-accent/15' : ''} title={bar ?? 'pick the party to put them in, or a new one'} onClick={startSwitch}>switch party</Button>
+      <Button size='xs' aria-label={`switch ${card.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={startSwitch}>switch party</Button>
       <Button size='xs' variant='ghost' className='ml-auto' aria-label={`remove ${card.name}`} disabled={bar !== null} title={bar ?? 'take out of the fight; one sent from the roster goes back to it'} onClick={() => removeCharacter(card.id)}>×</Button>
     </div>
   )

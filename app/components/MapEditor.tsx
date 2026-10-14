@@ -129,7 +129,7 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
       <TextInput className='w-28' list='knowledges' aria-label={`${node.name} knowledge`} value={values.knowledge} onChange={(e) => customizeNode(node.id, { knowledge: e.target.value })} />
       {label('tags', 'tags')}
       {TERRAIN_TAGS.map((tag) => (
-        <Button key={tag} size='xs' variant={values.tags.includes(tag) ? 'primary' : 'ghost'} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>
+        <Button key={tag} size='xs' variant='ghost' selected={values.tags.includes(tag)} onClick={() => toggleTag(node.id, tag)}>{tag}</Button>
       ))}
     </div>
   )
@@ -198,7 +198,7 @@ function EventEditor({ owner, event, children }: { owner: EventOwner, event: Eve
         <span className='text-xs text-muted'>DL</span>
         <NumberInput className='w-10' aria-label={`${event.name} DL`} value={event.DL} onChange={(e) => setEvent(owner, event.id, { DL: parseInt(e.target.value) || 0 })} />
         {EVENT_TYPES.map((type) => (
-          <Button key={type} size='xs' variant={event.types.includes(type) ? 'primary' : 'ghost'} onClick={() => toggleType(owner, event.id, type)}>{type}</Button>
+          <Button key={type} size='xs' variant='ghost' selected={event.types.includes(type)} onClick={() => toggleType(owner, event.id, type)}>{type}</Button>
         ))}
         <span className='text-xs text-muted'>needs</span>
         <TextInput className='w-28' list='knowledges' aria-label={`${event.name} enabler`} placeholder='knowledge' value={event.enabler?.knowledge ?? ''}

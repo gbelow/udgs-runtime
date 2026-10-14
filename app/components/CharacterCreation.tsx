@@ -212,7 +212,7 @@ function Priorities() {
             <div className='flex flex-row items-center gap-1'>
               <span className='w-14 text-xs'>{focus}</span>
               {PRIORITIES.map((p) => (
-                <Button key={p} size='xs' active={p === priority} variant={p === priority ? 'primary' : 'default'} onClick={() => setPriority(focus, p)}>{p}</Button>
+                <Button key={p} size='xs' selected={p === priority} onClick={() => setPriority(focus, p)}>{p}</Button>
               ))}
               {pool ? <span className={`ml-auto text-xs font-mono ${pool.over ? 'text-bad' : ''}`}>{pool.spent} / {pool.budget} XP</span> : null}
             </div>
