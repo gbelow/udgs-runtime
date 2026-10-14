@@ -2,7 +2,7 @@ import type { Coord, LightLevel } from "../domain/scene/types";
 import type { TerrainBrush } from "../domain/types";
 import { BoardView, getBoardView, getBoardViewDigest } from "../domain/scene/projections/boardView";
 import { resolveClick } from "../domain/scene/commands/click";
-import { createBoard, setLight } from "../domain/scene/commands/board";
+import { createBoard, removeBoard, setLight } from "../domain/scene/commands/board";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The board as drawn, and the clicks on it. Gated on a digest of the view,
@@ -15,6 +15,7 @@ export function useBoard() {
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
 
   const create = (radius: number) => update(createBoard(radius));
+  const remove = () => update(removeBoard);
   const click = (c: Parameters<typeof resolveClick>[0], brush: TerrainBrush | null = null) =>
     update(resolveClick(c, { brush, newId: () => crypto.randomUUID() }));
 
@@ -25,5 +26,5 @@ export function useBoard() {
   const turn = () => click({ on: 'turn' });
   const light = (level: LightLevel) => update(setLight(level));
 
-  return { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } as const;
+  return { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } as const;
 }

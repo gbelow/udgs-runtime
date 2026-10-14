@@ -24,6 +24,12 @@ export function createBoard(radius: number): Updater {
   return (state) => (state.board ? state : { ...state, board: BoardSchema.parse({ radius }) })
 }
 
+// Takes the board away: the fight goes on with no grid, everyone in reach,
+// and what lay on the floor lies nowhere in particular. Refused while an
+// action is open, as painting is.
+export const removeBoard: Updater = (state) =>
+  !state.board || getOpenAction(state) ? state : { ...state, board: null, floor: state.floor.map((f) => ({ ...f, cell: null })) }
+
 // combat.tex "Darkness and light": sets the light everywhere no light
 // source reaches. Refused while an action is open, as painting is.
 export function setLight(light: LightLevel): Updater {

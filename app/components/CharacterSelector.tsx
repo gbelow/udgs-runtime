@@ -72,7 +72,9 @@ function CharacterTreeNode({ node, depth, handlers }: {
   )
 }
 
-export function CharacterSelector(){
+// The saved characters and the PCs. A click loads one as the tab means it,
+// or hands it to `onSelect`; without the `catalog`, only the PCs are listed.
+export function CharacterSelector({ onSelect, catalog = true }: { onSelect?: (character: Character) => void, catalog?: boolean } = {}){
 
   const [open, setOpen] = useState<{ [key: string]: boolean }>({});
   const [openCampaignChars, setOpenCampaignChars] = useState(false)
@@ -86,7 +88,8 @@ export function CharacterSelector(){
   } = useCharacterLibrary()
 
   const handleSelectCharacterClick = (character: Character) => {
-    loadCharacter(character)
+    if (onSelect) onSelect(character)
+    else loadCharacter(character)
   };
 
   const handleSelectPlayerClick  = async (characterId: string) => {
@@ -148,9 +151,9 @@ export function CharacterSelector(){
   return (
     <div className="flex flex-col gap-1 text-sm">
       {
-        tree.map(node => (
+        catalog ? tree.map(node => (
           <CharacterTreeNode key={nodeKey(node)} node={node} depth={0} handlers={handlers} />
-        ))
+        )) : null
       }
       {
         <div>

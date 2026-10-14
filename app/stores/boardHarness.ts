@@ -3,7 +3,7 @@ import type { TerrainBrush } from '../domain/types'
 import { SceneStateSchema, type ActionDraft, type SceneState, type LightLevel, type Updater } from '../domain/scene/types'
 import { getBoardView, type BoardView } from '../domain/scene/projections/boardView'
 import { resolveClick, type Click } from '../domain/scene/commands/click'
-import { createBoard, setLight } from '../domain/scene/commands/board'
+import { createBoard, removeBoard, setLight } from '../domain/scene/commands/board'
 import { amendAction, commitAction, declareAction } from '../domain/scene/commands/action'
 import { startTurn } from '../domain/scene/commands/turn'
 import { makeCampaignCharacter } from '../domain/factories'
@@ -51,6 +51,7 @@ export function openHarness(dice: Dice = () => 5) {
     // the sidebar: bring a character into the fight, and the board into being
     bring: (...who: (string | CampaignCharacter)[]) => who.forEach((w) => useCampaignStore.getState().loadFighter(typeof w === 'string' ? makeCampaignCharacter({ name: w }) : w)),
     createBoard: (radius: number) => press(createBoard(radius)),
+    removeBoard: () => press(removeBoard),
     light: (level: LightLevel) => press(setLight(level)),
 
     // the board

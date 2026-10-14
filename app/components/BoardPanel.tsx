@@ -7,7 +7,7 @@ import type { BoardCellView, BoardFloorItemView, BoardGhostView, BoardBindView, 
 import type { TerrainBrush } from '../domain/types'
 import { LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { Button, Panel, SectionLabel, TextInput, Tooltip } from './ui'
-import { PartiesView } from './PartiesView'
+import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
   idle: 'click a cell to place the active character, or an item to pick it up',
@@ -46,7 +46,7 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
 // on by hand, and the surface a move is walked on. Everything drawn is a
 // field of the board view; the panel only translates it into shapes.
 export function BoardPanel(){
-  const { view, create, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
+  const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
   const [tools, setTools] = useState(false)
   const { gmTools } = useRole()
@@ -55,7 +55,7 @@ export function BoardPanel(){
     return (
       <Panel meta='no grid: everyone is in reach'
         title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button></span>}>
-        <PartiesView />
+        <SceneCards />
       </Panel>
     )
   }
@@ -67,6 +67,7 @@ export function BoardPanel(){
       actions={<>
         <Button size='xs' {...(tools ? { variant: 'primary' as const, className: 'bg-accent/15' } : {})} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null) }}>paint &amp; light</Button>
         <Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>
+        <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button>
       </>}>
 
       {tools ? (<>

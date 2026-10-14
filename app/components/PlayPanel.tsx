@@ -14,7 +14,6 @@ import { TradePanel } from './TradePanel';
 import { ItemSelector } from './ItemSelector';
 import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
-import { CharacterSelector } from './CharacterSelector';
 import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { makeDieRoll } from './utils';
 import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
@@ -36,11 +35,11 @@ import { GearLocked, GmLocked } from './Locks';
 // what just happened. Everything the GM has that a player does not opens
 // from the GM drawer.
 export function PlayPanel(){
-  const { hasActiveCharacter, hasBoard } = useCombatState()
+  const { hasActiveCharacter } = useCombatState()
   const [opened, setOpened] = useState<CatalogView[]>([])
-  const [center, setCenter] = useState<CenterView>('scene')
-  const views: CenterView[] = ['scene', ...(hasBoard ? ['parties' as const] : []), ...opened]
-  const shown = views.includes(center) ? center : 'scene'
+  const [center, setCenter] = useState<CenterView>('parties')
+  const views: CenterView[] = ['parties', 'scene', ...opened]
+  const shown = views.includes(center) ? center : 'parties'
   const open = (v: CatalogView) => { setOpened((o) => (o.includes(v) ? o : [...o, v])); setCenter(v) }
   const close = (v: CatalogView) => { setOpened((o) => o.filter((x) => x !== v)); if (center === v) setCenter('scene') }
 
@@ -49,16 +48,14 @@ export function PlayPanel(){
       <Tracker />
       <div className='flex flex-col md:flex-row flex-1 min-h-0'>
         <section className='flex-1 min-w-0 min-h-0 p-2 flex flex-col gap-2'>
-          {views.length > 1 ? (
-            <div className='flex flex-row flex-wrap gap-1 items-center'>
-              {views.map((v) => (
-                <span key={v} className='inline-flex items-center'>
-                  <Button size='xs' aria-label={`view ${v}`} variant={v === shown ? 'primary' : 'default'} className={v === shown ? 'bg-accent/15' : ''} onClick={() => setCenter(v)}>{v}</Button>
-                  {isCatalogView(v) ? <Button size='xs' variant='ghost' aria-label={`close ${v}`} title={`close the ${v} catalog`} onClick={() => close(v)}>×</Button> : null}
-                </span>
-              ))}
-            </div>
-          ) : null}
+          <div className='flex flex-row flex-wrap gap-1 items-center'>
+            {views.map((v) => (
+              <span key={v} className='inline-flex items-center'>
+                <Button size='xs' aria-label={`view ${v}`} variant={v === shown ? 'primary' : 'default'} className={v === shown ? 'bg-accent/15' : ''} onClick={() => setCenter(v)}>{v}</Button>
+                {isCatalogView(v) ? <Button size='xs' variant='ghost' aria-label={`close ${v}`} title={`close the ${v} catalog`} onClick={() => close(v)}>×</Button> : null}
+              </span>
+            ))}
+          </div>
           <div className='flex-1 min-h-0 overflow-y-auto flex flex-col'>
             <CenterSpace view={shown} />
           </div>
@@ -85,7 +82,7 @@ export function PlayPanel(){
   )
 }
 
-const CATALOG_VIEWS = ['items', 'abilities', 'spells', 'characters'] as const
+const CATALOG_VIEWS = ['items', 'abilities', 'spells'] as const
 type CatalogView = typeof CATALOG_VIEWS[number]
 type CenterView = 'scene' | 'parties' | CatalogView
 
@@ -93,14 +90,13 @@ function isCatalogView(v: CenterView): v is CatalogView {
   return (CATALOG_VIEWS as readonly string[]).includes(v)
 }
 
-// The middle of the screen: the scene, the parties beside a board, or a
+// The middle of the screen: the scene, the parties, or a
 // catalog laid out across the whole width, giving to the sheet on the right.
 function CenterSpace({ view }: { view: CenterView }){
   if (view === 'parties') return <PartiesView />
   if (view === 'items') return <ItemSelector wide />
   if (view === 'abilities') return <AbilitySelector wide />
   if (view === 'spells') return <SpellSelector wide />
-  if (view === 'characters') return <div className='max-w-md'><CharacterSelector /></div>
   return <SceneSpace />
 }
 

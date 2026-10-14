@@ -21,7 +21,7 @@ export function removeFromCombat(id: string): Updater {
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const { [id]: _cover, ...bodyCover } = state.bodyCover
     const { [id]: _party, ...partyOf } = state.partyOf
-    const left = dropEmptyFightParties({ ...state, characters, partyOf, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) })
+    const left = dropEmptyFightParties({ ...state, characters, partyOf, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }, [state.partyOf[id]])
     return settleBinds(left)
   }
 }

@@ -22,12 +22,12 @@ export function sendToFight(ids: string[]): TableUpdater {
   }, table)
 }
 
-// A character brought straight into the fight, in the newest party the fight
-// made (see `addToFight`).
-export function loadIntoFight(char: CampaignCharacter, newId: () => string): TableUpdater {
+// A character brought straight into the fight, in the party `into` names or
+// the newest party the fight made (see `addToFight`).
+export function loadIntoFight(char: CampaignCharacter, newId: () => string, into?: string): TableUpdater {
   return (table) => getJoinBar(table.fight) ? table : ({
     campaign: table.campaign,
-    fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties))(table.fight),
+    fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties), into)(table.fight),
   })
 }
 

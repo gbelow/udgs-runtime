@@ -1,4 +1,6 @@
 import { Character } from "../domain/types";
+import { makeCampaignCharacter } from "../domain/factories";
+import { loadIntoFight } from "../domain/scene/commands/fight";
 import { useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -29,4 +31,12 @@ export function useLoadCharacter() {
     if (tab === "party") addToParty(character);
     if (tab === "play") addToCombat(character);
   };
+}
+
+// A character picked from the catalog or the PCs, brought into a party of
+// the fight.
+export function useBringIntoParty() {
+  const updateTable = useCampaignStore((s) => s.updateTable);
+  return (character: Character, partyId: string) =>
+    updateTable(loadIntoFight(makeCampaignCharacter(character), () => crypto.randomUUID(), partyId));
 }

@@ -1,4 +1,4 @@
-import { getRosterParties, getCombatRosterDigest, getPartyPicker, getPartyPickerDigest, type CombatRosterEntry, type PartyPicker, type RosterParty } from "../domain/scene/projections/roster";
+import { getRosterParties, getCombatRosterDigest, getPartiesPanel, getPartiesPanelDigest, type CombatRosterEntry, type PartiesPanel, type RosterParty } from "../domain/scene/projections/roster";
 import { setTarget } from "../domain/scene/commands/action";
 import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
@@ -24,9 +24,8 @@ export function useCombatState() {
   const nextRoundBar = useCombatStore(getNextRoundBar);
   const returnBar = useCombatStore(getReturnBar);
   const endCombatBar = useCombatStore(getEndCombatBar);
-  const hasBoard = useCombatStore((s) => s.board !== null);
 
-  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, endCombatBar, hasBoard } as const;
+  return { round, hasActiveCharacter, hasOpenAction, nextRoundBar, returnBar, endCombatBar } as const;
 }
 
 export function useCombatRoster(): {
@@ -73,9 +72,9 @@ export function useRoundChange(): { view: RoundChangeView | null; pick: (entry: 
 
 // The active character's party and the ones they could join, gated on a
 // digest since the picker is freshly allocated.
-export function usePartyPicker(): PartyPicker | null {
-  useCombatStore(getPartyPickerDigest);
-  return getPartyPicker(useCombatStore.getState());
+export function usePartiesPanel(): PartiesPanel {
+  useCombatStore(getPartiesPanelDigest);
+  return getPartiesPanel(useCombatStore.getState());
 }
 
 // Why the active character's gear cannot be handled now, or null.

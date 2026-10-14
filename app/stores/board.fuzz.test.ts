@@ -19,7 +19,7 @@ import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRou
 import { ROLL_MODES } from '../domain/play/dice'
 import { rollHeld } from '../domain/scene/commands/heldTest'
 import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, runOn, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
-import { moveToParty, splitOff } from '../domain/scene/commands/parties'
+import { createParty, moveToParty, splitOff } from '../domain/scene/commands/parties'
 import { getChasePanel } from '../domain/scene/projections/chase'
 import { getChaseStartBar } from '../domain/scene/rules/chase'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
@@ -779,6 +779,7 @@ function chasePlays(): Play[] {
     { name: 'resolve the chase round', weight: 5, run: (h) => refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round') },
     { name: 'next round', weight: 3, run: (h) => h.press(nextRound(h.dice)) },
     { name: 'split someone off', weight: 2, run: (h, pick) => h.press(splitOff(pick(Object.keys(h.state().characters)), h.newId)) },
+    { name: 'create a party', run: (h) => h.press(createParty(h.newId(), '')) },
     { name: 'move someone to another party', run: (h, pick) => h.press(moveToParty(pick(Object.keys(h.state().characters)), pick(Object.keys(h.state().parties)))) },
     {
       name: 'chase another party',

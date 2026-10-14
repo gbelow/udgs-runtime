@@ -4,6 +4,7 @@ import { getDeclaredTargets } from '../rules/action'
 import { getOpenAction, getReactionsTo } from '../rules/log'
 import { getAffected, getBlastOf } from '../rules/explosion'
 import { getFightName } from '../rules/fighters'
+import { getJoinBar } from '../rules/fight'
 import { perState } from '../../perState'
 import { getHeldOf } from '../rules/hold'
 import { getActionNoun } from './labels'
@@ -75,24 +76,20 @@ function buildRosterParties(state: SceneState): RosterParty[] {
 
 export const getRosterParties = perState(buildRosterParties)
 
-// The active character's party and the others they could join, and why they
-// cannot change party now.
-export type PartyPicker = { partyId: string; name: string; parties: { id: string; name: string }[]; bar: string | null }
+// The GM's parties panel: the parties a character can be moved into, why
+// nobody can change party now, and why nobody can be brought in.
+export type PartiesPanel = { parties: { id: string; name: string }[]; moveBar: string | null; joinBar: string | null }
 
-function buildPartyPicker(state: SceneState): PartyPicker | null {
-  const id = state.activeCharacterId
-  if (!id || !state.characters[id]) return null
-  const partyId = state.partyOf[id]
+function buildPartiesPanel(state: SceneState): PartiesPanel {
   return {
-    partyId,
-    name: state.parties[partyId].name,
-    parties: Object.entries(state.parties).map(([pid, p]) => ({ id: pid, name: p.name })),
-    bar: getOpenAction(state) ? 'an action is being played out' : null,
+    parties: Object.entries(state.parties).map(([id, p]) => ({ id, name: p.name })),
+    moveBar: getOpenAction(state) ? 'an action is being played out' : null,
+    joinBar: getJoinBar(state),
   }
 }
 
-export const getPartyPicker = perState(buildPartyPicker)
-export const getPartyPickerDigest = perState((state) => JSON.stringify(getPartyPicker(state)))
+export const getPartiesPanel = perState(buildPartiesPanel)
+export const getPartiesPanelDigest = perState((state) => JSON.stringify(getPartiesPanel(state)))
 
 // Everything the roster displays, as one string. A roster entry is freshly
 // allocated on every call, so it cannot gate its own re-render by identity;

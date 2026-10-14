@@ -3,7 +3,7 @@ import { endTurn as closeTurn, rollContest as rollTurnContest, startTurn as begi
 import type { SurgeKind } from "../domain/types"
 import { removeFromFight, resetFight } from "../domain/scene/commands/fight"
 import { endCombat as finishCombat } from "../domain/scene/commands/endCombat"
-import { moveToParty as moveInto, renameParty as renameFightParty, splitOff as splitFrom } from "../domain/scene/commands/parties"
+import { createParty as makeParty, moveToParty as moveInto, renameParty as renameFightParty, splitOff as splitFrom } from "../domain/scene/commands/parties"
 import { toggleBreakage as switchBreakage } from "../domain/scene/commands/breakage"
 import { rollMorale as testMorale, setTablePressure as setTablePressureOf } from "../domain/scene/commands/morale"
 import { rollHeld as testHeld } from "../domain/scene/commands/heldTest"
@@ -103,8 +103,10 @@ export function useCombatCommands() {
     if (id) updateCombatState(command(id))
   }
 
-  const moveToParty = (partyId: string) => asActive((id) => moveInto(id, partyId))()
-  const splitOff = asActive((id) => splitFrom(id, newId))
+  const moveToParty = (id: string, partyId: string) => updateCombatState(moveInto(id, partyId))
+  const createParty = (name: string) => updateCombatState(makeParty(newId(), name))
+  const splitOff = (id: string) => updateCombatState(splitFrom(id, newId))
+  const removeCharacter = (id: string) => updateTable(removeFromFight(id))
 
   const defaultToCoward = asActive(defaultToCowardSocial)
 
@@ -116,5 +118,5 @@ export function useCombatCommands() {
     updateCombatState(switchBreakage)
   }
 
-  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, splitOff, renameParty }
+  return { killCharacter, startTurn, toggleContest, toggleAgreeToEnd, rollContest, endTurn, actionSurge, nextRound, endCombat, continueRound, holdOn, letGo, rollMorale, setTablePressure, rollHeld, defaultToCoward, resetCombat, toggleBreakage, moveToParty, createParty, splitOff, renameParty, removeCharacter }
 }

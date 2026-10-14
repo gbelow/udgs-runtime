@@ -295,7 +295,7 @@ export function mergeBack(partyId: string): Updater {
     const chase = state.chase!
     const partyOf = Object.fromEntries(Object.entries(state.partyOf).map(([id, p]) => [id, p === partyId ? into : p]))
     const links = Object.fromEntries(Object.entries(chase.links).map(([from, l]): [string, ChaseLink] => [from, l.chases === partyId ? { ...l, chases: into } : l]))
-    return dropEmptyFightParties({ ...state, partyOf, chase: forget({ ...chase, links }, partyId) })
+    return dropEmptyFightParties({ ...state, partyOf, chase: forget({ ...chase, links }, partyId) }, [partyId])
   }
 }
 
