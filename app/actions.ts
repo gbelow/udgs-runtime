@@ -3,6 +3,8 @@
 import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CrawlMapSchema, type CrawlMap } from './domain/campaign/types';
+import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
+import type { CampaignCharacter } from './domain/types';
 import { CATALOGS, isCatalogName } from './forms/catalogs';
 import { isBaseCharacter } from './domain/utils';
 import redis from './redis'
@@ -266,6 +268,95 @@ export async function getCharacterList(): Promise<ActionResult<{id: string, name
   } catch (err) {
     console.error('Error getting character list from Redis:', err);
     return { ok: false, error: 'Failed to load character list.' };
+  }
+}
+
+
+// ── campaigns ───────────────────────────────────────────────────────────
+// A campaign is one Redis document naming its characters by id, indexed in a
+// hash of id -> name like the player characters. A player character keeps
+// its own record, so the campaign saves it there; every other character is
+// the campaign's alone and is kept under a key of the campaign's, since the
+// same catalog sheet brings the same id into every campaign it joins.
+const CAMPAIGN_INDEX_KEY = 'campaignIndex';
+const campaignKey = (id: string) => `campaign:${id}`;
+const campaignCharacterKey = (id: string, characterId: string) => `campaign:${id}:char:${characterId}`;
+
+async function getPcIndex(): Promise<Record<string, string>> {
+  return (await redis.hgetall<Record<string, string>>(CHAR_INDEX_KEY)) ?? {};
+}
+
+// Where each of the campaign's characters is kept: a player character in its
+// own record, any other under the campaign's key.
+function characterKey(id: string, characterId: string, pcs: Record<string, string>): string {
+  return characterId in pcs ? characterId : campaignCharacterKey(id, characterId);
+}
+
+async function readCampaign(id: string): Promise<CampaignSave | null> {
+  const parsed = CampaignSaveSchema.safeParse(await redis.get(campaignKey(id)));
+  return parsed.success ? parsed.data : null;
+}
+
+export async function getCampaignList(): Promise<ActionResult<{ id: string, name: string }[]>> {
+  try {
+    const index = (await redis.hgetall<Record<string, string>>(CAMPAIGN_INDEX_KEY)) ?? {};
+    return { ok: true, data: Object.entries(index).map(([id, name]) => ({ id, name })) };
+  } catch (err) {
+    console.error('Error listing campaigns:', err);
+    return { ok: false, error: 'Failed to list campaigns.' };
+  }
+}
+
+export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult> {
+  const parsed = CampaignSaveSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: 'Not a campaign.' };
+  const save = parsed.data;
+  if (!save.name.trim()) return { ok: false, error: 'Campaigns need a name.' };
+  try {
+    const [before, pcs] = await Promise.all([readCampaign(save.id), getPcIndex()]);
+    const stale = (before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid) && !(cid in pcs)).map((cid) => campaignCharacterKey(save.id, cid));
+    const writes = redis.pipeline();
+    if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [characterKey(save.id, c.id, pcs), c])));
+    const pcNames = Object.fromEntries(characters.filter((c) => c.id in pcs).map((c) => [c.id, c.name]));
+    if (Object.keys(pcNames).length) writes.hset(CHAR_INDEX_KEY, pcNames);
+    if (stale.length) writes.del(...stale);
+    writes.set(campaignKey(save.id), save);
+    writes.hset(CAMPAIGN_INDEX_KEY, { [save.id]: save.name });
+    await writes.exec();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error saving campaign:', err);
+    return { ok: false, error: 'Failed to save campaign.' };
+  }
+}
+
+export async function loadCampaign(id: string): Promise<ActionResult<{ save: CampaignSave, characters: unknown[] }>> {
+  try {
+    const [save, pcs] = await Promise.all([readCampaign(id), getPcIndex()]);
+    if (!save) return { ok: false, error: 'Campaign not found.' };
+    const keys = save.characterIds.map((cid) => characterKey(id, cid, pcs));
+    const characters = keys.length ? (await redis.mget<unknown[]>(...keys)).filter((c) => c !== null) : [];
+    return { ok: true, data: { save, characters } };
+  } catch (err) {
+    console.error('Error loading campaign:', err);
+    return { ok: false, error: 'Failed to load campaign.' };
+  }
+}
+
+// The campaign and the characters that were its alone go; player characters
+// keep their own records.
+export async function deleteCampaign(id: string): Promise<ActionResult> {
+  try {
+    const [save, pcs] = await Promise.all([readCampaign(id), getPcIndex()]);
+    const own = (save?.characterIds ?? []).filter((cid) => !(cid in pcs)).map((cid) => campaignCharacterKey(id, cid));
+    const writes = redis.pipeline();
+    writes.del(...own, campaignKey(id));
+    writes.hdel(CAMPAIGN_INDEX_KEY, id);
+    await writes.exec();
+    return { ok: true, data: undefined };
+  } catch (err) {
+    console.error('Error deleting campaign:', err);
+    return { ok: false, error: 'Failed to delete campaign.' };
   }
 }
 

@@ -257,3 +257,14 @@ export function Tooltip({ text, children, className = '' }: { text: ReactNode, c
 export function Tiles({ children, className = '' }: { children: ReactNode, className?: string }){
   return <div className={`flex flex-row flex-wrap gap-1.5 ${className}`}>{children}</div>
 }
+
+// A delete that asks once more before it happens.
+export function ConfirmDelete({ remove }: { remove: () => Promise<void> | void }){
+  const [confirm, setConfirm] = useState(false)
+  return confirm
+    ? <>
+        <Button variant='bad' className='bg-bad/15' onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
+        <Button onClick={() => setConfirm(false)}>cancel</Button>
+      </>
+    : <Button variant='bad' onClick={() => setConfirm(true)}>delete</Button>
+}

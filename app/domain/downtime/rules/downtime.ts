@@ -14,17 +14,19 @@ import { skillTermGetters } from '../../character/rules/skills'
 import { getKnowledgeTestTerms, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
-import { getAway, getPlace } from '../../campaign/rules/place'
+import { getPartyMembers, getPlace } from '../../campaign/rules/place'
+import { getClockOf, getPlayingParties, getTimeBar } from '../../campaign/rules/clock'
 import { getPayable } from '../../item/rules/money'
 
 // The character's plan, or an empty one.
 export function getPlan(t: Downtime, id: string): Plan {
-  return t.downtime.plans[id] ?? PlanSchema.parse({ at: t.campaign.clock })
+  return t.downtime.plans[id] ?? PlanSchema.parse({ at: getClockOf(t.campaign, id) ?? 0 })
 }
 
-// Who spends the days: everyone on the roster who is alive.
+// Who spends the days: everyone alive on the roster in a party in play on a
+// timeline.
 export function getDowntimeCharacters(state: CampaignState): string[] {
-  return Object.keys(state.characters).filter((id) => !isDead(state.characters[id]))
+  return getPlayingParties(state).flatMap((pid) => getPartyMembers(state, pid)).filter((id) => state.characters[id] && !isDead(state.characters[id]))
 }
 
 // ── training ─────────────────────────────────────────────
@@ -269,14 +271,15 @@ export function getDefaultSpan(t: Downtime): number {
   return Math.max(1, ...getDowntimeCharacters(t.campaign).map((id) => getPlanDays(getPlan(t, id))))
 }
 
-// Why the days cannot pass now: they pass for everyone, so nobody may be in a
-// fight, every party on the map must be in a settlement, every activity must
-// be ready, and every plan paid for.
+// Why the days cannot pass now: time must be able to pass (`getTimeBar`),
+// every party feeling it that is on the map must be in a settlement, every
+// activity must be ready, and every plan paid for.
 export function getDowntimeBar(t: Downtime, days: number): string | null {
   const state = t.campaign
   if (days < 1) return 'choose how many days'
-  if (getAway(state).length > 0) return 'someone is in a fight'
-  for (const party of Object.values(state.parties)) {
+  const bar = getTimeBar(state)
+  if (bar) return bar
+  for (const party of getPlayingParties(state).map((pid) => state.parties[pid])) {
     const place = getPlace(state, party)
     if (place && !place.node.settlement) return `${party.name} is not in a settlement`
   }

@@ -13,10 +13,10 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 // Exploration's pieces of the run screen.
 
-// The clock everyone out of a fight shares, the map, and the ET passing.
+// The moments the parties in play are living, the map, and the ET passing.
 export function ExplorationStrip(){
 
-  const { map, night, dayETs, parties } = useParties()
+  const { map, dayETs, parties } = useParties()
   const { maps } = useMapNames()
   const passBar = usePassBar()
   const { passET, sendAllToFight, loadMap, setDayETs } = usePartyCommands()
@@ -24,14 +24,14 @@ export function ExplorationStrip(){
   return(
     <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
       <div className='flex flex-row gap-2 items-center'>
-        <ClockLabel> · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></ClockLabel>
+        <ClockLabel />
         <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
         <select aria-label='map' className={selectClass} value={map?.name ?? ''} onChange={(e) => loadMap(e.target.value)}>
           <option value=''>no map</option>
           {maps.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <Tooltip text={passBar ?? 'everyone spends the ET on their plan'}>
+        <Tooltip text={passBar ?? 'every party in play spends the ET on its plan'}>
           <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
         <Button aria-label='allToFight' disabled={parties.length === 0} onClick={sendAllToFight}>all to fight</Button>

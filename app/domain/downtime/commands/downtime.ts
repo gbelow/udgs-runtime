@@ -9,7 +9,7 @@ import { knowledgeName } from '../../character/rules/knowledge'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
-import { ETS_PER_DAY } from '../../campaign/rules/clock'
+import { ETS_PER_DAY, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
   getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining, getLearningGain,
   getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName,
@@ -101,7 +101,7 @@ function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
   let c = t.campaign.characters[id]
   const start = getPlan(t, id)
   const results: DowntimeResult[] = []
-  const interrupted = start.block && start.elapsed > 0 && (start.at !== t.campaign.clock || t.campaign.out.includes(id))
+  const interrupted = start.block && start.elapsed > 0 && (start.at !== getClockOf(t.campaign, id) || t.campaign.out.includes(id))
   if (interrupted) results.push({ name, what: start.block!.kind, roll: null, note: 'interrupted, the days spent on it are lost' })
   let plan: Plan = interrupted ? { ...start, block: null, elapsed: 0 } : start
   const living = plan.housed ? 0 : getLivingCost(t.campaign, id, plan.living)
@@ -126,17 +126,18 @@ function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
   return { c, plan, results }
 }
 
-// story.tex "Downtime": the days pass for everyone on the roster at once,
-// each living and doing what they planned, and the clock moves on by them.
+// story.tex "Downtime": the days pass at once for every party in play on a
+// timeline, each member living and doing what they planned, and each party's
+// clock moves on by them.
 export function passDays(days: number, dice: Dice): DowntimeUpdater {
   return (t) => {
     if (getDowntimeBar(t, days)) return t
     const ids = getDowntimeCharacters(t.campaign)
     const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, dice) }))
     const characters = { ...t.campaign.characters, ...Object.fromEntries(lived.map(({ id, c }) => [id, c])) }
-    const moved = passETs(days * ETS_PER_DAY)({ ...t.campaign, characters, out: [] })
+    const moved = passETs(days * ETS_PER_DAY, getPlayingParties(t.campaign))({ ...t.campaign, characters, out: [] })
     const fedAll = { ...moved, characters: { ...moved.characters, ...Object.fromEntries(ids.map((id) => [id, fed(moved.characters[id])])) } }
-    const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: fedAll.clock }]))
+    const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))
     return { campaign: fedAll, downtime: { ...t.downtime, plans, results: lived.flatMap((l) => l.results) } }
   }
 }

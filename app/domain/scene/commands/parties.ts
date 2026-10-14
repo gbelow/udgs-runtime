@@ -1,15 +1,15 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, Updater } from '../types'
 import { addInstance, makeFightName } from '../../instances'
-import { nextPartyName } from '../../campaign/rules/parties'
+import { getEmptiedParties, nextPartyName } from '../../campaign/rules/parties'
 import { getOpenAction } from '../rules/log'
 import { getSplitChase } from '../rules/chase'
 
 // Of the parties someone has just `left`, those nobody in the fight is in any
 // more are gone from it. A party made and not yet joined stays.
 export function dropEmptyFightParties(state: SceneState, left: readonly string[]): SceneState {
-  const held = new Set(Object.values(state.partyOf))
-  const gone = (pid: string) => pid !== '' && left.includes(pid) && !held.has(pid)
+  const emptied = getEmptiedParties(state.partyOf, left)
+  const gone = (pid: string) => pid !== '' && emptied.includes(pid)
   return {
     ...state,
     parties: Object.fromEntries(Object.entries(state.parties).filter(([pid]) => !gone(pid))),

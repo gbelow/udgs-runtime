@@ -15,7 +15,7 @@ function withPurse(coppers: number): Downtime {
   const dressed = addItemToContainer('Backpack', 'medium', getCatalogItem('Coin Pouch')!)(
     putOnFromCatalog(getCatalogItem('Backpack')!)(putOnFromCatalog(getCatalogItem('Belt')!)(makeCampaignCharacter({ name: 'A' }))),
   )
-  return { campaign: CampaignStateSchema.parse({ characters: { a: receive(coppers)(dressed) } }), downtime: DowntimeStateSchema.parse({}) }
+  return { campaign: CampaignStateSchema.parse({ characters: { a: receive(coppers)(dressed) }, partyOf: { a: 'p' }, parties: { p: { clock: 0, active: true } } }), downtime: DowntimeStateSchema.parse({}) }
 }
 
 const trained = (t: Downtime) => t.campaign.characters.a.trainables.strike
@@ -38,7 +38,7 @@ describe('downtime blocks', () => {
   it('is lost when time passes elsewhere while it is under way', () => {
     const start = training(withPurse(10000))
     const partway = passDays(5, dice)(start)
-    const elsewhere = { ...partway, campaign: passETs(1)(partway.campaign) }
+    const elsewhere = { ...partway, campaign: passETs(1, ['p'])(partway.campaign) }
     const after = passDays(5, dice)(elsewhere)
     expect(trained(after)).toEqual(trained(start))
     expect(after.downtime.plans.a.block).toBeNull()

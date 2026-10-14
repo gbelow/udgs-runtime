@@ -8,8 +8,8 @@ import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getDay, isNight } from '../../campaign/rules/clock'
-import { getAway, getConnectionsFrom, getExposure, getPartyPlayers, getPlace } from '../../campaign/rules/place'
+import { getClockOf, getDay, getPlayingParties, getTimeBar, isNight } from '../../campaign/rules/clock'
+import { getConnectionsFrom, getExposure, getPartyPlayers, getPlace } from '../../campaign/rules/place'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
 export function getExplorationAction(kind: GroupKind): ExplorationAction {
@@ -70,8 +70,9 @@ const RESTS_PER_DAY = 3
 
 // The rests that have healed the character today.
 export function getRestsToday(t: Exploring, id: string): number {
-  const { rests } = t.exploration
-  return rests.day === getDay(t.campaign.clock) ? rests.count[id] ?? 0 : 0
+  const rests = t.exploration.rests[id]
+  const clock = getClockOf(t.campaign, id)
+  return rests && clock !== null && rests.day === getDay(clock) ? rests.count : 0
 }
 
 export function canRestHeal(t: Exploring, id: string): boolean {
@@ -101,7 +102,7 @@ export function isForced(t: Exploring, id: string): boolean {
 // just +5. If the group is without vision, search and travel increases by
 // +10."
 export function getNightDL(state: CampaignState, party: Party): number {
-  return isNight(state.clock, state.dayETs) ? (party.lit ? 5 : 10) : 0
+  return isNight(party.clock, state.dayETs) ? (party.lit ? 5 : 10) : 0
 }
 
 // survival.tex "Exploring and traveling": "the specific knowledge about the
@@ -143,7 +144,7 @@ export function getGroupTest(state: CampaignState, partyId: string, group: Group
 // The forced resters whose group goes away, and who must be left behind,
 // stayed with or carried.
 export function getDecisionsCalled(t: Exploring): string[] {
-  return Object.keys(t.campaign.parties).flatMap((partyId) =>
+  return getPlayingParties(t.campaign).flatMap((partyId) =>
     Object.values(getGroups(t, partyId)).filter((g) => isAway(g.kind)).flatMap((g) => g.members.filter((id) => isForced(t, id))))
 }
 
@@ -172,13 +173,13 @@ function getGroupBar(t: Exploring, partyId: string, group: Group): string | null
   return null
 }
 
-// Why the ET cannot pass now: it passes for everyone, so it waits for anyone
-// in a fight, which is counted in rounds until it is over; every group needs
-// its roller, and every forced rest whose group goes away needs a decision.
+// Why the ET cannot pass now: time must be able to pass (`getTimeBar`), every
+// group needs its roller, and every forced rest whose group goes away needs a
+// decision.
 export function getPassBar(t: Exploring): string | null {
-  const away = getAway(t.campaign)
-  if (away.length > 0) return 'someone is in a fight'
-  for (const partyId of Object.keys(t.campaign.parties)) {
+  const bar = getTimeBar(t.campaign)
+  if (bar) return bar
+  for (const partyId of getPlayingParties(t.campaign)) {
     for (const group of Object.values(getGroups(t, partyId))) {
       const bar = getGroupBar(t, partyId, group)
       if (bar) return bar

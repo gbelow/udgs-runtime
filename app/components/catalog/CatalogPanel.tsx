@@ -1,11 +1,11 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { SchemaForm } from './SchemaForm'
 import { OVERRIDES } from './overrides'
 import { describeSchema } from '../../forms/schemaFields'
 import { CATALOGS, CatalogName } from '../../forms/catalogs'
 import { useCatalogEditor } from '../../hooks/useCatalogEditor'
-import { Button, CatalogList, ListButton } from '../ui'
+import { Button, CatalogList, ConfirmDelete, ListButton } from '../ui'
 
 // One catalog: its entries listed by group on the left, the schema-driven
 // form for the picked or new entry on the right. Every catalog is this same
@@ -13,7 +13,6 @@ import { Button, CatalogList, ListButton } from '../ui'
 export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
   const { label, groups, draft, open, create, edit, save, remove } = useCatalogEditor(catalog)
   const type = useMemo(() => describeSchema(CATALOGS[catalog].schema), [catalog])
-  const [confirm, setConfirm] = useState(false)
 
   return (
     <div className='grid grid-cols-12 gap-2 text-left'>
@@ -30,12 +29,7 @@ export function CatalogPanel({ catalog }: { catalog: CatalogName }) {
               <span className='text-sm font-mono'>{draft.key || '—'}</span>
               <span className='grow' />
               <Button variant='primary' onClick={save}>save</Button>
-              {!draft.fresh && (confirm
-                ? <>
-                    <Button variant='bad' className='bg-bad/15' onClick={async () => { await remove(); setConfirm(false) }}>confirm delete</Button>
-                    <Button onClick={() => setConfirm(false)}>cancel</Button>
-                  </>
-                : <Button variant='bad' onClick={() => setConfirm(true)}>delete</Button>)}
+              {!draft.fresh && <ConfirmDelete remove={remove} />}
             </div>
             <SchemaForm type={type} value={draft.value} onChange={(v) => edit(v as Record<string, unknown>)} overrides={OVERRIDES[catalog]} />
           </>

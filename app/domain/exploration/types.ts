@@ -113,8 +113,9 @@ export const ExplorationStateSchema = z.object({
   resting: z.array(z.string()).default([]),
   // who casts a spell over the coming ET, by caster
   casts: z.record(z.string(), CastPlanSchema).default({}),
-  // the rests that have healed each character on `day`; another day has none
-  rests: z.object({ day: z.number().default(0), count: z.record(z.string(), z.number()).default({}) }).default({ day: 0, count: {} }),
+  // the rests that have healed each character on `day` of their party's
+  // timeline; another day has none
+  rests: z.record(z.string(), z.object({ day: z.number(), count: z.number() })).default({}),
   opening: OpeningSchema.nullable().default(null),
   // what the last ET opened with and what its groups came to
   exhaustionRolls: z.record(z.string(), TestRollSchema).default({}),

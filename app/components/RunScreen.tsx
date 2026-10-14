@@ -13,6 +13,7 @@ import { AbilitySelector } from './AbilitySelector';
 import { SpellSelector } from './SpellSelector';
 import { AfflictionsPannel, CharacteristicTiles, CursePanel, InjuryDials, KnowledgesPanel, MovementTiles, NotesAndSave, PendingPanel, ResourceTiles, SimpleResource, SkillTiles, SpecificKnowledgesPanel, WoundPanel } from './CharacterSheet';
 import { PartiesView } from './PartiesView';
+import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
@@ -52,13 +53,13 @@ const MODES: Record<RunTab, Mode> = {
   },
   exploration: {
     strip: <ExplorationStrip />,
-    views: [{ key: 'parties', node: <PartyCards /> }],
+    views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'plans', node: <PartyCards /> }],
     actions: <ExplorationSection />,
     log: { label: 'Last ET', node: <LastEtLog /> },
   },
   downtime: {
     strip: <DowntimeStrip />,
-    views: [{ key: 'roster', node: <DowntimeRoster /> }],
+    views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'roster', node: <DowntimeRoster /> }],
     actions: <DowntimeActions />,
     log: { label: 'Last days', node: <LastDaysLog /> },
   },

@@ -6,15 +6,13 @@ import { CharacterCreator } from './CharacterCreator';
 import { BreakMe } from './BreakMe';
 import { Sidebar } from './Sidebar';
 import { CatalogEditor } from './catalog/CatalogEditor';
-import { RaceCreator } from './RaceCreator';
-import { MapEditor } from './MapEditor';
+import { CampaignEditor } from './CampaignEditor';
 import { CharacterCreation } from './CharacterCreation';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
   { tab: 'edit', label: 'Character', mobile: true },
-  { tab: 'race', label: 'Races', mobile: false },
-  { tab: 'map', label: 'Map', mobile: false },
+  { tab: 'campaign', label: 'Campaign', mobile: false },
   { tab: 'run', label: 'Run', mobile: false },
   { tab: 'break', label: 'Break Me', mobile: false },
   { tab: 'catalog', label: 'Catalog', mobile: false },
@@ -22,7 +20,7 @@ const TABS = [
 
 export function App(){
 
-  const { tab: selectedGameTab, runTab, inRun, setTab: setSelectedGameTab } = useGameTab()
+  const { tab: selectedGameTab, runTab, inRun, inCatalog, setTab: setSelectedGameTab } = useGameTab()
 
   const [open, setOpen] = useState(false)
 
@@ -32,14 +30,14 @@ export function App(){
         <div className='flex flex-row justify-start items-stretch h-full gap-1'>
           {TABS.map(({ tab, label, mobile }) => (
             <button key={tab} type='button' aria-label={`head_${tab}`}
-              className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${(tab === 'run' ? inRun : selectedGameTab === tab) ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
+              className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${(tab === 'run' ? inRun : tab === 'catalog' ? inCatalog : selectedGameTab === tab) ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
               onClick={() => setSelectedGameTab(tab === 'run' ? runTab : tab)}>{label}</button>
           ))}
         </div>
       </header>
 
       <main className="grid grid-cols-12 w-full h-full">
-      {selectedGameTab == 'catalog' ? (
+      {inCatalog ? (
         <div className="col-span-12 mx-2 text-sm md:text-md">
           <CatalogEditor />
         </div>
@@ -47,13 +45,9 @@ export function App(){
         <div className="col-span-12 mx-2 text-sm md:text-md">
           <CharacterCreation />
         </div>
-      ) : selectedGameTab == 'race' ? (
+      ) : selectedGameTab == 'campaign' ? (
         <div className="col-span-12 mx-2 text-sm md:text-md">
-          <RaceCreator />
-        </div>
-      ) : selectedGameTab == 'map' ? (
-        <div className="col-span-12 mx-2 text-sm md:text-md">
-          <MapEditor />
+          <CampaignEditor />
         </div>
       ) : inRun ? (
         <div className="col-span-12">

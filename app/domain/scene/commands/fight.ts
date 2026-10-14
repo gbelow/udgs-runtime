@@ -31,8 +31,8 @@ export function loadIntoFight(char: CampaignCharacter, newId: () => string, into
   })
 }
 
-export function loadOntoRoster(char: CampaignCharacter, newId: () => string): TableUpdater {
-  return (table) => ({ campaign: addToRoster(char, newId, getTableIds(table))(table.campaign), fight: table.fight })
+export function loadOntoRoster(char: CampaignCharacter, newId: () => string, into?: string): TableUpdater {
+  return (table) => ({ campaign: addToRoster(char, newId, getTableIds(table), into)(table.campaign), fight: table.fight })
 }
 
 // These characters go back to the roster as the fight left them, in the
@@ -55,13 +55,15 @@ export function removeFromFight(id: string): TableUpdater {
 
 // Ends the fight and puts everyone in it back on the roster as the fight left
 // them, in the parties it left them in — whoever joined the fight on its own
-// joins the roster too. The clock moves on by the ETs the table says the scene
-// took, if any.
+// joins the roster too. The clock of every party they come back to moves on
+// by the ETs the table says the scene took, if any.
 export function returnFromFight(ets: number): TableUpdater {
   return (table) => {
     if (getReturnBar(table.fight)) return table
-    const campaign = giveBack(table, Object.values(table.fight.characters))
-    return { campaign: passETs(ets)(campaign), fight: resetCombat(table.fight) }
+    const leaving = Object.values(table.fight.characters)
+    const campaign = giveBack(table, leaving)
+    const parties = [...new Set(leaving.map((c) => campaign.partyOf[c.id]).filter((pid) => pid !== undefined))]
+    return { campaign: passETs(ets, parties)(campaign), fight: resetCombat(table.fight) }
   }
 }
 

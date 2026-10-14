@@ -1,11 +1,13 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { CharacterSelector } from './CharacterSelector'
-import { Button, SectionLabel } from './ui'
-import { useClock } from '../hooks/useParty'
+import { Button, SectionLabel, selectClass } from './ui'
+import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import type { Character } from '../domain/types'
 import type { TestRoll } from '../domain/play/test'
+import type { SyncOption, TimelineView } from '../domain/campaign/projections/timeline'
+import type { ClockView } from '../domain/campaign/projections/clock'
 
 // What the run screen's modes draw alike.
 
@@ -54,10 +56,59 @@ export function RosterChip({ name, active, note, bad = false, disabled = false, 
   )
 }
 
-// The clock everyone out of a fight shares.
-export function ClockLabel({ children }: { children?: ReactNode }){
-  const { day, et, etsPerDay } = useClock()
-  return <span className='text-xs text-muted whitespace-nowrap'>Day <span className='font-mono text-fg'>{day}</span> · ET <span className='font-mono text-fg'>{et}</span>/{etsPerDay}{children}</span>
+// A moment on a timeline: the day, the ET of it, and whether it is night.
+function Moment({ clock, night }: { clock: ClockView, night: boolean }){
+  return <span className='whitespace-nowrap'>Day <span className='font-mono text-fg'>{clock.day}</span> · ET <span className='font-mono text-fg'>{clock.et}</span>/{clock.etsPerDay} · <span className='text-fg'>{night ? 'night' : 'daylight'}</span></span>
+}
+
+// The moments the parties in play are living, each on its own timeline.
+export function ClockLabel(){
+  const moments = useMoments()
+  if (moments.length === 0) return <span className='text-xs text-muted whitespace-nowrap'>no party in play is on a timeline</span>
+  return(
+    <span className='flex flex-row flex-wrap gap-x-3 text-xs text-muted'>
+      {moments.map((m) => (
+        <span key={`${m.clock.day} ${m.clock.et}`} className='whitespace-nowrap'>
+          <Moment clock={m.clock} night={m.night} />{moments.length > 1 || m.parties.length > 1 ? ` (${m.parties.join(', ')})` : ''}
+        </span>
+      ))}
+    </span>
+  )
+}
+
+// When a party is and whether it is in play; the GM brings it to another
+// timeline's time, always forward, reading what that does to it first.
+export function TimelineControl({ timeline }: { timeline: TimelineView }){
+  const { setActive, sync } = usePartyCommands()
+  const [chosen, setChosen] = useState<SyncOption | null>(null)
+  const { name, clock, night, active, options } = timeline
+
+  return(
+    <div className='flex flex-col gap-1'>
+      <div className='flex flex-row flex-wrap gap-1.5 items-center text-xs text-muted'>
+        {clock
+          ? <Moment clock={clock} night={night} />
+          : <span className='text-fg'>outside time</span>}
+        <label className='flex items-center gap-1'>
+          <input type='checkbox' aria-label={`${name} in play`} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
+        </label>
+        {options.length > 0 ?
+          <select aria-label={`${name} sync`} className={selectClass} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
+            <option value=''>sync…</option>
+            {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
+          </select>
+          : null}
+      </div>
+      {active && !clock ? <span className='text-xs text-muted'>outside time, {name} feels no time pass until it is placed on a timeline</span> : null}
+      {chosen ?
+        <div className='flex flex-row flex-wrap gap-1.5 items-center text-xs border border-accent rounded p-1'>
+          <span className='text-fg'>{chosen.warning}</span>
+          <Button size='xs' variant='primary' aria-label={`${name} confirm sync`} onClick={() => { sync(timeline.partyId, chosen.how, chosen.to); setChosen(null) }}>{chosen.how === 'pass' ? 'live it' : 'place'}</Button>
+          <Button size='xs' aria-label={`${name} cancel sync`} onClick={() => setChosen(null)}>cancel</Button>
+        </div>
+        : null}
+    </div>
+  )
 }
 
 // A test as rolled, and what the table noted of it, after what it was for.

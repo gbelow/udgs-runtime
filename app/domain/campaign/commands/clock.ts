@@ -1,5 +1,7 @@
 import type { CampaignCharacter } from '../../types'
 import type { CampaignState, CampaignUpdater } from '../types'
+import { getPartyMembers } from '../rules/place'
+import { withParty } from './parties'
 import { gainHunger, gainThirst } from '../../character/commands/heal'
 import { wearOff } from '../../character/commands/consume'
 import { ETS_PER_DAY, getDaysEnded } from '../rules/clock'
@@ -20,23 +22,55 @@ function healSetWounds(c: CampaignCharacter): CampaignCharacter {
 
 const endDay = (c: CampaignCharacter): CampaignCharacter => healSetWounds(gainThirst(DAILY_THIRST)(gainHunger(DAILY_HUNGER)(c)))
 
-function endDays(state: CampaignState, days: number): CampaignState {
-  if (days <= 0) return state
-  const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) =>
-    [id, Array.from({ length: days }).reduce<CampaignCharacter>((acc) => endDay(acc), c)]))
-  return { ...state, characters }
+// Moves the party's clock on by this many ETs, ending every day it passes
+// on its members on the roster and wearing off what they took. A party
+// outside time feels none of it.
+function passPartyETs(state: CampaignState, partyId: string, ETs: number): CampaignState {
+  const party = state.parties[partyId]
+  if (!party || party.clock === null || ETs <= 0) return state
+  const days = getDaysEnded(party.clock, party.clock + ETs)
+  const lived = getPartyMembers(state, partyId).filter((id) => state.characters[id]).map((id) =>
+    [id, wearOff(ETs)(Array.from({ length: days }).reduce<CampaignCharacter>((acc) => endDay(acc), state.characters[id]))])
+  return {
+    ...state,
+    characters: { ...state.characters, ...Object.fromEntries(lived) },
+    parties: { ...state.parties, [partyId]: { ...party, clock: party.clock + ETs } },
+  }
 }
 
-// Moves the clock on by this many ETs, ending every day it passes on the
-// roster and wearing off what was taken.
-export function passETs(count: number): CampaignUpdater {
+// Moves these parties' clocks on by this many ETs, each along its own
+// timeline.
+export function passETs(count: number, partyIds: readonly string[]): CampaignUpdater {
   return (state) => {
     const ETs = Math.max(0, Math.round(count))
-    if (ETs === 0) return state
-    const ended = endDays(state, getDaysEnded(state.clock, state.clock + ETs))
-    const characters = Object.fromEntries(Object.entries(ended.characters).map(([id, c]) => [id, wearOff(ETs)(c)]))
-    return { ...ended, characters, clock: state.clock + ETs }
+    return partyIds.reduce((s, pid) => passPartyETs(s, pid, ETs), state)
   }
+}
+
+// Brings the party to the ETs reading `clock` without living the time
+// between: a party outside time joins that timeline, one on a timeline skips
+// ahead on it. Time is never turned back.
+export function placeOnTimeline(partyId: string, clock: number): CampaignUpdater {
+  return (state) => {
+    const party = state.parties[partyId]
+    const to = Math.max(0, Math.round(clock))
+    if (!party || (party.clock !== null && to <= party.clock)) return state
+    return withParty(partyId, (p) => ({ ...p, clock: to }))(state)
+  }
+}
+
+// Brings the party to the ETs reading `clock` by living every ET between,
+// forward only.
+export function passTimeTo(partyId: string, clock: number): CampaignUpdater {
+  return (state) => {
+    const from = state.parties[partyId]?.clock ?? null
+    return from === null ? state : passPartyETs(state, partyId, Math.round(clock) - from)
+  }
+}
+
+// Puts the party in play, where time passes for it, or out of it.
+export function setPartyActive(partyId: string, active: boolean): CampaignUpdater {
+  return withParty(partyId, (p) => ({ ...p, active }))
 }
 
 // survival.tex "Night and Darkness": "The day can have any number of periods

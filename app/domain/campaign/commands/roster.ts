@@ -9,12 +9,15 @@ function withoutAP(c: CampaignCharacter): CampaignCharacter {
   return c.resources.AP === 0 ? c : { ...c, resources: { ...c.resources, AP: 0 } }
 }
 
-// The character joins the roster, in the party they were in or another (see
-// `joinParty`), under an id nobody at the table has `taken`.
-export function addToRoster(char: CampaignCharacter, newId: () => string, taken: readonly string[]): CampaignUpdater {
+// The character joins the roster, in the party `into` names or else the one
+// they were in or another (see `joinParty`), under an id nobody at the table
+// has `taken`.
+export function addToRoster(char: CampaignCharacter, newId: () => string, taken: readonly string[], into?: string): CampaignUpdater {
   return (state) => {
     const added = addInstance(withoutAP(char), state.characters, newId, taken)
-    return joinParty(added.id, newId)({ ...state, characters: { ...state.characters, [added.id]: added } })
+    const rostered = { ...state, characters: { ...state.characters, [added.id]: added } }
+    if (into && state.parties[into]) return { ...rostered, partyOf: { ...rostered.partyOf, [added.id]: into } }
+    return joinParty(added.id, newId)(rostered)
   }
 }
 

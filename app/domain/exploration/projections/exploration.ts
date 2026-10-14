@@ -6,7 +6,7 @@ import { getConsumeBar } from '../../item/rules/doses'
 import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
 import type { RollMode } from '../../play/dice'
 import { perPair } from '../../perState'
-import { isNight } from '../../campaign/rules/clock'
+import { getRosterName } from '../../campaign/rules/roster'
 import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
@@ -61,7 +61,6 @@ export type PartyView = {
 export type DecisionView = { id: string; name: string; decision: Decision | null }
 export type PartiesView = {
   map: { name: string; nodes: { id: string; name: string }[] } | null
-  night: boolean
   dayETs: number
   parties: PartyView[]
   decisions: DecisionView[]
@@ -69,7 +68,7 @@ export type PartiesView = {
   castResults: CastResult[]
 }
 
-const nameOf = (state: CampaignState, id: string) => state.characters[id]?.fightName ?? id
+const nameOf = getRosterName
 const nodeName = (state: CampaignState, id: string) => state.map?.nodes[id]?.name ?? id
 
 // What the character spends the coming ET on, by name.
@@ -89,7 +88,6 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
   const t: Exploring = { campaign: state, exploration }
   return {
   map: state.map ? { name: state.map.name, nodes: Object.entries(state.map.nodes).map(([id, n]) => ({ id, name: n.name })) } : null,
-  night: isNight(state.clock, state.dayETs),
   dayETs: state.dayETs,
   parties: Object.entries(state.parties).map(([partyId, party]) => {
     const place = getPlace(state, party)

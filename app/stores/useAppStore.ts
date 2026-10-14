@@ -6,7 +6,7 @@ import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
 
-export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog'
+export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
 
 // The run screen's modes, one per sequence that moves time: each is a tab of
 // its own, so the store that owns the active character stays the tab's.
@@ -15,6 +15,14 @@ export type RunTab = typeof RUN_TABS[number]
 
 export function isRunTab(tab: GameTabs): tab is RunTab {
   return (RUN_TABS as readonly string[]).includes(tab)
+}
+
+// The catalog's editors that hold a sheet of their own are tabs of their own
+// too, for the same reason: the races, made as characters, and the maps.
+const CATALOG_TABS = ['catalog', 'race', 'map'] as const
+
+export function isCatalogTab(tab: GameTabs): boolean {
+  return (CATALOG_TABS as readonly string[]).includes(tab)
 }
 
 // The store that holds each tab's active character: the one being edited, the
@@ -32,6 +40,7 @@ export const TAB_OWNER: Record<GameTabs, TabOwner> = {
   downtime: 'campaign',
   break: 'combat',
   catalog: 'combat',
+  campaign: 'campaign',
 }
 
 export function isFightTab(tab: GameTabs): boolean {

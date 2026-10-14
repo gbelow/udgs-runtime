@@ -1,0 +1,85 @@
+'use client'
+import { useState } from 'react'
+import { Button } from './ui'
+import { CatalogDrawer, TimelineControl } from './RunParts'
+import { CreateParty, GM_BAR, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
+import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
+import { useRole } from '../hooks/useRole'
+import type { RosterMember } from '../domain/campaign/projections/roster'
+
+type Switching = { id: string; name: string; from: string | null }
+
+// The campaign's parties out of a fight, arranged the way the fight's are: a
+// party is made empty and named, filled from the catalog opened beside it,
+// put on a timeline and in play; a member is switched by picking them and
+// then the party to put them in, or a new one, or taken out of every party,
+// where they are outside time. A party earlier on its timeline than the one
+// being left is closed, since time only goes forward.
+export function CampaignParties(){
+  const { parties, unplaced } = useCampaignRoster()
+  const { moveToParty, splitOff, bring, createParty, renameParty } = useCampaignPartyCommands()
+  const { gmTools } = useRole()
+  const [addingTo, setAddingTo] = useState<string | null>(null)
+  const [switching, setSwitching] = useState<Switching | null>(null)
+  const bars = useMoveBars(switching?.id ?? null)
+  const adding = parties.find((p) => p.id === addingTo) ?? null
+  const toggle = (m: RosterMember, from: string | null) => setSwitching(switching?.id === m.id ? null : { id: m.id, name: m.name, from })
+
+  const placeInto = (partyId: string | null) => {
+    if (switching && partyId === null) splitOff(switching.id)
+    else if (switching && partyId !== null) moveToParty(switching.id, partyId)
+    setSwitching(null)
+  }
+
+  return(
+    <div className='flex flex-col gap-2'>
+      <div className='flex flex-row flex-wrap gap-2 items-center'>
+        <CreateParty create={createParty} hint='a new party with nobody in it yet, outside time' />
+        {switching ? <SwitchBanner name={switching.name} cancel={() => setSwitching(null)} /> : null}
+      </div>
+      <div className='flex flex-row gap-3 items-start'>
+        {adding ? <CatalogDrawer label={`adding to ${adding.name}`} close={() => setAddingTo(null)} onSelect={(c) => bring(c, adding.id)} /> : null}
+        <div className='flex flex-row flex-wrap gap-3 items-start flex-1 min-w-0'>
+          {parties.length === 0 ? <span className='text-xs text-muted'>no parties yet: create one, then add characters to it</span> : null}
+          {parties.map((party) => {
+            const away = switching !== null && party.id !== switching.from
+            const bar = away ? bars[party.id] ?? null : null
+            return (
+              <PartyFrame key={party.id} target={away && bar === null} adding={party.id === addingTo} closed={bar} place={() => placeInto(party.id)}>
+                <div className='flex flex-col gap-1' onClick={(e) => e.stopPropagation()}>
+                  <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={!gmTools}
+                    toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} />
+                  <TimelineControl timeline={party.timeline} />
+                </div>
+                {party.members.map((m) => <Member key={m.id} member={m} inParty switching={switching?.id === m.id} toggle={() => toggle(m, party.id)} />)}
+              </PartyFrame>
+            )
+          })}
+          {unplaced.length > 0 ? (
+            <PartyFrame>
+              <span className='text-xs text-muted'>in no party: outside time</span>
+              {unplaced.map((m) => <Member key={m.id} member={m} inParty={false} switching={switching?.id === m.id} toggle={() => toggle(m, null)} />)}
+            </PartyFrame>
+          ) : null}
+          {switching ? <NewPartySlot name={switching.name} onClick={() => placeInto(null)} /> : null}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// A member: a click picks them; the GM switches them to another party or a
+// new one, or takes them out of every party.
+function Member({ member, inParty, switching, toggle }: { member: RosterMember, inParty: boolean, switching: boolean, toggle: () => void }){
+  const { pick, leaveParty } = useCampaignPartyCommands()
+  const { gmTools } = useRole()
+  const bar = gmTools ? null : GM_BAR
+
+  return(
+    <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>
+      <Button size='xs' aria-label={member.name} selected={member.isActive} onClick={() => pick(member.id)}>{member.name}</Button>
+      <Button size='xs' aria-label={`switch ${member.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={toggle}>switch party</Button>
+      {inParty ? <Button size='xs' variant='ghost' className='ml-auto' aria-label={`out of party ${member.name}`} disabled={bar !== null} title={bar ?? 'out of the party: outside time until they join one on a timeline'} onClick={() => leaveParty(member.id)}>×</Button> : null}
+    </div>
+  )
+}

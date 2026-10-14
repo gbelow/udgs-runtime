@@ -337,7 +337,15 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   loadMap: ({ campaign }) => campaignCommands.loadMap({ name: 'other' })(campaign),
   unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
-  passETs: ({ campaign }) => campaignCommands.passETs(12)(campaign),
+  passETs: ({ campaign }) => campaignCommands.passETs(12, ['p'])(campaign),
+  placeOnTimeline: ({ campaign }) => campaignCommands.placeOnTimeline('p', 130)(campaign),
+  passTimeTo: ({ campaign }) => campaignCommands.passTimeTo('p', 130)(campaign),
+  setPartyActive: ({ campaign }) => campaignCommands.setPartyActive('p', false)(campaign),
+  createParty: ({ campaign }) => campaignCommands.createParty('q', 'Q')(campaign),
+  renameParty: ({ campaign }) => campaignCommands.renameParty('p', 'P')(campaign),
+  moveToParty: ({ campaign }) => campaignCommands.moveToParty('a', 'q')(campaignCommands.createParty('q', 'Q')(campaign)),
+  splitOff: ({ campaign }) => campaignCommands.splitOff('a', () => 'q')(campaign),
+  leaveParty: ({ campaign }) => campaignCommands.leaveParty('a')(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'])(t),
   returnFromFight: (t) => campaignCommands.returnFromFight(0)(t),
   checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' })(campaign),
@@ -511,8 +519,8 @@ function combatSubject(): SceneState {
 function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
-    characters: tired, activeCharacterId: 'a', clock: 100, partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
-    parties: { p: { name: 'Party 1', node: 'n1' } },
+    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
+    parties: { p: { name: 'Party 1', node: 'n1', clock: 100, active: true } },
   })
 }
 

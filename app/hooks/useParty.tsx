@@ -1,16 +1,18 @@
 import type { CampaignUpdater } from "../domain/campaign/types";
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from "../domain/exploration/types";
-import { getClockView, type ClockView } from "../domain/campaign/projections/clock";
+import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
+import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
 import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyNode, unloadMap } from "../domain/campaign/commands/parties";
-import { setDayETs } from "../domain/campaign/commands/clock";
+import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
 import { useMapNames } from "./useMap";
 import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
+import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
 
@@ -22,8 +24,19 @@ export function useParties(): PartiesView {
   return getPartiesView(exploring(useCampaignStore.getState()));
 }
 
-export function useClock(): ClockView {
-  return getClockView(useCampaignStore((s) => s.clock));
+// The moments the parties in play are living, gated on a digest since the
+// view is freshly allocated.
+export function useMoments(): MomentView[] {
+  useCampaignStore(getMomentsDigest);
+  return getMoments(useCampaignStore.getState());
+}
+
+// Why the campaign parties in the fight should not meet yet: they are on
+// different timelines.
+export function useFightTimelineClash(): string | null {
+  const fightParties = useCombatStore((s) => s.partyOf);
+  useCampaignStore((s) => s.parties);
+  return getTimelineClash(useCampaignStore.getState(), Object.values(fightParties));
 }
 
 // Why the ET cannot pass now.
@@ -39,7 +52,6 @@ export function useExploration(): ExplorationPanel {
   const c = useCampaignStore(getActiveCharacter);
   useCampaignStore((s) => s.parties);
   useCampaignStore((s) => s.partyOf);
-  useCampaignStore((s) => s.clock);
   useCampaignStore((s) => s.map);
   useCampaignStore((s) => s.exploration);
   return getExplorationPanel(exploring(useCampaignStore.getState()), c?.id ?? null);
@@ -78,6 +90,8 @@ export function usePartyCommands() {
     loadMap: (name: string) => updateCampaignState(name in mapList ? loadMapOf(mapList[name]) : unloadMap),
     setDayETs: (dayETs: number) => updateCampaignState(setDayETs(dayETs)),
     merge: (fromId: string, intoId: string) => updateCampaignState(mergeInto(fromId, intoId)),
+    setActive: (partyId: string, active: boolean) => updateCampaignState(setPartyActive(partyId, active)),
+    sync: (partyId: string, how: 'place' | 'pass', to: number) => updateCampaignState(how === 'place' ? placeOnTimeline(partyId, to) : passTimeTo(partyId, to)),
     addGroup: (partyId: string, kind: GroupKind) => updateExploration(addGroupTo(partyId, kind, newId)),
     removeGroup: (partyId: string, groupId: string) => updateExploration(removeGroupOf(partyId, groupId)),
     setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => updateExploration(setGroupOf(partyId, groupId, settings)),

@@ -11,7 +11,7 @@ import {
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
-import { getDay } from '../../campaign/rules/clock'
+import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
 import { addParty } from '../../campaign/commands/parties'
@@ -83,7 +83,7 @@ function rest(c: CampaignCharacter, exposure: number, bonus: number): CampaignCh
 function openET(t: Exploring, dice: Dice): Exploring {
   const state = t.campaign
   const rolls: Record<string, TestRoll> = {}
-  for (const partyId of Object.keys(state.parties)) {
+  for (const partyId of getPlayingParties(state)) {
     for (const id of getPartyPlayers(state, partyId)) {
       const test = getExhaustionTest(state.characters[id])
       if (test) rolls[id] = toRoll(resolveTest(test, dice))
@@ -334,7 +334,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
 
   const cast = castOver(t, partyId, players, forced, dice)
   const exposure = getRestExposure(t, partyId)
-  const day = getDay(state.clock)
+  const day = getDay(party.clock as number)
   let count: Record<string, number> = {}
   for (const id of players) count[id] = getRestsToday(t, id)
   const characters = { ...state.characters }
@@ -355,15 +355,18 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   for (const [id, landing] of Object.entries(cast.landing)) {
     if (characters[id]) characters[id] = landing.reduce((c, step) => step(c), characters[id])
   }
-  const rests = { day, count: { ...(t.exploration.rests.day === day ? t.exploration.rests.count : {}), ...count } }
+  const rests = { ...t.exploration.rests, ...Object.fromEntries(Object.entries(count).map(([id, n]) => [id, { day, count: n }])) }
   const exploration = { ...t.exploration, rests, camps: { ...t.exploration.camps, [partyId]: camp } }
-  const passed: Exploring = { campaign: { ...state, characters }, exploration }
+  // the party lives the ET out before anyone leaves it, so whoever splits off
+  // goes on from the time it reached
+  const lived = passETs(1, [partyId])({ ...state, characters })
+  const passed: Exploring = { campaign: lived, exploration }
   const members = getPartyMembers(state, partyId)
   if (moves.length === 1 && members.every((id) => moves[0].ids.includes(id))) {
     const node = moves[0].node ?? party.node
     return {
       t: {
-        campaign: { ...passed.campaign, parties: { ...passed.campaign.parties, [partyId]: { ...party, node } } },
+        campaign: { ...passed.campaign, parties: { ...passed.campaign.parties, [partyId]: { ...lived.parties[partyId], node } } },
         exploration: { ...exploration, camps: { ...exploration.camps, [partyId]: CampSchema.parse({ node }) } },
       },
       results,
@@ -372,7 +375,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   }
   const campaign = moves.reduce((s, move) => {
     const newPartyId = newId()
-    const added = addParty(newPartyId, { ...party, node: move.node ?? party.node })(s)
+    const added = addParty(newPartyId, { ...lived.parties[partyId], node: move.node ?? party.node })(s)
     return { ...added, partyOf: { ...added.partyOf, ...Object.fromEntries(move.ids.map((id) => [id, newPartyId])) } }
   }, passed.campaign)
   return { t: { ...passed, campaign }, results, castResults: cast.results }
@@ -391,8 +394,8 @@ function closeET(t: Exploring, opening: Opening, results: GroupResult[], castRes
   }
 }
 
-// survival.tex "Exploration Turn (ET)": the ET passes for everyone on the
-// roster at once. The first press rolls the Will tests it opens with; if one
+// survival.tex "Exploration Turn (ET)": the ET passes at once for every
+// party in play on a timeline, each on its own. The first press rolls the Will tests it opens with; if one
 // forces a rest on someone whose group goes away, the pass waits for the
 // table to decide what happens to them, and the next press plays it out.
 export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
@@ -401,11 +404,10 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
     const opened = t.exploration.opening ? t : openET(t, dice)
     if (getPassBar(opened)) return opened
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
-    const played = Object.keys(opened.campaign.parties).reduce<PartyET>((acc, partyId) => {
+    const played = getPlayingParties(opened.campaign).reduce<PartyET>((acc, partyId) => {
       const next = passParty(acc.t, partyId, opening, dice, newId)
       return { t: next.t, results: [...acc.results, ...next.results], castResults: [...acc.castResults, ...next.castResults] }
     }, { t: opened, results: [], castResults: [] })
-    const closed = closeET(played.t, opening, played.results, played.castResults)
-    return { ...closed, campaign: passETs(1)(closed.campaign) }
+    return closeET(played.t, opening, played.results, played.castResults)
   }
 }

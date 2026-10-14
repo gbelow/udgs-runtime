@@ -123,18 +123,21 @@ export const PartySchema = z.object({
   exposure: z.number().default(0),
   // survival.tex "Night and Darkness": a light source or sight in the dark
   lit: z.boolean().default(false),
+  // the ETs since the campaign began on this party's own timeline; none for
+  // a party outside time, such as an encounter, until it is placed on one
+  clock: z.number().nullable().default(null),
+  // in play: only an active party on a timeline feels time pass
+  active: z.boolean().default(false),
 })
 export type Party = z.infer<typeof PartySchema>
 
 // The campaign above every scene: the roster of everyone in play who is not
-// in a fight, the parties they are in and where, and the clock all of them
-// share. What a mode keeps for itself (exploration's plans and camps, the
-// fight's log) is not here.
+// in a fight, and the parties they are in, where, and when, each party on a
+// timeline of its own. What a mode keeps for itself (exploration's plans and
+// camps, the fight's log) is not here.
 export const CampaignStateSchema = z.object({
   characters: z.record(z.string(), CampaignCharacterSchema).default({}),
   activeCharacterId: z.string().nullable().default(null),
-  // the game time since the campaign began, in seconds
-  clock: z.number().default(0),
   // survival.tex "Night and Darkness": "The standard is 4 periods of day and
   // 2 of night"; the ETs of a day that are daylight, night being the rest
   dayETs: z.number().default(4),
@@ -155,3 +158,8 @@ export type CampaignUpdater = (state: CampaignState) => CampaignState
 // one the fight made, which joins the campaign where `from` is. Either is
 // called `name` from then on.
 export type Homecoming = { partyId: string; name: string; from?: Party }
+
+// What a campaign keeps of itself when it is saved: everything but its
+// characters, which are saved apart and named by id, and who is picked.
+export const CampaignRecordSchema = CampaignStateSchema.omit({ characters: true, activeCharacterId: true })
+export type CampaignRecord = z.infer<typeof CampaignRecordSchema>
