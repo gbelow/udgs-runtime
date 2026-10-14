@@ -10,7 +10,6 @@ import { GRAPPLE_MANEUVERS } from '../../lists'
 import { hasAffliction } from '../../character/rules/afflictions'
 import { ActionCost, getActionCost } from '../../character/rules/actionCosts'
 import { canAfford } from '../../character/rules/cost'
-import { canSurge, getSurged } from '../../character/rules/surge'
 import { hasGrant } from '../../character/rules/effects'
 import { getMovementOptions, hasJumpSpace, isMidJump } from './move'
 import { getHangingFall } from './board/cliff'
@@ -35,7 +34,7 @@ import { getReloadCost } from '../../character/rules/gear'
 import { getSpellOptions } from './cast'
 import { isSpellKey } from '../../spells'
 import { getFireAgainBar, getFireAgainOptions, getRepeatCost } from './fireAgain'
-import { getFleeBarFor, getSurgeBarFor } from './surge'
+import { getFleeBarFor, getSurgeBarFor, getSurgeProbes } from './surge'
 import { getFleeBar, getFleeCost } from './flee'
 import { isJoinInRange } from './coordinated'
 import { findPrepared, getPreparedBar } from './prepared'
@@ -60,7 +59,8 @@ export type ActionOption = {
   reactionTo: string | null
   // a reaction the character has already declared
   chosen: boolean
-  // the surge to make first, for a reaction the character can pay only with it
+  // the surge that opens it, where only a surge does: made first, for a
+  // reaction; to be made by the character, for an action of their own
   surge: SurgeKind | null
 }
 
@@ -131,10 +131,14 @@ function computeAvailableActions(state: SceneState, characterId: string): Action
   if (!c) return []
   const open = getOpenAction(state)
 
-  if (!open) return closeOwn(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))
+  if (!open) return withSurges(state, c, listOwn(state, c), (s) => listOwn(s, s.characters[c.id]), false)
 
   if (!isAnswerable(state, open) || !canAnswer(open, characterId)) return []
-  return withReactionSurge(state, c, open)
+  return withSurges(state, c, getAnswers(state, c, open), (s) => getAnswers(s, s.characters[c.id], open), true)
+}
+
+function listOwn(state: SceneState, c: CampaignCharacter): ActionOption[] {
+  return closeOwn(state, c, Object.values(OWN_OPTIONS).flatMap((own) => own(state, c)))
 }
 
 // What stands closed among the character's own actions: who they are, what they
@@ -152,19 +156,20 @@ function closeWhileHolding(state: SceneState, c: CampaignCharacter, options: Act
   return held ? closeWith(options, () => `holding ${getActionDef(held.kind).label}`) : options
 }
 
-// combat.tex "Action surge": the reaction surge is made outside one's own turn,
-// so a reaction the character cannot pay now is still open to them if the
-// surge would let them — the surge made first, then the reaction. There are
-// no surges before the combat has started.
-function withReactionSurge(state: SceneState, c: CampaignCharacter, open: RootAction): ActionOption[] {
-  const now = getAnswers(state, c, open)
-  if (now.every((o) => o.available) || !isCombatStarted(state) || !canSurge('reaction')(c)) return now
-  const surged = getSurged('reaction')(c)
-  const after = getAnswers({ ...state, characters: { ...state.characters, [c.id]: surged } }, surged, open)
+// combat.tex "Action surge": an option closed now that a surge the character
+// may make now would open is marked with that surge (`getSurgeProbes`). A
+// reaction so marked is open — the surge made first, then the reaction; an
+// action of their own stays closed until they make it.
+function withSurges(state: SceneState, c: CampaignCharacter, now: ActionOption[], list: (state: SceneState) => ActionOption[], opens: boolean): ActionOption[] {
+  if (now.every((o) => o.available)) return now
+  const probes = getSurgeProbes(state, c).map((p) => ({ kind: p.kind, options: list(p.state) }))
   return now.map((o) => {
     if (o.available) return o
-    const viaSurge = after.find((a) => a.available && sameDraft(a.draft, o.draft))
-    return viaSurge ? { ...viaSurge, surge: 'reaction' } : o
+    for (const { kind, options } of probes) {
+      const viaSurge = options.find((a) => a.available && sameDraft(a.draft, o.draft))
+      if (viaSurge) return opens ? { ...viaSurge, surge: kind } : { ...o, surge: kind, reason: `needs the ${kind} surge` }
+    }
+    return o
   })
 }
 

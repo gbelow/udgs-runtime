@@ -18,6 +18,7 @@ import { isSheltered } from './chase'
 import { getMoveFacts, getMovePrice, hasJumpSpace, isPathLegal, needsBalanceTest } from './move'
 import { isTrivialClimb, needsClimbTest } from './board/cliff'
 import { canAfford, canHold } from '../../character/rules/cost'
+import { getSurgeBarFor, getSurgeProbes } from './surge'
 import { getHeldOf, getHeldRefund, requiresConcentration } from './hold'
 import { hasGrant } from '../../character/rules/effects'
 import { getChargeOptions, getExplosionPayload, isAimed, isSpray } from './explosion'
@@ -37,7 +38,7 @@ import { canPickUp, getReachableFloor } from './floor'
 import { getCellTargets, getFloorTargets } from './floorAttack'
 import { canThrowItem, findThrowSource, getThrowCost, isThrowCell } from './throw'
 import { findWeaponRow, getRowStack, isRowUsable } from './weaponRow'
-import { getAttackVariant, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
+import { getAttackVariant, getFreeAttackOptions, getOpportunityAction, explosionBlockRows, getOpportunityStrike, guardRows, isAimOnTarget, isShotLoaded } from './attack'
 import { canAimCast, canSaveGraze, getImprovementOptions, getSpellBoardBar, isTargeted } from './cast'
 import { isSuggestionComplete } from './moraleSpell'
 import { isCompelledAway, isCompelledTarget } from './stress'
@@ -365,6 +366,31 @@ export function getPayableCost(state: SceneState, action: Action): ActionCost | 
   const c = action.reactionTo ? withRefund(state, actor, action.reactionTo) : actor
   if (getActionDef(action.kind).rest) return canOverdraw(c, cost, isCombatStarted(state), getIncomingAP(state)) ? cost : null
   return canAfford(c, cost, isCombatStarted(state)) ? cost : null
+}
+
+// Whether the actor could pay for the action opened for them in some way they
+// may still declare it, now or after a surge they may make now whose AP may
+// pay for it (combat.tex "Action surge").
+export function canPayOpened(state: SceneState, action: Action): boolean {
+  const c = state.characters[action.actorId]
+  if (!c) return false
+  if (canPayAsDeclarable(state, action)) return true
+  return getSurgeProbes(state, c).some((p) => getSurgeBarFor(p.state, p.state.characters[c.id], action.kind) === null && canPayAsDeclarable(p.state, action))
+}
+
+// A strike with no row picked yet, with any row that reaches its target;
+// anything else as it stands, or, while it is too incomplete to price, as
+// payable.
+function canPayAsDeclarable(state: SceneState, action: Action): boolean {
+  const c = state.characters[action.actorId]
+  if (!c) return false
+  if (action.kind === 'strike' && action.weaponKey === '') {
+    return getFreeAttackOptions(state, c, 'strike').some((o) => {
+      const strike = { ...action, weaponKey: o.weaponKey, attack: o.attack, variant: o.variant }
+      return (!action.targetId || isInReach(state, strike, action.targetId)) && getPayableCost(state, strike) !== null
+    })
+  }
+  return getOwnCost(state, action) === null || getPayableCost(state, action) !== null
 }
 
 // combat.tex "Concentration": "If any condition for the completion of the

@@ -1,10 +1,11 @@
-import type { CampaignCharacter } from '../../types'
+import type { CampaignCharacter, SurgeKind } from '../../types'
 import type { ActionKind, SceneState } from '../types'
 import { SURGES, type SurgeAllowance } from '../../tables'
-import { EarmarkedSurge, getBindingSurge, getSurgeAPLeft } from '../../character/rules/surge'
+import { surgeKinds } from '../../lists'
+import { EarmarkedSurge, canSurge, getBindingSurge, getSurgeAPLeft, getSurged } from '../../character/rules/surge'
 import { ACTIONS, isReaction } from './actionCatalog'
 import { isInGrapple } from './partners'
-import { isInTurn } from './turn'
+import { getSurgeTurnBar, isInTurn } from './turn'
 
 // combat.tex "Push and drag": moving with a grapple, which a surge counts as
 // an action within a grapple, not as movement (the table's ruling)
@@ -39,4 +40,14 @@ export function getFleeBarFor(state: SceneState, c: CampaignCharacter, kind: Act
   if (!state.fleeing || !isInTurn(state, c.id)) return null
   if (!allows(state, c, 'movement', kind)) return 'fleeing'
   return getSurgeAPLeft(c) > 0 ? null : 'flee surge spent'
+}
+
+// combat.tex "Action surge": each surge the character may make now, with the
+// fight as it would leave them — what an action closed to them now is
+// weighed against, to say whether a surge would open it.
+export function getSurgeProbes(state: SceneState, c: CampaignCharacter): { kind: SurgeKind; state: SceneState }[] {
+  return surgeKinds.flatMap((kind) => {
+    if (!canSurge(kind)(c) || getSurgeTurnBar(state, c.id, kind)) return []
+    return [{ kind, state: { ...state, characters: { ...state.characters, [c.id]: getSurged(kind)(c) } } }]
+  })
 }

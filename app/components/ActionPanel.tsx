@@ -62,9 +62,6 @@ export function ActionPanel(){
       pending={step === 'react'}
       actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
-      {declared && open.spawned && open.flee === null && !open.required ? (
-        <div><Button size='xs' variant='ghost' aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button></div>
-      ) : null}
       {declared && open.required ? <span className='text-xs text-muted'>prepared: it must be done</span> : null}
 
       {view.prepare ? <Preparation view={view.prepare} onAmend={amend} onSpell={cast} onExtend={extend} /> : null}
@@ -254,7 +251,12 @@ export function ActionPanel(){
       {declared && open.score.terms.length > 0 ? <Test open={open} /> : null}
 
       {declared ? (
-        <div><Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button></div>
+        <div className='flex flex-row flex-wrap gap-1'>
+          <Button variant='primary' aria-label='commit action' disabled={!view.canCommit} title={view.holds ? 'not enough AP: it is held over to the next round' : step && !view.canCommit ? STEP_LABEL[step] : undefined} onClick={commit}>{view.holds ? 'hold' : 'commit'}</Button>
+          {open.spawned && open.flee === null && !open.required ? (
+            <Button aria-label='withdraw reaction' onClick={skip}>{open.label === 'move' ? 'stay put' : `skip the ${open.label}`}</Button>
+          ) : null}
+        </div>
       ) : null}
 
       {step === 'react' ? (
@@ -558,6 +560,7 @@ function OptionButton({ option, active = false, onClick }: { option: ActionOptio
       <Button size='xs' selected={active}
         disabled={!option.available} onClick={onClick}>
         {option.label} <Cost cost={option.cost} />
+        {option.surge ? <span className='ml-1 text-accent'>{option.surge} surge</span> : null}
       </Button>
     </Closed>
   )

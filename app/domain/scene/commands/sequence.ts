@@ -4,7 +4,7 @@ import { getOpenAction, isForgone } from '../rules/log'
 import { getSettled } from '../rules/settle'
 import { getSpellTestTargets, isAreaSpell, opensExplosion } from '../rules/cast'
 import { getDefaultAim, isStoppedByGuard } from '../rules/attack'
-import { getTargetIds, hasPostChoice } from '../rules/action'
+import { canPayOpened, getTargetIds, hasPostChoice } from '../rules/action'
 import { getNextShare, getNextSwept, isSweep } from '../rules/sweep'
 import { findObject, getBlastOf, getImpactExplosion, isSpray } from '../rules/explosion'
 import { getFloorObject, getAttackExplosion } from '../rules/floorAttack'
@@ -196,9 +196,10 @@ function goOff(root: ExplosionAction, newId: () => string): Action {
 // finished first; and on top, the fall a move ended in.
 // A voided action generates nothing (the table's ruling: no follow-ups for
 // an interrupted action) but what a reaction opens `evenIfVoided`, and none
-// is offered to one the action interrupted (`isInterruptedBy`).
+// is offered to one the action interrupted (`isInterruptedBy`), nor to one
+// who could not pay for it (`canPayOpened`).
 export function getFollowUps(state: SceneState, root: RootAction, newId: () => string): Action[] {
-  return generateFollowUps(state, root, newId).filter((a) => a.step !== 'define' || !isInterruptedBy(state, root, a.actorId))
+  return generateFollowUps(state, root, newId).filter((a) => a.step !== 'define' || (!isInterruptedBy(state, root, a.actorId) && canPayOpened(state, a)))
 }
 
 function generateFollowUps(state: SceneState, root: RootAction, newId: () => string): Action[] {

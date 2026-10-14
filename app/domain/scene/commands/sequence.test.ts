@@ -683,6 +683,29 @@ describe('a disarm an intercept opens', () => {
     expect(getOwnCost(s, opened!)).toEqual({ AP: 1, STA: 1 })
   })
 
+  // a defender with no STA was offered the disarm, could not commit it, and
+  // was left holding it
+  it('is not opened to a defender who cannot pay for it', () => {
+    const start = facingOff()
+    const broke = { ...start, characters: { ...start.characters, def: { ...start.characters.def, resources: { ...start.characters.def.resources, STA: 0 } } } }
+    const intercept = getAvailableActions(broke, 'def').find((o) => o.draft.kind === 'intercept')!
+    const declared = declareReaction('def', intercept.draft, newId)(broke)
+    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    expect(getOpenAction(s)).not.toMatchObject({ kind: 'grapple', maneuver: 'disarm' })
+  })
+
+  // combat.tex "Action surge": the reaction surge is made outside one's own
+  // turn, so a defender out of AP may still pay for the disarm with it
+  it('is opened to a defender whose surge would pay for it', () => {
+    const start = facingOff()
+    const spent = { ...start, characters: { ...start.characters, def: { ...start.characters.def, resources: { ...start.characters.def.resources, AP: 3 } } } }
+    const intercept = getAvailableActions(spent, 'def').find((o) => o.draft.kind === 'intercept')!
+    const declared = declareReaction('def', intercept.draft, newId)(spent)
+    const s = resolveAction(newId)(rollAction(() => MISS, newId)(declared))
+    expect(s.characters.def.resources.AP).toBe(0)
+    expect(getOpenAction(s)).toMatchObject({ kind: 'grapple', maneuver: 'disarm' })
+  })
+
   it('may be passed up, leaving the dagger where it is', () => {
     const start = facingOff()
     const intercept = getAvailableActions(start, 'def').find((o) => o.draft.kind === 'intercept')!
