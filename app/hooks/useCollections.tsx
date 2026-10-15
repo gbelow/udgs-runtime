@@ -51,7 +51,7 @@ export function useCollectionEditor(kind: CatalogKind) {
 // list of keys, keeping `current` where it is one of them, so a picked value
 // stays shown.
 export type CollectionFilter = {
-  collections: CollectionView[]; chosen: string; choose: (id: string) => void;
+  collections: CollectionView[]; chosen: string; choose: (id: string) => void; keys: string[];
   all: boolean; has: (key: string) => boolean; keep: (keys: string[], current?: string | null) => string[];
 };
 
@@ -64,7 +64,7 @@ export function useCollectionFilter(...kinds: CatalogKind[]): CollectionFilter {
   const has = useCallback((key: string) => keys.has(key), [keys]);
   const keep = useCallback((list: string[], picked?: string | null) =>
     list.filter((key) => keys.has(key) || key === picked), [keys]);
-  return { collections, chosen: current.id, choose, all: current.id === ALL_ENTRIES, has, keep };
+  return { collections, chosen: current.id, choose, keys: current.keys, all: current.id === ALL_ENTRIES, has, keep };
 }
 
 // The GM's own collections, made, named, filled and thrown away; they are

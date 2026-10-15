@@ -22,6 +22,10 @@ export const knowledges_list = [
   'animal handling',
 ] as const
 
+// story.tex "Specific Knowledge": the kinds its examples name, and a free
+// kind for whatever else.
+export const SPECIFIC_KNOWLEDGE_KINDS = ['location', 'region', 'language', 'art', 'faction', 'religion', 'animal handling', 'driving', 'free'] as const
+
 // creating.tex "Convictions" — "A character must adopt one worldview
 // conviction and one temperament conviction"; which is which is the heading of
 // each conviction in abilities.tex.

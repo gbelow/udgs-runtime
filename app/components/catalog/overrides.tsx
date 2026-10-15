@@ -140,4 +140,5 @@ export const OVERRIDES: Record<CatalogName, Overrides> = {
   terrains: {
     knowledge: suggesting(() => knowledges_list),
   },
+  knowledges: { description: textarea },
 }

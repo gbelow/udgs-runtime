@@ -7,6 +7,7 @@ import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
 import { perPair, perState } from '../../perState'
 import { describeOutcome } from '../../play/test'
 import { formatMoney, getPayable } from '../../item/rules/money'
+import { getLearnableKnowledges } from '../../character/rules/knowledge'
 import {
   getActivity, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
   getDowntimeHealing, getJobTraining, getLivingCost, getLivingExposure, getPlan, getPlanDays, getPlanExposure, getSelfTrainingTest, getSettlement,
@@ -48,7 +49,7 @@ export type DowntimeCharacterView = {
   // the activity the character is on, and the target and way of a training
   activity: Activity | null
   training: { id: string; withTrainer: boolean } | null
-  // the specific knowledges held, for a learning test to raise
+  // the specific knowledges a learning test can raise, held and catalogued
   specific: string[]
 }
 export type TrainingOption = {
@@ -133,7 +134,7 @@ function characterView(t: Downtime, id: string, days: number): DowntimeCharacter
     block: plan.block ? blockView(c, plan.block, plan.elapsed) : null,
     activity: getActivity(plan),
     training: plan.block?.kind === 'training' || plan.block?.kind === 'self' ? { id: targetId(plan.block.target), withTrainer: plan.block.kind === 'training' } : null,
-    specific: Object.keys(c.specificKnowledges),
+    specific: getLearnableKnowledges(c),
   }
 }
 

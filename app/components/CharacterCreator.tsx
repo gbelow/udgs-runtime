@@ -7,7 +7,7 @@ import { ContainerPanel } from './ContainerPanel';
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { Button, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
+import { Button, Combobox, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
 import { useCollectionFilter } from '../hooks/useCollections';
 import { MovementPanel } from './MovementPanel';
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
@@ -295,6 +295,7 @@ function FormalKnowledgeItem({ knowledgeKey }:{ knowledgeKey: keyof Knowledges }
 function SpecificKnowledgePanel(){
   const { names, add } = useSpecificKnowledges()
   const [customName, setCustomName] = useState('')
+  const filter = useCollectionFilter('knowledges')
 
   const handleAdd = () => {
     add(customName)
@@ -305,8 +306,9 @@ function SpecificKnowledgePanel(){
     <div className='flex flex-col gap-1'>
       <SectionLabel>Specific knowledge</SectionLabel>
       <div className='flex flex-row flex-wrap gap-2 items-center'>
-        <TextInput className='w-40' placeholder='a place, a language…' value={customName} onChange={(e) => setCustomName(e.target.value)} />
+        <Combobox className='w-40' placeholder='a place, a language…' value={customName} options={filter.keys} onChange={setCustomName} />
         <Button onClick={handleAdd}>add</Button>
+        <CollectionSelect label='knowledge collection' filter={filter} />
       </div>
       <Tiles>
         {names.map(name => (

@@ -136,7 +136,7 @@ export const PartySchema = z.object({
 export type Party = z.infer<typeof PartySchema>
 
 // The catalogs a collection lists entries of.
-export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains'] as const
+export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains', 'knowledges'] as const
 export const CatalogKindSchema = z.enum(CATALOG_KINDS)
 export type CatalogKind = z.infer<typeof CatalogKindSchema>
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
+import { ABILITY_SECTIONS, AMMO_KINDS, ARMOR_PROPERTIES, ATTACK_TYPES, DEFENSES, EDGES, FUELS, GRAPPLE_MANEUVERS, HANDS, HEAVY_MAX_DEGREE, HIT_LOCATIONS, HOP_PURCHASES, ITEM_TYPES, knowledges_list, LIMIT_STRESS_ACTIONS, SPECIFIC_KNOWLEDGE_KINDS, MATERIALS, MELEE_RANGES, MOVEMENT_KINDS, PART_FLAGS, POSTURES, RANGES, TERRAIN_BRUSHES, WEAPON_PROPERTIES, WOUND_EFFECTS } from './lists'
 import { ACTION_COSTS, AFFLICTIONS, ActionKind, MOVEMENT_BLOCKS, PART_PRESETS, SHOTS, ShotKind } from './tables'
 
 const num = z.number()
@@ -118,6 +118,13 @@ export type Knowledges = z.infer<typeof KnowledgesSchema>
 // through learning tests, never with XP, and no name is a formal knowledge's.
 export const SpecificKnowledgesSchema = z.record(z.string(), z.number()).default({})
 export type SpecificKnowledges = z.infer<typeof SpecificKnowledgesSchema>
+
+// A catalog entry for a specific knowledge, filed under its kind.
+export const SpecificKnowledgeEntrySchema = z.object({
+  name: z.string().default(''),
+  kind: z.enum(SPECIFIC_KNOWLEDGE_KINDS).default('free'),
+  description: z.string().default(''),
+})
 
 // ── merged whole ────────────────────────────────────────
 export const TrainablesSchema = SkillsSchema

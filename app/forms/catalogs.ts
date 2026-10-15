@@ -1,8 +1,9 @@
 import { z } from 'zod'
 import { TerrainSchema, type CatalogKind } from '../domain/campaign/types'
 import type { CatalogRow } from '../domain/campaign/projections/collections'
-import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
+import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpecificKnowledgeEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
+import { isSpecificKnowledgeName, knowledgeName } from '../domain/character/rules/knowledge'
 import abilities from '../assets/abilities.json'
 import spells from '../assets/spells.json'
 import weapons from '../assets/weapons.json'
@@ -11,6 +12,7 @@ import ammo from '../assets/ammo.json'
 import items from '../assets/items.json'
 import containers from '../assets/containers.json'
 import terrains from '../assets/terrains.json'
+import knowledges from '../assets/knowledges.json'
 
 // The editable catalogs: one JSON file under app/assets each, its schema,
 // and how an entry is keyed and listed. The editor, the save action and the
@@ -60,6 +62,12 @@ export const CATALOGS = {
   terrains: {
     label: 'Terrains', file: 'terrains.json', schema: TerrainSchema, data: terrains,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
+  },
+  // keyed as a character holds it, so named as one can be
+  knowledges: {
+    label: 'Specific knowledges', file: 'knowledges.json', data: knowledges,
+    schema: SpecificKnowledgeEntrySchema.refine((e) => isSpecificKnowledgeName(e.name), { message: "a specific knowledge needs a name that is not a formal knowledge's", path: ['name'] }),
+    keyOf: (e) => knowledgeName(text(e, 'name')), nameOf: (e) => text(e, 'name'), groupOf: (e) => text(e, 'kind'),
   },
 } satisfies Partial<Record<CatalogKind, CatalogSpec>>
 
