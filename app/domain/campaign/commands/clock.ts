@@ -4,7 +4,8 @@ import { getPartyMembers } from '../rules/place'
 import { withParty } from './parties'
 import { gainHunger, gainThirst } from '../../character/commands/heal'
 import { wearOff } from '../../character/commands/consume'
-import { ETS_PER_DAY, getDaysEnded } from '../rules/clock'
+import { ETS_PER_DAY, describeClock, getDaysEnded } from '../rules/clock'
+import { record } from './journal'
 
 // survival.tex "Day": "Every end of day, characters get +2 hunger and +2
 // thirst".
@@ -55,7 +56,8 @@ export function placeOnTimeline(partyId: string, clock: number): CampaignUpdater
     const party = state.parties[partyId]
     const to = Math.max(0, Math.round(clock))
     if (!party || (party.clock !== null && to <= party.clock)) return state
-    return withParty(partyId, (p) => ({ ...p, clock: to }))(state)
+    const from = party.clock === null ? 'outside time' : describeClock(party.clock)
+    return record({ kind: 'sync', party: partyId, title: `placed at ${describeClock(to)}`, lines: [`from ${from}, without living the time between`] })(withParty(partyId, (p) => ({ ...p, clock: to }))(state))
   }
 }
 
@@ -64,7 +66,9 @@ export function placeOnTimeline(partyId: string, clock: number): CampaignUpdater
 export function passTimeTo(partyId: string, clock: number): CampaignUpdater {
   return (state) => {
     const from = state.parties[partyId]?.clock ?? null
-    return from === null ? state : passPartyETs(state, partyId, Math.round(clock) - from)
+    const to = Math.round(clock)
+    if (from === null || to <= from) return state
+    return record({ kind: 'sync', party: partyId, title: `lived until ${describeClock(to)}`, lines: [`from ${describeClock(from)}`] })(passPartyETs(state, partyId, to - from))
   }
 }
 

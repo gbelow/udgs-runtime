@@ -5,6 +5,7 @@ import { getConsume, getDosesLeft } from '../../item/rules/consumables'
 import { getConsumeBar } from '../../item/rules/doses'
 import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
 import type { RollMode } from '../../play/dice'
+import { describeOutcome, describeRoll } from '../../play/test'
 import { perPair } from '../../perState'
 import { getRosterName } from '../../campaign/rules/roster'
 import { getPlaceKey } from '../../campaign/projections/maps'
@@ -65,8 +66,8 @@ export type PartiesView = {
   dayETs: number
   parties: PartyView[]
   decisions: DecisionView[]
-  results: GroupResult[]
-  castResults: CastResult[]
+  // what the last ET came to, a line each
+  lastET: string[]
 }
 
 const nameOf = getRosterName
@@ -118,8 +119,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
-  results: exploration.results,
-  castResults: exploration.castResults,
+  lastET: getETResultLines(exploration.results, exploration.castResults, true),
   }
 })
 
@@ -288,4 +288,21 @@ function getCastPanel(t: Exploring, id: string): CastPanel {
       medicine: false,
     },
   }
+}
+
+// What an ET's groups and casts came to, a line each and one indented for
+// each event met and each test made against a cast; `named` puts the party
+// first, for an ET read across parties.
+export function getETResultLines(results: GroupResult[], castResults: CastResult[], named = false): string[] {
+  const of = (party: string) => (named ? `${party} · ` : '')
+  return [
+    ...results.flatMap((r) => [
+      `${of(r.party)}${r.kind} (${r.members.join(', ')})${describeOutcome(r.roll, r.note)}`,
+      ...r.events.map((e) => `  ${e.name} vs DL ${e.DL}, ${e.degree}${e.outcome ? `: ${e.outcome}` : ''}`),
+    ]),
+    ...castResults.flatMap((r) => [
+      `${of(r.party)}${r.caster} cast ${r.spell}${r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}${describeOutcome(r.roll, r.note)}`,
+      ...r.tests.map((test) => `  ${test.name}: ${describeRoll(test.roll)}`),
+    ]),
+  ]
 }

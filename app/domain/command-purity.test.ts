@@ -20,6 +20,7 @@ import * as fightModule from './scene/commands/fight'
 import * as clockModule from './campaign/commands/clock'
 import * as partiesModule from './campaign/commands/parties'
 import * as collectionsModule from './campaign/commands/collections'
+import * as journalModule from './campaign/commands/journal'
 import * as mapModule from './campaign/commands/map'
 import { CampaignStateSchema, CrawlMapSchema, type CampaignState, type CrawlMap } from './campaign/types'
 import type { Table } from './scene/types'
@@ -44,7 +45,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...collectionsModule }
+const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...collectionsModule, ...journalModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
 
@@ -341,6 +342,9 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   renameCollection: ({ campaign }) => campaignCommands.renameCollection('c', 'D')(campaign),
   removeCollection: ({ campaign }) => campaignCommands.removeCollection('c')(campaign),
   setInCollection: ({ campaign }) => campaignCommands.setInCollection('c', 'Wolf', false)(campaign),
+  record: ({ campaign }) => campaignCommands.record({ kind: 'et', party: 'p', title: 'an ET' })(campaign),
+  writeNote: ({ campaign }) => campaignCommands.writeNote('p', 'a note', true)(campaign),
+  removeEntry: ({ campaign }) => campaignCommands.removeEntry('1')(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
   passETs: ({ campaign }) => campaignCommands.passETs(12, ['p'])(campaign),
   placeOnTimeline: ({ campaign }) => campaignCommands.placeOnTimeline('p', 130)(campaign),
@@ -355,6 +359,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   returnFromFight: (t) => campaignCommands.returnFromFight(['a'], 0)(t),
   returnPartyFromFight: (t) => campaignCommands.returnPartyFromFight('p', 0)(t),
   sendPartyToFight: (t) => campaignCommands.sendPartyToFight('p')(t),
+  saveFightLog: (t) => campaignCommands.saveFightLog(t),
   checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' })(campaign),
   loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
   loadOntoRoster: (t) => campaignCommands.loadOntoRoster(characterSubject(), () => 'issued')(t),
@@ -526,7 +531,7 @@ function combatSubject(): SceneState {
 function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
-    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, collections: { c: { kind: 'characters', name: 'C', keys: ['Wolf'] } },
+    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, collections: { c: { kind: 'characters', name: 'C', keys: ['Wolf'] } }, journal: [{ id: '1', party: 'p', clock: 100, lines: ['x'] }],
     parties: { p: { name: 'Party 1', at: { map: 'm', node: 'n1' }, clock: 100, active: true } },
   })
 }

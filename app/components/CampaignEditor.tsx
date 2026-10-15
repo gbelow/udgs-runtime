@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
+import { CampaignJournal } from './Journal'
 import { useCampaignFiles, useCampaignMaps } from '../hooks/useCampaign'
 import { useCollectionFilter } from '../hooks/useCollections'
 
@@ -47,6 +48,8 @@ export function CampaignEditor() {
         <CampaignMaps />
         <SectionLabel>Parties</SectionLabel>
         <CampaignParties />
+        <SectionLabel>Journal</SectionLabel>
+        <CampaignJournal />
       </div>
     </div>
   )

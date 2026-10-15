@@ -51,6 +51,13 @@ export function describeClock(clock: number): string {
   return `day ${getDay(clock) + 1}, ET ${(clock % ETS_PER_DAY) + 1}`
 }
 
+// A stretch of time as days and ETs.
+export function describeSpan(ETs: number): string {
+  const days = Math.floor(ETs / ETS_PER_DAY)
+  const rest = ETs % ETS_PER_DAY
+  return [days ? `${days} day${days === 1 ? '' : 's'}` : '', rest ? `${rest} ET${rest === 1 ? '' : 's'}` : ''].filter(Boolean).join(' ')
+}
+
 // Why these parties should not meet yet: they are on different timelines,
 // and the table syncs them first. A party outside time meets anyone.
 export function getTimelineClash(state: CampaignState, partyIds: readonly string[]): string | null {

@@ -11,6 +11,11 @@ export function getReturnBar(fight: SceneState): string | null {
   return getOpenAction(fight) ? 'an action is being played out' : null
 }
 
+// Why the fight's log cannot be saved to the journal now, or null.
+export function getSaveLogBar(fight: SceneState): string | null {
+  return fight.landed.length === 0 ? 'nothing has been played out yet' : null
+}
+
 // Why the combat cannot end now, or null.
 export function getEndCombatBar(fight: SceneState): string | null {
   if (!isCombatStarted(fight)) return 'combat has not started'

@@ -4,6 +4,7 @@ import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, 
 import { CampSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../play/dice'
 import { getDegree, resolveTest, toRoll } from '../../play/test'
+import { getETResultLines } from '../projections/exploration'
 import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
@@ -14,6 +15,7 @@ import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from 
 import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
+import { record } from '../../campaign/commands/journal'
 import { addParty } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
@@ -404,8 +406,11 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
     if (getPassBar(opened)) return opened
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
     const played = getPlayingParties(opened.campaign).reduce<PartyET>((acc, partyId) => {
+      const clock = acc.t.campaign.parties[partyId]?.clock ?? null
       const next = passParty(acc.t, partyId, opening, dice, newId)
-      return { t: next.t, results: [...acc.results, ...next.results], castResults: [...acc.castResults, ...next.castResults] }
+      const lines = getETResultLines(next.results, next.castResults)
+      const t = lines.length === 0 ? next.t : { ...next.t, campaign: record({ kind: 'et', party: partyId, title: 'an ET', lines, clock })(next.t.campaign) }
+      return { t, results: [...acc.results, ...next.results], castResults: [...acc.castResults, ...next.castResults] }
     }, { t: opened, results: [], castResults: [] })
     return closeET(played.t, opening, played.results, played.castResults)
   }

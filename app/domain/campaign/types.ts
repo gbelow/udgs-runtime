@@ -149,6 +149,28 @@ export const CollectionSchema = z.object({
 })
 export type Collection = z.infer<typeof CollectionSchema>
 
+// What an entry of the journal is: a note written by hand, or what play
+// recorded — an ET, days of downtime, a scene come back from, a fight's log,
+// a party synced to another timeline.
+export const EntryKindSchema = z.enum(['note', 'et', 'days', 'scene', 'fight', 'sync'])
+export type EntryKind = z.infer<typeof EntryKindSchema>
+
+// One entry of the campaign's journal: what happened, or what the GM wrote,
+// to a party at a moment of its timeline (none for the campaign as a whole,
+// or a party outside time). The party's name is kept as it was then.
+export const CampaignEntrySchema = z.object({
+  id: z.string(),
+  kind: EntryKindSchema.default('note'),
+  party: z.string().nullable().default(null),
+  partyName: z.string().default(''),
+  clock: z.number().nullable().default(null),
+  title: z.string().default(''),
+  lines: z.array(z.string()).default([]),
+  // a note the players do not see
+  gmOnly: z.boolean().default(false),
+})
+export type CampaignEntry = z.infer<typeof CampaignEntrySchema>
+
 // The campaign above every scene: the roster of everyone in play who is not
 // in a fight, and the parties they are in, where, and when, each party on a
 // timeline of its own. What a mode keeps for itself (exploration's plans and
@@ -164,6 +186,8 @@ export const CampaignStateSchema = z.object({
   maps: z.record(z.string(), CrawlMapSchema).default({}),
   // the GM's own lists of catalog entries, by id
   collections: z.record(z.string(), CollectionSchema).default({}),
+  // what happened and what the GM wrote, in the order it was written
+  journal: z.array(CampaignEntrySchema).default([]),
   parties: z.record(z.string(), PartySchema).default({}),
   // the party each character is in, kept while they are in a fight
   partyOf: z.record(z.string(), z.string()).default({}),

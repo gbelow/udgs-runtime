@@ -54,3 +54,14 @@ export const TestRollSchema = z.object({
 export type TestRoll = z.infer<typeof TestRollSchema>
 
 export const toRoll = ({ die, score, DL, degree }: TestRoll): TestRoll => ({ die, score, DL, degree })
+
+// A roll as a line of text: the score against the DL, and the degree.
+export function describeRoll({ score, DL, degree }: { score: number; DL: number; degree: string }): string {
+  return `${score} vs DL ${DL}, ${degree}`
+}
+
+// What a test came to, to follow a line: the roll, if one was made, and a
+// note on it, if any.
+export function describeOutcome(roll: { score: number; DL: number; degree: string } | null, note = ''): string {
+  return `${roll ? `: ${describeRoll(roll)}` : ''}${note ? ` — ${note}` : ''}`
+}

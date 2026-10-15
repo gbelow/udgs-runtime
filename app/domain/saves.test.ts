@@ -14,6 +14,7 @@ describe('a saved campaign', () => {
         parties: { p: { name: 'P', clock: 9, active: true, at: { map: 'm', node: 'n' } }, q: { name: 'Q' } },
         maps: { m: { name: 'M', nodes: { n: { name: 'N' } } } },
         collections: { c: { kind: 'maps', name: 'C', keys: ['M'] } },
+        journal: [{ id: '1', kind: 'et', party: 'p', partyName: 'P', clock: 9, title: 'an ET', lines: ['travel'] }, { id: '2', lines: ['a note'], gmOnly: true }],
         dayETs: 3,
       }),
       exploration: ExplorationStateSchema.parse({ resting: ['a'] }),

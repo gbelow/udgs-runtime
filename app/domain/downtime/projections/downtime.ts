@@ -5,6 +5,7 @@ import type { CampaignState } from '../../campaign/types'
 import type { Activity, Block, Downtime, DowntimeResult, DowntimeState, SkillRef, TrainingTarget } from '../types'
 import { ABILITY_FAMILIES, type FamilyKey } from '../../abilities'
 import { perPair, perState } from '../../perState'
+import { describeOutcome } from '../../play/test'
 import { formatMoney, getPayable } from '../../item/rules/money'
 import {
   getActivity, getAffordableDays, getBlockBar, getBlockDays, getDefaultSpan, getDoctorHealing, getDowntimeBar, getDowntimeCharacters,
@@ -189,3 +190,8 @@ export const getSkillOptions = perState((c: Character): SkillOption[] => [
   ...SKILL_REFS,
   ...[...knowledges_list, ...Object.keys(c.specificKnowledges)].map((name): SkillRef => ({ kind: 'knowledge', name })),
 ].map((ref) => ({ id: skillId(ref), ref, label: ref.kind === 'knowledge' ? `${ref.name} (2× knowledge)` : ref.key, value: getSkillValue(ref)(c) })))
+
+// What days of downtime came to, a line for each character's result.
+export function getDowntimeResultLines(results: DowntimeResult[]): string[] {
+  return results.map((r) => `${r.name} · ${r.what}${describeOutcome(r.roll, r.note)}`)
+}

@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
-import { ClockLabel, RollText, RosterCatalog } from './RunParts';
+import { ClockLabel, RosterCatalog } from './RunParts';
 import { useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
@@ -69,27 +69,12 @@ export function PartyCards(){
 
 // What the last ET came to, party by party.
 export function LastEtLog(){
-  const { results, castResults } = useParties()
-  if (results.length === 0 && castResults.length === 0) return <span className='text-xs text-muted'>no ET passed yet</span>
+  const { lastET } = useParties()
+  if (lastET.length === 0) return <span className='text-xs text-muted'>no ET passed yet</span>
 
   return(
     <div className='flex flex-col gap-0.5'>
-      {results.map((r, i) => (
-        <span key={i} className='text-xs text-muted'>
-          {r.party} · <span className='text-fg'>{r.kind}</span> ({r.members.join(', ')})<RollText roll={r.roll} note={r.note} />
-          {r.events.map((e, j) => (
-            <span key={j} className='block pl-3'><span className='text-fg'>{e.name}</span> vs DL <span className='font-mono text-fg'>{e.DL}</span>, {e.degree}{e.outcome ? `: ${e.outcome}` : ''}</span>
-          ))}
-        </span>
-      ))}
-      {castResults.map((r, i) => (
-        <span key={`cast ${i}`} className='text-xs text-muted'>
-          {r.party} · {r.caster} cast <span className='text-fg'>{r.spell}</span>{r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}<RollText roll={r.roll} note={r.note} />
-          {r.tests.map((test, j) => (
-            <span key={j} className='block pl-3'><span className='text-fg'>{test.name}</span>: <span className='font-mono text-fg'>{test.roll.score}</span> vs DL <span className='font-mono text-fg'>{test.roll.DL}</span>, {test.roll.degree}</span>
-          ))}
-        </span>
-      ))}
+      {lastET.map((line, i) => <span key={i} className='text-xs text-muted whitespace-pre-wrap'>{line}</span>)}
     </div>
   )
 }

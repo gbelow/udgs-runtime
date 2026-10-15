@@ -9,6 +9,7 @@ import { getAction, getHistory, getLanded, getOrigin, getReactionsTo } from '../
 import { getGivenUpFor, isInterruptible, isVoided } from '../rules/opportunity'
 import { getInterruptions } from '../rules/interruption'
 import { getMoveOverride } from '../rules/move'
+import { describeOutcome } from '../../play/test'
 
 // What the table reads once an action has played out, whole: the action that
 // started it and everything it drew — the answers given to it, what those
@@ -71,15 +72,25 @@ export function getLastEpisode(state: SceneState): EpisodeEntry[] | null {
 // Every chain of actions that began this round, newest first, each in the
 // order its actions landed.
 export function getRoundEpisodes(state: SceneState): EpisodeEntry[][] {
-  const origins = [...new Set(getLanded(state)
-    .filter((a) => a.reactionTo === null)
-    .map((a) => getOrigin(state, a))
-    .filter((o) => o.round === state.round)
-    .map((o) => o.id))]
-  return origins.reverse().flatMap((origin) => {
+  return getOrigins(state).filter((o) => o.round === state.round).map((o) => o.id).reverse().flatMap((origin) => {
     const episode = getEpisode(state, origin)
     return episode ? [episode] : []
   })
+}
+
+// The whole fight, a line for each action played out — who did what, how
+// it rolled and what it came to — and an indented one for each answer to it.
+export function getFightLogLines(state: SceneState): string[] {
+  return getOrigins(state).flatMap((origin) => (getEpisode(state, origin.id) ?? []).flatMap((entry) => [
+    `round ${origin.round} · ${entry.actor} · ${entry.label}${describeOutcome(entry.roll)}${entry.outcomes.map((o) => ` · ${o.target}${o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}${o.outcome.dead ? ' dead' : ''}`).join('')}`,
+    ...entry.reactions.map((r) => `  ${r.actor} answered: ${r.label}${describeOutcome(r.roll)}`),
+    ...(entry.fate ? [`  ${entry.fate}`] : []),
+  ]))
+}
+
+// The action each chain played out began with, in the order they landed.
+function getOrigins(state: SceneState): Action[] {
+  return [...new Map(getLanded(state).filter((a) => a.reactionTo === null).map((a) => getOrigin(state, a)).map((o) => [o.id, o])).values()]
 }
 
 function getEpisode(state: SceneState, origin: string): EpisodeEntry[] | null {

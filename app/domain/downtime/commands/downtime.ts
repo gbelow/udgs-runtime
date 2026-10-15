@@ -1,7 +1,9 @@
 import type { CampaignCharacter, Character } from '../../types'
+import type { CampaignState } from '../../campaign/types'
 import type { Block, Downtime, DowntimeResult, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
 import type { Dice } from '../../play/dice'
 import { resolveTest, toRoll, type TestRoll } from '../../play/test'
+import { getDowntimeResultLines } from '../projections/downtime'
 import { isFamilyKey } from '../../abilities'
 import { addExhaustion, addIL, heal } from '../../character/commands/heal'
 import { addAbilityXP, addTrainingXP, raiseSpecificKnowledge } from '../../character/commands/learning'
@@ -9,7 +11,8 @@ import { knowledgeName } from '../../character/rules/knowledge'
 import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
-import { ETS_PER_DAY, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
+import { record } from '../../campaign/commands/journal'
+import { ETS_PER_DAY, describeSpan, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
   getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining, getLearningGain,
   getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName,
@@ -135,7 +138,13 @@ export function passDays(days: number, dice: Dice): DowntimeUpdater {
     const ids = getDowntimeCharacters(t.campaign)
     const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, dice) }))
     const characters = { ...t.campaign.characters, ...Object.fromEntries(lived.map(({ id, c }) => [id, c])) }
-    const moved = passETs(days * ETS_PER_DAY, getPlayingParties(t.campaign))({ ...t.campaign, characters, out: [] })
+    const playing = getPlayingParties(t.campaign)
+    const byParty = Map.groupBy(lived, ({ id }) => t.campaign.partyOf[id])
+    const recorded = playing.reduce<CampaignState>((campaign, partyId) => record({
+      kind: 'days', party: partyId, title: `${describeSpan(days * ETS_PER_DAY)} of downtime`,
+      lines: getDowntimeResultLines((byParty.get(partyId) ?? []).flatMap((l) => l.results)),
+    })(campaign), { ...t.campaign, characters, out: [] })
+    const moved = passETs(days * ETS_PER_DAY, playing)(recorded)
     const fedAll = { ...moved, characters: { ...moved.characters, ...Object.fromEntries(ids.map((id) => [id, fed(moved.characters[id])])) } }
     const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))
     return { campaign: fedAll, downtime: { ...t.downtime, plans, results: lived.flatMap((l) => l.results) } }

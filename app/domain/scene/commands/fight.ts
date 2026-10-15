@@ -9,6 +9,9 @@ import { getHomecoming, getJoinBar, getReturnBar, getTableIds, isFromRoster } fr
 import { getOpenAction } from '../rules/log'
 import { addToRoster, checkIn, checkOut } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
+import { describeSpan } from '../../campaign/rules/clock'
+import { record } from '../../campaign/commands/journal'
+import { getFightLogLines } from '../projections/episode'
 import { getPartyMembers } from '../../campaign/rules/place'
 
 // Takes these characters off the roster and into the fight, under the ids
@@ -67,11 +70,28 @@ export function returnFromFight(ids: string[], ets: number): TableUpdater {
     if (leaving.length === 0) return table
     const homeOf = (id: string) => getHomecoming(table, id).partyId
     const staying = new Set(Object.keys(table.fight.characters).filter((id) => !ids.includes(id)).map(homeOf))
-    const done = [...new Set(leaving.map((c) => homeOf(c.id)))].filter((pid) => !staying.has(pid))
-    const campaign = passETs(ets, done)(giveBack(table, leaving))
+    const homes = Map.groupBy(leaving, (c) => homeOf(c.id))
+    const done = [...homes.keys()].filter((pid) => !staying.has(pid))
+    const back = giveBack(table, leaving)
+    const recorded = [...homes].filter(([pid]) => back.parties[pid]).reduce((campaign, [pid, members]) => record({
+      kind: 'scene', party: pid, title: 'back from a scene',
+      lines: [members.map((c) => c.fightName ?? c.name).join(', '), ...(!staying.has(pid) && ets > 0 ? [`the scene took ${describeSpan(ets)}`] : [])],
+    })(campaign), back)
+    const campaign = passETs(ets, done)(recorded)
     const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)
     return { campaign, fight: Object.keys(fight.characters).length === 0 ? resetCombat(fight) : fight }
   }
+}
+
+// Writes the fight's log so far to the journal, for every party of the
+// campaign's with a fighter in it, at its moment, or for the campaign as a
+// whole when none has.
+export const saveFightLog: TableUpdater = (table) => {
+  const lines = getFightLogLines(table.fight)
+  if (lines.length === 0) return table
+  const parties = [...new Set(Object.keys(table.fight.characters).map((id) => getHomecoming(table, id).partyId))].filter((pid) => table.campaign.parties[pid])
+  const campaign = (parties.length > 0 ? parties : [null]).reduce((c, party) => record({ kind: 'fight', party, title: 'the log of a fight', lines })(c), table.campaign)
+  return { ...table, campaign }
 }
 
 // The party's fighters back from the fight.

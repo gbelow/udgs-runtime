@@ -6,7 +6,6 @@ import { Button, CollectionSelect, SectionLabel, selectClass } from './ui'
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import type { Character } from '../domain/types'
-import type { TestRoll } from '../domain/play/test'
 import type { SyncOption, TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
 
@@ -112,9 +111,4 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
         : null}
     </div>
   )
-}
-
-// A test as rolled, and what the table noted of it, after what it was for.
-export function RollText({ roll, note }: { roll: TestRoll | null, note?: string | null }){
-  return <>{roll ? <>: <span className='font-mono text-fg'>{roll.score}</span> vs DL <span className='font-mono text-fg'>{roll.DL}</span>, {roll.degree}</> : null}{note ? ` — ${note}` : ''}</>
 }

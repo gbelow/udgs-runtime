@@ -1,7 +1,8 @@
+import { useMemo } from "react";
 import type { LivingLevel } from "../domain/lists";
 import type { Activity, DowntimeUpdater, TrainingTarget } from "../domain/downtime/types";
 import { DECISIONS } from "../domain/downtime/types";
-import { getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
+import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
 import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
 import { passDays } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -25,8 +26,9 @@ export function useDowntimeSpan() {
 }
 
 // What the last days came to.
-export function useDowntimeResults() {
-  return useCampaignStore((s) => s.downtime.results);
+export function useDowntimeResults(): string[] {
+  const results = useCampaignStore((s) => s.downtime.results);
+  return useMemo(() => getDowntimeResultLines(results), [results]);
 }
 
 // What the character can train.

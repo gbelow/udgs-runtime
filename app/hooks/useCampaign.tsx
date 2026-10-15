@@ -9,6 +9,9 @@ import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
+import { useRole } from "./useRole";
+import { getJournalView } from "../domain/campaign/projections/journal";
+import { removeEntry, writeNote } from "../domain/campaign/commands/journal";
 import { useCombatStore } from "../stores/useCombatStore";
 
 // The campaign in play's parties and who is in them, gated on a digest since
@@ -102,4 +105,22 @@ export function useCampaignFiles() {
   };
 
   return { file, campaigns, saveBar, setName, create, open, save, remove } as const;
+}
+
+// The campaign's journal as the viewer may read it — the GM's notes only for
+// one with the GM's tools — narrowed to a party or not, with a note written
+// and any entry thrown away.
+export function useJournal(filter: string | null | 'all') {
+  const journal = useCampaignStore((s) => s.journal);
+  const names = useCampaignStore((s) => JSON.stringify(Object.entries(s.parties).map(([id, p]) => ({ id, name: p.name }))));
+  const update = useCampaignStore((s) => s.updateCampaignState);
+  const { gmTools } = useRole();
+  const options: { id: string, name: string }[] = useMemo(() => JSON.parse(names), [names]);
+  const view = useMemo(() => getJournalView({ journal, parties: Object.fromEntries(options.map((p) => [p.id, p])) }, { party: filter, gm: gmTools }), [journal, options, filter, gmTools]);
+  return {
+    view,
+    parties: options,
+    write: (party: string | null, text: string, gmOnly: boolean) => update(writeNote(party, text, gmOnly)),
+    remove: (id: string) => update(removeEntry(id)),
+  } as const;
 }

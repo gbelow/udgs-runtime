@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button, NumberInput, TextInput, Tooltip, selectClass } from './ui';
-import { ClockLabel, RollText, RosterCatalog, RosterChip } from './RunParts';
+import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeCommands, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
 import { ACTIVITIES, type Activity } from '../domain/downtime/types';
@@ -98,9 +98,7 @@ export function LastDaysLog(){
 
   return(
     <div className='flex flex-col gap-0.5'>
-      {results.map((r, i) => (
-        <span key={i} className='text-xs text-muted'>{r.name} · <span className='text-fg'>{r.what}</span><RollText roll={r.roll} note={r.note} /></span>
-      ))}
+      {results.map((line, i) => <span key={i} className='text-xs text-muted'>{line}</span>)}
     </div>
   )
 }
