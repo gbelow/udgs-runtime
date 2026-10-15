@@ -333,9 +333,9 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   mergeParties: ({ campaign }) => campaignCommands.mergeParties('p', 'q')(campaignCommands.addParty('q')(campaign)),
   setPartyExposure: ({ campaign }) => campaignCommands.setPartyExposure('p', 3)(campaign),
   setPartyLit: ({ campaign }) => campaignCommands.setPartyLit('p', true)(campaign),
-  setPartyNode: ({ campaign }) => campaignCommands.setPartyNode('p', 'n2')(campaign),
-  loadMap: ({ campaign }) => campaignCommands.loadMap({ name: 'other' })(campaign),
-  unloadMap: ({ campaign }) => campaignCommands.unloadMap(campaign),
+  setPartyPlace: ({ campaign }) => campaignCommands.setPartyPlace('p', { map: 'm', node: 'n2' })(campaign),
+  addMap: ({ campaign }) => campaignCommands.addMap('other', { name: 'other' })(campaign),
+  removeMap: ({ campaign }) => campaignCommands.removeMap('m')(campaign),
   setDayETs: ({ campaign }) => campaignCommands.setDayETs(2)(campaign),
   passETs: ({ campaign }) => campaignCommands.passETs(12, ['p'])(campaign),
   placeOnTimeline: ({ campaign }) => campaignCommands.placeOnTimeline('p', 130)(campaign),
@@ -519,8 +519,8 @@ function combatSubject(): SceneState {
 function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
-    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, map: mapSubject(),
-    parties: { p: { name: 'Party 1', node: 'n1', clock: 100, active: true } },
+    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() },
+    parties: { p: { name: 'Party 1', at: { map: 'm', node: 'n1' }, clock: 100, active: true } },
   })
 }
 
@@ -566,7 +566,7 @@ describe('commands are pure updaters', () => {
       campaign: campaignSubject(cleared(combatSubject())),
       exploration: ExplorationStateSchema.parse({
         groups: { p: { g: { kind: 'travel', members: ['b'], roller: 'b', target: 'c' } } },
-        camps: { p: { node: 'n1', shelter: 1, firewood: 2, fire: true } },
+        camps: { p: { at: { map: 'm', node: 'n1' }, shelter: 1, firewood: 2, fire: true } },
       }),
     }
     const pristine = structuredClone(subject)

@@ -1,6 +1,6 @@
-import type { CampaignState, CampaignUpdater, Party } from '../types'
+import type { At, CampaignState, CampaignUpdater, Party } from '../types'
 import { CrawlMapSchema, PartySchema } from '../types'
-import { getPartyMembers } from '../rules/place'
+import { getPartyMembers, getPlace, isSamePlace } from '../rules/place'
 import { getEmptiedParties, getPartyMoveBar, nextPartyName } from '../rules/parties'
 
 export const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
@@ -12,7 +12,7 @@ export const withParty = (partyId: string, update: (p: Party) => Party): Campaig
 export function addParty(partyId: string, from?: Party, name?: string): CampaignUpdater {
   return (state) => ({
     ...state,
-    parties: { ...state.parties, [partyId]: PartySchema.parse({ name: name || nextPartyName(state.parties), exposure: from?.exposure, lit: from?.lit, node: from?.node, clock: from?.clock, active: from?.active }) },
+    parties: { ...state.parties, [partyId]: PartySchema.parse({ name: name || nextPartyName(state.parties), exposure: from?.exposure, lit: from?.lit, at: from?.at, clock: from?.clock, active: from?.active }) },
   })
 }
 
@@ -88,7 +88,7 @@ export function joinParty(id: string, newPartyId: () => string): CampaignUpdater
 export function mergeParties(fromId: string, intoId: string): CampaignUpdater {
   return (state) => {
     if (fromId === intoId || !state.parties[fromId] || !state.parties[intoId]) return state
-    if (state.parties[fromId].node !== state.parties[intoId].node) return state
+    if (!isSamePlace(state.parties[fromId], state.parties[intoId])) return state
     if (state.parties[fromId].clock !== null && state.parties[fromId].clock !== state.parties[intoId].clock) return state
     const moved = getPartyMembers(state, fromId)
     const { [fromId]: _gone, ...parties } = state.parties
@@ -108,25 +108,25 @@ export function setPartyLit(partyId: string, lit: boolean): CampaignUpdater {
   return withParty(partyId, (p) => ({ ...p, lit }))
 }
 
-// The table puts the party on a node of the map, or takes it off the map.
-export function setPartyNode(partyId: string, node: string | null): CampaignUpdater {
-  return (state) => {
-    if (node !== null && !state.map?.nodes[node]) return state
-    return withParty(partyId, (p) => ({ ...p, node }))(state)
-  }
+// The table puts the party on a node of one of the campaign's maps, or
+// takes it off the map with null.
+export function setPartyPlace(partyId: string, at: At | null): CampaignUpdater {
+  return (state) => (at && !getPlace(state, { at }) ? state : withParty(partyId, (p) => ({ ...p, at }))(state))
 }
 
-// The point crawl the parties play on. Parties on a node the map does not
-// have are off it.
-export function loadMap(raw: unknown): CampaignUpdater {
-  return (state) => {
-    const map = CrawlMapSchema.parse(raw)
-    const parties = Object.fromEntries(Object.entries(state.parties).map(([pid, p]) =>
-      [pid, p.node && !map.nodes[p.node] ? { ...p, node: null } : p]))
-    return { ...state, map, parties }
-  }
+// A map from the catalog joins the campaign as a copy of its own, under
+// `mapId`: what play changes on it never reaches the catalog's. Nothing
+// joins for no map.
+export function addMap(mapId: string, raw: unknown): CampaignUpdater {
+  return (state) => (raw === undefined || state.maps[mapId] ? state : { ...state, maps: { ...state.maps, [mapId]: CrawlMapSchema.parse(raw) } })
 }
 
-export function unloadMap(state: CampaignState): CampaignState {
-  return { ...state, map: null, parties: Object.fromEntries(Object.entries(state.parties).map(([pid, p]) => [pid, { ...p, node: null }])) }
+// The map leaves the campaign; the parties on it are off the map.
+export function removeMap(mapId: string): CampaignUpdater {
+  return (state) => {
+    if (!state.maps[mapId]) return state
+    const { [mapId]: _gone, ...maps } = state.maps
+    const parties = Object.fromEntries(Object.entries(state.parties).map(([pid, p]) => [pid, p.at?.map === mapId ? { ...p, at: null } : p]))
+    return { ...state, maps, parties }
+  }
 }

@@ -9,7 +9,7 @@ import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getClockOf, getDay, getPlayingParties, getTimeBar, isNight } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyPlayers, getPlace } from '../../campaign/rules/place'
+import { getConnectionsFrom, getExposure, getPartyPlayers, getPlace, isSamePlace } from '../../campaign/rules/place'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
 export function getExplorationAction(kind: GroupKind): ExplorationAction {
@@ -41,9 +41,9 @@ export function getGroups(t: Exploring, partyId: string): Record<string, Group> 
 
 // The camp where the party stands; none if it was made on another node.
 export function getCamp(t: Exploring, partyId: string): Camp {
-  const node = t.campaign.parties[partyId]?.node ?? null
+  const at = t.campaign.parties[partyId]?.at ?? null
   const camp = t.exploration.camps[partyId]
-  return camp && camp.node === node ? camp : CampSchema.parse({ node })
+  return camp && isSamePlace(camp, { at }) ? camp : CampSchema.parse({ at })
 }
 
 // survival.tex "Terrain tags": "wood: allows looking for firewood"; off the
@@ -121,7 +121,7 @@ export function getMapDL(state: CampaignState, party: Party, group: Group): numb
   const place = getPlace(state, party)
   if (!place) return null
   switch (group.kind) {
-    case 'travel': return getConnectionsFrom(state, place.id).find((p) => p.id === group.target)?.DL ?? null
+    case 'travel': return getConnectionsFrom(place).find((p) => p.id === group.target)?.DL ?? null
     case 'search': return 0
     case 'shelter':
     case 'firewood': return place.terrain?.shelterDL ?? null
@@ -167,7 +167,7 @@ function getGroupBar(t: Exploring, partyId: string, group: Group): string | null
   if (!group.roller || !players.includes(group.roller)) return `${party.name} ${group.kind} needs a roller`
   if (isForced(t, group.roller)) return `${party.name} ${group.kind} needs another roller`
   const place = getPlace(t.campaign, party)
-  if (group.kind === 'travel' && place && !getConnectionsFrom(t.campaign, place.id).some((c) => c.id === group.target)) {
+  if (group.kind === 'travel' && place && !getConnectionsFrom(place).some((c) => c.id === group.target)) {
     return `${party.name} travel needs a destination`
   }
   return null

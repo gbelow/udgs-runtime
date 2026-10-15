@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { DegreeSchema } from '../types'
 import { ROLL_MODES } from '../play/dice'
 import { TestRollSchema, type TestRoll } from '../play/test'
-import { EventTypeSchema, type CampaignState } from '../campaign/types'
+import { AtSchema, EventTypeSchema, type CampaignState } from '../campaign/types'
 
 // survival.tex "Exploration Action (EA)", "Making camp": what a group of a
 // party goes on together for an ET. Travel and search take it away from the
@@ -32,7 +32,7 @@ export type Group = z.infer<typeof GroupSchema>
 // a party elsewhere has none of it. A graze on firewood or the fire leaves
 // `progress`, which a group of the same task finishes the ET after.
 export const CampSchema = z.object({
-  node: z.string().nullable().default(null),
+  at: AtSchema.nullable().default(null),
   shelter: z.number().default(0),
   firewood: z.number().default(0),
   fire: z.boolean().default(false),

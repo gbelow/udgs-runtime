@@ -2,24 +2,23 @@
 import { useState } from 'react'
 import { Button, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
 import { ClockLabel, RollText, RosterCatalog } from './RunParts';
-import { useExploration, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
-import { useMapNames } from '../hooks/useMap';
+import { useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
 import type { CastPanel, PartyView } from '../domain/exploration/projections/exploration';
+import type { MapOptions } from '../domain/campaign/projections/maps';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 
 // Exploration's pieces of the run screen.
 
-// The moments the parties in play are living, the map, and the ET passing.
+// The moments the parties in play are living, and the ET passing.
 export function ExplorationStrip(){
 
-  const { map, dayETs, parties } = useParties()
-  const { maps } = useMapNames()
+  const { dayETs, parties } = useParties()
   const passBar = usePassBar()
-  const { passET, sendAllToFight, loadMap, setDayETs } = usePartyCommands()
+  const { passET, sendAllToFight, setDayETs } = usePartyCommands()
 
   return(
     <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
@@ -27,10 +26,6 @@ export function ExplorationStrip(){
         <ClockLabel />
         <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
         <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
-        <select aria-label='map' className={selectClass} value={map?.name ?? ''} onChange={(e) => loadMap(e.target.value)}>
-          <option value=''>no map</option>
-          {maps.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
         <Tooltip text={passBar ?? 'every party in play spends the ET on its plan'}>
           <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
@@ -46,7 +41,8 @@ export function ExplorationStrip(){
 // the roster.
 export function PartyCards(){
 
-  const { map, parties, decisions } = useParties()
+  const { parties, decisions } = useParties()
+  const maps = useNodeOptions()
   const { decide } = usePartyCommands()
 
   return(
@@ -66,7 +62,7 @@ export function PartyCards(){
         : null}
       <div className='flex flex-row flex-wrap gap-2 items-start'>
         {parties.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
-        {parties.map((party) => <PartyCard key={party.id} party={party} nodes={map?.nodes ?? null} />)}
+        {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
       </div>
     </RosterCatalog>
   )
@@ -101,18 +97,23 @@ export function LastEtLog(){
 
 // One party: who is in it and what they plan, where they are, their camp, and
 // the groups going on an action.
-function PartyCard({ party, nodes }: { party: PartyView, nodes: { id: string; name: string }[] | null }){
+function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
-  const { pick, setExposure, setLit, setNode, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
+  const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
+  const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
 
   return(
     <div className='flex flex-col gap-1.5 border border-line rounded p-2 min-w-72'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>
         <span className='text-sm font-medium mr-1'>{party.name}</span>
-        {nodes ?
-          <select aria-label={`${party.name} node`} className={selectClass} value={party.node ?? ''} onChange={(e) => setNode(party.id, e.target.value || null)}>
+        {maps.length > 0 ?
+          <select aria-label={`${party.name} node`} className={selectClass} value={party.placeKey} onChange={(e) => choose(e.target.value)}>
             <option value=''>off the map</option>
-            {nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}
+            {maps.map((m) => (
+              <optgroup key={m.id} label={m.name}>
+                {m.nodes.map((n) => <option key={n.key} value={n.key}>{n.name}</option>)}
+              </optgroup>
+            ))}
           </select>
           : null}
         <span className='text-xs text-muted'>exposure</span>

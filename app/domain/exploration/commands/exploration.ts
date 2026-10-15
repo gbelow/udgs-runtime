@@ -1,5 +1,5 @@
 import type { CampaignCharacter, Degree } from '../../types'
-import type { CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
+import type { At, CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, TestRoll } from '../types'
 import { CampSchema } from '../types'
 import { moded, rollPercent, type Dice } from '../../play/dice'
@@ -113,9 +113,9 @@ function landTask(group: Group, degree: Degree, camp: Camp): Camp {
 
 type Met = GroupResult['events'][number]
 
-// Where a group that went ends the ET: `node` on the map, null off it. A
-// group with no `moves` is where it started.
-type Outcome = { roll: TestRoll | null; note: string; camp: Camp; moves: { node: string | null } | null; events: Met[] }
+// Where a group that went ends the ET: at a node of the map, or null off
+// it. A group with no `moves` is where it started.
+type Outcome = { roll: TestRoll | null; note: string; camp: Camp; moves: { at: At | null } | null; events: Met[] }
 
 // survival.tex "Events": each event met resolves itself, by the degree the
 // group's score comes to against it.
@@ -133,13 +133,12 @@ type Drawn = { path: Path } | { event: CrawlEvent } | null
 // 0, also add paths to other nodes". The group ends where what was drawn
 // is: drawing a path, or an event on it, travels it. "Connection events:
 // happen when traveling from one node to another", each met by the score.
-function travel(state: CampaignState, place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
-  const paths = getConnectionsFrom(state, place.id)
+function travel(from: At, place: Place, group: Group, roll: TestRoll, meet: (e: CrawlEvent) => Met, dice: Dice): Omit<Outcome, 'camp'> {
+  const paths = getConnectionsFrom(place)
   const chosen = paths.find((p) => p.id === group.target)
   if (!chosen) return { roll, note: 'no path', moves: null, events: [] }
-  const along = (path: Path, note: string) => ({ roll, note, moves: { node: path.to }, events: path.events.map(meet) })
-  const nameOf = (node: string) => state.map?.nodes[node]?.name ?? node
-  if (won(roll.degree)) return along(chosen, `arrived at ${nameOf(chosen.to)}`)
+  const along = (path: Path, note: string) => ({ roll, note, moves: { at: { map: from.map, node: path.to } }, events: path.events.map(meet) })
+  if (won(roll.degree)) return along(chosen, `arrived at ${chosen.toName}`)
   const weighted = (DL: number, item: Drawn) => ({ weight: getEventWeight(DL), item })
   const drawn = drawWeighted<Drawn>([
     ...Object.values(place.node.events).map((event) => weighted(event.DL, { event })),
@@ -148,7 +147,7 @@ function travel(state: CampaignState, place: Place, group: Group, roll: TestRoll
     ...(roll.score < 0 ? paths.filter((p) => p !== chosen).map((path) => weighted(path.DL, { path })) : []),
     { weight: BLANK_WEIGHT, item: null },
   ], rollPercent(dice))
-  if (drawn && 'path' in drawn) return along(drawn.path, drawn.path === chosen ? `arrived at ${nameOf(drawn.path.to)}` : `lost, came to ${nameOf(drawn.path.to)}`)
+  if (drawn && 'path' in drawn) return along(drawn.path, drawn.path === chosen ? `arrived at ${drawn.path.toName}` : `lost, came to ${drawn.path.toName}`)
   if (drawn) return { roll, note: `held up at ${place.node.name}`, moves: null, events: [meet(drawn.event)] }
   return { roll, note: `lost, still at ${place.node.name}`, moves: null, events: [] }
 }
@@ -190,7 +189,7 @@ function goOn(state: CampaignState, partyId: string, start: Camp, camp: Camp, gr
   if (!test) return { ...stays, roll: null, note: 'nobody to roll' }
   const roll = toRoll(resolveTest(test, moded(group.mode, dice)))
   const meet = meeting(state, going, roll.score, getNightDL(state, party))
-  if (group.kind === 'travel') return { camp, ...(place ? travel(state, place, group, roll, meet, dice) : { roll, note: '', moves: { node: null }, events: [] }) }
+  if (group.kind === 'travel') return { camp, ...(place && party.at ? travel(party.at, place, group, roll, meet, dice) : { roll, note: '', moves: { at: null }, events: [] }) }
   if (group.kind === 'search' && place) return { camp, ...search(place, group, roll, meet, dice) }
   return { ...stays, roll, note: '', camp: landTask(group, roll.degree, camp) }
 }
@@ -309,7 +308,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   const start = getCamp(t, partyId)
   let camp: Camp = { ...start, progress: [] }
   const working: Record<string, Group> = {}
-  const moves: { node: string | null; ids: string[] }[] = []
+  const moves: { at: At | null; ids: string[] }[] = []
   const results: GroupResult[] = []
 
   for (const group of Object.values(getGroups(t, partyId))) {
@@ -325,7 +324,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
     for (const id of going) working[id] = group
     const outcome = goOn(state, partyId, start, camp, group, going, dice)
     camp = outcome.camp
-    if (outcome.moves) moves.push({ node: outcome.moves.node, ids: [...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry')] })
+    if (outcome.moves) moves.push({ at: outcome.moves.at, ids: [...going, ...forcedIn.filter((id) => opening.decisions[id] === 'carry')] })
     results.push({ party: party.name, kind: group.kind, members: going.map(name), roll: outcome.roll, note: outcome.note, events: outcome.events })
   }
 
@@ -363,11 +362,11 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   const passed: Exploring = { campaign: lived, exploration }
   const members = getPartyMembers(state, partyId)
   if (moves.length === 1 && members.every((id) => moves[0].ids.includes(id))) {
-    const node = moves[0].node ?? party.node
+    const at = moves[0].at ?? party.at
     return {
       t: {
-        campaign: { ...passed.campaign, parties: { ...passed.campaign.parties, [partyId]: { ...lived.parties[partyId], node } } },
-        exploration: { ...exploration, camps: { ...exploration.camps, [partyId]: CampSchema.parse({ node }) } },
+        campaign: { ...passed.campaign, parties: { ...passed.campaign.parties, [partyId]: { ...lived.parties[partyId], at } } },
+        exploration: { ...exploration, camps: { ...exploration.camps, [partyId]: CampSchema.parse({ at }) } },
       },
       results,
       castResults: cast.results,
@@ -375,7 +374,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   }
   const campaign = moves.reduce((s, move) => {
     const newPartyId = newId()
-    const added = addParty(newPartyId, { ...lived.parties[partyId], node: move.node ?? party.node })(s)
+    const added = addParty(newPartyId, { ...lived.parties[partyId], at: move.at ?? party.at })(s)
     return { ...added, partyOf: { ...added.partyOf, ...Object.fromEntries(move.ids.map((id) => [id, newPartyId])) } }
   }, passed.campaign)
   return { t: { ...passed, campaign }, results, castResults: cast.results }

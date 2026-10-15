@@ -114,11 +114,15 @@ export type MapUpdater = (map: CrawlMap) => CrawlMap
 // Where an event is: on a node or on a connection.
 export type EventOwner = { kind: 'node' | 'connection'; id: string }
 
+// A node of one of the campaign's maps.
+export const AtSchema = z.object({ map: z.string(), node: z.string() })
+export type At = z.infer<typeof AtSchema>
+
 // Whoever is in the same place, and where that is.
 export const PartySchema = z.object({
   name: z.string().default(''),
-  // the node of the map the party is on, or none, off the map
-  node: z.string().nullable().default(null),
+  // the node the party is on, or none, off the map
+  at: AtSchema.nullable().default(null),
   // survival.tex "Exposure": how rough the ground is, entered off the map
   exposure: z.number().default(0),
   // survival.tex "Night and Darkness": a light source or sight in the dark
@@ -141,8 +145,9 @@ export const CampaignStateSchema = z.object({
   // survival.tex "Night and Darkness": "The standard is 4 periods of day and
   // 2 of night"; the ETs of a day that are daylight, night being the rest
   dayETs: z.number().default(4),
-  // the point crawl the parties are on, if any
-  map: CrawlMapSchema.nullable().default(null),
+  // the point crawls the parties play on, by id: the campaign's own copies
+  // of maps from the catalog, so what play changes on one stays here
+  maps: z.record(z.string(), CrawlMapSchema).default({}),
   parties: z.record(z.string(), PartySchema).default({}),
   // the party each character is in, kept while they are in a fight
   partyOf: z.record(z.string(), z.string()).default({}),

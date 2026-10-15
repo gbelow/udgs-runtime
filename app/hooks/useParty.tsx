@@ -1,13 +1,14 @@
 import type { CampaignUpdater } from "../domain/campaign/types";
 import type { CastPlan, Decision, Exploring, ExplorationUpdater, Group, GroupKind } from "../domain/exploration/types";
 import { getMoments, getMomentsDigest, type MomentView } from "../domain/campaign/projections/timeline";
+import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/maps";
+import type { At } from "../domain/campaign/types";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
 import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
-import { loadMap as loadMapOf, mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyNode, unloadMap } from "../domain/campaign/commands/parties";
+import { mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyPlace } from "../domain/campaign/commands/parties";
 import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
-import { useMapNames } from "./useMap";
 import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
@@ -39,6 +40,11 @@ export function useFightTimelineClash(): string | null {
   return getTimelineClash(useCampaignStore.getState(), Object.values(fightParties));
 }
 
+// Every node of the campaign's maps a party can be put on.
+export function useNodeOptions(): MapOptions[] {
+  return useCampaignStore((s) => getNodeOptions(s.maps));
+}
+
 // Why the ET cannot pass now.
 export function usePassBar(): string | null {
   return useCampaignStore((s) => getPassBar(exploring(s)));
@@ -52,7 +58,7 @@ export function useExploration(): ExplorationPanel {
   const c = useCampaignStore(getActiveCharacter);
   useCampaignStore((s) => s.parties);
   useCampaignStore((s) => s.partyOf);
-  useCampaignStore((s) => s.map);
+  useCampaignStore((s) => s.maps);
   useCampaignStore((s) => s.exploration);
   return getExplorationPanel(exploring(useCampaignStore.getState()), c?.id ?? null);
 }
@@ -63,7 +69,6 @@ export function usePartyCommands() {
   const updateExploration = useCampaignStore((s) => s.updateExploration);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
-  const { mapList } = useMapNames();
 
   const withActive = (run: (id: string) => void) => {
     const id = useCampaignStore.getState().activeCharacterId;
@@ -86,8 +91,7 @@ export function usePartyCommands() {
     drink: () => asActive(drinkFor),
     setExposure: (partyId: string, exposure: number) => updateCampaignState(setPartyExposure(partyId, exposure)),
     setLit: (partyId: string, lit: boolean) => updateCampaignState(setPartyLit(partyId, lit)),
-    setNode: (partyId: string, node: string | null) => updateCampaignState(setPartyNode(partyId, node)),
-    loadMap: (name: string) => updateCampaignState(name in mapList ? loadMapOf(mapList[name]) : unloadMap),
+    setPlace: (partyId: string, at: At | null) => updateCampaignState(setPartyPlace(partyId, at)),
     setDayETs: (dayETs: number) => updateCampaignState(setDayETs(dayETs)),
     merge: (fromId: string, intoId: string) => updateCampaignState(mergeInto(fromId, intoId)),
     setActive: (partyId: string, active: boolean) => updateCampaignState(setPartyActive(partyId, active)),

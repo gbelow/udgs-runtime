@@ -7,7 +7,8 @@ import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState,
 import type { RollMode } from '../../play/dice'
 import { perPair } from '../../perState'
 import { getRosterName } from '../../campaign/rules/roster'
-import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear } from '../../campaign/rules/place'
+import { getPlaceKey } from '../../campaign/projections/maps'
+import { getConnectionsFrom, getExposure, getPartyMembers, getPlace, getTerrainWear, isSamePlace } from '../../campaign/rules/place'
 import {
   canRestHeal, getCamp, getDecisionsCalled, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups,
   getGroupTest, getLocationKnowledge, getMapDL, getNightDL, getRestExposure, getWear, hasWood,
@@ -41,9 +42,10 @@ export type PlaceView = { node: string; name: string; terrain: string | null; ta
 export type PartyView = {
   id: string
   name: string
-  // the node the party is on, or null off the map
-  node: string | null
+  // the node the party is on, or null off the map, and its key among the
+  // node options ('' off the map)
   place: PlaceView | null
+  placeKey: string
   exposure: number
   restExposure: number
   lit: boolean
@@ -60,7 +62,6 @@ export type PartyView = {
 }
 export type DecisionView = { id: string; name: string; decision: Decision | null }
 export type PartiesView = {
-  map: { name: string; nodes: { id: string; name: string }[] } | null
   dayETs: number
   parties: PartyView[]
   decisions: DecisionView[]
@@ -69,7 +70,6 @@ export type PartiesView = {
 }
 
 const nameOf = getRosterName
-const nodeName = (state: CampaignState, id: string) => state.map?.nodes[id]?.name ?? id
 
 // What the character spends the coming ET on, by name.
 function planOf(t: Exploring, partyId: string, id: string): string {
@@ -87,14 +87,13 @@ function planOf(t: Exploring, partyId: string, id: string): string {
 const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b: ExplorationState }): PartiesView => {
   const t: Exploring = { campaign: state, exploration }
   return {
-  map: state.map ? { name: state.map.name, nodes: Object.entries(state.map.nodes).map(([id, n]) => ({ id, name: n.name })) } : null,
   dayETs: state.dayETs,
   parties: Object.entries(state.parties).map(([partyId, party]) => {
     const place = getPlace(state, party)
     return {
       id: partyId,
       name: party.name,
-      node: place?.id ?? null,
+      placeKey: getPlaceKey(party.at),
       place: place ? { node: place.id, name: place.node.name, terrain: place.terrain?.name ?? null, tags: place.terrain?.tags ?? [] } : null,
       exposure: getExposure(state, party),
       restExposure: getRestExposure(t, partyId),
@@ -114,8 +113,8 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
           mode: g.mode, target: g.target, seek: g.seek, tool: g.tool,
         }
       }),
-      paths: place ? getConnectionsFrom(state, place.id).map((p) => ({ id: p.id, name: nodeName(state, p.to), DL: p.DL })) : [],
-      others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.node === party.node).map(([id, p]) => ({ id, name: p.name })),
+      paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
+      others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),

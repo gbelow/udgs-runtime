@@ -3,7 +3,9 @@ import { toast } from "sonner";
 import { deleteCampaign, getCampaignList, loadCampaign, saveCampaign } from "../actions";
 import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
 import { getMoveBars, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
-import { createParty, leaveParty, moveToParty, renameParty, splitOff } from "../domain/campaign/commands/parties";
+import { addMap, createParty, leaveParty, moveToParty, removeMap, renameParty, splitOff } from "../domain/campaign/commands/parties";
+import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
+import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
@@ -39,6 +41,20 @@ export function useCampaignPartyCommands() {
     leaveParty: (id: string) => update(leaveParty(id)),
     bring: (character: Character, partyId: string) => load(character, partyId),
   } as const;
+}
+
+// The campaign's own maps, each a copy of one from the catalog, added and
+// taken away.
+export function useCampaignMaps(): { maps: CampaignMapView[]; templates: string[]; add: (name: string) => void; remove: (mapId: string) => void } {
+  useCampaignStore(getCampaignMapsDigest);
+  const update = useCampaignStore((s) => s.updateCampaignState);
+  const { mapList, maps: templates } = useMapNames();
+  return {
+    maps: getCampaignMaps(useCampaignStore.getState()),
+    templates,
+    add: (name) => update(addMap(crypto.randomUUID(), mapList[name])),
+    remove: (mapId) => update(removeMap(mapId)),
+  };
 }
 
 // The saved campaigns, and the one in play: begun anew, opened from the
