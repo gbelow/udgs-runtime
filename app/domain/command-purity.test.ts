@@ -23,7 +23,7 @@ import * as collectionsModule from './campaign/commands/collections'
 import * as journalModule from './campaign/commands/journal'
 import * as namesModule from './campaign/commands/names'
 import * as mapModule from './campaign/commands/map'
-import { CampaignStateSchema, CrawlMapSchema, type CampaignState, type CrawlMap } from './campaign/types'
+import { CampaignStateSchema, CollectionSchema, CrawlMapSchema, type CampaignState, type Collection, type CrawlMap } from './campaign/types'
 import type { Table } from './scene/types'
 import * as explorationModule from './exploration/commands/exploration'
 import * as plansModule from './exploration/commands/plans'
@@ -46,7 +46,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...collectionsModule, ...journalModule, ...namesModule }
+const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...journalModule, ...namesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
 
@@ -232,7 +232,7 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   getFinishedCharacter: creationCommands.getFinishedCharacter,
 }
 
-const NOT_UPDATERS = new Set<string>()
+const NOT_UPDATERS = new Set<string>(['newCollection'])
 
 const newId = () => 'issued'
 
@@ -340,10 +340,6 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   addMap: ({ campaign }) => campaignCommands.addMap('other', { name: 'other' })(campaign),
   removeMap: ({ campaign }) => campaignCommands.removeMap('m')(campaign),
   updateCampaignMap: ({ campaign }) => campaignCommands.updateCampaignMap('m', mapModule.addNode(() => 'n9'))(campaign),
-  createCollection: ({ campaign }) => campaignCommands.createCollection('d', 'items')(campaign),
-  renameCollection: ({ campaign }) => campaignCommands.renameCollection('c', 'D')(campaign),
-  removeCollection: ({ campaign }) => campaignCommands.removeCollection('c')(campaign),
-  setInCollection: ({ campaign }) => campaignCommands.setInCollection('c', 'Wolf', false)(campaign),
   record: ({ campaign }) => campaignCommands.record({ kind: 'et', party: 'p', title: 'an ET' })(campaign),
   writeNote: ({ campaign }) => campaignCommands.writeNote('p', 'a note', true)(campaign),
   removeEntry: ({ campaign }) => campaignCommands.removeEntry('1')(campaign),
@@ -490,6 +486,12 @@ function mapSubject(): CrawlMap {
   })
 }
 
+const collectionCases: Record<string, (c: Collection) => unknown> = {
+  renameCollection: (c) => collectionsModule.renameCollection('D')(c),
+  setInCollection: (c) => collectionsModule.setInCollection('Wolf', false)(c),
+  shareCollection: (c) => collectionsModule.shareCollection('campaigns', 'k', true)(c),
+}
+
 const mapCases: Record<string, (m: CrawlMap) => unknown> = {
   setMapName: (m) => mapModule.setMapName('n')(m),
   addNode: (m) => mapModule.addNode(() => 'n3')(m),
@@ -534,7 +536,7 @@ function combatSubject(): SceneState {
 function campaignSubject(fight: SceneState): CampaignState {
   const tired = { ...fight.characters, a: { ...fight.characters.a, resources: { ...fight.characters.a.resources, exhaustion: 14 } } }
   return CampaignStateSchema.parse({
-    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, collections: { c: { kind: 'characters', name: 'C', keys: ['Wolf'] } }, journal: [{ id: '1', party: 'p', clock: 100, lines: ['x'] }],
+    characters: tired, activeCharacterId: 'a', partyOf: { a: 'p', b: 'p' }, maps: { m: mapSubject() }, journal: [{ id: '1', party: 'p', clock: 100, lines: ['x'] }],
     parties: { p: { name: 'Party 1', at: { map: 'm', node: 'n1' }, clock: 100, active: true } },
   })
 }
@@ -561,6 +563,12 @@ describe('commands are pure updaters', () => {
     expect(subject).toEqual(pristine)
   })
 
+  it.each(Object.entries(collectionCases))('%s leaves its collection alone', (_name, run) => {
+    const subject = CollectionSchema.parse({ id: 'c', owner: 'o', kind: 'characters', name: 'C', keys: ['Wolf'] })
+    const pristine = structuredClone(subject)
+    run(deepFreeze(subject))
+    expect(subject).toEqual(pristine)
+  })
   it.each(Object.entries(mapCases))('%s leaves its map alone', (_name, run) => {
     const subject = mapSubject()
     const pristine = structuredClone(subject)
@@ -629,6 +637,7 @@ describe('every command is covered', () => {
     ['exploration', explorationCommands, explorationCases],
     ['downtime', downtimeCommands, downtimeCases],
     ['map', mapModule, mapCases],
+    ['collection', collectionsModule, collectionCases],
     ['creation', creationCommands, creationCases],
   ] as const)('%s commands all have a purity case', (_family, module, cases) => {
     const uncovered = Object.entries(module)

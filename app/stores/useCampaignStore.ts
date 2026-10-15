@@ -11,6 +11,7 @@ import { loadIntoFight, loadOntoRoster } from '../domain/scene/commands/fight'
 import { useCombatStore } from './useCombatStore'
 import { resetCombat } from '../domain/scene/commands/resetCombat'
 import type { CampaignInPlay } from '../domain/saves'
+import type { CampaignMembers } from '../domain/profiles'
 
 // The data half is the domain's CampaignState, as with the combat store: the
 // roster out of any fight and the clock; beside it, what exploration and
@@ -19,11 +20,13 @@ import type { CampaignInPlay } from '../domain/saves'
 // landed on both stores by `updateTable`; an exploration command reads and
 // writes the campaign and its own state together, landed by
 // `updateExploration`, and a downtime command likewise by `updateDowntime`.
-// Which saved campaign this is: the id it is saved under and its name.
-type CampaignFile = { id: string; name: string }
+// Which saved campaign this is: the id it is saved under, its name, and who
+// plays it.
+export type CampaignFile = { id: string; name: string; members: CampaignMembers }
 
 type CampaignActions = {
   setFileName: (name: string) => void
+  setMembers: (members: CampaignMembers) => void
   // replaces the campaign in play, and throws away any fight
   openCampaign: (t: CampaignInPlay, file: CampaignFile) => void
   loadCharacter: (rawCharacter: unknown, into?: string) => void
@@ -42,9 +45,10 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
   ...CampaignStateSchema.parse({}),
   exploration: ExplorationStateSchema.parse({}),
   downtime: DowntimeStateSchema.parse({}),
-  file: { id: crypto.randomUUID(), name: '' },
+  file: { id: crypto.randomUUID(), name: '', members: {} },
 
   setFileName: (name) => set((s) => ({ file: { ...s.file, name } })),
+  setMembers: (members) => set((s) => ({ file: { ...s.file, members } })),
 
   openCampaign: (t, file) => {
     set({ ...t.campaign, exploration: t.exploration, downtime: t.downtime, file })

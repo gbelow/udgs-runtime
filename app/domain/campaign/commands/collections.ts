@@ -1,27 +1,25 @@
-import { CollectionSchema, type CampaignUpdater, type CatalogKind, type Collection } from '../types'
-import { without } from '../../utils'
+import { CollectionSchema, type CatalogKind, type Collection } from '../types'
+import { toggled } from '../../utils'
 
-function withCollection(id: string, change: (c: Collection) => Collection): CampaignUpdater {
-  return (state) => {
-    const collection = state.collections[id]
-    return collection ? { ...state, collections: { ...state.collections, [id]: change(collection) } } : state
-  }
+export type CollectionUpdater = (c: Collection) => Collection
+
+// A new list of `kind`'s entries for `owner`, unnamed, with none in it yet
+// and shared with nobody.
+export function newCollection(id: string, owner: string, kind: CatalogKind): Collection {
+  return CollectionSchema.parse({ id, owner, kind })
 }
 
-// A new list of `kind`'s entries, unnamed, with none in it yet.
-export function createCollection(id: string, kind: CatalogKind): CampaignUpdater {
-  return (state) => (state.collections[id] ? state : { ...state, collections: { ...state.collections, [id]: CollectionSchema.parse({ kind }) } })
-}
-
-export function renameCollection(id: string, name: string): CampaignUpdater {
-  return withCollection(id, (c) => ({ ...c, name }))
-}
-
-export function removeCollection(id: string): CampaignUpdater {
-  return (state) => (state.collections[id] ? { ...state, collections: without(state.collections, id) } : state)
+export function renameCollection(name: string): CollectionUpdater {
+  return (c) => ({ ...c, name })
 }
 
 // Puts the entry filed under `key` in the list, or takes it out.
-export function setInCollection(id: string, key: string, on: boolean): CampaignUpdater {
-  return withCollection(id, (c) => (c.keys.includes(key) === on ? c : { ...c, keys: on ? [...c.keys, key] : c.keys.filter((k) => k !== key) }))
+export function setInCollection(key: string, on: boolean): CollectionUpdater {
+  return (c) => (c.keys.includes(key) === on ? c : { ...c, keys: [...toggled(c.keys, key, on)] })
+}
+
+// Shares the list with a profile or with every member of a campaign, or
+// stops sharing it.
+export function shareCollection(to: 'profiles' | 'campaigns', id: string, on: boolean): CollectionUpdater {
+  return (c) => (c.shared[to].includes(id) === on ? c : { ...c, shared: { ...c.shared, [to]: [...toggled(c.shared[to], id, on)] } })
 }

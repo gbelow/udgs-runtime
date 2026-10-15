@@ -8,6 +8,8 @@ import { Sidebar } from './Sidebar';
 import { CatalogEditor } from './catalog/CatalogEditor';
 import { CampaignEditor } from './CampaignEditor';
 import { CharacterCreation } from './CharacterCreation';
+import { ProfileLanding, ProfileMenu } from './ProfileMenu';
+import { useProfileId } from '../hooks/useProfile';
 
 const TABS = [
   { tab: 'create', label: 'Create', mobile: true },
@@ -24,6 +26,8 @@ export function App(){
 
   const [open, setOpen] = useState(false)
 
+  if (!useProfileId()) return <ProfileLanding />
+
   return(
     <>      
       <header className="w-full h-12 border-b border-line bg-surface px-2">
@@ -33,6 +37,7 @@ export function App(){
               className={`px-3 text-sm border-b-2 -mb-px ${mobile ? '' : 'hidden md:block '}${(tab === 'run' ? inRun : tab === 'catalog' ? inCatalog : selectedGameTab === tab) ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg'}`}
               onClick={() => setSelectedGameTab(tab === 'run' ? runTab : tab)}>{label}</button>
           ))}
+          <ProfileMenu />
         </div>
       </header>
 

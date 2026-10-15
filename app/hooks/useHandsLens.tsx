@@ -1,4 +1,5 @@
 import { isChargedIn } from "../domain/scene/rules/started";
+import { useActingAsGm } from "./useRole";
 import { holdItem, regripItem, dropItem, putOnFromHands, slingShield, unslingShield, throwOffShield } from "../domain/item/commands";
 import { wearFromHands } from "../domain/character/commands";
 import { getCatalogItem } from "../domain/item/rules/items";
@@ -6,7 +7,7 @@ import { Grip } from "../domain/item/rules/hands";
 import { getHandsPanel, HandsPanelView } from "../domain/item/projections/hands";
 import type { Character, CharacterUpdater } from "../domain/types";
 import type { Updater } from "../domain/scene/types";
-import { isActingAsGm, isFightTab, useAppStore } from "../stores/useAppStore";
+import { isFightTab, useAppStore } from "../stores/useAppStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { dropToFloor, throwOffShieldToFloor } from "../domain/scene/commands/floor";
 import { useActiveCharacterDerived, useActiveInventoryUpdate } from "./useActiveCharacterSelector";
@@ -21,7 +22,7 @@ export function useHandsLens() {
   const update = useActiveInventoryUpdate();
   const pending = useAppStore((s) => s.pendingItem);
   const tab = useAppStore((s) => s.selectedGameTab);
-  const gm = useAppStore(isActingAsGm);
+  const gm = useActingAsGm();
   const setPending = useAppStore((s) => s.setPendingItem);
   const pendingItem = usePendingItem();
   const fromCatalog = pending?.source === 'catalog' ? pendingItem : null;

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { toast } from "sonner";
-import { deleteCampaign, getCampaignList, loadCampaign, saveCampaign } from "../actions";
+import { deleteCampaign, loadCampaign, saveCampaign } from "../actions";
 import { fromCampaignSave, getCampaignSaveBar, newCampaign, toCampaignSave } from "../domain/saves";
 import { getMoveBars, getRosterView, getRosterViewDigest, type RosterView } from "../domain/campaign/projections/roster";
 import { addMap, createParty, leaveParty, moveToParty, removeMap, renameParty, splitOff } from "../domain/campaign/commands/parties";
@@ -13,6 +13,9 @@ import { useRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
 import { removeEntry, writeNote } from "../domain/campaign/commands/journal";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useAppStore } from "../stores/useAppStore";
+import { getMemberRows, setMember, type MemberRole } from "../domain/profiles";
+import { useProfileId } from "./useProfile";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -60,38 +63,40 @@ export function useCampaignMaps(): { maps: CampaignMapView[]; templates: string[
   };
 }
 
+// The saved campaigns the profile at the screen plays.
+export function useCampaignList() {
+  const campaigns = useAppStore((s) => s.campaignList);
+  const refresh = useAppStore((s) => s.updateCampaignList);
+  return { campaigns, refresh } as const;
+}
+
 // The saved campaigns, and the one in play: begun anew, opened from the
 // saved ones, named, saved and deleted.
 export function useCampaignFiles() {
   const file = useCampaignStore((s) => s.file);
   const setName = useCampaignStore((s) => s.setFileName);
   const openCampaign = useCampaignStore((s) => s.openCampaign);
+  const setMembers = useCampaignStore((s) => s.setMembers);
+  const profile = useProfileId();
   const fighting = useCombatStore((s) => Object.keys(s.characters).length > 0);
   const saveBar = getCampaignSaveBar(file.name, fighting);
-  const [campaigns, setCampaigns] = useState<{ id: string, name: string }[]>([]);
+  const { campaigns, refresh } = useCampaignList();
 
-  const refresh = useCallback(async () => {
-    const res = await getCampaignList();
-    if (res.ok) setCampaigns(res.data.sort((a, b) => a.name.localeCompare(b.name)));
-    else toast.error(res.error);
-  }, []);
-
-  useEffect(() => { refresh(); }, [refresh]);
-
-  const create = () => openCampaign(newCampaign(), { id: crypto.randomUUID(), name: '' });
+  const create = () => openCampaign(newCampaign(), { id: crypto.randomUUID(), name: '', members: profile ? { [profile]: 'gm' } : {} });
 
   const open = async (id: string) => {
     const res = await loadCampaign(id);
     if (!res.ok) { toast.error(res.error); return; }
     const { save, characters } = res.data;
-    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name });
+    openCampaign(fromCampaignSave(save, characters.map(makeCampaignCharacter)), { id: save.id, name: save.name, members: save.members });
     toast.success(`Campaign ${save.name} opened.`);
   };
 
   const save = async () => {
     const s = useCampaignStore.getState();
-    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, { campaign: s, exploration: s.exploration, downtime: s.downtime }), Object.values(s.characters));
+    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }), Object.values(s.characters));
     if (!res.ok) { toast.error(res.error); return; }
+    setMembers(res.data);
     toast.success(`Campaign ${s.file.name} saved.`);
     refresh();
   };
@@ -122,5 +127,20 @@ export function useJournal(filter: string | null | 'all') {
     parties: options,
     write: (party: string | null, text: string, gmOnly: boolean) => update(writeNote(party, text, gmOnly)),
     remove: (id: string) => update(removeEntry(id)),
+  } as const;
+}
+
+// Who plays the campaign in play and as what, the profiles that could join
+// it, and joining, recasting and taking one out, each refused with its reason
+// where it would leave the campaign without a GM.
+export function useCampaignMembers() {
+  const members = useCampaignStore((s) => s.file.members);
+  const setMembers = useCampaignStore((s) => s.setMembers);
+  const profiles = useAppStore((s) => s.profileList);
+  const me = useProfileId();
+  return {
+    members: getMemberRows(members, profiles, me),
+    others: profiles.filter((p) => !(p.id in members)),
+    set: (profile: string, role: MemberRole | null) => setMembers(setMember(members, profile, role)),
   } as const;
 }

@@ -1,6 +1,7 @@
 import { CampaignCharacter, Character, CreationDraft } from "../domain/types";
+import { useActingAsGm } from "./useRole";
 import type { SceneState } from "../domain/scene/types";
-import { GameTabs, isActingAsGm, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
+import { GameTabs, isFightTab, TAB_OWNER, useAppStore } from "../stores/useAppStore";
 import { useCharacterStore } from "../stores/useCharacterStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useRaceStore } from "../stores/useRaceStore";
@@ -85,7 +86,7 @@ export function readActiveCharacter(tab: GameTabs): Character | null {
 // whole-character subscription that useActiveCharacter carries on its read path.
 export function useActiveCharacterUpdate() {
   const updateCombatActive = useCombatStore((s) => s.updateActiveCharacter);
-  const gm = useAppStore(isActingAsGm);
+  const gm = useActingAsGm();
   return useUpdater((updater) => updateCombatActive(updater, gm ? 'GM edit' : undefined));
 }
 
@@ -93,7 +94,7 @@ export function useActiveCharacterUpdate() {
 // domain refuses it outside their own turn, unless the GM makes it.
 export function useActiveInventoryUpdate() {
   const updateCombatState = useCombatStore((s) => s.updateCombatState);
-  const gm = useAppStore(isActingAsGm);
+  const gm = useActingAsGm();
   return useUpdater((updater) => {
     const id = useCombatStore.getState().activeCharacterId;
     if (!id) return undefined;

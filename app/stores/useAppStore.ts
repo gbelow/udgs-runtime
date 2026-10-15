@@ -1,10 +1,13 @@
 import { createStore } from "zustand/vanilla";
 import { toast } from "sonner";
-import { getBasicCharList, getCharacterList, getMapList, getRaceList, JsonObject } from "../actions";
+import { getBasicCharList, getCampaignList, getCharacterList, getCollectionList, getMapList, getProfileList, getRaceList, JsonObject } from "../actions";
 import { useContext } from "react";
 import { AppStoreContext } from "./appStoreProvider";
 import { useStore } from "zustand";
 import type { Trade } from "../domain/item/rules/trade";
+import type { Profile, ProfileListing } from "../domain/profiles";
+import type { Collection } from "../domain/campaign/types";
+import { without } from "../domain/utils";
 
 export type GameTabs = 'create' | 'edit' | 'race' | 'map' | 'collections' | 'scene' | 'exploration' | 'downtime' | 'break' | 'catalog' | 'campaign'
 
@@ -52,21 +55,6 @@ export function isFightTab(tab: GameTabs): boolean {
   return TAB_OWNER[tab] === 'combat'
 }
 
-// Who is at the screen. A player only follows the standard rules; the GM and
-// the developer may also switch the run screen to GM mode, where the GM's
-// tools and catalogs open and the rules a character is held to are lifted.
-// Only dev exists until there are accounts.
-export type Role = 'player' | 'gm' | 'dev'
-
-export function hasGmTools(role: Role): boolean {
-  return role !== 'player'
-}
-
-// Whether the screen acts as the GM: the switch is on and the role has it.
-export function isActingAsGm(state: Pick<AppState, 'role' | 'gmMode'>): boolean {
-  return hasGmTools(state.role) && state.gmMode
-}
-
 // The item waiting for a destination to be clicked: a catalog entry picked in
 // the sidebar, at the size it is to be stamped at, a stack in the hands being
 // put away, or the armor being taken off. Pure UI coordination between
@@ -103,7 +91,26 @@ export interface AppState {
   updateRaceList: () => void
   mapList: JsonObject
   updateMapList: () => void
-  role: Role
+  // the profile picked at this screen, or null before one is
+  profile: Profile | null
+  setProfile: (profile: Profile) => void
+  profileList: ProfileListing[]
+  updateProfileList: () => void
+  // the collections the profile sees, by id: their own and those shared
+  // with them or with a campaign they play
+  collections: Record<string, Collection>
+  putCollection: (collection: Collection) => void
+  dropCollection: (id: string) => void
+  updateCollections: () => void
+  // the saved campaigns the profile plays
+  campaignList: { id: string, name: string }[]
+  updateCampaignList: () => void
+  // whether this is the dev server, where whoever is at the screen is the
+  // developer
+  devServer: boolean
+  // whether the GM's tools, for a role that has them, are switched on: GM
+  // mode, where the GM's catalogs open and the rules a character is held to
+  // are lifted
   gmMode: boolean
   setGmMode: (gmMode: boolean) => void
   pendingItem: PendingItem | null
@@ -131,7 +138,14 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     downtimeSpan: null,
     setDowntimeSpan: (downtimeSpan) => set({ downtimeSpan }),
     setSelectedGameTab: (selectedGameTab) => set(isRunTab(selectedGameTab) ? { selectedGameTab, runTab: selectedGameTab } : { selectedGameTab }),
-    role: 'dev',
+    profile: initialState.profile ?? null,
+    setProfile: (profile) => set({ profile }),
+    profileList: initialState.profileList || [],
+    collections: initialState.collections || {},
+    putCollection: (collection) => set((s) => ({ collections: { ...s.collections, [collection.id]: collection } })),
+    dropCollection: (id) => set((s) => ({ collections: without(s.collections, id) })),
+    campaignList: initialState.campaignList || [],
+    devServer: initialState.devServer ?? false,
     gmMode: false,
     setGmMode: (gmMode) => set({ gmMode }),
     pendingItem: null,
@@ -161,6 +175,24 @@ export const createAppStore = (initialState: Partial<AppState>) =>
       const res = await getCharacterList()
       if (!res.ok) { toast.error(res.error); return }
       set(s=> ({...s, playerCharacterList: res.data}) )
+    },
+
+    updateCollections: async () => {
+      const res = await getCollectionList()
+      if (!res.ok) { toast.error(res.error); return }
+      set({ collections: res.data })
+    },
+
+    updateCampaignList: async () => {
+      const res = await getCampaignList()
+      if (!res.ok) { toast.error(res.error); return }
+      set({ campaignList: res.data })
+    },
+
+    updateProfileList: async () => {
+      const res = await getProfileList()
+      if (!res.ok) { toast.error(res.error); return }
+      set({ profileList: res.data })
     },
 
   })

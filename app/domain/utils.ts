@@ -18,6 +18,13 @@ export function without<T>(record: Record<string, T>, id: string): Record<string
   return rest
 }
 
+// The list with `item` put in (at the end) or taken out; the same list where
+// it already is as asked.
+export function toggled<T>(list: readonly T[], item: T, on: boolean): readonly T[] {
+  if (list.includes(item) === on) return list
+  return on ? [...list, item] : list.filter((x) => x !== item)
+}
+
 // The catalog key a name is filed under: lowercase, runs of anything but
 // letters and digits collapsed to one dash. What the extractors used, so
 // existing keys keep resolving.

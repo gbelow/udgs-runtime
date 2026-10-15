@@ -3,7 +3,8 @@ import { useState } from 'react'
 import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
-import { useCampaignFiles, useCampaignMaps } from '../hooks/useCampaign'
+import { useCampaignFiles, useCampaignMaps, useCampaignMembers } from '../hooks/useCampaign'
+import { useRole } from '../hooks/useRole'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { MapEditingContext, useCampaignMapEditor } from '../hooks/useMap'
 import { MapBody } from './MapEditor'
@@ -14,6 +15,7 @@ import { MapBody } from './MapEditor'
 // saved is named here to be saved. Opening or beginning another replaces it.
 export function CampaignEditor() {
   const { file, campaigns, saveBar, setName, create, open, save, remove } = useCampaignFiles()
+  const { gmTools } = useRole()
   // the saved campaign about to replace the one in play, or '' for a new one
   const [replacing, setReplacing] = useState<string | null>(null)
   const saved = campaigns.some((c) => c.id === file.id)
@@ -43,9 +45,11 @@ export function CampaignEditor() {
           <Tooltip text={saveBar ?? 'save the campaign and its characters'}>
             <Button variant='primary' disabled={saveBar !== null} onClick={save}>save</Button>
           </Tooltip>
-          {saved ? <ConfirmDelete remove={() => remove(file.id)} /> : null}
+          {saved && gmTools ? <ConfirmDelete remove={() => remove(file.id)} /> : null}
         </div>
         {saveBar ? <span className='text-xs text-muted'>{saveBar}</span> : null}
+        <SectionLabel>Members</SectionLabel>
+        <CampaignMembers />
         <SectionLabel>Maps</SectionLabel>
         <CampaignMaps />
         <SectionLabel>Parties</SectionLabel>
@@ -53,6 +57,39 @@ export function CampaignEditor() {
         <SectionLabel>Journal</SectionLabel>
         <CampaignJournal />
       </div>
+    </div>
+  )
+}
+
+// Who plays the campaign and as what. Only a GM recasts them; the campaign
+// always keeps one. What changes here is kept when the campaign is saved.
+function CampaignMembers() {
+  const { members, others, set } = useCampaignMembers()
+  const { gmTools } = useRole()
+  const locked = gmTools ? null : 'only a GM changes who plays'
+  return (
+    <div className='flex flex-col gap-1 text-xs'>
+      {members.length === 0 ? <span className='text-muted'>nobody yet: whoever saves it is its GM</span> : null}
+      {members.map((m) => (
+        <div key={m.id} className='flex flex-row gap-1 items-center'>
+          <span className='w-40 text-sm truncate'>{m.name}{m.me ? <span className='text-muted'> (you)</span> : null}</span>
+          <Tooltip text={locked}>
+            <Button size='xs' selected={m.role === 'gm'} disabled={!!locked} onClick={() => set(m.id, 'gm')}>GM</Button>
+          </Tooltip>
+          <Tooltip text={locked ?? m.playerBar}>
+            <Button size='xs' selected={m.role === 'player'} disabled={!!locked || !!m.playerBar} onClick={() => set(m.id, 'player')}>player</Button>
+          </Tooltip>
+          <Tooltip text={locked ?? m.removeBar}>
+            <Button size='xs' variant='ghost' aria-label={`remove ${m.name}`} disabled={!!locked || !!m.removeBar} onClick={() => set(m.id, null)}>×</Button>
+          </Tooltip>
+        </div>
+      ))}
+      {gmTools && others.length > 0 ? (
+        <select aria-label='add member' className={`${selectClass} w-fit`} value='' onChange={(e) => set(e.target.value, 'player')}>
+          <option value=''>add a profile as a player…</option>
+          {others.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      ) : null}
     </div>
   )
 }

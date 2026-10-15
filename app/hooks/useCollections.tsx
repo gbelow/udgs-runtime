@@ -1,8 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
 import { CATALOGS, getCatalogRows, getKindLabel, isCatalogName } from "../forms/catalogs";
 import { ALL_ENTRIES, getCatalogGroups, getCollections, type CatalogRow, type CatalogRows, type CollectionView } from "../domain/campaign/projections/collections";
-import { createCollection, removeCollection, renameCollection, setInCollection } from "../domain/campaign/commands/collections";
-import type { CatalogKind } from "../domain/campaign/types";
+import { newCollection, renameCollection, setInCollection, shareCollection, type CollectionUpdater } from "../domain/campaign/commands/collections";
+import { deleteCollection, saveCollection } from "../actions";
+import { canReadCollection, isOwnerOrDev } from "../domain/profiles";
+import { useProfileId } from "./useProfile";
+import { toast } from "sonner";
+import type { CatalogKind, Collection } from "../domain/campaign/types";
 import { getBaseCharacters } from "../domain/character/grouping";
 import type { JsonObject } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
@@ -31,10 +35,14 @@ export function useCatalogRows(...kinds: CatalogKind[]): CatalogRows[] {
   }, [key, characters, races, maps]);
 }
 
-// The collections a picker of the `catalogs`' entries offers.
+// The collections a picker of the `catalogs`' entries offers: the
+// catalogs' own, and the curated ones the profile at the screen reads in the
+// campaign in play.
 export function useCollections(catalogs: CatalogRows[]): CollectionView[] {
-  const collections = useCampaignStore((s) => s.collections);
-  return useMemo(() => getCollections(collections, catalogs), [collections, catalogs]);
+  const collections = useAppStore((s) => s.collections);
+  const profile = useProfileId();
+  const campaign = useCampaignStore((s) => s.file.id);
+  return useMemo(() => getCollections(Object.values(collections).filter((c) => canReadCollection(c, profile, (id) => id === campaign)), catalogs), [collections, profile, campaign, catalogs]);
 }
 
 // The Collections tab's view of one catalog: its collections, and its
@@ -67,20 +75,45 @@ export function useCollectionFilter(...kinds: CatalogKind[]): CollectionFilter {
   return { collections, chosen: current.id, choose, keys: current.keys, all: current.id === ALL_ENTRIES, has, keep };
 }
 
-// The GM's own collections, made, named, filled and thrown away; they are
-// the campaign in play's, saved with it.
+// A GM's own collections, made, named, filled, shared and thrown away; each
+// is saved as it changes, and only its owner changes it.
 export function useCollectionCommands() {
-  const update = useCampaignStore((s) => s.updateCampaignState);
-  const campaign = useCampaignStore((s) => s.file.name);
+  const collections = useAppStore((s) => s.collections);
+  const profile = useProfileId();
+  const devServer = useAppStore((s) => s.devServer);
+  const profiles = useAppStore((s) => s.profileList);
+  const put = useAppStore((s) => s.putCollection);
+  const drop = useAppStore((s) => s.dropCollection);
+  const reload = useAppStore((s) => s.updateCollections);
+
+  const save = async (collection: Collection) => {
+    put(collection);
+    const res = await saveCollection(collection);
+    if (!res.ok) { toast.error(res.error); reload(); }
+  };
+  const change = (id: string, updater: CollectionUpdater) => {
+    const collection = collections[id];
+    if (collection) save(updater(collection));
+  };
+
   return {
-    campaign,
+    editable: (id: string) => { const c = collections[id]; return !!c && isOwnerOrDev(c.owner, profile, devServer); },
+    sharedWith: (id: string) => collections[id]?.shared ?? { profiles: [], campaigns: [] },
+    ownerName: (owner: string | null) => profiles.find((p) => p.id === owner)?.name ?? '',
+    others: profiles.filter((p) => p.id !== profile),
     create: (kind: CatalogKind) => {
-      const id = crypto.randomUUID();
-      update(createCollection(id, kind));
-      return id;
+      if (!profile) return null;
+      const collection = newCollection(crypto.randomUUID(), profile, kind);
+      save(collection);
+      return collection.id;
     },
-    rename: (id: string, name: string) => update(renameCollection(id, name)),
-    remove: (id: string) => update(removeCollection(id)),
-    set: (id: string, key: string, on: boolean) => update(setInCollection(id, key, on)),
+    rename: (id: string, name: string) => change(id, renameCollection(name)),
+    set: (id: string, key: string, on: boolean) => change(id, setInCollection(key, on)),
+    share: (id: string, to: 'profiles' | 'campaigns', target: string, on: boolean) => change(id, shareCollection(to, target, on)),
+    remove: async (id: string) => {
+      drop(id);
+      const res = await deleteCollection(id);
+      if (!res.ok) { toast.error(res.error); reload(); }
+    },
   } as const;
 }

@@ -1,4 +1,5 @@
 import { getRosterParties, getCombatRosterDigest, getPartiesPanel, getPartiesPanelDigest, type CombatRosterEntry, type PartiesPanel, type RosterParty } from "../domain/scene/projections/roster";
+import { useActingAsGm } from "./useRole";
 import { setTarget } from "../domain/scene/commands/action";
 import { getSceneCards, getSceneCardsDigest, type SceneCardParty } from "../domain/scene/projections/cards";
 import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../domain/scene/projections/roundChange";
@@ -10,7 +11,6 @@ import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/
 import type { SurgeOption } from "../domain/character/lenses/surge";
 import { getReturnBar, getEndCombatBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
-import { isActingAsGm, useAppStore } from "../stores/useAppStore";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
 
@@ -85,7 +85,7 @@ export function usePartiesPanel(): PartiesPanel {
 // Why the active character's gear cannot be handled now, or null.
 // Outside a fight nothing holds the gear to a turn.
 export function useGearBar(): string | null {
-  const gm = useAppStore(isActingAsGm);
+  const gm = useActingAsGm();
   return useActiveCharacterSelector((c, fight) => (fight ? getGearBar(fight, c.id, gm) : null)) ?? null;
 }
 

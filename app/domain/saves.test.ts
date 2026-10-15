@@ -14,14 +14,15 @@ describe('a saved campaign', () => {
         names: { a: 'A2' },
         parties: { p: { name: 'P', clock: 9, active: true, at: { map: 'm', node: 'n' } }, q: { name: 'Q' } },
         maps: { m: { name: 'M', nodes: { n: { name: 'N' } } } },
-        collections: { c: { kind: 'maps', name: 'C', keys: ['M'] } },
         journal: [{ id: '1', kind: 'et', party: 'p', partyName: 'P', clock: 9, title: 'an ET', lines: ['travel'] }, { id: '2', lines: ['a note'], gmOnly: true }],
         dayETs: 3,
       }),
       exploration: ExplorationStateSchema.parse({ resting: ['a'] }),
       downtime: DowntimeStateSchema.parse({}),
     }
-    const stored = CampaignSaveSchema.parse(JSON.parse(JSON.stringify(toCampaignSave('id', 'name', t))))
+    const members = { x: 'gm', y: 'player' } as const
+    const stored = CampaignSaveSchema.parse(JSON.parse(JSON.stringify(toCampaignSave('id', 'name', members, t))))
+    expect(stored.members).toEqual(members)
     const characters = Object.values(t.campaign.characters).map((c) => makeCampaignCharacter(JSON.parse(JSON.stringify(c))))
     expect(fromCampaignSave(stored, characters)).toEqual(t)
   })
