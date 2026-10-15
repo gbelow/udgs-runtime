@@ -1,4 +1,5 @@
 import type { Board, SceneState } from '../domain/scene/types'
+import { getFightName } from '../domain/scene/rules/fighters'
 
 // What crosses between the app and a VTT, in game units. The board is the
 // domain's own: placements keyed by character id, terrain keyed by axial
@@ -21,7 +22,7 @@ export function toSnapshot(state: SceneState, board: Board): BoardSnapshot {
   return {
     version: SNAPSHOT_VERSION,
     board,
-    roster: Object.values(state.characters).map((c) => ({ id: c.id, name: c.fightName ?? c.name })),
+    roster: Object.values(state.characters).map((c) => ({ id: c.id, name: getFightName(state, c.id) })),
     source: 'app',
     updatedAt: Date.now(),
   }

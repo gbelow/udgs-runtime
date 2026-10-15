@@ -3,6 +3,7 @@ import { CrawlMapSchema, PartySchema } from '../types'
 import { getPartyMembers, getPlace, isSamePlace } from '../rules/place'
 import { getEmptiedParties, getPartyMoveBar, nextPartyName } from '../rules/parties'
 import { without } from '../../utils'
+import { nameByParty } from './names'
 
 export const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
   (state) => (state.parties[partyId] ? { ...state, parties: { ...state.parties, [partyId]: update(state.parties[partyId]) } } : state)
@@ -40,11 +41,11 @@ export function renameParty(partyId: string, name: string): CampaignUpdater {
 }
 
 // The character joins another party, refused when that would take them back
-// in time (`getPartyMoveBar`).
+// in time (`getPartyMoveBar`), and is named by it (`nameByParty`).
 export function moveToParty(id: string, partyId: string): CampaignUpdater {
   return (state) => {
     if (!(id in state.characters) || getPartyMoveBar(state, id, partyId)) return state
-    return dropLeft({ ...state, partyOf: { ...state.partyOf, [id]: partyId } }, [state.partyOf[id]])
+    return nameByParty([id])(dropLeft({ ...state, partyOf: { ...state.partyOf, [id]: partyId } }, [state.partyOf[id]]))
   }
 }
 
@@ -59,33 +60,34 @@ export function splitOff(id: string, newId: () => string): CampaignUpdater {
   }
 }
 
-// The character leaves their party for none, and so is outside time until
-// they join one on a timeline.
+// The character leaves their party for none, and so is outside time, and
+// unnamed, until they join one on a timeline.
 export function leaveParty(id: string): CampaignUpdater {
   return (state) => {
     if (!(id in state.characters) || !(id in state.partyOf)) return state
     const { [id]: left, ...partyOf } = state.partyOf
-    return dropLeft({ ...state, partyOf }, [left])
+    return nameByParty([id])(dropLeft({ ...state, partyOf }, [left]))
   }
 }
 
 // Puts the character in the party: the one they were in if it is still
 // there, otherwise the party of whoever is selected, the first party, or a
-// new one.
+// new one, and is named by it (`nameByParty`).
 export function joinParty(id: string, newPartyId: () => string): CampaignUpdater {
   return (state) => {
-    if (state.parties[state.partyOf[id]]) return state
+    if (state.parties[state.partyOf[id]]) return nameByParty([id])(state)
     const active = state.activeCharacterId ? state.partyOf[state.activeCharacterId] : undefined
     const existing = (active && state.parties[active] ? active : undefined) ?? Object.keys(state.parties)[0]
     const partyId = existing ?? newPartyId()
     const opened = existing ? state : addParty(partyId)(state)
-    return { ...opened, partyOf: { ...opened.partyOf, [id]: partyId } }
+    return nameByParty([id])({ ...opened, partyOf: { ...opened.partyOf, [id]: partyId } })
   }
 }
 
 // Brings every member of one party into another on the same node, where
 // they are together, and at the same time: a party outside time joins the
-// other's timeline, but two timelines must be synced first.
+// other's timeline, but two timelines must be synced first. Whoever comes
+// is named by the party they join (`nameByParty`).
 export function mergeParties(fromId: string, intoId: string): CampaignUpdater {
   return (state) => {
     if (fromId === intoId || !state.parties[fromId] || !state.parties[intoId]) return state
@@ -93,7 +95,7 @@ export function mergeParties(fromId: string, intoId: string): CampaignUpdater {
     if (state.parties[fromId].clock !== null && state.parties[fromId].clock !== state.parties[intoId].clock) return state
     const moved = getPartyMembers(state, fromId)
     const { [fromId]: _gone, ...parties } = state.parties
-    return { ...state, parties, partyOf: { ...state.partyOf, ...Object.fromEntries(moved.map((id) => [id, intoId])) } }
+    return nameByParty(moved)({ ...state, parties, partyOf: { ...state.partyOf, ...Object.fromEntries(moved.map((id) => [id, intoId])) } })
   }
 }
 

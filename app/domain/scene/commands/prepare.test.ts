@@ -32,7 +32,7 @@ const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnA
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 30, STA: 10 } }
+  return { ...base, id, resources: { ...base.resources, AP: 30, STA: 10 } }
 }
 
 function spearman(id: string): CampaignCharacter {

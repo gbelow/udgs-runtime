@@ -10,6 +10,7 @@ import { settleBinds } from './bind'
 import { amendAction, declareAction } from './action'
 import { getOpenAction } from '../rules/log'
 import { getGearBar } from '../rules/turn'
+import { getFightName } from '../rules/fighters'
 
 // What a character lets go of lands where they stand, and a holder who let
 // go of the last thing they could grapple with lets go of the grapple. A
@@ -79,7 +80,7 @@ export function settleSevered(before: SceneState, actionId: string): Updater {
         .filter((part) => !part.lost && c.body.some((p) => p.id === part.id && p.lost))
         .flatMap((part) => {
           const held = part.itemId && !c.held.some((i) => i.id === part.itemId) ? getHeldItem(was, part.itemId) : undefined
-          const limb = getSeveredItem(part, `severed:${actionId}:${c.id}:${part.id}`, c)
+          const limb = getSeveredItem(part, `severed:${actionId}:${c.id}:${part.id}`, c.id, getFightName(state, c.id))
           return [onFloor(limb, cell), ...(held ? [onFloor(held, cell)] : [])]
         })
     })

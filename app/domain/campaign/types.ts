@@ -191,6 +191,9 @@ export const CampaignStateSchema = z.object({
   parties: z.record(z.string(), PartySchema).default({}),
   // the party each character is in, kept while they are in a fight
   partyOf: z.record(z.string(), z.string()).default({}),
+  // the name each character in a party on a timeline goes by, which tells
+  // copies of one sheet apart; kept while they are in a fight
+  names: z.record(z.string(), z.string()).default({}),
   // who was sent to a fight this ET and sits out what they planned
   out: z.array(z.string()).default([]),
 })

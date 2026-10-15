@@ -160,11 +160,11 @@ type SheetTab = typeof SHEET_TABS[number]
 // what the gear does in a fight is under gear.
 function SheetTabs(){
   const [tab, setTab] = useState<SheetTab>('inventory')
-  const { fightName } = useActiveCharacterData()
+  const { tableName } = useActiveCharacterData()
 
   return(
     <div className='flex flex-col gap-2'>
-      <span className='text-base font-medium'>{fightName}</span>
+      <span className='text-base font-medium'>{tableName}</span>
       <div className='flex flex-row flex-wrap gap-1'>
         {SHEET_TABS.map((t) =>
           <Button key={t} size='xs' aria-label={`sheet ${t}`} selected={t === tab} onClick={() => setTab(t)}>{t}</Button>)}

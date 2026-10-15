@@ -8,6 +8,7 @@ import { amendAction, commitAction, declareAction, setTarget } from '../scene/co
 import { getInjuryPenalty } from '../character/rules/afflictions'
 import { getLiveFoes, type Party } from './party'
 import { getArmedAttacks } from './weapons'
+import { getFightName } from '../scene/rules/fighters'
 
 // What a bot may do with its turn, each as a way to play it with a die:
 // strike or shoot a foe within reach with a row and variation, or walk
@@ -44,7 +45,7 @@ export function getAttackCandidates(state: SceneState, party: Party, id: string,
       const count = tried.get(key) ?? 0
       tried.set(key, count + 1)
       return count >= VARIANTS_TRIED ? [] : [{
-        label: `${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${state.characters[target].fightName}`,
+        label: `${armed.option.weapon} ${armed.option.attack} (${armed.option.variant}) → ${getFightName(state, target)}`,
         play: (dice) => {
           const committed = commitAction(dice, newId)(setTarget(target)(armed.state))
           return isCommitted(committed, armed.openId) ? committed : null

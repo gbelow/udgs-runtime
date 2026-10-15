@@ -1,3 +1,4 @@
+import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Character, Knowledges, Proficiencies, Skills } from '../../types'
 import { ProficienciesSchema, SkillsSchema } from '../../types'
 import { LIVING_LEVELS, knowledges_list, type LivingLevel } from '../../lists'
@@ -120,7 +121,7 @@ function characterView(t: Downtime, id: string, days: number): DowntimeCharacter
   const affordable = getAffordableDays(t, id, days)
   return {
     id,
-    name: c.fightName ?? id,
+    name: getRosterName(t.campaign, id),
     isActive: t.campaign.activeCharacterId === id,
     living: plan.living,
     housed: plan.housed,

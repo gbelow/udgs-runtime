@@ -13,7 +13,7 @@ const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnA
 
 function fighter(id: string, AP: number, STA = 6): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP, STA } }
+  return { ...base, id, resources: { ...base.resources, AP, STA } }
 }
 
 // A spearman (reach 2) stood four cells from a mover who walks straight at

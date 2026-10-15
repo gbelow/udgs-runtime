@@ -18,7 +18,7 @@ const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnA
 
 function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 20, STA: 20 } }
+  return { ...base, id, resources: { ...base.resources, AP: 20, STA: 20 } }
 }
 
 let n = 0

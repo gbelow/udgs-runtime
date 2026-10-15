@@ -17,6 +17,7 @@ import { isDead } from '../../character/rules/afflictions'
 import { getPartyMembers, getPlace } from '../../campaign/rules/place'
 import { getClockOf, getPlayingParties, getTimeBar } from '../../campaign/rules/clock'
 import { getPayable } from '../../item/rules/money'
+import { getRosterName } from '../../campaign/rules/roster'
 
 // The character's plan, or an empty one.
 export function getPlan(t: Downtime, id: string): Plan {
@@ -285,7 +286,7 @@ export function getDowntimeBar(t: Downtime, days: number): string | null {
   }
   for (const id of getDowntimeCharacters(state)) {
     const c = state.characters[id]
-    const name = c.fightName ?? id
+    const name = getRosterName(state, id)
     const block = getPlan(t, id).block
     const bar = block && getBlockBar(block, c)
     if (bar) return `${name}: ${bar}`

@@ -1,3 +1,4 @@
+import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree } from '../../types'
 import type { At, CampaignState, CampaignUpdater, CrawlEvent } from '../../campaign/types'
 import type { Camp, CastPlan, CastResult, Exploring, ExplorationUpdater, Group, GroupResult, Opening, StayResult, TestRoll } from '../types'
@@ -238,7 +239,7 @@ function treatOver(out: CastET, state: CampaignState, id: string, key: ETMedicin
 // rests instead, and one who cannot cast it is idle.
 function castOver(t: Exploring, partyId: string, players: string[], forced: (id: string) => boolean, dice: Dice): CastET {
   const state = t.campaign
-  const name = (id: string) => state.characters[id]?.fightName ?? id
+  const name = (id: string) => getRosterName(state, id)
   const out: CastET = { exhaustion: {}, bonus: {}, landing: {}, patients: [], results: [] }
   for (const id of players) {
     const plan = t.exploration.casts[id]
@@ -305,7 +306,7 @@ function passParty(t: Exploring, partyId: string, opening: Opening, dice: Dice, 
   const party = state.parties[partyId]
   const players = getPartyPlayers(state, partyId)
   const forced = (id: string) => isForcedToRest(opening.rolls[id]?.degree)
-  const name = (id: string) => state.characters[id]?.fightName ?? id
+  const name = (id: string) => getRosterName(state, id)
   const wear = getTerrainWear(state, party)
   const start = getCamp(t, partyId)
   let camp: Camp = { ...start, progress: [] }

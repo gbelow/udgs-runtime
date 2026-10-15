@@ -6,12 +6,13 @@ import { addItemToContainer } from '../item/commands/items'
 import { putOnFromCatalog } from '../item/commands/containers'
 import { getCatalogItem } from '../item/rules/items'
 import { grantAbility } from '../character/commands/abilities'
+import { makeName } from '../instances'
 
 // Fighters and boards for the bots' test and simulator to play with.
 
 export function fighter(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id })
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } }
+  return { ...base, id, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
 const shortSpear = () => ItemSchema.parse({ name: 'Short Spear', type: 'weapon', refId: 'Short Spear', bulk: 3 })
@@ -73,7 +74,7 @@ export function brawler(id: string): CampaignCharacter {
 export function serpent(id: string): CampaignCharacter {
   const base = makeCampaignCharacter({ name: id, size: 4, footprint: [{ q: 0, r: 0 }, { q: -1, r: 0 }, { q: -1, r: 1 }] })
   const gauntlet = ItemSchema.parse({ name: 'Gauntlet', type: 'weapon', refId: 'Gauntlet', bulk: 1 })
-  return holdItem(gauntlet)({ ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } })
+  return holdItem(gauntlet)({ ...base, id, resources: { ...base.resources, AP: 12, STA: 6 } })
 }
 
 // A brawler with a lit torch in the other hand (gear.tex "Torch").
@@ -127,5 +128,6 @@ export function netter(id: string): CampaignCharacter {
 
 export function board(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): SceneState {
   const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
-  return { ...SceneStateSchema.parse({ round: 1, board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
+  const names = characters.reduce<Record<string, string>>((given, c) => ({ ...given, [c.id]: makeName(c.name, Object.values(given)) }), {})
+  return { ...SceneStateSchema.parse({ round: 1, board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])), names }
 }

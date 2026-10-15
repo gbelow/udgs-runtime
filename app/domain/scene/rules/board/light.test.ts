@@ -15,7 +15,7 @@ const newId = () => `l${++n}`
 function caster(): CampaignCharacter {
   const base = makeCampaignCharacter({ name: 'c' })
   const torch = getCatalogItem('Alchemical Torch')!
-  return { ...holdItem(torch)({ ...base, id: 'c', fightName: 'c', resources: { ...base.resources, AP: 30, STA: 10 } }), spells: { 'revealing-light': { method: 'intuitive' as const, practice: 6 } }, usedSurge: 'focus' as const }
+  return { ...holdItem(torch)({ ...base, id: 'c', resources: { ...base.resources, AP: 30, STA: 10 } }), spells: { 'revealing-light': { method: 'intuitive' as const, practice: 6 } }, usedSurge: 'focus' as const }
 }
 
 function night(): SceneState {
@@ -44,8 +44,8 @@ describe('Revealing Light', () => {
 describe('a Darkseeing potion', () => {
   function dusk(): SceneState {
     const base = makeCampaignCharacter({ name: 'd' })
-    const drinker = holdItem(getCatalogItem('Darkseeing')!)({ ...base, id: 'd', fightName: 'd', resources: { ...base.resources, AP: 30, STA: 10 } })
-    const target = { ...makeCampaignCharacter({ name: 't' }), id: 't', fightName: 't' }
+    const drinker = holdItem(getCatalogItem('Darkseeing')!)({ ...base, id: 'd', resources: { ...base.resources, AP: 30, STA: 10 } })
+    const target = { ...makeCampaignCharacter({ name: 't' }), id: 't' }
     const placements = { d: PlacementSchema.parse({ cell: { q: 0, r: 0 } }), t: PlacementSchema.parse({ cell: { q: 3, r: 0 } }) }
     return { ...SceneStateSchema.parse({ board: { placements, light: 'dim' } }), characters: { d: drinker, t: target }, inTurnCharacter: 'd' }
   }

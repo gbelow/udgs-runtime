@@ -5,19 +5,26 @@ import { Character, SurgeKind } from "../domain/types";
 import { isCampaignCharacter } from "../domain/utils";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
+import { TAB_OWNER, useAppStore } from "../stores/useAppStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
+import { getFightName } from "../domain/scene/rules/fighters";
+import { getRosterName } from "../domain/campaign/rules/roster";
 
 export function useActiveCharacterData() {
-  // fightName is campaign-only; notes is shared. Each is a
-  // primitive selected inside the store selector, so re-renders are gated on
-  // the actual field value, not the whole-character reference.
-  const fightName =
-    useActiveCharacterSelector((c: Character) => (isCampaignCharacter(c) ? (c.fightName ?? '') : '')) ?? '';
+  // The name the character goes by at the table is kept by whoever holds
+  // them, the fight or the campaign; notes is shared. Each is a primitive
+  // selected inside the store selector, so re-renders are gated on the actual
+  // field value, not the whole-character reference.
+  const owner = TAB_OWNER[useAppStore((s) => s.selectedGameTab)];
+  const rosterName = useCampaignStore((s) => (owner === "campaign" && s.activeCharacterId ? getRosterName(s, s.activeCharacterId) : ""));
+  const fightName = useActiveCharacterSelector((c: Character, fight) => (fight ? getFightName(fight, c.id) : "")) ?? "";
+  const tableName = owner === "campaign" ? rosterName : fightName;
   const notes = useActiveCharacterSelector((c: Character) => c.notes) ?? '';
   const name = useActiveCharacterSelector((c: Character) => c.name) ?? '';
 
   const limitStress = useActiveCharacterSelector((c: Character) => c.limitStress) ?? null;
 
-  return { fightName, notes, name, limitStress };
+  return { tableName, notes, name, limitStress };
 }
 
 // Whether the tab has an active character, in whichever store owns it.

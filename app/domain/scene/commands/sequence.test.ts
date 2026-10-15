@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SceneStateSchema, type Action, type SceneState, type Coord } from '../types'
+import { type Action, type SceneState, type Coord } from '../types'
 import { makeCampaignCharacter } from '../../factories'
 import { ItemSchema, type CampaignCharacter } from '../../types'
 import { holdItem, regripItem } from '../../item/commands/hands'
@@ -17,7 +17,7 @@ import { withdrawSpawnedAction } from './action'
 import { endTurn } from './turn'
 import { produceEffects } from '../../character/rules/production'
 import { SPELLS } from '../../spells'
-import { archer } from '../../bot/fixtures'
+import { archer, board as onBoard } from '../../bot/fixtures'
 import { grantAbility } from '../../character/commands/abilities'
 import type { AbilityKey } from '../../abilities'
 import { getTethers } from '../rules/partners'
@@ -29,7 +29,7 @@ const declareAction = (...[actorId, draft, newId]: Parameters<typeof declareOwnA
 
 function fighter(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
   const base = abilities.reduce<CampaignCharacter>((acc, key) => grantAbility(key)(acc), makeCampaignCharacter({ name: id }))
-  return { ...base, id, fightName: id, resources: { ...base.resources, AP: 12, STA: 6 } }
+  return { ...base, id, resources: { ...base.resources, AP: 12, STA: 6 } }
 }
 
 function wielder(id: string, weapon: string, abilities: AbilityKey[] = []): CampaignCharacter {
@@ -39,11 +39,6 @@ function wielder(id: string, weapon: string, abilities: AbilityKey[] = []): Camp
 
 function spearman(id: string, abilities: AbilityKey[] = []): CampaignCharacter {
   return wielder(id, 'Short Spear', abilities)
-}
-
-function onBoard(placements: Record<string, [number, number]>, ...characters: CampaignCharacter[]): SceneState {
-  const cells = Object.fromEntries(Object.entries(placements).map(([id, [q, r]]) => [id, { cell: { q, r } }]))
-  return { ...SceneStateSchema.parse({ round: 1, board: { placements: cells } }), characters: Object.fromEntries(characters.map((c) => [c.id, c])) }
 }
 
 let n = 0

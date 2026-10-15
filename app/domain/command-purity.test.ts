@@ -21,6 +21,7 @@ import * as clockModule from './campaign/commands/clock'
 import * as partiesModule from './campaign/commands/parties'
 import * as collectionsModule from './campaign/commands/collections'
 import * as journalModule from './campaign/commands/journal'
+import * as namesModule from './campaign/commands/names'
 import * as mapModule from './campaign/commands/map'
 import { CampaignStateSchema, CrawlMapSchema, type CampaignState, type CrawlMap } from './campaign/types'
 import type { Table } from './scene/types'
@@ -45,7 +46,7 @@ import armorsCatalog from '../assets/armors.json'
 const drafting = (c: CampaignCharacter): CampaignCharacter => ({ ...c, raceDraft: RaceDraftSchema.parse({}) })
 
 const combatCommands = { ...nextRoundModule, ...resetCombatModule, ...turnModule, ...breakageModule, ...actionsModule, ...choicesModule, ...boardModule, ...bindModule, ...floorModule, ...charactersModule, ...fightPartiesModule, ...moraleModule, ...socialModule }
-const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...collectionsModule, ...journalModule }
+const campaignCommands = { ...rosterModule, ...fightModule, ...clockModule, ...partiesModule, ...collectionsModule, ...journalModule, ...namesModule }
 const explorationCommands = { ...explorationModule, ...plansModule }
 const downtimeCommands = { ...downtimeModule, ...downtimePlansModule }
 
@@ -303,8 +304,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   updateInventory: (s) => combatCommands.updateInventory('a', (c) => ({ ...c, held: [] }))(deepFreeze(grappling(s))),
   dropEmptyFightParties: (s) => combatCommands.dropEmptyFightParties(deepFreeze({ ...partied(s), partyOf: { a: 'x', b: 'x' } }), ['y']),
   createParty: (s) => combatCommands.createParty('z', 'Z')(deepFreeze(partied(s))),
-  joinFight: (s) => combatCommands.joinFight(makeCampaignCharacter({ name: 'c' }), 'x', 'X')(s),
-  addToFight: (s) => combatCommands.addToFight(makeCampaignCharacter({ name: 'c' }), newId, [], [])(deepFreeze(partied(s))),
+  joinFight: (s) => combatCommands.joinFight(makeCampaignCharacter({ name: 'c' }), 'x', 'X', [])(s),
+  addToFight: (s) => combatCommands.addToFight(makeCampaignCharacter({ name: 'c' }), newId, [], [], [])(deepFreeze(partied(s))),
   moveToParty: (s) => combatCommands.moveToParty('a', 'y')(deepFreeze(partied(s))),
   splitOff: (s) => combatCommands.splitOff('a', newId)(deepFreeze(partied(s))),
   renameParty: (s) => combatCommands.renameParty('x', 'Z')(deepFreeze(partied(s))),
@@ -356,12 +357,13 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   moveToParty: ({ campaign }) => campaignCommands.moveToParty('a', 'q')(campaignCommands.createParty('q', 'Q')(campaign)),
   splitOff: ({ campaign }) => campaignCommands.splitOff('a', () => 'q')(campaign),
   leaveParty: ({ campaign }) => campaignCommands.leaveParty('a')(campaign),
+  nameByParty: ({ campaign }) => campaignCommands.nameByParty(['a'])(campaign),
   sendToFight: (t) => campaignCommands.sendToFight(['a'])(t),
   returnFromFight: (t) => campaignCommands.returnFromFight(['a'], 0)(t),
   returnPartyFromFight: (t) => campaignCommands.returnPartyFromFight('p', 0)(t),
   sendPartyToFight: (t) => campaignCommands.sendPartyToFight('p')(t),
   saveFightLog: (t) => campaignCommands.saveFightLog(t),
-  checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' })(campaign),
+  checkIn: ({ campaign }) => campaignCommands.checkIn(characterSubject(), { partyId: 'q', name: 'Q' }, 'c')(campaign),
   loadIntoFight: (t) => campaignCommands.loadIntoFight(characterSubject(), () => 'issued')(t),
   loadOntoRoster: (t) => campaignCommands.loadOntoRoster(characterSubject(), () => 'issued')(t),
   removeFromFight: (t) => campaignCommands.removeFromFight('a')(deepFreeze(away(t))),
@@ -511,8 +513,8 @@ const mapCases: Record<string, (m: CrawlMap) => unknown> = {
 }
 
 function combatSubject(): SceneState {
-  const a = { ...characterSubject(), id: 'a', fightName: 'a' }
-  const b = { ...characterSubject(), id: 'b', fightName: 'b' }
+  const a = { ...characterSubject(), id: 'a' }
+  const b = { ...characterSubject(), id: 'b' }
   const strike = { kind: 'strike', id: 's1', actorId: 'a', targetId: 'b', weaponKey: 'natural:Unarmed', attack: 'punch', variant: 'basic', step: 'react' }
   const evade = { kind: 'evade', id: 'r1', actorId: 'b', targetId: 'a', reactionTo: 's1' }
   return {

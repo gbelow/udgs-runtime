@@ -192,7 +192,7 @@ describe('a charge set off', () => {
     const bomb = ItemSchema.parse({ id: 'bomb', name: 'bomb' })
     const charge = { key: 'smoke-explosive', effects: produceEffects(base, SPELLS['smoke-explosive'].effects) }
     let s: SceneState = {
-      ...combat({ ...base, fightName: 'a', held: [{ ...bomb, charge }] }),
+      ...combat({ ...base, held: [{ ...bomb, charge }] }),
       board: BoardSchema.parse({ placements: { a: { cell: { q: 0, r: 0 } } } }),
     }
     s = commitAction(() => 5, newId)(declareAction('a', { kind: 'throw', itemId: 'bomb', to: { q: 0, r: 2 } }, newId)(s))

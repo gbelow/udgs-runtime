@@ -16,9 +16,9 @@ export function getActiveCharacter(state: Pick<SceneState, 'characters' | 'activ
 }
 
 // The name a character goes by in the fight, which tells copies of one sheet
-// apart; empty for anyone not in it.
-export function getFightName(state: SceneState, id: string): string {
-  return state.characters[id]?.fightName ?? state.names[id] ?? ''
+// apart, kept once they have left it; empty for anyone never in it.
+export function getFightName(state: Pick<SceneState, 'names'>, id: string): string {
+  return state.names[id] ?? ''
 }
 
 // What the item is called, wherever it lies: with its owner or on the floor;

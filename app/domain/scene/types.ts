@@ -1593,8 +1593,9 @@ export const SceneStateSchema = z.object({
   // in: an opportunity attack lands before the action it answers. Only ever
   // added to.
   landed: z.array(str).default([]),
-  // What each character who has left the fight went by in it, so the log
-  // still names them.
+  // What each character who has been in the fight goes by in it, which tells
+  // copies of one sheet apart, kept once they have left so the log still
+  // names them.
   names: z.record(str, str).default({}),
   // What was withdrawn from play without landing, in the order it was; only
   // ever added to.

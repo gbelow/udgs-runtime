@@ -6,6 +6,7 @@ import { gainHunger, gainThirst } from '../../character/commands/heal'
 import { wearOff } from '../../character/commands/consume'
 import { ETS_PER_DAY, describeClock, getDaysEnded } from '../rules/clock'
 import { record } from './journal'
+import { nameByParty } from './names'
 
 // survival.tex "Day": "Every end of day, characters get +2 hunger and +2
 // thirst".
@@ -49,15 +50,17 @@ export function passETs(count: number, partyIds: readonly string[]): CampaignUpd
 }
 
 // Brings the party to the ETs reading `clock` without living the time
-// between: a party outside time joins that timeline, one on a timeline skips
-// ahead on it. Time is never turned back.
+// between: a party outside time joins that timeline, and its members are
+// named (`nameByParty`), one on a timeline skips ahead on it. Time is never
+// turned back.
 export function placeOnTimeline(partyId: string, clock: number): CampaignUpdater {
   return (state) => {
     const party = state.parties[partyId]
     const to = Math.max(0, Math.round(clock))
     if (!party || (party.clock !== null && to <= party.clock)) return state
     const from = party.clock === null ? 'outside time' : describeClock(party.clock)
-    return record({ kind: 'sync', party: partyId, title: `placed at ${describeClock(to)}`, lines: [`from ${from}, without living the time between`] })(withParty(partyId, (p) => ({ ...p, clock: to }))(state))
+    const placed = nameByParty(getPartyMembers(state, partyId))(withParty(partyId, (p) => ({ ...p, clock: to }))(state))
+    return record({ kind: 'sync', party: partyId, title: `placed at ${describeClock(to)}`, lines: [`from ${from}, without living the time between`] })(placed)
   }
 }
 

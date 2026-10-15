@@ -11,6 +11,7 @@ describe('a saved campaign', () => {
       campaign: CampaignStateSchema.parse({
         characters: { a: { ...makeCampaignCharacter({ name: 'A' }), id: 'a' } },
         partyOf: { a: 'p' },
+        names: { a: 'A2' },
         parties: { p: { name: 'P', clock: 9, active: true, at: { map: 'm', node: 'n' } }, q: { name: 'Q' } },
         maps: { m: { name: 'M', nodes: { n: { name: 'N' } } } },
         collections: { c: { kind: 'maps', name: 'C', keys: ['M'] } },

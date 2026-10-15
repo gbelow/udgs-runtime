@@ -3,6 +3,7 @@ import type { CampaignCharacter } from './types'
 import { CampaignRecordSchema, CampaignStateSchema, type CampaignState } from './campaign/types'
 import { ExplorationStateSchema, type ExplorationState } from './exploration/types'
 import { DowntimeStateSchema, type DowntimeState } from './downtime/types'
+import { nameByParty } from './campaign/commands/names'
 
 // A campaign as it is saved: its own record, what exploration and downtime
 // keep beside it, and the ids of its characters, saved apart. Read back best
@@ -36,12 +37,14 @@ export function toCampaignSave(id: string, name: string, t: CampaignInPlay): Cam
 }
 
 // The campaign back in play with the characters found for it; one that was
-// not found is out of every party.
+// not found is out of every party and goes by no name, and one on a timeline
+// the save has no name for is named (`nameByParty`).
 export function fromCampaignSave(save: CampaignSave, characters: readonly CampaignCharacter[]): CampaignInPlay {
   const found = Object.fromEntries(characters.filter((c) => save.characterIds.includes(c.id)).map((c) => [c.id, c]))
   const partyOf = Object.fromEntries(Object.entries(save.campaign.partyOf).filter(([id]) => id in found))
+  const names = Object.fromEntries(Object.entries(save.campaign.names).filter(([id]) => id in found))
   return {
-    campaign: { ...save.campaign, characters: found, activeCharacterId: null, partyOf, out: [] },
+    campaign: nameByParty(Object.keys(found))({ ...save.campaign, characters: found, activeCharacterId: null, partyOf, names, out: [] }),
     exploration: save.exploration,
     downtime: save.downtime,
   }

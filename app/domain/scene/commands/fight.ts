@@ -13,16 +13,20 @@ import { describeSpan } from '../../campaign/rules/clock'
 import { record } from '../../campaign/commands/journal'
 import { getFightLogLines } from '../projections/episode'
 import { getPartyMembers } from '../../campaign/rules/place'
+import { getTableNames } from '../../campaign/rules/roster'
+import { getFightName } from '../rules/fighters'
 
 // Takes these characters off the roster and into the fight, under the ids
 // they have, each in the party they are in, or one of their own if they are in
-// none; refused when nobody can join (`getJoinBar`).
+// none, going by the name the campaign gave them, or their sheet's, made
+// apart from the names the campaign gave everyone else; refused when nobody
+// can join (`getJoinBar`).
 export function sendToFight(ids: string[]): TableUpdater {
   return (table) => getJoinBar(table.fight) ? table : ids.reduce(({ campaign, fight }, id) => {
     const c = campaign.characters[id]
     if (!c) return { campaign, fight }
     const partyId = campaign.partyOf[id] ?? id
-    return { campaign: checkOut(id)(campaign), fight: joinFight(c, partyId, campaign.parties[partyId]?.name ?? '')(fight) }
+    return { campaign: checkOut(id)(campaign), fight: joinFight(c, partyId, campaign.parties[partyId]?.name ?? '', getTableNames(campaign, id), campaign.names[id])(fight) }
   }, table)
 }
 
@@ -31,7 +35,7 @@ export function sendToFight(ids: string[]): TableUpdater {
 export function loadIntoFight(char: CampaignCharacter, newId: () => string, into?: string): TableUpdater {
   return (table) => getJoinBar(table.fight) ? table : ({
     campaign: table.campaign,
-    fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties), into)(table.fight),
+    fight: addToFight(char, newId, getTableIds(table), Object.keys(table.campaign.parties), getTableNames(table.campaign), into)(table.fight),
   })
 }
 
@@ -42,7 +46,7 @@ export function loadOntoRoster(char: CampaignCharacter, newId: () => string, int
 // These characters go back to the roster as the fight left them, in the
 // parties it left them in. A fight that ran rounds leaves its marks on them.
 function giveBack(table: Table, leaving: CampaignCharacter[]): CampaignState {
-  return leaving.reduce((campaign, c) => checkIn(table.fight.round > 0 ? leaveFight(c) : c, getHomecoming(table, c.id))(campaign), table.campaign)
+  return leaving.reduce((campaign, c) => checkIn(table.fight.round > 0 ? leaveFight(c) : c, getHomecoming(table, c.id), getFightName(table.fight, c.id))(campaign), table.campaign)
 }
 
 // Takes a character out of the fight. One sent from the roster goes back to
@@ -75,7 +79,7 @@ export function returnFromFight(ids: string[], ets: number): TableUpdater {
     const back = giveBack(table, leaving)
     const recorded = [...homes].filter(([pid]) => back.parties[pid]).reduce((campaign, [pid, members]) => record({
       kind: 'scene', party: pid, title: 'back from a scene',
-      lines: [members.map((c) => c.fightName ?? c.name).join(', '), ...(!staying.has(pid) && ets > 0 ? [`the scene took ${describeSpan(ets)}`] : [])],
+      lines: [members.map((c) => getFightName(table.fight, c.id)).join(', '), ...(!staying.has(pid) && ets > 0 ? [`the scene took ${describeSpan(ets)}`] : [])],
     })(campaign), back)
     const campaign = passETs(ets, done)(recorded)
     const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)

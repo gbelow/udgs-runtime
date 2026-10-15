@@ -1,6 +1,6 @@
 import type { CampaignCharacter } from '../../types'
 import type { SceneState, Updater } from '../types'
-import { addInstance, makeFightName } from '../../instances'
+import { addInstance, makeName } from '../../instances'
 import { getEmptiedParties, nextPartyName } from '../../campaign/rules/parties'
 import { getOpenAction } from '../rules/log'
 import { getSplitChase } from '../rules/chase'
@@ -24,24 +24,28 @@ export function createParty(partyId: string, name: string): Updater {
 }
 
 // The character enters the fight under their id, in the party named, made
-// under `name` if the fight does not have it yet.
-export function joinFight(char: CampaignCharacter, partyId: string, name: string): Updater {
+// under `partyName` if the fight does not have it yet. They go by the name
+// the fight gave them before, or else by `preferred` or their sheet's name,
+// made apart from every name the fight has given and the `reserved` ones,
+// which others at the table go by.
+export function joinFight(char: CampaignCharacter, partyId: string, partyName: string, reserved: readonly string[], preferred?: string): Updater {
   return (state) => {
-    const joined = { ...char, fightName: makeFightName(char, state.characters) }
-    const parties = state.parties[partyId] ? state.parties : { ...state.parties, [partyId]: { name: name || nextPartyName(state.parties) } }
-    return { ...state, characters: { ...state.characters, [char.id]: joined }, parties, partyOf: { ...state.partyOf, [char.id]: partyId } }
+    const named = state.names[char.id] ?? makeName(preferred ?? char.name, [...Object.values(state.names), ...reserved])
+    const parties = state.parties[partyId] ? state.parties : { ...state.parties, [partyId]: { name: partyName || nextPartyName(state.parties) } }
+    return { ...state, characters: { ...state.characters, [char.id]: char }, names: { ...state.names, [char.id]: named }, parties, partyOf: { ...state.partyOf, [char.id]: partyId } }
   }
 }
 
 // A character brought straight into the fight, under an id nobody at the
 // table has `taken`, joins the party `into` names — made if the fight does not
 // have it — or else the newest party made in it, one that is not among
-// `campaignParties`, or a party of their own.
-export function addToFight(char: CampaignCharacter, newId: () => string, taken: readonly string[], campaignParties: readonly string[], into?: string): Updater {
+// `campaignParties`, or a party of their own, going by their sheet's name
+// made apart from the `reserved` ones (see `joinFight`).
+export function addToFight(char: CampaignCharacter, newId: () => string, taken: readonly string[], campaignParties: readonly string[], reserved: readonly string[], into?: string): Updater {
   return (state) => {
-    const added = addInstance(char, state.characters, newId, taken)
+    const added = addInstance(char, newId, taken)
     const made = Object.keys(state.parties).filter((pid) => !campaignParties.includes(pid))
-    return joinFight(added, into ?? made.at(-1) ?? newId(), '')(state)
+    return joinFight(added, into ?? made.at(-1) ?? newId(), '', reserved)(state)
   }
 }
 

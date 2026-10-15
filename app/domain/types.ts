@@ -1489,7 +1489,6 @@ export const CampaignCharacterSchema = z.object({
   ...CharacterValues,
   type: z.literal('campaign').default('campaign'),
   ...CampaignValues,
-  fightName: z.string().optional(),
 })
 
 export type CampaignCharacter = z.infer<typeof CampaignCharacterSchema>

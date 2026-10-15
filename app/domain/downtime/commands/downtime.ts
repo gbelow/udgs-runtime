@@ -1,3 +1,4 @@
+import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Character } from '../../types'
 import type { CampaignState } from '../../campaign/types'
 import type { Block, Downtime, DowntimeResult, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
@@ -100,7 +101,7 @@ type Lived = { c: CampaignCharacter; plan: Plan; results: DowntimeResult[] }
 // and everything spent and earned settled out of the purse at the end. An
 // activity that time spent elsewhere broke into is lost.
 function liveDays(t: Downtime, id: string, days: number, dice: Dice): Lived {
-  const name = t.campaign.characters[id].fightName ?? id
+  const name = getRosterName(t.campaign, id)
   let c = t.campaign.characters[id]
   const start = getPlan(t, id)
   const results: DowntimeResult[] = []

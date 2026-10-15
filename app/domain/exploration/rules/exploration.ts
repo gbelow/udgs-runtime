@@ -1,3 +1,4 @@
+import { getRosterName } from '../../campaign/rules/roster'
 import type { CampaignCharacter, Degree } from '../../types'
 import type { ExplorationAction } from '../../lists'
 import type { CampaignState, Party } from '../../campaign/types'
@@ -186,5 +187,5 @@ export function getPassBar(t: Exploring): string | null {
     }
   }
   const undecided = getDecisionsCalled(t).find((id) => !t.exploration.opening?.decisions[id])
-  return undecided ? `decide for ${t.campaign.characters[undecided]?.fightName ?? undecided}` : null
+  return undecided ? `decide for ${getRosterName(t.campaign, undecided)}` : null
 }

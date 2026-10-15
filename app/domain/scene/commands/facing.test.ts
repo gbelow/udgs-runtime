@@ -7,7 +7,7 @@ import { amendAction, commitAction, declareAction } from './action'
 
 function walker(): CampaignCharacter {
   const base = makeCampaignCharacter({ name: 'w' })
-  return { ...base, id: 'w', fightName: 'w', resources: { ...base.resources, AP: 30, STA: 10 } }
+  return { ...base, id: 'w', resources: { ...base.resources, AP: 30, STA: 10 } }
 }
 
 let n = 0

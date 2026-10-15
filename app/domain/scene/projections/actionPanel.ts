@@ -413,7 +413,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
       id: open.id,
       label: getOpenLabel(state, open),
       actor: getFightName(state, open.actorId),
-      target: target?.fightName ?? (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
+      target: target ? getFightName(state, target.id) : (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
       targetId: open.targetId,
       weapon: swung?.weaponKey ?? '',
       attack: swung?.attack ?? '',

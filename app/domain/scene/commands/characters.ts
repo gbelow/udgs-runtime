@@ -8,6 +8,7 @@ import { getGearBar } from '../rules/turn'
 import { settleBinds } from './bind'
 import { dropEmptyFightParties } from './parties'
 import { getChanges } from '../rules/changes'
+import { without } from '../../utils'
 
 // Takes a character out of the fight: their place on the board and in their
 // party goes with them, and so does every grapple they were in and the cover
@@ -17,11 +18,10 @@ export function removeFromCombat(id: string): Updater {
   return (given) => {
     if (getOpenAction(given)) return given
     const state = withdrawActions(given, getHeldActions(given).filter((h) => h.actorId === id).map((h) => h.id), 'failed')
-    const { [id]: leaving, ...characters } = state.characters
     const { [id]: _placement, ...placements } = state.board?.placements ?? {}
     const { [id]: _cover, ...bodyCover } = state.bodyCover
     const { [id]: _party, ...partyOf } = state.partyOf
-    const left = dropEmptyFightParties({ ...state, characters, partyOf, names: leaving?.fightName ? { ...state.names, [id]: leaving.fightName } : state.names, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }, [state.partyOf[id]])
+    const left = dropEmptyFightParties({ ...state, characters: without(state.characters, id), partyOf, inTurnCharacter: state.inTurnCharacter === id ? '' : state.inTurnCharacter, board: state.board ? { ...state.board, placements } : null, surrendered: state.surrendered.filter((s) => s !== id), bodyCover, binds: state.binds.filter((g) => !g.members.includes(id)) }, [state.partyOf[id]])
     return settleBinds(left)
   }
 }
