@@ -1,11 +1,11 @@
 'use client'
 import { useState, useMemo } from 'react'
 import { toast } from 'sonner'
-import { upsertBaseCharacter, deleteBaseCharacter, getCharacter, deleteCharacter, JsonObject } from '../actions';
+import { upsertBaseCharacter, deleteBaseCharacter, getCharacter, deleteCharacter } from '../actions';
 import { useCharacterLibrary, useLoadCharacter } from '../hooks/useCharacterLibrary';
 import { useGameTab } from '../hooks/useGameTab';
 import { makeCharacter } from '../domain/factories';
-import { groupByTags, TreeNode } from '../domain/character/grouping';
+import { getBaseCharacters, groupByTags, TreeNode } from '../domain/character/grouping';
 import { BaseCharacter, Character } from '../domain/types';
 import { ListButton } from './ui';
 
@@ -73,8 +73,9 @@ function CharacterTreeNode({ node, depth, handlers }: {
 }
 
 // The saved characters and the PCs. A click loads one as the tab means it,
-// or hands it to `onSelect`; without the `catalog`, only the PCs are listed.
-export function CharacterSelector({ onSelect, catalog = true }: { onSelect?: (character: Character) => void, catalog?: boolean } = {}){
+// or hands it to `onSelect`; without the `catalog`, only the PCs are listed,
+// and with `only`, only the saved characters it keeps.
+export function CharacterSelector({ onSelect, catalog = true, only }: { onSelect?: (character: Character) => void, catalog?: boolean, only?: (name: string) => boolean } = {}){
 
   const [open, setOpen] = useState<{ [key: string]: boolean }>({});
   const [openCampaignChars, setOpenCampaignChars] = useState(false)
@@ -132,10 +133,8 @@ export function CharacterSelector({ onSelect, catalog = true }: { onSelect?: (ch
   // groups by the schema-authoritative `tags` (with defaults applied) rather
   // than trusting raw JSON shape.
   const characters = useMemo<BaseCharacter[]>(
-    () => Object.values(baseCharacterList)
-      .filter((v): v is JsonObject => v !== null && typeof v === 'object' && !Array.isArray(v))
-      .map(v => makeCharacter(v)),
-    [baseCharacterList]
+    () => getBaseCharacters(baseCharacterList).filter(c => !only || only(c.name)),
+    [baseCharacterList, only]
   )
   const tree = useMemo(() => groupByTags(characters), [characters])
 

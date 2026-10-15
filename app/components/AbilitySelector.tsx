@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { Button, CatalogList, Tooltip } from './ui'
 import { groupBy } from '../domain/utils'
 import { useAbilityLens } from '../hooks/useAbilityLens'
+import { useCollectionFilter } from '../hooks/useCollections'
 import type { AbilityFamilyView } from '../domain/character/lenses/abilities'
 
 // Browse the catalog one family per row; a click learns the next stage. The
@@ -10,8 +11,9 @@ import type { AbilityFamilyView } from '../domain/character/lenses/abilities'
 // stage adds before committing.
 export function AbilitySelector({ wide = false }: { wide?: boolean }){
   const { catalog, learn } = useAbilityLens()
+  const filter = useCollectionFilter('abilities')
   return(
-    <CatalogList wide={wide} label='ability' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.family} render={(row) => (
+    <CatalogList wide={wide} label='ability' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.family} collection={{ filter, keyOf: (row) => row.key }} render={(row) => (
       <AbilityFamilyRow key={row.family} row={row} action={
         row.next ?
         <Button size='xs' variant='good' aria-label={`learn ${row.next.name}`} onClick={() => learn(row.next!.key)}>{row.stages.length > 1 ? `+ ${row.next.name}` : '+ learn'}</Button>

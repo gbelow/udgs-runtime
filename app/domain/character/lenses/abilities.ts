@@ -1,6 +1,6 @@
 import { requirementsLabel } from '../rules/requirements'
 import type { Character, Cost } from '../../types'
-import { ABILITIES, ABILITY_KEYS, AbilityKey, hasAbility } from '../../abilities'
+import { ABILITIES, ABILITY_FAMILY_OF, ABILITY_KEYS, AbilityKey, FamilyKey, hasAbility } from '../../abilities'
 import { isCampaignCharacter } from '../../utils'
 import { canLearnAbility, getAbilityXPCost, getUnmetAbilityRequirements } from '../rules/abilities'
 import { canAfford } from '../rules/cost'
@@ -22,6 +22,7 @@ export type AbilityStageView = {
 // One row per family, its stages in order, so the sidebar can show "Sprinter"
 // once and let the reader step through I, II, III.
 export type AbilityFamilyView = {
+  key: FamilyKey
   family: string
   section: string
   usage: string // "passive", "2 AP + 1 STA", "sustained, 1 STA/turn"
@@ -76,6 +77,7 @@ export function getAbilityCatalogRows(c: Character, charged: boolean): AbilityFa
   for (const key of ABILITY_KEYS) {
     const ability = ABILITIES[key]
     const row = families.get(ability.family) ?? {
+      key: ABILITY_FAMILY_OF[key],
       family: ability.family,
       section: ability.section,
       usage: usageLabel(key),

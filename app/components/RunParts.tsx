@@ -1,7 +1,8 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { CharacterSelector } from './CharacterSelector'
-import { Button, SectionLabel, selectClass } from './ui'
+import { useCollectionFilter } from '../hooks/useCollections'
+import { Button, CollectionSelect, SectionLabel, selectClass } from './ui'
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import type { Character } from '../domain/types'
@@ -16,6 +17,7 @@ import type { ClockView } from '../domain/campaign/projections/clock'
 // The catalog is the GM's; a player brings in only PCs.
 export function CatalogDrawer({ label, close, bar = null, onSelect }: { label: string, close: () => void, bar?: string | null, onSelect?: (c: Character) => void }){
   const { gmTools } = useRole()
+  const filter = useCollectionFilter('characters')
 
   return(
     <div className='flex flex-col gap-1 p-2 rounded border border-accent w-64 shrink-0'>
@@ -25,8 +27,9 @@ export function CatalogDrawer({ label, close, bar = null, onSelect }: { label: s
       </div>
       {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
       {gmTools ? null : <span className='text-xs text-muted'>the catalog is the GM&apos;s: only PCs can be added</span>}
+      {gmTools ? <CollectionSelect label='character collection' filter={filter} /> : null}
       <fieldset disabled={bar !== null} className='min-w-0'>
-        <CharacterSelector catalog={gmTools} onSelect={onSelect} />
+        <CharacterSelector catalog={gmTools} only={filter.has} onSelect={onSelect} />
       </fieldset>
     </div>
   )

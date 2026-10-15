@@ -135,6 +135,20 @@ export const PartySchema = z.object({
 })
 export type Party = z.infer<typeof PartySchema>
 
+// The catalogs a collection lists entries of.
+export const CATALOG_KINDS = ['characters', 'races', 'maps', 'abilities', 'spells', 'weapons', 'armors', 'ammo', 'items', 'containers', 'terrains'] as const
+export const CatalogKindSchema = z.enum(CATALOG_KINDS)
+export type CatalogKind = z.infer<typeof CatalogKindSchema>
+
+// A list the GM curates of one catalog's entries, each by the key the
+// catalog files it under.
+export const CollectionSchema = z.object({
+  kind: CatalogKindSchema,
+  name: z.string().default(''),
+  keys: z.array(z.string()).default([]),
+})
+export type Collection = z.infer<typeof CollectionSchema>
+
 // The campaign above every scene: the roster of everyone in play who is not
 // in a fight, and the parties they are in, where, and when, each party on a
 // timeline of its own. What a mode keeps for itself (exploration's plans and
@@ -148,6 +162,8 @@ export const CampaignStateSchema = z.object({
   // the point crawls the parties play on, by id: the campaign's own copies
   // of maps from the catalog, so what play changes on one stays here
   maps: z.record(z.string(), CrawlMapSchema).default({}),
+  // the GM's own lists of catalog entries, by id
+  collections: z.record(z.string(), CollectionSchema).default({}),
   parties: z.record(z.string(), PartySchema).default({}),
   // the party each character is in, kept while they are in a fight
   partyOf: z.record(z.string(), z.string()).default({}),

@@ -8,7 +8,8 @@ import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { Button, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
+import { Button, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
+import { useCollectionFilter } from '../hooks/useCollections';
 import { MovementPanel } from './MovementPanel';
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
 import { useStartFromRace } from '../hooks/useRace';
@@ -76,14 +77,16 @@ function DeleteCharacterButton(){
 // on the character.
 function StartFromRace(){
   const { races, start } = useStartFromRace()
+  const filter = useCollectionFilter('races')
   const [picking, setPicking] = useState(false)
   if (!picking) return <Button onClick={() => setPicking(true)}>start from race</Button>
   return(
     <>
+      <CollectionSelect label='race collection' filter={filter} />
       <select aria-label='start from race' className={`${inputClass} bg-surface text-sm`} value=''
         onChange={(e) => { if (e.target.value) { start(e.target.value); setPicking(false) } }}>
         <option value=''>— race —</option>
-        {races.map((name) => <option key={name} value={name}>{name}</option>)}
+        {filter.keep(races).map((name) => <option key={name} value={name}>{name}</option>)}
       </select>
       <Button variant='ghost' onClick={() => setPicking(false)}>cancel</Button>
     </>

@@ -2,6 +2,7 @@ import type { At, CampaignState, CampaignUpdater, Party } from '../types'
 import { CrawlMapSchema, PartySchema } from '../types'
 import { getPartyMembers, getPlace, isSamePlace } from '../rules/place'
 import { getEmptiedParties, getPartyMoveBar, nextPartyName } from '../rules/parties'
+import { without } from '../../utils'
 
 export const withParty = (partyId: string, update: (p: Party) => Party): CampaignUpdater =>
   (state) => (state.parties[partyId] ? { ...state, parties: { ...state.parties, [partyId]: update(state.parties[partyId]) } } : state)
@@ -125,8 +126,7 @@ export function addMap(mapId: string, raw: unknown): CampaignUpdater {
 export function removeMap(mapId: string): CampaignUpdater {
   return (state) => {
     if (!state.maps[mapId]) return state
-    const { [mapId]: _gone, ...maps } = state.maps
     const parties = Object.fromEntries(Object.entries(state.parties).map(([pid, p]) => [pid, p.at?.map === mapId ? { ...p, at: null } : p]))
-    return { ...state, maps, parties }
+    return { ...state, maps: without(state.maps, mapId), parties }
   }
 }

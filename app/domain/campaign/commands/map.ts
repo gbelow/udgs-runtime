@@ -1,6 +1,7 @@
 import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, PathEvent, TerrainTag, TerrainValues, TerrainWear, Way } from '../types'
 import { ConnectionSchema, CrawlEventSchema, CrawlNodeSchema, PathEventSchema, SettlementSchema, TerrainWearSchema } from '../types'
 import { getNodeTerrain } from '../rules/terrain'
+import { without } from '../../utils'
 
 // survival.tex "Creating the point crawl": the map is made by hand, nodes
 // first, each made of a terrain from the catalog, then the paths between
@@ -11,11 +12,6 @@ function nextName(label: string, names: string[]): string {
   let n = 1
   while (names.includes(`${label} ${n}`)) n++
   return `${label} ${n}`
-}
-
-function without<T>(record: Record<string, T>, id: string): Record<string, T> {
-  const { [id]: _gone, ...rest } = record
-  return rest
 }
 
 const toggled = <T,>(list: T[], value: T): T[] => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value])

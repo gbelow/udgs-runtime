@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Button, ListButton, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
+import { Button, CollectionSelect, ListButton, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
+import { useCollectionFilter } from '../hooks/useCollections'
 import { useMapEditor } from '../hooks/useMap'
 import { EVENT_TYPES, TERRAIN_TAGS, WAYS, type EventOwner, type TerrainValues, type Way } from '../domain/campaign/types'
 import { knowledges_list } from '../domain/lists'
@@ -66,11 +67,13 @@ function MapHeader() {
 
 function Nodes() {
   const { view, addNode, setNode, toggleSettlement, setSettlementLiving, removeNode, addEvent } = useMapEditor()
+  const filter = useCollectionFilter('terrains')
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row items-center gap-2'>
         <SectionLabel>Nodes</SectionLabel>
         <Button size='xs' variant='ghost' onClick={addNode}>+ node</Button>
+        <CollectionSelect label='terrain collection' filter={filter} />
       </div>
       {view.nodes.map((n) => (
         <div key={n.id} className='flex flex-col gap-1 border-t border-line pt-1'>
@@ -79,7 +82,7 @@ function Nodes() {
             <select aria-label={`${n.name} terrain`} className={selectClass} value={n.terrain ?? ''} onChange={(e) => setNode(n.id, { terrain: e.target.value || null })}>
               <option value=''>no terrain</option>
               {n.terrain && !view.presets.includes(n.terrain) ? <option value={n.terrain}>{n.terrain} (not in the catalog)</option> : null}
-              {view.presets.map((t) => <option key={t} value={t}>{t}</option>)}
+              {filter.keep(view.presets, n.terrain).map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <label className='text-xs text-muted flex items-center gap-1'>
               <input type='checkbox' aria-label={`${n.name} settlement`} checked={n.settlement !== null} onChange={() => toggleSettlement(n.id)} />settlement

@@ -1,5 +1,6 @@
 'use client'
 import { useItemLens } from '../hooks/useItemLens';
+import { useCollectionFilter } from '../hooks/useCollections';
 import { Button, CatalogList, ListButton, NumberInput } from './ui';
 import { groupBy } from '../domain/utils';
 
@@ -7,9 +8,10 @@ import { groupBy } from '../domain/utils';
 // screen.
 export function ItemSelector({ wide = false }: { wide?: boolean }){
   const { catalog, pending, amount, scale, select, setAmount, setScale, clear } = useItemLens()
+  const filter = useCollectionFilter('items', 'containers')
 
   return(
-    <CatalogList wide={wide} label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} beside={<>
+    <CatalogList wide={wide} label='item' groups={groupBy(catalog, (row) => row.group)} nameOf={(row) => row.name} collection={{ filter, keyOf: (row) => row.key }} beside={<>
       <span className='text-xs text-muted'>amount</span>
       <NumberInput className='w-10 text-sm py-0.5' min={1} aria-label='item amount' title='amount' value={amount} onChange={(e) => setAmount(parseInt(e.target.value) || 1)} disabled={pending?.source !== 'catalog'} />
       <span className='text-xs text-muted'>size</span>

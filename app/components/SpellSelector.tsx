@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { Button, CatalogList } from './ui'
 import { groupBy } from '../domain/utils'
 import { useSpellLens } from '../hooks/useSpellLens'
+import { useCollectionFilter } from '../hooks/useCollections'
 import type { SpellCatalogRow } from '../domain/character/lenses/spells'
 import { SpellMethodSchema } from '../domain/types'
 
@@ -12,8 +13,9 @@ import { SpellMethodSchema } from '../domain/types'
 // decides the skill it is cast with.
 export function SpellSelector({ wide = false }: { wide?: boolean }){
   const { catalog, learn } = useSpellLens()
+  const filter = useCollectionFilter('spells')
   return(
-    <CatalogList wide={wide} label='spell' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.name} render={(row) => (
+    <CatalogList wide={wide} label='spell' groups={groupBy(catalog, (row) => row.section)} nameOf={(row) => row.name} collection={{ filter, keyOf: (row) => row.key }} render={(row) => (
       <SpellCatalogEntry key={row.key} row={row} action={
         row.learned ?
         <span className='text-xs text-muted px-1'>learned</span> :

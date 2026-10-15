@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { TerrainSchema } from '../domain/campaign/types'
+import { TerrainSchema, type CatalogKind } from '../domain/campaign/types'
+import type { CatalogRow } from '../domain/campaign/projections/collections'
 import { AbilityFamilySchema, AmmoSchema, ArmorSchema, ContainerEntrySchema, ItemEntrySchema, SpellSchema, WeaponSchema } from '../domain/types'
 import { slug } from '../domain/utils'
 import abilities from '../assets/abilities.json'
@@ -60,10 +61,26 @@ export const CATALOGS = {
     label: 'Terrains', file: 'terrains.json', schema: TerrainSchema, data: terrains,
     keyOf: (e) => text(e, 'name'), nameOf: (e) => text(e, 'name'),
   },
-} satisfies Record<string, CatalogSpec>
+} satisfies Partial<Record<CatalogKind, CatalogSpec>>
 
 export type CatalogName = keyof typeof CATALOGS
 export const CATALOG_NAMES = Object.keys(CATALOGS) as CatalogName[]
+
+// Every entry of the catalog, keyed, named and filed under its category.
+export function getCatalogRows(spec: CatalogSpec): CatalogRow[] {
+  return Object.entries(spec.data).map(([key, entry]) => {
+    const record = entry as Record<string, unknown>
+    return { key, name: spec.nameOf(record), group: spec.groupOf?.(record) ?? '' }
+  })
+}
+
+// The catalogs with editors of their own, which a collection lists too.
+const OTHER_LABELS: Record<Exclude<CatalogKind, CatalogName>, string> = { characters: 'Characters', races: 'Races', maps: 'Maps' }
+
+// What a catalog a collection lists is called.
+export function getKindLabel(kind: CatalogKind): string {
+  return isCatalogName(kind) ? CATALOGS[kind].label : OTHER_LABELS[kind]
+}
 
 export function isCatalogName(name: string): name is CatalogName {
   return name in CATALOGS

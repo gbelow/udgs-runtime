@@ -1,8 +1,9 @@
 'use client'
 import { useState } from 'react'
-import { Button, CatalogList, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
+import { Button, CatalogList, CollectionSelect, ConfirmDelete, ListButton, SectionLabel, TextInput, Tooltip, selectClass } from './ui'
 import { CampaignParties } from './CampaignParties'
 import { useCampaignFiles, useCampaignMaps } from '../hooks/useCampaign'
+import { useCollectionFilter } from '../hooks/useCollections'
 
 // The campaign tab: the saved campaigns listed on the left, the one in play
 // on the right — its name, its maps, and its parties with who is in them,
@@ -56,12 +57,16 @@ export function CampaignEditor() {
 // it off the map.
 function CampaignMaps() {
   const { maps, templates, add, remove } = useCampaignMaps()
+  const filter = useCollectionFilter('maps')
   return (
     <div className='flex flex-col gap-1'>
-      <select aria-label='add map' className={`${selectClass} self-start`} value='' onChange={(e) => add(e.target.value)}>
-        <option value=''>add a map from the catalog…</option>
-        {templates.map((name) => <option key={name} value={name}>{name}</option>)}
-      </select>
+      <div className='flex flex-row gap-1 items-center'>
+        <CollectionSelect label='map collection' filter={filter} />
+        <select aria-label='add map' className={selectClass} value='' onChange={(e) => add(e.target.value)}>
+          <option value=''>add a map from the catalog…</option>
+          {filter.keep(templates).map((name) => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </div>
       {maps.length === 0 ? <span className='text-xs text-muted'>no maps: every party is off the map</span> : null}
       {maps.map((m) => (
         <div key={m.id} className='flex flex-row gap-2 items-center text-xs'>

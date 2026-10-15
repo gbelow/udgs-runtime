@@ -1,5 +1,6 @@
 'use client'
 import { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { CollectionFilter } from '../hooks/useCollections'
 
 // The shared visual vocabulary. Colour is by meaning (see globals.css): accent
 // selects, good is the pending flow, bad is harm, muted is derived or
@@ -81,21 +82,26 @@ export function SectionLabel({ children, className = '' }: { children: ReactNode
 // A catalog browsed by category: the headers listed, one category open at a
 // time and every one closed at start. A name typed in the filter narrows each
 // category to its matches and opens all those left. A group with a null
-// label is shown without a header, for a catalog with no categories.
-export function CatalogList<T>({ label, groups, nameOf, render, beside, children, wide = false }: {
+// label is shown without a header, for a catalog with no categories. With a
+// `collection`, a picker beside the filter narrows the list to one of the
+// catalog's collections, each row known to it by `keyOf`.
+export function CatalogList<T>({ label, groups, nameOf, render, beside, children, wide = false, collection }: {
   label: string, groups: { label: string | null, rows: T[] }[], nameOf: (row: T) => string, render: (row: T) => ReactNode,
-  beside?: ReactNode, children?: ReactNode, wide?: boolean,
+  beside?: ReactNode, children?: ReactNode, wide?: boolean, collection?: { filter: CollectionFilter, keyOf: (row: T) => string },
 }){
   const [filter, setFilter] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const needle = filter.trim().toLowerCase()
-  const shown = needle
-    ? groups.map((g) => ({ ...g, rows: g.rows.filter((row) => nameOf(row).toLowerCase().includes(needle)) })).filter((g) => g.rows.length)
+  const narrowed = collection && !collection.filter.all ? collection : null
+  const kept = (row: T) => (!narrowed || narrowed.filter.has(narrowed.keyOf(row))) && (!needle || nameOf(row).toLowerCase().includes(needle))
+  const shown = needle || narrowed
+    ? groups.map((g) => ({ ...g, rows: g.rows.filter(kept) })).filter((g) => g.rows.length)
     : groups
   return (
     <div className='flex flex-col w-full gap-1'>
       <div className='flex flex-row gap-1 items-center'>
         <TextInput className='w-full' placeholder='filter' aria-label={`${label} filter`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+        {collection ? <CollectionSelect label={`${label} collection`} filter={collection.filter} /> : null}
         {beside}
       </div>
       {children}
@@ -267,4 +273,13 @@ export function ConfirmDelete({ remove }: { remove: () => Promise<void> | void }
         <Button onClick={() => setConfirm(false)}>cancel</Button>
       </>
     : <Button variant='bad' onClick={() => setConfirm(true)}>delete</Button>
+}
+
+// Which collection of a catalog a picker shows.
+export function CollectionSelect({ filter: { collections, chosen, choose }, label }: { filter: CollectionFilter, label: string }){
+  return (
+    <select aria-label={label} className={selectClass} value={chosen} onChange={(e) => choose(e.target.value)}>
+      {collections.map((c) => <option key={c.id} value={c.id}>{c.name || '—'}{c.curated ? '' : ' (catalog)'}</option>)}
+    </select>
+  )
 }

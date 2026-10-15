@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { deleteCatalogEntry, saveCatalogEntry } from '../actions'
-import { CATALOGS, CatalogName, CatalogSpec } from '../forms/catalogs'
+import { CATALOGS, CatalogName, CatalogSpec, getCatalogRows } from '../forms/catalogs'
 import { emptyValue } from '../forms/schemaFields'
-import { groupBy } from '../domain/utils'
+import { getCatalogGroups } from '../domain/campaign/projections/collections'
 
 export type CatalogDraft = { key: string; value: Record<string, unknown>; fresh: boolean }
-export type CatalogRow = { key: string; name: string; group: string }
 
 // A catalog as its editor sees it: the entries on disk, a draft being
 // edited, and the two writes. The catalog itself is a module constant
@@ -16,11 +15,7 @@ export function useCatalogEditor(catalog: CatalogName) {
   const spec: CatalogSpec = CATALOGS[catalog]
   const [draft, setDraft] = useState<CatalogDraft | null>(null)
 
-  const rows: CatalogRow[] = Object.entries(spec.data).map(([key, entry]) => {
-    const record = entry as Record<string, unknown>
-    return { key, name: spec.nameOf(record), group: spec.groupOf?.(record) ?? '' }
-  })
-  const groups: { label: string | null; rows: CatalogRow[] }[] = spec.groupOf ? groupBy(rows, (row) => row.group) : [{ label: null, rows }]
+  const groups = getCatalogGroups(getCatalogRows(spec))
 
   const open = (key: string) => {
     const entry = spec.data[key]

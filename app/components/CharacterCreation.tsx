@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Button, CatalogList, NumberInput, SectionLabel, TextInput, Tooltip, inputClass, selectClass } from './ui'
+import { Button, CatalogList, CollectionSelect, NumberInput, SectionLabel, TextInput, Tooltip, inputClass, selectClass } from './ui'
+import { useCollectionFilter } from '../hooks/useCollections'
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
 import { SpellCatalogEntry } from './SpellSelector'
@@ -176,12 +177,16 @@ const signed = (value: number): string => (value < 0 ? `${value}` : `+${value}`)
 // gave.
 function RacePreset() {
   const { view, races, chooseRace } = useCreation()
+  const filter = useCollectionFilter('races')
   const race = view.race
   const picker = (
-    <select aria-label='race' className={selectClass} value={race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
-      <option value=''>— race —</option>
-      {races.map((name) => <option key={name} value={name}>{name}</option>)}
-    </select>
+    <span className='flex flex-row gap-1'>
+      <CollectionSelect label='race collection' filter={filter} />
+      <select aria-label='race' className={selectClass} value={race?.name ?? ''} onChange={(e) => chooseRace(e.target.value)}>
+        <option value=''>— race —</option>
+        {filter.keep(races, race?.name).map((name) => <option key={name} value={name}>{name}</option>)}
+      </select>
+    </span>
   )
   return (
     <Section title='Race' actions={picker}>
@@ -349,10 +354,11 @@ function TrainableGroup({ label, rows }: { label: string; rows: CreationRow[] })
 // under it the families held, the race's stages locked.
 function Abilities() {
   const { view, buyStage } = useCreation()
+  const filter = useCollectionFilter('abilities')
   return (
     <Section title='Abilities'>
       <div className='flex flex-col rounded border border-line p-1'>
-        <CatalogList label='ability' groups={view.abilityCatalog} nameOf={(entry) => entry.view.family} render={(entry) => (
+        <CatalogList label='ability' groups={view.abilityCatalog} nameOf={(entry) => entry.view.family} collection={{ filter, keyOf: (entry) => entry.view.key }} render={(entry) => (
           <AbilityFamilyRow key={entry.family} row={entry.view} action={
             entry.level > 0 ? <span className='text-xs text-good px-1'>{entry.bought > 0 ? 'taken' : 'racial'}</span>
             : entry.next ? <Button size='xs' variant='good' aria-label={`add ${entry.view.family}`} onClick={() => buyStage(entry.family, 1)}>+ {priceLabel(entry.next)}</Button>
@@ -380,6 +386,7 @@ function Abilities() {
 // and learn by a method open to the character, and the spells chosen below.
 function Magic() {
   const { view, chooseSpell, claimSpell } = useCreation()
+  const filter = useCollectionFilter('spells')
   return (
     <Section title='Magic'>
       {view.freeSpells.total ? (
@@ -388,7 +395,7 @@ function Magic() {
         </span>
       ) : null}
       <div className='flex flex-col rounded border border-line p-1'>
-        <CatalogList label='spell' groups={view.spellCatalog} nameOf={(entry) => entry.row.name} render={(entry) => <SpellCatalogEntry key={entry.row.key} row={entry.row} action={
+        <CatalogList label='spell' groups={view.spellCatalog} nameOf={(entry) => entry.row.name} collection={{ filter, keyOf: (entry) => entry.row.key }} render={(entry) => <SpellCatalogEntry key={entry.row.key} row={entry.row} action={
             entry.method ? <span className='text-xs text-good px-1'>{entry.method}{entry.free ? ' · free' : ''}</span>
             : entry.locked ? <LockedLabel reason={entry.locked} />
             : (

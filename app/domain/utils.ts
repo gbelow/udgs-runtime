@@ -12,6 +12,12 @@ export function isBaseCharacter(
   return c.type === 'base'
 }
 
+// The record with the entry under `id` taken out.
+export function without<T>(record: Record<string, T>, id: string): Record<string, T> {
+  const { [id]: _gone, ...rest } = record
+  return rest
+}
+
 // The catalog key a name is filed under: lowercase, runs of anything but
 // letters and digits collapsed to one dash. What the extractors used, so
 // existing keys keep resolving.

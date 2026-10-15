@@ -1,4 +1,6 @@
 import { BaseCharacter } from '../types'
+import { makeCharacter } from '../factories'
+import { perState } from '../perState'
 
 // Categorization is a *derived* view, not stored structure: the sidebar tree is
 // built fresh from each character's `tags`. The first tag is the top-level
@@ -9,6 +11,12 @@ import { BaseCharacter } from '../types'
 // the lens pattern: pure, deterministic, no React.
 
 export const UNTAGGED = 'untagged'
+
+// The saved characters, each read through the factory, once per list.
+export const getBaseCharacters = perState((list: Record<string, unknown>): BaseCharacter[] =>
+  Object.values(list)
+    .filter((v): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v))
+    .map((v) => makeCharacter(v)))
 
 export type CharacterNode = { type: 'character'; character: BaseCharacter }
 export type GroupNode = { type: 'group'; label: string; tags: string[]; children: TreeNode[] }
