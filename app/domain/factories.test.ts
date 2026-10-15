@@ -170,6 +170,12 @@ describe('a character survives its storage format', () => {
     expect(makeCharacter({ startingWealth: 3000 }).startingWealth).toBe(3000)
   })
 
+  // Reopening a saved campaign dropped every character's fight name, so
+  // downtime and the ET results named them by id.
+  it('keeps the fight name a campaign character carries', () => {
+    expect(makeCampaignCharacter({ fightName: 'Human 2' }).fightName).toBe('Human 2')
+  })
+
   it('round-trips a campaign character through JSON', () => {
     const c = makeCampaignCharacter({
       ...populated(),

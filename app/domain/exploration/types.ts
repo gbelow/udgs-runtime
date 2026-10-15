@@ -104,6 +104,15 @@ export const CastResultSchema = z.object({
 })
 export type CastResult = z.infer<typeof CastResultSchema>
 
+// Who of a party spent the ET in camp outside any group or cast: resting,
+// or idle (survival.tex "Exhaustion": every ET but a rest adds +1 exhaustion).
+export const StayResultSchema = z.object({
+  party: z.string(),
+  rested: z.array(z.string()).default([]),
+  idle: z.array(z.string()).default([]),
+})
+export type StayResult = z.infer<typeof StayResultSchema>
+
 // What exploration keeps beside the campaign: each party's groups and camp,
 // by party, and the ET loop's own bookkeeping.
 export const ExplorationStateSchema = z.object({
@@ -121,6 +130,7 @@ export const ExplorationStateSchema = z.object({
   exhaustionRolls: z.record(z.string(), TestRollSchema).default({}),
   results: z.array(GroupResultSchema).default([]),
   castResults: z.array(CastResultSchema).default([]),
+  stayResults: z.array(StayResultSchema).default([]),
 })
 export type ExplorationState = z.infer<typeof ExplorationStateSchema>
 

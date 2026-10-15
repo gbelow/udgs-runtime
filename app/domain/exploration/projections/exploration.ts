@@ -3,7 +3,7 @@ import { TREAT_COUNT, getETMedicine, getETTreatBar, getETTreatTest, getUnsetWoun
 import { ABILITIES } from '../../abilities'
 import { getConsume, getDosesLeft } from '../../item/rules/consumables'
 import { getConsumeBar } from '../../item/rules/doses'
-import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, TestRoll } from '../types'
+import type { Camp, CastPlan, CastResult, Decision, Exploring, ExplorationState, GroupKind, GroupResult, StayResult, TestRoll } from '../types'
 import type { RollMode } from '../../play/dice'
 import { describeOutcome, describeRoll } from '../../play/test'
 import { perPair } from '../../perState'
@@ -119,7 +119,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),
-  lastET: getETResultLines(exploration.results, exploration.castResults, true),
+  lastET: getETResultLines(exploration.results, exploration.castResults, exploration.stayResults, true),
   }
 })
 
@@ -291,9 +291,9 @@ function getCastPanel(t: Exploring, id: string): CastPanel {
 }
 
 // What an ET's groups and casts came to, a line each and one indented for
-// each event met and each test made against a cast; `named` puts the party
-// first, for an ET read across parties.
-export function getETResultLines(results: GroupResult[], castResults: CastResult[], named = false): string[] {
+// each event met and each test made against a cast, then who rested and who
+// stayed idle; `named` puts the party first, for an ET read across parties.
+export function getETResultLines(results: GroupResult[], castResults: CastResult[], stayResults: StayResult[], named = false): string[] {
   const of = (party: string) => (named ? `${party} · ` : '')
   return [
     ...results.flatMap((r) => [
@@ -303,6 +303,10 @@ export function getETResultLines(results: GroupResult[], castResults: CastResult
     ...castResults.flatMap((r) => [
       `${of(r.party)}${r.caster} cast ${r.spell}${r.targets.length > 0 ? ` on ${r.targets.join(', ')}` : ''}${describeOutcome(r.roll, r.note)}`,
       ...r.tests.map((test) => `  ${test.name}: ${describeRoll(test.roll)}`),
+    ]),
+    ...stayResults.flatMap((r) => [
+      ...(r.rested.length > 0 ? [`${of(r.party)}rested (${r.rested.join(', ')})`] : []),
+      ...(r.idle.length > 0 ? [`${of(r.party)}idle (${r.idle.join(', ')})`] : []),
     ]),
   ]
 }

@@ -1,4 +1,4 @@
-import type { At, CampaignState, CampaignUpdater, Party } from '../types'
+import type { At, CampaignState, CampaignUpdater, MapUpdater, Party } from '../types'
 import { CrawlMapSchema, PartySchema } from '../types'
 import { getPartyMembers, getPlace, isSamePlace } from '../rules/place'
 import { getEmptiedParties, getPartyMoveBar, nextPartyName } from '../rules/parties'
@@ -120,6 +120,17 @@ export function setPartyPlace(partyId: string, at: At | null): CampaignUpdater {
 // joins for no map.
 export function addMap(mapId: string, raw: unknown): CampaignUpdater {
   return (state) => (raw === undefined || state.maps[mapId] ? state : { ...state, maps: { ...state.maps, [mapId]: CrawlMapSchema.parse(raw) } })
+}
+
+// One of the campaign's maps changed as the map editor changes a map; a
+// change that would leave a party on a node no longer there is refused.
+export function updateCampaignMap(mapId: string, change: MapUpdater): CampaignUpdater {
+  return (state) => {
+    const map = state.maps[mapId]
+    if (!map) return state
+    const next = { ...state, maps: { ...state.maps, [mapId]: change(map) } }
+    return Object.values(state.parties).some((p) => getPlace(state, p) && !getPlace(next, p)) ? state : next
+  }
 }
 
 // The map leaves the campaign; the parties on it are off the map.

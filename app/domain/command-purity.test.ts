@@ -338,6 +338,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   setPartyPlace: ({ campaign }) => campaignCommands.setPartyPlace('p', { map: 'm', node: 'n2' })(campaign),
   addMap: ({ campaign }) => campaignCommands.addMap('other', { name: 'other' })(campaign),
   removeMap: ({ campaign }) => campaignCommands.removeMap('m')(campaign),
+  updateCampaignMap: ({ campaign }) => campaignCommands.updateCampaignMap('m', mapModule.addNode(() => 'n9'))(campaign),
   createCollection: ({ campaign }) => campaignCommands.createCollection('d', 'items')(campaign),
   renameCollection: ({ campaign }) => campaignCommands.renameCollection('c', 'D')(campaign),
   removeCollection: ({ campaign }) => campaignCommands.removeCollection('c')(campaign),

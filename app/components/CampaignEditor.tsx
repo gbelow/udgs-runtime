@@ -5,6 +5,8 @@ import { CampaignParties } from './CampaignParties'
 import { CampaignJournal } from './Journal'
 import { useCampaignFiles, useCampaignMaps } from '../hooks/useCampaign'
 import { useCollectionFilter } from '../hooks/useCollections'
+import { MapEditingContext, useCampaignMapEditor } from '../hooks/useMap'
+import { MapBody } from './MapEditor'
 
 // The campaign tab: the saved campaigns listed on the left, the one in play
 // on the right — its name, its maps, and its parties with who is in them,
@@ -56,11 +58,12 @@ export function CampaignEditor() {
 }
 
 // The campaign's maps: each a copy of one from the catalog, so what play
-// changes on it stays in the campaign. A map taken away leaves the parties on
-// it off the map.
+// changes on it stays in the campaign, edited here as the catalog's are. A
+// map taken away leaves the parties on it off the map.
 function CampaignMaps() {
   const { maps, templates, add, remove } = useCampaignMaps()
   const filter = useCollectionFilter('maps')
+  const [editing, setEditing] = useState<string | null>(null)
   return (
     <div className='flex flex-col gap-1'>
       <div className='flex flex-row gap-1 items-center'>
@@ -72,12 +75,30 @@ function CampaignMaps() {
       </div>
       {maps.length === 0 ? <span className='text-xs text-muted'>no maps: every party is off the map</span> : null}
       {maps.map((m) => (
-        <div key={m.id} className='flex flex-row gap-2 items-center text-xs'>
-          <span className='text-sm'>{m.name}</span>
-          <span className='text-muted'>{m.nodes} nodes · {m.parties.length > 0 ? m.parties.join(', ') : 'no party on it'}</span>
-          <Button size='xs' variant='ghost' aria-label={`remove map ${m.name}`} title={m.parties.length > 0 ? `take the map away: ${m.parties.join(', ')} end up off the map` : 'take the map away'} onClick={() => remove(m.id)}>×</Button>
+        <div key={m.id} className='flex flex-col gap-1'>
+          <div className='flex flex-row gap-2 items-center text-xs'>
+            <span className='text-sm'>{m.name}</span>
+            <span className='text-muted'>{m.nodes} nodes · {m.parties.length > 0 ? m.parties.join(', ') : 'no party on it'}</span>
+            <Button size='xs' variant='ghost' selected={editing === m.id} onClick={() => setEditing(editing === m.id ? null : m.id)}>edit</Button>
+            <Button size='xs' variant='ghost' aria-label={`remove map ${m.name}`} title={m.parties.length > 0 ? `take the map away: ${m.parties.join(', ')} end up off the map` : 'take the map away'} onClick={() => remove(m.id)}>×</Button>
+          </div>
+          {editing === m.id ? <CampaignMapEditor mapId={m.id} /> : null}
         </div>
       ))}
     </div>
+  )
+}
+
+// One of the campaign's maps open in the map editor; a node a party stands on
+// says so and stays.
+function CampaignMapEditor({ mapId }: { mapId: string }) {
+  const editing = useCampaignMapEditor(mapId)
+  if (!editing) return null
+  return (
+    <MapEditingContext.Provider value={editing}>
+      <div className='flex flex-col gap-4 ml-4 pl-2 border-l border-line text-sm'>
+        <MapBody />
+      </div>
+    </MapEditingContext.Provider>
   )
 }

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { Button, CollectionSelect, ListButton, NumberInput, SectionLabel, TextInput, selectClass } from './ui'
 import { useCollectionFilter } from '../hooks/useCollections'
-import { useMapEditor } from '../hooks/useMap'
+import { MapEditingContext, useMapEditing, useMapEditor } from '../hooks/useMap'
 import { EVENT_TYPES, TERRAIN_TAGS, WAYS, type EventOwner, type TerrainValues, type Way } from '../domain/campaign/types'
 import { knowledges_list } from '../domain/lists'
 import type { EventView, NodeEditorView } from '../domain/campaign/projections/map'
@@ -15,18 +15,31 @@ const WEAR_KEYS = ['IL', 'exhaustion', 'hunger', 'thirst'] as const
 // map being made on the right — its nodes, each made of a terrain from the
 // catalog, the paths between them, and the events on both.
 export function MapEditor() {
+  const editing = useMapEditor()
   return (
-    <div className='grid grid-cols-12 gap-2 py-2 text-left text-sm'>
-      <MapList />
-      <div className='col-span-10 flex flex-col gap-4 max-h-[85vh] overflow-y-auto pr-2'>
-        <MapHeader />
-        <Nodes />
-        <Connections />
+    <MapEditingContext.Provider value={editing}>
+      <div className='grid grid-cols-12 gap-2 py-2 text-left text-sm'>
+        <MapList />
+        <div className='col-span-10 flex flex-col gap-4 max-h-[85vh] overflow-y-auto pr-2'>
+          <MapHeader />
+          <MapBody />
+        </div>
       </div>
+    </MapEditingContext.Provider>
+  )
+}
+
+// The map's nodes and paths, edited wherever the map is kept: the catalog's,
+// or one of the campaign's copies.
+export function MapBody() {
+  return (
+    <>
+      <Nodes />
+      <Connections />
       <datalist id='knowledges'>
         {knowledges_list.map((k) => <option key={k} value={k} />)}
       </datalist>
-    </div>
+    </>
   )
 }
 
@@ -66,7 +79,7 @@ function MapHeader() {
 }
 
 function Nodes() {
-  const { view, addNode, setNode, toggleSettlement, setSettlementLiving, removeNode, addEvent } = useMapEditor()
+  const { view, addNode, setNode, toggleSettlement, setSettlementLiving, removeNode, addEvent } = useMapEditing()
   const filter = useCollectionFilter('terrains')
   return (
     <div className='flex flex-col gap-1'>
@@ -94,7 +107,8 @@ function Nodes() {
               </>
               : null}
             <Button size='xs' variant='ghost' onClick={() => addEvent({ kind: 'node', id: n.id })}>+ event</Button>
-            <Button aria-label={`remove ${n.name}`} variant='ghost' onClick={() => removeNode(n.id)}>×</Button>
+            <Button aria-label={`remove ${n.name}`} variant='ghost' disabled={n.removeBar !== null} title={n.removeBar ?? undefined} onClick={() => removeNode(n.id)}>×</Button>
+            {n.removeBar ? <span className='text-xs text-muted'>{n.removeBar}</span> : null}
           </div>
           <NodeTerrain node={n} />
           {n.events.map((e) => <EventEditor key={e.id} owner={{ kind: 'node', id: n.id }} event={e} />)}
@@ -107,7 +121,7 @@ function Nodes() {
 // What the node is made of: its terrain's values, the ones the node changed
 // marked, each to be taken from the terrain again.
 function NodeTerrain({ node }: { node: NodeEditorView }) {
-  const { customizeNode, customizeWear, toggleTag, resetValue } = useMapEditor()
+  const { customizeNode, customizeWear, toggleTag, resetValue } = useMapEditing()
   const values = node.values
   if (!values) return null
   const label = (key: keyof TerrainValues, text: string) => (
@@ -139,7 +153,7 @@ function NodeTerrain({ node }: { node: NodeEditorView }) {
 }
 
 function Connections() {
-  const { view, addConnection, setConnection, removeConnection, addEvent, setWay } = useMapEditor()
+  const { view, addConnection, setConnection, removeConnection, addEvent, setWay } = useMapEditing()
   const [a, setA] = useState('')
   const [b, setB] = useState('')
   const [DL, setDL] = useState(0)
@@ -192,7 +206,7 @@ function Connections() {
 // survival.tex "Events": an event, its DL to be found, what it needs known,
 // and what it comes to at each degree.
 function EventEditor({ owner, event, children }: { owner: EventOwner, event: EventView, children?: ReactNode }) {
-  const { setEvent, toggleType, setEnabler, removeEvent } = useMapEditor()
+  const { setEvent, toggleType, setEnabler, removeEvent } = useMapEditing()
   return (
     <div className='flex flex-col gap-1 ml-4 pl-2 border-l border-line'>
       <div className='flex flex-row flex-wrap gap-1.5 items-center'>

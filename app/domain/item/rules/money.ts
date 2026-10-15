@@ -1,7 +1,7 @@
-import { Character, Item, SlotKind, SlotKindSchema } from '../../types'
+import { Character, Container, Item, SlotKind, SlotKindSchema } from '../../types'
 import { isBaseCharacter } from '../../utils'
 import { COINS } from '../../tables'
-import { canFitItem, getContainerItem, getOpenContainers } from './containers'
+import { canFitItem, getContainerItem, getOpenContainers, stackInto } from './containers'
 import { getCarriedItems, getCatalogItem, getItemPrice, isCurrency } from './items'
 
 // What a whole stack is worth at its price, in coppers; nothing for an item
@@ -63,14 +63,34 @@ export function getKeptWealth(c: Character): number {
   return Math.max(0, Math.min(c.startingWealth - getCarriedValue(c), getSparedWealth(c.startingWealth) - getPurse(c)))
 }
 
-// Where a stack of coins is carried: the first regular slot group of an open
-// container that takes it (quick slots are for combat), or null.
+// The catalog row a pouch for loose coins is stamped from.
+const COIN_POUCH = 'Coin Pouch'
+
+// The first regular slot group of the container that takes the item (quick
+// slots are for combat), or none.
+function findRegularSlot(container: Container, item: Item): SlotKind | undefined {
+  return SlotKindSchema.options.find((kind) => kind !== 'quick' && canFitItem(container, kind, item))
+}
+
+// Where a stack of coins, or a pouch of them, is carried: the first regular
+// slot group of an open container that takes it, or null.
 export function findCoinSeat(c: Character, coins: Item): { containerKey: string; slot: SlotKind } | null {
   for (const [containerKey, container] of Object.entries(getOpenContainers(c))) {
-    const slot = SlotKindSchema.options.find((kind) => kind !== 'quick' && canFitItem(container, kind, coins))
+    const slot = findRegularSlot(container, coins)
     if (slot) return { containerKey, slot }
   }
   return null
+}
+
+// gear.tex "Coin Pouch": a new pouch holding the stack, or none if it does not
+// fit in one.
+export function getPouchOf(coins: Item): Item | undefined {
+  const pouch = getCatalogItem(COIN_POUCH)
+  if (!pouch?.container) return undefined
+  const slot = findRegularSlot(pouch.container, coins)
+  if (!slot) return undefined
+  const group = pouch.container.slots[slot]
+  return { ...pouch, container: { ...pouch.container, slots: { ...pouch.container.slots, [slot]: { ...group, items: stackInto(group.items, coins) } } } }
 }
 
 // A sum of coppers paid out in coins, one stack per coin.

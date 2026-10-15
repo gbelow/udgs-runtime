@@ -13,6 +13,13 @@ export function getPlace(state: CampaignState, { at }: { at: At | null }): Place
   return at && map && node ? { map, id: at.node, node, terrain: getNodeTerrain(node) } : null
 }
 
+// The parties standing on each node of the map, by node.
+export function getPartiesOn(state: CampaignState, mapId: string): Record<string, Party[]> {
+  const on: Record<string, Party[]> = {}
+  for (const p of Object.values(state.parties)) if (p.at?.map === mapId) on[p.at.node] = [...(on[p.at.node] ?? []), p]
+  return on
+}
+
 // Whether the two stand on the same node of the same map, or are both off
 // the map.
 export function isSamePlace(a: { at: At | null }, b: { at: At | null }): boolean {

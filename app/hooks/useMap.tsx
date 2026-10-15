@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { createContext, useContext, useMemo } from "react";
 import { toast } from "sonner";
-import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
-import { getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
+import type { Connection, CrawlEvent, CrawlNode, EventOwner, EventType, MapUpdater, TerrainTag, TerrainValues, TerrainWear, Way } from "../domain/campaign/types";
+import { getCampaignMapEditorView, getMapEditorView, type MapEditorView } from "../domain/campaign/projections/map";
+import { updateCampaignMap } from "../domain/campaign/commands/parties";
 import {
   addConnection, addEvent, addNode, customizeNode, customizeNodeWear, removeConnection, removeEvent, removeNode, resetNodeValue, setConnection, setEnabler,
   setEvent, setEventWay, setMapName, setNode, setSettlementLiving, toggleEventType, toggleSettlement, toggleNodeTag,
@@ -9,6 +10,7 @@ import {
 import { deleteMap, upsertMap } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
 import { useMapStore } from "../stores/useMapStore";
+import { useCampaignStore } from "../stores/useCampaignStore";
 
 // The saved maps, by name.
 export function useMapNames(): { mapList: Record<string, unknown>; maps: string[] } {
@@ -27,7 +29,6 @@ export function useMapEditor() {
   const refresh = useAppStore((s) => s.updateMapList);
   const { mapList, maps } = useMapNames();
   const view: MapEditorView = useMemo(() => getMapEditorView(map), [map]);
-  const newId = () => crypto.randomUUID();
 
   const open = (name: string) => {
     if (name in mapList) loadMap(mapList[name]);
@@ -48,8 +49,33 @@ export function useMapEditor() {
     newMap();
   };
 
+  return { view, maps, open, create: newMap, save, remove, ...mapEditing(update) } as const;
+}
+
+// One of the campaign's own maps, changed with the same editor; a change
+// that would strand a party is refused. Null for a map the campaign lacks.
+export function useCampaignMapEditor(mapId: string): MapEditing | null {
+  const map = useCampaignStore((s) => s.maps[mapId]);
+  const parties = useCampaignStore((s) => s.parties);
+  const updateCampaign = useCampaignStore((s) => s.updateCampaignState);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the view is read off the store whenever the map or the parties on it change
+  const view = useMemo(() => getCampaignMapEditorView(useCampaignStore.getState(), mapId), [map, parties, mapId]);
+  return view ? { view, ...mapEditing((change) => updateCampaign(updateCampaignMap(mapId, change))) } : null;
+}
+
+// The map the editor's parts work on, and what they do to it, wherever it is kept.
+export type MapEditing = { view: MapEditorView } & ReturnType<typeof mapEditing>;
+export const MapEditingContext = createContext<MapEditing | null>(null);
+
+export function useMapEditing(): MapEditing {
+  const editing = useContext(MapEditingContext);
+  if (!editing) throw new Error("useMapEditing must be used inside a MapEditingContext");
+  return editing;
+}
+
+function mapEditing(update: (change: MapUpdater) => void) {
+  const newId = () => crypto.randomUUID();
   return {
-    view, maps, open, create: newMap, save, remove,
     setName: (name: string) => update(setMapName(name)),
     addNode: () => update(addNode(newId)),
     setNode: (id: string, patch: Partial<Pick<CrawlNode, 'name' | 'terrain'>>) => update(setNode(id, patch)),

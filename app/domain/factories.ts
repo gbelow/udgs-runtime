@@ -237,6 +237,7 @@ export function makeCampaignCharacter(raw: unknown): CampaignCharacter {
     usedSurge: parsed.data.usedSurge ?? campaignCharacter.usedSurge,
     surgeFloor: parsed.data.surgeFloor ?? campaignCharacter.surgeFloor,
     runsFree: parsed.data.runsFree ?? campaignCharacter.runsFree,
+    ...(parsed.data.fightName ? { fightName: parsed.data.fightName } : {}),
   }
 }
 
@@ -297,6 +298,7 @@ export const ResourceIngestValues = {
   surgeFloor: z.number().nullable().optional(),
   runsFree: z.boolean().optional(),
   active: z.array(z.any()).optional(),
+  fightName: z.string().optional(),
 };
 
 export const CampaignCharacterIngestSchema = z.object({
