@@ -16,9 +16,9 @@ const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
 // The moments the parties in play are living, and the ET passing.
 export function ExplorationStrip(){
 
-  const { dayETs, parties } = useParties()
+  const { dayETs } = useParties()
   const passBar = usePassBar()
-  const { passET, sendAllToFight, setDayETs } = usePartyCommands()
+  const { passET, setDayETs } = usePartyCommands()
 
   return(
     <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
@@ -29,7 +29,6 @@ export function ExplorationStrip(){
         <Tooltip text={passBar ?? 'every party in play spends the ET on its plan'}>
           <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
-        <Button aria-label='allToFight' disabled={parties.length === 0} onClick={sendAllToFight}>all to fight</Button>
       </div>
       {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
     </div>

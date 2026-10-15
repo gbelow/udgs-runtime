@@ -9,6 +9,7 @@ import { getHomecoming, getJoinBar, getReturnBar, getTableIds, isFromRoster } fr
 import { getOpenAction } from '../rules/log'
 import { addToRoster, checkIn, checkOut } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
+import { getPartyMembers } from '../../campaign/rules/place'
 
 // Takes these characters off the roster and into the fight, under the ids
 // they have, each in the party they are in, or one of their own if they are in
@@ -53,18 +54,34 @@ export function removeFromFight(id: string): TableUpdater {
   }
 }
 
-// Ends the fight and puts everyone in it back on the roster as the fight left
+// Puts these characters of the fight back on the roster as the fight left
 // them, in the parties it left them in — whoever joined the fight on its own
-// joins the roster too. The clock of every party they come back to moves on
-// by the ETs the table says the scene took, if any.
-export function returnFromFight(ets: number): TableUpdater {
+// joins the roster too. A party the last of whose fighters comes back has its
+// clock moved on by the ETs the table says the scene took, if any, so the
+// scene's time passes for a party once however its fighters come back. The
+// fight ends when nobody is left in it.
+export function returnFromFight(ids: string[], ets: number): TableUpdater {
   return (table) => {
     if (getReturnBar(table.fight)) return table
-    const leaving = Object.values(table.fight.characters)
-    const campaign = giveBack(table, leaving)
-    const parties = [...new Set(leaving.map((c) => campaign.partyOf[c.id]).filter((pid) => pid !== undefined))]
-    return { campaign: passETs(ets, parties)(campaign), fight: resetCombat(table.fight) }
+    const leaving = Object.values(table.fight.characters).filter((c) => ids.includes(c.id))
+    if (leaving.length === 0) return table
+    const homeOf = (id: string) => getHomecoming(table, id).partyId
+    const staying = new Set(Object.keys(table.fight.characters).filter((id) => !ids.includes(id)).map(homeOf))
+    const done = [...new Set(leaving.map((c) => homeOf(c.id)))].filter((pid) => !staying.has(pid))
+    const campaign = passETs(ets, done)(giveBack(table, leaving))
+    const fight = leaving.reduce((f, c) => removeFromCombat(c.id)(f), table.fight)
+    return { campaign, fight: Object.keys(fight.characters).length === 0 ? resetCombat(fight) : fight }
   }
+}
+
+// The party's fighters back from the fight.
+export function returnPartyFromFight(partyId: string, ets: number): TableUpdater {
+  return (table) => returnFromFight(Object.keys(table.fight.characters).filter((id) => table.fight.partyOf[id] === partyId), ets)(table)
+}
+
+// Everyone in the party, off the roster and into the fight.
+export function sendPartyToFight(partyId: string): TableUpdater {
+  return (table) => sendToFight(getPartyMembers(table.campaign, partyId))(table)
 }
 
 // Throws the fight away, whatever is being played out in it: whoever was sent

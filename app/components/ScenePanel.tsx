@@ -4,14 +4,13 @@ import { ActionPanel } from './ActionPanel';
 import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
-import { Button, NumberInput, SectionLabel, Tooltip } from './ui';
+import { Button, SectionLabel, Tooltip } from './ui';
 import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
 import { useCharacterCommands } from '../hooks/useCharacterCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useSustainedPanel } from '../hooks/useSustainedPanel';
-import { usePartyCommands } from '../hooks/useParty';
 import { useBindingSurge } from '../hooks/useCharacterData';
 
 // The scene's pieces of the run screen.
@@ -32,9 +31,7 @@ export function SceneStrip(){
 
 function FightControls({ settings, toggleSettings }: { settings: boolean, toggleSettings: () => void }){
   const { nextRound, endCombat, resetCombat } = useCombatCommands()
-  const { endScene } = usePartyCommands()
-  const { round, nextRoundBar, returnBar, endCombatBar } = useCombatState()
-  const [etsTaken, setEtsTaken] = useState(0)
+  const { round, nextRoundBar, endCombatBar } = useCombatState()
 
   return(
     <div className='flex flex-row gap-2 items-center'>
@@ -45,9 +42,7 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
       {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
       {round > 0
         ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
-        : <Button aria-label='endScene' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party, and on to exploring'} onClick={() => { endScene(etsTaken); setEtsTaken(0) }}>end scene</Button>}
-      <span className='text-xs text-muted whitespace-nowrap'>ETs taken</span>
-      <NumberInput className='w-10' aria-label='ETs taken' value={etsTaken} onChange={(e) => setEtsTaken(parseInt(e.target.value) || 0)} />
+        : null}
       <Button aria-label='resetGame' variant='ghost' onClick={resetCombat}>reset</Button>
       <Button aria-label='fight settings' aria-pressed={settings} variant='ghost' selected={settings} title='how the table plays this fight' onClick={toggleSettings}>⚙</Button>
     </div>

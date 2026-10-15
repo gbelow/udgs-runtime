@@ -9,7 +9,8 @@ import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as pass
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyPlace } from "../domain/campaign/commands/parties";
 import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
-import { returnFromFight, sendToFight } from "../domain/scene/commands/fight";
+import { returnFromFight, returnPartyFromFight, sendPartyToFight, sendToFight } from "../domain/scene/commands/fight";
+import type { TableUpdater } from "../domain/scene/types";
 import { getPassBar } from "../domain/exploration/rules/exploration";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
@@ -78,6 +79,10 @@ export function usePartyCommands() {
   const planActive = (command: (id: string) => ExplorationUpdater) => withActive((id) => updateExploration(command(id)));
 
   const newId = () => crypto.randomUUID();
+  const comeBack = (updater: TableUpdater) => {
+    updateTable(updater);
+    if (Object.keys(useCombatStore.getState().characters).length === 0) setTab('exploration');
+  };
 
   return {
     pick,
@@ -102,9 +107,11 @@ export function usePartyCommands() {
     setRoller: (partyId: string, groupId: string, roller: string) => updateExploration(setRollerOf(partyId, groupId, roller)),
     decide: (id: string, decision: Decision) => updateExploration(decideFor(id, decision)),
     passET: () => updateExploration(passClock(realDice, newId)),
-    // Whoever is sent to a fight is followed into the scene, and ending the
-    // scene goes back to exploring.
-    sendAllToFight: () => { updateTable(sendToFight(Object.keys(useCampaignStore.getState().characters))); setTab('scene'); },
-    endScene: (ets: number) => { updateTable(returnFromFight(ets)); setTab('exploration'); },
+    // Whoever is sent to a scene is followed into it, and the last to come
+    // back from it is followed back to exploring.
+    partyToScene: (partyId: string) => { updateTable(sendPartyToFight(partyId)); setTab('scene'); },
+    toScene: (id: string) => { updateTable(sendToFight([id])); setTab('scene'); },
+    partyBack: (partyId: string, ets: number) => comeBack(returnPartyFromFight(partyId, ets)),
+    back: (id: string, ets: number) => comeBack(returnFromFight([id], ets)),
   };
 }
