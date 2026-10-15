@@ -150,6 +150,9 @@ function reducePart(action: Action, phase: Phase, charged: boolean): (c: Campaig
         if (action.kind === 'fall') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'fireAgain') return deliverAll(action.facts?.[c.id] ?? [])(c)
         if (action.kind === 'rest') return c.id === action.actorId ? restCharacter(c) : c
+        // combat.tex "Social actions": each "counts as a Rest action";
+        // unflagging a surrender is free and no rest
+        if ((action.kind === 'social' && action.say !== 'unsurrender') || action.kind === 'taunt') return c.id === action.actorId ? restCharacter(c) : c
         // gear.tex "Potions and Medicine": a dose taken out of what is held
         if (action.kind === 'drink') return c.id === action.actorId && action.drunk ? takeDose(action.itemId)(c) : c
         // abilities.tex "Medicine": what the treatment did to whoever it was

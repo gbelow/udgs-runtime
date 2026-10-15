@@ -235,7 +235,8 @@ export function getOutcome(facts: Damage, degree: Degree, target: Character): Ou
     tiers,
     stopped: false,
     bodyTier,
-    IL: halved ? Math.floor(row.IL / 2) : row.IL,
+    // the table's ruling: a blow that reaches a tier deals at least 1 IL
+    IL: halved ? Math.max(1, Math.floor(row.IL / 2)) : row.IL,
     // combat.tex "Bleed": "is caused by blunt and cutting damage"
     bleed: best.type === 'blunt' || best.type === 'cut' ? row.bleed : 0,
     ...effectsOf(facts, target, best.tier, tiers, piercing),

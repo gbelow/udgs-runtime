@@ -39,7 +39,10 @@ function FightControls({ settings, toggleSettings }: { settings: boolean, toggle
   return(
     <div className='flex flex-row gap-2 items-center'>
       <span className='text-xs text-muted whitespace-nowrap'>Round <span className='font-mono text-fg'>{round}</span></span>
-      <Button aria-label='nextRound' disabled={nextRoundBar !== null} title={nextRoundBar ?? undefined} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
+      <Tooltip text={nextRoundBar ?? (round === 0 ? 'start the first round' : 'on to the next round')}>
+        <Button aria-label='nextRound' disabled={nextRoundBar !== null} onClick={nextRound}>{round === 0 ? 'start combat' : 'next round'}</Button>
+      </Tooltip>
+      {nextRoundBar ? <span className='text-xs text-muted'>{nextRoundBar}</span> : null}
       {round > 0
         ? <Button aria-label='endCombat' disabled={endCombatBar !== null} title={endCombatBar ?? 'the rounds end; everyone stays'} onClick={endCombat}>end combat</Button>
         : <Button aria-label='endScene' disabled={returnBar !== null} title={returnBar ?? 'everyone back to the party, and on to exploring'} onClick={() => { endScene(etsTaken); setEtsTaken(0) }}>end scene</Button>}

@@ -144,7 +144,13 @@ function listOwn(state: SceneState, c: CampaignCharacter): ActionOption[] {
 // What stands closed among the character's own actions: who they are, what they
 // are doing, what surge is in hand, whose turn it is.
 function closeOwn(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
-  return closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options))))))))
+  return closeByRoundChange(state, closeOutOfTurn(state, c, closeWhileFleeing(state, c, closeBySurge(state, c, closeWhileForced(state, c, closeWhileHolding(state, c, closeWhileConcentrating(c, closeIfImmobile(state, c, closeIfUnconscious(c, options)))))))))
+}
+
+// combat.tex "Feint": the one a feint forced to take their turn chooses
+// their action surge before anything else.
+function closeWhileForced(state: SceneState, c: CampaignCharacter, options: ActionOption[]): ActionOption[] {
+  return state.forcedSurge === c.id && c.usedSurge === null ? closeWith(options, () => 'choose an action surge first') : options
 }
 
 // combat.tex "Actions": "Only one action can be done at a time", and
