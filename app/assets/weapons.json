@@ -252,7 +252,7 @@
         "range": "short",
         "material": "metal",
         "RES": 20,
-        "blunt": 0,
+        "blunt": 1,
         "cut": 16,
         "AP": 3,
         "properties": [
