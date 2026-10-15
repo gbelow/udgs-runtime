@@ -1,5 +1,5 @@
 'use client'
-import { memo, Profiler, ProfilerOnRenderCallback, useState } from "react";
+import { memo, Profiler, ProfilerOnRenderCallback, useLayoutEffect, useState } from "react";
 import { RunScreen } from "./RunScreen";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
@@ -27,6 +27,7 @@ const probeState = {
   rendered: new Set<string>(),
   before: null as Map<string, unknown> | null,
   target: "",
+  panelMs: 0,
 };
 
 // The probe reads through the SAME gated selector the production lens hooks
@@ -64,6 +65,7 @@ export function BreakMe() {
     numPanelsAtRun: number
   } | null>(null)
   const [probeTarget, setProbeTarget] = useState("skill.strike")
+  const [probeRun, setProbeRun] = useState(0)
 
   const loadRandomCharacters = (n: number) => {
     // baseCharacterList is a flat { name: character } record, so its values
@@ -128,18 +130,27 @@ export function BreakMe() {
     probeState.rendered = new Set()
     probeState.before = before
     probeState.target = entry.name
+    probeState.panelMs = 0
     store.updateActiveCharacter((c) => {
       const cur = entry.get(c)
       // Increment numbers, toggle booleans — a real value change either way.
       return entry.set!(c, typeof cur === "number" ? cur + 1 : !cur) as CampaignCharacter
     })
+    // Lands in the same commit as the store-driven re-renders, so the layout
+    // effect below runs once that commit is in, whether or not the panels
+    // re-rendered.
+    setProbeRun((n) => n + 1)
   }
 
-  // Finalize on the RunScreen commit: by the time this fires, the probe grid's
-  // render-phase side effects have populated probeState.rendered. RunScreens
-  // subscribe to the whole character, so they always re-render on a mutation —
-  // this callback is a reliable commit sentinel.
+  // Only records the panels' share of the commit; 0 means they did not
+  // re-render at all.
   const onPanelsRender: ProfilerOnRenderCallback = (_id, _phase, actualDuration) => {
+    if (probeState.measuring) probeState.panelMs = actualDuration
+  }
+
+  // Finalize after the mutation's commit: by now the probe grid's render-phase
+  // side effects have populated probeState.rendered.
+  useLayoutEffect(() => {
     if (!probeState.measuring) return
     probeState.measuring = false
     const active = useCombatStore.getState().getActiveCharacter()
@@ -157,10 +168,10 @@ export function BreakMe() {
       rendered: probeState.rendered.size,
       of: PROBE_ENTRIES.length,
       offenders,
-      panelMs: actualDuration,
+      panelMs: probeState.panelMs,
       numPanelsAtRun: numPanels,
     })
-  }
+  }, [probeRun, numPanels])
 
   return(
     <div className="py-2 flex flex-col gap-3">
