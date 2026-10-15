@@ -8,7 +8,7 @@ import { deleteRace, upsertRace } from "../actions";
 import { useAppStore } from "../stores/useAppStore";
 import { useRaceStore } from "../stores/useRaceStore";
 import { useMemo } from "react";
-import { useActiveCharacterUpdate } from "./useActiveCharacterSelector";
+import { useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
 const NATURAL_WEAPONS = getNaturalWeaponOptions();
 
@@ -62,14 +62,18 @@ export function useRace() {
   return { view, races, open, create: newRace, edit, addAbility, removeAbility, save, remove } as const;
 }
 
-// Free creation: the character started from a saved race, as a preset.
-export function useStartFromRace() {
+// The character editor's race: the saved race the edited character is
+// measured against. Choosing it changes nothing of the character; applying it
+// puts it on the character as a preset.
+export function useRaceBaseline() {
   const update = useActiveCharacterUpdate();
   const { raceList, races } = useRaceNames();
-  const start = (name: string) => {
-    if (name in raceList) update(applyRace(makeRace(raceList[name])));
-  };
-  return { races, start } as const;
+  const id = useActiveCharacterSelector((c: Character) => c.id) ?? null;
+  const race = useAppStore((s) => (id ? s.raceBaselines[id] ?? '' : ''));
+  const setRaceBaseline = useAppStore((s) => s.setRaceBaseline);
+  const choose = (name: string) => { if (id) setRaceBaseline(id, name || null); };
+  const apply = () => { if (race in raceList) update(applyRace(makeRace(raceList[race]))); };
+  return { races, race, choose, apply } as const;
 }
 
 // The abilities the race being made could still be given.

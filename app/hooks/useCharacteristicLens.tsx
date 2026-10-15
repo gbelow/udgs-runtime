@@ -1,4 +1,5 @@
 import { characteristicLenses, characteristicTermGetters, Term, termsDigest, termsView } from "../domain/character/lenses";
+import { getAttributeLevelUp, type AttributeLevelUpView } from "../domain/character/lenses/attributes";
 import { Character, Characteristics } from "../domain/types";
 import { useActiveCharacterDerived, useActiveCharacterSelector, useActiveCharacterUpdate } from "./useActiveCharacterSelector";
 
@@ -20,4 +21,10 @@ export function useCharacteristicLens(characteristicName: keyof Characteristics)
   };
 
   return [value, setValue, terms, termsView(terms)] as const;
+}
+
+// creating.tex "Improving attributes": the next point of each attribute and
+// the balance that prices it.
+export function useAttributeLevelUp(): AttributeLevelUpView | null {
+  return useActiveCharacterDerived(getAttributeLevelUp, JSON.stringify);
 }

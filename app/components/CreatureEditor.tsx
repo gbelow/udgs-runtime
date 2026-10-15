@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Button, NumberInput, Panel, Row, SectionLabel, StatTile, TextInput, Tiles, inputClass, selectClass } from './ui'
+import { Button, Combobox, NumberInput, Panel, Row, SectionLabel, StatTile, TextInput, Tiles, selectClass } from './ui'
 import { useNaturalWeapons } from '../hooks/useRace'
 import { useBodyEditor, useBodyView, useFootprintEditor } from '../hooks/useBodyEditor'
 import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens'
@@ -27,10 +27,13 @@ export function Creature() {
           <DataDial stat='size' />
           <DataDial stat='height' />
           <DataDial stat='TGH' />
-          <StatTile label='lame at' title='legs short before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} />
-          <StatTile label='down at' title='legs short before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} />
+          <StatTile label='lame at' title='legs lost or broken before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} />
+          <StatTile label='prone at' title='legs lost or broken before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} />
         </Tiles>
       </div>
+      <p className='text-xs text-muted'>
+        Legs lost or broken: lame from {view.stance.lameAt}, prone (unable to stand) from {view.stance.proneAt}.
+      </p>
       <Footprint />
     </div>
   )
@@ -156,9 +159,8 @@ function PartEditor({ part }: { part: BodyPart }) {
           <option value='true'>climbs</option>
           <option value='false'>does not climb</option>
         </select>
-        <input list='natural-weapons' aria-label={`${part.name} natural weapon`} placeholder='natural weapon' className={`${inputClass} w-28 text-xs py-0.5`}
-          value={part.naturalWeapon} onChange={(e) => editPart(part.id, { naturalWeapon: e.target.value })} />
-        <datalist id='natural-weapons'>{naturalWeapons.map((w) => <option key={w} value={w} />)}</datalist>
+        <Combobox aria-label={`${part.name} natural weapon`} placeholder='natural weapon' className='w-28 text-xs'
+          value={part.naturalWeapon} options={naturalWeapons} onChange={(naturalWeapon) => editPart(part.id, { naturalWeapon })} />
         <span className='ml-auto' />
         <Button size='xs' variant='ghost' aria-label={`remove ${part.name}`} onClick={() => removePart(part.id)}>remove</Button>
       </div>

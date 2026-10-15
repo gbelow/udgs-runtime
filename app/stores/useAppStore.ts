@@ -21,6 +21,10 @@ export function isRunTab(tab: GameTabs): tab is RunTab {
 // too, for the same reason: the races, made as characters, and the maps.
 const CATALOG_TABS = ['catalog', 'race', 'map', 'collections'] as const
 
+// The character editor's parts, each a tab of its own within it.
+export const EDITOR_TABS = ['body', 'trainables', 'gear'] as const
+export type EditorTab = typeof EDITOR_TABS[number]
+
 export function isCatalogTab(tab: GameTabs): boolean {
   return (CATALOG_TABS as readonly string[]).includes(tab)
 }
@@ -80,6 +84,13 @@ export interface AppState {
   setSelectedGameTab: (mode: GameTabs) => void
   // the run screen's mode last shown, opened again when the run screen is
   runTab: RunTab
+  // the character editor's part last shown
+  editorTab: EditorTab
+  setEditorTab: (editorTab: EditorTab) => void
+  // the race each edited character is measured against, by character id;
+  // nothing of the character changes with it
+  raceBaselines: Record<string, string>
+  setRaceBaseline: (characterId: string, race: string | null) => void
   // the days typed for downtime's coming stretch, or null for as long as the
   // longest plan
   downtimeSpan: number | null
@@ -108,6 +119,15 @@ export const createAppStore = (initialState: Partial<AppState>) =>
     mapList: initialState.mapList || {},
     
     runTab: 'scene',
+    editorTab: 'body',
+    setEditorTab: (editorTab) => set({ editorTab }),
+    raceBaselines: {},
+    setRaceBaseline: (characterId, race) => set((s) => {
+      const raceBaselines = { ...s.raceBaselines }
+      if (race) raceBaselines[characterId] = race
+      else delete raceBaselines[characterId]
+      return { raceBaselines }
+    }),
     downtimeSpan: null,
     setDowntimeSpan: (downtimeSpan) => set({ downtimeSpan }),
     setSelectedGameTab: (selectedGameTab) => set(isRunTab(selectedGameTab) ? { selectedGameTab, runTab: selectedGameTab } : { selectedGameTab }),

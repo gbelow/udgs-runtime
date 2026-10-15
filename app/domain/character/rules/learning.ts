@@ -1,5 +1,6 @@
 import { Attributes, AttributesSchema, Character, Knowledges, Proficiencies, ProficienciesSchema, Skills, Talents, TalentsSchema, Trainables } from '../../types'
 import { getSM } from './size'
+import { Term, sumTerms } from './terms'
 
 export type TalentKey = keyof Talents
 export type LearningPrice = { currency: 'XP' | 'karma'; amount: number }
@@ -101,10 +102,19 @@ export function getTalentKarmaCost(level: number): number {
 export const ATTRIBUTE_KEYS = Object.keys(AttributesSchema.shape) as (keyof Attributes)[]
 
 // creating.tex "Improving attributes": the average the trained attributes may
-// reach before raising them costs more, 10+CON-SM. An ability moves it only
-// through the size it gives (abilities.tex "Grow!", "Shrink!").
+// reach before raising them costs more, 10+CON-SM, the 10 kept on the
+// character. An ability moves it only through the size it gives
+// (abilities.tex "Grow!", "Shrink!").
+export function getAttributeBalanceTerms(c: Character): Term[] {
+  return [
+    { label: 'base', value: c.attributeBalanceBase },
+    { label: 'CON', value: c.trainables.CON.value },
+    { label: 'SM', value: -getSM(c) },
+  ]
+}
+
 export function getAttributeBalance(c: Character): number {
-  return 10 + c.trainables.CON.value - getSM(c)
+  return sumTerms(getAttributeBalanceTerms(c))
 }
 
 // creating.tex "Improving attributes": the target value divided by 2, rounded

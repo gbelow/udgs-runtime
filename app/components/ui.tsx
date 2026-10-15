@@ -74,6 +74,34 @@ export function NumberInput({ className = '', value, onChange, onBlur, ...rest }
     onBlur={(e) => { draft.release(); onBlur?.(e) }} />
 }
 
+// A text box with suggestions: every option shows while the box is focused,
+// and only those matching what is typed once typing starts. Free text is kept.
+export function Combobox({ value, options, onChange, className = '', ...rest }:
+  Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & { value: string, options: string[], onChange: (value: string) => void }
+){
+  const [open, setOpen] = useState(false)
+  const [typed, setTyped] = useState(false)
+  const query = value.toLowerCase()
+  const shown = typed ? options.filter((o) => o.toLowerCase().includes(query)) : options
+  return (
+    <div className='relative inline-block'>
+      <input type='text' className={`${inputClass} text-sm py-0.5 ${className}`} {...rest} value={value}
+        onFocus={() => { setOpen(true); setTyped(false) }}
+        onBlur={() => setOpen(false)}
+        onChange={(e) => { setTyped(true); onChange(e.target.value) }} />
+      {open && shown.length > 0 ?
+      <ul role='listbox' className='absolute z-50 left-0 top-full mt-px max-h-60 min-w-full w-max overflow-y-auto rounded border border-line bg-raised py-0.5 shadow-lg shadow-black/40 text-xs'>
+        {shown.map((o) => (
+          <li key={o} role='option' aria-selected={o === value}
+            className={`cursor-pointer px-2 py-0.5 hover:bg-accent/15 ${o === value ? 'text-accent' : 'text-fg'}`}
+            onMouseDown={(e) => { e.preventDefault(); onChange(o); setOpen(false) }}>{o}</li>
+        ))}
+      </ul>
+      : null}
+    </div>
+  )
+}
+
 // A small uppercase heading over a group of tiles or rows.
 export function SectionLabel({ children, className = '' }: { children: ReactNode, className?: string }){
   return <span className={`text-[10px] uppercase tracking-wider text-muted ${className}`}>{children}</span>

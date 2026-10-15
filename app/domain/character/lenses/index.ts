@@ -157,6 +157,7 @@ export const miscLenses = {
   size: makeInvertingLens("size", getSize),
   height: makeInvertingLens("height", (c) => c.height),
   TGH: makeInvertingLens("TGH", getTGH),
+  attributeBalanceBase: makeInvertingLens("attributeBalanceBase", (c) => c.attributeBalanceBase),
 }
 
 export const magicGetters = {

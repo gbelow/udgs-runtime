@@ -51,7 +51,7 @@ export function makeInvertingSetter<T extends Character>(
 }
 
 
-type CreatureNumber = 'size' | 'height' | 'TGH'
+type CreatureNumber = 'size' | 'height' | 'TGH' | 'attributeBalanceBase'
 
 export function makeInvertingLens<T extends Character> (
   propertyName: CreatureNumber,

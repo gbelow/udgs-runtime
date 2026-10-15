@@ -1450,6 +1450,10 @@ const CharacterValues = {
   // and for every character made before races
   raceDraft: RaceDraftSchema.nullable().default(null),
 
+  // creating.tex "Improving attributes": the 10 of 10+CON-SM, the average the
+  // attributes may reach before raising them costs more
+  attributeBalanceBase: num.default(10),
+
   // creating.tex "Limit Stress Actions": chosen once, null while unchosen
   limitStress: z.enum(LIMIT_STRESS_ACTIONS).nullable().default(null),
 

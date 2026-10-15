@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { WeaponPanel } from './WeaponPanel';
 import { ArmorPanel } from './ArmorPanel';
 import { ContainerPanel } from './ContainerPanel';
-import { TradePanel } from './TradePanel'
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
@@ -12,13 +11,16 @@ import { Button, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInpu
 import { useCollectionFilter } from '../hooks/useCollections';
 import { MovementPanel } from './MovementPanel';
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
-import { useStartFromRace } from '../hooks/useRace';
+import { useRaceBaseline } from '../hooks/useRace';
+import { useEditorTab } from '../hooks/useGameTab';
+import type { EditorTab } from '../stores/useAppStore';
 import { SensesPanel } from './SensesPanel';
 import { Characteristics, Knowledges, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
-import { useCharacteristicLens } from '../hooks/useCharacteristicLens';
+import { useAttributeLevelUp, useCharacteristicLens } from '../hooks/useCharacteristicLens';
+import { useActiveCharacterDataLens } from '../hooks/useCharacterDataLens';
 import { useTextLens } from '../hooks/useTextLens';
 import { useTagLens } from '../hooks/useTagLens';
 import type { TagLevel } from '../domain/character/lenses/tags';
@@ -73,23 +75,22 @@ function DeleteCharacterButton(){
   )
 }
 
-// creating.tex "Races": a saved race's creature, bonuses and abilities, put
-// on the character.
-function StartFromRace(){
-  const { races, start } = useStartFromRace()
+// creating.tex "Races": the race the character is measured against. Choosing
+// it changes nothing of the character; applying it puts its creature, bonuses
+// and abilities on the character as a preset.
+function RacePicker(){
+  const { races, race, choose, apply } = useRaceBaseline()
   const filter = useCollectionFilter('races')
-  const [picking, setPicking] = useState(false)
-  if (!picking) return <Button onClick={() => setPicking(true)}>start from race</Button>
   return(
-    <>
+    <div className='flex flex-row items-center gap-1'>
+      <SectionLabel>Race</SectionLabel>
       <CollectionSelect label='race collection' filter={filter} />
-      <select aria-label='start from race' className={`${inputClass} bg-surface text-sm`} value=''
-        onChange={(e) => { if (e.target.value) { start(e.target.value); setPicking(false) } }}>
-        <option value=''>— race —</option>
+      <select aria-label='race' className={`${inputClass} bg-surface text-sm`} value={race} onChange={(e) => choose(e.target.value)}>
+        <option value=''>— none —</option>
         {filter.keep(races).map((name) => <option key={name} value={name}>{name}</option>)}
       </select>
-      <Button variant='ghost' onClick={() => setPicking(false)}>cancel</Button>
-    </>
+      <Button disabled={!race} onClick={apply}>apply race</Button>
+    </div>
   )
 }
 
@@ -98,43 +99,131 @@ function ResetAllSkillsButton(){
   return <Button variant='ghost' size='xs' onClick={() => resetAllSkills()}>reset all skills</Button>
 }
 
-// Free creation: every value of the character is changed freely, and a saved
-// race can be started from as a preset of the creature.
+const EDITOR_TAB_LABELS: Record<EditorTab, string> = {
+  body: 'Body',
+  trainables: 'Trainables',
+  gear: 'Gear',
+}
+
+// Free creation: every value of the character is changed freely.
 export function CharacterCreator() {
+  const { tab } = useEditorTab()
   return (
-    <div className='grid grid-cols-1 md:grid-cols-12 w-full gap-4 py-3 text-left'>
-      <div className='md:col-span-7 flex flex-col gap-3 text-sm'>
-        <div className='flex flex-row flex-wrap items-center gap-2'>
-          <TextItem keyName={'name'} mode='normal'/>
+    <div className='flex flex-col w-full text-left text-sm'>
+      <EditorHeader />
+      <div className='py-3'>
+        {tab === 'body' ? <BodyTab /> :
+          tab === 'trainables' ? <TrainablesTab /> :
+          <GearTab />}
+      </div>
+    </div>
+  )
+}
+
+function EditorHeader(){
+  const { tab, tabs, setTab } = useEditorTab()
+  const [notesOpen, setNotesOpen] = useState(false)
+  return(
+    <div className='sticky top-0 z-20 flex flex-col gap-2 bg-surface border-b border-line px-1 pt-2'>
+      <div className='flex flex-row flex-wrap items-center gap-2'>
+        <TextItem keyName={'name'} mode='normal'/>
+        <RacePicker />
+        <TagItem level='type' />
+        <TagItem level='category' />
+        <div className='ml-auto flex flex-row items-center gap-2'>
+          <Button variant='ghost' selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
           <SaveBaseCharacterButton />
-          <StartFromRace />
+          <SavePlayerCharacterButton />
+          <DeleteCharacterButton />
         </div>
-        <div className='flex flex-row flex-wrap items-center gap-2'>
-          <TagItem level='type' />
-          <TagItem level='category' />
-        </div>
+      </div>
+      {notesOpen ? <TextItem keyName='notes' mode='large'/> : null}
+      <div className='flex flex-row items-stretch' role='tablist' aria-label='character parts'>
+        {tabs.map((name) => {
+          const current = name === tab
+          return (
+            <button key={name} type='button' role='tab' aria-selected={current} onClick={() => setTab(name)}
+              className={`cursor-pointer whitespace-nowrap border-b-2 -mb-px px-4 py-1.5 text-sm
+                focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2
+                ${current ? 'border-accent font-semibold text-accent' : 'border-transparent text-muted hover:border-muted hover:text-fg'}`}>
+              {EDITOR_TAB_LABELS[name]}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
+function BodyTab(){
+  return(
+    <div className='grid grid-cols-12 gap-4'>
+      <div className='col-span-5 flex flex-col gap-3'>
         <Creature />
-        <div className='flex flex-row flex-wrap gap-6'>
-          <MovementPanel />
-          <SensesPanel />
-        </div>
-
-        <div className='flex flex-row gap-3'>
+        <div className='flex flex-row flex-wrap items-start gap-4'>
           <div className='flex flex-col gap-1'>
             <SectionLabel>Attributes</SectionLabel>
             <Tiles>
               {ATTRIBUTES.map((s) => <StatDial key={s} stat={s} title={s} />)}
             </Tiles>
           </div>
-            <div className='flex flex-col gap-1'>
-            <SectionLabel>Talents</SectionLabel>
-            <Tiles>
-              {TALENTS.map((s) => <StatDial key={s} stat={s} title={s} />)}
-            </Tiles>
-          </div>
+          <AttributeLevelUp />
         </div>
+        <div className='flex flex-row flex-wrap gap-6'>
+          <MovementPanel />
+          <SensesPanel />
+        </div>
+      </div>
+      <div className='col-span-7 flex flex-col gap-3'>
+        <BodyEditor />
+        <NaturalArmor />
+      </div>
+    </div>
+  )
+}
 
+// creating.tex "Improving attributes": the target value halved, doubled once
+// the average passes 10+CON-SM and +100% for every point beyond. The 10 is
+// the character's own here.
+function AttributeLevelUp(){
+  const view = useAttributeLevelUp()
+  const [base, setBase] = useActiveCharacterDataLens('attributeBalanceBase')
+  if (!view) return null
+  const [, ...terms] = view.balanceTerms
+  return(
+    <div className='flex flex-col gap-1 text-xs'>
+      <SectionLabel>Next point</SectionLabel>
+      <div className='flex flex-row gap-3'>
+        {view.rows.map((row) => (
+          <span key={row.key}><span className='text-muted'>{row.key}</span> <span className='font-mono'>{row.next === null ? 'max' : `${row.next} XP`}</span></span>
+        ))}
+      </div>
+      <div className='flex flex-row flex-wrap items-center gap-1 text-muted'>
+        <span>average</span>
+        <span className={`font-mono ${view.over ? 'text-bad' : 'text-fg'}`}>{view.average.toFixed(1)}</span>
+        <span>{view.over ? '>' : '≤'} balance</span>
+        <span className='font-mono text-fg'>{view.balance}</span>
+        <span>=</span>
+        <NumberInput className='w-10 py-0' aria-label='attribute balance base' title='the 10 of 10+CON−SM' value={base} onChange={(e) => setBase(parseInt(e.target.value) || 0)} />
+        {terms.map((term) => (
+          <span key={term.label}>{term.label} <span className='font-mono'>{term.value.toLocaleString(undefined, { signDisplay: 'always' })}</span></span>
+        ))}
+      </div>
+      <span className='text-muted'>{view.over ? 'past the balance: each point costs double, +100% per point beyond' : 'cost doubles once the average passes the balance'}</span>
+    </div>
+  )
+}
+
+function TrainablesTab(){
+  return(
+    <div className='grid grid-cols-12 gap-4'>
+      <div className='col-span-7 flex flex-col gap-3'>
+        <div className='flex flex-col gap-1'>
+          <SectionLabel>Talents</SectionLabel>
+          <Tiles>
+            {TALENTS.map((s) => <StatDial key={s} stat={s} title={s} />)}
+          </Tiles>
+        </div>
         <div className='flex flex-col gap-1'>
           <SectionLabel>Trainables</SectionLabel>
           <Tiles>
@@ -143,7 +232,6 @@ export function CharacterCreator() {
             <ConvictionDial trainableName={'conviction2'} fallbackTitle={'worldview'} options={WORLDVIEW_CONVICTIONS} />
           </Tiles>
         </div>
-
         <div className='flex flex-col gap-1'>
           <div className='flex flex-row items-baseline gap-3'><SectionLabel>Combat</SectionLabel><ResetAllSkillsButton /></div>
           <Tiles>{COMBAT.map((s) => <SkillItem key={s} skillName={s} title={s} />)}</Tiles>
@@ -156,28 +244,28 @@ export function CharacterCreator() {
           <SectionLabel>Mind &amp; social</SectionLabel>
           <Tiles>{MIND.map((s) => <SkillItem key={s} skillName={s} title={s} />)}</Tiles>
         </div>
-
-        <LimitStressPicker />
-
+        <AbilityPanel />
+      </div>
+      <div className='col-span-5 flex flex-col gap-3'>
         <KnowledgePanel />
         <SpecificKnowledgePanel />
-
-        <TextItem aria-label='notes' keyName='notes' mode='large'/>
-        <div className='flex flex-row gap-2'>
-          <SavePlayerCharacterButton />
-          <DeleteCharacterButton />
-        </div>
+        <LimitStressPicker />
+        <SpellPanel />
       </div>
-      <div className='flex flex-col md:col-span-5 gap-3 text-sm'>
-        <ArmorPanel/>
-        <NaturalArmor />
+    </div>
+  )
+}
+
+function GearTab(){
+  return(
+    <div className='grid grid-cols-2 gap-4'>
+      <div className='flex flex-col gap-3'>
         <HandsPanel />
         <WeaponPanel />
+        <ArmorPanel />
+      </div>
+      <div className='flex flex-col gap-3'>
         <ContainerPanel />
-        <TradePanel />
-        <AbilityPanel />
-        <SpellPanel />
-        <BodyEditor />
       </div>
     </div>
   )
