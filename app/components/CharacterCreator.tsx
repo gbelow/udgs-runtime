@@ -15,7 +15,7 @@ import { useRaceBaseline } from '../hooks/useRace';
 import { useEditorTab } from '../hooks/useGameTab';
 import type { EditorTab } from '../stores/useAppStore';
 import { SensesPanel } from './SensesPanel';
-import { Characteristics, Knowledges, Skills } from '../domain/types';
+import { Attributes, Characteristics, Knowledges, Skills } from '../domain/types';
 import { useGameCommands } from '../hooks/useGameCommands';
 import { useSkillLens } from '../hooks/useSkillLens';
 import { SkillTooltip } from './SkillTooltip';
@@ -30,7 +30,7 @@ import { useTrainableNameLens } from '../hooks/useTrainableNameLens';
 import { useFormalKnowledgeLens, useKnowledgeTerms, useSpecificKnowledges } from '../hooks/useKnowledgeLens';
 import { LIMIT_STRESS_ACTIONS, TEMPERAMENT_CONVICTIONS, WORLDVIEW_CONVICTIONS, knowledges_list, type LimitStressAction } from '../domain/lists';
 
-const ATTRIBUTES: (keyof Characteristics)[] = ['STR', 'AGI', 'STA', ]
+const ATTRIBUTES: (keyof Attributes)[] = ['STR', 'AGI', 'STA', ]
 const TALENTS: (keyof Characteristics)[] = [ 'CON', 'DEX', 'INT', 'SPI']
 const TRAINABLES: (keyof Characteristics)[] = ['melee', 'ranged', 'awareness', 'sorcery', 'charisma', 'devotion']
 const COMBAT: (keyof Skills)[] = ['strike', 'accuracy', 'defend', 'reflex', 'grapple', 'force', 'SD']
@@ -164,7 +164,7 @@ function BodyTab(){
           <div className='flex flex-col gap-1'>
             <SectionLabel>Attributes</SectionLabel>
             <Tiles>
-              {ATTRIBUTES.map((s) => <StatDial key={s} stat={s} title={s} />)}
+              {ATTRIBUTES.map((s) => <AttributeDial key={s} stat={s} />)}
             </Tiles>
           </div>
           <AttributeLevelUp />
@@ -183,33 +183,19 @@ function BodyTab(){
 }
 
 // creating.tex "Improving attributes": the target value halved, doubled once
-// the average passes 10+CON-SM and +100% for every point beyond. The 10 is
-// the character's own here.
+// the average passes 10+CON-SM and +100% for every point beyond. The 10-SM is
+// the character's own here, beside what the book has at its size.
 function AttributeLevelUp(){
+  const [base, setBase] = useActiveCharacterDataLens('attributeSizeBalance')
   const view = useAttributeLevelUp()
-  const [base, setBase] = useActiveCharacterDataLens('attributeBalanceBase')
-  if (!view) return null
-  const [, ...terms] = view.balanceTerms
   return(
-    <div className='flex flex-col gap-1 text-xs'>
-      <SectionLabel>Next point</SectionLabel>
-      <div className='flex flex-row gap-3'>
-        {view.rows.map((row) => (
-          <span key={row.key}><span className='text-muted'>{row.key}</span> <span className='font-mono'>{row.next === null ? 'max' : `${row.next} XP`}</span></span>
-        ))}
+    <div className='flex flex-col gap-1 text-xs pt-4'>
+      <div className='flex flex-row items-center gap-1 text-muted'>
+        <span>attribute average =</span>
+        <NumberInput className='w-10 py-0' aria-label='attribute balance' title='10−SM, before CON' value={base} onChange={(e) => setBase(parseInt(e.target.value) || 0)} />
+        {view ? <span>(size {view.size} expects {view.expectedBalance})</span> : null}
       </div>
-      <div className='flex flex-row flex-wrap items-center gap-1 text-muted'>
-        <span>average</span>
-        <span className={`font-mono ${view.over ? 'text-bad' : 'text-fg'}`}>{view.average.toFixed(1)}</span>
-        <span>{view.over ? '>' : '≤'} balance</span>
-        <span className='font-mono text-fg'>{view.balance}</span>
-        <span>=</span>
-        <NumberInput className='w-10 py-0' aria-label='attribute balance base' title='the 10 of 10+CON−SM' value={base} onChange={(e) => setBase(parseInt(e.target.value) || 0)} />
-        {terms.map((term) => (
-          <span key={term.label}>{term.label} <span className='font-mono'>{term.value.toLocaleString(undefined, { signDisplay: 'always' })}</span></span>
-        ))}
-      </div>
-      <span className='text-muted'>{view.over ? 'past the balance: each point costs double, +100% per point beyond' : 'cost doubles once the average passes the balance'}</span>
+      <span className='text-muted'>costs double once attribute average passes the balance</span>
     </div>
   )
 }
@@ -339,6 +325,19 @@ function SpecificKnowledgeItem({ name }:{ name: string }){
     <SkillTooltip terms={terms} total={value}>
       <StatTile label={name} title={name} value={value} onChange={(v) => setValue(name, v)} modifier={view.modifier} afflicted={view.afflicted}
         footer={<ResetFooter label='remove' onClick={() => remove(name)} />} />
+    </SkillTooltip>
+  )
+}
+
+// creating.tex "Improving attributes": the attribute, with what its next point
+// costs.
+function AttributeDial ({stat}:{stat: keyof Attributes}){
+  const [value, setValue, terms, view] = useCharacteristicLens(stat)
+  const next = useAttributeLevelUp()?.rows.find((row) => row.key === stat)?.next
+  return(
+    <SkillTooltip terms={terms} total={value}>
+      <StatTile label={stat} value={value} onChange={setValue} modifier={view.modifier} afflicted={view.afflicted}
+        footer={<span className='text-[10px] text-muted'>{next === null ? 'max' : `next ${next} XP`}</span>} />
     </SkillTooltip>
   )
 }

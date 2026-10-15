@@ -211,7 +211,8 @@ function useChangeCount(value: number | string, input: React.RefObject<HTMLInput
 // input; the rest are plain. `modifier` is the net change shown in the corner,
 // `afflicted` paints the tile as harmed, and any change to `value` from
 // outside the tile flashes its border once.
-export function StatTile({ label, value, modifier = 0, afflicted = false, onClick, onChange, step, title, footer, className = '' }: {
+// `stepper` adds buttons that tick the value down and up by its step.
+export function StatTile({ label, value, modifier = 0, afflicted = false, onClick, onChange, step, stepper = false, title, footer, className = '' }: {
   label: ReactNode
   value: number | string
   modifier?: number
@@ -219,6 +220,7 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onClic
   onClick?: () => void
   onChange?: (value: number) => void
   step?: number
+  stepper?: boolean
   title?: string
   footer?: ReactNode
   className?: string
@@ -233,9 +235,13 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onClic
       <span className='text-[10px] leading-tight text-muted truncate' title={title ?? (typeof label === 'string' ? label : undefined)}>{label}</span>
       {
         onChange ?
-        <input ref={input} type='number' inputMode='numeric' step={step} aria-label={title ?? String(label)} title={title ?? String(label)}
-          className={`${numberClass} w-full text-sm py-0.5 ${afflicted ? 'text-bad' : ''}`}
-          value={draft.shown(value)} onBlur={draft.release} onChange={(e) => { draft.type(e.target.value); onChange((step && !Number.isInteger(step) ? parseFloat(e.target.value) : parseInt(e.target.value)) || 0) }} /> :
+        <div className='flex flex-row items-center'>
+          {stepper ? <TickButton label={`lower ${title ?? String(label)}`} onClick={() => onChange(Number(value) - (step ?? 1))}>−</TickButton> : null}
+          <input ref={input} type='number' inputMode='numeric' step={step} aria-label={title ?? String(label)} title={title ?? String(label)}
+            className={`${numberClass} w-full min-w-0 text-sm py-0.5 ${stepper ? 'border-transparent' : ''} ${afflicted ? 'text-bad' : ''}`}
+            value={draft.shown(value)} onBlur={draft.release} onChange={(e) => { draft.type(e.target.value); onChange((step && !Number.isInteger(step) ? parseFloat(e.target.value) : parseInt(e.target.value)) || 0) }} />
+          {stepper ? <TickButton label={`raise ${title ?? String(label)}`} onClick={() => onChange(Number(value) + (step ?? 1))}>+</TickButton> : null}
+        </div> :
         <span className={`font-mono font-medium text-base leading-tight ${afflicted ? 'text-bad' : ''}`}>{value}</span>
       }
       {modifier !== 0 ? <span className={`absolute top-0.5 right-1 font-mono text-[10px] ${modifier > 0 ? 'text-good' : 'text-bad'}`}>{modifier > 0 ? `+${modifier}` : modifier}</span> : null}
@@ -246,6 +252,10 @@ export function StatTile({ label, value, modifier = 0, afflicted = false, onClic
   return onClick ?
     <button type='button' className={frame} onClick={onClick} aria-label={title ?? String(label)}>{body}</button> :
     <div className={frame}>{body}</div>
+}
+
+function TickButton({ label, onClick, children }: { label: string, onClick: () => void, children: ReactNode }){
+  return <button type='button' aria-label={label} className='shrink-0 w-3.5 rounded text-xs leading-none text-muted hover:bg-raised hover:text-fg cursor-pointer' onClick={onClick}>{children}</button>
 }
 
 const POPOVER_EDGE = 8

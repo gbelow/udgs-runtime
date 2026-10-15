@@ -1,6 +1,5 @@
 import { Attributes, AttributesSchema, Character, Knowledges, Proficiencies, ProficienciesSchema, Skills, Talents, TalentsSchema, Trainables } from '../../types'
 import { getSM } from './size'
-import { Term, sumTerms } from './terms'
 
 export type TalentKey = keyof Talents
 export type LearningPrice = { currency: 'XP' | 'karma'; amount: number }
@@ -105,16 +104,21 @@ export const ATTRIBUTE_KEYS = Object.keys(AttributesSchema.shape) as (keyof Attr
 // reach before raising them costs more, 10+CON-SM, the 10 kept on the
 // character. An ability moves it only through the size it gives
 // (abilities.tex "Grow!", "Shrink!").
-export function getAttributeBalanceTerms(c: Character): Term[] {
-  return [
-    { label: 'base', value: c.attributeBalanceBase },
-    { label: 'CON', value: c.trainables.CON.value },
-    { label: 'SM', value: -getSM(c) },
-  ]
+export const ATTRIBUTE_BALANCE_BASE = 10
+
+// The part of the balance that follows the creature's size, 10-SM, with the
+// character's own in place of the 10.
+export function getAttributeSizeBalance(c: Character): number {
+  return c.attributeBalanceBase - getSM(c)
+}
+
+// What 10-SM is at the creature's size.
+export function getExpectedAttributeSizeBalance(c: Character): number {
+  return ATTRIBUTE_BALANCE_BASE - getSM(c)
 }
 
 export function getAttributeBalance(c: Character): number {
-  return sumTerms(getAttributeBalanceTerms(c))
+  return getAttributeSizeBalance(c) + c.trainables.CON.value
 }
 
 // creating.tex "Improving attributes": the target value divided by 2, rounded

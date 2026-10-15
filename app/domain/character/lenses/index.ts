@@ -3,6 +3,7 @@ import { getAGI, getAwareness, getCharisma, getCON, getConviction1, getConvictio
 import { makeInvertingLens, makeTrainableValueLens } from "./factories";
 import { getAlchemy, getAnimancy, getBiomancy, getDivine, getMiracle, getShamanism } from "../rules/magic";
 import { getSize } from "../rules/size";
+import { getAttributeSizeBalance } from "../rules/learning";
 import { getTGH } from "../rules/misc";
 import { getBasicMovement, getCarefulMovement, getClimbMovement, getCrawlMovement, getFastSwimMovement, getJumpMovement, getRunMovement, getStandMovement, getSwimMovement } from "../rules/movement";
 import { makeMovementCostLens, makeMovementLens } from "./movement";
@@ -157,7 +158,7 @@ export const miscLenses = {
   size: makeInvertingLens("size", getSize),
   height: makeInvertingLens("height", (c) => c.height),
   TGH: makeInvertingLens("TGH", getTGH),
-  attributeBalanceBase: makeInvertingLens("attributeBalanceBase", (c) => c.attributeBalanceBase),
+  attributeSizeBalance: makeInvertingLens("attributeBalanceBase", getAttributeSizeBalance),
 }
 
 export const magicGetters = {

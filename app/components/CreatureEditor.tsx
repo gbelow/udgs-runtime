@@ -12,7 +12,7 @@ import { FOOTPRINT_PRESETS, HIT_LOCATIONS, MATERIALS, PART_FLAGS, WOUND_EFFECTS 
 // made and, in free creation, on the character afterwards.
 function DataDial({ stat }: { stat: Parameters<typeof useActiveCharacterDataLens>[0] }) {
   const [value, setValue] = useActiveCharacterDataLens(stat)
-  return <StatTile label={stat} value={value} onChange={setValue} />
+  return <StatTile label={stat} value={value} onChange={setValue} stepper />
 }
 
 export function Creature() {
@@ -27,8 +27,8 @@ export function Creature() {
           <DataDial stat='size' />
           <DataDial stat='height' />
           <DataDial stat='TGH' />
-          <StatTile label='lame at' title='legs lost or broken before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} />
-          <StatTile label='prone at' title='legs lost or broken before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} />
+          <StatTile label='lame at' title='legs lost or broken before lame' value={view.stance.lameAt} onChange={(v) => editStance({ lameAt: v })} stepper />
+          <StatTile label='prone at' title='legs lost or broken before unable to stand' value={view.stance.proneAt} onChange={(v) => editStance({ proneAt: v })} stepper />
         </Tiles>
       </div>
       <p className='text-xs text-muted'>
