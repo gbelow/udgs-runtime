@@ -14,7 +14,8 @@ pnpm build    # production build with Turbopack
 pnpm start    # serve production build
 pnpm lint     # eslint
 pnpm test     # vitest (watch)
-pnpm test:run # vitest single run
+pnpm test:run # vitest single run (without the board fuzzer)
+pnpm test:fuzz # the board fuzzer (FUZZ_SEEDS=n for a wider sweep)
 ```
 
 Package manager is **pnpm**, Node v20+. Redis persistence requires `.env` with `UPSTASH_REDIS_URL` and `UPSTASH_REDIS_TOKEN` (see `.env.example`).

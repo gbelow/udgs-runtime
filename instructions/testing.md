@@ -155,7 +155,9 @@ click to what stands afterwards. It is admitted, under these terms.
   its own, in any order with everything else; the offers and the board must show closed
   while a die waits, and every die called for a target's or a climber's test must be one
   the landing reads.
-  `FUZZ_SEEDS=n` runs n seeds of every session instead of the few that keep the suite quick.
+  It runs on its own, `pnpm test:fuzz`, outside `pnpm test:run`: run it before a commit and after
+  any change to the scene. `FUZZ_SEEDS=n` runs n seeds of every session instead of the few it
+  runs by default.
   `FUZZ_REPORT=1` writes `reports/fuzz-coverage.md`, a table of every action in the catalogue and
   how far the sessions took it, as an artifact to read, never asserted on.
   What it reaches is bounded by the fixtures: a command no fixture character can declare is

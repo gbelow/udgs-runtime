@@ -11,7 +11,8 @@
     "duel": "tsx tools/duel.ts",
     "damage": "tsx tools/damage.ts",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:fuzz": "vitest run --config vitest.fuzz.config.ts"
   },
   "packageManager": "pnpm@10.28.0",
   "dependencies": {
