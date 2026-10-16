@@ -2,9 +2,10 @@
 import { useState, type ReactNode } from 'react'
 import { CharacterSelector } from './CharacterSelector'
 import { useCollectionFilter } from '../hooks/useCollections'
-import { Button, CollectionSelect, SectionLabel, selectClass } from './ui'
+import { Button, CollectionSelect, SectionLabel, barred, selectClass } from './ui'
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
+import { useGmBar } from '../hooks/useControl'
 import type { Character } from '../domain/types'
 import type { SyncOption, TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
@@ -82,6 +83,7 @@ export function ClockLabel(){
 // timeline's time, always forward, reading what that does to it first.
 export function TimelineControl({ timeline }: { timeline: TimelineView }){
   const { setActive, sync } = usePartyCommands()
+  const bar = useGmBar()
   const [chosen, setChosen] = useState<SyncOption | null>(null)
   const { name, clock, night, active, options } = timeline
 
@@ -92,10 +94,10 @@ export function TimelineControl({ timeline }: { timeline: TimelineView }){
           ? <Moment clock={clock} night={night} />
           : <span className='text-fg'>outside time</span>}
         <label className='flex items-center gap-1'>
-          <input type='checkbox' aria-label={`${name} in play`} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
+          <input type='checkbox' aria-label={`${name} in play`} {...barred(bar)} checked={active} onChange={(e) => setActive(timeline.partyId, e.target.checked)} />in play
         </label>
         {options.length > 0 ?
-          <select aria-label={`${name} sync`} className={selectClass} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
+          <select aria-label={`${name} sync`} className={selectClass} {...barred(bar)} value='' onChange={(e) => setChosen(options[parseInt(e.target.value)] ?? null)}>
             <option value=''>sync…</option>
             {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
           </select>

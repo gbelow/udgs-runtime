@@ -1,22 +1,20 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { Button, TextInput } from './ui'
-import { useRole } from '../hooks/useRole'
+import { useGmBar } from '../hooks/useControl'
 
 // The pieces every arrangement of parties is drawn with, in a fight or out
 // of one: what differs is only which commands they call.
 
-export const GM_BAR = 'the GM arranges the parties'
-
 // A new, empty party under the name typed, or the next free party name.
 export function CreateParty({ create, hint }: { create: (name: string) => void, hint: string }){
   const [name, setName] = useState('')
-  const { gmTools } = useRole()
+  const gmBar = useGmBar()
 
   return(
     <div className='flex flex-row gap-1 items-center'>
-      <TextInput className='w-36 text-xs' aria-label='new party name' placeholder='party name' value={name} disabled={!gmTools} onChange={(e) => setName(e.target.value)} />
-      <Button size='xs' variant='primary' aria-label='create party' disabled={!gmTools} title={gmTools ? hint : GM_BAR} onClick={() => { create(name.trim()); setName('') }}>create party</Button>
+      <TextInput className='w-36 text-xs' aria-label='new party name' placeholder='party name' value={name} disabled={gmBar !== null} onChange={(e) => setName(e.target.value)} />
+      <Button size='xs' variant='primary' aria-label='create party' disabled={gmBar !== null} title={gmBar ?? hint} onClick={() => { create(name.trim()); setName('') }}>create party</Button>
     </div>
   )
 }
@@ -57,10 +55,10 @@ export function PartyFrame({ target = false, adding = false, closed = null, plac
 // A party's name, renamed in place, and the button that opens the catalog
 // for it.
 export function PartyHeader({ name, rename, adding, toggleAdding, locked = false }: { name: string, rename: (name: string) => void, adding: boolean, toggleAdding: () => void, locked?: boolean }){
-  const { gmTools } = useRole()
+  const gmBar = useGmBar()
   return(
     <>
-      <TextInput key={name} className='w-full text-xs font-medium' aria-label={`${name} name`} disabled={!gmTools || locked} title={gmTools ? "the party's name" : GM_BAR} defaultValue={name} onBlur={(e) => rename(e.target.value.trim())} />
+      <TextInput key={name} className='w-full text-xs font-medium' aria-label={`${name} name`} disabled={gmBar !== null || locked} title={gmBar ?? "the party's name"} defaultValue={name} onBlur={(e) => rename(e.target.value.trim())} />
       <Button size='xs' aria-label={`add characters to ${name}`} aria-pressed={adding} disabled={locked} selected={adding} onClick={toggleAdding}>add characters to party</Button>
     </>
   )

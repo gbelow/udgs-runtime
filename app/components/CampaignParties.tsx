@@ -2,11 +2,11 @@
 import { useState } from 'react'
 import { Button } from './ui'
 import { CatalogDrawer, TimelineControl } from './RunParts'
-import { CreateParty, GM_BAR, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
+import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
-import { useRole } from '../hooks/useRole'
 import { usePartyCommands } from '../hooks/useParty'
 import { usePartiesPanel } from '../hooks/useCombatState'
+import { useGmBar } from '../hooks/useControl'
 import type { RosterMember } from '../domain/campaign/projections/roster'
 
 type Switching = { id: string; name: string; from: string | null }
@@ -20,9 +20,9 @@ type Switching = { id: string; name: string; from: string | null }
 export function CampaignParties(){
   const { parties, unplaced } = useCampaignRoster()
   const { moveToParty, splitOff, bring, createParty, renameParty } = useCampaignPartyCommands()
-  const { gmTools } = useRole()
   const { partyToScene } = usePartyCommands()
-  const { joinBar } = usePartiesPanel()
+  const gmBar = useGmBar()
+  const joinBar = usePartiesPanel().joinBar ?? gmBar
   const [addingTo, setAddingTo] = useState<string | null>(null)
   const [switching, setSwitching] = useState<Switching | null>(null)
   const bars = useMoveBars(switching?.id ?? null)
@@ -51,7 +51,7 @@ export function CampaignParties(){
             return (
               <PartyFrame key={party.id} target={away && bar === null} adding={party.id === addingTo} closed={bar} place={() => placeInto(party.id)}>
                 <div className='flex flex-col gap-1' onClick={(e) => e.stopPropagation()}>
-                  <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={!gmTools}
+                  <PartyHeader name={party.name} rename={(n) => renameParty(party.id, n)} adding={party.id === addingTo} locked={gmBar !== null}
                     toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} />
                   <TimelineControl timeline={party.timeline} />
                   <Button size='xs' aria-label={`${party.name} to scene`} disabled={joinBar !== null || party.members.length === 0} title={joinBar ?? 'the whole party into the scene'} onClick={() => partyToScene(party.id)}>to scene</Button>
@@ -78,9 +78,8 @@ export function CampaignParties(){
 function Member({ member, inParty, switching, toggle }: { member: RosterMember, inParty: boolean, switching: boolean, toggle: () => void }){
   const { pick, leaveParty } = useCampaignPartyCommands()
   const { toScene } = usePartyCommands()
-  const { joinBar } = usePartiesPanel()
-  const { gmTools } = useRole()
-  const bar = gmTools ? null : GM_BAR
+  const bar = useGmBar()
+  const joinBar = usePartiesPanel().joinBar ?? bar
 
   return(
     <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>

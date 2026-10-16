@@ -203,3 +203,10 @@ export function useAppStore<T>(selector: (state: AppState) => T) {
   if (!store) throw new Error("Missing AppStoreProvider");
   return useStore(store, selector);
 }
+// The store itself, for a handler that reads it as of the click rather than
+// subscribing to it.
+export function useAppStoreApi() {
+  const store = useContext(AppStoreContext);
+  if (!store) throw new Error("Missing AppStoreProvider");
+  return store;
+}

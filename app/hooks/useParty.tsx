@@ -12,12 +12,14 @@ import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domai
 import { returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight } from "../domain/scene/commands/fight";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableUpdater } from "../domain/scene/types";
-import { getPassBar } from "../domain/exploration/rules/exploration";
+import { getGroupActor, getPassBar } from "../domain/exploration/rules/exploration";
+import type { Actor } from "../domain/profiles";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
+import { useActGate } from "./useControl";
 
 const exploring = (s: CampaignStore): Exploring => ({ campaign: s, exploration: s.exploration });
 
@@ -76,10 +78,14 @@ export function usePartyCommands() {
   const updateExploration = useCampaignStore((s) => s.updateExploration);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   const setTab = useAppStore((s) => s.setSelectedGameTab);
+  const gate = useActGate();
 
+  const as = (actor: Actor, run: () => void) => { if (gate(actor)) run(); };
+  const asGm = (run: () => void) => as("gm", run);
+  const asGroup = (partyId: string, run: () => void, settings?: Partial<Group>) => as(getGroupActor(exploring(useCampaignStore.getState()), partyId, settings), run);
   const withActive = (run: (id: string) => void) => {
     const id = useCampaignStore.getState().activeCharacterId;
-    if (id) run(id);
+    if (id) as({ id }, () => run(id));
   };
   const asActive = (command: (id: string) => CampaignUpdater) => withActive((id) => updateCampaignState(command(id)));
   const planActive = (command: (id: string) => ExplorationUpdater) => withActive((id) => updateExploration(command(id)));
@@ -100,25 +106,25 @@ export function usePartyCommands() {
     eatFood: (itemId: string) => asActive((id) => eatFoodFor(id, itemId)),
     takeItem: (itemId: string) => asActive((id) => takeItemFor(id, itemId)),
     drink: () => asActive(drinkFor),
-    setExposure: (partyId: string, exposure: number) => updateCampaignState(setPartyExposure(partyId, exposure)),
-    setLit: (partyId: string, lit: boolean) => updateCampaignState(setPartyLit(partyId, lit)),
-    setPlace: (partyId: string, at: At | null) => updateCampaignState(setPartyPlace(partyId, at)),
-    setDayETs: (dayETs: number) => updateCampaignState(setDayETs(dayETs)),
-    merge: (fromId: string, intoId: string) => updateCampaignState(mergeInto(fromId, intoId)),
-    setActive: (partyId: string, active: boolean) => updateCampaignState(setPartyActive(partyId, active)),
-    sync: (partyId: string, how: 'place' | 'pass', to: number) => updateCampaignState(how === 'place' ? placeOnTimeline(partyId, to) : passTimeTo(partyId, to)),
-    addGroup: (partyId: string, kind: GroupKind) => updateExploration(addGroupTo(partyId, kind, newId)),
-    removeGroup: (partyId: string, groupId: string) => updateExploration(removeGroupOf(partyId, groupId)),
-    setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => updateExploration(setGroupOf(partyId, groupId, settings)),
-    setRoller: (partyId: string, groupId: string, roller: string) => updateExploration(setRollerOf(partyId, groupId, roller)),
-    decide: (id: string, decision: Decision) => updateExploration(decideFor(id, decision)),
-    passET: () => updateExploration(passClock(realDice, newId)),
+    setExposure: (partyId: string, exposure: number) => asGm(() => updateCampaignState(setPartyExposure(partyId, exposure))),
+    setLit: (partyId: string, lit: boolean) => asGm(() => updateCampaignState(setPartyLit(partyId, lit))),
+    setPlace: (partyId: string, at: At | null) => asGm(() => updateCampaignState(setPartyPlace(partyId, at))),
+    setDayETs: (dayETs: number) => asGm(() => updateCampaignState(setDayETs(dayETs))),
+    merge: (fromId: string, intoId: string) => asGm(() => updateCampaignState(mergeInto(fromId, intoId))),
+    setActive: (partyId: string, active: boolean) => asGm(() => updateCampaignState(setPartyActive(partyId, active))),
+    sync: (partyId: string, how: 'place' | 'pass', to: number) => asGm(() => updateCampaignState(how === 'place' ? placeOnTimeline(partyId, to) : passTimeTo(partyId, to))),
+    addGroup: (partyId: string, kind: GroupKind) => asGroup(partyId, () => updateExploration(addGroupTo(partyId, kind, newId))),
+    removeGroup: (partyId: string, groupId: string) => asGroup(partyId, () => updateExploration(removeGroupOf(partyId, groupId))),
+    setGroup: (partyId: string, groupId: string, settings: Partial<Pick<Group, 'DL' | 'mode' | 'target' | 'seek' | 'tool'>>) => asGroup(partyId, () => updateExploration(setGroupOf(partyId, groupId, settings)), settings),
+    setRoller: (partyId: string, groupId: string, roller: string) => asGroup(partyId, () => updateExploration(setRollerOf(partyId, groupId, roller))),
+    decide: (id: string, decision: Decision) => as({ id }, () => updateExploration(decideFor(id, decision))),
+    passET: () => asGm(() => updateExploration(passClock(realDice, newId))),
     // Whoever is sent to a scene is followed into it, and the last to come
     // back from it is followed back to exploring.
-    partyToScene: (partyId: string) => { updateTable(sendPartyToFight(partyId)); setTab('scene'); },
-    toScene: (id: string) => { updateTable(sendToFight([id])); setTab('scene'); },
-    partyBack: (partyId: string, ets: number) => comeBack(returnPartyFromFight(partyId, ets)),
-    back: (id: string, ets: number) => comeBack(returnFromFight([id], ets)),
-    saveLog: () => updateTable(saveFightLog),
+    partyToScene: (partyId: string) => asGm(() => { updateTable(sendPartyToFight(partyId)); setTab('scene'); }),
+    toScene: (id: string) => asGm(() => { updateTable(sendToFight([id])); setTab('scene'); }),
+    partyBack: (partyId: string, ets: number) => asGm(() => comeBack(returnPartyFromFight(partyId, ets))),
+    back: (id: string, ets: number) => asGm(() => comeBack(returnFromFight([id], ets))),
+    saveLog: () => asGm(() => updateTable(saveFightLog)),
   };
 }

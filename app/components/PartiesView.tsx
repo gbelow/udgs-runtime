@@ -2,14 +2,14 @@
 import { useState, type ReactNode } from 'react'
 import { Card } from './SceneCards'
 import { CatalogDrawer } from './RunParts'
-import { CreateParty, GM_BAR, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
+import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { Button, NumberInput } from './ui'
 import { usePartiesPanel, useSceneCards } from '../hooks/useCombatState'
 import { useCombatCommands } from '../hooks/useCombatCommands'
 import { useBringIntoParty } from '../hooks/useCharacterLibrary'
-import { useRole } from '../hooks/useRole'
 import { useFightTimelineClash, usePartyCommands, useSaveLogBar } from '../hooks/useParty'
 import { useCombatState } from '../hooks/useCombatState'
+import { useGmBar } from '../hooks/useControl'
 import type { SceneCard } from '../domain/scene/projections/cards'
 
 type Switching = { id: string; name: string; from: string }
@@ -32,7 +32,8 @@ export function PartiesView(){
   const clash = useFightTimelineClash()
   const [ets, setEts] = useState(0)
   const { saveLog } = usePartyCommands()
-  const saveLogBar = useSaveLogBar()
+  const gmBar = useGmBar()
+  const saveLogBar = useSaveLogBar() ?? gmBar
 
   const placeInto = (partyId: string | null) => {
     if (switching && partyId === null) splitOff(switching.id)
@@ -86,7 +87,8 @@ function AddCatalog({ partyId, name, close }: { partyId: string, name: string, c
 function PartyColumn({ id, name, ets, adding, toggleAdding, target, place, children }: { id: string, name: string, ets: number, adding: boolean, toggleAdding: () => void, target: boolean, place: () => void, children?: ReactNode }){
   const { renameParty } = useCombatCommands()
   const { partyBack } = usePartyCommands()
-  const { returnBar } = useCombatState()
+  const gmBar = useGmBar()
+  const returnBar = useCombatState().returnBar ?? gmBar
 
   return(
     <PartyFrame target={target} adding={adding} place={place}>
@@ -106,9 +108,9 @@ function MemberControls({ card, ets, switching, startSwitch }: { card: SceneCard
   const { moveBar } = usePartiesPanel()
   const { removeCharacter } = useCombatCommands()
   const { back } = usePartyCommands()
-  const { returnBar } = useCombatState()
-  const { gmTools } = useRole()
-  const bar = moveBar ?? (gmTools ? null : GM_BAR)
+  const gmBar = useGmBar()
+  const returnBar = useCombatState().returnBar ?? gmBar
+  const bar = moveBar ?? gmBar
 
   return(
     <div className='flex flex-row flex-wrap gap-1 items-center' onClick={(e) => e.stopPropagation()}>

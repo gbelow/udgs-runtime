@@ -1,10 +1,12 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, TextInput, Tooltip, selectClass } from './ui';
+import { Button, NumberInput, TextInput, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog, RosterChip } from './RunParts';
 import { useDowntime, useDowntimeCommands, useDowntimeResults, useDowntimeSpan, useSkillOptions, useTrainingOptions } from '../hooks/useDowntime';
 import type { LivingLevel } from '../domain/lists';
-import { ACTIVITIES, type Activity } from '../domain/downtime/types';
+import { ACTIVITIES, isTableTerm, type Activity } from '../domain/downtime/types';
+import { useGmBar } from '../hooks/useControl';
+import { LockedFor } from './Locks';
 import type { BlockView, DowntimeCharacterView, DowntimeTest } from '../domain/downtime/projections/downtime';
 
 const num = (value: string) => parseInt(value) || 0
@@ -19,8 +21,10 @@ type Commands = ReturnType<typeof useDowntimeCommands>
 export function DowntimeStrip(){
 
   const { span, setSpan } = useDowntimeSpan()
-  const { days, defaultSpan, settled, bar, characters } = useDowntime()
+  const { days, defaultSpan, settled, bar: passBar, characters } = useDowntime()
   const { pick, passDays } = useDowntimeCommands()
+  const gmBar = useGmBar()
+  const bar = gmBar ?? passBar
 
   return(
     <div className='flex flex-row flex-wrap gap-x-4 gap-y-1 items-center'>
@@ -36,7 +40,7 @@ export function DowntimeStrip(){
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         {characters.map((c) => <RosterChip key={c.id} name={c.name} active={c.isActive} bad={c.short} note={c.block ? c.block.label : 'no activity'} onClick={() => pick(c.id)} />)}
       </div>
-      {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
+      {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
     </div>
   )
 }
@@ -47,30 +51,39 @@ export function DowntimeStrip(){
 export function DowntimeRoster(){
 
   const { days, characters } = useDowntime()
-  const { pick, setLiving, setHoused } = useDowntimeCommands()
 
   return(
     <RosterCatalog>
       {characters.length === 0 ? <span className='text-xs text-muted'>nobody on the roster: add characters</span> : null}
       <div className='flex flex-col'>
-        {characters.map((c) => (
-          <div key={c.id} className={`flex flex-row flex-wrap gap-x-3 gap-y-1 items-center px-2 py-1 border-l-2 ${c.isActive ? 'border-accent bg-accent/5' : 'border-transparent'}`}>
-            <button type='button' className='text-sm font-medium w-32 text-left truncate hover:text-accent' aria-label={`pick ${c.name}`} onClick={() => pick(c.id)}>{c.name}</button>
-            <select aria-label={`${c.name} living`} className={selectClass} value={c.living} disabled={c.housed} onChange={(e) => setLiving(c.id, e.target.value as LivingLevel)}>
-              {c.livingOptions.map((o) => <option key={o.level} value={o.level}>{o.level} · {o.cost}/day · exposure {o.exposure}</option>)}
-            </select>
-            <label className='text-xs text-muted flex items-center gap-1'>
-              <input type='checkbox' aria-label={`${c.name} housed`} checked={c.housed} onChange={(e) => setHoused(c.id, e.target.checked)} />housed
-            </label>
-            <span className='text-xs text-muted'>purse <span className='font-mono text-fg'>{c.purse}</span></span>
-            <span className='text-xs text-muted'>heals <span className='font-mono text-fg'>{c.dailyHealing}</span> IL a day ({c.healing})</span>
-            <span className='text-xs text-muted'>{c.block ? <><span className='text-fg'>{c.block.label}</span> to day {c.block.lastDay}</> : 'no activity'}</span>
-            <span className={`text-xs ${c.short ? 'text-bad' : 'text-muted'}`}>pays for <span className='font-mono'>{c.affordable}</span> of {days} days</span>
-            {c.block?.bar ? <span className='text-xs text-bad'>{c.block.bar}</span> : null}
-          </div>
-        ))}
+        {characters.map((c) => <RosterRow key={c.id} character={c} days={days} />)}
       </div>
     </RosterCatalog>
+  )
+}
+
+// One character's row: how they live is theirs to set, or the GM's.
+function RosterRow({ character: c, days }: { character: DowntimeCharacterView, days: number }){
+
+  const { pick, setLiving, setHoused } = useDowntimeCommands()
+
+  return(
+    <div className={`flex flex-row flex-wrap gap-x-3 gap-y-1 items-center px-2 py-1 border-l-2 ${c.isActive ? 'border-accent bg-accent/5' : 'border-transparent'}`}>
+      <button type='button' className='text-sm font-medium w-32 text-left truncate hover:text-accent' aria-label={`pick ${c.name}`} onClick={() => pick(c.id)}>{c.name}</button>
+      <LockedFor id={c.id} className='contents'>
+        <select aria-label={`${c.name} living`} className={selectClass} value={c.living} disabled={c.housed} onChange={(e) => setLiving(c.id, e.target.value as LivingLevel)}>
+          {c.livingOptions.map((o) => <option key={o.level} value={o.level}>{o.level} · {o.cost}/day · exposure {o.exposure}</option>)}
+        </select>
+        <label className='text-xs text-muted flex items-center gap-1'>
+          <input type='checkbox' aria-label={`${c.name} housed`} checked={c.housed} onChange={(e) => setHoused(c.id, e.target.checked)} />housed
+        </label>
+      </LockedFor>
+      <span className='text-xs text-muted'>purse <span className='font-mono text-fg'>{c.purse}</span></span>
+      <span className='text-xs text-muted'>heals <span className='font-mono text-fg'>{c.dailyHealing}</span> IL a day ({c.healing})</span>
+      <span className='text-xs text-muted'>{c.block ? <><span className='text-fg'>{c.block.label}</span> to day {c.block.lastDay}</> : 'no activity'}</span>
+      <span className={`text-xs ${c.short ? 'text-bad' : 'text-muted'}`}>pays for <span className='font-mono'>{c.affordable}</span> of {days} days</span>
+      {c.block?.bar ? <span className='text-xs text-bad'>{c.block.bar}</span> : null}
+    </div>
   )
 }
 
@@ -154,13 +167,16 @@ function TestPicker({ id, value, onPick }: { id: string, value: string, onPick: 
 function ActivityRow({ id, view: v, specific, commands }: { id: string, view: BlockView, specific: string[], commands: Commands }){
 
   const { setBlock, setLearningGain, decide, drop } = commands
+  const gmBar = useGmBar()
   const b = v.block
   const set = (patch: Record<string, unknown>) => setBlock(id, patch)
-  const field = (label: string, key: string, value: number) => (
-    <label className='text-xs text-muted flex items-center gap-1'>{label}
-      <NumberInput className='w-12' aria-label={label} value={value} onChange={(e) => set({ [key]: num(e.target.value) })} />
-    </label>
-  )
+  const field = (label: string, key: string, value: number) => {
+    return (
+      <label className='text-xs text-muted flex items-center gap-1'>{label}
+        <NumberInput className='w-12' aria-label={label} {...barred(isTableTerm(key) ? gmBar : null)} value={value} onChange={(e) => set({ [key]: num(e.target.value) })} />
+      </label>
+    )
+  }
   const testPicker = v.testId ? <TestPicker id={id} value={v.testId} onPick={(test) => set({ test })} /> : null
 
   return(
@@ -178,13 +194,13 @@ function ActivityRow({ id, view: v, specific, commands }: { id: string, view: Bl
             <datalist id={`specific-${id}`}>{specific.map((k) => <option key={k} value={k} />)}</datalist>
             {testPicker}{field('DL', 'DL', b.DL)}{field('max', 'max', b.max)}
             <span className='text-xs text-muted'>gains</span>
-            {b.gains.map((g, i) => <NumberInput key={i} className='w-8' aria-label={`gain ${i}`} value={g} onChange={(e) => setLearningGain(id, i, num(e.target.value))} />)}
+            {b.gains.map((g, i) => <NumberInput key={i} className='w-8' aria-label={`gain ${i}`} {...barred(gmBar)} value={g} onChange={(e) => setLearningGain(id, i, num(e.target.value))} />)}
           </>
           : null}
         {b.kind === 'training' ?
           <>
-            <Button size='xs' variant={b.decision === 'accepted' ? 'good' : 'default'} onClick={() => decide(id, 'accepted')}>trainer found</Button>
-            <Button size='xs' variant={b.decision === 'refused' ? 'bad' : 'default'} onClick={() => decide(id, 'refused')}>none</Button>
+            <Button size='xs' variant={b.decision === 'accepted' ? 'good' : 'default'} {...barred(gmBar)} onClick={() => decide(id, 'accepted')}>trainer found</Button>
+            <Button size='xs' variant={b.decision === 'refused' ? 'bad' : 'default'} {...barred(gmBar)} onClick={() => decide(id, 'refused')}>none</Button>
           </>
           : null}
         <Button aria-label='drop activity' variant='ghost' onClick={() => drop(id)}>×</Button>

@@ -110,6 +110,28 @@ export function getControlBar(owner: string | undefined, profile: string | null,
   return owner ? `played by ${name || 'another player'}` : 'played by the GM'
 }
 
+// Whom a press or a click acts for, so that the screen lets it be made only
+// by whoever plays them: a character by id, any of several characters (a
+// party's own business, open to whoever plays one of them), the GM (the
+// parties, the clock, what the table enters), the GM with the action bar
+// switched to GM (the scene's brush and repositioning tool), or nobody for
+// one that only picks whom to look at or does nothing.
+export type Actor = { id: string } | { anyOf: readonly string[] } | 'gm' | 'gmTool' | null
+
+// Who is at the screen, as far as whom they may act for goes: their profile
+// and role, whether the action bar is switched to GM, the profiles there are,
+// and whose each character in play is.
+export type Viewer = { profile: string | null; role: Role; gmMode: boolean; profiles: readonly ProfileListing[]; ownerOf: (id: string) => string | undefined }
+
+// Why the viewer cannot act for `actor`, or null when they can.
+export function getActorBar(actor: Actor, v: Viewer): string | null {
+  if (actor === null) return null
+  if (actor === 'gm') return hasGmTools(v.role) ? null : "the GM's to do"
+  if (actor === 'gmTool') return hasGmTools(v.role) && v.gmMode ? null : 'a GM tool: switch the action bar to GM'
+  if ('anyOf' in actor) return actor.anyOf.some((id) => canControl(v.ownerOf(id), v.profile, v.role)) ? null : 'nobody you play is in it'
+  return getControlBar(v.ownerOf(actor.id), v.profile, v.role, v.profiles)
+}
+
 // A campaign's members as its members list shows them: each named, the one
 // at the screen marked, with why they cannot be taken out or made a player.
 export type MemberRow = ProfileListing & { role: MemberRole; me: boolean; removeBar: string | null; playerBar: string | null }

@@ -321,3 +321,9 @@ export function CollectionSelect({ filter: { collections, chosen, choose }, labe
     </select>
   )
 }
+
+// A control's props while `bar` says why it cannot be used: closed, with why
+// as its hint.
+export function barred(bar: string | null): { disabled: boolean; title: string | undefined } {
+  return { disabled: bar !== null, title: bar ?? undefined }
+}

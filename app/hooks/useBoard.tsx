@@ -17,7 +17,7 @@ export function useBoard() {
   const setActiveCharacter = useCombatStore((s) => s.setActiveCharacter);
   const gate = useActGate();
 
-  const asGm = (run: () => void) => { if (gate("gm")) run(); };
+  const asGm = (run: () => void) => { if (gate("gmTool")) run(); };
   const create = (radius: number) => asGm(() => update(createBoard(radius)));
   const remove = () => asGm(() => update(removeBoard));
   const click = (c: Click, brush: TerrainBrush | null = null, reposition = false) => {

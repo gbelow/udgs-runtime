@@ -1,38 +1,41 @@
 import { toast } from "sonner";
-import { getControlBar, getOwner } from "../domain/profiles";
-import type { ClickActor } from "../domain/scene/commands/click";
-import { TAB_OWNER, useAppStore } from "../stores/useAppStore";
-import { useCampaignStore } from "../stores/useCampaignStore";
+import { getActorBar, getCampaignRole, getOwner, type Actor, type Viewer } from "../domain/profiles";
+import { TAB_OWNER, useAppStore, useAppStoreApi, type AppState } from "../stores/useAppStore";
+import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
 import { useCombatStore } from "../stores/useCombatStore";
-import { useActingAsGm, useCampaignRole } from "./useRole";
-import { useProfileId } from "./useProfile";
 
-// Why whoever is at the screen cannot play a character in play, asked of
-// its id when it is asked: in a handler, as of the click.
-export function useControlBarCheck(): (id: string) => string | null {
-  const role = useCampaignRole();
-  const profile = useProfileId();
-  const listed = useAppStore((s) => s.playerCharacterList);
-  const profiles = useAppStore((s) => s.profileList);
-  return (id) => getControlBar(getOwner(id, useCampaignStore.getState().owners, listed), profile, role, profiles);
+type ViewerFields = Pick<AppState, "profile" | "devServer" | "gmMode" | "profileList" | "playerCharacterList">;
+
+// Who is at the screen, read off the app store and the campaign in play.
+const viewerOf = (app: ViewerFields, campaign: CampaignStore): Viewer => {
+  const profile = app.profile?.id ?? null;
+  return {
+    profile, role: getCampaignRole(campaign.file.members, profile, app.devServer), gmMode: app.gmMode, profiles: app.profileList,
+    ownerOf: (id) => getOwner(id, campaign.owners, app.playerCharacterList),
+  };
+};
+
+// Why whoever is at the screen cannot act for `actor`, asked when it is
+// asked: in a handler, as of the click, so that holding the check costs no
+// subscription.
+function useActorBarCheck(): (actor: Actor) => string | null {
+  const app = useAppStoreApi();
+  return (actor) => getActorBar(actor, viewerOf(app.getState(), useCampaignStore.getState()));
 }
 
 // Whether whoever is at the screen plays a character in play, asked as
-// `useControlBarCheck` is.
+// `useActorBarCheck` is.
 export function useControlCheck(): (id: string) => boolean {
-  const bar = useControlBarCheck();
-  return (id) => bar(id) === null;
+  const bar = useActorBarCheck();
+  return (id) => bar({ id }) === null;
 }
 
-// Whether a press or a click acting for `actor` may be made from the screen:
-// one for a character only by whoever plays them, one with the table's own
-// tools only while acting as the GM, one for nobody by anyone. Refused, why
-// is said.
-export function useActGate(): (actor: ClickActor) => boolean {
-  const bar = useControlBarCheck();
-  const gm = useActingAsGm();
+// Whether a press or a click acting for `actor` may be made from the screen
+// (see `getActorBar`). Refused, why is said.
+export function useActGate(): (actor: Actor) => boolean {
+  const bar = useActorBarCheck();
   return (actor) => {
-    const why = actor === null ? null : actor === "gm" ? (gm ? null : "a GM tool: switch the action bar to GM") : bar(actor.id);
+    const why = bar(actor);
     if (why) toast.error(`Not yours to do: ${why}.`);
     return why === null;
   };
@@ -44,16 +47,28 @@ export function useActForGate(): (id: string | null) => boolean {
   return (id) => gate(id === null ? null : { id });
 }
 
+// Why whoever is at the screen cannot act for `actor`, or null when they
+// can, kept up to date for a control drawn closed.
+export function useActorBar(actor: Actor): string | null {
+  const profile = useAppStore((s) => s.profile);
+  const devServer = useAppStore((s) => s.devServer);
+  const gmMode = useAppStore((s) => s.gmMode);
+  const profileList = useAppStore((s) => s.profileList);
+  const playerCharacterList = useAppStore((s) => s.playerCharacterList);
+  const app = { profile, devServer, gmMode, profileList, playerCharacterList };
+  return useCampaignStore((s) => getActorBar(actor, viewerOf(app, s)));
+}
+
+// Why only the GM may use the GM's own controls, or null for the GM.
+export function useGmBar(): string | null {
+  return useActorBar("gm");
+}
+
 // Why whoever is at the screen cannot play character `id`, or null when they
 // can; a sheet nobody plays, being edited, made or a race's, is always
 // theirs to change.
 export function useControlBar(id: string | null): string | null {
-  const role = useCampaignRole();
-  const profile = useProfileId();
-  const listed = useAppStore((s) => s.playerCharacterList);
-  const profiles = useAppStore((s) => s.profileList);
-  const owner = useCampaignStore((s) => (id ? getOwner(id, s.owners, listed) : undefined));
-  return id === null ? null : getControlBar(owner, profile, role, profiles);
+  return useActorBar(id === null ? null : { id });
 }
 
 // The same, for the character the tab shows.

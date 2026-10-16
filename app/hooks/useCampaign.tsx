@@ -7,6 +7,7 @@ import { addMap, createParty, leaveParty, moveToParty, removeMap, renameParty, s
 import { getCampaignMaps, getCampaignMapsDigest, type CampaignMapView } from "../domain/campaign/projections/maps";
 import { useMapNames } from "./useMap";
 import type { Character } from "../domain/types";
+import type { CampaignUpdater } from "../domain/campaign/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useRole } from "./useRole";
@@ -16,6 +17,7 @@ import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getMemberRows, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
+import { useActGate } from "./useControl";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -38,13 +40,15 @@ export function useCampaignPartyCommands() {
   const load = useCampaignStore((s) => s.loadCharacter);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
   const newId = () => crypto.randomUUID();
+  const gate = useActGate();
+  const asGm = (updater: CampaignUpdater) => { if (gate("gm")) update(updater); };
   return {
     pick,
-    createParty: (name: string) => update(createParty(newId(), name)),
-    renameParty: (partyId: string, name: string) => update(renameParty(partyId, name)),
-    moveToParty: (id: string, partyId: string) => update(moveToParty(id, partyId)),
-    splitOff: (id: string) => update(splitOff(id, newId)),
-    leaveParty: (id: string) => update(leaveParty(id)),
+    createParty: (name: string) => asGm(createParty(newId(), name)),
+    renameParty: (partyId: string, name: string) => asGm(renameParty(partyId, name)),
+    moveToParty: (id: string, partyId: string) => asGm(moveToParty(id, partyId)),
+    splitOff: (id: string) => asGm(splitOff(id, newId)),
+    leaveParty: (id: string) => asGm(leaveParty(id)),
     bring: (character: Character, partyId: string) => load(character, partyId),
   } as const;
 }

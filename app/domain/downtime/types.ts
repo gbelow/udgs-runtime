@@ -28,6 +28,16 @@ export type SkillRef = z.infer<typeof SkillRefSchema>
 // The table's answer to a training request: a trainer is found, or not.
 export const DECISIONS = ['pending', 'accepted', 'refused'] as const
 
+// What of an activity the table enters, rather than whoever plays the
+// character: its DL, the trainer's rate and whether a trainer is found, the
+// wage, the doctor's capacity and price, and what a learning test can gain
+// and reach.
+const TABLE_TERMS: readonly string[] = ['DL', 'rate', 'decision', 'wage', 'capacity', 'price', 'gains', 'max']
+
+export function isTableTerm(key: string): boolean {
+  return TABLE_TERMS.includes(key)
+}
+
 // story.tex "Downtime": one activity, done day after day until its days are
 // over and then resolved whole. A training is for `XP` XP, over 10 days each;
 // prices and wages are in coppers. The table enters every DL, rate and wage.

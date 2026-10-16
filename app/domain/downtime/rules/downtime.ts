@@ -3,7 +3,8 @@ import { DEGREES } from '../../types'
 import { type LivingLevel } from '../../lists'
 import type { CampaignState, Settlement } from '../../campaign/types'
 import type { Activity, Block, Downtime, Plan, SkillRef, TrainingTarget } from '../types'
-import { PlanSchema } from '../types'
+import { PlanSchema, isTableTerm } from '../types'
+import type { Actor } from '../../profiles'
 import type { Test } from '../../play/test'
 import { ABILITIES, ABILITY_FAMILIES, getAbilityLevel, getFamilyStages, isFamilyKey } from '../../abilities'
 import { COST_OF_LIVING, DAYS_PER_XP, SELF_TRAINING_YIELD, TRAINER_RATES } from '../../tables'
@@ -294,4 +295,10 @@ export function getDowntimeBar(t: Downtime, days: number): string | null {
     if (affordable < days) return `${name} can pay for ${affordable} of ${days} days`
   }
   return null
+}
+
+// Whom a change to character `id`'s activity acts for: the table, when it
+// touches a term the table enters, or else the character.
+export function getBlockActor(id: string, patch: Record<string, unknown>): Actor {
+  return Object.keys(patch).some(isTableTerm) ? 'gm' : { id }
 }

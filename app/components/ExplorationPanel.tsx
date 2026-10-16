@@ -1,12 +1,14 @@
 'use client'
 import { useState } from 'react'
-import { Button, NumberInput, SectionLabel, Tooltip, selectClass } from './ui';
+import { Button, NumberInput, SectionLabel, Tooltip, barred, selectClass } from './ui';
 import { ClockLabel, RosterCatalog } from './RunParts';
 import { useExploration, useNodeOptions, useParties, usePartyCommands, usePassBar } from '../hooks/useParty';
+import { useActorBar, useGmBar } from '../hooks/useControl';
+import { Locked, LockedFor } from './Locks';
 import { EVENT_TYPES, type EventType } from '../domain/campaign/types';
 import { DECISIONS, GROUP_KINDS, type CastPlan } from '../domain/exploration/types';
 import { ROLL_MODES, type RollMode } from '../domain/play/dice';
-import type { CastPanel, PartyView } from '../domain/exploration/projections/exploration';
+import type { CastPanel, PartiesView, PartyView } from '../domain/exploration/projections/exploration';
 import type { MapOptions } from '../domain/campaign/projections/maps';
 
 const signed = (n: number) => (n > 0 ? `+${n}` : `${n}`)
@@ -18,6 +20,8 @@ export function ExplorationStrip(){
 
   const { dayETs } = useParties()
   const passBar = usePassBar()
+  const gmBar = useGmBar()
+  const bar = gmBar ?? passBar
   const { passET, setDayETs } = usePartyCommands()
 
   return(
@@ -25,9 +29,9 @@ export function ExplorationStrip(){
       <div className='flex flex-row gap-2 items-center'>
         <ClockLabel />
         <span className='text-xs text-muted whitespace-nowrap'>day ETs</span>
-        <NumberInput className='w-10' aria-label='day ETs' value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
-        <Tooltip text={passBar ?? 'every party in play spends the ET on its plan'}>
-          <Button aria-label='passET' disabled={passBar !== null} onClick={passET}>next ET</Button>
+        <NumberInput className='w-10' aria-label='day ETs' {...barred(gmBar)} value={dayETs} onChange={(e) => setDayETs(parseInt(e.target.value) || 0)} />
+        <Tooltip text={bar ?? 'every party in play spends the ET on its plan'}>
+          <Button aria-label='passET' disabled={bar !== null} onClick={passET}>next ET</Button>
         </Tooltip>
       </div>
       {passBar ? <span className='text-xs text-muted'>{passBar}</span> : null}
@@ -42,21 +46,13 @@ export function PartyCards(){
 
   const { parties, decisions } = useParties()
   const maps = useNodeOptions()
-  const { decide } = usePartyCommands()
 
   return(
     <RosterCatalog>
       {decisions.length > 0 ?
         <div className='flex flex-col gap-1 pb-2 border-b border-line'>
           <SectionLabel>Forced to rest</SectionLabel>
-          {decisions.map((d) => (
-            <div key={d.id} className='flex flex-row gap-1.5 items-center'>
-              <span className='text-xs'>{d.name}</span>
-              {DECISIONS.map((option) => (
-                <Button key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
-              ))}
-            </div>
-          ))}
+          {decisions.map((d) => <DecisionRow key={d.id} decision={d} />)}
         </div>
         : null}
       <div className='flex flex-row flex-wrap gap-2 items-start'>
@@ -64,6 +60,24 @@ export function PartyCards(){
         {parties.map((party) => <PartyCard key={party.id} party={party} maps={maps} />)}
       </div>
     </RosterCatalog>
+  )
+}
+
+// Whether a character forced to rest is waited for or left behind: theirs
+// to decide, or the GM's.
+function DecisionRow({ decision: d }: { decision: PartiesView['decisions'][number] }){
+
+  const { decide } = usePartyCommands()
+
+  return(
+    <div className='flex flex-row gap-1.5 items-center'>
+      <span className='text-xs'>{d.name}</span>
+      <LockedFor id={d.id} className='contents'>
+        {DECISIONS.map((option) => (
+          <Button key={option} aria-label={`${d.name} ${option}`} selected={d.decision === option} onClick={() => decide(d.id, option)}>{option === 'leave' ? 'leave behind' : option}</Button>
+        ))}
+      </LockedFor>
+    </div>
   )
 }
 
@@ -84,11 +98,13 @@ export function LastEtLog(){
 function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
 
   const { pick, setExposure, setLit, setPlace, merge, addGroup, removeGroup, setGroup, setRoller } = usePartyCommands()
+  const gmBar = useGmBar()
+  const partyBar = useActorBar({ anyOf: party.members.map((m) => m.id) })
   const choose = (key: string) => setPlace(party.id, maps.flatMap((m) => m.nodes).find((n) => n.key === key)?.at ?? null)
 
   return(
     <div className='flex flex-col gap-1.5 border border-line rounded p-2 min-w-72'>
-      <div className='flex flex-row flex-wrap gap-1.5 items-center'>
+      <Locked bar={gmBar} className='flex flex-row flex-wrap gap-1.5 items-center min-w-0'>
         <span className='text-sm font-medium mr-1'>{party.name}</span>
         {maps.length > 0 ?
           <select aria-label={`${party.name} node`} className={selectClass} value={party.placeKey} onChange={(e) => choose(e.target.value)}>
@@ -113,7 +129,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
             {party.others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
           : null}
-      </div>
+      </Locked>
       {party.place ?
         <span className='text-xs text-muted'>
           {party.place.terrain ?? 'no terrain'}{party.place.tags.length > 0 ? ` (${party.place.tags.join(', ')})` : ''} · location knowledge <span className='font-mono text-fg'>{party.knowledge}</span>{party.nightDL > 0 ? <> · night <span className='font-mono text-fg'>+{party.nightDL}</span> DL</> : null}
@@ -127,6 +143,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           <Button key={m.id} aria-label={m.name} disabled={m.out} selected={m.isActive} onClick={() => pick(m.id)}>{m.name} <span className='text-muted'>· {m.out ? 'in a fight' : m.plan}</span></Button>
         ))}
       </div>
+      <Locked bar={partyBar} className='contents'>
       {party.groups.map((g, i) => (
         <div key={g.id} className='flex flex-row flex-wrap gap-1.5 items-center border-t border-line pt-1'>
           <span className='text-xs font-medium'>{g.kind} {i + 1}</span>
@@ -148,7 +165,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
           {g.entersDL ?
             <>
               <span className='text-xs text-muted'>DL</span>
-              <NumberInput className='w-10' aria-label={`${g.kind} ${i + 1} DL`} value={g.enteredDL} onChange={(e) => setGroup(party.id, g.id, { DL: parseInt(e.target.value) || 0 })} />
+              <NumberInput className='w-10' aria-label={`${g.kind} ${i + 1} DL`} {...barred(gmBar)} value={g.enteredDL} onChange={(e) => setGroup(party.id, g.id, { DL: parseInt(e.target.value) || 0 })} />
             </>
             : null}
           {g.kind === 'fire' ?
@@ -170,6 +187,7 @@ function PartyCard({ party, maps }: { party: PartyView, maps: MapOptions[] }){
         <span className='text-xs text-muted'>add</span>
         {GROUP_KINDS.map((kind) => <Button key={kind} aria-label={`${party.name} add ${kind}`} variant='ghost' disabled={kind === 'firewood' && !party.wood} title={kind === 'firewood' && !party.wood ? 'no wood here' : undefined} onClick={() => addGroup(party.id, kind)}>{kind}</Button>)}
       </div>
+      </Locked>
     </div>
   )
 }

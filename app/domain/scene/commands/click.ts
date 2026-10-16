@@ -1,5 +1,6 @@
 import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
+import type { Actor } from '../../profiles'
 import type { SceneState, Coord, Updater } from '../types'
 import { getDeclaredFloorTargets, getDeclaredTargets } from '../rules/action'
 import { getBoardMode, getFloorPicker } from '../rules/board/boardMode'
@@ -20,12 +21,6 @@ export type Click =
 // of whatever it declares come from.
 export type ClickContext = { brush: TerrainBrush | null, reposition: boolean, newId: () => string }
 
-// Whom a click acts for, so that the screen lets it be made only by whoever
-// plays them: a character by id, the GM for the table's own tools (the
-// brush, the repositioning tool), or nobody for a click that only picks
-// whom to look at or does nothing.
-export type ClickActor = { id: string } | 'gm' | null
-
 // What a click means in the state it lands on: painting if a brush is in
 // hand, a path edit while a move is being declared, the landing of an evasive
 // jump while one may be declared, where an explosion is aimed while one waits
@@ -42,7 +37,7 @@ export function resolveClick(click: Click, ctx: ClickContext): Updater {
 }
 
 // The same click, with whom it acts for.
-export function readClick(state: SceneState, click: Click, ctx: ClickContext): { actor: ClickActor, apply: Updater } {
+export function readClick(state: SceneState, click: Click, ctx: ClickContext): { actor: Actor, apply: Updater } {
   const open = getOpenAction(state)
   const actor = open ? { id: open.actorId } : null
   switch (click.on) {
@@ -57,7 +52,7 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): {
       if (getBoardMode(state) === 'path') return { actor, apply: turnMove() }
       const id = state.activeCharacterId
       if (!id) return NOTHING
-      if (ctx.reposition) return { actor: 'gm', apply: turnCharacter(id) }
+      if (ctx.reposition) return { actor: 'gmTool', apply: turnCharacter(id) }
       return isCombatStarted(state) ? NOTHING : { actor: { id }, apply: turnCharacter(id) }
     }
   }
@@ -65,15 +60,15 @@ export function readClick(state: SceneState, click: Click, ctx: ClickContext): {
 
 const NOTHING = { actor: null, apply: (s: SceneState) => s }
 
-function readCell(state: SceneState, cell: Coord, ctx: ClickContext): { actor: ClickActor, apply: Updater } {
-  if (ctx.brush) return { actor: 'gm', apply: paintTerrain(cell, ctx.brush) }
+function readCell(state: SceneState, cell: Coord, ctx: ClickContext): { actor: Actor, apply: Updater } {
+  if (ctx.brush) return { actor: 'gmTool', apply: paintTerrain(cell, ctx.brush) }
   const mode = getBoardMode(state)
   if (mode === 'path' || mode === 'jump' || mode === 'aim') {
     const pick = readPick(state, cell, ctx.newId)
     return pick ? { actor: { id: pick.actor }, apply: pick.apply } : NOTHING
   }
   if (mode === 'idle' && state.activeCharacterId) {
-    return ctx.reposition ? { actor: 'gm', apply: repositionCharacter(state.activeCharacterId, cell) } : { actor: { id: state.activeCharacterId }, apply: placeCharacter(state.activeCharacterId, cell) }
+    return ctx.reposition ? { actor: 'gmTool', apply: repositionCharacter(state.activeCharacterId, cell) } : { actor: { id: state.activeCharacterId }, apply: placeCharacter(state.activeCharacterId, cell) }
   }
   return NOTHING
 }

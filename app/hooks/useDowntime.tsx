@@ -8,6 +8,9 @@ import { passDays } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
+import { getBlockActor } from "../domain/downtime/rules/downtime";
+import type { Actor } from "../domain/profiles";
+import { useActGate } from "./useControl";
 
 // story.tex "Downtime" — everyone's plans for the days typed (null: as long
 // as the longest plan). The store and what downtime keeps are replaced on
@@ -46,17 +49,18 @@ export function useSkillOptions(id: string): SkillOption[] {
 export function useDowntimeCommands() {
   const updateDowntime = useCampaignStore((s) => s.updateDowntime);
   const pick = useCampaignStore((s) => s.setActiveCharacter);
-  const run = (updater: DowntimeUpdater) => updateDowntime(updater);
+  const gate = useActGate();
+  const run = (actor: Actor, updater: DowntimeUpdater) => { if (gate(actor)) updateDowntime(updater); };
   return {
     pick,
-    setLiving: (id: string, living: LivingLevel) => run(setLiving(id, living)),
-    setHoused: (id: string, housed: boolean) => run(setHoused(id, housed)),
-    chooseTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => run(chooseTraining(id, target, withTrainer)),
-    chooseActivity: (id: string, activity: Exclude<Activity, 'training'>) => run(chooseActivity(id, activity)),
-    setBlock: (id: string, patch: Record<string, unknown>) => run(setBlock(id, patch)),
-    setLearningGain: (id: string, degree: number, gain: number) => run(setLearningGain(id, degree, gain)),
-    decide: (id: string, decision: (typeof DECISIONS)[number]) => run(decideTraining(id, decision)),
-    drop: (id: string) => run(dropBlock(id)),
-    passDays: (days: number) => run(passDays(days, realDice)),
+    setLiving: (id: string, living: LivingLevel) => run({ id }, setLiving(id, living)),
+    setHoused: (id: string, housed: boolean) => run({ id }, setHoused(id, housed)),
+    chooseTraining: (id: string, target: TrainingTarget, withTrainer: boolean) => run({ id }, chooseTraining(id, target, withTrainer)),
+    chooseActivity: (id: string, activity: Exclude<Activity, 'training'>) => run({ id }, chooseActivity(id, activity)),
+    setBlock: (id: string, patch: Record<string, unknown>) => run(getBlockActor(id, patch), setBlock(id, patch)),
+    setLearningGain: (id: string, degree: number, gain: number) => run(getBlockActor(id, { gains: gain }), setLearningGain(id, degree, gain)),
+    decide: (id: string, decision: (typeof DECISIONS)[number]) => run(getBlockActor(id, { decision }), decideTraining(id, decision)),
+    drop: (id: string) => run({ id }, dropBlock(id)),
+    passDays: (days: number) => run("gm", passDays(days, realDice)),
   };
 }

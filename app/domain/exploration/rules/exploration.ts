@@ -10,7 +10,8 @@ import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { getClockOf, getDay, getPlayingParties, getTimeBar, isNight } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyPlayers, getPlace, isSamePlace } from '../../campaign/rules/place'
+import { getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, isSamePlace } from '../../campaign/rules/place'
+import type { Actor } from '../../profiles'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
 export function getExplorationAction(kind: GroupKind): ExplorationAction {
@@ -172,6 +173,12 @@ function getGroupBar(t: Exploring, partyId: string, group: Group): string | null
     return `${party.name} travel needs a destination`
   }
   return null
+}
+
+// Whom setting up a group of party `partyId` acts for: whoever plays someone
+// in the party, but the table for a DL, which the table enters.
+export function getGroupActor(t: Exploring, partyId: string, settings: Partial<Group> = {}): Actor {
+  return 'DL' in settings ? 'gm' : { anyOf: getPartyMembers(t.campaign, partyId) }
 }
 
 // Why the ET cannot pass now: time must be able to pass (`getTimeBar`), every

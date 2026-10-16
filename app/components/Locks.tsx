@@ -4,12 +4,13 @@ import { useRole } from '../hooks/useRole'
 import { useGearBar } from '../hooks/useCombatState'
 import { useActiveControlBar, useControlBar } from '../hooks/useControl'
 
-// Controls shown closed, with why, while `bar` says they cannot be used.
-export function Locked({ bar, children }: { bar: string | null, children: ReactNode }){
+// Controls shown closed, with why, while `bar` says they cannot be used,
+// laid out as `className` says (a column by default).
+export function Locked({ bar, className = 'min-w-0 flex flex-col gap-2', children }: { bar: string | null, className?: string, children: ReactNode }){
   return(
     <>
       {bar ? <span className='text-xs text-muted'>{bar}</span> : null}
-      <fieldset disabled={bar !== null} className='min-w-0 flex flex-col gap-2'>{children}</fieldset>
+      <fieldset disabled={bar !== null} className={className}>{children}</fieldset>
     </>
   )
 }
@@ -34,6 +35,6 @@ export function ControlLocked({ children }: { children: ReactNode }){
 }
 
 // The same for what character `id` does, whoever is active.
-export function LockedFor({ id, children }: { id: string | null, children: ReactNode }){
-  return <Locked bar={useControlBar(id)}>{children}</Locked>
+export function LockedFor({ id, className, children }: { id: string | null, className?: string, children: ReactNode }){
+  return <Locked bar={useControlBar(id)} className={className}>{children}</Locked>
 }
