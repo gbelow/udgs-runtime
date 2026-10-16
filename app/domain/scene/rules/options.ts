@@ -26,7 +26,8 @@ import { canThrowItem, getThrowCost, getThrowables } from './throw'
 import { getEvasionCost, isAnswerable, isUsedOutsideGrapple, canPayAll, withGuardStep, withoutReserve, withRefund } from './action'
 import { getGuardSteps, isGuardPlaced, needsGuardStep } from './protect'
 import { makeAction } from '../factories'
-import { canAnswer, getLiveActions, getOpenAction, getReactionsTo, withLiveActions } from './log'
+import { perState } from '../../perState'
+import { canAnswer, getLiveActions, getLiveReactionsTo, getOpenAction, getReactionsTo, withLiveActions } from './log'
 import { defRows, explosionBlockRows, getFreeAttackOptions, guardRows, getRowBar } from './attack'
 import { getReloadBar, getReloadRows } from './reload'
 import { getHeldOf } from './hold'
@@ -104,6 +105,16 @@ function guardOption(state: SceneState, c: CampaignCharacter, root: Action, guar
 export function hasOpenAnswer(state: SceneState, ids: readonly string[] = Object.keys(state.characters)): boolean {
   return ids.some((id) => getAvailableActions(state, id).some((o) => o.available))
 }
+
+// Who the committed action still waits on before its die is thrown or its
+// price paid: everyone with an answer open to it who has neither declared
+// one nor said they will not (`passed`).
+export const getAwaited = perState((state: SceneState): string[] => {
+  const open = getOpenAction(state)
+  if (!open || !isAnswerable(state, open)) return []
+  const answered = new Set(getLiveReactionsTo(state, open.id).map((r) => r.actorId))
+  return Object.keys(state.characters).filter((id) => !answered.has(id) && !open.passed.includes(id) && hasOpenAnswer(state, [id]))
+})
 
 // Everything the character may declare right now: their own actions while no
 // action is open and it is their turn, and their reactions while a committed

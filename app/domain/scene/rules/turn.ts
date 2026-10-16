@@ -4,7 +4,7 @@ import type { SceneState, ContestRoll } from '../types'
 import { SURGES } from '../../tables'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
 import { canSurgeAtAll, hasAPLeft } from '../../character/rules/surge'
-import { getLiveActions, getOpenAction } from './log'
+import { getLiveActions, getOpenAction, getPlayingOutBar } from './log'
 import { getFightName } from './fighters'
 import { getMoraleTurnBar } from './morale'
 import { getHeldTurnBar } from './heldRoll'
@@ -63,7 +63,7 @@ export function getStartTurnBar(state: SceneState, id: string): string | null {
 export function getFightBusy(state: SceneState): string | null {
   const holder = getTurnHolder(state)
   if (holder) return `${getFightName(state, holder)}'s turn`
-  return getOpenAction(state) ? 'an action is being played out' : null
+  return getPlayingOutBar(state)
 }
 
 // Why the turn cannot be contested now, by anyone: someone must hold it,

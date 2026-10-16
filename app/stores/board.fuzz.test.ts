@@ -1,15 +1,15 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rollD10, seededRng } from '../domain/play/dice'
-import { SceneStateSchema, type ActionDraft, type SceneState } from '../domain/scene/types'
+import { SceneStateSchema, type ActionDraft, type SceneState, type Updater } from '../domain/scene/types'
 import { getActionPanel } from '../domain/scene/projections/actionPanel'
 import { getFootprint } from '../domain/scene/rules/board/board'
 import { defRows } from '../domain/scene/rules/attack'
-import { getAvailableActions } from '../domain/scene/rules/options'
+import { getAvailableActions, getAwaited } from '../domain/scene/rules/options'
 import { ACTIONS, isReaction } from '../domain/scene/rules/actionCatalog'
 import { getOpenAction } from '../domain/scene/rules/log'
 import { coordKey, distance } from '../domain/scene/rules/board/geometry'
-import { acceptSpellTest, amendAction, declareAction, setTarget, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, payAction, resolveAction, rollAction, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
+import { acceptAnswered, amendAction, declareAction, setTarget, amendReaction, boostPush, cancelAction, chooseSpell, declareReaction, passReaction, payAnswered, resolveAction, rollAnswered, stepExtend, withdrawLastReaction, withdrawSpawnedAction } from '../domain/scene/commands/action'
 import { chooseGrapple, chooseManeuver, improveSpell, moveWhileResting, refundHOP, refundImprovement, saveGraze, spendHOP } from '../domain/scene/commands/choices'
 import { dropToFloor } from '../domain/scene/commands/floor'
 import { endTurn, surge } from '../domain/scene/commands/turn'
@@ -62,7 +62,10 @@ const answersOffered = (h: Harness) => Object.keys(h.state().characters).flatMap
 const aimable = (h: Harness, open: { kind: string }) => h.view().cells.filter((c) => open.kind === 'blast' || c.center)
 
 // The presses that carry a committed action to its end.
-const carryOn = (h: Harness) => [rollAction(h.dice, h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
+// Everyone the committed action still waits on answers with nothing.
+const passAwaited: Updater = (s) => getAwaited(s).reduce((state, id) => passReaction(id)(state), s)
+
+const carryOn = (h: Harness) => [passAwaited, rollAnswered(h.dice, h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]
 
 // Fills in whatever the open declaration is still asked for from the panel's
 // own offers, aims it by clicking, and locks it.
@@ -142,8 +145,10 @@ function plays(): Play[] {
         if (!cells.length) return
         const closed = h.view().mode === 'locked'
         const before = h.state()
+        const placed = h.view().mode === 'idle' && before.round > 0 && before.activeCharacterId !== null && before.board?.placements[before.activeCharacterId] !== undefined
         h.click({ on: 'cell', cell: pick(cells).cell })
         if (closed) expect(h.state(), 'a click on a board the view calls locked changes nothing').toBe(before)
+        if (placed) expect(h.state(), 'once the fight has started, a character placed is moved again only by a move or the GM').toBe(before)
       },
     },
     {
@@ -174,6 +179,8 @@ function plays(): Play[] {
     { name: 'click a token', run: (h, pick) => h.token(pick(names(h))) },
     { name: 'click a floor item', run: (h, pick) => { const floor = h.view().floor; if (floor.length) h.floor(pick(floor).itemId) } },
     { name: 'click turn', run: (h) => h.turn() },
+    { name: 'reposition as the GM', run: (h, pick) => { const cells = h.view().cells; if (cells.length) h.repositioning(() => h.click({ on: 'cell', cell: pick(cells).cell })) } },
+    { name: 'turn as the GM', run: (h) => h.repositioning(() => h.turn()) },
     { name: 'select a character', weight: 2, run: (h, pick) => h.select(pick(names(h))) },
     { name: 'surge', run: (h, pick) => h.press(surge(h.active()!, pick(SurgeKindSchema.options))) },
     { name: 'start turn', weight: 2, run: (h) => h.startTurn() },
@@ -223,7 +230,8 @@ function plays(): Play[] {
     { name: 'suggest a limit stress action', run: (h, pick) => { const options = getActionPanel(h.state()).open?.suggestion?.options ?? []; if (options.length) h.press(amendAction({ suggested: pick(options) })) } },
     { name: 'pick the gear to cast with', run: (h, pick) => { const gear = getActionPanel(h.state()).gear; if (gear.length) h.press(amendAction({ itemId: pick(gear).itemId })) } },
     { name: 'extend a spell', run: (h, pick) => h.press(stepExtend(pick([1, -1] as const))) },
-    { name: 'accept a spell test', run: (h) => h.press(acceptSpellTest(h.newId)) },
+    { name: 'accept a spell test', run: (h) => h.press(acceptAnswered(h.newId)) },
+    { name: 'answer with nothing', weight: 2, run: (h, pick) => { const reactors = getActionPanel(h.state()).reactors; if (reactors.length) h.press(passReaction(pick(reactors).id)) } },
     { name: 'buy with the overflow', weight: 2, run: (h, pick) => { const options = getActionPanel(h.state()).hop.options.filter((o) => o.available); if (options.length) h.press(spendHOP(pick(options).purchase)) } },
     { name: 'take back an overflow purchase', run: (h, pick) => { const options = getActionPanel(h.state()).hop.options; if (options.length) h.press(refundHOP(pick(options).purchase)) } },
     { name: 'grapple on the hit', weight: 2, run: (h, pick) => { if (getActionPanel(h.state()).open?.grapples != null) h.press(chooseGrapple(pick([true, false]))) } },
@@ -236,8 +244,8 @@ function plays(): Play[] {
     { name: 'answer with a strike', weight: 2, run: (h, pick) => { const ids = getActionPanel(h.state()).reactors.filter((r) => r.strike).map((r) => r.id); if (ids.length) answerWithAStrike(h, pick(ids), pick) } },
     { name: 'take back the last reaction', run: (h) => h.press(withdrawLastReaction()) },
     { name: 'roll a held test', run: (h, pick) => { const owed = getHeldRows(h.state()).filter((r) => !r.result); if (owed.length) { const r = pick(owed); h.press(rollHeld(r.id, r.kind, pick([...r.modes]), h.dice)) } } },
-    progress('roll', (h) => rollAction(h.dice, h.newId)),
-    progress('pay', (h) => payAction(h.newId, h.dice)),
+    progress('roll', (h) => rollAnswered(h.dice, h.newId)),
+    progress('pay', (h) => payAnswered(h.newId, h.dice)),
     { ...progress('resolve', (h) => resolveAction(h.newId)), weight: 2 },
     progress('skip', (h) => withdrawSpawnedAction(h.newId)),
     progress('cancel', () => cancelAction()),
@@ -309,6 +317,11 @@ function assertOffersHold(h: Harness) {
       const made = Object.values(after.actions).filter((a) => !before.has(a.id) && a.actorId === id && a.kind === o.draft.kind)
       expect(made.length, `${label} is offered but pressing it does nothing`).toBeGreaterThan(0)
     }
+  }
+  const awaited = getAwaited(s)
+  if (awaited.length) {
+    expect(rollAnswered(() => 5, newId)(s), `the die is thrown while ${awaited.join(', ')} may still answer`).toBe(s)
+    expect(payAnswered(newId, () => 5)(s), `the price is paid while ${awaited.join(', ')} may still answer`).toBe(s)
   }
 }
 
@@ -429,7 +442,7 @@ function playOut(h: Harness, pick: Picker) {
       const aimed = aimable(h, open)
       if (aimed.length) h.click({ on: 'cell', cell: pick(aimed).cell })
     }
-    for (const step of [rollAction(h.dice, h.newId), acceptSpellTest(h.newId), payAction(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
+    for (const step of [passAwaited, rollAnswered(h.dice, h.newId), acceptAnswered(h.newId), payAnswered(h.newId, h.dice), resolveAction(h.newId), withdrawSpawnedAction(h.newId)]) h.press(step)
     const panel = getActionPanel(h.state()).open
     if (panel && pick([true, false, false])) h.press(chooseManeuver(panel.disarm.length ? { item: pick(panel.disarm).itemId } : { along: pick([true, false]) }))
     if (pick([true, false, false, false])) h.press(boostPush(pick([true, false])))

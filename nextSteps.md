@@ -31,12 +31,16 @@ Next Priority: general UI/ what are the screens
 - healing spells -- done
 - terrain altering spells
 
-# Content primitives for combat
+### Content primitives for combat
 - explosions with multiple instances
 - corrosion damage
 - riding
 - analyse to find items 
 - environmental effects - storm, avalanche
+
+### sequence
+- corrosive damage
+- curse at beginning of round
 
 ### knowledge actions
 
@@ -44,10 +48,10 @@ Next Priority: general UI/ what are the screens
 - GM generated explosions
 - GM made tests for players on the fly
 - GM activated triggers
-- GM mode to edit characters freely/ players can only do it through actions
-- GM selected morale pressure
 - add charge to item
 - cause effect on character
+- settings
+- GM mode to edit characters freely/ players can only do it through actions
 
 
 ### misc
@@ -62,10 +66,13 @@ Next Priority: general UI/ what are the screens
 - combat surprise - team sides - combat start button
 - characters sharing same space
 - breaking cells
+- leave dead bodies on the fight
 
 
 -----------------------
 ## Exploration
+
+to scene/to exploration/to downtime buttons. 
 
 ### events
 all events
@@ -88,6 +95,8 @@ Celebration - waiting for contacts and leverages. later work
 Specific knowledge - GM decides what exists, players consume from the list
 
 Cleric spells are free.
+
+re renders on every campaign change. 
 
 -----------------
 ## Chase
@@ -130,7 +139,6 @@ poison
 - character ownership split
 - assets ownership
 - sync gameplay
-- permissions gm/player
 
 
 ## issues
@@ -140,3 +148,24 @@ poison
 
 
 abilities that teach other abilities - magic theory, ferocity lv 4, 
+
+breakage is a game option, must be in a game options place
+party control is bad
+reduce deflection of lighter armors
+
+HOP calculation - lower deflections or make it based off of attack score, not score minus defense.
+
+
+After that, in my recommended order:
+
+1. Encounter templates. Today an encounter is a party you build by hand. A template would be a saved group: which characters, how many of each, and which party each goes in. Dropping one in would create a party with no timeline yet, ready to send to a scene. This builds directly on what we have: collections pick the characters, parties hold them, and scenes take them by party. It's also the piece behind "dropping a saved party into combat", which is only half done.
+2. Campaign export and import as JSON. It's cheap, because the save format is already validated and copes with old or partial saves. It gives you a backup before campaigns get valuable.
+3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
+4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
+
+Smaller items still open:
+- the fight log saving duplicates when you save twice;
+- notes can't be edited;
+- exploration and downtime have no strip showing recent journal entries.
+
+- Collections in downtime. The downtime learning-test field doesn't use collections, while the creator's add box does. Adding them would change how that field behaves. It would also need a rule for held knowledges outside the chosen collection, which shouldn't vanish from the list.

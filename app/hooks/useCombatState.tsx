@@ -6,10 +6,10 @@ import { getRoundChange, getRoundChangeDigest, type RoundChangeView } from "../d
 import { getOpenAction } from "../domain/scene/rules/log";
 import { getCowardBar, getMoraleDigest, getMoraleRows, getTablePressureDigest, getTablePressureRows, MoraleRow, TablePressureRow } from "../domain/scene/projections/morale";
 import { getHeldDigest, getHeldRows, type HeldTestRow } from "../domain/scene/projections/heldTests";
-import { getGearBar, getNextRoundBar } from "../domain/scene/rules/turn";
-import { getCombatSurgeOptions, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
+import { getGearBar } from "../domain/scene/rules/turn";
+import { getCombatSurgeOptions, getEndCombatNote, getNextRoundNote, getTurnControls, TurnControls } from "../domain/scene/projections/turn";
 import type { SurgeOption } from "../domain/character/lenses/surge";
-import { getReturnBar, getEndCombatBar } from "../domain/scene/rules/fight";
+import { getReturnBar } from "../domain/scene/rules/fight";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useActiveCharacterSelector } from "./useActiveCharacterSelector";
 import { useShallow } from "zustand/shallow";
@@ -21,9 +21,9 @@ export function useCombatState() {
   // An action being played out holds the fight: whoever it names must stay
   // in it until it resolves.
   const hasOpenAction = useCombatStore((s) => getOpenAction(s) !== null);
-  const nextRoundBar = useCombatStore(getNextRoundBar);
+  const nextRoundBar = useCombatStore(getNextRoundNote);
   const returnBar = useCombatStore(getReturnBar);
-  const endCombatBar = useCombatStore(getEndCombatBar);
+  const endCombatBar = useCombatStore(getEndCombatNote);
 
   return { round, hasOpenAction, nextRoundBar, returnBar, endCombatBar } as const;
 }

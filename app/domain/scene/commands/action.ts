@@ -7,7 +7,7 @@ import { areReactionsComplete, canAffordOpportunity, isPreparedRequired, getClim
 import { canAnswer, getLiveReactionsTo, getOpenAction, getOpeningReaction, getReactionsTo } from '../rules/log'
 import { detect, getNoise, getStealthTurn } from '../rules/stealth'
 import { getReactorDetections } from '../rules/reactions'
-import { findOption, hasOpenAnswer } from '../rules/options'
+import { findOption, getAwaited, hasOpenAnswer } from '../rules/options'
 import { getClimbRedoTest, getDefaultAim, getReactionTest, getRootTest } from '../rules/attack'
 import { needsBreakRolls } from '../rules/breakage'
 import { resolveTest } from '../../play/test'
@@ -270,6 +270,36 @@ export function withdrawReaction(actorId: string): Updater {
     const taken = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
     return pruneReactions(withdrawActions(state, taken.map((r) => r.id), 'tookBack'))
   }
+}
+
+// The reactor answers the committed action with nothing: whatever they had
+// declared is taken back, and the action no longer waits on them. Refused for
+// anyone it neither waits on nor has an answer from.
+export function passReaction(actorId: string): Updater {
+  return (state) => {
+    const open = getAnswerableOpen(state)
+    if (!open) return state
+    const taken = getLiveReactionsTo(state, open.id).filter((r) => r.actorId === actorId)
+    if (!taken.length && !getAwaited(state).includes(actorId)) return state
+    const withdrawn = taken.length ? pruneReactions(withdrawActions(state, taken.map((r) => r.id), 'tookBack')) : state
+    const root = getAnswerableOpen(withdrawn)
+    return root && !root.passed.includes(actorId) ? replaceActions(withdrawn, [{ ...root, passed: [...root.passed, actorId] }]) : withdrawn
+  }
+}
+
+// The die, the payment and a willing target's acceptance as the table
+// presses them: refused while the committed action still waits on anyone
+// (`getAwaited`) but the one accepting.
+export function rollAnswered(dice: Dice, newId: () => string): Updater {
+  return (state) => (getAwaited(state).length ? state : rollAction(dice, newId)(state))
+}
+
+export function payAnswered(newId: () => string, dice: Dice): Updater {
+  return (state) => (getAwaited(state).length ? state : payAction(newId, dice)(state))
+}
+
+export function acceptAnswered(newId: () => string): Updater {
+  return (state) => (getAwaited(state).some((id) => id !== getOpenAction(state)?.targetId) ? state : acceptSpellTest(newId)(state))
 }
 
 // combat.tex "Push and drag": the pusher's "spend 2 AP to gain 5 force",

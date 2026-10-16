@@ -313,6 +313,9 @@ const ActionBase = {
   // combat.tex "Preparing a reaction": the reactions its actor declared to
   // what it gave rise to, by id, written as each is declared
   reactedWithin: z.array(str).default([]),
+  // who, among those it let answer, said they would not while it waited for
+  // its die, written as each says it
+  passed: z.array(str).default([]),
   // HOP purchase -> times bought
   spent: z.partialRecord(HOPPurchaseSchema, num).default({}),
 }

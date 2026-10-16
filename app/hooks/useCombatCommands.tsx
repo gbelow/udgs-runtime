@@ -17,6 +17,7 @@ import { useAppStore } from "../stores/useAppStore"
 import { isCampaignCharacter } from "../domain/utils"
 import { readActiveCharacter } from "./useActiveCharacterSelector"
 import { realDice } from "../components/utils"
+import { useActForGate } from "./useControl"
 
 export function useCombatCommands() {
 
@@ -26,6 +27,10 @@ export function useCombatCommands() {
   const updateCombatState = useCombatStore((s) => s.updateCombatState)
   const updateTable = useCampaignStore((s) => s.updateTable)
   const newId = () => crypto.randomUUID()
+  // what a character does for themselves is pressed only by whoever plays
+  // them, or the GM
+  const gate = useActForGate()
+  const forCharacter = (id: string, command: Updater) => { if (gate(id)) updateCombatState(command) }
 
   const killCharacter = () => {
     const c = readActiveCharacter(tab)
@@ -36,21 +41,22 @@ export function useCombatCommands() {
     updateCombatState(renameFightParty(partyId, name))
   }
 
-  // The turn buttons act for the active character; the commands refuse
-  // whatever the turn controls show as closed.
+  // The turn buttons act for the active character, and ending the turn for
+  // whoever holds it; the commands refuse whatever the turn controls show as
+  // closed.
   const startTurn = () => {
     const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(beginTurn(id))
+    if (id) forCharacter(id, beginTurn(id))
   }
 
   const toggleContest = () => {
     const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(toggleTurnContest(id))
+    if (id) forCharacter(id, toggleTurnContest(id))
   }
 
   const toggleAgreeToEnd = () => {
     const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(toggleAgreement(id))
+    if (id) forCharacter(id, toggleAgreement(id))
   }
 
   const rollContest = () => {
@@ -59,11 +65,12 @@ export function useCombatCommands() {
 
   const actionSurge = (kind: SurgeKind) => {
     const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(surge(id, kind))
+    if (id) forCharacter(id, surge(id, kind))
   }
 
   const endTurn = () => {
-    updateCombatState(closeTurn)
+    const id = useCombatStore.getState().inTurnCharacter
+    if (id) forCharacter(id, closeTurn)
   }
 
   const nextRound = () => {
@@ -78,29 +85,21 @@ export function useCombatCommands() {
     updateCombatState(moveRoundOn(realDice))
   }
 
-  const holdOn = (id: string) => {
-    updateCombatState(holdOnTo(id, realDice))
-  }
+  const holdOn = (id: string) => forCharacter(id, holdOnTo(id, realDice))
 
-  const letGo = (id: string) => {
-    updateCombatState(letGoOf(id, realDice))
-  }
+  const letGo = (id: string) => forCharacter(id, letGoOf(id, realDice))
 
-  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => {
-    updateCombatState(testMorale(id, mode, enemyNear, realDice))
-  }
+  const rollMorale = (id: string, mode: RollMode, enemyNear: boolean) => forCharacter(id, testMorale(id, mode, enemyNear, realDice))
 
   const setTablePressure = (id: string, value: number) => {
     updateCombatState(setTablePressureOf(id, value))
   }
 
-  const rollHeld = (id: string, kind: CalledKind, mode: RollMode) => {
-    updateCombatState(testHeld(id, kind, mode, realDice))
-  }
+  const rollHeld = (id: string, kind: CalledKind, mode: RollMode) => forCharacter(id, testHeld(id, kind, mode, realDice))
 
   const asActive = (command: (id: string) => Updater) => () => {
     const id = useCombatStore.getState().activeCharacterId
-    if (id) updateCombatState(command(id))
+    if (id) forCharacter(id, command(id))
   }
 
   const moveToParty = (id: string, partyId: string) => updateCombatState(moveInto(id, partyId))

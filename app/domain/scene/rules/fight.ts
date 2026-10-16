@@ -1,14 +1,14 @@
 import { isCombatStarted } from './started'
 import type { SceneState, Table } from '../types'
+import { getPlayingOutBar } from './log'
 import type { Homecoming } from '../../campaign/types'
-import { getOpenAction } from './log'
 
 // Why the fight cannot give its characters back to the party now: the
 // combat is ended first.
 export function getReturnBar(fight: SceneState): string | null {
   if (Object.keys(fight.characters).length === 0) return 'nobody is in the fight'
   if (isCombatStarted(fight)) return 'end the combat first'
-  return getOpenAction(fight) ? 'an action is being played out' : null
+  return getPlayingOutBar(fight)
 }
 
 // Why the fight's log cannot be saved to the journal now, or null.
@@ -19,7 +19,7 @@ export function getSaveLogBar(fight: SceneState): string | null {
 // Why the combat cannot end now, or null.
 export function getEndCombatBar(fight: SceneState): string | null {
   if (!isCombatStarted(fight)) return 'combat has not started'
-  return getOpenAction(fight) ? 'an action is being played out' : null
+  return getPlayingOutBar(fight)
 }
 
 // Why nobody can join the fight now, or null: before it starts, or at a round

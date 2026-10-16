@@ -2,7 +2,8 @@ import type { ChaseDeclaration, SceneState } from '../types'
 import { CHASE_COVERS, CHASE_MOVES, CHASE_TIERS, CROSSING_SKILLS, type ChaseCover, type ChaseMove, type ChaseRole, type ChaseSide, type ChaseTier, type ChaseWay } from '../../lists'
 import { perState } from '../../perState'
 import { getFightName } from '../rules/fighters'
-import { getFightBusy, getNextRoundBar } from '../rules/turn'
+import { getFightBusy } from '../rules/turn'
+import { getNextRoundNote } from './turn'
 import { canTurnAround, getCaught, getChasers, getChaseParties, getCrossBar, getDeclareBar, getDeclareOrder, getDeclarers, getFightBar, getFightFirst, getFollowBar, getJoinBar, getLink, getMembers, getMergeBar, getObstacleOwner, getPutBackBar, getResolveBar, getRoundSeconds, getSkirmishAP, getTeam, isDisconnected, isEnemyLink, isFrozen, isRoutingLink } from '../rules/chase'
 
 type Option = { id: string; name: string; bar: string | null }
@@ -214,7 +215,7 @@ function buildChasePanel(state: SceneState): ChasePanel {
     endBar: getFightBusy(state),
     next: getNext(state),
     placement: getPlacement(state),
-    roundBar: chase && state.round > 0 ? getNextRoundBar(state) : null,
+    roundBar: chase && state.round > 0 ? getNextRoundNote(state) : null,
     moves: CHASE_MOVES,
     crossingSkills: CROSSING_SKILLS,
     covers: CHASE_COVERS,

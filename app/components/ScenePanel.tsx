@@ -5,6 +5,7 @@ import { BoardPanel } from './BoardPanel';
 import { ChasePanel } from './ChasePanel';
 import { RoundChangePanel } from './RoundChangePanel';
 import { Button, SectionLabel, Tooltip } from './ui';
+import { ControlLocked } from './Locks';
 import { useCombatRoster, useCombatState, useCombatSurgeOptions, useCowardBar, useHeldTests, useRoundChange, useTurnControls } from '../hooks/useCombatState';
 import { useChase } from '../hooks/useChase';
 import { useInjuryLens } from '../hooks/useinjuryLens';
@@ -94,11 +95,13 @@ export function SceneActions(){
 
   return(
     <>
-      <TurnControl />
-      <div className='flex flex-row flex-wrap gap-1 items-center'>
-        <SectionLabel>surge</SectionLabel>
-        <SurgeControl />
-      </div>
+      <ControlLocked>
+        <TurnControl />
+        <div className='flex flex-row flex-wrap gap-1 items-center'>
+          <SectionLabel>surge</SectionLabel>
+          <SurgeControl />
+        </div>
+      </ControlLocked>
       {held.length > 0 ? (
         <div className='flex flex-row flex-wrap gap-1 items-center'>
           <Button size='xs' aria-label='drawer held tests' variant={due ? 'bad' : 'default'} selected={heldOpen} onClick={() => setHeldOpen(!heldOpen)}>

@@ -10,6 +10,7 @@ import type { Action, ActionDraft, ActionRoll, CostTerm, StrikeAction } from '..
 import { Button, Panel, SectionLabel, Tooltip } from './ui'
 import type { Term } from '../domain/character/lenses'
 import { Preparation } from './Preparation'
+import { ControlLocked, LockedFor } from './Locks'
 import { StrikeModifiers } from './StrikeModifiers'
 
 // A button's look while it is the one picked.
@@ -30,22 +31,24 @@ const STEP_LABEL = {
 // the actor's commitment, the reactions and the die, the result — until it
 // is resolved.
 export function ActionPanel(){
-  const { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
+  const { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } = useCombatActions()
   const { step, open } = view
 
   if (!open) {
     return (
       <Panel title='Actions'>
-        <div className='flex flex-row flex-wrap gap-1'>
-          {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
-          {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
-        </div>
-        {view.social.length > 0 ? (
-          <div className='flex flex-row flex-wrap gap-1 items-center'>
-            <SectionLabel>social</SectionLabel>
-            {view.social.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
+        <ControlLocked>
+          <div className='flex flex-row flex-wrap gap-1'>
+            {view.options.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
+            {view.options.length === 0 ? <span className='text-xs text-muted'>no character in the fight</span> : null}
           </div>
-        ) : null}
+          {view.social.length > 0 ? (
+            <div className='flex flex-row flex-wrap gap-1 items-center'>
+              <SectionLabel>social</SectionLabel>
+              {view.social.map((o) => <OptionButton key={o.label} option={o} onClick={() => declare(o.draft)} />)}
+            </div>
+          ) : null}
+        </ControlLocked>
         <Prepared rows={view.prepared} />
       </Panel>
     )
@@ -62,6 +65,7 @@ export function ActionPanel(){
       pending={step === 'react'}
       actions={declared && !open.spawned ? <Button size='xs' variant='ghost' aria-label='cancel action' onClick={cancel}>✕</Button> : null}>
 
+      <LockedFor id={open.actorId}>
       {declared && open.required ? <span className='text-xs text-muted'>prepared: it must be done</span> : null}
 
       {view.prepare ? <Preparation view={view.prepare} onAmend={amend} onSpell={cast} onExtend={extend} /> : null}
@@ -258,22 +262,24 @@ export function ActionPanel(){
           ) : null}
         </div>
       ) : null}
+      </LockedFor>
 
       {step === 'react' ? (
         <div className='flex flex-col gap-1'>
           {view.reactors.map((r) => {
-            const answered = r.options.some((o) => o.chosen)
             if (r.strike) {
-              return <ReactorStrike key={r.id} reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} />
+              return <LockedFor key={r.id} id={r.id}><ReactorStrike reactor={r} onAmend={(fields) => amendReacted(r.id, fields)} /></LockedFor>
             }
             return (
-              <div key={r.id} className='flex flex-row flex-wrap gap-1 items-center'>
-                <SectionLabel>{r.name}</SectionLabel>
-                <Button size='xs' selected={!answered} onClick={() => withdraw(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
-                {r.options.map((o) =>
-                  <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
-                {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
-              </div>
+              <LockedFor key={r.id} id={r.id}>
+                <div className='flex flex-row flex-wrap gap-1 items-center'>
+                  <SectionLabel>{r.awaited ? <span className='text-accent' title='may react: the die waits on their answer'>{r.name} ?</span> : r.name}</SectionLabel>
+                  <Button size='xs' selected={r.passed} title='answer with nothing: the die no longer waits on them' onClick={() => pass(r.id)}>{r.id === open.targetId ? 'take it (SD)' : 'nothing'}</Button>
+                  {r.options.map((o) =>
+                    <OptionButton key={o.label} option={o} active={o.chosen} onClick={() => react(r.id, o.draft)} />)}
+                  {r.cancellable ? <span className='text-xs text-bad'>defending actively gives up the {r.cancellable}</span> : null}
+                </div>
+              </LockedFor>
             )
           })}
           {view.reactors.length === 0 ? <span className='text-xs text-muted'>nobody reacts</span> : null}
@@ -281,17 +287,21 @@ export function ActionPanel(){
           {view.jumpPending ? <span className='text-xs text-muted'>pick where the evasive jump lands on the board</span> : null}
           {view.stepPending ? <span className='text-xs text-muted'>pick where {view.stepPending} steps on the board</span> : null}
           {view.die || view.compare || open.area ? <Test open={open} /> : null}
+          {view.awaited.length > 0 ? <span className='text-xs text-accent'>waiting on {view.awaited.join(', ')}: each answers or picks nothing</span> : null}
           <div className='flex flex-row gap-1'>
-            {view.die
-              ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
-              : <Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button>}
-            {view.canAccept ? <Button variant='default' aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button> : null}
+            <LockedFor id={open.actorId}>
+              {view.die
+                ? <Button variant='primary' aria-label='roll action' disabled={!view.canRoll} onClick={roll}>roll</Button>
+                : <Button variant='primary' aria-label='pay action' disabled={!view.canPay} onClick={pay}>go</Button>}
+            </LockedFor>
+            {view.canAccept ? <LockedFor id={open.targetId}><Button variant='default' aria-label='accept spell' title='the target allows it: no test' onClick={accept}>allow it</Button></LockedFor> : null}
             <Button variant='ghost' aria-label='back' disabled={!view.canBack} title='take back the last reaction' onClick={back}>back</Button>
           </div>
         </div>
       ) : null}
 
       {rolled ? (
+        <LockedFor id={open.actorId}>
         <div className='flex flex-col gap-1'>
           {open.roll || view.compare ? <Test open={open} /> : null}
           {open.roll ? (
@@ -356,6 +366,7 @@ export function ActionPanel(){
             <Button variant='primary' aria-label='resolve action' disabled={step === 'choose'} onClick={resolve}>done</Button>
           </div>
         </div>
+        </LockedFor>
       ) : null}
     </Panel>
   )

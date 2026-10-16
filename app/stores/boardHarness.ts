@@ -12,7 +12,7 @@ import { useCombatStore } from './useCombatStore'
 import { useCampaignStore } from './useCampaignStore'
 
 // The board as a player works it, over the real combat store: a click goes
-// through the same `resolveClick` the hook calls and a button press is the
+// through `resolveClick`, the same reading of it the hook dispatches, and a button press is the
 // command its hook dispatches. Entropy is the one thing handed in.
 
 const ids = () => {
@@ -26,10 +26,11 @@ export function openHarness(dice: Dice = () => 5) {
   const newId = ids()
   useCombatStore.setState(SceneStateSchema.parse({}))
   let brush: TerrainBrush | null = null
+  let reposition = false
 
   const state = (): SceneState => useCombatStore.getState()
   const press = (command: Updater) => useCombatStore.getState().updateCombatState(command)
-  const click = (c: Click) => press(resolveClick(c, { brush, newId }))
+  const click = (c: Click) => press(resolveClick(c, { brush, reposition, newId }))
 
   const idOf = (name: string): string => {
     const found = Object.values(state().characters).find((c) => c.name === name)
@@ -61,6 +62,8 @@ export function openHarness(dice: Dice = () => 5) {
     turn: () => click({ on: 'turn' }),
     select: (name: string) => useCombatStore.getState().setActiveCharacter(idOf(name)),
     holdBrush: (b: TerrainBrush | null) => { brush = b },
+    // the GM's repositioning tool, held while `run` clicks
+    repositioning: (run: () => void) => { reposition = true; try { run() } finally { reposition = false } },
     // the brush held, a click on each cell `times` over, and put down again
     paint: (b: TerrainBrush, cells: [number, number][], times = 1) => {
       brush = b

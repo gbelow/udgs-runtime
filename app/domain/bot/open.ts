@@ -1,7 +1,7 @@
 import type { SceneState, RootAction } from '../scene/types'
 import type { Dice } from '../play/dice'
 import { getOpenAction } from '../scene/rules/log'
-import { hasOpenAnswer } from '../scene/rules/options'
+import { getAwaited } from '../scene/rules/options'
 import { commitAction, resolveAction, rollOrPay } from '../scene/commands/action'
 import { answerOpen } from './answer'
 import { findParty, type Party } from './party'
@@ -47,10 +47,10 @@ function settleDeclared(state: SceneState, open: RootAction, dice: Dice, newId: 
   return committed !== state ? committed : passUp(state, open, newId)
 }
 
-// Whether anyone no bot controls has an answer open to the committed action:
-// the die waits for them, and for whoever presses it.
+// Whether the committed action still waits on anyone no bot controls
+// (`getAwaited`): the die waits for them, and for whoever presses it.
 function isAnswerOwed(state: SceneState, parties: readonly Party[]): boolean {
-  return hasOpenAnswer(state, Object.keys(state.characters).filter((id) => !findParty(parties, id)))
+  return getAwaited(state).some((id) => !findParty(parties, id))
 }
 
 // The open action played to its end, everyone answering by reflex bar `skip`,

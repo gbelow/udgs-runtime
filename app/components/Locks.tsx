@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { useRole } from '../hooks/useRole'
 import { useGearBar } from '../hooks/useCombatState'
-import { useActiveControlBar } from '../hooks/useControl'
+import { useActiveControlBar, useControlBar } from '../hooks/useControl'
 
 // Controls shown closed, with why, while `bar` says they cannot be used.
 export function Locked({ bar, children }: { bar: string | null, children: ReactNode }){
@@ -31,4 +31,9 @@ export function GearLocked({ children }: { children: ReactNode }){
 // them, who may still look.
 export function ControlLocked({ children }: { children: ReactNode }){
   return <Locked bar={useActiveControlBar()}>{children}</Locked>
+}
+
+// The same for what character `id` does, whoever is active.
+export function LockedFor({ id, children }: { id: string | null, children: ReactNode }){
+  return <Locked bar={useControlBar(id)}>{children}</Locked>
 }

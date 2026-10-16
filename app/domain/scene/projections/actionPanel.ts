@@ -6,7 +6,7 @@ import type { Area, Character, Item, MoveKind } from '../../types'
 import { getActionDef, isAttackAction, isReactionAction } from '../rules/actionCatalog'
 import { findHeldItem, getFightName } from '../rules/fighters'
 import { Term, sumTerms } from '../../character/rules/terms'
-import { ActionOption, getAvailableActions } from '../rules/options'
+import { ActionOption, getAvailableActions, getAwaited } from '../rules/options'
 import { ActionStep, areReactionsComplete, canAffordOpportunity, canPayAll, needsDie, getDeclaredCellTargets, getDeclaredFloorTargets, getDeclaredTargets, getDeclaredHiddenTargets, getHoldCost, getNextStep, getOwnCost, getPayableCost, isAlongOffered, isDeclarationComplete, isPreparedRequired } from '../rules/action'
 import { canAnswer, getAction, getOpenAction, getReactionsTo } from '../rules/log'
 import { CastGearOption, GRAZE_SAVE_COST, ImprovementOption, SpellOption, getCastGear, getImprovementOptions, canAcceptSpellTest, canSaveGraze, getCastHOPRemaining, getSpellOptions } from '../rules/cast'
@@ -113,9 +113,14 @@ export type ReactorOptions = {
   // which answering with anything but the SD gives up (`getGivenUpFor`);
   // null when there is none
   cancellable: string | null
+  // the action still waits on them (`getAwaited`), and they answered it
+  // with nothing
+  awaited: boolean
+  passed: boolean
 }
 
 function getReactors(state: SceneState, open: Action): ReactorOptions[] {
+  const awaited = getAwaited(state)
   return Object.values(state.characters)
     .filter((c) => canAnswer(open, c.id))
     .map((c) => {
@@ -141,7 +146,7 @@ function getReactors(state: SceneState, open: Action): ReactorOptions[] {
             sweepDirection: declared.kind !== 'joinShot' && isSweepVariant(declared.variant) ? declared.sweepDirection : null,
           }
         : null
-      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id) }
+      return { id: c.id, name: getFightName(state, c.id), options: labelled(state, c.id, getAvailableActions(state, c.id)), strike, cancellable: getCancellableLabel(state, open, c.id), awaited: awaited.includes(c.id), passed: open.passed.includes(c.id) && !declared }
     })
     .filter((r) => r.options.length > 0)
 }
@@ -166,6 +171,7 @@ function getCastDeliveries(state: SceneState, facts: Deliveries): DeliveryView[]
 export type OpenActionView = {
   id: string
   label: string
+  actorId: string
   actor: string
   target: string | null
   targetId: string | null
@@ -332,6 +338,9 @@ export type ActionPanelView = {
   stepPending: string | null
   // at `react`: a reaction has been declared and can be taken back
   canBack: boolean
+  // at `react`: who the die, the payment or the acceptance still waits on,
+  // by name (`getAwaited`)
+  awaited: string[]
   // for a move being declared: the kinds of movement open to the actor and
   // every cell the declared kind can reach
   moves: MovementOption[]
@@ -357,7 +366,7 @@ export type ActionPanelView = {
   prepared: PreparedRow[]
 }
 
-const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
+const EMPTY: ActionPanelView = { prepare: null, prepared: [], step: null, open: null, options: [], social: [], reactors: [], attacks: [], ammo: [], spells: [], gear: [], chargeInto: [], charges: [], locations: [], items: [], targets: [], hidden: [], noTargets: null, unnoticed: [], canCommit: false, holds: false, die: false, compare: false, canRoll: false, canPay: false, canAccept: false, jumpPending: false, restMove: false, stepPending: null, canBack: false, awaited: [], moves: [], reachable: [], hop: { remaining: 0, options: [] }, outcomes: [], castHOP: { remaining: 0, options: [] }, grazeSave: null, deliveries: [], episodes: [], edits: [] }
 
 // Everything the action panel shows, in one shape off the fight. The active
 // character is who declares; the open action's target is who reacts, so the
@@ -412,6 +421,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
     open: {
       id: open.id,
       label: getOpenLabel(state, open),
+      actorId: open.actorId,
       actor: getFightName(state, open.actorId),
       target: target ? getFightName(state, target.id) : (floorStruck ? getItemLabel(floorStruck.item) : isAttackAction(open) && open.cell ? `space ${open.cell.q},${open.cell.r}` : null),
       targetId: open.targetId,
@@ -477,6 +487,7 @@ function buildActionPanel(state: SceneState): ActionPanelView {
     options: [],
     social: [],
     reactors: step === 'react' ? getReactors(state, open) : [],
+    awaited: step === 'react' ? getAwaited(state).map((id) => getFightName(state, id)) : [],
     unnoticed: step === 'react' ? open.detections.filter((d) => d.hiderId === open.actorId && !d.found).map((d) => getFightName(state, d.observerId)) : [],
     attacks: swung && open.step === 'define' && actor
       ? getFreeAttackOptions(state, actor, swung.kind)
@@ -511,8 +522,8 @@ function buildActionPanel(state: SceneState): ActionPanelView {
     holds,
     die,
     compare: drag !== null,
-    canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open),
-    canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open),
+    canRoll: step === 'react' && die && areReactionsComplete(state, open) && canPayAll(state, open) && getAwaited(state).length === 0,
+    canPay: step === 'react' && !die && areReactionsComplete(state, open) && canPayAll(state, open) && getAwaited(state).length === 0,
     canAccept: step === 'react' && open.kind === 'spellTest' && canAcceptSpellTest(open),
     restMove: isRootAction(open) && canMoveWhileResting(state, open),
     jumpPending: step === 'react' && reactions.some((r) => r.kind === 'evasiveJump' && r.to === null) && !areReactionsComplete(state, open),

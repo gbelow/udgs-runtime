@@ -54,13 +54,13 @@ const MODES: Record<RunTab, Mode> = {
   exploration: {
     strip: <ExplorationStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'plans', node: <PartyCards /> }],
-    actions: <ExplorationSection />,
+    actions: <ControlLocked><ExplorationSection /></ControlLocked>,
     log: { label: 'Last ET', node: <LastEtLog /> },
   },
   downtime: {
     strip: <DowntimeStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'roster', node: <DowntimeRoster /> }],
-    actions: <DowntimeActions />,
+    actions: <ControlLocked><DowntimeActions /></ControlLocked>,
     log: { label: 'Last days', node: <LastDaysLog /> },
   },
 }
@@ -198,9 +198,9 @@ function Status({ resource, injuryAction }: { resource?: ReactNode, injuryAction
   )
 }
 
-// Who acts from the bar: the active character, by whoever plays them, or —
-// for the GM and the developer — the GM, who opens the catalogs and does to
-// the mode what no character does.
+// Who acts from the bar: the active character, or — for the GM and the
+// developer — the GM, who opens the catalogs and does to the mode what no
+// character does. Each mode locks what is not the screen's to press.
 function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => void, gmTools: ReactNode, children: ReactNode }){
   const { gmTools: hasGmTools, gm, setGmMode } = useRole()
 
@@ -224,7 +224,7 @@ function ActionColumn({ open, gmTools, children }: { open: (v: CatalogView) => v
           </div>
           {gmTools}
         </div>
-      ) : <ControlLocked>{children}</ControlLocked>}
+      ) : children}
     </>
   )
 }

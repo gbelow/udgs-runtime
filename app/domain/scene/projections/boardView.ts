@@ -20,6 +20,7 @@ import { getPartner, holds } from '../rules/partners'
 import { perState } from '../../perState'
 import { getCellFuels, getCellHazard } from '../rules/board/hazard'
 import { getCellLight } from '../rules/board/light'
+import { getAwaited } from '../rules/options'
 
 // The board as the simulation tool draws it: every cell with what is on it
 // and what a click there would mean, every placed character with the cells
@@ -91,6 +92,8 @@ export type BoardTokenView = {
   isInTurn: boolean
   role: Role | null
   targetable: boolean
+  // the committed action still waits on their answer (`getAwaited`)
+  awaited: boolean
   // combat.tex "Cover": in total cover behind a body shield, which faces
   // this way, in degrees; null out of it
   shieldAngle: number | null
@@ -264,6 +267,7 @@ function buildBoardView(state: SceneState): BoardView {
     }
   })
 
+  const awaited = new Set(getAwaited(state))
   const tokens: BoardTokenView[] = Object.entries(board.placements).flatMap(([id, placement]) => {
     const c = state.characters[id]
     if (!c) return []
@@ -284,6 +288,7 @@ function buildBoardView(state: SceneState): BoardView {
       isInTurn: id === state.inTurnCharacter,
       role: open ? getRole(state, open, id) : null,
       targetable: targets.has(id),
+      awaited: awaited.has(id),
       shieldAngle: facing === null ? null : (facing * 180) / Math.PI,
     }]
   })

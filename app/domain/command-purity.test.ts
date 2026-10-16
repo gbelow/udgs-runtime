@@ -232,7 +232,7 @@ const creationCases: Record<string, (d: CreationDraft) => unknown> = {
   getFinishedCharacter: creationCommands.getFinishedCharacter,
 }
 
-const NOT_UPDATERS = new Set<string>(['newCollection'])
+const NOT_UPDATERS = new Set<string>(['newCollection', 'readPick'])
 
 const newId = () => 'issued'
 
@@ -266,6 +266,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   declareReaction: combatCommands.declareReaction('b', { kind: 'evasiveJump' }, newId),
   withdrawReaction: combatCommands.withdrawReaction('b'),
   withdrawLastReaction: combatCommands.withdrawLastReaction(),
+  passReaction: combatCommands.passReaction('b'),
+  rollAnswered: combatCommands.rollAnswered(() => 7, newId),
   cancelAction: (s) => combatCommands.cancelAction()(deepFreeze(declaredStrike(s))),
   rollAction: combatCommands.rollAction(() => 7, newId),
   spendHOP: (s) => combatCommands.spendHOP('smash')(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
@@ -273,6 +275,8 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   chooseGrapple: (s) => combatCommands.chooseGrapple(true)(deepFreeze(combatCommands.rollAction(() => 20, newId)(s))),
   resolveAction: (s) => combatCommands.resolveAction(newId)(deepFreeze(combatCommands.rollAction(() => 7, newId)(s))),
   payAction: (s) => combatCommands.payAction(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
+  payAnswered: (s) => combatCommands.payAnswered(newId, () => 5)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
+  acceptAnswered: (s) => combatCommands.acceptAnswered(newId)(deepFreeze(openSpellTest(s))),
   rollOrPay: (s) => combatCommands.rollOrPay(() => 5, newId)(deepFreeze(combatCommands.commitAction(() => 5, newId)(declaredMove(s)))),
   acceptSpellTest: (s) => combatCommands.acceptSpellTest(newId)(deepFreeze(openSpellTest(s))),
   aimExplosion: (s) => combatCommands.aimExplosion(2)(deepFreeze(rolledExplosion(s))),
@@ -286,6 +290,7 @@ const combatCases: Record<string, (s: SceneState) => unknown> = {
   removeBoard: (s) => combatCommands.removeBoard(deepFreeze(cleared(s))),
   importBoard: (s) => combatCommands.importBoard({ placements: { a: { cell: { q: 2, r: 2 } } } })(deepFreeze(cleared(s))),
   placeCharacter: (s) => combatCommands.placeCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
+  repositionCharacter: (s) => combatCommands.repositionCharacter('a', { q: 1, r: 1 })(deepFreeze(cleared(s))),
   turnCharacter: (s) => combatCommands.turnCharacter('a')(deepFreeze(cleared(s))),
   paintTerrain: (s) => combatCommands.paintTerrain({ q: 1, r: 1 }, 'wall')(deepFreeze(cleared(s))),
   setLight: (s) => combatCommands.setLight('dark')(deepFreeze(cleared(s))),

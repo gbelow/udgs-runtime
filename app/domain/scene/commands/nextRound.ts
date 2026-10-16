@@ -13,6 +13,7 @@ import { cure } from '../../character/commands/addAffliction'
 import { payCost } from '../../character/commands/cost'
 import type { SceneState, Updater } from '../types'
 import { getHazardOf } from '../rules/board/hazard'
+import { getPlayingOutBar } from '../rules/log'
 import { isSuffocating } from '../rules/situational'
 import { getMoraleCalled } from '../rules/morale'
 import { getHeldCalled } from '../rules/heldTest'
@@ -55,10 +56,11 @@ function startAP(c: CampaignCharacter): CampaignCharacter {
 // stealth tests are called, and the stealth tests rolled as the round begins
 // (the table's ruling). The first round has nothing to rest from, hold on to,
 // lose or join: its AP start at the round's, and its change opens at the
-// morale tests.
+// morale tests. Refused while any action is still being played out, so that
+// whatever it committed to is paid in the round it was committed in.
 export function nextRound(dice: Dice): Updater {
   return (state) => {
-    if (state.roundStep !== null) return state
+    if (state.roundStep !== null || getPlayingOutBar(state)) return state
     const receive = state.round === 0 ? startAP : receiveAP
     const characters = Object.fromEntries(Object.entries(state.characters).map(([id, c]) => [id, isDead(c) ? c : receive(wake(state, c))]))
     const begun: SceneState = { ...state, characters, round: state.round + 1, elapsed: state.round > 0 ? state.elapsed + getRoundSeconds(state) : state.elapsed, chase: endChaseRound(state), inTurnCharacter: '', fleeing: false, forcedSurge: '', turnQueue: [], fleers: [], contenders: [], lastContest: null, agreedToEnd: [], morale: [], heldTests: [], turnsTaken: [], prepared: [], stealthTurns: [], compulsions: [], concentration: [], roundStep: 'rest' }

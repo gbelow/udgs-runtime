@@ -10,7 +10,7 @@ import { Button, Panel, SectionLabel, TextInput, Tooltip } from './ui'
 import { SceneCards } from './SceneCards'
 
 const MODE_LABEL = {
-  idle: 'click a cell to place the active character, or an item to pick it up',
+  idle: 'click a cell to place the active character (to move them again only until the fight starts), or an item to pick it up',
   path: 'click cells to walk the move',
   jump: 'click a cell to jump there',
   aim: 'click a cell to aim',
@@ -42,42 +42,52 @@ const BRUSH_LABEL: Record<TerrainBrush, string> = {
   clear: 'clear',
 }
 
-// The simulated grid: a hex field the table can paint and place characters
-// on by hand, and the surface a move is walked on. Everything drawn is a
-// field of the board view; the panel only translates it into shapes.
+// The simulated grid: a hex field the GM paints, lights and repositions
+// characters on, each placed by hand the first time, and the surface a move
+// is walked on. Everything drawn is a field of the board view; the panel
+// only translates it into shapes.
 export function BoardPanel(){
   const { view, create, remove, clickCell, clickToken, clickFloorItem, place, turn, light } = useBoard()
   const [brush, setBrush] = useState<TerrainBrush | null>(null)
+  const [reposition, setReposition] = useState(false)
   const [tools, setTools] = useState(false)
-  const { gmTools } = useRole()
+  const { gmTools, gm } = useRole()
+  const open = tools && gm
 
   if (!view.present) {
     return (
       <Panel meta='no grid: everyone is in reach'
-        title={<span className='inline-flex items-center gap-2'>Board <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button></span>}>
+        title={<span className='inline-flex items-center gap-2'>Board {gm ? <Button size='xs' variant='primary' aria-label='new board' onClick={() => create(6)}>simulate a grid</Button> : null}</span>}>
         <SceneCards />
       </Panel>
     )
   }
 
-  const painting = brush !== null
+  const painting = open && brush !== null
+  const repositioning = open && reposition
   return (
-    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
+    <Panel title='Board' meta={painting ? `painting ${BRUSH_LABEL[brush]}` : repositioning ? 'click a cell to put the active character there, ↻ to turn them' : MODE_LABEL[view.mode]} pending={view.mode === 'path' || view.mode === 'jump' || view.mode === 'aim'}
       className='h-full'
       actions={<>
-        <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null) }}>paint &amp; light</Button>
-        <Button size='xs' variant='ghost' aria-label='turn' title='turn clockwise' onClick={turn}>↻</Button>
-        <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button>
+        {gm ? <Button size='xs' selected={tools} aria-label='board tools' onClick={() => { setTools(!tools); setBrush(null); setReposition(false) }}>GM board tools</Button> : null}
+        <Button size='xs' variant='ghost' aria-label='turn' title={repositioning ? 'turn the active character clockwise' : 'turn the move clockwise, or the active character until the fight starts'} onClick={() => turn(repositioning)}>↻</Button>
+        {gm ? <Button size='xs' variant='ghost' aria-label='remove board' disabled={view.mode !== 'idle'} title={view.mode !== 'idle' ? 'an action is open' : 'take the grid away: everyone is in reach'} onClick={remove}>no grid</Button> : null}
       </>}>
 
-      {tools ? (<>
+      {open ? (<>
+      <div className='flex flex-row flex-wrap gap-1 items-center'>
+        <SectionLabel>place</SectionLabel>
+        <Button size='xs' aria-label='reposition' selected={reposition} title='put the active character anywhere, placed before or not, and turn them'
+          onClick={() => { setReposition(!reposition); setBrush(null) }}>reposition</Button>
+      </div>
+
       <div className='flex flex-row flex-wrap gap-1 items-center'>
         <SectionLabel>paint</SectionLabel>
         <Button size='xs' selected={brush === null}
           onClick={() => setBrush(null)}>control</Button>
         {TERRAIN_BRUSHES.map((b) =>
           <Button key={b} size='xs' selected={brush === b}
-            onClick={() => setBrush(brush === b ? null : b)}>{BRUSH_LABEL[b]}</Button>)}
+            onClick={() => { setBrush(brush === b ? null : b); setReposition(false) }}>{BRUSH_LABEL[b]}</Button>)}
       </div>
 
       <div className='flex flex-row flex-wrap gap-1 items-center'>
@@ -110,7 +120,7 @@ export function BoardPanel(){
             <path d='M 0 0 L 10 5 L 0 10 z' className='fill-fg' />
           </marker>
         </defs>
-        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, brush)} />)}
+        {view.cells.map((c) => <Cell key={c.key} cell={c} hex={view.hex} onClick={() => clickCell(c.cell, painting ? brush : null, repositioning)} />)}
         {view.tokens.map((t) => <Token key={t.id} token={t} hex={view.hex} onClick={() => clickToken(t.id)} />)}
         {view.binds.map((b) => <BindLink key={b.key} link={b} />)}
         {view.ghosts.map((g) => <Ghost key={g.id} ghost={g} hex={view.hex} />)}
@@ -219,9 +229,10 @@ function Token({ token, hex, onClick }: { token: BoardTokenView, hex: string, on
   const ring = token.targetable ? 'stroke-bad' : token.isActive ? 'stroke-accent' : token.isInTurn ? 'stroke-good' : 'stroke-muted'
   return (
     <g className='cursor-pointer' onClick={onClick}>
-      <title>{`${token.name}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
+      <title>{`${token.name}${token.awaited ? ' · may react: waiting on their answer' : ''}${token.elevation ? ` · ${token.elevation} m` : ''}${token.depth ? ` · ${token.depth} m deep` : ''}${token.shieldAngle !== null ? ' · in cover behind a body shield' : ''}`}</title>
       {token.cells.map((c) => <polygon key={c.key} points={hex} transform={`translate(${c.x} ${c.y})`} className='fill-fg/15 stroke-none pointer-events-none' />)}
       <g transform={`translate(${token.x} ${token.y})`}>
+        {token.awaited ? <circle r={0.82} className='fill-none stroke-accent animate-pulse pointer-events-none' strokeWidth={0.08} strokeDasharray='0.25 0.15' /> : null}
         <circle r={0.62} className={`fill-raised ${ring}`} strokeWidth={token.isActive || token.targetable ? 0.12 : 0.06} strokeDasharray={token.targetable ? '0.2 0.12' : undefined} />
         <text textAnchor='middle' dominantBaseline='central' className='fill-fg pointer-events-none' fontSize={0.45}>{token.name.slice(0, 2)}</text>
         <text y={0.95} textAnchor='middle' className='fill-muted pointer-events-none' fontSize={0.3}>{token.name}</text>

@@ -1,7 +1,7 @@
 import { realDice } from "../components/utils";
 import { ActionPanelView, getActionPanel, getActionPanelDigest } from "../domain/scene/projections/actionPanel";
 import {
-  acceptSpellTest,
+  acceptAnswered,
   amendAction,
   amendReaction,
   boostPush as boostPushCommand,
@@ -10,13 +10,13 @@ import {
   commitAction,
   declareAction,
   declareReaction,
-  payAction,
+  passReaction,
+  payAnswered,
   resolveAction,
-  rollAction,
+  rollAnswered,
   setTarget,
   stepExtend,
   withdrawLastReaction,
-  withdrawReaction,
   withdrawSpawnedAction,
 } from "../domain/scene/commands/action";
 import {
@@ -31,35 +31,44 @@ import {
 } from "../domain/scene/commands/choices";
 import type { ActionDraft, HOPPurchase } from "../domain/scene/types";
 import type { SpellModification } from "../domain/tables";
+import { getPanelActor, type PanelPress } from "../domain/scene/rules/decider";
+import type { Updater } from "../domain/scene/types";
 import { useCombatStore } from "../stores/useCombatStore";
+import { useActForGate } from "./useControl";
 
 // The action being played out, and the clicks that move it along. The view
 // is gated on a digest of itself, as the roster is; every write is a combat
 // command dispatched blindly — the commands refuse what the phase does not
-// allow, so the hook does no checking of its own. The dice are handed in
-// here, the one place entropy enters; the test decides how they are thrown.
+// allow, so the hook does no checking of its own but whether the screen
+// plays whom the press acts for (`getPanelActor`, or the reactor named). The
+// dice are handed in here, the one place entropy enters; the test decides
+// how they are thrown.
 export function useCombatActions() {
   useCombatStore(getActionPanelDigest);
   const view: ActionPanelView = getActionPanel(useCombatStore.getState());
-  const update = useCombatStore((s) => s.updateCombatState);
+  const updateState = useCombatStore((s) => s.updateCombatState);
+  const gate = useActForGate();
   const newId = () => crypto.randomUUID();
+  const as = (press: PanelPress) => (command: Updater) => { if (gate(getPanelActor(useCombatStore.getState(), press))) updateState(command); };
+  const update = as("open");
+  const asReactor = (reactorId: string, command: Updater) => { if (gate(reactorId)) updateState(command); };
 
   const declare = (draft: ActionDraft) => {
     const actorId = useCombatStore.getState().activeCharacterId;
-    if (actorId) update(declareAction(actorId, draft, newId));
+    if (actorId) as("declare")(declareAction(actorId, draft, newId));
   };
   const amend = (fields: Partial<ActionDraft>) => update(amendAction(fields));
   const target = (id: string) => update(setTarget(id));
-  const react = (reactorId: string, draft: ActionDraft) => update(declareReaction(reactorId, draft, newId));
-  const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => update(amendReaction(reactorId, fields));
-  const withdraw = (reactorId: string) => update(withdrawReaction(reactorId));
+  const react = (reactorId: string, draft: ActionDraft) => asReactor(reactorId, declareReaction(reactorId, draft, newId));
+  const amendReacted = (reactorId: string, fields: Partial<ActionDraft>) => asReactor(reactorId, amendReaction(reactorId, fields));
+  const pass = (reactorId: string) => asReactor(reactorId, passReaction(reactorId));
   const cancel = () => update(cancelAction());
-  const roll = () => update(rollAction(realDice, newId));
+  const roll = () => update(rollAnswered(realDice, newId));
   const commit = () => update(commitAction(realDice, newId));
-  const back = () => update(withdrawLastReaction());
+  const back = () => as("back")(withdrawLastReaction());
   const skip = () => update(withdrawSpawnedAction(newId));
-  const pay = () => update(payAction(newId, realDice));
-  const accept = () => update(acceptSpellTest(newId));
+  const pay = () => update(payAnswered(newId, realDice));
+  const accept = () => as("accept")(acceptAnswered(newId));
   const spend = (purchase: HOPPurchase) => update(spendHOP(purchase));
   const refund = (purchase: HOPPurchase) => update(refundHOP(purchase));
   const grapple = (on: boolean) => update(chooseGrapple(on));
@@ -73,5 +82,5 @@ export function useCombatActions() {
   const choose = (fields: { along?: boolean; item?: string }) => update(chooseManeuver(fields));
   const boostPush = (boost: boolean) => update(boostPushCommand(boost));
 
-  return { view, declare, amend, target, react, amendReacted, withdraw, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
+  return { view, declare, amend, target, react, amendReacted, pass, cancel, commit, back, skip, roll, pay, accept, spend, refund, grapple, resolve, improve, unimprove, grazeSave, restMove, extend, cast, choose, boostPush } as const;
 }

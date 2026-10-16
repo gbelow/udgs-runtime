@@ -1,3 +1,4 @@
+import { isCombatStarted } from '../rules/started'
 import type { TerrainBrush } from '../../types'
 import { BoardSchema, PlacementSchema, TerrainCellSchema, type SceneState, type Coord, type LightLevel, type MoveAction, type Updater } from '../types'
 import { makeBoard } from '../factories'
@@ -43,10 +44,19 @@ export function importBoard(raw: unknown): Updater {
   return (state) => (getOpenAction(state) ? state : { ...state, board: makeBoard(raw) })
 }
 
-// Puts a character down where the table says, as they are oriented, at the
-// height of the ground there. Placement by hand, not a move: it costs
-// nothing and follows no path, and only the footprint's own rules apply.
+// Puts a character down where the table says, at the height of the ground
+// there: anywhere until the fight has started, then only a character not yet
+// on the board. Placement by hand, not a move: it costs nothing and follows
+// no path, and only the footprint's own rules apply. Once the fight is under
+// way, a character on the board is moved by a move, or by the GM
+// (`repositionCharacter`).
 export function placeCharacter(id: string, cell: Coord): Updater {
+  return (state) => (state.board?.placements[id] && isCombatStarted(state) ? state : repositionCharacter(id, cell)(state))
+}
+
+// The GM's hand: puts a character down anywhere, as they are oriented,
+// placed before or not.
+export function repositionCharacter(id: string, cell: Coord): Updater {
   return (state) => {
     if (!state.board || !state.characters[id] || getOpenAction(state)) return state
     const placement = placeAt(state.board, state.board.placements[id] ?? PlacementSchema.parse({}), cell)
@@ -55,7 +65,8 @@ export function placeCharacter(id: string, cell: Coord): Updater {
   }
 }
 
-// Turns a standing character one step clockwise, if the footprint fits.
+// The GM's hand: turns a standing character one step clockwise, if the
+// footprint fits.
 export function turnCharacter(id: string): Updater {
   return (state) => {
     const current = state.board?.placements[id]
@@ -123,36 +134,44 @@ export function paintTerrain(cell: Coord, brush: TerrainBrush): Updater {
 // Jump") — declaring the jump if it has not been; or edits the way a
 // grapple group is being moved (combat.tex "Push and drag").
 export function pickCell(cell: Coord, newId: () => string): Updater {
-  return (state) => {
-    const open = getOpenAction(state)
-    if (!open) return state
-    if (open.kind === 'move' && open.step === 'define') {
-      const path = pickPathCell(state, open, cell)
-      return path ? amendAction({ path })(state) : state
-    }
-    const aim = getAim(state, open)
-    if (aim) {
-      return aim.cells.some((c) => sameCell(c, cell)) ? (aim.field === 'center' ? amendAction({ center: cell })(state) : aim.field === 'cell' ? aimAtCell(cell)(state) : amendAction({ to: cell })(state)) : state
-    }
-    if (open.kind === 'blast' && open.step === 'post') {
-      const from = state.board?.placements[open.actorId]
-      return from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell))(state) : state
-    }
-    if (open.kind === 'drag' && open.step === 'define') {
-      const path = pickWayCell(getWalkerPlacement(state, open)?.cell ?? null, open.path, getDragReach(state, open), cell)
-      return path ? amendAction({ path })(state) : state
-    }
-    const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
-    if (guard) {
-      const to = guard.steps.find((p) => sameCell(p.cell, cell))
-      return to ? amendReaction(guard.reaction.actorId, { to })(state) : state
-    }
-    if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
-      const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
-      return to ? declareReaction(open.targetId, { kind: 'evasiveJump', to }, newId)(state) : state
-    }
-    return state
+  return (state) => readPick(state, cell, newId)?.apply(state) ?? state
+}
+
+const unchanged: Updater = (s) => s
+
+// The pick `pickCell` makes, and whom it is made for: the open action's
+// actor, but for the step a guard takes and the landing of an evasive jump,
+// which are the guard's and the jumper's. Null with nothing open.
+export function readPick(state: SceneState, cell: Coord, newId: () => string): { actor: string, apply: Updater } | null {
+  const open = getOpenAction(state)
+  if (!open) return null
+  const own = (apply: Updater) => ({ actor: open.actorId, apply })
+  if (open.kind === 'move' && open.step === 'define') {
+    const path = pickPathCell(state, open, cell)
+    return own(path ? amendAction({ path }) : unchanged)
   }
+  const aim = getAim(state, open)
+  if (aim) {
+    return own(aim.cells.some((c) => sameCell(c, cell)) ? (aim.field === 'center' ? amendAction({ center: cell }) : aim.field === 'cell' ? aimAtCell(cell) : amendAction({ to: cell })) : unchanged)
+  }
+  if (open.kind === 'blast' && open.step === 'post') {
+    const from = state.board?.placements[open.actorId]
+    return own(from && !sameCell(from.cell, cell) ? aimExplosion(directionTo(from.cell, cell)) : unchanged)
+  }
+  if (open.kind === 'drag' && open.step === 'define') {
+    const path = pickWayCell(getWalkerPlacement(state, open)?.cell ?? null, open.path, getDragReach(state, open), cell)
+    return own(path ? amendAction({ path }) : unchanged)
+  }
+  const guard = open.kind === 'strike' && open.step === 'react' ? getPendingGuardStep(state, open) : null
+  if (guard) {
+    const to = guard.steps.find((p) => sameCell(p.cell, cell))
+    return { actor: guard.reaction.actorId, apply: to ? amendReaction(guard.reaction.actorId, { to }) : unchanged }
+  }
+  if (open.kind === 'strike' && open.step === 'react' && open.targetId) {
+    const to = getEvasiveJumpPlacements(state, open.targetId, open.actorId).find((p) => sameCell(p.cell, cell))
+    return { actor: open.targetId, apply: to ? declareReaction(open.targetId, { kind: 'evasiveJump', to }, newId) : unchanged }
+  }
+  return own(unchanged)
 }
 
 // The path a click on a cell turns the declared one into: the cell taken

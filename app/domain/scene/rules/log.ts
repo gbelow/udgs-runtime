@@ -17,6 +17,12 @@ export function getOpenAction(state: SceneState): RootAction | null {
   return open && isRootAction(open) ? open : null
 }
 
+// Why the fight cannot move past what is under way: anything still on the
+// stack, whatever is on top.
+export function getPlayingOutBar(state: SceneState): string | null {
+  return state.stack.length > 0 ? 'an action is being played out' : null
+}
+
 // The first root of the kind still being played out — waiting on what it
 // opened, or on its own resolve — that `match` accepts, from the bottom of
 // the stack up.

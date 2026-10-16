@@ -1,5 +1,10 @@
 import type { SceneState } from '../types'
-import { getContestBar, getContenders, getEndTurnBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
+import { getContestBar, getContenders, getEndTurnBar, getNextRoundBar, getRollContestBar, getStartTurnBar, getSurgeTurnBar, getTurnHolder, hasAgreedToEnd, isInTurn } from '../rules/turn'
+import { getOpenAction } from '../rules/log'
+import { getEndCombatBar } from '../rules/fight'
+import { perState } from '../../perState'
+import { getAwaited } from '../rules/options'
+import { getActionNoun } from './labels'
 import { getFightName } from '../rules/fighters'
 import { getBreakageBar } from '../rules/breakage'
 import { getCompelledSurge } from '../rules/stress'
@@ -76,4 +81,22 @@ export function getCombatSurgeOptions(state: SceneState, id: string): SurgeOptio
   const c = state.characters[id]
   if (!c) return []
   return getSurgeOptions(c, getCompelledSurge(state, id)).map((o) => (getSurgeTurnBar(state, id, o.kind) ? { ...o, available: false } : o))
+}
+
+// Why the round cannot pass, as the button says it: an action under way is
+// named with whoever it still waits on to react or pass.
+export const getNextRoundNote = perState((state: SceneState): string | null => getOpenNote(state) ?? getNextRoundBar(state))
+
+// Why the combat cannot end, said the same way.
+export const getEndCombatNote = perState((state: SceneState): string | null => {
+  const bar = getEndCombatBar(state)
+  return bar && (getOpenNote(state) ?? bar)
+})
+
+function getOpenNote(state: SceneState): string | null {
+  const open = getOpenAction(state)
+  if (!open) return null
+  const what = `${getFightName(state, open.actorId)}'s ${getActionNoun(open)}`
+  const awaited = getAwaited(state)
+  return awaited.length > 0 ? `${what} waits on ${awaited.map((id) => getFightName(state, id)).join(', ')} to react or pass` : `${what} is being played out`
 }
