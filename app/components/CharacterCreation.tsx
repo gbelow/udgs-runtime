@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Button, CatalogList, CollectionSelect, NumberInput, SectionLabel, TextInput, Tooltip, inputClass, selectClass } from './ui'
+import { BudgetChip, Button, CatalogList,CollectionSelect, NumberInput, SectionLabel, TextInput, Tooltip, inputClass, selectClass } from './ui'
 import { useCollectionFilter } from '../hooks/useCollections'
 import { useCreation } from '../hooks/useCreation'
 import { AbilityFamilyRow, LockedLabel } from './AbilitySelector'
@@ -152,17 +152,6 @@ function CreationBar({ step, onStep }: { step: Step; onStep: (step: Step) => voi
           </Tooltip>
         ) : <span className='text-good'>ready to create</span>}
       </div>
-    </div>
-  )
-}
-
-// One pool against its budget: green once spent in full, red when over.
-function BudgetChip({ label, spent, budget, over }: { label: string; spent: number | string; budget: number | string; over: boolean }) {
-  const done = !over && spent === budget
-  return (
-    <div className={`flex flex-col items-center min-w-16 rounded border px-2 py-0.5 ${over ? 'border-bad text-bad' : done ? 'border-good text-good' : 'border-line'}`}>
-      <span className='text-[10px] uppercase tracking-wider text-muted'>{label}</span>
-      <span className='font-mono text-base font-semibold leading-tight'>{spent}<span className='font-normal text-muted'> / {budget}</span></span>
     </div>
   )
 }

@@ -297,6 +297,18 @@ export function Tooltip({ text, children, className = '' }: { text: ReactNode, c
   return <Popover content={<span className='block max-w-64 whitespace-normal'>{text}</span>} className={`inline-flex ${className}`}>{children}</Popover>
 }
 
+// One count with its label, against its budget when it has one: green once
+// spent in full, red when over.
+export function BudgetChip({ label, spent, budget, over = false }: { label: string; spent: number | string; budget?: number | string; over?: boolean }) {
+  const done = budget !== undefined && !over && spent === budget
+  return (
+    <div className={`flex flex-col items-center min-w-16 rounded border px-2 py-0.5 ${over ? 'border-bad text-bad' : done ? 'border-good text-good' : 'border-line'}`}>
+      <span className='text-[10px] uppercase tracking-wider text-muted'>{label}</span>
+      <span className='font-mono text-base font-semibold leading-tight'>{spent}{budget !== undefined ? <span className='font-normal text-muted'> / {budget}</span> : null}</span>
+    </div>
+  )
+}
+
 // The wrapping grid a set of tiles sits in.
 export function Tiles({ children, className = '' }: { children: ReactNode, className?: string }){
   return <div className={`flex flex-row flex-wrap gap-1.5 ${className}`}>{children}</div>

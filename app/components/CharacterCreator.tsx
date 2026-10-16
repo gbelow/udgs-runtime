@@ -7,7 +7,8 @@ import { ContainerPanel } from './ContainerPanel';
 import { HandsPanel } from './HandsPanel';
 import { AbilityPanel } from './AbilityPanel';
 import { SpellPanel } from './SpellPanel';
-import { Button, Combobox, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
+import { BudgetChip, Button, Combobox, CollectionSelect, NumberInput, SectionLabel, StatTile, TextInput, Tiles, inputClass } from './ui';
+import { useExperience } from '../hooks/useExperience';
 import { useCollectionFilter } from '../hooks/useCollections';
 import { MovementPanel } from './MovementPanel';
 import { BodyEditor, Creature, NaturalArmor } from './CreatureEditor';
@@ -130,6 +131,7 @@ function EditorHeader(){
         <RacePicker />
         <TagItem level='type' />
         <TagItem level='category' />
+        <Experience />
         <div className='ml-auto flex flex-row items-center gap-2'>
           <Button variant='ghost' selected={notesOpen} onClick={() => setNotesOpen((open) => !open)}>notes</Button>
           <SaveBaseCharacterButton />
@@ -151,6 +153,19 @@ function EditorHeader(){
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// The XP the character is worth, by the talent it was spent from, and its
+// karma.
+function Experience(){
+  const view = useExperience()
+  if (!view) return null
+  return(
+    <div className='flex flex-row items-stretch gap-2'>
+      {view.talents.map(({ talent, XP }) => <BudgetChip key={talent} label={talent} spent={XP} />)}
+      <BudgetChip label='karma' spent={view.karma} />
     </div>
   )
 }

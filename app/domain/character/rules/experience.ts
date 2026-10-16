@@ -1,6 +1,6 @@
-import { ABILITIES, getLearnedAbilityKeys } from '../../abilities'
+import { ABILITIES, FamilyKey, getFamilyStages, getLearnedAbilityKeys, isFamilyKey } from '../../abilities'
 import { CREATION_ATTRIBUTE } from '../../tables'
-import { Character, Proficiencies, ProficienciesSchema, TalentsSchema } from '../../types'
+import { Character, Proficiencies, Trainable, ProficienciesSchema, TalentsSchema } from '../../types'
 import { getAbilityXPCost } from './abilities'
 import { ATTRIBUTE_KEYS, PROFICIENCY_TALENTS, SKILL_KEYS, SKILL_TALENTS, TalentKey, getAttributeBalance, getAttributeRaisesXPCost, getProficiencyXPCost, getSkillXPCost, getTalentKarmaCost } from './learning'
 
@@ -26,45 +26,58 @@ export function getTotalKarma(c: Character): number {
   return sum(abilities) + sum(talents)
 }
 
+// The XP spent on one thing, and the talent whose XP it was: the talent a
+// skill or proficiency is learned with, the one an ability stage lists, and
+// CON for the attributes, as creation charges them.
+type Spent = { talent: TalentKey; XP: number }
+
 // abilities.tex "Cost": every learned stage priced in XP, plus the XP trained
-// toward each family's next stage. A karma-priced stage costs no XP.
-export function getAbilitiesXP(c: Character): number {
-  const stages = getLearnedAbilityKeys(c).filter((key) => !ABILITIES[key].karma).map((key) => getAbilityXPCost(key)(c))
-  const banked = Object.values(c.abilities).map((a) => a.XP)
-  return sum(stages) + sum(banked)
+// toward each family's next stage, from the talent that stage lists. A
+// karma-priced stage costs no XP.
+function getAbilitiesXP(c: Character): Spent[] {
+  const stages = getLearnedAbilityKeys(c).filter((key) => !ABILITIES[key].karma && ABILITIES[key].talent.length)
+    .map((key) => ({ talent: ABILITIES[key].talent[0].property, XP: getAbilityXPCost(key)(c) }))
+  const banked = (Object.entries(c.abilities) as [FamilyKey, Trainable][]).flatMap(([family, { value, XP }]) => {
+    const next = isFamilyKey(family) ? getFamilyStages(family)[value] : undefined
+    const talent = next ? ABILITIES[next].talent[0]?.property : undefined
+    return talent && XP ? [{ talent, XP }] : []
+  })
+  return [...stages, ...banked]
 }
 
 // creating.tex "Improving proficiencies".
-export function getProficienciesXP(c: Character): number {
-  return sum(PROFICIENCY_KEYS.map((key) => {
+function getProficienciesXP(c: Character): Spent[] {
+  return PROFICIENCY_KEYS.map((key) => {
     const { value, XP } = c.trainables[key]
-    const talent = c.trainables[PROFICIENCY_TALENTS[key]].value
-    return levelsWorth(value, XP, (level) => getProficiencyXPCost(level, talent))
-  }))
+    const talent = PROFICIENCY_TALENTS[key]
+    return { talent, XP: levelsWorth(value, XP, (level) => getProficiencyXPCost(level, c.trainables[talent].value)) }
+  })
 }
 
 // creating.tex "Improving skills", and "Learning Knowledge" for the formal
-// knowledges: a skill the book does not let be trained on its own counts only
-// the XP it holds. Specific knowledges are not learned with XP.
-export function getSkillsXP(c: Character): number {
-  return sum(SKILL_KEYS.map((key) => {
+// knowledges. A skill the book does not let be trained on its own has no
+// talent and costs none. Specific knowledges are not learned with XP.
+function getSkillsXP(c: Character): Spent[] {
+  return SKILL_KEYS.flatMap((key) => {
     const { value, XP } = c.trainables[key]
-    const talentKey = SKILL_TALENTS[key]
-    if (talentKey === null) return XP
-    const talent = c.trainables[talentKey].value
-    return levelsWorth(value, XP, (level) => getSkillXPCost(level, talent))
-  }))
+    const talent = SKILL_TALENTS[key]
+    if (talent === null) return []
+    return [{ talent, XP: levelsWorth(value, XP, (level) => getSkillXPCost(level, c.trainables[talent].value)) }]
+  })
 }
 
 // creating.tex "Improving attributes": every point above the 8 creation
 // starts from, plus the XP trained toward the next.
-export function getAttributesXP(c: Character): number {
+function getAttributesXP(c: Character): Spent[] {
   const to = ATTRIBUTE_KEYS.map((key) => c.trainables[key].value)
   const from = to.map(() => CREATION_ATTRIBUTE)
   const banked = ATTRIBUTE_KEYS.map((key) => c.trainables[key].XP)
-  return getAttributeRaisesXPCost(from, to, getAttributeBalance(c)) + sum(banked)
+  return [{ talent: 'CON', XP: getAttributeRaisesXPCost(from, to, getAttributeBalance(c)) + sum(banked) }]
 }
 
-export function getTotalXP(c: Character): number {
-  return getAbilitiesXP(c) + getProficienciesXP(c) + getSkillsXP(c) + getAttributesXP(c)
+// The XP spent from each talent's XP.
+export function getXPByTalent(c: Character): Record<TalentKey, number> {
+  const byTalent = Object.fromEntries(TALENT_KEYS.map((key) => [key, 0])) as Record<TalentKey, number>
+  for (const { talent, XP } of [...getAttributesXP(c), ...getProficienciesXP(c), ...getSkillsXP(c), ...getAbilitiesXP(c)]) byTalent[talent] += XP
+  return byTalent
 }
