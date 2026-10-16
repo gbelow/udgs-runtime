@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { loadIntoFight, loadOntoRoster, removeFromFight, resetFight, returnFromFight, sendPartyToFight, sendToFight } from './fight'
+import { loadIntoFight, loadOntoRoster, removeFromFight, resetFight, returnFromFight, saveFightLog, sendPartyToFight, sendToFight } from './fight'
 import { passRound } from '../../bot/table'
+import { commitAction, declareAction } from './action'
 import { endCombat } from './endCombat'
 import { getNextRoundBar } from '../rules/turn'
 import { SceneStateSchema, type Table, type TableUpdater } from '../types'
@@ -22,6 +23,21 @@ describe('starting a fight', () => {
     const ended = { ...fought, fight: endCombat(() => 0)(fought.fight) }
     const again = sendToFight(['a', 'b'])(returnFromFight(['a', 'b'], 0)(ended))
     expect(getNextRoundBar(again.fight)).toBeNull()
+  })
+})
+
+describe("saving the fight's log", () => {
+  // saving twice wrote the whole log to the journal twice
+  it('writes nothing the second time when nothing has landed since', () => {
+    const a = { ...makeCampaignCharacter({ name: 'a' }), id: 'a' }
+    const b = { ...makeCampaignCharacter({ name: 'b' }), id: 'b' }
+    const sent = sendToFight(['a', 'b'])({ campaign: CampaignStateSchema.parse({ characters: { a, b } }), fight: SceneStateSchema.parse({}) })
+    let n = 0
+    const newId = () => `x${++n}`
+    const fought = { ...sent, fight: commitAction(() => 5, newId)(declareAction('a', { kind: 'rest' }, newId)({ ...sent.fight, round: 1, inTurnCharacter: 'a' })) }
+    expect(fought.fight.landed.length).toBeGreaterThan(0)
+    const once = saveFightLog(fought)
+    expect(saveFightLog(once).campaign.journal).toEqual(once.campaign.journal)
   })
 })
 

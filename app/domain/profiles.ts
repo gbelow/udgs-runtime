@@ -110,6 +110,12 @@ export function getControlBar(owner: string | undefined, profile: string | null,
   return owner ? `played by ${name || 'another player'}` : 'played by the GM'
 }
 
+// Whether `profile`, as `role` in the campaign, may change or throw away a
+// journal entry `author` wrote: the GM any, a player only their own notes.
+export function canChangeEntry(author: string | null, profile: string | null, role: Role): boolean {
+  return hasGmTools(role) || (profile !== null && author === profile)
+}
+
 // Whom a press or a click acts for, so that the screen lets it be made only
 // by whoever plays them: a character by id, any of several characters (a
 // party's own business, open to whoever plays one of them), the GM (the

@@ -33,6 +33,7 @@ export function resetCombat(state: SceneState): SceneState {
     live: [],
     stack: [],
     landed: [],
+    logSaved: 0,
     names: {},
     journal: [],
     edits: [],

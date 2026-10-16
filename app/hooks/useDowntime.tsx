@@ -13,12 +13,12 @@ import type { Actor } from "../domain/profiles";
 import { useActGate } from "./useControl";
 
 // story.tex "Downtime" — everyone's plans for the days typed (null: as long
-// as the longest plan). The store and what downtime keeps are replaced on
-// every write, so they are the gate and the panel is computed once per pair.
+// as the longest plan), gated on a digest so that a change to the campaign
+// that leaves the panel as it was draws nothing again.
 export function useDowntime(): DowntimePanel {
   const span = useAppStore((s) => s.downtimeSpan);
-  const campaign = useCampaignStore((s) => s);
-  return getDowntimePanel({ campaign, downtime: campaign.downtime }, span);
+  const digest = useCampaignStore((s) => JSON.stringify(getDowntimePanel({ campaign: s, downtime: s.downtime }, span)));
+  return useMemo(() => JSON.parse(digest), [digest]);
 }
 
 // Why the party cannot leave downtime to explore again.

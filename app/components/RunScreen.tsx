@@ -17,6 +17,7 @@ import { CampaignParties } from './CampaignParties';
 import { GmSceneTools, KillButton, SceneActions, SceneSpace, SceneStrip, SustainedPanel } from './ScenePanel';
 import { ExplorationSection, ExplorationStrip, LastEtLog, PartyCards } from './ExplorationPanel';
 import { DowntimeActions, DowntimeRoster, DowntimeStrip, LastDaysLog } from './DowntimePanel';
+import { RecentJournal } from './Journal';
 import { makeDieRoll } from './utils';
 import { Button, SectionLabel } from './ui';
 import { ControlLocked, GearLocked, GmLocked } from './Locks';
@@ -55,13 +56,13 @@ const MODES: Record<RunTab, Mode> = {
     strip: <ExplorationStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'plans', node: <PartyCards /> }],
     actions: <ControlLocked><ExplorationSection /></ControlLocked>,
-    log: { label: 'Last ET', node: <LastEtLog /> },
+    log: { label: 'Last ET', node: <div className='flex flex-col gap-2'><LastEtLog /><RecentJournal /></div> },
   },
   downtime: {
     strip: <DowntimeStrip />,
     views: [{ key: 'parties', node: <CampaignParties /> }, { key: 'roster', node: <DowntimeRoster /> }],
     actions: <ControlLocked><DowntimeActions /></ControlLocked>,
-    log: { label: 'Last days', node: <LastDaysLog /> },
+    log: { label: 'Last days', node: <div className='flex flex-col gap-2'><LastDaysLog /><RecentJournal /></div> },
   },
 }
 

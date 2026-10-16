@@ -79,9 +79,10 @@ export function getRoundEpisodes(state: SceneState): EpisodeEntry[][] {
 }
 
 // The whole fight, a line for each action played out — who did what, how
-// it rolled and what it came to — and an indented one for each answer to it.
-export function getFightLogLines(state: SceneState): string[] {
-  return getOrigins(state).flatMap((origin) => (getEpisode(state, origin.id) ?? []).flatMap((entry) => [
+// it rolled and what it came to — and an indented one for each answer to it;
+// from `since` on, only what landed after the first `since` of `landed`.
+export function getFightLogLines(state: SceneState, since = 0): string[] {
+  return getOrigins(state, since).flatMap((origin) => (getEpisode(state, origin.id, since) ?? []).flatMap((entry) => [
     `round ${origin.round} · ${entry.actor} · ${entry.label}${describeOutcome(entry.roll)}${entry.outcomes.map((o) => ` · ${o.target}${o.outcome.tier !== null ? ` T${o.outcome.tier}` : ''}${o.outcome.dead ? ' dead' : ''}`).join('')}`,
     ...entry.reactions.map((r) => `  ${r.actor} answered: ${r.label}${describeOutcome(r.roll)}`),
     ...(entry.fate ? [`  ${entry.fate}`] : []),
@@ -89,12 +90,12 @@ export function getFightLogLines(state: SceneState): string[] {
 }
 
 // The action each chain played out began with, in the order they landed.
-function getOrigins(state: SceneState): Action[] {
-  return [...new Map(getLanded(state).filter((a) => a.reactionTo === null).map((a) => getOrigin(state, a)).map((o) => [o.id, o])).values()]
+function getOrigins(state: SceneState, since = 0): Action[] {
+  return [...new Map(getLanded(state).slice(since).filter((a) => a.reactionTo === null).map((a) => getOrigin(state, a)).map((o) => [o.id, o])).values()]
 }
 
-function getEpisode(state: SceneState, origin: string): EpisodeEntry[] | null {
-  const roots = getLanded(state).filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
+function getEpisode(state: SceneState, origin: string, since = 0): EpisodeEntry[] | null {
+  const roots = getLanded(state).slice(since).filter((a) => a.reactionTo === null && getOrigin(state, a).id === origin)
   const rootIds = new Set(roots.map((a) => a.id))
   const entries = roots.flatMap((a) => {
     const report = getActionReport(state, a.id)

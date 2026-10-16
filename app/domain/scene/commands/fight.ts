@@ -5,7 +5,7 @@ import { leaveFight } from '../../character/commands/leaveFight'
 import { resetCombat } from './resetCombat'
 import { removeFromCombat } from './characters'
 import { addToFight, joinFight } from './parties'
-import { getHomecoming, getJoinBar, getReturnBar, getTableIds, isFromRoster } from '../rules/fight'
+import { getHomecoming, getJoinBar, getReturnBar, getSaveLogBar, getTableIds, isFromRoster } from '../rules/fight'
 import { getOpenAction } from '../rules/log'
 import { addToRoster, checkIn, checkOut } from '../../campaign/commands/roster'
 import { passETs } from '../../campaign/commands/clock'
@@ -87,15 +87,17 @@ export function returnFromFight(ids: string[], ets: number): TableUpdater {
   }
 }
 
-// Writes the fight's log so far to the journal, for every party of the
-// campaign's with a fighter in it, at its moment, or for the campaign as a
-// whole when none has.
+// Writes what the fight's log has gained since it was last saved to the
+// journal, for every party of the campaign's with a fighter in it, at its
+// moment, or for the campaign as a whole when none has.
 export const saveFightLog: TableUpdater = (table) => {
-  const lines = getFightLogLines(table.fight)
-  if (lines.length === 0) return table
+  if (getSaveLogBar(table.fight) !== null) return table
+  const lines = getFightLogLines(table.fight, table.fight.logSaved)
+  const fight = { ...table.fight, logSaved: table.fight.landed.length }
+  if (lines.length === 0) return { ...table, fight }
   const parties = [...new Set(Object.keys(table.fight.characters).map((id) => getHomecoming(table, id).partyId))].filter((pid) => table.campaign.parties[pid])
   const campaign = (parties.length > 0 ? parties : [null]).reduce((c, party) => record({ kind: 'fight', party, title: 'the log of a fight', lines })(c), table.campaign)
-  return { ...table, campaign }
+  return { campaign, fight }
 }
 
 // The party's fighters back from the fight.

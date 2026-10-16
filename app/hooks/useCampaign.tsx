@@ -10,9 +10,9 @@ import type { Character } from "../domain/types";
 import type { CampaignUpdater } from "../domain/campaign/types";
 import { makeCampaignCharacter } from "../domain/factories";
 import { useCampaignStore } from "../stores/useCampaignStore";
-import { useRole } from "./useRole";
+import { useCampaignRole } from "./useRole";
 import { getJournalView } from "../domain/campaign/projections/journal";
-import { removeEntry, writeNote } from "../domain/campaign/commands/journal";
+import { editNote, removeEntry, writeNote } from "../domain/campaign/commands/journal";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
 import { getMemberRows, setMember, type MemberRole } from "../domain/profiles";
@@ -117,21 +117,30 @@ export function useCampaignFiles() {
 }
 
 // The campaign's journal as the viewer may read it — the GM's notes only for
-// one with the GM's tools — narrowed to a party or not, with a note written
-// and any entry thrown away.
-export function useJournal(filter: string | null | 'all') {
+// one with the GM's tools — narrowed to a party or not, and to each party's
+// newest `limit` entries or not, with a note written under the viewer's
+// profile, and a note rewritten or an entry thrown away by whoever the view
+// says may.
+export function useJournal(filter: string | null | 'all', limit?: number) {
   const journal = useCampaignStore((s) => s.journal);
   const names = useCampaignStore((s) => JSON.stringify(Object.entries(s.parties).map(([id, p]) => ({ id, name: p.name }))));
   const update = useCampaignStore((s) => s.updateCampaignState);
-  const { gmTools } = useRole();
+  const role = useCampaignRole();
+  const profile = useProfileId();
   const options: { id: string, name: string }[] = useMemo(() => JSON.parse(names), [names]);
-  const view = useMemo(() => getJournalView({ journal, parties: Object.fromEntries(options.map((p) => [p.id, p])) }, { party: filter, gm: gmTools }), [journal, options, filter, gmTools]);
+  const view = useMemo(() => getJournalView({ journal, parties: Object.fromEntries(options.map((p) => [p.id, p])) }, { party: filter, profile, role, limit }), [journal, options, filter, profile, role, limit]);
   return {
     view,
     parties: options,
-    write: (party: string | null, text: string, gmOnly: boolean) => update(writeNote(party, text, gmOnly)),
+    write: (party: string | null, text: string, gmOnly: boolean) => update(writeNote(party, text, gmOnly, profile)),
+    edit: (id: string, text: string, gmOnly: boolean) => update(editNote(id, text, gmOnly)),
     remove: (id: string) => update(removeEntry(id)),
   } as const;
+}
+
+// The party the active character on the roster is in, or null.
+export function useActivePartyId(): string | null {
+  return useCampaignStore((s) => (s.activeCharacterId ? s.partyOf[s.activeCharacterId] ?? null : null));
 }
 
 // Who plays the campaign in play and as what, the profiles that could join

@@ -1594,6 +1594,9 @@ export const SceneStateSchema = z.object({
   // in: an opportunity attack lands before the action it answers. Only ever
   // added to.
   landed: z.array(str).default([]),
+  // How many of `landed` the fight's log has been written to the journal
+  // up to, so a save writes only what landed since.
+  logSaved: num.default(0),
   // What each character who has been in the fight goes by in it, which tells
   // copies of one sheet apart, kept once they have left so the log still
   // names them.

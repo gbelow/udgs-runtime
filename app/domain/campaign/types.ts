@@ -182,6 +182,9 @@ export const CampaignEntrySchema = z.object({
   lines: z.array(z.string()).default([]),
   // a note the players do not see
   gmOnly: z.boolean().default(false),
+  // the profile that wrote a note, which may change it; null for what play
+  // recorded, or a note from before notes kept who wrote them
+  author: z.string().nullable().default(null),
 })
 export type CampaignEntry = z.infer<typeof CampaignEntrySchema>
 

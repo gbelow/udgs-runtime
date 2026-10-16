@@ -96,8 +96,6 @@ Specific knowledge - GM decides what exists, players consume from the list
 
 Cleric spells are free.
 
-re renders on every campaign change. 
-
 -----------------
 ## Chase
 - stealth and detection - 
@@ -163,9 +161,3 @@ After that, in my recommended order:
 3. Homebrew entries. Your own catalog entries, stored in Redis and merged with the built-in ones whenever a catalog is read. This is the biggest of the four, because every catalog read has to merge both sources.
 4. Downtime-scale locations. Blocked until the rules for contacts and renown are settled.
 
-Smaller items still open:
-- the fight log saving duplicates when you save twice;
-- notes can't be edited;
-- exploration and downtime have no strip showing recent journal entries.
-
-- Collections in downtime. The downtime learning-test field doesn't use collections, while the creator's add box does. Adding them would change how that field behaves. It would also need a rule for held knowledges outside the chosen collection, which shouldn't vanish from the list.
