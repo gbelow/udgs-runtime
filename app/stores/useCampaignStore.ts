@@ -27,6 +27,7 @@ export type CampaignFile = { id: string; name: string; members: CampaignMembers 
 type CampaignActions = {
   setFileName: (name: string) => void
   setMembers: (members: CampaignMembers) => void
+  setOwner: (id: string, owner: string | null) => void
   // replaces the campaign in play, and throws away any fight
   openCampaign: (t: CampaignInPlay, file: CampaignFile, owners?: CharacterOwners) => void
   loadCharacter: (rawCharacter: unknown, into?: string) => void
@@ -40,7 +41,8 @@ type CampaignActions = {
 }
 
 // `owners` is whose each player character was when the campaign was opened,
-// read from their records and never saved with the campaign.
+// read from their records, and whom the GM has given them to since; saved
+// onto those records, never into the campaign.
 export type CampaignStore = CampaignState & { exploration: ExplorationState; downtime: DowntimeState; file: CampaignFile; owners: CharacterOwners } & CampaignActions
 
 export const useCampaignStore = create<CampaignStore>((set, get) => ({
@@ -52,6 +54,7 @@ export const useCampaignStore = create<CampaignStore>((set, get) => ({
 
   setFileName: (name) => set((s) => ({ file: { ...s.file, name } })),
   setMembers: (members) => set((s) => ({ file: { ...s.file, members } })),
+  setOwner: (id, owner) => set((s) => ({ owners: { ...s.owners, [id]: owner } })),
 
   openCampaign: (t, file, owners = {}) => {
     set({ ...t.campaign, exploration: t.exploration, downtime: t.downtime, file, owners })

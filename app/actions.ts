@@ -4,7 +4,7 @@ import { Character, Race } from './domain/types';
 import { makeRace } from './domain/factories';
 import { CollectionSchema, CrawlMapSchema, type Collection, type CrawlMap } from './domain/campaign/types';
 import { CampaignSaveSchema, type CampaignSave } from './domain/saves';
-import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
+import { canReadCollection, isOwnerOrDev, CampaignListingSchema, CharacterListingSchema, CharacterOwnersSchema, getAssignBar, getCampaignRole, getOwnersSeenBy, getProfileNameBar, hasGmTools, ProfileSchema, type CampaignListing, type CampaignMembers, type CharacterListing, type CharacterOwners, type Profile, type ProfileListing } from './domain/profiles';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import type { ZodType } from 'zod';
@@ -450,9 +450,13 @@ export async function getCampaignList(): Promise<ActionResult<{ id: string, name
 
 // Only a GM saves a campaign. One nobody has joined yet is saved as the GM's
 // of whoever saves it; the members it was saved with come back.
-export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[]): Promise<ActionResult<CampaignMembers>> {
+// A character the GM gave a player becomes a player character, kept in a
+// record of its own from then on; one taken back keeps that record, owned by
+// nobody.
+export async function saveCampaign(raw: CampaignSave, characters: CampaignCharacter[], rawOwners: CharacterOwners = {}): Promise<ActionResult<CampaignMembers>> {
   const parsed = CampaignSaveSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: 'Not a campaign.' };
+  const owners = CharacterOwnersSchema.safeParse(rawOwners);
+  if (!parsed.success || !owners.success) return { ok: false, error: 'Not a campaign.' };
   if (!parsed.data.name.trim()) return { ok: false, error: 'Campaigns need a name.' };
   try {
     const { profile, dev } = await getViewer();
@@ -460,10 +464,15 @@ export async function saveCampaign(raw: CampaignSave, characters: CampaignCharac
     const save = Object.keys(parsed.data.members).length ? parsed.data : { ...parsed.data, members: { [profile]: 'gm' as const } };
     const [before, pcs] = await Promise.all([readCampaign(save.id), readCharIndex()]);
     if (before && !hasGmTools(getCampaignRole(before.members, profile, dev))) return { ok: false, error: 'Only a GM saves the campaign.' };
-    const stale = (before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid) && !(cid in pcs)).map((cid) => campaignCharacterKey(save.id, cid));
+    const assigned = Object.entries(owners.data).filter(([cid, owner]) => save.characterIds.includes(cid) && owner !== (pcs[cid]?.owner ?? null));
+    const assignBar = assigned.map(([, owner]) => getAssignBar(save.members, owner)).find((bar) => bar !== null);
+    if (assignBar) return { ok: false, error: `Not saved: ${assignBar}.` };
+    const made = assigned.filter(([cid, owner]) => owner !== null && !(cid in pcs)).map(([cid]) => cid);
+    const rows: Record<string, CharacterListing> = { ...pcs, ...Object.fromEntries(assigned.filter(([cid, owner]) => cid in pcs || owner !== null).map(([cid, owner]) => [cid, { name: pcs[cid]?.name ?? '', owner }])) };
+    const stale = [...(before?.characterIds ?? []).filter((cid) => !save.characterIds.includes(cid) && !(cid in pcs)), ...made].map((cid) => campaignCharacterKey(save.id, cid));
     const writes = redis.pipeline();
-    if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [characterKey(save.id, c.id, pcs), c])));
-    const pcRows = Object.fromEntries(characters.filter((c) => c.id in pcs).map((c) => [c.id, { ...pcs[c.id], name: c.name }]));
+    if (characters.length) writes.mset(Object.fromEntries(characters.map((c) => [characterKey(save.id, c.id, rows), c])));
+    const pcRows = Object.fromEntries(characters.filter((c) => c.id in rows).map((c) => [c.id, { ...rows[c.id], name: c.name }]));
     if (Object.keys(pcRows).length) writes.hset(CHAR_INDEX_KEY, pcRows);
     if (stale.length) writes.del(...stale);
     writes.set(campaignKey(save.id), save);

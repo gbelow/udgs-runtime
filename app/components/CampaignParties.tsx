@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { Button } from './ui'
-import { CatalogDrawer, TimelineControl } from './RunParts'
+import { CatalogDrawer, PlayedBy, TimelineControl } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
 import { usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
@@ -112,6 +112,7 @@ function Member({ member, inParty, switching, toggle }: { member: RosterMember, 
       <Button size='xs' aria-label={`${member.name} to scene`} disabled={joinBar !== null} title={joinBar ?? 'into the scene'} onClick={() => toScene(member.id)}>to scene</Button>
       <Button size='xs' aria-label={`switch ${member.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={toggle}>switch party</Button>
       {inParty ? <Button size='xs' variant='ghost' className='ml-auto' aria-label={`out of party ${member.name}`} disabled={bar !== null} title={bar ?? 'out of the party: outside time until they join one on a timeline'} onClick={() => leaveParty(member.id)}>×</Button> : null}
+      <PlayedBy id={member.id} name={member.name} />
     </div>
   )
 }

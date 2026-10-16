@@ -86,14 +86,29 @@ export function getOwnersSeenBy(profile: string, campaigns: readonly CampaignMem
   return new Set([profile, ...campaigns.filter((m) => m[profile] === 'gm').flatMap((m) => Object.keys(m))])
 }
 
-// The profile each player character in play belongs to, by character id.
-// A character missing from it is the GM's.
-export type CharacterOwners = Record<string, string>
+// The profile each player character in play belongs to, by character id, as
+// the campaign was opened or as the GM has assigned them since; null for one
+// the GM took back. A character missing from it is the GM's.
+export const CharacterOwnersSchema = z.record(z.string(), z.string().nullable())
+export type CharacterOwners = z.infer<typeof CharacterOwnersSchema>
 
-// Whose character `id` is: as the campaign was opened, or, for a player
-// character brought in since, as the player characters listed say.
+// Whose character `id` is: as the campaign was opened or assigned since, or,
+// for a player character brought in since, as the player characters listed
+// say.
 export function getOwner(id: string, owners: CharacterOwners, listed: readonly { id: string; owner: string }[]): string | undefined {
-  return owners[id] ?? listed.find((c) => c.id === id)?.owner
+  return id in owners ? owners[id] ?? undefined : listed.find((c) => c.id === id)?.owner
+}
+
+// Whom the GM may give a character in play to: the campaign's members, and
+// whoever plays them now.
+export function getOwnerOptions(members: CampaignMembers, profiles: readonly ProfileListing[], owner: string | null): ProfileListing[] {
+  return profiles.filter((p) => p.id in members || p.id === owner)
+}
+
+// Why a character cannot be given to `owner` in a campaign with these
+// members: only a member plays one.
+export function getAssignBar(members: CampaignMembers, owner: string | null): string | null {
+  return owner === null || owner in members ? null : 'only a member of the campaign plays a character'
 }
 
 // Whether `profile`, as `role` in the campaign, plays a character `owner`

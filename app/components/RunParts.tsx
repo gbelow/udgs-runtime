@@ -6,11 +6,25 @@ import { Button, CollectionSelect, SectionLabel, barred, selectClass } from './u
 import { useMoments, usePartyCommands } from '../hooks/useParty'
 import { useRole } from '../hooks/useRole'
 import { useGmBar } from '../hooks/useControl'
+import { usePlayedBy } from '../hooks/useCampaign'
 import type { Character } from '../domain/types'
 import type { SyncOption, TimelineView } from '../domain/campaign/projections/timeline'
 import type { ClockView } from '../domain/campaign/projections/clock'
 
 // What the run screen's modes draw alike.
+
+// Who plays a character: the GM gives them to a member of the campaign, or
+// takes them back.
+export function PlayedBy({ id, name }: { id: string, name: string }){
+  const { owner, options, bar, set } = usePlayedBy(id)
+  return (
+    <select aria-label={`${name} played by`} className={`${selectClass} min-w-0`} disabled={bar !== null} title={bar ?? 'who plays them'}
+      value={owner ?? ''} onChange={(e) => set(e.target.value || null)}>
+      <option value=''>played by the GM</option>
+      {options.map((p) => <option key={p.id} value={p.id}>played by {p.name}</option>)}
+    </select>
+  )
+}
 
 // The character catalog, opened beside a roster or a party: whoever is
 // picked joins it, as `onSelect` says or else as the tab loads a character.

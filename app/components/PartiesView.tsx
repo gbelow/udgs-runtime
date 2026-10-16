@@ -1,7 +1,7 @@
 'use client'
 import { useState, type ReactNode } from 'react'
 import { Card } from './SceneCards'
-import { CatalogDrawer } from './RunParts'
+import { CatalogDrawer, PlayedBy } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { Button, NumberInput } from './ui'
 import { usePartiesPanel, useSceneCards } from '../hooks/useCombatState'
@@ -117,6 +117,7 @@ function MemberControls({ card, ets, switching, startSwitch }: { card: SceneCard
       <Button size='xs' aria-label={`switch ${card.name}`} aria-pressed={switching} disabled={bar !== null} selected={switching} title={bar ?? 'pick the party to put them in, or a new one'} onClick={startSwitch}>switch party</Button>
       <Button size='xs' aria-label={`${card.name} back`} disabled={returnBar !== null} title={returnBar ?? 'the scene is over for them: back to the campaign'} onClick={() => back(card.id, ets)}>back</Button>
       <Button size='xs' variant='ghost' className='ml-auto' aria-label={`remove ${card.name}`} disabled={bar !== null} title={bar ?? 'take out of the fight; one sent from the roster goes back to it'} onClick={() => removeCharacter(card.id)}>×</Button>
+      <PlayedBy id={card.id} name={card.name} />
     </div>
   )
 }

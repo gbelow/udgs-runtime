@@ -15,9 +15,9 @@ import { getJournalView } from "../domain/campaign/projections/journal";
 import { editNote, removeEntry, writeNote } from "../domain/campaign/commands/journal";
 import { useCombatStore } from "../stores/useCombatStore";
 import { useAppStore } from "../stores/useAppStore";
-import { getMemberRows, setMember, type MemberRole } from "../domain/profiles";
+import { getMemberRows, getOwner, getOwnerOptions, setMember, type MemberRole } from "../domain/profiles";
 import { useProfileId } from "./useProfile";
-import { useActGate } from "./useControl";
+import { useActGate, useGmBar } from "./useControl";
 
 // The campaign in play's parties and who is in them, gated on a digest since
 // the view is freshly allocated.
@@ -85,6 +85,7 @@ export function useCampaignFiles() {
   const fighting = useCombatStore((s) => Object.keys(s.characters).length > 0);
   const saveBar = getCampaignSaveBar(file.name, fighting);
   const { campaigns, refresh } = useCampaignList();
+  const refreshCharacters = useAppStore((s) => s.updatePlayerCharacterList);
 
   const create = () => openCampaign(newCampaign(), { id: crypto.randomUUID(), name: '', members: profile ? { [profile]: 'gm' } : {} });
 
@@ -98,11 +99,12 @@ export function useCampaignFiles() {
 
   const save = async () => {
     const s = useCampaignStore.getState();
-    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }), Object.values(s.characters));
+    const res = await saveCampaign(toCampaignSave(s.file.id, s.file.name, s.file.members, { campaign: s, exploration: s.exploration, downtime: s.downtime }), Object.values(s.characters), s.owners);
     if (!res.ok) { toast.error(res.error); return; }
     setMembers(res.data);
     toast.success(`Campaign ${s.file.name} saved.`);
     refresh();
+    refreshCharacters();
   };
 
   const remove = async (id: string) => {
@@ -114,6 +116,21 @@ export function useCampaignFiles() {
   };
 
   return { file, campaigns, saveBar, setName, create, open, save, remove } as const;
+}
+
+// Who plays character `id` in play, the members the GM may give them to, and
+// giving them, or taking them back with null; the GM's alone. Kept onto the
+// character's record when the campaign is saved.
+export function usePlayedBy(id: string) {
+  const listed = useAppStore((s) => s.playerCharacterList);
+  const profiles = useAppStore((s) => s.profileList);
+  const owner = useCampaignStore((s) => getOwner(id, s.owners, listed)) ?? null;
+  const members = useCampaignStore((s) => s.file.members);
+  const options = useMemo(() => getOwnerOptions(members, profiles, owner), [members, profiles, owner]);
+  const setOwner = useCampaignStore((s) => s.setOwner);
+  const bar = useGmBar();
+  const gate = useActGate();
+  return { owner, options, bar, set: (o: string | null) => { if (gate("gm")) setOwner(id, o); } } as const;
 }
 
 // The campaign's journal as the viewer may read it — the GM's notes only for
