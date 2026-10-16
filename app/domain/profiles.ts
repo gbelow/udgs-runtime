@@ -27,7 +27,7 @@ export function getProfileNameBar(name: string): string | null {
 
 // Who is at the screen, as far as the rules a character is held to go. A
 // player only follows the standard rules; the GM and the developer have the
-// GM's tools, and the developer is whoever runs the dev server.
+// GM's tools, and the developer is a GM on the dev server.
 export type Role = 'player' | 'gm' | 'dev'
 
 export function hasGmTools(role: Role): boolean {
@@ -41,11 +41,11 @@ export type MemberRole = CampaignMembers[string]
 
 // The role of `profile` in a campaign with these members. A campaign nobody
 // has joined yet, the one played before it is ever saved, is the GM's of
-// whoever is at the screen.
+// whoever is at the screen. On the dev server a GM is the developer; a player
+// stays a player.
 export function getCampaignRole(members: CampaignMembers, profile: string | null, devServer: boolean): Role {
-  if (devServer) return 'dev'
-  if (Object.keys(members).length === 0) return 'gm'
-  return (profile && members[profile]) || 'player'
+  const role = Object.keys(members).length === 0 ? 'gm' : (profile && members[profile]) || 'player'
+  return devServer && role === 'gm' ? 'dev' : role
 }
 
 // Why `profile` cannot be made `role` (or taken out, with null): a campaign

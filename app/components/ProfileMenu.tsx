@@ -12,7 +12,7 @@ export function ProfileLanding(){
       <div className='w-full max-w-sm flex flex-col gap-4 bg-surface border border-line rounded p-4 text-sm'>
         <div className='flex flex-col gap-1'>
           <h1 className='text-lg text-fg'>fallowRPG</h1>
-          <span className='text-muted text-xs'>who is playing?{dev ? ' (dev server: you are the developer whoever you pick)' : ''}</span>
+          <span className='text-muted text-xs'>who is playing?{dev ? ' (dev server: a GM is the developer, a player is a player)' : ''}</span>
         </div>
         <ProfileList profiles={profiles} current={null} pick={pick} />
         <NewProfile create={create} nameBar={nameBar} />
