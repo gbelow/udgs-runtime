@@ -10,10 +10,13 @@ export function nextPartyName(parties: Record<string, { name: string }>): string
 }
 
 // Why the character cannot join the party: time only goes forward, so
-// nobody leaves a timeline for an earlier moment of another.
+// nobody leaves a timeline for an earlier moment of another, and nobody
+// slips out of exploration into downtime or back but with their party.
 export function getPartyMoveBar(state: CampaignState, id: string, partyId: string): string | null {
   const to = state.parties[partyId]
   if (!to) return 'no such party'
+  const sequence = state.parties[state.partyOf[id]]?.sequence
+  if (sequence && sequence !== to.sequence) return `${to.name} is in ${to.sequence}`
   const from = getClockOf(state, id)
   return from !== null && to.clock !== null && to.clock < from ? `${to.name} is earlier on its timeline: sync it first` : null
 }

@@ -13,10 +13,11 @@ import { getRestRecovery } from '../../character/rules/recovery'
 import { pay, receive } from '../../item/commands/money'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
+import { setPartySequence } from '../../campaign/commands/parties'
 import { ETS_PER_DAY, describeSpan, getClockOf, getPlayingParties } from '../../campaign/rules/clock'
 import {
   getBlockDays, getBlockSettlement, getDoctorHealing, getDowntimeBar, getDowntimeCharacters, getDowntimeHealing, getJobTraining, getLearningGain,
-  getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName,
+  getLivingCost, getPlan, getPlanExposure, getSelfTrainingTest, getSelfTrainingXP, getSkillName, getSkillTest, getTargetName, getToExplorationBar,
 } from '../rules/downtime'
 
 function addXP(target: TrainingTarget, XP: number): <C extends Character>(c: C) => C {
@@ -139,7 +140,7 @@ export function passDays(days: number, dice: Dice): DowntimeUpdater {
     const ids = getDowntimeCharacters(t.campaign)
     const lived = ids.map((id) => ({ id, ...liveDays(t, id, days, dice) }))
     const characters = { ...t.campaign.characters, ...Object.fromEntries(lived.map(({ id, c }) => [id, c])) }
-    const playing = getPlayingParties(t.campaign)
+    const playing = getPlayingParties(t.campaign, 'downtime')
     const byParty = Map.groupBy(lived, ({ id }) => t.campaign.partyOf[id])
     const recorded = playing.reduce<CampaignState>((campaign, partyId) => record({
       kind: 'days', party: partyId, title: `${describeSpan(days * ETS_PER_DAY)} of downtime`,
@@ -150,4 +151,10 @@ export function passDays(days: number, dice: Dice): DowntimeUpdater {
     const plans = Object.fromEntries(lived.map(({ id, plan }) => [id, { ...plan, at: getClockOf(fedAll, id) ?? 0 }]))
     return { campaign: fedAll, downtime: { ...t.downtime, plans, results: lived.flatMap((l) => l.results) } }
   }
+}
+
+// The party leaves downtime to explore again, refused as
+// `getToExplorationBar` says.
+export function toExploration(partyId: string): DowntimeUpdater {
+  return (t) => (getToExplorationBar(t, partyId) ? t : { ...t, campaign: setPartySequence(partyId, 'exploration')(t.campaign) })
 }

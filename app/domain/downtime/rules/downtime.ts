@@ -15,8 +15,8 @@ import { skillTermGetters } from '../../character/rules/skills'
 import { getKnowledgeTestTerms, isFormalKnowledge, knowledgeName } from '../../character/rules/knowledge'
 import { sumTerms } from '../../character/rules/terms'
 import { isDead } from '../../character/rules/afflictions'
-import { getPartyMembers, getPlace } from '../../campaign/rules/place'
-import { getClockOf, getPlayingParties, getTimeBar } from '../../campaign/rules/clock'
+import { getPartyMembers, getPlace, isOutsideSettlement, isPartyAway } from '../../campaign/rules/place'
+import { getClockOf, getPlayingParties, getSequenceBar, getTimeBar } from '../../campaign/rules/clock'
 import { getPayable } from '../../item/rules/money'
 import { getRosterName } from '../../campaign/rules/roster'
 
@@ -28,7 +28,7 @@ export function getPlan(t: Downtime, id: string): Plan {
 // Who spends the days: everyone alive on the roster in a party in play on a
 // timeline.
 export function getDowntimeCharacters(state: CampaignState): string[] {
-  return getPlayingParties(state).flatMap((pid) => getPartyMembers(state, pid)).filter((id) => state.characters[id] && !isDead(state.characters[id]))
+  return getPlayingParties(state, 'downtime').flatMap((pid) => getPartyMembers(state, pid)).filter((id) => state.characters[id] && !isDead(state.characters[id]))
 }
 
 // ── training ─────────────────────────────────────────────
@@ -279,11 +279,10 @@ export function getDefaultSpan(t: Downtime): number {
 export function getDowntimeBar(t: Downtime, days: number): string | null {
   const state = t.campaign
   if (days < 1) return 'choose how many days'
-  const bar = getTimeBar(state)
+  const bar = getTimeBar(state, 'downtime')
   if (bar) return bar
-  for (const party of getPlayingParties(state).map((pid) => state.parties[pid])) {
-    const place = getPlace(state, party)
-    if (place && !place.node.settlement) return `${party.name} is not in a settlement`
+  for (const party of getPlayingParties(state, 'downtime').map((pid) => state.parties[pid])) {
+    if (isOutsideSettlement(state, party)) return `${party.name} is not in a settlement`
   }
   for (const id of getDowntimeCharacters(state)) {
     const c = state.characters[id]
@@ -295,6 +294,19 @@ export function getDowntimeBar(t: Downtime, days: number): string | null {
     if (affordable < days) return `${name} can pay for ${affordable} of ${days} days`
   }
   return null
+}
+
+// Why the party cannot leave downtime to explore again: it is not in
+// downtime, one of it is in a fight, or one of it is still on an activity,
+// which must be finished or dropped first.
+export function getToExplorationBar(t: Downtime, partyId: string): string | null {
+  const state = t.campaign
+  if (!state.parties[partyId]) return 'no such party'
+  const bar = getSequenceBar(state, partyId, 'downtime')
+  if (bar) return bar
+  if (isPartyAway(state, partyId)) return 'someone is in a fight'
+  const busy = getPartyMembers(state, partyId).find((id) => getPlan(t, id).block)
+  return busy ? `${getRosterName(state, busy)} is still on an activity: finish or drop it` : null
 }
 
 // Whom a change to character `id`'s activity acts for: the table, when it

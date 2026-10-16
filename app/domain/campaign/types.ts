@@ -119,6 +119,12 @@ export const AtSchema = z.object({ map: z.string(), node: z.string() })
 export type At = z.infer<typeof AtSchema>
 
 // Whoever is in the same place, and where that is.
+// The sequence of play that moves a party's time (play.tex "The four game
+// loops"): ETs while it explores, days while it is in downtime. A party
+// leaves one for the other as a whole.
+export const SEQUENCES = ['exploration', 'downtime'] as const
+export type Sequence = (typeof SEQUENCES)[number]
+
 export const PartySchema = z.object({
   name: z.string().default(''),
   // the node the party is on, or none, off the map
@@ -132,6 +138,7 @@ export const PartySchema = z.object({
   clock: z.number().nullable().default(null),
   // in play: only an active party on a timeline feels time pass
   active: z.boolean().default(false),
+  sequence: z.enum(SEQUENCES).default('exploration'),
 })
 export type Party = z.infer<typeof PartySchema>
 

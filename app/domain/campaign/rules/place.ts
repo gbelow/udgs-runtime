@@ -77,3 +77,15 @@ export function getPartyPlayers(state: CampaignState, partyId: string): string[]
 export function getAway(state: CampaignState): string[] {
   return Object.keys(state.partyOf).filter((id) => !state.characters[id])
 }
+
+// Whether anyone in the party is away in a fight.
+export function isPartyAway(state: CampaignState, partyId: string): boolean {
+  return getPartyMembers(state, partyId).some((id) => !state.characters[id])
+}
+
+// Whether the party stands on a node of the map that is no settlement; off
+// the map, the table says where it is.
+export function isOutsideSettlement(state: CampaignState, { at }: { at: At | null }): boolean {
+  const node = at ? state.maps[at.map]?.nodes[at.node] : undefined
+  return node !== undefined && !node.settlement
+}

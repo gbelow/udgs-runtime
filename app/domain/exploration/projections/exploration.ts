@@ -89,7 +89,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
   const t: Exploring = { campaign: state, exploration }
   return {
   dayETs: state.dayETs,
-  parties: Object.entries(state.parties).map(([partyId, party]) => {
+  parties: Object.entries(state.parties).filter(([, party]) => party.sequence === 'exploration').map(([partyId, party]) => {
     const place = getPlace(state, party)
     return {
       id: partyId,
@@ -115,7 +115,7 @@ const partiesView = perPair(({ a: state, b: exploration }: { a: CampaignState; b
         }
       }),
       paths: place ? getConnectionsFrom(place).map((p) => ({ id: p.id, name: p.toName, DL: p.DL })) : [],
-      others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
+      others: Object.entries(state.parties).filter(([other, p]) => other !== partyId && p.sequence === party.sequence && isSamePlace(p, party)).map(([id, p]) => ({ id, name: p.name })),
     }
   }),
   decisions: getDecisionsCalled(t).map((id) => ({ id, name: nameOf(state, id), decision: exploration.opening?.decisions[id] ?? null })),

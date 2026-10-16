@@ -4,10 +4,11 @@ import { Button } from './ui'
 import { CatalogDrawer, TimelineControl } from './RunParts'
 import { CreateParty, NewPartySlot, PartyFrame, PartyHeader, SwitchBanner } from './PartyBoard'
 import { useCampaignPartyCommands, useCampaignRoster, useMoveBars } from '../hooks/useCampaign'
-import { usePartyCommands } from '../hooks/useParty'
+import { usePartyCommands, useToDowntimeBar } from '../hooks/useParty'
+import { useDowntimeCommands, useToExplorationBar } from '../hooks/useDowntime'
 import { usePartiesPanel } from '../hooks/useCombatState'
 import { useGmBar } from '../hooks/useControl'
-import type { RosterMember } from '../domain/campaign/projections/roster'
+import type { RosterMember, RosterPartyView } from '../domain/campaign/projections/roster'
 
 type Switching = { id: string; name: string; from: string | null }
 
@@ -55,6 +56,7 @@ export function CampaignParties(){
                     toggleAdding={() => setAddingTo(party.id === addingTo ? null : party.id)} />
                   <TimelineControl timeline={party.timeline} />
                   <Button size='xs' aria-label={`${party.name} to scene`} disabled={joinBar !== null || party.members.length === 0} title={joinBar ?? 'the whole party into the scene'} onClick={() => partyToScene(party.id)}>to scene</Button>
+                  {party.sequence === 'exploration' ? <ToDowntime party={party} /> : <ToExploration party={party} />}
                 </div>
                 {party.members.map((m) => <Member key={m.id} member={m} inParty switching={switching?.id === m.id} toggle={() => toggle(m, party.id)} />)}
               </PartyFrame>
@@ -69,6 +71,29 @@ export function CampaignParties(){
           {switching ? <NewPartySlot name={switching.name} onClick={() => placeInto(null)} /> : null}
         </div>
       </div>
+    </div>
+  )
+}
+
+// The party leaves exploration for downtime, whole: none of it spends days
+// while the rest spend ETs.
+function ToDowntime({ party }: { party: RosterPartyView }){
+  const { toDowntime } = usePartyCommands()
+  const gmBar = useGmBar()
+  const bar = useToDowntimeBar(party.id) ?? gmBar
+  return <Button size='xs' aria-label={`${party.name} to downtime`} disabled={bar !== null} title={bar ?? 'the whole party leaves exploration to spend days in downtime'} onClick={() => toDowntime(party.id)}>to downtime</Button>
+}
+
+// The party leaves downtime to explore again, once nobody in it is on an
+// activity.
+function ToExploration({ party }: { party: RosterPartyView }){
+  const { toExploration } = useDowntimeCommands()
+  const gmBar = useGmBar()
+  const bar = useToExplorationBar(party.id) ?? gmBar
+  return(
+    <div className='flex flex-row flex-wrap gap-1 items-center'>
+      <span className='text-xs text-muted'>in downtime</span>
+      <Button size='xs' aria-label={`${party.name} to exploration`} disabled={bar !== null} title={bar ?? 'the whole party leaves downtime to explore again'} onClick={() => toExploration(party.id)}>back to exploring</Button>
     </div>
   )
 }

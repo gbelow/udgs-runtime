@@ -1,5 +1,5 @@
-import type { CampaignState } from '../types'
-import { getAway } from './place'
+import type { CampaignState, Sequence } from '../types'
+import { isPartyAway } from './place'
 
 // The campaign clock counts whole ETs. survival.tex "Exploration Turn (ET)":
 // "It is convenient to divide a day into blocks of 4 hours because it splits
@@ -26,9 +26,19 @@ export function getDay(clock: number): number {
   return Math.floor(clock / ETS_PER_DAY)
 }
 
-// The parties that feel time pass: in play, and on a timeline.
-export function getPlayingParties(state: CampaignState): string[] {
-  return Object.keys(state.parties).filter((pid) => state.parties[pid].active && state.parties[pid].clock !== null)
+// The parties that feel time pass: in play, and on a timeline; those of one
+// `sequence` when it is named.
+export function getPlayingParties(state: CampaignState, sequence?: Sequence): string[] {
+  return Object.keys(state.parties).filter((pid) => {
+    const party = state.parties[pid]
+    return party.active && party.clock !== null && (sequence === undefined || party.sequence === sequence)
+  })
+}
+
+// Why the party, if there is one, is not in `sequence`: it is in the other.
+export function getSequenceBar(state: CampaignState, partyId: string | undefined, sequence: Sequence): string | null {
+  const party = partyId ? state.parties[partyId] : undefined
+  return party && party.sequence !== sequence ? `in ${party.sequence}` : null
 }
 
 // The clock of the character's party; none for one outside time or in no
@@ -37,12 +47,13 @@ export function getClockOf(state: CampaignState, id: string): number | null {
   return state.parties[state.partyOf[id]]?.clock ?? null
 }
 
-// Why time cannot pass now for the parties that feel it: there are none, or
-// one of theirs is in a fight, which is counted in rounds until it is over.
-export function getTimeBar(state: CampaignState): string | null {
-  const playing = getPlayingParties(state)
-  if (playing.length === 0) return 'no party in play is on a timeline'
-  return getAway(state).some((id) => playing.includes(state.partyOf[id])) ? 'someone is in a fight' : null
+// Why time cannot pass now for the parties of `sequence` that feel it: there
+// are none, or one of theirs is in a fight, which is counted in rounds until
+// it is over.
+export function getTimeBar(state: CampaignState, sequence: Sequence): string | null {
+  const playing = getPlayingParties(state, sequence)
+  if (playing.length === 0) return `no party in play on a timeline is in ${sequence}`
+  return playing.some((pid) => isPartyAway(state, pid)) ? 'someone is in a fight' : null
 }
 
 // The moment the clock reads, as the table says it: the day and the ET of

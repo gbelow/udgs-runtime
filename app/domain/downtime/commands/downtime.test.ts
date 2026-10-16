@@ -15,7 +15,7 @@ function withPurse(coppers: number): Downtime {
   const dressed = addItemToContainer('Backpack', 'medium', getCatalogItem('Coin Pouch')!)(
     putOnFromCatalog(getCatalogItem('Backpack')!)(putOnFromCatalog(getCatalogItem('Belt')!)(makeCampaignCharacter({ name: 'A' }))),
   )
-  return { campaign: CampaignStateSchema.parse({ characters: { a: receive(coppers)(dressed) }, partyOf: { a: 'p' }, parties: { p: { clock: 0, active: true } } }), downtime: DowntimeStateSchema.parse({}) }
+  return { campaign: CampaignStateSchema.parse({ characters: { a: receive(coppers)(dressed) }, partyOf: { a: 'p' }, parties: { p: { clock: 0, active: true, sequence: 'downtime' } } }), downtime: DowntimeStateSchema.parse({}) }
 }
 
 const trained = (t: Downtime) => t.campaign.characters.a.trainables.strike

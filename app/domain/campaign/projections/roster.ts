@@ -1,4 +1,4 @@
-import type { CampaignState } from '../types'
+import type { CampaignState, Sequence } from '../types'
 import { getPartyMembers } from '../rules/place'
 import { getPartyMoveBar } from '../rules/parties'
 import { getRosterName } from '../rules/roster'
@@ -6,7 +6,7 @@ import { perState } from '../../perState'
 import { getTimelineView, type TimelineView } from './timeline'
 
 export type RosterMember = { id: string; name: string; isActive: boolean }
-export type RosterPartyView = { id: string; name: string; timeline: TimelineView; members: RosterMember[] }
+export type RosterPartyView = { id: string; name: string; sequence: Sequence; timeline: TimelineView; members: RosterMember[] }
 export type RosterView = {
   parties: RosterPartyView[]
   // on the roster in no party, and so outside time
@@ -16,10 +16,10 @@ export type RosterView = {
 const member = (state: CampaignState, id: string): RosterMember => ({ id, name: getRosterName(state, id), isActive: id === state.activeCharacterId })
 
 // The campaign's parties out of a fight, in play first, each with when it is
-// and who is in it, and whoever is in no party.
+// and who is in it and the sequence it is in, and whoever is in no party.
 export const getRosterView = perState((state: CampaignState): RosterView => {
   const parties = Object.entries(state.parties).map(([id, party]) => ({
-    id, name: party.name, timeline: getTimelineView(state, id, party),
+    id, name: party.name, sequence: party.sequence, timeline: getTimelineView(state, id, party),
     members: getPartyMembers(state, id).filter((m) => state.characters[m]).map((m) => member(state, m)),
   }))
   return {

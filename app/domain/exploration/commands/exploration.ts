@@ -9,7 +9,7 @@ import { getETResultLines } from '../projections/exploration'
 import { addExhaustion, addIL, gainHunger, gainThirst, heal } from '../../character/commands/heal'
 import {
   canRestHeal, getCamp, getExhaustionTest, getExplorationAction, getExplorationBar, getGroups, getGroupTest, getNightDL,
-  getPassBar, getRestExposure, getRestsToday, getWear, hasWood, isAway, isForcedToRest,
+  getPassBar, getRestExposure, getRestsToday, getToDowntimeBar, getWear, hasWood, isAway, isForcedToRest,
 } from '../rules/exploration'
 import { getRestHealing, getRestRecovery } from '../../character/rules/recovery'
 import { BLANK_WEIGHT, drawWeighted, getEventDL, getEventWeight, isFound } from '../rules/events'
@@ -17,7 +17,8 @@ import { getDay, getPlayingParties } from '../../campaign/rules/clock'
 import { getConnectionsFrom, getPartyMembers, getPartyPlayers, getPlace, getTerrainWear, type Path, type Place } from '../../campaign/rules/place'
 import { passETs } from '../../campaign/commands/clock'
 import { record } from '../../campaign/commands/journal'
-import { addParty } from '../../campaign/commands/parties'
+import { without } from '../../utils'
+import { addParty, setPartySequence } from '../../campaign/commands/parties'
 import { updateRosterCharacter } from '../../campaign/commands/roster'
 import { deliverAll } from '../../character/commands/deliver'
 import { takeDose } from '../../character/commands/consume'
@@ -81,12 +82,30 @@ function rest(c: CampaignCharacter, exposure: number, bonus: number): CampaignCh
   return healing < 0 ? addIL(-healing)(recovered) : heal(Math.min(healing, recovered.injuries.injuryLevel))(recovered)
 }
 
+// The party leaves exploration for downtime, refused as `getToDowntimeBar`
+// says; its groups, its camp and what its members planned for the coming ET
+// are left behind.
+export function toDowntime(partyId: string): ExplorationUpdater {
+  return (t) => {
+    if (getToDowntimeBar(t, partyId)) return t
+    const members = getPartyMembers(t.campaign, partyId)
+    const casts = Object.fromEntries(Object.entries(t.exploration.casts).filter(([id]) => !members.includes(id)))
+    return {
+      campaign: setPartySequence(partyId, 'downtime')(t.campaign),
+      exploration: {
+        ...t.exploration, groups: without(t.exploration.groups, partyId), camps: without(t.exploration.camps, partyId), casts,
+        resting: t.exploration.resting.filter((id) => !members.includes(id)),
+      },
+    }
+  }
+}
+
 // survival.tex "Exhaustion": the Will tests the coming ET opens with, rolled
 // once for everyone who plays it.
 function openET(t: Exploring, dice: Dice): Exploring {
   const state = t.campaign
   const rolls: Record<string, TestRoll> = {}
-  for (const partyId of getPlayingParties(state)) {
+  for (const partyId of getPlayingParties(state, 'exploration')) {
     for (const id of getPartyPlayers(state, partyId)) {
       const test = getExhaustionTest(state.characters[id])
       if (test) rolls[id] = toRoll(resolveTest(test, dice))
@@ -411,7 +430,7 @@ export function passET(dice: Dice, newId: () => string): ExplorationUpdater {
     const opened = t.exploration.opening ? t : openET(t, dice)
     if (getPassBar(opened)) return opened
     const opening = opened.exploration.opening ?? { rolls: {}, decisions: {} }
-    const played = getPlayingParties(opened.campaign).reduce<PartyET>((acc, partyId) => {
+    const played = getPlayingParties(opened.campaign, 'exploration').reduce<PartyET>((acc, partyId) => {
       const clock = acc.t.campaign.parties[partyId]?.clock ?? null
       const next = passParty(acc.t, partyId, opening, dice, newId)
       const lines = getETResultLines(next.results, next.castResults, next.stayResults)

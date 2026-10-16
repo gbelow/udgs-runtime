@@ -2,9 +2,12 @@ import type { LivingLevel } from '../../lists'
 import type { Activity, Downtime, DowntimeUpdater, Plan, SkillRef, TrainingTarget } from '../types'
 import { BlockSchema, DECISIONS } from '../types'
 import { getActivity, getPlan, getTrainerRate, getTrainingLevel } from '../rules/downtime'
+import { getSequenceBar } from '../../campaign/rules/clock'
 
+// A change to the character's plan, made only while their party, if they
+// have one, is in downtime.
 const onPlan = (id: string, update: (plan: Plan, t: Downtime) => Plan): DowntimeUpdater =>
-  (t) => (t.campaign.characters[id]
+  (t) => (t.campaign.characters[id] && !getSequenceBar(t.campaign, t.campaign.partyOf[id], 'downtime')
     ? { ...t, downtime: { ...t.downtime, plans: { ...t.downtime.plans, [id]: update(getPlan(t, id), t) } } }
     : t)
 

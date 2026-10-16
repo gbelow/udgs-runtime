@@ -5,14 +5,14 @@ import { getNodeOptions, type MapOptions } from "../domain/campaign/projections/
 import type { At } from "../domain/campaign/types";
 import { getTimelineClash } from "../domain/campaign/rules/clock";
 import { getExplorationPanel, getPartiesDigest, getPartiesView, type ExplorationPanel, type PartiesView } from "../domain/exploration/projections/exploration";
-import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor } from "../domain/exploration/commands/exploration";
+import { drink as drinkFor, eat as eatFor, eatFood as eatFoodFor, passET as passClock, takeItem as takeItemFor, toDowntime } from "../domain/exploration/commands/exploration";
 import { addGroup as addGroupTo, decide as decideFor, joinGroup as joinGroupOf, planCast as planCastOf, removeGroup as removeGroupOf, setCast as setCastOf, setGroup as setGroupOf, setResting, setRoller as setRollerOf } from "../domain/exploration/commands/plans";
 import { mergeParties as mergeInto, setPartyExposure, setPartyLit, setPartyPlace } from "../domain/campaign/commands/parties";
 import { passTimeTo, placeOnTimeline, setDayETs, setPartyActive } from "../domain/campaign/commands/clock";
 import { returnFromFight, returnPartyFromFight, saveFightLog, sendPartyToFight, sendToFight } from "../domain/scene/commands/fight";
 import { getSaveLogBar } from "../domain/scene/rules/fight";
 import type { TableUpdater } from "../domain/scene/types";
-import { getGroupActor, getPassBar } from "../domain/exploration/rules/exploration";
+import { getGroupActor, getPassBar, getToDowntimeBar } from "../domain/exploration/rules/exploration";
 import type { Actor } from "../domain/profiles";
 import { getActiveCharacter } from "../domain/scene/rules/fighters";
 import { useCampaignStore, type CampaignStore } from "../stores/useCampaignStore";
@@ -57,6 +57,11 @@ export function useNodeOptions(): MapOptions[] {
 // Why the ET cannot pass now.
 export function usePassBar(): string | null {
   return useCampaignStore((s) => getPassBar(exploring(s)));
+}
+
+// Why the party cannot leave exploration for downtime now.
+export function useToDowntimeBar(partyId: string): string | null {
+  return useCampaignStore((s) => getToDowntimeBar(exploring(s), partyId));
 }
 
 // survival.tex "Exhaustion", "Rest", "Wear" — the plans for the coming ET
@@ -119,6 +124,7 @@ export function usePartyCommands() {
     setRoller: (partyId: string, groupId: string, roller: string) => asGroup(partyId, () => updateExploration(setRollerOf(partyId, groupId, roller))),
     decide: (id: string, decision: Decision) => as({ id }, () => updateExploration(decideFor(id, decision))),
     passET: () => asGm(() => updateExploration(passClock(realDice, newId))),
+    toDowntime: (partyId: string) => asGm(() => updateExploration(toDowntime(partyId))),
     // Whoever is sent to a scene is followed into it, and the last to come
     // back from it is followed back to exploring.
     partyToScene: (partyId: string) => asGm(() => { updateTable(sendPartyToFight(partyId)); setTab('scene'); }),

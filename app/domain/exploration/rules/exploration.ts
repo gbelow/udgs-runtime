@@ -9,8 +9,8 @@ import { getAwareness, getSTA } from '../../character/rules/characteristics'
 import { getWill } from '../../character/rules/skills'
 import { getKnowledge } from '../../character/rules/knowledge'
 import { hasAffliction, isDead } from '../../character/rules/afflictions'
-import { getClockOf, getDay, getPlayingParties, getTimeBar, isNight } from '../../campaign/rules/clock'
-import { getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, isSamePlace } from '../../campaign/rules/place'
+import { getClockOf, getDay, getPlayingParties, getSequenceBar, getTimeBar, isNight } from '../../campaign/rules/clock'
+import { getConnectionsFrom, getExposure, getPartyMembers, getPartyPlayers, getPlace, isOutsideSettlement, isPartyAway, isSamePlace } from '../../campaign/rules/place'
 import type { Actor } from '../../profiles'
 
 // survival.tex "Exploration Action (EA)": the four camp tasks are Prepare.
@@ -146,17 +146,32 @@ export function getGroupTest(state: CampaignState, partyId: string, group: Group
 // The forced resters whose group goes away, and who must be left behind,
 // stayed with or carried.
 export function getDecisionsCalled(t: Exploring): string[] {
-  return getPlayingParties(t.campaign).flatMap((partyId) =>
+  return getPlayingParties(t.campaign, 'exploration').flatMap((partyId) =>
     Object.values(getGroups(t, partyId)).filter((g) => isAway(g.kind)).flatMap((g) => g.members.filter((id) => isForced(t, id))))
 }
 
 // Why the character cannot change their plan or eat and drink now. The ET
-// loop runs on the roster; whoever is in a fight is not on it.
+// loop runs on the roster; whoever is in a fight is not on it, and a party
+// in downtime spends days, not ETs.
 export function getExplorationBar(state: CampaignState, id: string): string | null {
   const c = state.characters[id]
   if (!c) return 'not with the party'
   if (isDead(c)) return 'dead'
-  return null
+  return getSequenceBar(state, state.partyOf[id], 'exploration')
+}
+
+// Why the party cannot leave exploration for downtime now: it is not
+// exploring, an ET waits on the table, one of it is in a fight, or it is on
+// the map but not in a settlement (story.tex "Downtime": a town downtime can
+// be spent in).
+export function getToDowntimeBar(t: Exploring, partyId: string): string | null {
+  const party = t.campaign.parties[partyId]
+  if (!party) return 'no such party'
+  const bar = getSequenceBar(t.campaign, partyId, 'exploration')
+  if (bar) return bar
+  if (t.exploration.opening) return 'the ET under way must pass first'
+  if (isPartyAway(t.campaign, partyId)) return 'someone is in a fight'
+  return isOutsideSettlement(t.campaign, party) ? 'not in a settlement' : null
 }
 
 // Why the group cannot be gone on: "only one character rolls for it", and
@@ -185,9 +200,9 @@ export function getGroupActor(t: Exploring, partyId: string, settings: Partial<G
 // group needs its roller, and every forced rest whose group goes away needs a
 // decision.
 export function getPassBar(t: Exploring): string | null {
-  const bar = getTimeBar(t.campaign)
+  const bar = getTimeBar(t.campaign, 'exploration')
   if (bar) return bar
-  for (const partyId of getPlayingParties(t.campaign)) {
+  for (const partyId of getPlayingParties(t.campaign, 'exploration')) {
     for (const group of Object.values(getGroups(t, partyId))) {
       const bar = getGroupBar(t, partyId, group)
       if (bar) return bar

@@ -353,6 +353,7 @@ const campaignCases: Record<string, (t: Table) => unknown> = {
   placeOnTimeline: ({ campaign }) => campaignCommands.placeOnTimeline('p', 130)(campaign),
   passTimeTo: ({ campaign }) => campaignCommands.passTimeTo('p', 130)(campaign),
   setPartyActive: ({ campaign }) => campaignCommands.setPartyActive('p', false)(campaign),
+  setPartySequence: ({ campaign }) => campaignCommands.setPartySequence('p', 'downtime')(campaign),
   createParty: ({ campaign }) => campaignCommands.createParty('q', 'Q')(campaign),
   renameParty: ({ campaign }) => campaignCommands.renameParty('p', 'P')(campaign),
   moveToParty: ({ campaign }) => campaignCommands.moveToParty('a', 'q')(campaignCommands.createParty('q', 'Q')(campaign)),
@@ -388,6 +389,7 @@ const explorationCases: Record<string, (t: Exploring) => unknown> = {
   drink: ({ campaign }) => explorationCommands.drink('a')(campaign),
   takeItem: ({ campaign }) => explorationCommands.takeItem('a', 'vial')({ ...campaign, characters: { ...campaign.characters, a: { ...campaign.characters.a, held: [...campaign.characters.a.held, ItemSchema.parse({ id: 'vial', name: 'Simple Healing', type: 'medicine', amount: 2 })] } } }),
   passET: (t) => explorationCommands.passET(() => 0, () => 'q')({ ...t, exploration: { ...t.exploration, resting: ['a'] } }),
+  toDowntime: (t) => explorationCommands.toDowntime('p')(t),
 }
 
 // `a` and `b` holding each other, nothing open.
@@ -614,6 +616,7 @@ const downtimeCases: Record<string, (t: Downtime) => unknown> = {
   decideTraining: (t) => downtimeCommands.decideTraining('a', 'accepted')(t),
   dropBlock: (t) => downtimeCommands.dropBlock('a')(t),
   passDays: (t) => downtimeCommands.passDays(2, () => 5)(t),
+  toExploration: (t) => downtimeCommands.toExploration('p')(t),
 }
 
 describe('downtime commands are pure', () => {

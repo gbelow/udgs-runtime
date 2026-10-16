@@ -4,11 +4,11 @@ import type { Activity, DowntimeUpdater, TrainingTarget } from "../domain/downti
 import { DECISIONS } from "../domain/downtime/types";
 import { getDowntimeResultLines, getDowntimePanel, getSkillOptions, getTrainingOptions, type DowntimePanel, type SkillOption, type TrainingOption } from "../domain/downtime/projections/downtime";
 import { chooseActivity, chooseTraining, decideTraining, dropBlock, setBlock, setHoused, setLearningGain, setLiving } from "../domain/downtime/commands/plans";
-import { passDays } from "../domain/downtime/commands/downtime";
+import { passDays, toExploration } from "../domain/downtime/commands/downtime";
 import { useCampaignStore } from "../stores/useCampaignStore";
 import { useAppStore } from "../stores/useAppStore";
 import { realDice } from "../components/utils";
-import { getBlockActor } from "../domain/downtime/rules/downtime";
+import { getBlockActor, getToExplorationBar } from "../domain/downtime/rules/downtime";
 import type { Actor } from "../domain/profiles";
 import { useActGate } from "./useControl";
 
@@ -19,6 +19,11 @@ export function useDowntime(): DowntimePanel {
   const span = useAppStore((s) => s.downtimeSpan);
   const campaign = useCampaignStore((s) => s);
   return getDowntimePanel({ campaign, downtime: campaign.downtime }, span);
+}
+
+// Why the party cannot leave downtime to explore again.
+export function useToExplorationBar(partyId: string): string | null {
+  return useCampaignStore((s) => getToExplorationBar({ campaign: s, downtime: s.downtime }, partyId));
 }
 
 // The days typed for the coming stretch.
@@ -62,5 +67,6 @@ export function useDowntimeCommands() {
     decide: (id: string, decision: (typeof DECISIONS)[number]) => run(getBlockActor(id, { decision }), decideTraining(id, decision)),
     drop: (id: string) => run({ id }, dropBlock(id)),
     passDays: (days: number) => run("gm", passDays(days, realDice)),
+    toExploration: (partyId: string) => run("gm", toExploration(partyId)),
   };
 }

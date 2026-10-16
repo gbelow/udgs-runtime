@@ -1,6 +1,7 @@
 import type { CastPlan, Decision, ExplorationState, ExplorationUpdater, Group, GroupKind } from '../types'
 import { CastPlanSchema, GroupSchema } from '../types'
 import { getDecisionsCalled, getExplorationBar } from '../rules/exploration'
+import { getSequenceBar } from '../../campaign/rules/clock'
 import { getETCastBar, getETCastCount, getETCastTargets } from '../rules/casting'
 import { isSpellKey } from '../../spells'
 import { TREAT_COUNT, getETTreatBar, isETMedicine } from '../rules/medicine'
@@ -8,8 +9,12 @@ import { TREAT_COUNT, getETTreatBar, isETMedicine } from '../rules/medicine'
 const onExploration = (update: (e: ExplorationState) => ExplorationState): ExplorationUpdater =>
   (t) => ({ ...t, exploration: update(t.exploration) })
 
+// A change to the groups of a party, made only while it explores.
+const onGroups = (partyId: string, update: (e: ExplorationState) => ExplorationState): ExplorationUpdater =>
+  (t) => (getSequenceBar(t.campaign, partyId, 'exploration') ? t : onExploration(update)(t))
+
 const withGroup = (partyId: string, groupId: string, update: (g: Group) => Group): ExplorationUpdater =>
-  onExploration((e) => {
+  onGroups(partyId, (e) => {
     const group = e.groups[partyId]?.[groupId]
     return group ? { ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [groupId]: update(group) } } } : e
   })
@@ -24,12 +29,12 @@ function clearPlan(id: string, e: ExplorationState): ExplorationState {
 
 export function addGroup(partyId: string, kind: GroupKind, newId: () => string): ExplorationUpdater {
   return (t) => (t.campaign.parties[partyId]
-    ? onExploration((e) => ({ ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [newId()]: GroupSchema.parse({ kind }) } } }))(t)
+    ? onGroups(partyId, (e) => ({ ...e, groups: { ...e.groups, [partyId]: { ...e.groups[partyId], [newId()]: GroupSchema.parse({ kind }) } } }))(t)
     : t)
 }
 
 export function removeGroup(partyId: string, groupId: string): ExplorationUpdater {
-  return onExploration((e) => {
+  return onGroups(partyId, (e) => {
     if (!e.groups[partyId]) return e
     const { [groupId]: _gone, ...groups } = e.groups[partyId]
     return { ...e, groups: { ...e.groups, [partyId]: groups } }
