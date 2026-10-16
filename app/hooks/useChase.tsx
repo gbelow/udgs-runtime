@@ -1,5 +1,5 @@
 import { getChaseDigest, getChasePanel, type ChasePanel } from "../domain/scene/projections/chase";
-import { crossObstacle, declareChase, endChase as endTheChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, runOn, setChaseCover, setPartyFighting, startChase as beginChase, turnAround as turnAroundOf } from "../domain/scene/commands/chase";
+import { crossObstacle, declareChase, endChase as endTheChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase as beginChase, turnAround as turnAroundOf } from "../domain/scene/commands/chase";
 import { getChaseStartBar } from "../domain/scene/rules/chase";
 import type { ChaseDeclaration } from "../domain/scene/types";
 import type { ChaseCover, ChaseTier, CrossingSkill } from "../domain/lists";
@@ -25,7 +25,6 @@ export function useChaseCommands() {
     putBack: (partyId: string, target: string, tier: ChaseTier) => updateCombatState(putBack(partyId, target, tier)),
     giveUp: (partyId: string) => updateCombatState(giveUp(partyId)),
     mergeBack: (partyId: string) => updateCombatState(mergeBack(partyId)),
-    runOn: (partyId: string) => updateCombatState(runOn(partyId)),
     setFighting: (partyId: string, fighting: boolean) => updateCombatState(setPartyFighting(partyId, fighting)),
     join: (partyId: string, to: string) => updateCombatState(joinFight(partyId, to)),
     cross: (partyId: string, skill: CrossingSkill, DL: number) => updateCombatState(crossObstacle(partyId, skill, DL, realDice)),

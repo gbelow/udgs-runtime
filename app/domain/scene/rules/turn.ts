@@ -11,7 +11,7 @@ import { getHeldTurnBar } from './heldRoll'
 import { getStressEndBar, getStressRoundBar, getStressStartBar, getStressTurn } from './stress'
 import type { Dice } from '../../play/dice'
 import { getCunning } from '../../character/rules/skills'
-import { getRoutingTerms } from './chase'
+import { getChaseTurnBar, getRoutingTerms, isIdleInChase } from './chase'
 import { getRoundChangeBar } from './roundChange'
 import { sumTerms } from '../../character/rules/terms'
 
@@ -55,7 +55,7 @@ function getTurnlessReason(state: SceneState, id: string): string | null {
 export function getStartTurnBar(state: SceneState, id: string): string | null {
   if (!isCombatStarted(state)) return 'combat has not started'
   if (getTurnHolder(state) === id) return 'already in turn'
-  return getFightBusy(state) ?? getRoundChangeBar(state) ?? getTurnlessReason(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
+  return getFightBusy(state) ?? getRoundChangeBar(state) ?? getTurnlessReason(state, id) ?? getChaseTurnBar(state, id) ?? getMoraleTurnBar(state) ?? getHeldTurnBar(state) ?? getStressStartBar(state, id)
 }
 
 // What the fight is busy with, if anything: someone's turn, or an action
@@ -122,11 +122,12 @@ export function getSurgeTurnBar(state: SceneState, id: string, kind: SurgeKind):
 // combat.tex "End of the round": "A round ends when no one has AP left and
 // the remaining agree to end the round." Someone agrees by saying so, or
 // without saying anything once they have no AP left and no surge that
-// would give them more; the dead have nothing left to agree to.
+// would give them more, or nothing to do in a chase round; the dead have
+// nothing left to agree to.
 export function hasAgreedToEnd(state: SceneState, id: string): boolean {
   const c = state.characters[id]
   if (!c) return true
-  return state.agreedToEnd.includes(id) || isDead(c) || !hasAPLeft(c)
+  return state.agreedToEnd.includes(id) || isDead(c) || !hasAPLeft(c) || isIdleInChase(state, id)
 }
 
 // Why the round cannot be passed now, or null: a turn under way has to be

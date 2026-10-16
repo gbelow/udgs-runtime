@@ -31,7 +31,6 @@ export type ChasePartyRow = {
   status: string
   out: boolean
   fighting: boolean
-  separated: boolean
   chases: { name: string; tier: ChaseTier; enemy: boolean; frozen: boolean } | null
   chasedBy: string[]
   members: { id: string; name: string; turned: boolean }[]
@@ -99,7 +98,6 @@ function getStatus(state: SceneState, id: string): string {
   const chase = state.chase!
   if (chase.out.includes(id)) return 'out of the chase'
   if (chase.fighting.includes(id)) return 'caught, fighting'
-  if (chase.separated.includes(id)) return 'separated: run on or join the fight'
   if (chase.joining[id]) return `on the way to the fight of ${partyName(state, chase.joining[id])}`
   if (isDisconnected(state, id)) return 'disconnected: out when the round ends'
   if (isFrozen(state, id)) return 'keeping the distance at far range'
@@ -140,7 +138,6 @@ function buildRow(state: SceneState, id: string): ChasePartyRow {
     status: getStatus(state, id),
     out: chase.out.includes(id),
     fighting: chase.fighting.includes(id),
-    separated: chase.separated.includes(id),
     chases: link && { name: partyName(state, link.chases), tier: link.tier, enemy: isEnemyLink(state, id), frozen: isFrozen(state, id) },
     chasedBy: getChasers(state, id).map((p) => partyName(state, p)),
     members: getMembers(state, id).map((c) => ({ id: c.id, name: getFightName(state, c.id), turned: chase.turned.includes(c.id) })),

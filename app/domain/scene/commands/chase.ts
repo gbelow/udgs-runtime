@@ -62,9 +62,11 @@ function forEachMember(state: SceneState, partyId: string, update: (c: CampaignC
 // situation" — at far or horizon "the chase is over" for whoever hid; at
 // shooting range the team's hiders roll once ("Hiding at shooting
 // distances"): "On a stealth miss or graze, the pursuers find the lowest
-// stealth character and anyone that is with them", who are caught (the
-// table's ruling) while the rest stay where they hid, separated, until they
-// decide; "On a hit or crit, the pursuers follow some wrong track or give up".
+// stealth character and anyone that is with them", whose chasers close in a
+// tier — caught only once at combat range — and whose hiding place is lost;
+// the rest of the group stay chased and decide again next round (the table's
+// rulings); "On a hit or crit, the pursuers follow some wrong track or give
+// up".
 function hide(state: SceneState, dice: Dice): SceneState {
   const chase = state.chase!
   const hiders = getChaseParties(state).filter((p) => chase.declarations[p]?.move === 'hide' && getEnemyChasers(state, p).length > 0)
@@ -84,8 +86,8 @@ function hide(state: SceneState, dice: Dice): SceneState {
     const roll: ChaseRoll = { kind: 'hide', parties: group, found: hidden ? null : test.worst, roll: toRoll(result) }
     const logged = withChase(s, { rolls: [...s.chase!.rolls, roll] })
     if (hidden) return lose(logged, group)
-    const caught = catchParty(logged, test.worst)
-    return withChase(caught, { separated: [...caught.chase!.separated, ...group.filter((p) => p !== test.worst)] })
+    const links = Object.fromEntries(Object.entries(logged.chase!.links).map(([from, l]): [string, ChaseLink] => [from, l.chases === test.worst && isEnemyLink(logged, from) ? { ...l, tier: stepTier(l.tier, 'close') } : l]))
+    return withChase(logged, { links, features: dropKey(logged.chase!.features, test.worst) })
   }, away)
 }
 
@@ -94,7 +96,7 @@ function hide(state: SceneState, dice: Dice): SceneState {
 function catchParty(state: SceneState, partyId: string): SceneState {
   const chase = state.chase!
   const links = Object.fromEntries(Object.entries(chase.links).map(([from, l]): [string, ChaseLink] => [from, l.chases === partyId && isEnemyLink(state, from) ? { ...l, tier: 'combat' } : l]))
-  return withChase(state, { links, fighting: chase.fighting.includes(partyId) ? chase.fighting : [...chase.fighting, partyId], separated: without(chase.separated, partyId) })
+  return withChase(state, { links, fighting: chase.fighting.includes(partyId) ? chase.fighting : [...chase.fighting, partyId] })
 }
 
 // The way a run takes the distance between the two ends: where both want the
@@ -242,11 +244,6 @@ export function setPartyFighting(partyId: string, fighting: boolean): Updater {
   }
 }
 
-// The separated party decides to run on (the table's ruling).
-export function runOn(partyId: string): Updater {
-  return (state) => (state.chase?.separated.includes(partyId) ? withChase(state, { separated: without(state.chase.separated, partyId) }) : state)
-}
-
 // The party arrives at the fight: an enemy of the caught party chases it at
 // combat range; one of its team fights beside it.
 function arrive(state: SceneState, partyId: string, to: string): SceneState {
@@ -255,7 +252,6 @@ function arrive(state: SceneState, partyId: string, to: string): SceneState {
   return withChase(state, {
     links: { ...chase.links, [partyId]: { chases: to, tier: 'combat', run: null } },
     fighting: enemy || chase.fighting.includes(partyId) ? chase.fighting : [...chase.fighting, partyId],
-    separated: without(chase.separated, partyId),
     joining: dropKey(chase.joining, partyId),
   })
 }
@@ -267,7 +263,7 @@ export function joinFight(partyId: string, to: string): Updater {
   return (state) => {
     if (getJoinBar(state, partyId, to)) return state
     if (getPartyTierBetween(state, partyId, to) === 'combat') return arrive(state, partyId, to)
-    return withChase(state, { joining: { ...state.chase!.joining, [partyId]: to }, separated: without(state.chase!.separated, partyId) })
+    return withChase(state, { joining: { ...state.chase!.joining, [partyId]: to } })
   }
 }
 
@@ -279,7 +275,6 @@ function forget(chase: Chase, partyId: string): Chase {
     links: dropKey(chase.links, partyId),
     out: without(chase.out, partyId),
     fighting: without(chase.fighting, partyId),
-    separated: without(chase.separated, partyId),
     joining: dropKey(chase.joining, partyId),
     declarations: dropKey(chase.declarations, partyId),
     features: dropKey(chase.features, partyId),

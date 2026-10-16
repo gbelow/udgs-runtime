@@ -85,7 +85,7 @@ export function ChasePanel(){
 }
 
 function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
-  const { declare, follow, putBack, giveUp, mergeBack, runOn, setFighting, join, cross, turnAround } = useChaseCommands()
+  const { declare, follow, putBack, giveUp, mergeBack, setFighting, join, cross, turnAround } = useChaseCommands()
   const [scouting, setScouting] = useState(false)
   const [what, setWhat] = useState('')
   const [scoutDL, setScoutDL] = useState(10)
@@ -120,7 +120,6 @@ function PartyRow({ row: p, chase }: { row: ChasePartyRow; chase: Panel }){
         <Button size='xs' variant='ghost' aria-label={`${p.name} ${p.fighting ? 'runs again' : 'fights'}`} disabled={p.fightBar !== null} title={p.fightBar ?? undefined} onClick={() => setFighting(p.id, !p.fighting)}>{p.fighting ? 'run again' : 'fight'}</Button>
         {p.mergeBar !== null || p.chases && !p.chases.enemy ? <Button size='xs' variant='ghost' aria-label={`${p.name} merges back`} disabled={p.mergeBar !== null} title={p.mergeBar ?? undefined} onClick={() => mergeBack(p.id)}>merge back</Button> : null}
         {p.chases ? <Button size='xs' variant='ghost' aria-label={`${p.name} gives up`} disabled={p.giveUpBar !== null} title={p.giveUpBar ?? undefined} onClick={() => giveUp(p.id)}>give up</Button> : null}
-        {p.separated ? <Button size='xs' aria-label={`${p.name} runs on`} onClick={() => runOn(p.id)}>run on</Button> : null}
       </div>
       {
         p.declares ?

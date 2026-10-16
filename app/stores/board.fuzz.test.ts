@@ -18,12 +18,13 @@ import { rollMorale } from '../domain/scene/commands/morale'
 import { getConcentrationOwed, getContinueBar, getHoldOnBar, getLetGoBar, getRoundPhase } from '../domain/scene/rules/roundChange'
 import { ROLL_MODES } from '../domain/play/dice'
 import { rollHeld } from '../domain/scene/commands/heldTest'
-import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, runOn, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
+import { crossObstacle, declareChase, endChase, followParty, giveUp, joinFight, mergeBack, putBack, resolveChase, setChaseCover, setPartyFighting, startChase, turnAround } from '../domain/scene/commands/chase'
 import { createParty, moveToParty, splitOff } from '../domain/scene/commands/parties'
 import { getChasePanel } from '../domain/scene/projections/chase'
-import { getChaseStartBar } from '../domain/scene/rules/chase'
+import { getChaseStartBar, getDeclareOrder } from '../domain/scene/rules/chase'
+import { getNextRoundBar } from '../domain/scene/rules/turn'
 import { getHeldRows } from '../domain/scene/projections/heldTests'
-import { CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
+import { type ChaseTier, CHASE_COVERS, CHASE_TIERS, CROSSING_SKILLS, GRAPPLE_MANEUVERS, LIGHT_LEVELS, TERRAIN_BRUSHES } from '../domain/lists'
 import { SurgeKindSchema, type Character } from '../domain/types'
 import { archer, bomber, crossbowman, brawler, mage, medic, netter, serpent, spearman, torchbearer, towerWarden, trained, warden } from '../domain/bot/fixtures'
 import { openHarness, type Harness } from './boardHarness'
@@ -807,14 +808,13 @@ function chasePlays(): Play[] {
       run: (h, pick) => { const c = option(h, pick, (r) => r.joinOptions); if (c) refused(h, c.o.bar, () => h.press(joinFight(c.row.id, c.o.id)), `${c.row.name} joining ${c.o.name}`) },
     },
     {
-      name: 'give up, merge back, run on or fight',
+      name: 'give up, merge back or fight',
       run: (h, pick) => {
         if (!rows(h).length) return
         const row = pick(rows(h))
         pick([
           () => refused(h, row.giveUpBar, () => h.press(giveUp(row.id)), `${row.name} giving up`),
           () => refused(h, row.mergeBar, () => h.press(mergeBack(row.id)), `${row.name} merging back`),
-          () => h.press(runOn(row.id)),
           () => refused(h, row.fightBar, () => h.press(setPartyFighting(row.id, !row.fighting)), `${row.name} ${row.fighting ? 'running again' : 'fighting'}`),
         ])()
       },
@@ -831,6 +831,28 @@ function chasePlays(): Play[] {
       },
     },
     { name: 'end the chase', run: (h) => refused(h, panel(h).endBar, () => h.press(endChase), 'ending the chase') },
+    {
+      name: 'scout a hiding place, run to it and hide',
+      weight: 2,
+      run: (h, pick) => {
+        for (let round = 0; round < 6 && h.state().chase; round++) {
+          let hid = false
+          for (const p of getDeclareOrder(h.state())) {
+            const row = rows(h).find((r) => r.id === p)
+            const open = row?.moves.filter((m) => m.bar === null).map((m) => m.move) ?? []
+            if (!row || !open.length) continue
+            const scouting = !row.feature && row.scoutBar === null && open.includes('run')
+            const move = open.includes('hide') ? 'hide' : scouting ? 'run' : pick(open)
+            const scout = scouting ? { what: 'a hollow', DL: -20, obstacle: false } : null
+            hid ||= move === 'hide'
+            h.press(declareChase(p, { move, scout, hideModifier: 0 }))
+          }
+          refused(h, panel(h).resolveBar, () => h.press(resolveChase(h.dice)), 'resolving the round')
+          if (hid || getNextRoundBar(h.state())) return
+          passRoundChange(h, pick)
+        }
+      },
+    },
   ]
 }
 
@@ -839,6 +861,11 @@ function chasePlays(): Play[] {
 // out by the same reactions as on the board, with nothing to read distance,
 // reach or cover from but the chase.
 function playChase(seed: number) {
+  const { h, pick } = openChase(seed)
+  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h)], pick)
+}
+
+function openChase(seed: number, tier?: ChaseTier) {
   const rng = seededRng(seed)
   const pick: Picker = (from) => from[Math.floor(rng() * from.length)]
   const h = openHarness((explodes) => rollD10(explodes, rng))
@@ -846,10 +873,10 @@ function playChase(seed: number) {
   h.press(splitOff(h.idOf('Dee'), h.newId))
   const theirs = h.state().partyOf[h.idOf('Dee')]
   for (const name of ['Eve', 'Fay']) h.press(moveToParty(h.idOf(name), theirs))
-  h.press(startChase([h.state().partyOf[h.idOf('Ann')]], pick(['combat', 'shooting', 'far'] as const)))
+  h.press(startChase([h.state().partyOf[h.idOf('Ann')]], tier ?? pick(['combat', 'shooting', 'far'] as const)))
   passRoundChange(h, pick)
   h.select('Ann')
-  session(h, seed, 160, [...duelPlays(), ...chasePlays(), { name: 'exchange', weight: 10, run: exchange }, ...shelterPlay(h)], pick)
+  return { h, pick }
 }
 
 describe('a chase with no board', () => {
@@ -858,4 +885,25 @@ describe('a chase with no board', () => {
   // A flamethrower cast with no board opened a spray that waited for good on
   // a direction only a click on a board cell could give it.
   it('never leaves a spray waiting on a board that is not there (seed 9)', () => playChase(9))
+
+  // A runner could start a turn before the round's moves were declared and
+  // run, and the turn taken then barred declaring and resolving for good.
+  it('starts no turn before the chase round is resolved', () => {
+    const { h } = openChase(1)
+    const before = h.state()
+    h.startTurn()
+    expect(h.state()).toEqual(before)
+  })
+
+  // A round where everyone only ran waited on every runner to agree to end
+  // it, and let them start turns with nothing to do in them.
+  it('ends a round of running without anyone agreeing, and starts no turn in it', () => {
+    const { h } = openChase(1, 'shooting')
+    for (const p of getDeclareOrder(h.state())) h.press(declareChase(p, { move: 'run', scout: null, hideModifier: 0 }))
+    h.press(resolveChase(h.dice))
+    const before = h.state()
+    h.startTurn()
+    expect(h.state()).toEqual(before)
+    expect(getNextRoundBar(h.state())).toBeNull()
+  })
 })
